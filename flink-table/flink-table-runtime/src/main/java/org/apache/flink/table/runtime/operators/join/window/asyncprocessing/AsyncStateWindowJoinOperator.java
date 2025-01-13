@@ -24,6 +24,7 @@ import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.state.v2.StateIterator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateStreamOperator;
 import org.apache.flink.runtime.state.v2.ListStateDescriptor;
 import org.apache.flink.runtime.state.v2.internal.InternalListState;
@@ -201,21 +202,37 @@ public class AsyncStateWindowJoinOperator extends AsyncStateTableStreamOperator<
         StateFuture<StateIterator<RowData>> rightDataFuture = rightWindowState.asyncGet(window);
 
         // join left records and right records
-        AtomicReference<List<RowData>> leftDataRef = new AtomicReference<>(new ArrayList<>());
-        AtomicReference<List<RowData>> rightDataRef = new AtomicReference<>(new ArrayList<>());
+        AtomicReference<List<RowData>> leftDataRef = new AtomicReference<>();
+        AtomicReference<List<RowData>> rightDataRef = new AtomicReference<>();
         leftDataFuture.thenCombine(
                 rightDataFuture,
                 (leftDataIterator, rightDataIterator) -> {
-                    StateFuture<Void> leftLoadToMemFuture =
-                            leftDataIterator.onNext(
-                                    data -> {
-                                        leftDataRef.get().add(data);
-                                    });
-                    StateFuture<Void> rightLoadToMemFuture =
-                            rightDataIterator.onNext(
-                                    data -> {
-                                        rightDataRef.get().add(data);
-                                    });
+                    StateFuture<Void> leftLoadToMemFuture;
+                    if (leftDataIterator == null) {
+                        leftDataRef.set(null);
+                        leftLoadToMemFuture = StateFutureUtils.completedVoidFuture();
+                    } else {
+                        leftDataRef.set(new ArrayList<>());
+                        leftLoadToMemFuture =
+                                leftDataIterator.onNext(
+                                        data -> {
+                                            leftDataRef.get().add(data);
+                                        });
+                    }
+
+                    StateFuture<Void> rightLoadToMemFuture;
+                    if (rightDataIterator == null) {
+                        rightDataRef.set(null);
+                        rightLoadToMemFuture = StateFutureUtils.completedVoidFuture();
+                    } else {
+                        rightDataRef.set(new ArrayList<>());
+                        rightLoadToMemFuture =
+                                rightDataIterator.onNext(
+                                        data -> {
+                                            rightDataRef.get().add(data);
+                                        });
+                    }
+
                     return leftLoadToMemFuture.thenCombine(
                             rightLoadToMemFuture,
                             (VOID1, VOID2) -> {
