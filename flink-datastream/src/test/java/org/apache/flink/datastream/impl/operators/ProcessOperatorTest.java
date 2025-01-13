@@ -65,7 +65,7 @@ class ProcessOperatorTest {
                             public void processRecord(
                                     Integer record,
                                     Collector<String> output,
-                                    PartitionedContext ctx) {
+                                    PartitionedContext<String> ctx) {
                                 //  do nothing.
                             }
 

@@ -166,7 +166,8 @@ class StatefulDataStreamV2ITCase {
         }
 
         @Override
-        public void processRecord(Long record, Collector<String> output, PartitionedContext ctx)
+        public void processRecord(
+                Long record, Collector<String> output, PartitionedContext<String> ctx)
                 throws Exception {
             Optional<AggregatingState<Long, Long>> maybeState =
                     ctx.getStateManager().getState(stateDeclaration);
@@ -191,7 +192,8 @@ class StatefulDataStreamV2ITCase {
         }
 
         @Override
-        public void processRecord(Long record, Collector<String> output, PartitionedContext ctx)
+        public void processRecord(
+                Long record, Collector<String> output, PartitionedContext<String> ctx)
                 throws Exception {
             Optional<ReducingState<Long>> maybeState =
                     ctx.getStateManager().getState(stateDeclaration);
@@ -219,7 +221,8 @@ class StatefulDataStreamV2ITCase {
         }
 
         @Override
-        public void processRecord(Long record, Collector<String> output, PartitionedContext ctx)
+        public void processRecord(
+                Long record, Collector<String> output, PartitionedContext<String> ctx)
                 throws Exception {
             Optional<MapState<Long, Long>> maybeState =
                     ctx.getStateManager().getState(stateDeclaration);
@@ -247,7 +250,8 @@ class StatefulDataStreamV2ITCase {
         }
 
         @Override
-        public void processRecord(Long record, Collector<String> output, PartitionedContext ctx)
+        public void processRecord(
+                Long record, Collector<String> output, PartitionedContext<String> ctx)
                 throws Exception {
             Optional<ListState<Long>> maybeState = ctx.getStateManager().getState(stateDeclaration);
             if (!maybeState.isPresent()) {
@@ -279,7 +283,8 @@ class StatefulDataStreamV2ITCase {
         }
 
         @Override
-        public void processRecord(Long record, Collector<String> output, PartitionedContext ctx)
+        public void processRecord(
+                Long record, Collector<String> output, PartitionedContext<String> ctx)
                 throws Exception {
             Optional<ValueState<Long>> maybeState =
                     ctx.getStateManager().getState(stateDeclaration);
@@ -308,7 +313,8 @@ class StatefulDataStreamV2ITCase {
         }
 
         @Override
-        public void processRecord(String record, Collector<Object> output, PartitionedContext ctx)
+        public void processRecord(
+                String record, Collector<Object> output, PartitionedContext<Object> ctx)
                 throws Exception {
             if (!allValues.contains(record)) {
                 throw new FlinkRuntimeException("Record not found: " + record);

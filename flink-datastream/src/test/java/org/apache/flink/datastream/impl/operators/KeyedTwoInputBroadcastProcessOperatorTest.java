@@ -50,7 +50,7 @@ class KeyedTwoInputBroadcastProcessOperatorTest {
                             public void processRecordFromNonBroadcastInput(
                                     Integer record,
                                     Collector<Long> output,
-                                    PartitionedContext ctx) {
+                                    PartitionedContext<Long> ctx) {
                                 fromNonBroadcastInput.add(record);
                             }
 
@@ -89,7 +89,7 @@ class KeyedTwoInputBroadcastProcessOperatorTest {
                             public void processRecordFromNonBroadcastInput(
                                     Integer record,
                                     Collector<Long> output,
-                                    PartitionedContext ctx) {
+                                    PartitionedContext<Long> ctx) {
                                 //  do nothing.
                             }
 
@@ -161,7 +161,7 @@ class KeyedTwoInputBroadcastProcessOperatorTest {
                             public void processRecordFromNonBroadcastInput(
                                     Integer record,
                                     Collector<Long> output,
-                                    PartitionedContext ctx) {
+                                    PartitionedContext<Long> ctx) {
                                 output.collect(Long.valueOf(record));
                             }
 
