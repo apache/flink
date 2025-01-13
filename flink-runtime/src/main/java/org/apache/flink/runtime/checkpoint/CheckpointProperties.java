@@ -183,13 +183,13 @@ public class CheckpointProperties implements Serializable {
     }
 
     /**
-     * Returns whether the checkpoint properties describe an incremental checkpoint.
+     * Returns whether the checkpoint properties describe a full checkpoint.
      *
-     * @return <code>true</code> if the properties describes an incremental checkpoint, <code>false
+     * @return <code>true</code> if the properties describes a full checkpoint, <code>false
      *     </code> otherwise.
      */
-    public boolean isIncrementalCheckpoint() {
-        return checkpointType.isIncrementalCheckpoint();
+    public boolean isFull() {
+        return checkpointType.isFull();
     }
 
     /**
@@ -293,6 +293,39 @@ public class CheckpointProperties implements Serializable {
                     false, // Retain on suspension
                     false);
 
+    private static final CheckpointProperties FULL_CHECKPOINT_NEVER_RETAINED =
+            new CheckpointProperties(
+                    false,
+                    CheckpointType.FULL_CHECKPOINT,
+                    true,
+                    true, // Delete on success
+                    true, // Delete on cancellation
+                    true, // Delete on failure
+                    true, // Delete on suspension
+                    false);
+
+    private static final CheckpointProperties FULL_CHECKPOINT_RETAINED_ON_FAILURE =
+            new CheckpointProperties(
+                    false,
+                    CheckpointType.FULL_CHECKPOINT,
+                    true,
+                    true, // Delete on success
+                    true, // Delete on cancellation
+                    false, // Retain on failure
+                    true, // Delete on suspension
+                    false);
+
+    private static final CheckpointProperties FULL_CHECKPOINT_RETAINED_ON_CANCELLATION =
+            new CheckpointProperties(
+                    false,
+                    CheckpointType.FULL_CHECKPOINT,
+                    true,
+                    true, // Delete on success
+                    false, // Retain on cancellation
+                    false, // Retain on failure
+                    false, // Retain on suspension
+                    false);
+
     /**
      * Creates the checkpoint properties for a (manually triggered) savepoint.
      *
@@ -368,6 +401,29 @@ public class CheckpointProperties implements Serializable {
                 return CHECKPOINT_RETAINED_ON_FAILURE;
             case RETAIN_ON_CANCELLATION:
                 return CHECKPOINT_RETAINED_ON_CANCELLATION;
+            default:
+                throw new IllegalArgumentException("unknown policy: " + policy);
+        }
+    }
+
+    /**
+     * Creates the checkpoint properties for a full checkpoint.
+     *
+     * <p>Checkpoints may be queued in case too many other checkpoints are currently happening. They
+     * are garbage collected automatically, except when the owning job terminates in state {@link
+     * JobStatus#FAILED}. The user is required to configure the clean up behaviour on job
+     * cancellation.
+     *
+     * @return Checkpoint properties for an external full checkpoint.
+     */
+    public static CheckpointProperties forFullCheckpoint(CheckpointRetentionPolicy policy) {
+        switch (policy) {
+            case NEVER_RETAIN_AFTER_TERMINATION:
+                return FULL_CHECKPOINT_NEVER_RETAINED;
+            case RETAIN_ON_FAILURE:
+                return FULL_CHECKPOINT_RETAINED_ON_FAILURE;
+            case RETAIN_ON_CANCELLATION:
+                return FULL_CHECKPOINT_RETAINED_ON_CANCELLATION;
             default:
                 throw new IllegalArgumentException("unknown policy: " + policy);
         }

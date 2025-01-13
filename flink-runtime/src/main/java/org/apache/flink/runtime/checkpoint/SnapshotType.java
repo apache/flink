@@ -25,7 +25,7 @@ public interface SnapshotType extends Serializable {
 
     boolean isSavepoint();
 
-    boolean isIncrementalCheckpoint();
+    boolean isFull();
 
     String getName();
 

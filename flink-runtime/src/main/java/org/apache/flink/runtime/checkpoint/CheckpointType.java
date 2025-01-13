@@ -46,8 +46,8 @@ public final class CheckpointType implements SnapshotType {
         return false;
     }
 
-    public boolean isIncrementalCheckpoint() {
-        return this != FULL_CHECKPOINT;
+    public boolean isFull() {
+        return getSharingFilesStrategy() == SharingFilesStrategy.FORWARD;
     }
 
     public String getName() {

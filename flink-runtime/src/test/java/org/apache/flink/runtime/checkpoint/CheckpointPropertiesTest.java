@@ -87,11 +87,36 @@ class CheckpointPropertiesTest {
             CheckpointProperties props =
                     CheckpointProperties.forSavepoint(true, SavepointFormatType.CANONICAL);
             assertThat(props.isSavepoint()).isTrue();
+            assertThat(props.isFull()).isFalse();
 
             CheckpointProperties deserializedCheckpointProperties =
                     InstantiationUtil.deserializeObject(
                             InstantiationUtil.serializeObject(props), getClass().getClassLoader());
             assertThat(deserializedCheckpointProperties.isSavepoint()).isTrue();
+        }
+    }
+
+    @Test
+    void testIsFullCheckpoint() {
+        {
+            CheckpointProperties props =
+                    CheckpointProperties.forFullCheckpoint(
+                            CheckpointRetentionPolicy.RETAIN_ON_FAILURE);
+            assertThat(props.isFull()).isTrue();
+        }
+
+        {
+            CheckpointProperties props =
+                    CheckpointProperties.forFullCheckpoint(
+                            CheckpointRetentionPolicy.RETAIN_ON_CANCELLATION);
+            assertThat(props.isFull()).isTrue();
+        }
+
+        {
+            CheckpointProperties props =
+                    CheckpointProperties.forFullCheckpoint(
+                            CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION);
+            assertThat(props.isFull()).isTrue();
         }
     }
 }
