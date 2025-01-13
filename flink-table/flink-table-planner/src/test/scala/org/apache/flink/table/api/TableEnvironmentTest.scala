@@ -1632,12 +1632,6 @@ class TableEnvironmentTest {
   }
 
   @Test
-  def testLegacyModule(): Unit = {
-    tableEnv.executeSql("LOAD MODULE LegacyModule")
-    validateShowModules(("core", true), ("LegacyModule", true))
-  }
-
-  @Test
   def testExecuteSqlWithCreateDropView(): Unit = {
     createTableForTests()
 
