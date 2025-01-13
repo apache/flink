@@ -284,7 +284,9 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
             savepointPath =
                     jobClient
                             .stopWithSavepoint(
-                                    true, testEnv.getCheckpointUri(), SavepointFormatType.CANONICAL)
+                                    false,
+                                    testEnv.getCheckpointUri(),
+                                    SavepointFormatType.CANONICAL)
                             .get(30, TimeUnit.SECONDS);
             waitForJobStatus(jobClient, Collections.singletonList(JobStatus.FINISHED));
         } catch (Exception e) {
