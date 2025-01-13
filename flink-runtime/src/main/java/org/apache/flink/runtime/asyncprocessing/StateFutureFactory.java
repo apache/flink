@@ -28,12 +28,12 @@ import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandle
 public class StateFutureFactory<K> {
 
     private final AsyncExecutionController<K> asyncExecutionController;
-    private final BatchCallbackRunner callbackRunner;
+    private final CallbackRunnerWrapper callbackRunner;
     private final AsyncFrameworkExceptionHandler exceptionHandler;
 
     StateFutureFactory(
             AsyncExecutionController<K> asyncExecutionController,
-            BatchCallbackRunner callbackRunner,
+            CallbackRunnerWrapper callbackRunner,
             AsyncFrameworkExceptionHandler exceptionHandler) {
         this.asyncExecutionController = asyncExecutionController;
         this.callbackRunner = callbackRunner;
