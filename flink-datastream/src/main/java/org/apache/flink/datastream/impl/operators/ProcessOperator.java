@@ -30,6 +30,7 @@ import org.apache.flink.datastream.impl.context.DefaultNonPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultRuntimeContext;
 import org.apache.flink.datastream.impl.context.UnsupportedProcessingTimeManager;
+import org.apache.flink.datastream.impl.extension.eventtime.functions.ExtractEventTimeProcessFunction;
 import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateUdfStreamOperator;
 import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
@@ -98,6 +99,16 @@ public class ProcessOperator<IN, OUT>
         outputCollector = getOutputCollector();
         nonPartitionedContext = getNonPartitionedContext();
         partitionedContext.setNonPartitionedContext(nonPartitionedContext);
+
+        // Initialize event time extension related ProcessFunction
+        if (userFunction instanceof ExtractEventTimeProcessFunction) {
+            ((ExtractEventTimeProcessFunction<IN>) userFunction)
+                    .initEventTimeExtension(
+                            getExecutionConfig(),
+                            partitionedContext.getNonPartitionedContext().getWatermarkManager(),
+                            getProcessingTimeService());
+        }
+
         userFunction.open(nonPartitionedContext);
     }
 
@@ -140,6 +151,7 @@ public class ProcessOperator<IN, OUT>
         } else {
             return (r, k) -> {
                 Object oldKey = currentKey();
+                setCurrentKey(k);
                 try {
                     r.run();
                 } finally {
