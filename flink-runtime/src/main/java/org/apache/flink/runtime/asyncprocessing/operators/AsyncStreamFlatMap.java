@@ -19,9 +19,7 @@ package org.apache.flink.runtime.asyncprocessing.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationContext;
-import org.apache.flink.runtime.asyncprocessing.declare.DeclaredVariable;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -38,8 +36,6 @@ public class AsyncStreamFlatMap<IN, OUT>
 
     private transient DeclarationContext declarationContext;
 
-    private transient DeclaredVariable<Long> timestamp;
-
     private transient TimestampedCollectorWithDeclaredVariable<OUT> collector;
 
     public AsyncStreamFlatMap(FlatMapFunction<IN, OUT> flatMapper) {
@@ -50,12 +46,7 @@ public class AsyncStreamFlatMap<IN, OUT>
     public void open() throws Exception {
         super.open();
         declarationContext = new DeclarationContext(getDeclarationManager());
-        timestamp =
-                declarationContext.declareVariable(
-                        LongSerializer.INSTANCE,
-                        "_AsyncStreamFlatMap$timeStamp",
-                        () -> Long.MIN_VALUE);
-        collector = new TimestampedCollectorWithDeclaredVariable<>(output, timestamp);
+        collector = new TimestampedCollectorWithDeclaredVariable<>(output, declarationContext);
     }
 
     @Override
