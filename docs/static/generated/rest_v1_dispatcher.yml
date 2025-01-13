@@ -1994,13 +1994,6 @@ components:
         timezone-offset:
           type: integer
           format: int32
-    DistributedCacheFile:
-      type: object
-      properties:
-        entryName:
-          type: string
-        fileName:
-          type: string
     EnvironmentInfo:
       type: object
       properties:
@@ -2304,6 +2297,9 @@ components:
           format: int64
         name:
           type: string
+        pending-operators:
+          type: integer
+          format: int32
         start-time:
           type: integer
           format: int64
@@ -2337,6 +2333,9 @@ components:
         now:
           type: integer
           format: int64
+        pending-operators:
+          type: integer
+          format: int32
         plan:
           $ref: '#/components/schemas/RawJson'
         start-time:
@@ -2349,6 +2348,8 @@ components:
           additionalProperties:
             type: integer
             format: int32
+        stream-graph:
+          $ref: '#/components/schemas/RawJson'
         timestamps:
           type: object
           additionalProperties:
