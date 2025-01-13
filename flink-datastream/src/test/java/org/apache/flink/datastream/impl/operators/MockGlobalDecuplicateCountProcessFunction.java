@@ -47,7 +47,8 @@ public class MockGlobalDecuplicateCountProcessFunction
     }
 
     @Override
-    public void processRecord(Integer record, Collector<Integer> output, PartitionedContext ctx)
+    public void processRecord(
+            Integer record, Collector<Integer> output, PartitionedContext<Integer> ctx)
             throws Exception {
         Optional<BroadcastState<Integer, Integer>> stateOptional =
                 ctx.getStateManager().getState(broadcastStateDeclaration);

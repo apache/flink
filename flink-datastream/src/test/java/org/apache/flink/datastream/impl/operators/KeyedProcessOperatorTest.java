@@ -46,7 +46,7 @@ class KeyedProcessOperatorTest {
                             public void processRecord(
                                     Integer record,
                                     Collector<Integer> output,
-                                    PartitionedContext ctx) {
+                                    PartitionedContext<Integer> ctx) {
                                 output.collect(record + 1);
                             }
                         });
@@ -78,7 +78,7 @@ class KeyedProcessOperatorTest {
                             public void processRecord(
                                     Integer record,
                                     Collector<Integer> output,
-                                    PartitionedContext ctx) {
+                                    PartitionedContext<Integer> ctx) {
                                 // do nothing.
                             }
 
@@ -125,7 +125,7 @@ class KeyedProcessOperatorTest {
                             public void processRecord(
                                     Integer record,
                                     Collector<Integer> output,
-                                    PartitionedContext ctx) {
+                                    PartitionedContext<Integer> ctx) {
                                 // forward the record to check input key.
                                 output.collect(record);
                             }

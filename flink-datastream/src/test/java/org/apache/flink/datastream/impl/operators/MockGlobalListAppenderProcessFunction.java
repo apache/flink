@@ -62,7 +62,8 @@ public class MockGlobalListAppenderProcessFunction
     }
 
     @Override
-    public void processRecord(Integer record, Collector<Integer> output, PartitionedContext ctx)
+    public void processRecord(
+            Integer record, Collector<Integer> output, PartitionedContext<Integer> ctx)
             throws Exception {
         Optional<ListState<Integer>> stateOptional =
                 ctx.getStateManager().getState(listStateDeclaration);
