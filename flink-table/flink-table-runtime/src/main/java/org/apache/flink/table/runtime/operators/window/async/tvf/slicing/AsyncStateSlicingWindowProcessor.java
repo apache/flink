@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.window.asyncprocessing.tvf.slicing;
+package org.apache.flink.table.runtime.operators.window.async.tvf.slicing;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceSharedWindowAggProcessor;
-import org.apache.flink.table.runtime.operators.window.asyncprocessing.tvf.common.AsyncStateWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.async.tvf.common.AsyncStateWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAggOperator;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowProcessor;

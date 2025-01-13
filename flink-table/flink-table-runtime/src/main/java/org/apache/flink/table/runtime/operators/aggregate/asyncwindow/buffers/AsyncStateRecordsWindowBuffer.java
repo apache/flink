@@ -24,9 +24,9 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
-import org.apache.flink.table.runtime.operators.window.asyncprocessing.tvf.combines.AsyncStateRecordsCombiner;
-import org.apache.flink.table.runtime.operators.window.asyncprocessing.tvf.state.AsyncStateKeyContext;
-import org.apache.flink.table.runtime.operators.window.asyncprocessing.tvf.state.WindowAsyncState;
+import org.apache.flink.table.runtime.operators.window.async.tvf.combines.AsyncStateRecordsCombiner;
+import org.apache.flink.table.runtime.operators.window.async.tvf.state.AsyncStateKeyContext;
+import org.apache.flink.table.runtime.operators.window.async.tvf.state.WindowAsyncState;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
@@ -40,7 +40,9 @@ import javax.annotation.Nullable;
 
 import java.io.EOFException;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
 import static org.apache.flink.table.runtime.util.AsyncStateUtils.REUSABLE_VOID_STATE_FUTURE;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
@@ -49,16 +51,13 @@ import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
  * An implementation of {@link AsyncStateWindowBuffer} that buffers input elements in a {@link
  * WindowBytesMultiMap} and combines buffered elements into async state when flushing.
  */
-public class AsyncStateRecordsWindowBuffer implements AsyncStateWindowBuffer {
+public final class AsyncStateRecordsWindowBuffer implements AsyncStateWindowBuffer {
 
     private final AsyncStateRecordsCombiner combineFunction;
     private final WindowBytesMultiMap recordsBuffer;
     private final WindowKey reuseWindowKey;
     private final AbstractRowDataSerializer<RowData> recordSerializer;
     private final ZoneId shiftTimeZone;
-    // copy key and input record if necessary(e.g., heap state backend),
-    // because key and record are reused.
-    private final boolean requiresCopy;
     private final RecordEqualiser keyEqualiser;
     private final AsyncStateKeyContext keyContext;
 
@@ -73,7 +72,6 @@ public class AsyncStateRecordsWindowBuffer implements AsyncStateWindowBuffer {
             AbstractRowDataSerializer<RowData> inputSer,
             RecordEqualiser keyEqualiser,
             AsyncStateKeyContext keyContext,
-            boolean requiresCopy,
             ZoneId shiftTimeZone) {
         this.combineFunction = combineFunction;
         this.recordsBuffer =
@@ -83,7 +81,6 @@ public class AsyncStateRecordsWindowBuffer implements AsyncStateWindowBuffer {
         this.keyEqualiser = keyEqualiser;
         this.keyContext = keyContext;
         this.reuseWindowKey = new WindowKeySerializer(keySer).createInstance();
-        this.requiresCopy = requiresCopy;
         this.shiftTimeZone = shiftTimeZone;
     }
 
@@ -125,21 +122,21 @@ public class AsyncStateRecordsWindowBuffer implements AsyncStateWindowBuffer {
     public StateFuture<Void> flush(@Nullable RowData currentKey) throws Exception {
         StateFuture<Void> flushFuture = REUSABLE_VOID_STATE_FUTURE;
         if (recordsBuffer.getNumKeys() > 0) {
+            // due to the delayed processing of async requests, all objects cannot be reused, so
+            // they must be copied.
             KeyValueIterator<WindowKey, Iterator<RowData>> entryIterator =
-                    recordsBuffer.getEntryIterator(requiresCopy);
+                    recordsBuffer.getEntryIterator(true);
             while (entryIterator.advanceNext()) {
                 WindowKey windowKey = entryIterator.getKey();
+                long window = windowKey.getWindow();
+                List<RowData> allData = itertorToList(entryIterator.getValue());
                 if (currentKey != null && keyEqualiser.equals(currentKey, windowKey.getKey())) {
-                    flushFuture =
-                            combineFunction.asyncCombine(
-                                    windowKey.getWindow(), entryIterator.getValue());
+                    flushFuture = combineFunction.asyncCombine(window, allData.iterator());
                 } else {
                     // no need to wait for combining the records excluding current key
                     keyContext.asyncProcessWithKey(
                             windowKey.getKey(),
-                            () ->
-                                    combineFunction.asyncCombine(
-                                            windowKey.getWindow(), entryIterator.getValue()));
+                            () -> combineFunction.asyncCombine(window, allData.iterator()));
                 }
             }
             recordsBuffer.reset();
@@ -147,6 +144,20 @@ public class AsyncStateRecordsWindowBuffer implements AsyncStateWindowBuffer {
             minSliceEnd = Long.MAX_VALUE;
         }
         return flushFuture;
+    }
+
+    /**
+     * Convert iterator to list.
+     *
+     * <p>This may put some pressure on heap memory since the data in the iterator comes from
+     * managed memory. We can optimize this method once we come up with a better approach.
+     */
+    private List<RowData> itertorToList(Iterator<RowData> records) {
+        List<RowData> list = new ArrayList<>();
+        while (records.hasNext()) {
+            list.add(records.next());
+        }
+        return list;
     }
 
     @Override
@@ -198,7 +209,6 @@ public class AsyncStateRecordsWindowBuffer implements AsyncStateWindowBuffer {
             AsyncStateRecordsCombiner combiner =
                     factory.createRecordsCombiner(
                             runtimeContext, timerService, windowState, isEventTime);
-            boolean requiresCopy = !keyContext.getAsyncKeyedStateBackend().isSafeToReuseKVState();
             RecordEqualiser keyEqualiser =
                     generatedKeyEqualiser.newInstance(runtimeContext.getUserCodeClassLoader());
             return new AsyncStateRecordsWindowBuffer(
@@ -210,7 +220,6 @@ public class AsyncStateRecordsWindowBuffer implements AsyncStateWindowBuffer {
                     inputSer,
                     keyEqualiser,
                     keyContext,
-                    requiresCopy,
                     shiftTimeZone);
         }
     }

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.window.asyncprocessing.tvf.common;
+package org.apache.flink.table.runtime.operators.window.async.tvf.common;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -26,7 +26,7 @@ import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.operators.window.asyncprocessing.tvf.state.AsyncStateKeyContext;
+import org.apache.flink.table.runtime.operators.window.async.tvf.state.AsyncStateKeyContext;
 
 import javax.annotation.Nullable;
 

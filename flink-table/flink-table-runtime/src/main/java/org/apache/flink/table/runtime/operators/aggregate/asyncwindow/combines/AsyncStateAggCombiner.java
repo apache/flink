@@ -24,9 +24,9 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.dataview.UnsupportedStateDataViewStore;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
-import org.apache.flink.table.runtime.operators.window.asyncprocessing.tvf.combines.AsyncStateRecordsCombiner;
-import org.apache.flink.table.runtime.operators.window.asyncprocessing.tvf.state.WindowAsyncState;
-import org.apache.flink.table.runtime.operators.window.asyncprocessing.tvf.state.WindowAsyncValueState;
+import org.apache.flink.table.runtime.operators.window.async.tvf.combines.AsyncStateRecordsCombiner;
+import org.apache.flink.table.runtime.operators.window.async.tvf.state.WindowAsyncState;
+import org.apache.flink.table.runtime.operators.window.async.tvf.state.WindowAsyncValueState;
 import org.apache.flink.table.runtime.operators.window.tvf.combines.RecordsCombiner;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
 

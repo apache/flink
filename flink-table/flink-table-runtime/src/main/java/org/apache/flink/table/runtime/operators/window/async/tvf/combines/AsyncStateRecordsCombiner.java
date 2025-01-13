@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.window.asyncprocessing.tvf.combines;
+package org.apache.flink.table.runtime.operators.window.async.tvf.combines;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.operators.window.asyncprocessing.tvf.state.WindowAsyncState;
+import org.apache.flink.table.runtime.operators.window.async.tvf.state.WindowAsyncState;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
 
 import java.io.Serializable;

@@ -24,7 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.aggregate.asyncwindow.processors.AsyncStateSliceSharedWindowAggProcessor;
 import org.apache.flink.table.runtime.operators.window.MergeCallback;
-import org.apache.flink.table.runtime.operators.window.asyncprocessing.AsyncMergeCallback;
+import org.apache.flink.table.runtime.operators.window.async.AsyncMergeCallback;
 
 import java.util.Optional;
 import java.util.function.Function;

@@ -25,7 +25,7 @@ import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.aggregate.asyncwindow.buffers.AsyncStateWindowBuffer;
-import org.apache.flink.table.runtime.operators.window.asyncprocessing.AsyncMergeCallback;
+import org.apache.flink.table.runtime.operators.window.async.AsyncMergeCallback;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceSharedAssigner;
 
 import javax.annotation.Nullable;
@@ -195,8 +195,7 @@ public final class AsyncStateSliceSharedWindowAggProcessor
 
         @Override
         public StateFuture<Tuple2<RowData, RowData>> asyncMerge(
-                @Nullable Long mergeResult, Iterable<Long> toBeMerged, Long resultNamespace)
-                throws Exception {
+                @Nullable Long mergeResult, Iterable<Long> toBeMerged, Long resultNamespace) {
             this.mergeTarget = mergeResult;
             return REUSABLE_FUTURE_RESULT;
         }

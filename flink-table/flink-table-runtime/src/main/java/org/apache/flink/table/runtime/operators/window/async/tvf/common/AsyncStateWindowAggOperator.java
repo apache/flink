@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.window.asyncprocessing.tvf.common;
+package org.apache.flink.table.runtime.operators.window.async.tvf.common;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.v2.ListState;
@@ -43,8 +44,8 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.AsyncStateTableStreamOperator;
-import org.apache.flink.table.runtime.operators.window.asyncprocessing.tvf.state.AsyncStateKeyContext;
-import org.apache.flink.table.runtime.operators.window.tvf.common.WindowProcessor;
+import org.apache.flink.table.runtime.operators.window.async.tvf.state.AsyncStateKeyContext;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAggOperator;
 import org.apache.flink.table.runtime.util.AsyncStateUtils;
 
 import java.util.Collections;
@@ -52,8 +53,16 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** A processor that processes elements for windows with async state. */
-public class AsyncStateWindowAggOperator<K, W> extends AsyncStateTableStreamOperator<RowData>
+/**
+ * A processor that processes elements for windows with async state api.
+ *
+ * <p>Different with {@link WindowAggOperator}, this class mainly handles processing related to
+ * async state.
+ *
+ * <p>You can see more at {@link WindowAggOperator}.
+ */
+@Internal
+public final class AsyncStateWindowAggOperator<K, W> extends AsyncStateTableStreamOperator<RowData>
         implements OneInputStreamOperator<RowData, RowData>, Triggerable<K, W>, KeyContext {
 
     private static final long serialVersionUID = 1L;
@@ -241,10 +250,12 @@ public class AsyncStateWindowAggOperator<K, W> extends AsyncStateTableStreamOper
 
     @Override
     public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
+        super.prepareSnapshotPreBarrier(checkpointId);
         windowProcessor.prepareCheckpoint();
+        drainStateRequests();
     }
 
-    /** Context implementation for {@link WindowProcessor.Context}. */
+    /** Context implementation for {@link AsyncStateWindowProcessor.Context}. */
     private static final class WindowProcessorContext<W>
             implements AsyncStateWindowProcessor.Context<W> {
 

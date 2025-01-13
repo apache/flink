@@ -35,9 +35,9 @@ import org.apache.flink.table.runtime.operators.aggregate.window.processors.Slic
 import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceUnsharedWindowAggProcessor;
 import org.apache.flink.table.runtime.operators.aggregate.window.processors.UnsliceWindowAggProcessor;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
-import org.apache.flink.table.runtime.operators.window.asyncprocessing.tvf.common.AsyncStateWindowAggOperator;
-import org.apache.flink.table.runtime.operators.window.asyncprocessing.tvf.common.AsyncStateWindowProcessor;
-import org.apache.flink.table.runtime.operators.window.asyncprocessing.tvf.slicing.AsyncStateSlicingWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.async.tvf.common.AsyncStateWindowAggOperator;
+import org.apache.flink.table.runtime.operators.window.async.tvf.common.AsyncStateWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.async.tvf.slicing.AsyncStateSlicingWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.tvf.combines.RecordsCombiner;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAggOperator;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAssigner;

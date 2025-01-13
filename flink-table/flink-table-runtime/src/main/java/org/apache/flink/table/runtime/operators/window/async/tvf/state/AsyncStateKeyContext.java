@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.window.asyncprocessing.tvf.state;
+package org.apache.flink.table.runtime.operators.window.async.tvf.state;
 
 import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateStreamOperator;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;

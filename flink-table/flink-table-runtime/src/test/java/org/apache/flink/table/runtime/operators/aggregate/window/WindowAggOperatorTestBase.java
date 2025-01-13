@@ -32,7 +32,7 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.operators.window.asyncprocessing.tvf.common.AsyncStateWindowAggOperator;
+import org.apache.flink.table.runtime.operators.window.async.tvf.common.AsyncStateWindowAggOperator;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAggOperator;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAssigner;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;

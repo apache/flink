@@ -25,7 +25,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.runtime.operators.window.MergeCallback;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
-import org.apache.flink.table.runtime.operators.window.asyncprocessing.AsyncMergeCallback;
+import org.apache.flink.table.runtime.operators.window.async.AsyncMergeCallback;
 import org.apache.flink.table.runtime.operators.window.tvf.common.ClockService;
 import org.apache.flink.util.IterableIterator;
 import org.apache.flink.util.MathUtils;

@@ -24,8 +24,8 @@ import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
-import org.apache.flink.table.runtime.operators.window.asyncprocessing.tvf.state.AsyncStateKeyContext;
-import org.apache.flink.table.runtime.operators.window.asyncprocessing.tvf.state.WindowAsyncState;
+import org.apache.flink.table.runtime.operators.window.async.tvf.state.AsyncStateKeyContext;
+import org.apache.flink.table.runtime.operators.window.async.tvf.state.WindowAsyncState;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
 
 import javax.annotation.Nullable;
