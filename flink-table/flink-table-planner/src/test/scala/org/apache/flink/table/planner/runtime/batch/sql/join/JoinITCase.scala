@@ -22,8 +22,8 @@ import org.apache.flink.api.common.typeutils.TypeComparator
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.streaming.api.transformations.{LegacySinkTransformation, OneInputTransformation, TwoInputTransformation}
-import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.internal.StatementSetImpl
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.planner.delegation.PlannerBase
