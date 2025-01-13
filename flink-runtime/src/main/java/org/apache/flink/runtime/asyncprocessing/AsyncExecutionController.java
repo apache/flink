@@ -69,7 +69,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
     private final int batchSize;
 
     /** The runner for callbacks. Basically a wrapper of mailbox executor. */
-    private final BatchCallbackRunner callbackRunner;
+    private final CallbackRunnerWrapper callbackRunner;
 
     /**
      * The timeout of {@link StateRequestBuffer#activeQueue} triggering in milliseconds. If the
@@ -160,7 +160,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
         this.keyAccountingUnit = new KeyAccountingUnit<>(maxInFlightRecords);
         this.mailboxExecutor = mailboxExecutor;
         this.exceptionHandler = exceptionHandler;
-        this.callbackRunner = new BatchCallbackRunner(mailboxExecutor, this::notifyNewMail);
+        this.callbackRunner = new CallbackRunnerWrapper(mailboxExecutor, this::notifyNewMail);
         this.stateFutureFactory = new StateFutureFactory<>(this, callbackRunner, exceptionHandler);
 
         this.stateExecutor = stateExecutor;
