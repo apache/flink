@@ -31,24 +31,24 @@ import org.apache.flink.table.runtime.operators.aggregate.window.buffers.Records
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
 import org.apache.flink.table.runtime.operators.aggregate.window.combines.AggCombiner;
 import org.apache.flink.table.runtime.operators.aggregate.window.combines.GlobalAggCombiner;
-import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceSharedWindowAggProcessor;
-import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceUnsharedWindowAggProcessor;
-import org.apache.flink.table.runtime.operators.aggregate.window.processors.UnsliceWindowAggProcessor;
+import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceSharedSyncStateWindowAggProcessor;
+import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceUnsharedSyncStateWindowAggProcessor;
+import org.apache.flink.table.runtime.operators.aggregate.window.processors.UnsliceSyncStateWindowAggProcessor;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.operators.window.async.tvf.common.AsyncStateWindowAggOperator;
 import org.apache.flink.table.runtime.operators.window.async.tvf.common.AsyncStateWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.async.tvf.slicing.AsyncStateSlicingWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.tvf.combines.RecordsCombiner;
+import org.apache.flink.table.runtime.operators.window.tvf.common.SyncStateWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAggOperator;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAssigner;
-import org.apache.flink.table.runtime.operators.window.tvf.common.WindowProcessor;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigners.HoppingSliceAssigner;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceSharedAssigner;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceUnsharedAssigner;
-import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingSyncStateWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnsliceAssigner;
-import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnslicingWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnslicingSyncStateWindowProcessor;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.util.Preconditions;
@@ -60,7 +60,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The {@link WindowAggOperatorBuilder} is used to build a {@link WindowAggOperator} with {@link
- * SlicingWindowProcessor} or a {@link UnslicingWindowProcessor}.
+ * SlicingSyncStateWindowProcessor} or a {@link UnslicingSyncStateWindowProcessor}.
  *
  * <pre>
  * WindowAggOperatorBuilder.builder()
@@ -193,7 +193,7 @@ public class WindowAggOperatorBuilder {
     }
 
     private WindowAggOperator<RowData, ?> buildSyncStateOperator() {
-        final WindowProcessor<?> windowProcessor;
+        final SyncStateWindowProcessor<?> windowProcessor;
         if (assigner instanceof SliceAssigner) {
             windowProcessor = buildSlicingWindowProcessor();
         } else {
@@ -217,7 +217,7 @@ public class WindowAggOperatorBuilder {
     }
 
     @SuppressWarnings("unchecked")
-    private SlicingWindowProcessor<Long> buildSlicingWindowProcessor() {
+    private SlicingSyncStateWindowProcessor<Long> buildSlicingWindowProcessor() {
         final RecordsCombiner.Factory combinerFactory;
         if (isGlobalAgg()) {
             combinerFactory =
@@ -235,10 +235,10 @@ public class WindowAggOperatorBuilder {
         final WindowBuffer.Factory bufferFactory =
                 new RecordsWindowBuffer.Factory(keySerializer, inputSerializer, combinerFactory);
 
-        final SlicingWindowProcessor<Long> windowProcessor;
+        final SlicingSyncStateWindowProcessor<Long> windowProcessor;
         if (assigner instanceof SliceSharedAssigner) {
             windowProcessor =
-                    new SliceSharedWindowAggProcessor(
+                    new SliceSharedSyncStateWindowAggProcessor(
                             (GeneratedNamespaceAggsHandleFunction<Long>) generatedAggregateFunction,
                             bufferFactory,
                             (SliceSharedAssigner) assigner,
@@ -247,7 +247,7 @@ public class WindowAggOperatorBuilder {
                             shiftTimeZone);
         } else if (assigner instanceof SliceUnsharedAssigner) {
             windowProcessor =
-                    new SliceUnsharedWindowAggProcessor(
+                    new SliceUnsharedSyncStateWindowAggProcessor(
                             (GeneratedNamespaceAggsHandleFunction<Long>) generatedAggregateFunction,
                             bufferFactory,
                             (SliceUnsharedAssigner) assigner,
@@ -262,8 +262,8 @@ public class WindowAggOperatorBuilder {
     }
 
     @SuppressWarnings("unchecked")
-    private UnsliceWindowAggProcessor buildUnslicingWindowProcessor() {
-        return new UnsliceWindowAggProcessor(
+    private UnsliceSyncStateWindowAggProcessor buildUnslicingWindowProcessor() {
+        return new UnsliceSyncStateWindowAggProcessor(
                 (GeneratedNamespaceAggsHandleFunction<TimeWindow>) generatedAggregateFunction,
                 (UnsliceAssigner<TimeWindow>) assigner,
                 accSerializer,

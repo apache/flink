@@ -26,7 +26,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.aggregate.asyncwindow.buffers.AsyncStateWindowBuffer;
 import org.apache.flink.table.runtime.operators.window.MergeCallback;
-import org.apache.flink.table.runtime.operators.window.async.tvf.common.AsyncStateWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.async.tvf.slicing.AsyncStateSlicingWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
@@ -79,7 +78,7 @@ public abstract class AbstractAsyncStateSliceWindowAggProcessor
     }
 
     @Override
-    public void open(AsyncStateWindowProcessor.Context<Long> context) throws Exception {
+    public void open(AsyncStateContext<Long> context) throws Exception {
         super.open(context);
         this.windowBuffer =
                 windowBufferFactory.create(

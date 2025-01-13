@@ -19,11 +19,11 @@
 package org.apache.flink.table.runtime.operators.window.async.tvf.slicing;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceSharedWindowAggProcessor;
+import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceSharedSyncStateWindowAggProcessor;
 import org.apache.flink.table.runtime.operators.window.async.tvf.common.AsyncStateWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAggOperator;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
-import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingSyncStateWindowProcessor;
 
 /**
  * The {@link AsyncStateSlicingWindowProcessor} is an optimized processing for aligned windows which
@@ -45,13 +45,14 @@ import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindow
  * topk or others.
  *
  * <p>The {@link AsyncStateSlicingWindowProcessor} usually leverages the {@link SliceAssigner} to
- * assign slices and calculate based on the slices. See {@link SliceSharedWindowAggProcessor} as an
- * example.
+ * assign slices and calculate based on the slices. See {@link
+ * SliceSharedSyncStateWindowAggProcessor} as an example.
  *
  * <p>Note: since {@link AsyncStateSlicingWindowProcessor} leverages slicing optimization for
  * aligned windows, therefore, it doesn't support unaligned windows, e.g. session window.
  *
- * <p>Similar with {@link SlicingWindowProcessor}, this processor is used for async state api.
+ * <p>Similar with {@link SlicingSyncStateWindowProcessor}, this processor is used for async state
+ * api.
  *
  * <p>See more details in {@link WindowAggOperator}.
  */

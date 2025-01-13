@@ -118,7 +118,7 @@ public final class AsyncStateWindowAggOperator<K, W> extends AsyncStateTableStre
                         "window-timers", windowProcessor.createWindowSerializer(), this);
 
         windowProcessor.open(
-                new WindowProcessorContext<>(
+                new WindowProcessorAsyncStateContext<>(
                         getContainingTask(),
                         getContainingTask().getEnvironment().getMemoryManager(),
                         computeMemorySize(),
@@ -255,9 +255,9 @@ public final class AsyncStateWindowAggOperator<K, W> extends AsyncStateTableStre
         drainStateRequests();
     }
 
-    /** Context implementation for {@link AsyncStateWindowProcessor.Context}. */
-    private static final class WindowProcessorContext<W>
-            implements AsyncStateWindowProcessor.Context<W> {
+    /** Context implementation for {@link AsyncStateWindowProcessor.AsyncStateContext}. */
+    private static final class WindowProcessorAsyncStateContext<W>
+            implements AsyncStateWindowProcessor.AsyncStateContext<W> {
 
         private final Object operatorOwner;
         private final MemoryManager memoryManager;
@@ -267,7 +267,7 @@ public final class AsyncStateWindowAggOperator<K, W> extends AsyncStateTableStre
         private final Output<RowData> collector;
         private final RuntimeContext runtimeContext;
 
-        private WindowProcessorContext(
+        private WindowProcessorAsyncStateContext(
                 Object operatorOwner,
                 MemoryManager memoryManager,
                 long memorySize,

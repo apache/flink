@@ -23,42 +23,28 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.runtime.state.v2.internal.InternalValueState;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.dataview.UnsupportedStateDataViewStore;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
-import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
+import org.apache.flink.table.runtime.operators.aggregate.window.processors.WindowAggProcessorBase;
 import org.apache.flink.table.runtime.operators.window.async.tvf.common.AsyncStateWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.async.tvf.state.WindowAsyncValueState;
-import org.apache.flink.table.runtime.operators.window.tvf.common.ClockService;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAssigner;
-import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigners;
 
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.time.ZoneId;
-import java.util.TimeZone;
 import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** A base class for window aggregate processors with async state. */
 public abstract class AbstractAsyncStateWindowAggProcessor<W>
+        extends WindowAggProcessorBase<W, AsyncStateWindowProcessor.AsyncStateContext<W>>
         implements AsyncStateWindowProcessor<W> {
 
     private static final long serialVersionUID = 1L;
-
-    protected final GeneratedNamespaceAggsHandleFunction<W> genAggsHandler;
-
-    protected final TypeSerializer<RowData> accSerializer;
-
-    protected final boolean isEventTime;
-
-    protected final ZoneId shiftTimeZone;
-
-    /** The shift timezone is using DayLightSaving time or not. */
-    protected final boolean useDayLightSaving;
 
     protected final WindowIsEmptyChecker emptyChecker;
 
@@ -66,20 +52,8 @@ public abstract class AbstractAsyncStateWindowAggProcessor<W>
 
     // ----------------------------------------------------------------------------------------
 
-    protected transient long currentProgress;
-
-    protected transient AsyncStateWindowProcessor.Context<W> ctx;
-
-    protected transient ClockService clockService;
-
-    protected transient WindowTimerService<W> windowTimerService;
-
-    protected transient NamespaceAggsHandleFunction<W> aggregator;
-
     /** state schema: [key, window, accumulator]. */
     protected transient WindowAsyncValueState<W> windowState;
-
-    protected transient JoinedRowData reuseOutput;
 
     public AbstractAsyncStateWindowAggProcessor(
             GeneratedNamespaceAggsHandleFunction<W> genAggsHandler,
@@ -89,64 +63,31 @@ public abstract class AbstractAsyncStateWindowAggProcessor<W>
             int indexOfCountStar,
             ZoneId shiftTimeZone,
             W defaultWindow) {
-        this.genAggsHandler = genAggsHandler;
-        this.accSerializer = accSerializer;
-        this.isEventTime = isEventTime;
-        this.shiftTimeZone = shiftTimeZone;
-        this.useDayLightSaving = TimeZone.getTimeZone(shiftTimeZone).useDaylightTime();
+        super(genAggsHandler, accSerializer, isEventTime, shiftTimeZone);
         this.emptyChecker = new WindowIsEmptyChecker(indexOfCountStar, sliceAssigner);
         this.defaultWindow = defaultWindow;
     }
 
     @Override
-    public void open(AsyncStateWindowProcessor.Context<W> context) throws Exception {
-        this.ctx = context;
-        final TypeSerializer<W> namespaceSerializer = createWindowSerializer();
+    public void open(AsyncStateContext<W> context) throws Exception {
+        super.open(context);
+
         ValueState<RowData> state =
                 ctx.getAsyncKeyContext()
                         .getAsyncKeyedStateBackend()
                         .getOrCreateKeyedState(
                                 defaultWindow,
-                                namespaceSerializer,
+                                createWindowSerializer(),
                                 new ValueStateDescriptor<>("window-aggs", accSerializer));
         this.windowState =
                 new WindowAsyncValueState<>((InternalValueState<RowData, W, RowData>) state);
-        this.clockService = ClockService.of(ctx.getTimerService());
+    }
+
+    @Override
+    protected final void prepareAggregator() throws Exception {
         this.aggregator =
                 genAggsHandler.newInstance(ctx.getRuntimeContext().getUserCodeClassLoader());
         this.aggregator.open(new UnsupportedStateDataViewStore(ctx.getRuntimeContext()));
-        this.reuseOutput = new JoinedRowData();
-        this.currentProgress = Long.MIN_VALUE;
-        this.windowTimerService = getWindowTimerService();
-    }
-
-    protected abstract WindowTimerService<W> getWindowTimerService();
-
-    @Override
-    public void initializeWatermark(long watermark) {
-        if (isEventTime) {
-            currentProgress = watermark;
-        }
-    }
-
-    @Override
-    public void close() throws Exception {
-        if (aggregator != null) {
-            aggregator.close();
-        }
-    }
-
-    /**
-     * Send result to downstream.
-     *
-     * <p>The {@link org.apache.flink.types.RowKind} of the results is always {@link
-     * org.apache.flink.types.RowKind#INSERT}.
-     *
-     * <p>TODO support early fire / late file to produce changelog result.
-     */
-    protected void collect(RowData currentKey, RowData aggResult) {
-        reuseOutput.replace(currentKey, aggResult);
-        ctx.output(reuseOutput);
     }
 
     /** A checker that checks whether the window is empty. */

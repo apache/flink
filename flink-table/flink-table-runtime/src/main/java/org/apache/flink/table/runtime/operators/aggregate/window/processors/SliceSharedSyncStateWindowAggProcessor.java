@@ -35,14 +35,15 @@ import java.util.Optional;
  * A window aggregate processor implementation which works for {@link SliceSharedAssigner}, e.g.
  * hopping windows and cumulative windows.
  */
-public final class SliceSharedWindowAggProcessor extends AbstractSliceWindowAggProcessor
+public final class SliceSharedSyncStateWindowAggProcessor
+        extends AbstractSliceSyncStateWindowAggProcessor
         implements MergeCallback<Long, Iterable<Long>> {
     private static final long serialVersionUID = 1L;
 
     private final SliceSharedAssigner sliceSharedAssigner;
     private final SliceMergeTargetHelper mergeTargetHelper;
 
-    public SliceSharedWindowAggProcessor(
+    public SliceSharedSyncStateWindowAggProcessor(
             GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler,
             WindowBuffer.Factory bufferFactory,
             SliceSharedAssigner sliceAssigner,

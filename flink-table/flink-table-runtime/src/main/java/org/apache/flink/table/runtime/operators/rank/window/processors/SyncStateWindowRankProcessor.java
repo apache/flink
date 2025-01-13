@@ -31,7 +31,7 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
 import org.apache.flink.table.runtime.operators.rank.TopNBuffer;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
-import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingSyncStateWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowTimerServiceImpl;
 import org.apache.flink.table.runtime.operators.window.tvf.state.WindowMapState;
 import org.apache.flink.types.RowKind;
@@ -47,7 +47,7 @@ import java.util.Map;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
 
 /** A rowtime window rank processor. */
-public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
+public final class SyncStateWindowRankProcessor implements SlicingSyncStateWindowProcessor<Long> {
     private static final long serialVersionUID = 1L;
 
     private final GeneratedRecordComparator generatedSortKeyComparator;
@@ -69,7 +69,7 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
 
     private transient long currentProgress;
 
-    private transient Context<Long> ctx;
+    private transient SyncStateContext<Long> ctx;
 
     private transient WindowTimerService<Long> windowTimerService;
 
@@ -81,7 +81,7 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
     private transient JoinedRowData reuseOutput;
     private transient GenericRowData reuseRankRow;
 
-    public WindowRankProcessor(
+    public SyncStateWindowRankProcessor(
             TypeSerializer<RowData> inputSerializer,
             GeneratedRecordComparator genSortKeyComparator,
             TypeSerializer<RowData> sortKeySerializer,
@@ -103,7 +103,7 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
     }
 
     @Override
-    public void open(Context<Long> context) throws Exception {
+    public void open(SyncStateContext<Long> context) throws Exception {
         this.ctx = context;
 
         // compile comparator

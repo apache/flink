@@ -27,7 +27,7 @@ import org.apache.flink.table.runtime.operators.window.MergeCallback;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceSharedAssigner;
-import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingSyncStateWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowTimerServiceImpl;
 
 import java.time.ZoneId;
@@ -35,9 +35,10 @@ import java.time.ZoneId;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.getNextTriggerWatermark;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
 
-/** A base implementation of {@link SlicingWindowProcessor} for window aggregate. */
-public abstract class AbstractSliceWindowAggProcessor extends AbstractWindowAggProcessor<Long>
-        implements SlicingWindowProcessor<Long> {
+/** A base implementation of {@link SlicingSyncStateWindowProcessor} for window aggregate. */
+public abstract class AbstractSliceSyncStateWindowAggProcessor
+        extends AbstractSyncStateWindowAggProcessor<Long>
+        implements SlicingSyncStateWindowProcessor<Long> {
     protected final WindowBuffer.Factory windowBufferFactory;
     protected final SliceAssigner sliceAssigner;
     protected final long windowInterval;
@@ -49,7 +50,7 @@ public abstract class AbstractSliceWindowAggProcessor extends AbstractWindowAggP
 
     protected transient WindowBuffer windowBuffer;
 
-    public AbstractSliceWindowAggProcessor(
+    public AbstractSliceSyncStateWindowAggProcessor(
             GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler,
             WindowBuffer.Factory bufferFactory,
             SliceAssigner sliceAssigner,
@@ -69,7 +70,7 @@ public abstract class AbstractSliceWindowAggProcessor extends AbstractWindowAggP
     }
 
     @Override
-    public void open(Context<Long> context) throws Exception {
+    public void open(SyncStateContext<Long> context) throws Exception {
         super.open(context);
         this.windowBuffer =
                 windowBufferFactory.create(

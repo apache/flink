@@ -19,14 +19,14 @@
 package org.apache.flink.table.runtime.operators.window.tvf.slicing;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceSharedWindowAggProcessor;
+import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceSharedSyncStateWindowAggProcessor;
+import org.apache.flink.table.runtime.operators.window.tvf.common.SyncStateWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAggOperator;
-import org.apache.flink.table.runtime.operators.window.tvf.common.WindowProcessor;
 
 /**
- * The {@link SlicingWindowProcessor} is an optimized processing for aligned windows which can apply
- * the slicing optimization. The core idea of slicing optimization is to divide all elements from a
- * data stream into a finite number of non-overlapping chunks (a.k.a. slices).
+ * The {@link SlicingSyncStateWindowProcessor} is an optimized processing for aligned windows which
+ * can apply the slicing optimization. The core idea of slicing optimization is to divide all
+ * elements from a data stream into a finite number of non-overlapping chunks (a.k.a. slices).
  *
  * <h3>Concept of Slice</h3>
  *
@@ -39,17 +39,17 @@ import org.apache.flink.table.runtime.operators.window.tvf.common.WindowProcesso
  *   <li>A window is consist of a finite number of slices.
  * </ul>
  *
- * <p>The {@link SlicingWindowProcessor} have different implementation for aggregate and topk or
- * others.
+ * <p>The {@link SlicingSyncStateWindowProcessor} have different implementation for aggregate and
+ * topk or others.
  *
- * <p>The {@link SlicingWindowProcessor} usually leverages the {@link SliceAssigner} to assign
- * slices and calculate based on the slices. See {@link SliceSharedWindowAggProcessor} as an
- * example.
+ * <p>The {@link SlicingSyncStateWindowProcessor} usually leverages the {@link SliceAssigner} to
+ * assign slices and calculate based on the slices. See {@link
+ * SliceSharedSyncStateWindowAggProcessor} as an example.
  *
- * <p>Note: since {@link SlicingWindowProcessor} leverages slicing optimization for aligned windows,
- * therefore, it doesn't support unaligned windows, e.g. session window.
+ * <p>Note: since {@link SlicingSyncStateWindowProcessor} leverages slicing optimization for aligned
+ * windows, therefore, it doesn't support unaligned windows, e.g. session window.
  *
  * <p>See more details in {@link WindowAggOperator}.
  */
 @Internal
-public interface SlicingWindowProcessor<W> extends WindowProcessor<W> {}
+public interface SlicingSyncStateWindowProcessor<W> extends SyncStateWindowProcessor<W> {}

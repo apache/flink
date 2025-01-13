@@ -37,7 +37,7 @@ import org.apache.flink.table.runtime.operators.window.groupwindow.triggers.Proc
 import org.apache.flink.table.runtime.operators.window.groupwindow.triggers.Trigger;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
 import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnsliceAssigner;
-import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnslicingWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnslicingSyncStateWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnslicingWindowTimerServiceImpl;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.BiConsumerWithException;
@@ -53,8 +53,9 @@ import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsFor
  * An window aggregate processor implementation which works for {@link UnsliceAssigner}, e.g.
  * session windows.
  */
-public class UnsliceWindowAggProcessor extends AbstractWindowAggProcessor<TimeWindow>
-        implements UnslicingWindowProcessor<TimeWindow> {
+public class UnsliceSyncStateWindowAggProcessor
+        extends AbstractSyncStateWindowAggProcessor<TimeWindow>
+        implements UnslicingSyncStateWindowProcessor<TimeWindow> {
 
     private final UnsliceAssigner<TimeWindow> unsliceAssigner;
 
@@ -68,7 +69,7 @@ public class UnsliceWindowAggProcessor extends AbstractWindowAggProcessor<TimeWi
 
     private transient TriggerContextImpl triggerContext;
 
-    public UnsliceWindowAggProcessor(
+    public UnsliceSyncStateWindowAggProcessor(
             GeneratedNamespaceAggsHandleFunction<TimeWindow> genAggsHandler,
             UnsliceAssigner<TimeWindow> unsliceAssigner,
             TypeSerializer<RowData> accSerializer,
@@ -90,7 +91,7 @@ public class UnsliceWindowAggProcessor extends AbstractWindowAggProcessor<TimeWi
     }
 
     @Override
-    public void open(Context<TimeWindow> context) throws Exception {
+    public void open(SyncStateContext<TimeWindow> context) throws Exception {
         super.open(context);
         this.metrics = context.getRuntimeContext().getMetricGroup();
         this.windowFunction =
