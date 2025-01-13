@@ -601,7 +601,7 @@ This configuration:
 
 <span class="label label-danger">Attention</span> Compared to the interactive mode, SQL Client will stop execution and exits when there are errors.
 
-### Deploy SQL Files in an Application Cluster
+### Deploy SQL Files to an Application Cluster
 
 SQL Client also supports deploying a SQL script file to an Application Cluster with the `-f` option, if you specify the deployment target in the config.yaml or startup options.
 Here is an example to deploy script file in an Application Cluster.

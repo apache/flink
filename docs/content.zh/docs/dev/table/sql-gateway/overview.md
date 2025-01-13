@@ -116,12 +116,12 @@ $ curl --request GET http://localhost:8083/v1/sessions/${sessionHandle}/operatio
 
 结果中的 `nextResultUri` 不是null时，用于获取下一批结果。
 
-### Deploy Script
+### Deploying a Script
 
 SQL Gateway supports deploying a script in [Application Mode]({{< ref "docs/deployment/overview" >}}). In application mode, [JobManager]({{< ref "docs/concepts/flink-architecture" >}}#jobmanager) is responsible for compiling the script.
 If you want to use custom resources in the script, e.g. Kafka Source, please use [ADD JAR]({{< ref "docs/dev/table/sql/jar">}}) command to download the [required artifacts]({{< ref "docs/dev/configuration/connector" >}}#available-artifacts).
 
-Here is an example to deploy a script to Flink a native K8S Cluster with cluster id `CLUSTER_ID`.
+Here is an example for deploying a script to a Flink native K8S Cluster with cluster id `CLUSTER_ID`.
 
 ```bash
 $ curl --request POST http://localhost:8083/sessions/${SESSION_HANDLE}/scripts \
