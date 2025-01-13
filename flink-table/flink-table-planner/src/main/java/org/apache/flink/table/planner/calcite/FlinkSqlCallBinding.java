@@ -105,9 +105,10 @@ public class FlinkSqlCallBinding extends SqlCallBinding {
         for (SqlNode operand : super.operands()) {
             if (operand instanceof SqlCall
                     && ((SqlCall) operand).getOperator() == SqlStdOperatorTable.DEFAULT) {
-                rewrittenOperands.add(
-                        new SqlDefaultOperator(fixedArgumentTypes.get(rewrittenOperands.size()))
-                                .createCall(SqlParserPos.ZERO));
+                final RelDataType argumentType = fixedArgumentTypes.get(rewrittenOperands.size());
+                final SqlCall defaultArg =
+                        new SqlDefaultOperator(argumentType).createCall(SqlParserPos.ZERO);
+                rewrittenOperands.add(defaultArg);
             } else {
                 rewrittenOperands.add(operand);
             }

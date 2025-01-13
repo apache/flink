@@ -249,8 +249,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *   <li>Added in FLINK-32474: Lines 2499 ~ 2501
  *   <li>Added in FLINK-32474: Lines 2906 ~ 2918
  *   <li>Added in FLINK-32474: Lines 3019 ~ 3053
- *   <li>Added in FLINK-34312: Lines 5693 ~ 5696
- *   <li>Added in FLINK-34057, FLINK-34058, FLINK-34312: Lines 6144 ~ 6162
+ *   <li>Added in FLINK-34312: Lines 5804 ~ 5813
+ *   <li>Added in FLINK-34057, FLINK-34058, FLINK-34312: Lines 6263 ~ 66279
  * </ol>
  */
 @SuppressWarnings("UnstableApiUsage")
@@ -1203,7 +1203,7 @@ public class SqlToRelConverter {
                 if (!config.isExpand()) {
                     return;
                 }
-            // fall through
+                // fall through
             case MULTISET_VALUE_CONSTRUCTOR:
                 rel = convertMultisets(ImmutableList.of(subQuery.node), bb);
                 subQuery.expr = bb.register(rel, JoinRelType.INNER);
@@ -2113,9 +2113,9 @@ public class SqlToRelConverter {
         }
         if (node instanceof SqlCall) {
             switch (kind) {
-                // Do no change logic for AND, IN and NOT IN expressions;
-                // but do change logic for OR, NOT and others;
-                // EXISTS was handled already.
+                    // Do no change logic for AND, IN and NOT IN expressions;
+                    // but do change logic for OR, NOT and others;
+                    // EXISTS was handled already.
                 case AND:
                 case IN:
                 case NOT_IN:
@@ -2246,7 +2246,7 @@ public class SqlToRelConverter {
         switch (aggCall.getKind()) {
             case IGNORE_NULLS:
                 ignoreNulls = true;
-            // fall through
+                // fall through
             case RESPECT_NULLS:
                 aggCall = aggCall.operand(0);
                 break;
@@ -5536,7 +5536,7 @@ public class SqlToRelConverter {
                     if (config.isExpand()) {
                         throw new RuntimeException(kind + " is only supported if expand = false");
                     }
-                // fall through
+                    // fall through
                 case CURSOR:
                 case IN:
                 case NOT_IN:
@@ -5801,8 +5801,16 @@ public class SqlToRelConverter {
                 }
             }
             // ----- FLINK MODIFICATION BEGIN -----
-            return exprConverter.convertCall(
-                    this, new FlinkSqlCallBinding(validator(), scope, call).permutedCall());
+            final SqlCall permutedCall =
+                    new FlinkSqlCallBinding(validator(), scope, call).permutedCall();
+            final RelDataType typeIfKnown = validator().getValidatedNodeTypeIfKnown(call);
+            if (typeIfKnown != null) {
+                // Argument permutation should not affect the output type,
+                // reset it if it was known. Otherwise, the type inference would be called twice
+                // when converting to RexNode.
+                validator().setValidatedNodeType(permutedCall, typeIfKnown);
+            }
+            return exprConverter.convertCall(this, permutedCall);
             // ----- FLINK MODIFICATION END -----
         }
 
@@ -6158,7 +6166,7 @@ public class SqlToRelConverter {
                     return;
                 case IGNORE_NULLS:
                     ignoreNulls = true;
-                // fall through
+                    // fall through
                 case RESPECT_NULLS:
                     translateAgg(
                             call.operand(0),
@@ -6239,8 +6247,8 @@ public class SqlToRelConverter {
                                 call2, filter, distinctList, orderList, ignoreNulls, outerCall);
                         return;
                     }
-                // "ARRAY_AGG" and "ARRAY_CONCAT_AGG" without "ORDER BY"
-                // are handled normally; fall through.
+                    // "ARRAY_AGG" and "ARRAY_CONCAT_AGG" without "ORDER BY"
+                    // are handled normally; fall through.
 
                 default:
                     break;
