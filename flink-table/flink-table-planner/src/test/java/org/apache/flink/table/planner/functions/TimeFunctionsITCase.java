@@ -445,8 +445,9 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 LocalTime.of(11, 22, 33),
                                 LocalDate.of(1990, 10, 14),
                                 LocalDateTime.of(2020, 2, 29, 1, 56, 59, 987654321),
+                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 924325471),
                                 LocalDateTime.of(2021, 9, 24, 9, 20, 50, 999999471))
-                        .andDataTypes(TIME(), DATE(), TIMESTAMP(), TIMESTAMP(9))
+                        .andDataTypes(TIME(), DATE(), TIMESTAMP(), TIMESTAMP(9), TIMESTAMP(9))
                         .testResult(
                                 $("f0").ceil(TimeIntervalUnit.MILLISECOND),
                                 "CEIL(f0 TO MILLISECOND)",
@@ -589,34 +590,10 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 TIMESTAMP().nullable())
                         .testResult(
                                 $("f3").cast(TIMESTAMP_LTZ(9))
-                                        .ceil(TimeIntervalUnit.HOUR)
-                                        .cast(STRING()),
-                                "CAST(CEIL(CAST(f3 AS TIMESTAMP_LTZ(9)) TO HOUR) AS STRING)",
-                                LocalDateTime.of(2021, 9, 24, 10, 0, 0, 0)
-                                        .format(TIMESTAMP_FORMATTER),
-                                STRING().nullable())
-                        .testResult(
-                                $("f3").cast(TIMESTAMP_LTZ(9))
-                                        .ceil(TimeIntervalUnit.MINUTE)
-                                        .cast(STRING()),
-                                "CAST(CEIL(CAST(f3 AS TIMESTAMP_LTZ(9)) TO MINUTE) AS STRING)",
-                                LocalDateTime.of(2021, 9, 24, 9, 21, 0, 0)
-                                        .format(TIMESTAMP_FORMATTER),
-                                STRING().nullable())
-                        .testResult(
-                                $("f3").cast(TIMESTAMP_LTZ(9))
-                                        .ceil(TimeIntervalUnit.SECOND)
-                                        .cast(STRING()),
-                                "CAST(CEIL(CAST(f3 AS TIMESTAMP_LTZ(9)) TO SECOND) AS STRING)",
-                                LocalDateTime.of(2021, 9, 24, 9, 20, 51, 0)
-                                        .format(TIMESTAMP_FORMATTER),
-                                STRING().nullable())
-                        .testResult(
-                                $("f3").cast(TIMESTAMP_LTZ(9))
                                         .ceil(TimeIntervalUnit.MILLISECOND)
                                         .cast(STRING()),
                                 "CAST(CEIL(CAST(f3 AS TIMESTAMP_LTZ(9)) TO MILLISECOND) AS STRING)",
-                                LocalDateTime.of(2021, 9, 24, 9, 20, 51, 0)
+                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 925_000_000)
                                         .format(TIMESTAMP_FORMATTER),
                                 STRING().nullable())
                         .testResult(
@@ -624,7 +601,7 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                         .ceil(TimeIntervalUnit.MICROSECOND)
                                         .cast(STRING()),
                                 "CAST(CEIL(CAST(f3 AS TIMESTAMP_LTZ(9)) TO MICROSECOND) AS STRING)",
-                                LocalDateTime.of(2021, 9, 24, 9, 20, 51, 0)
+                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 924_326_000)
                                         .format(TIMESTAMP_FORMATTER),
                                 STRING().nullable())
                         .testResult(
@@ -632,6 +609,54 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                         .ceil(TimeIntervalUnit.NANOSECOND)
                                         .cast(STRING()),
                                 "CAST(CEIL(CAST(f3 AS TIMESTAMP_LTZ(9)) TO NANOSECOND) AS STRING)",
+                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 924_325_471)
+                                        .format(TIMESTAMP_FORMATTER),
+                                STRING().nullable())
+                        .testResult(
+                                $("f4").cast(TIMESTAMP_LTZ(9))
+                                        .ceil(TimeIntervalUnit.HOUR)
+                                        .cast(STRING()),
+                                "CAST(CEIL(CAST(f4 AS TIMESTAMP_LTZ(9)) TO HOUR) AS STRING)",
+                                LocalDateTime.of(2021, 9, 24, 10, 0, 0, 0)
+                                        .format(TIMESTAMP_FORMATTER),
+                                STRING().nullable())
+                        .testResult(
+                                $("f4").cast(TIMESTAMP_LTZ(9))
+                                        .ceil(TimeIntervalUnit.MINUTE)
+                                        .cast(STRING()),
+                                "CAST(CEIL(CAST(f4 AS TIMESTAMP_LTZ(9)) TO MINUTE) AS STRING)",
+                                LocalDateTime.of(2021, 9, 24, 9, 21, 0, 0)
+                                        .format(TIMESTAMP_FORMATTER),
+                                STRING().nullable())
+                        .testResult(
+                                $("f4").cast(TIMESTAMP_LTZ(9))
+                                        .ceil(TimeIntervalUnit.SECOND)
+                                        .cast(STRING()),
+                                "CAST(CEIL(CAST(f4 AS TIMESTAMP_LTZ(9)) TO SECOND) AS STRING)",
+                                LocalDateTime.of(2021, 9, 24, 9, 20, 51, 0)
+                                        .format(TIMESTAMP_FORMATTER),
+                                STRING().nullable())
+                        .testResult(
+                                $("f4").cast(TIMESTAMP_LTZ(9))
+                                        .ceil(TimeIntervalUnit.MILLISECOND)
+                                        .cast(STRING()),
+                                "CAST(CEIL(CAST(f4 AS TIMESTAMP_LTZ(9)) TO MILLISECOND) AS STRING)",
+                                LocalDateTime.of(2021, 9, 24, 9, 20, 51, 0)
+                                        .format(TIMESTAMP_FORMATTER),
+                                STRING().nullable())
+                        .testResult(
+                                $("f4").cast(TIMESTAMP_LTZ(9))
+                                        .ceil(TimeIntervalUnit.MICROSECOND)
+                                        .cast(STRING()),
+                                "CAST(CEIL(CAST(f4 AS TIMESTAMP_LTZ(9)) TO MICROSECOND) AS STRING)",
+                                LocalDateTime.of(2021, 9, 24, 9, 20, 51, 0)
+                                        .format(TIMESTAMP_FORMATTER),
+                                STRING().nullable())
+                        .testResult(
+                                $("f4").cast(TIMESTAMP_LTZ(9))
+                                        .ceil(TimeIntervalUnit.NANOSECOND)
+                                        .cast(STRING()),
+                                "CAST(CEIL(CAST(f4 AS TIMESTAMP_LTZ(9)) TO NANOSECOND) AS STRING)",
                                 LocalDateTime.of(2021, 9, 24, 9, 20, 50, 999_999_471)
                                         .format(TIMESTAMP_FORMATTER),
                                 STRING().nullable()));
@@ -646,8 +671,9 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 LocalTime.of(11, 22, 33),
                                 LocalDate.of(1990, 10, 14),
                                 LocalDateTime.of(2020, 2, 29, 1, 56, 59, 987654321),
+                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 924325471),
                                 LocalDateTime.of(2021, 9, 24, 9, 20, 50, 999999471))
-                        .andDataTypes(TIME(), DATE(), TIMESTAMP(), TIMESTAMP(9))
+                        .andDataTypes(TIME(), DATE(), TIMESTAMP(), TIMESTAMP(9), TIMESTAMP(9))
                         .testResult(
                                 $("f0").floor(TimeIntervalUnit.MILLISECOND),
                                 "FLOOR(f0 TO MILLISECOND)",
@@ -790,34 +816,10 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 TIMESTAMP().nullable())
                         .testResult(
                                 $("f3").cast(TIMESTAMP_LTZ(9))
-                                        .floor(TimeIntervalUnit.SECOND)
-                                        .cast(STRING()),
-                                "CAST(FLOOR(CAST(f3 AS TIMESTAMP_LTZ(9)) TO SECOND) AS STRING)",
-                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 0)
-                                        .format(TIMESTAMP_FORMATTER),
-                                STRING().nullable())
-                        .testResult(
-                                $("f3").cast(TIMESTAMP_LTZ(9))
-                                        .floor(TimeIntervalUnit.MINUTE)
-                                        .cast(STRING()),
-                                "CAST(FLOOR(CAST(f3 AS TIMESTAMP_LTZ(9)) TO MINUTE) AS STRING)",
-                                LocalDateTime.of(2021, 9, 24, 9, 20, 0, 0)
-                                        .format(TIMESTAMP_FORMATTER),
-                                STRING().nullable())
-                        .testResult(
-                                $("f3").cast(TIMESTAMP_LTZ(9))
-                                        .floor(TimeIntervalUnit.HOUR)
-                                        .cast(STRING()),
-                                "CAST(FLOOR(CAST(f3 AS TIMESTAMP_LTZ(9)) TO HOUR) AS STRING)",
-                                LocalDateTime.of(2021, 9, 24, 9, 0, 0, 0)
-                                        .format(TIMESTAMP_FORMATTER),
-                                STRING().nullable())
-                        .testResult(
-                                $("f3").cast(TIMESTAMP_LTZ(9))
                                         .floor(TimeIntervalUnit.MILLISECOND)
                                         .cast(STRING()),
                                 "CAST(FLOOR(CAST(f3 AS TIMESTAMP_LTZ(9)) TO MILLISECOND) AS STRING)",
-                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 999_000_000)
+                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 924_000_000)
                                         .format(TIMESTAMP_FORMATTER),
                                 STRING().nullable())
                         .testResult(
@@ -825,7 +827,7 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                         .floor(TimeIntervalUnit.MICROSECOND)
                                         .cast(STRING()),
                                 "CAST(FLOOR(CAST(f3 AS TIMESTAMP_LTZ(9)) TO MICROSECOND) AS STRING)",
-                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 999_999_000)
+                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 924_325_000)
                                         .format(TIMESTAMP_FORMATTER),
                                 STRING().nullable())
                         .testResult(
@@ -833,6 +835,54 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                         .floor(TimeIntervalUnit.NANOSECOND)
                                         .cast(STRING()),
                                 "CAST(FLOOR(CAST(f3 AS TIMESTAMP_LTZ(9)) TO NANOSECOND) AS STRING)",
+                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 924_325_471)
+                                        .format(TIMESTAMP_FORMATTER),
+                                STRING().nullable())
+                        .testResult(
+                                $("f4").cast(TIMESTAMP_LTZ(9))
+                                        .floor(TimeIntervalUnit.SECOND)
+                                        .cast(STRING()),
+                                "CAST(FLOOR(CAST(f4 AS TIMESTAMP_LTZ(9)) TO SECOND) AS STRING)",
+                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 0)
+                                        .format(TIMESTAMP_FORMATTER),
+                                STRING().nullable())
+                        .testResult(
+                                $("f4").cast(TIMESTAMP_LTZ(9))
+                                        .floor(TimeIntervalUnit.MINUTE)
+                                        .cast(STRING()),
+                                "CAST(FLOOR(CAST(f4 AS TIMESTAMP_LTZ(9)) TO MINUTE) AS STRING)",
+                                LocalDateTime.of(2021, 9, 24, 9, 20, 0, 0)
+                                        .format(TIMESTAMP_FORMATTER),
+                                STRING().nullable())
+                        .testResult(
+                                $("f4").cast(TIMESTAMP_LTZ(9))
+                                        .floor(TimeIntervalUnit.HOUR)
+                                        .cast(STRING()),
+                                "CAST(FLOOR(CAST(f4 AS TIMESTAMP_LTZ(9)) TO HOUR) AS STRING)",
+                                LocalDateTime.of(2021, 9, 24, 9, 0, 0, 0)
+                                        .format(TIMESTAMP_FORMATTER),
+                                STRING().nullable())
+                        .testResult(
+                                $("f4").cast(TIMESTAMP_LTZ(9))
+                                        .floor(TimeIntervalUnit.MILLISECOND)
+                                        .cast(STRING()),
+                                "CAST(FLOOR(CAST(f4 AS TIMESTAMP_LTZ(9)) TO MILLISECOND) AS STRING)",
+                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 999_000_000)
+                                        .format(TIMESTAMP_FORMATTER),
+                                STRING().nullable())
+                        .testResult(
+                                $("f4").cast(TIMESTAMP_LTZ(9))
+                                        .floor(TimeIntervalUnit.MICROSECOND)
+                                        .cast(STRING()),
+                                "CAST(FLOOR(CAST(f4 AS TIMESTAMP_LTZ(9)) TO MICROSECOND) AS STRING)",
+                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 999_999_000)
+                                        .format(TIMESTAMP_FORMATTER),
+                                STRING().nullable())
+                        .testResult(
+                                $("f4").cast(TIMESTAMP_LTZ(9))
+                                        .floor(TimeIntervalUnit.NANOSECOND)
+                                        .cast(STRING()),
+                                "CAST(FLOOR(CAST(f4 AS TIMESTAMP_LTZ(9)) TO NANOSECOND) AS STRING)",
                                 LocalDateTime.of(2021, 9, 24, 9, 20, 50, 999_999_471)
                                         .format(TIMESTAMP_FORMATTER),
                                 STRING().nullable()));
