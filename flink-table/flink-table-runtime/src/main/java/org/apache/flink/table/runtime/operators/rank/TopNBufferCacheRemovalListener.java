@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.operators.rank;
 
 import org.apache.flink.streaming.api.operators.KeyContext;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.util.function.ThrowingConsumer;
+import org.apache.flink.util.function.BiConsumerWithException;
 
 import org.apache.flink.shaded.guava32.com.google.common.cache.RemovalCause;
 import org.apache.flink.shaded.guava32.com.google.common.cache.RemovalListener;
@@ -34,10 +34,10 @@ import org.apache.flink.shaded.guava32.com.google.common.cache.RemovalNotificati
 public class TopNBufferCacheRemovalListener<V> implements RemovalListener<RowData, V> {
     // Why not use the executionContext? because the AbstractTopNFunction relies on the keyContext.
     private final KeyContext keyContext;
-    private final ThrowingConsumer<V, Exception> callBack;
+    private final BiConsumerWithException<RowData, V, Exception> callBack;
 
     public TopNBufferCacheRemovalListener(
-            KeyContext keyContext, ThrowingConsumer<V, Exception> callBack) {
+            KeyContext keyContext, BiConsumerWithException<RowData, V, Exception> callBack) {
         this.keyContext = keyContext;
         this.callBack = callBack;
     }
@@ -55,9 +55,8 @@ public class TopNBufferCacheRemovalListener<V> implements RemovalListener<RowDat
         if (partitionKey == null || value == null) {
             return;
         }
-        keyContext.setCurrentKey(partitionKey);
         try {
-            callBack.accept(value);
+            callBack.accept(partitionKey, value);
         } catch (Exception e) {
             throw new RuntimeException("Failed to execute callback", e);
         } finally {
