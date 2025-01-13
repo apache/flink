@@ -40,7 +40,6 @@ import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -300,6 +299,24 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
     @Override
     public <IN, OUT> InternalStateFuture<OUT> handleRequest(
             @Nullable State state, StateRequestType type, @Nullable IN payload) {
+        return handleRequest(state, type, payload, false);
+    }
+
+    /**
+     * Submit a {@link StateRequest} to this AsyncExecutionController and trigger it if needed.
+     *
+     * @param state the state to request. Could be {@code null} if the type is {@link
+     *     StateRequestType#SYNC_POINT}.
+     * @param type the type of this request.
+     * @param payload the payload input for this request.
+     * @param allowOverdraft whether to allow overdraft.
+     * @return the state future.
+     */
+    public <IN, OUT> InternalStateFuture<OUT> handleRequest(
+            @Nullable State state,
+            StateRequestType type,
+            @Nullable IN payload,
+            boolean allowOverdraft) {
         // Step 1: build state future & assign context.
         InternalStateFuture<OUT> stateFuture = stateFutureFactory.create(currentContext);
         StateRequest<K, ?, IN, OUT> request =
@@ -307,7 +324,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
 
         // Step 2: try to seize the capacity, if the current in-flight records exceeds the limit,
         // block the current state request from entering until some buffered requests are processed.
-        seizeCapacity();
+        seizeCapacity(allowOverdraft);
 
         // Step 3: try to occupy the key and place it into right buffer.
         if (tryOccupyKey(currentContext)) {
@@ -377,7 +394,13 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
         stateRequestsBuffer.advanceSeq();
     }
 
-    private void seizeCapacity() {
+    /**
+     * Seize capacity from the in-flight request limit. Will drain if reach the limit.
+     *
+     * @param allowOverdraft whether to allow overdraft. If true, it won't drain the in-flight
+     *     requests even though it reaches the limit.
+     */
+    private void seizeCapacity(boolean allowOverdraft) {
         // 1. Check if the record is already in buffer. If yes, this indicates that it is a state
         // request resulting from a callback statement, otherwise, it signifies the initial state
         // request for a newly entered record.
@@ -388,14 +411,13 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
         // 2. If the state request is for a newly entered record, the in-flight record number should
         // be less than the max in-flight record number.
         // Note: the currentContext may be updated by {@code StateFutureFactory#build}.
-        if (currentContext.getRecord() != RecordContext.EMPTY_RECORD) {
-            // We only drain the records when there is a real record or timer assigned.
-            // Typically, if it is an empty record, this is a derived request by another request (by
-            // initializing a process directly via #asyncProcessWithKey), meaning that we are in
-            // middle of another processing and creating a new one here. If we block here, there
-            // might be a deadlock (current processing waiting here to drain while draining the
-            // current processing).
-            // There probably cause the number of records actually run to be greater than the limit.
+        if (!allowOverdraft) {
+            // We allow a derived request by another request (by initializing a process directly via
+            // #asyncProcessWithKey, or timer triggering right after a record processing), meaning
+            // that we are in middle of another processing and creating a new one here. If we block
+            // here, there might be a deadlock (current processing waiting here to drain the current
+            // processing, this is a rare case when all the records share the same key).
+            // This probably cause the number of records actually run to be greater than the limit.
             // But overall it is under-control since there should not be many derived requests
             // within each request.
             drainInflightRecords(maxInFlightRecordNum);
@@ -410,9 +432,11 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
      * (once the record is not blocked).
      *
      * @param callback the callback to run if it finishes (once the record is not blocked).
+     * @param allowOverdraft whether to overdraft the in-flight buffer.
      */
-    public StateFuture<Void> syncPointRequestWithCallback(ThrowingRunnable<Exception> callback) {
-        return handleRequest(null, StateRequestType.SYNC_POINT, null)
+    public StateFuture<Void> syncPointRequestWithCallback(
+            ThrowingRunnable<Exception> callback, boolean allowOverdraft) {
+        return handleRequest(null, StateRequestType.SYNC_POINT, null, allowOverdraft)
                 .thenAccept(v -> callback.run());
     }
 
@@ -437,14 +461,6 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
         } catch (InterruptedException ignored) {
             // ignore the interrupted exception to avoid throwing fatal error when the task cancel
             // or exit.
-        }
-    }
-
-    /** A helper function to drain in-flight requests emitted by timer. */
-    public void drainWithTimerIfNeeded(CompletableFuture<Void> timerFuture) {
-        if (epochParallelMode == ParallelMode.SERIAL_BETWEEN_EPOCH) {
-            drainInflightRecords(0);
-            Preconditions.checkState(timerFuture.isDone());
         }
     }
 
