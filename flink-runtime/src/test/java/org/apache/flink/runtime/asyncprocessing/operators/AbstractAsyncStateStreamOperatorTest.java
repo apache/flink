@@ -21,6 +21,7 @@ package org.apache.flink.runtime.asyncprocessing.operators;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -47,8 +48,10 @@ import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.LinkedList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.runtime.state.StateBackendTestUtils.buildAsyncStateBackend;
@@ -186,6 +189,45 @@ public class AbstractAsyncStateStreamOperatorTest {
             // We don't have the mailbox executor actually running, so the new context is blocked
             // and never triggered.
             assertThat(testOperator.getProcessed()).isEqualTo(1);
+        } finally {
+            testHarness.close();
+        }
+    }
+
+    @Test
+    void testManyAsyncProcessWithKey() throws Exception {
+        // This test is for verifying AsyncExecutionController could avoid deadlock for derived
+        // processing requests.
+        int requests = ExecutionOptions.ASYNC_INFLIGHT_RECORDS_LIMIT.defaultValue() + 1;
+        TestOperatorWithMultipleDirectAsyncProcess testOperator =
+                new TestOperatorWithMultipleDirectAsyncProcess(ElementOrder.RECORD_ORDER, requests);
+        AsyncKeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
+                testHarness =
+                        AsyncKeyedOneInputStreamOperatorTestHarness.create(
+                                testOperator,
+                                new TestKeySelector(),
+                                BasicTypeInfo.INT_TYPE_INFO,
+                                128,
+                                1,
+                                0);
+        testHarness.setStateBackend(buildAsyncStateBackend(new HashMapStateBackend()));
+        try {
+            testHarness.open();
+
+            // Repeat twice
+            testHarness.processElementInternal(new StreamRecord<>(Tuple2.of(5, "5")));
+            CompletableFuture<Void> future =
+                    testHarness.processElementInternal(new StreamRecord<>(Tuple2.of(5, "5")));
+
+            testHarness.drainStateRequests();
+            // If the AEC could avoid deadlock, there should not be any timeout exception.
+            future.get(10000, TimeUnit.MILLISECONDS);
+            testOperator.getLastProcessedFuture().get(10000, TimeUnit.MILLISECONDS);
+
+            assertThat(testOperator.getProcessed()).isEqualTo(requests * 2);
+            // This ensures the order is correct according to the priority in AEC.
+            assertThat(testOperator.getProcessedOrders())
+                    .isEqualTo(testOperator.getExpectedProcessedOrders());
         } finally {
             testHarness.close();
         }
@@ -531,6 +573,58 @@ public class AbstractAsyncStateStreamOperatorTest {
                 objectToWait.wait();
             }
             processed.incrementAndGet();
+        }
+    }
+
+    private static class TestOperatorWithMultipleDirectAsyncProcess extends TestOperator {
+
+        private final int numAsyncProcesses;
+        private final CompletableFuture<Void> lastProcessedFuture = new CompletableFuture<>();
+        private final LinkedList<Integer> processedOrders = new LinkedList<>();
+        private final LinkedList<Integer> expectedProcessedOrders = new LinkedList<>();
+
+        TestOperatorWithMultipleDirectAsyncProcess(
+                ElementOrder elementOrder, int numAsyncProcesses) {
+            super(elementOrder);
+            this.numAsyncProcesses = numAsyncProcesses;
+        }
+
+        @Override
+        public void processElement(StreamRecord<Tuple2<Integer, String>> element) throws Exception {
+            for (int i = 0; i < numAsyncProcesses; i++) {
+                final int finalI = i;
+                if (i < numAsyncProcesses - 1) {
+                    asyncProcessWithKey(
+                            element.getValue().f0,
+                            () -> {
+                                processed.incrementAndGet();
+                                processedOrders.add(finalI);
+                            });
+                } else {
+                    asyncProcessWithKey(
+                            element.getValue().f0,
+                            () -> {
+                                processed.incrementAndGet();
+                                processedOrders.add(finalI);
+                                if (!lastProcessedFuture.isDone()) {
+                                    lastProcessedFuture.complete(null);
+                                }
+                            });
+                }
+                expectedProcessedOrders.add(finalI);
+            }
+        }
+
+        CompletableFuture<Void> getLastProcessedFuture() {
+            return lastProcessedFuture;
+        }
+
+        LinkedList<Integer> getProcessedOrders() {
+            return processedOrders;
+        }
+
+        LinkedList<Integer> getExpectedProcessedOrders() {
+            return expectedProcessedOrders;
         }
     }
 

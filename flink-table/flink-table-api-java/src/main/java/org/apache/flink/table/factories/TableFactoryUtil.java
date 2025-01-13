@@ -23,7 +23,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -39,12 +38,9 @@ import org.apache.flink.table.legacy.factories.TableSourceFactory;
 import org.apache.flink.table.legacy.sinks.TableSink;
 import org.apache.flink.table.legacy.sources.TableSource;
 
-import javax.annotation.Nullable;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 /** Utility for dealing with {@link TableFactory} using the {@link TableFactoryService}. */
@@ -70,7 +66,6 @@ public class TableFactoryUtil {
      */
     @SuppressWarnings("unchecked")
     public static <T> TableSource<T> findAndCreateTableSource(
-            @Nullable Catalog catalog,
             ObjectIdentifier objectIdentifier,
             CatalogTable catalogTable,
             ReadableConfig configuration,
@@ -78,20 +73,7 @@ public class TableFactoryUtil {
         TableSourceFactory.Context context =
                 new TableSourceFactoryContextImpl(
                         objectIdentifier, catalogTable, configuration, isTemporary);
-        Optional<TableFactory> factoryOptional =
-                catalog == null ? Optional.empty() : catalog.getTableFactory();
-        if (factoryOptional.isPresent()) {
-            TableFactory factory = factoryOptional.get();
-            if (factory instanceof TableSourceFactory) {
-                return ((TableSourceFactory<T>) factory).createTableSource(context);
-            } else {
-                throw new ValidationException(
-                        "Cannot query a sink-only table. "
-                                + "TableFactory provided by catalog must implement TableSourceFactory");
-            }
-        } else {
-            return findAndCreateTableSource(context);
-        }
+        return findAndCreateTableSource(context);
     }
 
     /** Returns a table sink matching the context. */
@@ -113,7 +95,6 @@ public class TableFactoryUtil {
      */
     @SuppressWarnings("unchecked")
     public static <T> TableSink<T> findAndCreateTableSink(
-            @Nullable Catalog catalog,
             ObjectIdentifier objectIdentifier,
             CatalogTable catalogTable,
             ReadableConfig configuration,
@@ -126,30 +107,11 @@ public class TableFactoryUtil {
                         configuration,
                         !isStreamingMode,
                         isTemporary);
-        if (catalog == null) {
-            return findAndCreateTableSink(context);
-        } else {
-            return createTableSinkForCatalogTable(catalog, context)
-                    .orElseGet(() -> findAndCreateTableSink(context));
-        }
-    }
-
-    /**
-     * Creates a table sink for a {@link CatalogTable} using table factory associated with the
-     * catalog.
-     */
-    public static Optional<TableSink> createTableSinkForCatalogTable(
-            Catalog catalog, TableSinkFactory.Context context) {
-        TableFactory tableFactory = catalog.getTableFactory().orElse(null);
-        if (tableFactory instanceof TableSinkFactory) {
-            return Optional.ofNullable(((TableSinkFactory) tableFactory).createTableSink(context));
-        }
-        return Optional.empty();
+        return findAndCreateTableSink(context);
     }
 
     /** Checks whether the {@link CatalogTable} uses legacy connector sink options. */
     public static boolean isLegacyConnectorOptions(
-            @Nullable Catalog catalog,
             ReadableConfig configuration,
             boolean isStreamingMode,
             ObjectIdentifier objectIdentifier,
@@ -165,7 +127,6 @@ public class TableFactoryUtil {
                 // try to create legacy table source using the options,
                 // some legacy factories may use the 'type' key
                 TableFactoryUtil.findAndCreateTableSink(
-                        catalog,
                         objectIdentifier,
                         catalogTable,
                         configuration,

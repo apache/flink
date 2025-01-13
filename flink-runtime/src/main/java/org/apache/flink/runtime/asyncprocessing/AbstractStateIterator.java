@@ -23,12 +23,14 @@ import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.state.v2.StateIterator;
 import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.core.state.StateFutureUtils;
+import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 /**
  * A {@link StateIterator} implementation to facilitate async data load of iterator. Each state
@@ -81,7 +83,6 @@ public abstract class AbstractStateIterator<T> implements StateIterator<T> {
         return requestType;
     }
 
-    @SuppressWarnings("unchecked")
     private InternalStateFuture<StateIterator<T>> asyncNextLoad() {
         return stateHandler.handleRequest(
                 originalState,
@@ -97,7 +98,8 @@ public abstract class AbstractStateIterator<T> implements StateIterator<T> {
     }
 
     @Override
-    public <U> StateFuture<Collection<U>> onNext(Function<T, StateFuture<? extends U>> iterating) {
+    public <U> StateFuture<Collection<U>> onNext(
+            FunctionWithException<T, StateFuture<? extends U>, Exception> iterating) {
         // Public interface implementation, this is on task thread.
         // We perform the user code on cache, and create a new request and chain with it.
         if (isEmpty()) {
@@ -105,11 +107,16 @@ public abstract class AbstractStateIterator<T> implements StateIterator<T> {
         }
         Collection<StateFuture<? extends U>> resultFutures = new ArrayList<>();
 
-        for (T item : cache) {
-            StateFuture<? extends U> resultFuture = iterating.apply(item);
-            if (resultFuture != null) {
-                resultFutures.add(resultFuture);
+        try {
+            for (T item : cache) {
+                StateFuture<? extends U> resultFuture = iterating.apply(item);
+                if (resultFuture != null) {
+                    resultFutures.add(resultFuture);
+                }
             }
+        } catch (Exception e) {
+            // Since this is on task thread, we can directly throw the runtime exception.
+            throw new FlinkRuntimeException("Failed to iterate over state.", e);
         }
         if (hasNext()) {
             return StateFutureUtils.combineAll(resultFutures)
@@ -128,14 +135,19 @@ public abstract class AbstractStateIterator<T> implements StateIterator<T> {
     }
 
     @Override
-    public StateFuture<Void> onNext(Consumer<T> iterating) {
+    public StateFuture<Void> onNext(ThrowingConsumer<T, Exception> iterating) {
         // Public interface implementation, this is on task thread.
         // We perform the user code on cache, and create a new request and chain with it.
         if (isEmpty()) {
             return StateFutureUtils.completedVoidFuture();
         }
-        for (T item : cache) {
-            iterating.accept(item);
+        try {
+            for (T item : cache) {
+                iterating.accept(item);
+            }
+        } catch (Exception e) {
+            // Since this is on task thread, we can directly throw the runtime exception.
+            throw new FlinkRuntimeException("Failed to iterate over state.", e);
         }
         if (hasNext()) {
             return asyncNextLoad().thenCompose(itr -> itr.onNext(iterating));

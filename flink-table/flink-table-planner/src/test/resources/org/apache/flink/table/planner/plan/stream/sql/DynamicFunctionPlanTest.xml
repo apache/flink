@@ -28,7 +28,7 @@ GROUP BY cat, gmt_date]]>
       <![CDATA[
 LogicalAggregate(group=[{0, 1}], EXPR$2=[SUM($2)], EXPR$3=[COUNT()])
 +- LogicalProject(cat=[$2], gmt_date=[$3], cnt=[$4])
-   +- LogicalFilter(condition=[=($3, CURRENT_DATE)])
+   +- LogicalFilter(condition=[=($3, CURRENT_DATE())])
       +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
@@ -53,7 +53,7 @@ GroupAggregate(groupBy=[cat, gmt_date], select=[cat, gmt_date, SUM(cnt) AS EXPR$
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], cat=[$2], gmt_date=[$3], cnt=[$4], ts=[$5], hh=[$6])
 +- LogicalFilter(condition=[AND(>(CAST($6):BIGINT, 12), LIKE($2, _UTF-16LE'fruit%'))])
-   +- LogicalProject(a=[$0], b=[$1], cat=[$2], gmt_date=[$3], cnt=[$4], ts=[$5], hh=[SUBSTR(CAST(LOCALTIME):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL, 1, 2)])
+   +- LogicalProject(a=[$0], b=[$1], cat=[$2], gmt_date=[$3], cnt=[$4], ts=[$5], hh=[SUBSTR(CAST(LOCALTIME()):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL, 1, 2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
@@ -78,7 +78,7 @@ GROUP BY cat, hh]]>
 LogicalAggregate(group=[{0, 1}], EXPR$2=[SUM($2)], EXPR$3=[COUNT()])
 +- LogicalProject(cat=[$2], hh=[$6], cnt=[$4])
    +- LogicalFilter(condition=[=(SUBSTR(CAST($5):VARCHAR(2147483647) CHARACTER SET "UTF-16LE", 1, 2), $6)])
-      +- LogicalProject(a=[$0], b=[$1], cat=[$2], gmt_date=[$3], cnt=[$4], ts=[$5], hh=[SUBSTR(CAST(LOCALTIME):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL, 1, 2)])
+      +- LogicalProject(a=[$0], b=[$1], cat=[$2], gmt_date=[$3], cnt=[$4], ts=[$5], hh=[SUBSTR(CAST(LOCALTIME()):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL, 1, 2)])
          +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
@@ -106,7 +106,7 @@ GROUP BY gmt_date, ts, cat]]>
 LogicalProject(gmt_date=[$0], ts=[$1], cat=[$2], EXPR$3=[SUBSTR(CAST($1):VARCHAR(2147483647) CHARACTER SET "UTF-16LE", 1, 2)], EXPR$4=[$3])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$4=[SUM($3)])
    +- LogicalProject(gmt_date=[$3], ts=[$5], cat=[$2], cnt=[$4])
-      +- LogicalFilter(condition=[AND(=($3, CURRENT_DATE), =($2, _UTF-16LE'fruit'), =($5, CURRENT_TIME))])
+      +- LogicalFilter(condition=[AND(=($3, CURRENT_DATE()), =($2, _UTF-16LE'fruit'), =($5, CURRENT_TIME()))])
          +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>

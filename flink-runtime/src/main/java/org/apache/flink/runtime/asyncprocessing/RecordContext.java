@@ -38,8 +38,10 @@ import java.util.function.Consumer;
  * @param <K> The type of the key inside the record.
  */
 public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRunner> {
-    /** The empty record for timer and non-record input usage. */
+    /** The empty record for non-record input usage. */
     static final Object EMPTY_RECORD = new Object();
+
+    static final int PRIORITY_MIN = 0;
 
     /** The record to be processed. */
     private final Object record;
@@ -76,6 +78,8 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
     /** The epoch of this context. */
     private final Epoch epoch;
 
+    private final int priority;
+
     public RecordContext(
             Object record,
             K key,
@@ -83,7 +87,14 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
             int keyGroup,
             Epoch epoch,
             int variableCount) {
-        this(record, key, disposer, keyGroup, epoch, new AtomicReferenceArray<>(variableCount));
+        this(
+                record,
+                key,
+                disposer,
+                keyGroup,
+                epoch,
+                new AtomicReferenceArray<>(variableCount),
+                PRIORITY_MIN);
     }
 
     public RecordContext(
@@ -92,7 +103,26 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
             Consumer<RecordContext<K>> disposer,
             int keyGroup,
             Epoch epoch,
-            AtomicReferenceArray<Object> variables) {
+            int variableCount,
+            int priority) {
+        this(
+                record,
+                key,
+                disposer,
+                keyGroup,
+                epoch,
+                new AtomicReferenceArray<>(variableCount),
+                priority);
+    }
+
+    public RecordContext(
+            Object record,
+            K key,
+            Consumer<RecordContext<K>> disposer,
+            int keyGroup,
+            Epoch epoch,
+            AtomicReferenceArray<Object> variables,
+            int priority) {
         super(0);
         this.record = record;
         this.key = key;
@@ -101,6 +131,7 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
         this.keyGroup = keyGroup;
         this.epoch = epoch;
         this.contextVariables = variables;
+        this.priority = priority;
     }
 
     public Object getRecord() {
@@ -184,6 +215,10 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
         return epoch;
     }
 
+    public int getPriority() {
+        return priority;
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(record, key);
@@ -223,6 +258,8 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
                 + getReferenceCount()
                 + ", epoch="
                 + epoch.id
+                + ", priority="
+                + priority
                 + "}";
     }
 

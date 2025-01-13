@@ -26,9 +26,9 @@ import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.ListIterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
@@ -70,7 +70,7 @@ public class StateRequestBuffer<K> implements Closeable {
      * execution. After which the queueing requests will move into the active buffer. All operations
      * on this buffer must be invoked in task thread.
      */
-    final Map<K, Deque<StateRequest<K, ?, ?, ?>>> blockingQueue;
+    final Map<K, LinkedList<StateRequest<K, ?, ?, ?>>> blockingQueue;
 
     /** The number of state requests in blocking queue. */
     int blockingQueueSize;
@@ -160,9 +160,37 @@ public class StateRequestBuffer<K> implements Closeable {
     }
 
     void enqueueToBlocking(StateRequest<K, ?, ?, ?> request) {
-        blockingQueue
-                .computeIfAbsent(request.getRecordContext().getKey(), k -> new LinkedList<>())
-                .add(request);
+        LinkedList<StateRequest<K, ?, ?, ?>> currentList =
+                blockingQueue.computeIfAbsent(
+                        request.getRecordContext().getKey(), k -> new LinkedList<>());
+        if (currentList.isEmpty()) {
+            currentList.addLast(request);
+        } else {
+            int priority = request.getRecordContext().getPriority();
+            if (priority == RecordContext.PRIORITY_MIN) {
+                currentList.addLast(request);
+            } else {
+                // Insert 'request' before the first element whose priority smaller than 'priority'
+                // This is a rare case with greater overhead.
+                boolean inserted = false;
+                ListIterator<StateRequest<K, ?, ?, ?>> iterator = currentList.listIterator(0);
+                while (!inserted && iterator.hasNext()) {
+                    StateRequest<K, ?, ?, ?> iterRequest = iterator.next();
+                    if (iterRequest.getRecordContext().getPriority() < priority) {
+                        iterator.previous(); // returns 'iterRequest' again.  But the real purpose
+                        // is to reset the iteration position
+                        // so that 'next()' would return 'iterRequest' again.
+                        iterator.add(request); // inserts before 'iterRequest'.
+                        inserted = true;
+                    }
+                }
+                if (!inserted) {
+                    // The priority of 'request' is the smallest, so it should be added to the end
+                    // of the queue.
+                    currentList.addLast(request);
+                }
+            }
+        }
         blockingQueueSize++;
     }
 

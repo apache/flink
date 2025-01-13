@@ -50,7 +50,8 @@ under the License.
 			OperatorStateBackendTest
 			-->--add-opens=java.base/java.io=ALL-UNNAMED <!--
 			AsynchronousFileIOChannelTest
-			-->--add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+			-->--add-opens=java.base/java.util.concurrent=ALL-UNNAMED <!--
+			-->-Djunit.platform.reflection.search.useLegacySemantics=true
 		</surefire.module.config>
 	</properties>
 

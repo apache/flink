@@ -18,7 +18,9 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.api.common.state.v2.MapState;
+import org.apache.flink.api.common.state.v2.MapStateDescriptor;
 import org.apache.flink.api.common.state.v2.State;
+import org.apache.flink.api.common.state.v2.StateDescriptor;
 import org.apache.flink.api.common.state.v2.StateIterator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -31,8 +33,6 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.v2.AbstractMapState;
-import org.apache.flink.runtime.state.v2.MapStateDescriptor;
-import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.util.Preconditions;
 
 import org.forstdb.ColumnFamilyHandle;
@@ -175,15 +175,26 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
     @Override
     @SuppressWarnings("unchecked")
     public ForStDBPutRequest<K, N, UV> buildDBPutRequest(StateRequest<?, ?, ?, ?> stateRequest) {
-        Preconditions.checkArgument(
-                stateRequest.getRequestType() == StateRequestType.MAP_PUT
-                        || stateRequest.getRequestType() == StateRequestType.MAP_REMOVE);
-        ContextKey<K, N> contextKey =
-                new ContextKey<>(
-                        (RecordContext<K>) stateRequest.getRecordContext(),
-                        (N) stateRequest.getNamespace(),
-                        ((Tuple2<UK, UV>) stateRequest.getPayload()).f0);
         Preconditions.checkNotNull(stateRequest.getPayload());
+        ContextKey<K, N> contextKey;
+        if (stateRequest.getRequestType() == StateRequestType.MAP_PUT) {
+            contextKey =
+                    new ContextKey<>(
+                            (RecordContext<K>) stateRequest.getRecordContext(),
+                            (N) stateRequest.getNamespace(),
+                            ((Tuple2<UK, UV>) stateRequest.getPayload()).f0);
+        } else if (stateRequest.getRequestType() == StateRequestType.MAP_REMOVE) {
+            contextKey =
+                    new ContextKey<>(
+                            (RecordContext<K>) stateRequest.getRecordContext(),
+                            (N) stateRequest.getNamespace(),
+                            stateRequest.getPayload());
+        } else {
+            throw new IllegalArgumentException(
+                    "The State type is: "
+                            + stateRequest.getRequestType().name()
+                            + ", which is not a valid put request.");
+        }
         UV value = null;
         if (stateRequest.getRequestType() == StateRequestType.MAP_PUT) {
             value = ((Tuple2<UK, UV>) stateRequest.getPayload()).f1;

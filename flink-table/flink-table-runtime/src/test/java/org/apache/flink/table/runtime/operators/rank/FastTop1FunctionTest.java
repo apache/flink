@@ -21,8 +21,11 @@ package org.apache.flink.table.runtime.operators.rank;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.operators.rank.async.AsyncStateFastTop1Function;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,24 +34,45 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
 
-/** Tests for {@link FastTop1Function}. */
+/** Tests for {@link FastTop1Function} and {@link AsyncStateFastTop1Function}. */
+@ExtendWith(ParameterizedTestExtension.class)
 public class FastTop1FunctionTest extends TopNFunctionTestBase {
+
     @Override
     AbstractTopNFunction createFunction(
             RankType rankType,
             RankRange rankRange,
             boolean generateUpdateBefore,
-            boolean outputRankNumber) {
-        return new FastTop1Function(
-                ttlConfig,
-                inputRowType,
-                generatedSortKeyComparator,
-                sortKeySelector,
-                rankType,
-                rankRange,
-                generateUpdateBefore,
-                outputRankNumber,
-                cacheSize);
+            boolean outputRankNumber,
+            boolean enableAsyncState) {
+        if (enableAsyncState) {
+            return new AsyncStateFastTop1Function(
+                    ttlConfig,
+                    inputRowType,
+                    generatedSortKeyComparator,
+                    sortKeySelector,
+                    rankType,
+                    rankRange,
+                    generateUpdateBefore,
+                    outputRankNumber,
+                    cacheSize);
+        } else {
+            return new FastTop1Function(
+                    ttlConfig,
+                    inputRowType,
+                    generatedSortKeyComparator,
+                    sortKeySelector,
+                    rankType,
+                    rankRange,
+                    generateUpdateBefore,
+                    outputRankNumber,
+                    cacheSize);
+        }
+    }
+
+    @Override
+    boolean supportedAsyncState() {
+        return true;
     }
 
     @Override
@@ -173,7 +197,7 @@ public class FastTop1FunctionTest extends TopNFunctionTestBase {
 
     // ------------ Tests with UPDATE input records ---------------
 
-    @Test
+    @TestTemplate
     void testVariableRankRange() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 1), true, false);
@@ -199,7 +223,7 @@ public class FastTop1FunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
+    @TestTemplate
     void testOutputRankNumberWithUpdateInputs() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 1), true, true);
@@ -228,7 +252,7 @@ public class FastTop1FunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
+    @TestTemplate
     void testSortKeyChangesWhenOutputRankNumber() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 1), true, true);
@@ -262,7 +286,7 @@ public class FastTop1FunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
+    @TestTemplate
     void testSortKeyChangesWhenOutputRankNumberAndNotGenerateUpdateBefore() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 1), false, true);
@@ -292,7 +316,7 @@ public class FastTop1FunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
+    @TestTemplate
     void testSortKeyChangesWhenNotOutputRankNumber() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 1), true, false);
@@ -321,7 +345,7 @@ public class FastTop1FunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
+    @TestTemplate
     void testSortKeyChangesWhenNotOutputRankNumberAndNotGenerateUpdateBefore() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 1), false, false);

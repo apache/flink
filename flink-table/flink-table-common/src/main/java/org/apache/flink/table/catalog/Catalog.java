@@ -43,7 +43,6 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
-import org.apache.flink.table.legacy.factories.TableFactory;
 import org.apache.flink.table.procedures.Procedure;
 
 import javax.annotation.Nullable;
@@ -84,20 +83,6 @@ public interface Catalog {
      * used.
      */
     default Optional<Factory> getFactory() {
-        return Optional.empty();
-    }
-
-    /**
-     * Get an optional {@link TableFactory} instance that's responsible for generating table-related
-     * instances stored in this catalog, instances such as source/sink.
-     *
-     * @return an optional TableFactory instance
-     * @deprecated Use {@link #getFactory()} for the new factory stack. The new factory stack uses
-     *     the new table sources and sinks defined in FLIP-95 and a slightly different discovery
-     *     mechanism.
-     */
-    @Deprecated
-    default Optional<TableFactory> getTableFactory() {
         return Optional.empty();
     }
 

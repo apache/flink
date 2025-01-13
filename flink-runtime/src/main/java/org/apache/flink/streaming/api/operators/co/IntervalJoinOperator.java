@@ -402,7 +402,6 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
             this.hasBeenJoined = hasBeenJoined;
         }
 
-        @VisibleForTesting
         public T getElement() {
             return element;
         }

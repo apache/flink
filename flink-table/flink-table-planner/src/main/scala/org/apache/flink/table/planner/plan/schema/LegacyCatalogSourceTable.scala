@@ -180,7 +180,6 @@ class LegacyCatalogSourceTable[T](
       TableSchemaUtils.removeTimeAttributeFromResolvedSchema(
         schemaTable.getContextResolvedTable.getResolvedSchema)
     val tableSource = TableFactoryUtil.findAndCreateTableSource(
-      schemaTable.getContextResolvedTable.getCatalog.orElse(null),
       identifier,
       new ResolvedCatalogTable(
         CatalogTable.of(

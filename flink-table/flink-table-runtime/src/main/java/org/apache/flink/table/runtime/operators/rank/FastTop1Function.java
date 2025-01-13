@@ -30,38 +30,29 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.runtime.operators.rank.utils.FastTop1Helper;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Collector;
-
-import org.apache.flink.shaded.guava32.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava32.com.google.common.cache.CacheBuilder;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 /**
  * A more concise implementation for {@link AppendOnlyTopNFunction} and {@link
  * UpdatableTopNFunction} when only Top-1 is desired. This function can handle updating stream
  * because the RankProcessStrategy is inferred as UpdateFastStrategy, i.e., 1) the upsert key of
- * input steam contains partition key; 2) the sort field is updated monotonely under the upsert key.
+ * input stream contains partition key; 2) the sort field is updated monotonically under the upsert
+ * key (See more at {@code FlinkRelMdModifiedMonotonicity}).
  */
-public class FastTop1Function extends AbstractTopNFunction implements CheckpointedFunction {
+public class FastTop1Function extends AbstractSyncStateTopNFunction
+        implements CheckpointedFunction {
 
     private static final long serialVersionUID = 1L;
-
-    private static final Logger LOG = LoggerFactory.getLogger(FastTop1Function.class);
 
     private final TypeSerializer<RowData> inputRowSer;
     private final long cacheSize;
 
-    // a map state stores list of records
+    // a value state stores the latest record
     private transient ValueState<RowData> dataState;
 
-    // the kvMap stores mapping from partition key to its current top-1 value
-    private transient Cache<RowData, RowData> kvCache;
+    private transient FastTop1Helper helper;
 
     public FastTop1Function(
             StateTtlConfig ttlConfig,
@@ -90,20 +81,6 @@ public class FastTop1Function extends AbstractTopNFunction implements Checkpoint
     @Override
     public void open(OpenContext openContext) throws Exception {
         super.open(openContext);
-        int lruCacheSize = Math.max(1, (int) (cacheSize / getDefaultTopNSize()));
-        CacheBuilder<Object, Object> cacheBuilder = CacheBuilder.newBuilder();
-        if (ttlConfig.isEnabled()) {
-            cacheBuilder.expireAfterWrite(
-                    ttlConfig.getTimeToLive().toMillis(), TimeUnit.MILLISECONDS);
-        }
-        kvCache =
-                cacheBuilder
-                        .maximumSize(lruCacheSize)
-                        .removalListener(
-                                new TopNBufferCacheRemovalListener<>(
-                                        keyContext, this::flushBufferToState))
-                        .build();
-        LOG.info("Top-1 operator is using LRU caches key-size: {}", lruCacheSize);
 
         ValueStateDescriptor<RowData> valueStateDescriptor =
                 new ValueStateDescriptor<>("Top1-Rank-State", inputRowType);
@@ -112,58 +89,36 @@ public class FastTop1Function extends AbstractTopNFunction implements Checkpoint
         }
         dataState = getRuntimeContext().getState(valueStateDescriptor);
 
-        // metrics
-        registerMetric(kvCache.size() * getDefaultTopNSize());
+        helper = new SyncStateFastTop1Helper();
+
+        helper.registerMetric();
     }
 
     @Override
     public void processElement(RowData input, Context ctx, Collector<RowData> out)
             throws Exception {
-        requestCount += 1;
+        helper.accRequestCount();
+
         // load state under current key if necessary
         RowData currentKey = (RowData) keyContext.getCurrentKey();
-        RowData prevRow = kvCache.getIfPresent(currentKey);
+        RowData prevRow = helper.getPrevRowFromCache(currentKey);
         if (prevRow == null) {
             prevRow = dataState.value();
         } else {
-            hitCount += 1;
+            helper.accHitCount();
         }
 
         // first row under current key.
         if (prevRow == null) {
-            kvCache.put(currentKey, inputRowSer.copy(input));
-            if (outputRankNumber) {
-                collectInsert(out, input, 1);
-            } else {
-                collectInsert(out, input);
-            }
-            return;
-        }
-
-        RowData curSortKey = sortKeySelector.getKey(input);
-        RowData oldSortKey = sortKeySelector.getKey(prevRow);
-        int compare = sortKeyComparator.compare(curSortKey, oldSortKey);
-        // current sort key is higher than old sort key
-        if (compare < 0) {
-            kvCache.put(currentKey, inputRowSer.copy(input));
-            // Note: partition key is unique key if only top-1 is desired,
-            //  thus emitting UB and UA here
-            if (outputRankNumber) {
-                collectUpdateBefore(out, prevRow, 1);
-                collectUpdateAfter(out, input, 1);
-            } else {
-                collectUpdateBefore(out, prevRow);
-                collectUpdateAfter(out, input);
-            }
+            helper.processAsFirstRow(input, currentKey, out);
+        } else {
+            helper.processWithPrevRow(input, currentKey, prevRow, out);
         }
     }
 
     @Override
     public void snapshotState(FunctionSnapshotContext context) throws Exception {
-        for (Map.Entry<RowData, RowData> entry : kvCache.asMap().entrySet()) {
-            keyContext.setCurrentKey(entry.getKey());
-            flushBufferToState(entry.getValue());
-        }
+        helper.flushAllCacheToState();
     }
 
     @Override
@@ -171,7 +126,20 @@ public class FastTop1Function extends AbstractTopNFunction implements Checkpoint
         // nothing to do
     }
 
-    private void flushBufferToState(RowData rowData) throws Exception {
-        dataState.update(rowData);
+    private class SyncStateFastTop1Helper extends FastTop1Helper {
+
+        public SyncStateFastTop1Helper() {
+            super(
+                    FastTop1Function.this,
+                    inputRowSer,
+                    cacheSize,
+                    FastTop1Function.this.getDefaultTopNSize());
+        }
+
+        @Override
+        public void flushBufferToState(RowData currentKey, RowData value) throws Exception {
+            keyContext.setCurrentKey(currentKey);
+            FastTop1Function.this.dataState.update(value);
+        }
     }
 }

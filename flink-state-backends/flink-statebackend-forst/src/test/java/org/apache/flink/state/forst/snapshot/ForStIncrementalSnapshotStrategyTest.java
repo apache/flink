@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.forst.snapshot;
 
+import org.apache.flink.api.common.state.v2.StateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -28,7 +29,6 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.SnapshotResources;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
 import org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo;
-import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.state.forst.ForStExtension;
 import org.apache.flink.state.forst.ForStOperationUtils;
 import org.apache.flink.state.forst.ForStStateDataTransfer;

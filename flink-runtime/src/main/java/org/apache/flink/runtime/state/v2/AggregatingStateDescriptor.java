@@ -24,59 +24,25 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import javax.annotation.Nonnull;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
- * A {@link StateDescriptor} for {@link org.apache.flink.api.common.state.v2.AggregatingState}.
- *
- * <p>The type internally stored in the state is the type of the {@code Accumulator} of the {@code
- * AggregateFunction}.
- *
- * @param <IN> The type of the values that are added to the state.
- * @param <ACC> The type of the accumulator (intermediate aggregation state).
- * @param <OUT> The type of the values that are returned from the state.
+ * This class is deprecated and only a placeholder for compatibility for EXISTING PRs. This is never
+ * released before, and will be safely removed before 2.0 release.
  */
-public class AggregatingStateDescriptor<IN, ACC, OUT> extends StateDescriptor<ACC> {
+@Deprecated
+public class AggregatingStateDescriptor<IN, ACC, OUT>
+        extends org.apache.flink.api.common.state.v2.AggregatingStateDescriptor<IN, ACC, OUT> {
 
-    private final AggregateFunction<IN, ACC, OUT> aggregateFunction;
-
-    /**
-     * Create a new state descriptor with the given name, function, and type.
-     *
-     * @param stateId The (unique) name for the state.
-     * @param aggregateFunction The {@code AggregateFunction} used to aggregate the state.
-     * @param typeInfo The type of the accumulator. The accumulator is stored in the state.
-     */
     public AggregatingStateDescriptor(
             @Nonnull String stateId,
             @Nonnull AggregateFunction<IN, ACC, OUT> aggregateFunction,
             @Nonnull TypeInformation<ACC> typeInfo) {
-        super(stateId, typeInfo);
-        this.aggregateFunction = checkNotNull(aggregateFunction);
+        super(stateId, aggregateFunction, typeInfo);
     }
 
-    /**
-     * Create a new {@code ReducingStateDescriptor} with the given stateId and the given type
-     * serializer.
-     *
-     * @param stateId The (unique) stateId for the state.
-     * @param serializer The type serializer for accumulator.
-     */
     public AggregatingStateDescriptor(
             @Nonnull String stateId,
             @Nonnull AggregateFunction<IN, ACC, OUT> aggregateFunction,
             @Nonnull TypeSerializer<ACC> serializer) {
-        super(stateId, serializer);
-        this.aggregateFunction = checkNotNull(aggregateFunction);
-    }
-
-    /** Returns the Aggregate function for this state. */
-    public AggregateFunction<IN, ACC, OUT> getAggregateFunction() {
-        return aggregateFunction;
-    }
-
-    @Override
-    public Type getType() {
-        return Type.AGGREGATING;
+        super(stateId, aggregateFunction, serializer);
     }
 }

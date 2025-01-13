@@ -22,7 +22,9 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.v2.State;
+import org.apache.flink.api.common.state.v2.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
@@ -32,7 +34,7 @@ import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
-import org.apache.flink.runtime.state.v2.StateDescriptor;
+import org.apache.flink.runtime.state.DefaultKeyedStateStore;
 import org.apache.flink.runtime.state.v2.adaptor.AsyncKeyedStateBackendAdaptor;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.Input;
@@ -91,7 +93,11 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
     public void initializeState(StreamTaskStateInitializer streamTaskStateManager)
             throws Exception {
         super.initializeState(streamTaskStateManager);
-        getRuntimeContext().setKeyedStateStoreV2(stateHandler.getKeyedStateStoreV2().orElse(null));
+        KeyedStateStore stateStore = stateHandler.getKeyedStateStore().orElse(null);
+        if (stateStore instanceof DefaultKeyedStateStore) {
+            ((DefaultKeyedStateStore) stateStore).setSupportKeyedStateApiSetV2();
+        }
+
         final StreamTask<?, ?> containingTask = checkNotNull(getContainingTask());
         environment = containingTask.getEnvironment();
         final MailboxExecutor mailboxExecutor = environment.getMainMailboxExecutor();
@@ -546,16 +552,20 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
     @Override
     public void finish() throws Exception {
         super.finish();
-        if (isAsyncStateProcessingEnabled()) {
-            asyncExecutionController.drainInflightRecords(0);
-        }
+        closeIfNeeded();
     }
 
     @Override
     public void close() throws Exception {
         super.close();
-        if (isAsyncStateProcessingEnabled()) {
-            asyncExecutionController.close();
+        closeIfNeeded();
+    }
+
+    private void closeIfNeeded() {
+        if (isAsyncStateProcessingEnabled()
+                && !getContainingTask().isFailing()
+                && !getContainingTask().isCanceled()) {
+            asyncExecutionController.drainInflightRecords(0);
         }
     }
 }

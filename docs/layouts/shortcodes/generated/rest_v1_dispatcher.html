@@ -1030,6 +1030,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "name" : {
             "type" : "string"
           },
+          "pending-operators" : {
+            "type" : "integer"
+          },
           "start-time" : {
             "type" : "integer"
           },
@@ -1118,6 +1121,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     "now" : {
       "type" : "integer"
     },
+    "pending-operators" : {
+      "type" : "integer"
+    },
     "plan" : {
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
@@ -1134,6 +1140,10 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       "additionalProperties" : {
         "type" : "integer"
       }
+    },
+    "stream-graph" : {
+      "type" : "object",
+      "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
     },
     "timestamps" : {
       "type" : "object",
