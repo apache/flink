@@ -149,15 +149,15 @@ Flink SQL> INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE pro
 ##  CREATE TABLE
 
 ```text
-CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
+CREATE [TEMPORARY] TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
   (
     { <physical_column_definition> | <metadata_column_definition> | <computed_column_definition> }[ , ...n]
     [ <watermark_definition> ]
     [ <table_constraint> ][ , ...n]
   )
   [COMMENT table_comment]
-  [PARTITIONED BY (partition_column_name1, partition_column_name2, ...)]
   [ <distribution> ]
+  [PARTITIONED BY (partition_column_name1, partition_column_name2, ...)]
   WITH (key1=val1, key2=val2, ...)
   [ LIKE source_table [( <like_options> )] | AS select_query ]
    
@@ -197,6 +197,14 @@ CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
 ```
 
 根据指定的表名创建一个表，如果同名表已经在 catalog 中存在了，则无法注册。
+
+有关 CREATE MATERIALIZED TABLE 语法请查看 [Materialized Table Statements]({{< ref "docs/dev/table/materialized-table/statements" >}}).
+
+**TEMPORARY**
+
+临时表通常保存于内存中并且仅在创建它们的 Flink 会话持续期间存在。
+
+更多信息请查看 [Temporary vs Permanent tables]({{< ref "docs/dev/table/common" >}}#temporary-vs-permanent-tables).
 
 ### Columns
 
@@ -288,7 +296,7 @@ CREATE TABLE MyTable (
   `timestamp` BIGINT METADATA,       -- part of the query-to-sink schema
   `offset` BIGINT METADATA VIRTUAL,  -- not part of the query-to-sink schema
   `user_id` BIGINT,
-  `name` STRING,
+  `name` STRING
 ) WITH (
   'connector' = 'kafka'
   ...
@@ -594,7 +602,7 @@ CREATE TABLE my_ctas_table (
     desc STRING,
     quantity DOUBLE,   
     cost AS price * quantity,
-    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND,
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND
 ) WITH (
     'connector' = 'kafka',
     ...
