@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.runtime.stream.sql
 import org.apache.flink.configuration.{Configuration, RestartStrategyOptions}
 import org.apache.flink.core.execution.CheckpointingMode
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{FailingCollectionSource, StreamingWithStateTestBase, TestData, TestingAppendSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
@@ -35,7 +36,7 @@ import java.util
 import scala.collection.JavaConversions._
 
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
-class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
+class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean, enableAsyncState: Boolean)
   extends StreamingWithStateTestBase(mode) {
 
   val SHANGHAI_ZONE = ZoneId.of("Asia/Shanghai")
@@ -54,6 +55,10 @@ class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
       Duration.ofMillis(0))
     env.configure(configuration, Thread.currentThread.getContextClassLoader)
     FailingCollectionSource.reset()
+
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED,
+      Boolean.box(enableAsyncState))
 
     val dataId1 = TestValuesTableFactory.registerData(TestData.windowDataWithTimestamp)
     val dataIdWithLtz = TestValuesTableFactory.registerData(TestData.windowDataWithLtzInShanghai)
@@ -1159,13 +1164,15 @@ class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
 
 object WindowJoinITCase {
 
-  @Parameters(name = "StateBackend={0}, UseTimestampLtz = {1}")
+  @Parameters(name = "StateBackend={0}, UseTimestampLtz = {1}, EnableAsyncState = {2}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
-      Array(HEAP_BACKEND, java.lang.Boolean.TRUE),
-      Array(HEAP_BACKEND, java.lang.Boolean.FALSE),
-      Array(ROCKSDB_BACKEND, java.lang.Boolean.TRUE),
-      Array(ROCKSDB_BACKEND, java.lang.Boolean.FALSE)
+      Array(HEAP_BACKEND, java.lang.Boolean.TRUE, Boolean.box(false)),
+      Array(HEAP_BACKEND, java.lang.Boolean.FALSE, Boolean.box(false)),
+      Array(HEAP_BACKEND, java.lang.Boolean.TRUE, Boolean.box(true)),
+      Array(HEAP_BACKEND, java.lang.Boolean.FALSE, Boolean.box(true)),
+      Array(ROCKSDB_BACKEND, java.lang.Boolean.TRUE, Boolean.box(false)),
+      Array(ROCKSDB_BACKEND, java.lang.Boolean.FALSE, Boolean.box(false))
     )
   }
 }
