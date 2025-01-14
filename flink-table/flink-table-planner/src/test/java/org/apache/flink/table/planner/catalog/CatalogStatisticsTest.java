@@ -58,7 +58,6 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -124,11 +123,11 @@ class CatalogStatisticsTest {
         final Schema schema = Schema.newBuilder().fromResolvedSchema(resolvedSchema).build();
         catalog.createTable(
                 new ObjectPath(databaseName, "T1"),
-                CatalogTable.of(schema, "", Collections.emptyList(), properties),
+                CatalogTable.newBuilder().schema(schema).comment("").options(properties).build(),
                 false);
         catalog.createTable(
                 new ObjectPath(databaseName, "T2"),
-                CatalogTable.of(schema, "", Collections.emptyList(), properties),
+                CatalogTable.newBuilder().schema(schema).comment("").options(properties).build(),
                 false);
 
         alterTableStatistics(catalog, "T1");

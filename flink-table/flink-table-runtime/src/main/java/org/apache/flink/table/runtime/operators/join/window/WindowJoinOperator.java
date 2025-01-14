@@ -23,10 +23,6 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
-import org.apache.flink.metrics.Meter;
-import org.apache.flink.metrics.MeterView;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
@@ -35,55 +31,41 @@ import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.util.RowDataUtil;
-import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.JoinConditionWithNullFilters;
+import org.apache.flink.table.runtime.operators.join.window.utils.WindowJoinHelper;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowTimerServiceImpl;
 import org.apache.flink.table.runtime.operators.window.tvf.state.WindowListState;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
-import org.apache.flink.types.RowKind;
 
 import java.time.ZoneId;
-import java.util.IdentityHashMap;
 import java.util.List;
 
-import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
-
 /**
- * Streaming window join operator.
+ * A streaming window join operator implemented by sync state api.
  *
- * <p>Note: currently, {@link WindowJoinOperator} doesn't support early-fire and late-arrival. Thus
+ * <p>Note: currently, {@link WindowJoinOperator} doesn't support early-fire and late-arrival. Thus,
  * late elements (elements belong to emitted windows) will be simply dropped.
  *
  * <p>Note: currently, {@link WindowJoinOperator} doesn't support DELETE or UPDATE_BEFORE input row.
  */
-public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
+public class WindowJoinOperator extends TableStreamOperator<RowData>
         implements TwoInputStreamOperator<RowData, RowData, RowData>,
                 Triggerable<RowData, Long>,
                 KeyContext {
 
     private static final long serialVersionUID = 1L;
 
-    private static final String LEFT_LATE_ELEMENTS_DROPPED_METRIC_NAME =
-            "leftNumLateRecordsDropped";
-    private static final String LEFT_LATE_ELEMENTS_DROPPED_RATE_METRIC_NAME =
-            "leftLateRecordsDroppedRate";
-    private static final String RIGHT_LATE_ELEMENTS_DROPPED_METRIC_NAME =
-            "rightNumLateRecordsDropped";
-    private static final String RIGHT_LATE_ELEMENTS_DROPPED_RATE_METRIC_NAME =
-            "rightLateRecordsDroppedRate";
-    private static final String WATERMARK_LATENCY_METRIC_NAME = "watermarkLatency";
     private static final String LEFT_RECORDS_STATE_NAME = "left-records";
     private static final String RIGHT_RECORDS_STATE_NAME = "right-records";
 
-    protected final RowDataSerializer leftSerializer;
-    protected final RowDataSerializer rightSerializer;
+    private final RowDataSerializer leftSerializer;
+    private final RowDataSerializer rightSerializer;
     private final GeneratedJoinCondition generatedJoinCondition;
 
     private final int leftWindowEndIndex;
@@ -92,26 +74,19 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
     private final boolean[] filterNullKeys;
     private final ZoneId shiftTimeZone;
 
+    private final FlinkJoinType joinType;
+
     private transient WindowTimerService<Long> windowTimerService;
 
-    // ------------------------------------------------------------------------
-    protected transient JoinConditionWithNullFilters joinCondition;
+    private transient JoinConditionWithNullFilters joinCondition;
 
     /** This is used for emitting elements with a given timestamp. */
-    protected transient TimestampedCollector<RowData> collector;
+    private transient TimestampedCollector<RowData> collector;
 
     private transient WindowListState<Long> leftWindowState;
     private transient WindowListState<Long> rightWindowState;
 
-    // ------------------------------------------------------------------------
-    // Metrics
-    // ------------------------------------------------------------------------
-
-    private transient Counter leftNumLateRecordsDropped;
-    private transient Meter leftLateRecordsDroppedRate;
-    private transient Counter rightNumLateRecordsDropped;
-    private transient Meter rightLateRecordsDroppedRate;
-    private transient Gauge<Long> watermarkLatency;
+    private transient WindowJoinHelper helper;
 
     WindowJoinOperator(
             TypeSerializer<RowData> leftSerializer,
@@ -120,7 +95,8 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
             int leftWindowEndIndex,
             int rightWindowEndIndex,
             boolean[] filterNullKeys,
-            ZoneId shiftTimeZone) {
+            ZoneId shiftTimeZone,
+            FlinkJoinType joinType) {
         this.leftSerializer = (RowDataSerializer) leftSerializer;
         this.rightSerializer = (RowDataSerializer) rightSerializer;
         this.generatedJoinCondition = generatedJoinCondition;
@@ -128,6 +104,7 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
         this.rightWindowEndIndex = rightWindowEndIndex;
         this.filterNullKeys = filterNullKeys;
         this.shiftTimeZone = shiftTimeZone;
+        this.joinType = joinType;
     }
 
     @Override
@@ -166,28 +143,8 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
         this.rightWindowState =
                 new WindowListState<>((InternalListState<RowData, Long, RowData>) rightListState);
 
-        // metrics
-        this.leftNumLateRecordsDropped = metrics.counter(LEFT_LATE_ELEMENTS_DROPPED_METRIC_NAME);
-        this.leftLateRecordsDroppedRate =
-                metrics.meter(
-                        LEFT_LATE_ELEMENTS_DROPPED_RATE_METRIC_NAME,
-                        new MeterView(leftNumLateRecordsDropped));
-        this.rightNumLateRecordsDropped = metrics.counter(RIGHT_LATE_ELEMENTS_DROPPED_METRIC_NAME);
-        this.rightLateRecordsDroppedRate =
-                metrics.meter(
-                        RIGHT_LATE_ELEMENTS_DROPPED_RATE_METRIC_NAME,
-                        new MeterView(rightNumLateRecordsDropped));
-        this.watermarkLatency =
-                metrics.gauge(
-                        WATERMARK_LATENCY_METRIC_NAME,
-                        () -> {
-                            long watermark = windowTimerService.currentWatermark();
-                            if (watermark < 0) {
-                                return 0L;
-                            } else {
-                                return windowTimerService.currentProcessingTime() - watermark;
-                            }
-                        });
+        this.helper = new SyncStateWindowJoinHelper();
+        this.helper.registerMetric(getRuntimeContext().getMetricGroup());
     }
 
     @Override
@@ -201,36 +158,20 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
 
     @Override
     public void processElement1(StreamRecord<RowData> element) throws Exception {
-        processElement(element, leftWindowEndIndex, leftLateRecordsDroppedRate, leftWindowState);
+        helper.processElement(
+                element,
+                leftWindowEndIndex,
+                helper.getLeftLateRecordsDroppedRate(),
+                (windowEnd, rowData) -> leftWindowState.add(windowEnd, rowData));
     }
 
     @Override
     public void processElement2(StreamRecord<RowData> element) throws Exception {
-        processElement(element, rightWindowEndIndex, rightLateRecordsDroppedRate, rightWindowState);
-    }
-
-    private void processElement(
-            StreamRecord<RowData> element,
-            int windowEndIndex,
-            Meter lateRecordsDroppedRate,
-            WindowListState<Long> recordState)
-            throws Exception {
-        RowData inputRow = element.getValue();
-        long windowEnd = inputRow.getLong(windowEndIndex);
-        if (isWindowFired(windowEnd, windowTimerService.currentWatermark(), shiftTimeZone)) {
-            // element is late and should be dropped
-            lateRecordsDroppedRate.markEvent();
-            return;
-        }
-        if (RowDataUtil.isAccumulateMsg(inputRow)) {
-            recordState.add(windowEnd, inputRow);
-        } else {
-            // Window join could not handle retraction input stream
-            throw new UnsupportedOperationException(
-                    "This is a bug and should not happen. Please file an issue.");
-        }
-        // always register time for every element
-        windowTimerService.registerEventTimeWindowTimer(windowEnd);
+        helper.processElement(
+                element,
+                rightWindowEndIndex,
+                helper.getRightLateRecordsDroppedRate(),
+                (windowEnd, rowData) -> rightWindowState.add(windowEnd, rowData));
     }
 
     @Override
@@ -247,329 +188,28 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
         // join left records and right records
         List<RowData> leftData = leftWindowState.get(window);
         List<RowData> rightData = rightWindowState.get(window);
-        join(leftData, rightData);
-        // clear state
-        if (leftData != null) {
-            leftWindowState.clear(window);
-        }
-        if (rightData != null) {
-            rightWindowState.clear(window);
-        }
+        helper.joinAndClear(window, leftData, rightData);
     }
 
-    public abstract void join(Iterable<RowData> leftRecords, Iterable<RowData> rightRecords);
+    private class SyncStateWindowJoinHelper extends WindowJoinHelper {
 
-    static class SemiAntiJoinOperator extends WindowJoinOperator {
-
-        private final boolean isAntiJoin;
-
-        SemiAntiJoinOperator(
-                TypeSerializer<RowData> leftSerializer,
-                TypeSerializer<RowData> rightSerializer,
-                GeneratedJoinCondition generatedJoinCondition,
-                int leftWindowEndIndex,
-                int rightWindowEndIndex,
-                boolean[] filterNullKeys,
-                boolean isAntiJoin,
-                ZoneId shiftTimeZone) {
+        public SyncStateWindowJoinHelper() {
             super(
-                    leftSerializer,
-                    rightSerializer,
-                    generatedJoinCondition,
-                    leftWindowEndIndex,
-                    rightWindowEndIndex,
-                    filterNullKeys,
-                    shiftTimeZone);
-            this.isAntiJoin = isAntiJoin;
+                    WindowJoinOperator.this.leftSerializer,
+                    WindowJoinOperator.this.rightSerializer,
+                    WindowJoinOperator.this.shiftTimeZone,
+                    WindowJoinOperator.this.windowTimerService,
+                    WindowJoinOperator.this.joinCondition,
+                    WindowJoinOperator.this.collector,
+                    WindowJoinOperator.this.joinType);
         }
 
         @Override
-        public void join(Iterable<RowData> leftRecords, Iterable<RowData> rightRecords) {
-            if (leftRecords == null) {
-                return;
-            }
-            if (rightRecords == null) {
-                if (isAntiJoin) {
-                    for (RowData leftRecord : leftRecords) {
-                        collector.collect(leftRecord);
-                    }
-                }
-                return;
-            }
-            for (RowData leftRecord : leftRecords) {
-                boolean matches = false;
-                for (RowData rightRecord : rightRecords) {
-                    if (joinCondition.apply(leftRecord, rightRecord)) {
-                        matches = true;
-                        break;
-                    }
-                }
-                if (matches) {
-                    if (!isAntiJoin) {
-                        // emit left record if there are matched rows on the other side
-                        collector.collect(leftRecord);
-                    }
-                } else {
-                    if (isAntiJoin) {
-                        // emit left record if there is no matched row on the other side
-                        collector.collect(leftRecord);
-                    }
-                }
-            }
-        }
-    }
-
-    static class InnerJoinOperator extends WindowJoinOperator {
-        private transient JoinedRowData outRow;
-
-        InnerJoinOperator(
-                TypeSerializer<RowData> leftSerializer,
-                TypeSerializer<RowData> rightSerializer,
-                GeneratedJoinCondition generatedJoinCondition,
-                int leftWindowEndIndex,
-                int rightWindowEndIndex,
-                boolean[] filterNullKeys,
-                ZoneId shiftTimeZone) {
-            super(
-                    leftSerializer,
-                    rightSerializer,
-                    generatedJoinCondition,
-                    leftWindowEndIndex,
-                    rightWindowEndIndex,
-                    filterNullKeys,
-                    shiftTimeZone);
-        }
-
-        @Override
-        public void open() throws Exception {
-            super.open();
-            outRow = new JoinedRowData();
-        }
-
-        @Override
-        public void join(Iterable<RowData> leftRecords, Iterable<RowData> rightRecords) {
-            if (leftRecords == null || rightRecords == null) {
-                return;
-            }
-            for (RowData leftRecord : leftRecords) {
-                for (RowData rightRecord : rightRecords) {
-                    if (joinCondition.apply(leftRecord, rightRecord)) {
-                        outRow.setRowKind(RowKind.INSERT);
-                        outRow.replace(leftRecord, rightRecord);
-                        collector.collect(outRow);
-                    }
-                }
-            }
-        }
-    }
-
-    private abstract static class AbstractOuterJoinOperator extends WindowJoinOperator {
-
-        private static final long serialVersionUID = 1L;
-
-        private transient RowData leftNullRow;
-        private transient RowData rightNullRow;
-        private transient JoinedRowData outRow;
-
-        AbstractOuterJoinOperator(
-                TypeSerializer<RowData> leftSerializer,
-                TypeSerializer<RowData> rightSerializer,
-                GeneratedJoinCondition generatedJoinCondition,
-                int leftWindowEndIndex,
-                int rightWindowEndIndex,
-                boolean[] filterNullKeys,
-                ZoneId shiftTimeZone) {
-            super(
-                    leftSerializer,
-                    rightSerializer,
-                    generatedJoinCondition,
-                    leftWindowEndIndex,
-                    rightWindowEndIndex,
-                    filterNullKeys,
-                    shiftTimeZone);
-        }
-
-        @Override
-        public void open() throws Exception {
-            super.open();
-            leftNullRow = new GenericRowData(leftSerializer.getArity());
-            rightNullRow = new GenericRowData(rightSerializer.getArity());
-            outRow = new JoinedRowData();
-        }
-
-        protected void outputNullPadding(RowData row, boolean isLeft) {
+        public void clearState(long windowEnd, boolean isLeft) {
             if (isLeft) {
-                outRow.replace(row, rightNullRow);
+                leftWindowState.clear(windowEnd);
             } else {
-                outRow.replace(leftNullRow, row);
-            }
-            outRow.setRowKind(RowKind.INSERT);
-            collector.collect(outRow);
-        }
-
-        protected void outputNullPadding(Iterable<RowData> rows, boolean isLeft) {
-            for (RowData row : rows) {
-                outputNullPadding(row, isLeft);
-            }
-        }
-
-        protected void output(RowData inputRow, RowData otherRow, boolean inputIsLeft) {
-            if (inputIsLeft) {
-                outRow.replace(inputRow, otherRow);
-            } else {
-                outRow.replace(otherRow, inputRow);
-            }
-            outRow.setRowKind(RowKind.INSERT);
-            collector.collect(outRow);
-        }
-    }
-
-    static class LeftOuterJoinOperator extends AbstractOuterJoinOperator {
-
-        private static final long serialVersionUID = 1L;
-
-        LeftOuterJoinOperator(
-                TypeSerializer<RowData> leftSerializer,
-                TypeSerializer<RowData> rightSerializer,
-                GeneratedJoinCondition generatedJoinCondition,
-                int leftWindowEndIndex,
-                int rightWindowEndIndex,
-                boolean[] filterNullKeys,
-                ZoneId shiftTimeZone) {
-            super(
-                    leftSerializer,
-                    rightSerializer,
-                    generatedJoinCondition,
-                    leftWindowEndIndex,
-                    rightWindowEndIndex,
-                    filterNullKeys,
-                    shiftTimeZone);
-        }
-
-        @Override
-        public void join(Iterable<RowData> leftRecords, Iterable<RowData> rightRecords) {
-            if (leftRecords == null) {
-                return;
-            }
-            if (rightRecords == null) {
-                outputNullPadding(leftRecords, true);
-            } else {
-                for (RowData leftRecord : leftRecords) {
-                    boolean matches = false;
-                    for (RowData rightRecord : rightRecords) {
-                        if (joinCondition.apply(leftRecord, rightRecord)) {
-                            output(leftRecord, rightRecord, true);
-                            matches = true;
-                        }
-                    }
-                    if (!matches) {
-                        // padding null for left side
-                        outputNullPadding(leftRecord, true);
-                    }
-                }
-            }
-        }
-    }
-
-    static class RightOuterJoinOperator extends AbstractOuterJoinOperator {
-
-        private static final long serialVersionUID = 1L;
-
-        RightOuterJoinOperator(
-                TypeSerializer<RowData> leftSerializer,
-                TypeSerializer<RowData> rightSerializer,
-                GeneratedJoinCondition generatedJoinCondition,
-                int leftWindowEndIndex,
-                int rightWindowEndIndex,
-                boolean[] filterNullKeys,
-                ZoneId shiftTimeZone) {
-            super(
-                    leftSerializer,
-                    rightSerializer,
-                    generatedJoinCondition,
-                    leftWindowEndIndex,
-                    rightWindowEndIndex,
-                    filterNullKeys,
-                    shiftTimeZone);
-        }
-
-        @Override
-        public void join(Iterable<RowData> leftRecords, Iterable<RowData> rightRecords) {
-            if (rightRecords == null) {
-                return;
-            }
-            if (leftRecords == null) {
-                outputNullPadding(rightRecords, false);
-            } else {
-                for (RowData rightRecord : rightRecords) {
-                    boolean matches = false;
-                    for (RowData leftRecord : leftRecords) {
-                        if (joinCondition.apply(leftRecord, rightRecord)) {
-                            output(leftRecord, rightRecord, true);
-                            matches = true;
-                        }
-                    }
-                    if (!matches) {
-                        outputNullPadding(rightRecord, false);
-                    }
-                }
-            }
-        }
-    }
-
-    static class FullOuterJoinOperator extends AbstractOuterJoinOperator {
-
-        private static final long serialVersionUID = 1L;
-
-        FullOuterJoinOperator(
-                TypeSerializer<RowData> leftSerializer,
-                TypeSerializer<RowData> rightSerializer,
-                GeneratedJoinCondition generatedJoinCondition,
-                int leftWindowEndIndex,
-                int rightWindowEndIndex,
-                boolean[] filterNullKeys,
-                ZoneId shiftTimeZone) {
-            super(
-                    leftSerializer,
-                    rightSerializer,
-                    generatedJoinCondition,
-                    leftWindowEndIndex,
-                    rightWindowEndIndex,
-                    filterNullKeys,
-                    shiftTimeZone);
-        }
-
-        @Override
-        public void join(Iterable<RowData> leftRecords, Iterable<RowData> rightRecords) {
-            if (leftRecords == null && rightRecords == null) {
-                return;
-            }
-            if (rightRecords == null) {
-                outputNullPadding(leftRecords, true);
-            } else if (leftRecords == null) {
-                outputNullPadding(rightRecords, false);
-            } else {
-                IdentityHashMap<RowData, Boolean> emittedRightRecords = new IdentityHashMap<>();
-                for (RowData leftRecord : leftRecords) {
-                    boolean matches = false;
-                    for (RowData rightRecord : rightRecords) {
-                        if (joinCondition.apply(leftRecord, rightRecord)) {
-                            output(leftRecord, rightRecord, true);
-                            matches = true;
-                            emittedRightRecords.put(rightRecord, Boolean.TRUE);
-                        }
-                    }
-                    // padding null for left side
-                    if (!matches) {
-                        outputNullPadding(leftRecord, true);
-                    }
-                }
-                // padding null for never emitted right side
-                for (RowData rightRecord : rightRecords) {
-                    if (!emittedRightRecords.containsKey(rightRecord)) {
-                        outputNullPadding(rightRecord, false);
-                    }
-                }
+                rightWindowState.clear(windowEnd);
             }
         }
     }

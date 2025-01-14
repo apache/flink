@@ -950,8 +950,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         }
         Catalog catalog =
                 catalogManager.getCatalogOrThrowException(tableIdentifier.getCatalogName());
-        ResolvedCatalogTable catalogTable =
-                catalogManager.resolveCatalogTable(createTableOperation.getCatalogTable());
+        ResolvedCatalogTable catalogTable = createTableOperation.getCatalogTable();
         Optional<DynamicTableSink> stagingDynamicTableSink =
                 getSupportsStagingDynamicTableSink(createTableOperation, catalog, catalogTable);
         if (stagingDynamicTableSink.isPresent()) {
@@ -985,8 +984,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         ObjectIdentifier tableIdentifier = createTableOperation.getTableIdentifier();
         Catalog catalog =
                 catalogManager.getCatalogOrThrowException(tableIdentifier.getCatalogName());
-        ResolvedCatalogTable catalogTable =
-                catalogManager.resolveCatalogTable(createTableOperation.getCatalogTable());
+        ResolvedCatalogTable catalogTable = createTableOperation.getCatalogTable();
         Optional<DynamicTableSink> stagingDynamicTableSink =
                 getSupportsStagingDynamicTableSink(createTableOperation, catalog, catalogTable);
         if (stagingDynamicTableSink.isPresent()) {

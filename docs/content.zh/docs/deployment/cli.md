@@ -79,7 +79,7 @@ $ export JOB_ID="cca7bc1061d61cf15238e92312c2fc20"
 The `run` command support passing additional configuration parameters via the
 `-D` argument. For example setting the [maximum parallelism]({{< ref "docs/deployment/config#pipeline-max-parallelism" >}}#application-mode) 
 for a job can be done by setting `-Dpipeline.max-parallelism=120`. This argument is very useful for
-configuring per-job or application mode clusters, because you can pass any configuration parameter 
+configuring application mode clusters, because you can pass any configuration parameter 
 to the cluster, without changing the configuration file.
 
 When submitting a job to an existing session cluster, only [execution configuration parameters]({{< ref "docs/deployment/config#execution" >}}) are supported.
@@ -403,13 +403,11 @@ Resource Provider section. Jobs can be submitted in different [Deployment Modes]
 The parameterization of a job submission differs based on the underlying framework and Deployment Mode. 
 
 `bin/flink` offers a parameter `--target` to handle the different options. In addition to that, jobs 
-have to be submitted using `run` (for [Session]({{< ref "docs/deployment/overview" >}}#session-mode), 
-[Per-Job Mode]({{< ref "docs/deployment/overview" >}}#per-job-mode) and 
-[Application Mode]({{< ref "docs/deployment/overview" >}}#application-mode)). See the following summary of 
+have to be submitted using `run` (for [Session]({{< ref "docs/deployment/overview" >}}#session-mode) 
+and [Application Mode]({{< ref "docs/deployment/overview" >}}#application-mode)). See the following summary of 
 parameter combinations: 
 * YARN
   * `./bin/flink run --target yarn-session`: Submission to an already running Flink on YARN cluster
-  * `./bin/flink run --target yarn-per-job`: Submission spinning up a Flink on YARN cluster in Per-Job Mode
   * `./bin/flink run --target yarn-application`: Submission spinning up Flink on YARN cluster in Application Mode
 * Kubernetes
   * `./bin/flink run --target kubernetes-session`: Submission to an already running Flink on Kubernetes cluster
@@ -471,13 +469,6 @@ $ ./bin/flink run \
 ```bash
 $ ./bin/flink run \
       --jobmanager <jobmanagerHost>:8081 \
-      --python examples/python/table/word_count.py
-```
-
-- Run a PyFlink job using a [YARN cluster in Per-Job Mode]({{< ref "docs/deployment/resource-providers/yarn" >}}#per-job-cluster-mode):
-```bash
-$ ./bin/flink run \
-      --target yarn-per-job
       --python examples/python/table/word_count.py
 ```
 

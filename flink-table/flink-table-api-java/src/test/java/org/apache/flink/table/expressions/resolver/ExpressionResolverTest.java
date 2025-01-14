@@ -397,14 +397,12 @@ class ExpressionResolverTest {
                                                             new SourceQueryOperation(
                                                                     ContextResolvedTable.anonymous(
                                                                             new ResolvedCatalogTable(
-                                                                                    CatalogTable.of(
-                                                                                            schema
-                                                                                                    .toSchema(),
-                                                                                            null,
-                                                                                            Collections
-                                                                                                    .emptyList(),
-                                                                                            Collections
-                                                                                                    .emptyMap()),
+                                                                                    CatalogTable
+                                                                                            .newBuilder()
+                                                                                            .schema(
+                                                                                                    schema
+                                                                                                            .toSchema())
+                                                                                            .build(),
                                                                                     ResolvedSchema
                                                                                             .physical(
                                                                                                     schema

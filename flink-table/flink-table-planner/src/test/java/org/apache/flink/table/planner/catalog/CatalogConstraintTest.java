@@ -80,7 +80,11 @@ public class CatalogConstraintTest {
 
         catalog.createTable(
                 new ObjectPath(databaseName, "T1"),
-                CatalogTable.of(tableSchema, "", Collections.emptyList(), properties),
+                CatalogTable.newBuilder()
+                        .schema(tableSchema)
+                        .comment("")
+                        .options(properties)
+                        .build(),
                 false);
 
         RelNode t1 = TableTestUtil.toRelNode(tEnv.sqlQuery("select * from T1"));
@@ -104,7 +108,11 @@ public class CatalogConstraintTest {
 
         catalog.createTable(
                 new ObjectPath(databaseName, "T1"),
-                CatalogTable.of(tableSchema, "", Collections.emptyList(), properties),
+                CatalogTable.newBuilder()
+                        .schema(tableSchema)
+                        .comment("")
+                        .options(properties)
+                        .build(),
                 false);
 
         RelNode t1 = TableTestUtil.toRelNode(tEnv.sqlQuery("select * from T1"));

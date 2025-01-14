@@ -232,7 +232,13 @@ public final class CatalogPropertiesUtil {
 
             final Map<String, String> options = deserializeOptions(properties, schemaKey);
 
-            return CatalogTable.of(schema, comment, partitionKeys, options, snapshot);
+            return CatalogTable.newBuilder()
+                    .schema(schema)
+                    .comment(comment)
+                    .partitionKeys(partitionKeys)
+                    .options(options)
+                    .snapshot(snapshot)
+                    .build();
         } catch (Exception e) {
             throw new CatalogException("Error in deserializing catalog table.", e);
         }

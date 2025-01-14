@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.legacy.sources.TableSource;
 
@@ -65,7 +66,7 @@ public interface TableSourceFactory<T> extends TableFactory {
      */
     @Deprecated
     default TableSource<T> createTableSource(ObjectPath tablePath, CatalogTable table) {
-        return createTableSource(table.toProperties());
+        return createTableSource(((ResolvedCatalogTable) table).toProperties());
     }
 
     /**

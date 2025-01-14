@@ -416,12 +416,14 @@ object TestPartitionableSourceFactory {
       }
     }
 
-    val table = CatalogTable.of(
-      tableSchema,
-      "",
-      util.Arrays.asList[String]("part1", "part2"),
-      properties.asMap()
-    )
+    val table =
+      CatalogTable
+        .newBuilder()
+        .schema(tableSchema)
+        .comment("")
+        .partitionKeys(util.Arrays.asList[String]("part1", "part2"))
+        .options(properties.asMap())
+        .build()
     val catalog = tEnv.getCatalog(tEnv.getCurrentCatalog).get()
     val path = new ObjectPath(tEnv.getCurrentDatabase, tableName)
     catalog.createTable(path, table, false)
@@ -460,11 +462,11 @@ class TestOptionsTableFactory extends TableSourceFactory[Row] with TableSinkFact
   }
 
   override def createTableSource(context: TableSourceFactory.Context): TableSource[Row] = {
-    createPropertiesSource(context.getTable.toProperties)
+    createPropertiesSource(context.getTable.asInstanceOf[ResolvedCatalogTable].toProperties)
   }
 
   override def createTableSink(context: TableSinkFactory.Context): TableSink[Row] = {
-    createPropertiesSink(context.getTable.toProperties)
+    createPropertiesSink(context.getTable.asInstanceOf[ResolvedCatalogTable].toProperties)
   }
 }
 

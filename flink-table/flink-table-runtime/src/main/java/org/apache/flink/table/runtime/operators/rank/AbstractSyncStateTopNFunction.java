@@ -27,11 +27,16 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.util.Collector;
+
+import java.util.Objects;
 
 /** Base class for TopN Function with sync state api. */
 public abstract class AbstractSyncStateTopNFunction extends AbstractTopNFunction {
 
     private ValueState<Long> rankEndState;
+
+    protected long rankEnd;
 
     public AbstractSyncStateTopNFunction(
             StateTtlConfig ttlConfig,
@@ -76,6 +81,7 @@ public abstract class AbstractSyncStateTopNFunction extends AbstractTopNFunction
      */
     protected long initRankEnd(RowData row) throws Exception {
         if (isConstantRankEnd) {
+            rankEnd = Objects.requireNonNull(constantRankEnd);
             return rankEnd;
         } else {
             Long rankEndValue = rankEndState.value();
@@ -94,5 +100,31 @@ public abstract class AbstractSyncStateTopNFunction extends AbstractTopNFunction
                 return rankEnd;
             }
         }
+    }
+
+    // ====== utility methods that omit the specified rank end ======
+
+    protected boolean isInRankEnd(long rank) {
+        return rank <= rankEnd;
+    }
+
+    protected boolean isInRankRange(long rank) {
+        return rank <= rankEnd && rank >= rankStart;
+    }
+
+    protected void collectInsert(Collector<RowData> out, RowData inputRow, long rank) {
+        collectInsert(out, inputRow, rank, rankEnd);
+    }
+
+    protected void collectDelete(Collector<RowData> out, RowData inputRow, long rank) {
+        collectDelete(out, inputRow, rank, rankEnd);
+    }
+
+    protected void collectUpdateAfter(Collector<RowData> out, RowData inputRow, long rank) {
+        collectUpdateAfter(out, inputRow, rank, rankEnd);
+    }
+
+    protected void collectUpdateBefore(Collector<RowData> out, RowData inputRow, long rank) {
+        collectUpdateBefore(out, inputRow, rank, rankEnd);
     }
 }

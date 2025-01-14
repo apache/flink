@@ -155,6 +155,10 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
             if (requestInfo.getTypeNumber() != 0) {
                 targetEdge.setTypeNumber(requestInfo.getTypeNumber());
             }
+            if (requestInfo.getIntraInputKeyCorrelated() != null) {
+                modifyIntraInputKeyCorrelation(
+                        targetEdge, requestInfo.getIntraInputKeyCorrelated());
+            }
         }
 
         // Notify the listener that the StreamGraph has been updated.
@@ -203,6 +207,12 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
     @Override
     public IntermediateDataSetID getConsumedIntermediateDataSetId(String edgeId) {
         return consumerEdgeIdToIntermediateDataSetMap.get(edgeId).getId();
+    }
+
+    @Override
+    public StreamPartitioner<?> getOutputPartitioner(
+            String edgeId, Integer sourceId, Integer targetId) {
+        return checkNotNull(getStreamEdge(sourceId, targetId, edgeId)).getPartitioner();
     }
 
     private boolean validateStreamEdgeUpdateRequest(StreamEdgeUpdateRequestInfo requestInfo) {
@@ -308,6 +318,14 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
                 oldPartitioner,
                 newPartitioner,
                 targetEdge.getPartitioner());
+    }
+
+    private void modifyIntraInputKeyCorrelation(
+            StreamEdge targetEdge, boolean existIntraInputKeyCorrelation) {
+        if (targetEdge.isIntraInputKeyCorrelated() == existIntraInputKeyCorrelation) {
+            return;
+        }
+        targetEdge.setIntraInputKeyCorrelated(existIntraInputKeyCorrelation);
     }
 
     private void tryConvertForwardPartitionerAndMergeForwardGroup(StreamEdge targetEdge) {

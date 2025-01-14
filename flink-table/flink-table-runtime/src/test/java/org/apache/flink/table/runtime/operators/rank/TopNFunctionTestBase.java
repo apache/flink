@@ -60,7 +60,6 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterR
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /** Base Tests for all subclass of {@link AbstractTopNFunction}. */
 @ExtendWith(ParameterizedTestExtension.class)
@@ -155,8 +154,6 @@ abstract class TopNFunctionTestBase {
     /** RankEnd column must be long, int or short type, but could not be string type yet. */
     @TestTemplate
     void testInvalidVariableRankRangeWithIntType() throws Exception {
-        // rank with async state does not support variable rank range yet
-        assumeFalse(enableAsyncState);
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new VariableRankRange(0), true, false);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -391,16 +388,6 @@ abstract class TopNFunctionTestBase {
         expectedOutput.add(insertRecord("book", 5L, 10));
         assertorWithoutRowNumber.assertOutputEquals(
                 "output wrong.", expectedOutput, testHarness.getOutput());
-    }
-
-    @TestTemplate
-    void testNotSupportConstantRankRangeWithAsyncState() {
-        assumeTrue(enableAsyncState);
-        assertThatThrownBy(
-                        () ->
-                                createFunction(
-                                        RankType.ROW_NUMBER, new VariableRankRange(0), true, false))
-                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(

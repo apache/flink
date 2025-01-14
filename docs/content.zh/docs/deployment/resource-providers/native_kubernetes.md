@@ -179,10 +179,6 @@ $ ./bin/flink cancel --target kubernetes-application -Dkubernetes.cluster-id=my-
 
 You can override configurations set in [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}) by passing key-value pairs `-Dkey=value` to `bin/flink`.
 
-### Per-Job Cluster Mode
-
-Flink on Kubernetes does not support Per-Job Cluster Mode.
-
 ### Session Mode
 
 You have seen the deployment of a Session cluster in the [Getting Started](#getting-started) guide at the top of this page.

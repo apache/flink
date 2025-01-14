@@ -34,8 +34,6 @@ import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 
-import javax.annotation.Nullable;
-
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory;
 import static org.apache.flink.table.types.inference.TypeInferenceUtil.createInvalidCallException;
 import static org.apache.flink.table.types.inference.TypeInferenceUtil.createUnexpectedException;
@@ -65,15 +63,10 @@ public final class TypeInferenceReturnInference implements SqlReturnTypeInferenc
     }
 
     @Override
-    public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-        final CallContext callContext =
-                new OperatorBindingCallContext(
-                        dataTypeFactory,
-                        definition,
-                        opBinding,
-                        extractExpectedOutputType(opBinding));
+    public RelDataType inferReturnType(SqlOperatorBinding binding) {
+        final CallContext callContext = createCallContext(binding);
         try {
-            return inferReturnTypeOrError(unwrapTypeFactory(opBinding), callContext);
+            return inferReturnTypeOrError(unwrapTypeFactory(binding), callContext);
         } catch (ValidationException e) {
             throw createInvalidCallException(callContext, e);
         } catch (Throwable t) {
@@ -83,14 +76,22 @@ public final class TypeInferenceReturnInference implements SqlReturnTypeInferenc
 
     // --------------------------------------------------------------------------------------------
 
-    private @Nullable RelDataType extractExpectedOutputType(SqlOperatorBinding opBinding) {
-        if (opBinding instanceof SqlCallBinding) {
-            final SqlCallBinding binding = (SqlCallBinding) opBinding;
+    private CallContext createCallContext(SqlOperatorBinding binding) {
+        if (binding instanceof SqlCallBinding) {
+            final SqlCallBinding callBinding = (SqlCallBinding) binding;
             final FlinkCalciteSqlValidator validator =
-                    (FlinkCalciteSqlValidator) binding.getValidator();
-            return validator.getExpectedOutputType(binding.getCall()).orElse(null);
+                    (FlinkCalciteSqlValidator) callBinding.getValidator();
+            final RelDataType expectedOutputType =
+                    validator.getExpectedOutputType(callBinding.getCall()).orElse(null);
+            return new CallBindingCallContext(
+                    dataTypeFactory,
+                    definition,
+                    callBinding,
+                    expectedOutputType,
+                    typeInference.getStaticArguments().orElse(null));
+        } else {
+            return new OperatorBindingCallContext(dataTypeFactory, definition, binding, null);
         }
-        return null;
     }
 
     private RelDataType inferReturnTypeOrError(

@@ -224,8 +224,7 @@ public final class DynamicSinkUtils {
             Map<String, String> staticPartitions,
             boolean isOverwrite,
             DynamicTableSink sink) {
-        final ResolvedCatalogTable catalogTable =
-                (ResolvedCatalogTable) createTableOperation.getCatalogTable();
+        final ResolvedCatalogTable catalogTable = createTableOperation.getCatalogTable();
 
         final ObjectIdentifier identifier = createTableOperation.getTableIdentifier();
 
