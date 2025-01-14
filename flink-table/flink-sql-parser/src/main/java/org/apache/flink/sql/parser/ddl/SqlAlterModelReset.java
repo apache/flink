@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 import static java.util.Objects.requireNonNull;
 
 /**
- * ALTER MODEL [IF EXISTS] [[catalogName.] dataBasesName].modelName RESET ( 'key1' [, 'key2']...).
+ * ALTER MODEL [IF EXISTS] [[catalogName.] dataBasesName.]modelName RESET ( 'key1' [, 'key2']...).
  */
 public class SqlAlterModelReset extends SqlAlterModel {
     private final SqlNodeList optionKeyList;

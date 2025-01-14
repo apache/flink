@@ -52,8 +52,6 @@ import org.apache.flink.table.operations.DescribeModelOperation;
 import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ShowModelsOperation;
-import org.apache.flink.table.operations.SinkModifyOperation;
-import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogCommentOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogOptionsOperation;
@@ -119,7 +117,7 @@ import static org.apache.flink.table.planner.utils.OperationMatchers.withOptions
 import static org.apache.flink.table.planner.utils.OperationMatchers.withSchema;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /** Test cases for the DDL statements for {@link SqlNodeToOperationConversion}. */
 public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBase {
@@ -429,9 +427,9 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
 
         final String[] renameModelSqls =
                 new String[] {
-                    "alter model cat1.db1.m1 rename to m2",
-                    "alter model db1.m1 rename to m2",
-                    "alter model m1 rename to cat1.db1.m2",
+                    "ALTER MODEL cat1.db1.m1 RENAME to m2",
+                    "ALTER MODEL db1.m1 RENAME to m2",
+                    "ALTER MODEL m1 RENAME to cat1.db1.m2",
                 };
         final ObjectIdentifier expectedIdentifier = ObjectIdentifier.of("cat1", "db1", "m1");
         final ObjectIdentifier expectedNewIdentifier = ObjectIdentifier.of("cat1", "db1", "m2");
@@ -449,7 +447,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
 
         // test alter model properties with existing key: 'k1'
         Operation operation =
-                parse("alter model if exists cat1.db1.m1 set ('k1' = 'v1_altered', 'K2' = 'V2')");
+                parse("ALTER MODEL IF EXISTS cat1.db1.m1 SET('k1' = 'v1_altered', 'K2' = 'V2')");
         assertThat(operation).isInstanceOf(AlterModelChangeOperation.class);
         AlterModelChangeOperation alterModelPropertiesOperation =
                 (AlterModelChangeOperation) operation;
@@ -461,7 +459,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         assertThat(alterModelPropertiesOperation.getModelChanges()).isEqualTo(expectedModelChanges);
 
         // test alter model properties without keys
-        operation = parse("alter model if exists cat1.db1.m1 set ('k3' = 'v3')");
+        operation = parse("ALTER MODEL IF EXISTS cat1.db1.m1 SET('k3' = 'v3')");
         expectedModelChanges.clear();
         expectedModelChanges.add(ModelChange.set("k3", "v3"));
 
@@ -472,12 +470,12 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         assertThat(alterModelPropertiesOperation.getModelChanges()).isEqualTo(expectedModelChanges);
 
         // test alter model properties empty option not supported
-        assertThatThrownBy(() -> parse("alter model if exists cat1.db1.m1 set ()"))
+        assertThatThrownBy(() -> parse("ALTER MODEL IF EXISTS cat1.db1.m1 SET()"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("ALTER MODEL SET does not support empty option");
 
         // test alter model reset properties with existing key: 'k1'
-        operation = parse("alter model if exists cat1.db1.m1 reset ('k1')");
+        operation = parse("ALTER MODEL IF EXISTS cat1.db1.m1 RESET('k1')");
         assertThat(operation).isInstanceOf(AlterModelChangeOperation.class);
         alterModelPropertiesOperation = (AlterModelChangeOperation) operation;
         assertThat(alterModelPropertiesOperation.getModelIdentifier())
@@ -487,7 +485,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         assertThat(alterModelPropertiesOperation.getModelChanges()).isEqualTo(expectedModelChanges);
 
         // test alter model reset properties empty key not supported
-        assertThatThrownBy(() -> parse("alter model if exists cat1.db1.m1 reset ()"))
+        assertThatThrownBy(() -> parse("ALTER MODEL IF EXISTS cat1.db1.m1 RESET()"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("ALTER MODEL RESET does not support empty key");
     }

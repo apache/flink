@@ -32,7 +32,7 @@ import java.util.List;
 import static java.util.Objects.requireNonNull;
 
 /**
- * ALTER MODEL [IF EXISTS] [[catalogName.] dataBasesName].modelName SET ( name=value [,
+ * ALTER MODEL [IF EXISTS] [[catalogName.] dataBasesName.]modelName SET ( name=value [,
  * name=value]*).
  */
 public class SqlAlterModelSet extends SqlAlterModel {

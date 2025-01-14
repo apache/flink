@@ -3336,8 +3336,8 @@ SqlAlterModel SqlAlterModel() :
             return new SqlAlterModelRename(
                         startPos.plus(getPos()),
                         modelIdentifier,
-                        ifExists,
-                        newModelIdentifier);
+                        newModelIdentifier,
+                        ifExists);
         }
     |
         <SET>
