@@ -31,6 +31,7 @@ import org.apache.flink.datastream.impl.context.DefaultRuntimeContext;
 import org.apache.flink.datastream.impl.context.DefaultTwoOutputNonPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultTwoOutputPartitionedContext;
 import org.apache.flink.datastream.impl.context.UnsupportedProcessingTimeManager;
+import org.apache.flink.datastream.impl.extension.eventtime.EventTimeExtensionImpl;
 import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateUdfStreamOperator;
 import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
@@ -39,6 +40,7 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermark.AbstractInternalWatermarkDeclaration;
+import org.apache.flink.streaming.runtime.watermark.extension.eventtime.EventTimeWatermarkHandler;
 import org.apache.flink.util.OutputTag;
 
 import java.util.Map;
@@ -69,6 +71,9 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
 
     protected transient Map<String, AbstractInternalWatermarkDeclaration<?>>
             watermarkDeclarationMap;
+
+    // {@link EventTimeWatermarkHandler} will be used to process event time related watermarks
+    protected transient EventTimeWatermarkHandler eventTimeWatermarkHandler;
 
     public TwoOutputProcessOperator(
             TwoOutputStreamProcessFunction<IN, OUT_MAIN, OUT_SIDE> userFunction,
@@ -112,6 +117,9 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
                         operatorStateStore);
         this.nonPartitionedContext = getNonPartitionedContext();
         this.partitionedContext.setNonPartitionedContext(nonPartitionedContext);
+        this.eventTimeWatermarkHandler =
+                new EventTimeWatermarkHandler(1, output, timeServiceManager);
+
         this.userFunction.open(this.nonPartitionedContext);
     }
 
@@ -136,7 +144,13 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
                                 .get(watermark.getWatermark().getIdentifier())
                                 .getDefaultHandlingStrategy()
                         == WatermarkHandlingStrategy.FORWARD) {
-            output.emitWatermark(watermark);
+            if (EventTimeExtensionImpl.isEventTimeExtensionWatermark(watermark.getWatermark())) {
+                // if the watermark is event time related watermark, process them to advance event
+                // time
+                eventTimeWatermarkHandler.processWatermark(watermark.getWatermark(), 0);
+            } else {
+                output.emitWatermark(watermark);
+            }
         }
     }
 
