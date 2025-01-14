@@ -158,12 +158,20 @@ public class WindowJoinOperator extends TableStreamOperator<RowData>
 
     @Override
     public void processElement1(StreamRecord<RowData> element) throws Exception {
-        helper.processElement(element.getValue(), true);
+        helper.processElement(
+                element,
+                leftWindowEndIndex,
+                helper.getLeftLateRecordsDroppedRate(),
+                (windowEnd, rowData) -> leftWindowState.add(windowEnd, rowData));
     }
 
     @Override
     public void processElement2(StreamRecord<RowData> element) throws Exception {
-        helper.processElement(element.getValue(), false);
+        helper.processElement(
+                element,
+                rightWindowEndIndex,
+                helper.getRightLateRecordsDroppedRate(),
+                (windowEnd, rowData) -> rightWindowState.add(windowEnd, rowData));
     }
 
     @Override
@@ -192,23 +200,12 @@ public class WindowJoinOperator extends TableStreamOperator<RowData>
                     WindowJoinOperator.this.shiftTimeZone,
                     WindowJoinOperator.this.windowTimerService,
                     WindowJoinOperator.this.joinCondition,
-                    WindowJoinOperator.this.leftWindowEndIndex,
-                    WindowJoinOperator.this.rightWindowEndIndex,
                     WindowJoinOperator.this.collector,
                     WindowJoinOperator.this.joinType);
         }
 
         @Override
-        public void accToState(long windowEnd, RowData rowData, boolean isLeft) throws Exception {
-            if (isLeft) {
-                leftWindowState.add(windowEnd, rowData);
-            } else {
-                rightWindowState.add(windowEnd, rowData);
-            }
-        }
-
-        @Override
-        public void clearState(long windowEnd, boolean isLeft) throws Exception {
+        public void clearState(long windowEnd, boolean isLeft) {
             if (isLeft) {
                 leftWindowState.clear(windowEnd);
             } else {

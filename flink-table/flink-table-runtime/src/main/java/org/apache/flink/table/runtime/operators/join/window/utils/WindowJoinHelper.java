@@ -23,6 +23,7 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.RowDataUtil;
@@ -34,6 +35,7 @@ import org.apache.flink.table.runtime.operators.join.window.asyncprocessing.Asyn
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.util.function.BiConsumerWithException;
 
 import javax.annotation.Nullable;
 
@@ -68,9 +70,6 @@ public abstract class WindowJoinHelper {
 
     protected final JoinConditionWithNullFilters joinCondition;
 
-    private final int leftWindowEndIndex;
-    private final int rightWindowEndIndex;
-
     /** This is used for emitting elements with a given timestamp. */
     protected final TimestampedCollector<RowData> collector;
 
@@ -89,8 +88,6 @@ public abstract class WindowJoinHelper {
             ZoneId shiftTimeZone,
             WindowTimerService<Long> windowTimerService,
             JoinConditionWithNullFilters joinCondition,
-            int leftWindowEndIndex,
-            int rightWindowEndIndex,
             TimestampedCollector<RowData> collector,
             FlinkJoinType joinType) {
         this.leftSerializer = leftSerializer;
@@ -98,8 +95,6 @@ public abstract class WindowJoinHelper {
         this.shiftTimeZone = shiftTimeZone;
         this.windowTimerService = windowTimerService;
         this.joinCondition = joinCondition;
-        this.leftWindowEndIndex = leftWindowEndIndex;
-        this.rightWindowEndIndex = rightWindowEndIndex;
         this.collector = collector;
 
         this.windowJoinProcessor = getWindowJoinProcessor(joinType);
@@ -130,17 +125,13 @@ public abstract class WindowJoinHelper {
                 });
     }
 
-    public void processElement(RowData inputRow, boolean isLeft) throws Exception {
-        Meter lateRecordsDroppedRate;
-        int windowEndIndex;
-        if (isLeft) {
-            windowEndIndex = leftWindowEndIndex;
-            lateRecordsDroppedRate = leftLateRecordsDroppedRate;
-        } else {
-            windowEndIndex = rightWindowEndIndex;
-            lateRecordsDroppedRate = rightLateRecordsDroppedRate;
-        }
-
+    public void processElement(
+            StreamRecord<RowData> element,
+            int windowEndIndex,
+            Meter lateRecordsDroppedRate,
+            BiConsumerWithException<Long, RowData, Exception> accStateConsumer)
+            throws Exception {
+        RowData inputRow = element.getValue();
         long windowEnd = inputRow.getLong(windowEndIndex);
         if (isWindowFired(windowEnd, windowTimerService.currentWatermark(), shiftTimeZone)) {
             // element is late and should be dropped
@@ -148,7 +139,7 @@ public abstract class WindowJoinHelper {
             return;
         }
         if (RowDataUtil.isAccumulateMsg(inputRow)) {
-            accToState(windowEnd, inputRow, isLeft);
+            accStateConsumer.accept(windowEnd, inputRow);
         } else {
             // Window join could not handle retraction input stream
             throw new UnsupportedOperationException(
@@ -173,8 +164,13 @@ public abstract class WindowJoinHelper {
         }
     }
 
-    public abstract void accToState(long windowEnd, RowData rowData, boolean isLeft)
-            throws Exception;
+    public Meter getLeftLateRecordsDroppedRate() {
+        return leftLateRecordsDroppedRate;
+    }
+
+    public Meter getRightLateRecordsDroppedRate() {
+        return rightLateRecordsDroppedRate;
+    }
 
     public abstract void clearState(long windowEnd, boolean isLeft) throws Exception;
 

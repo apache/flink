@@ -171,12 +171,20 @@ public class AsyncStateWindowJoinOperator extends AsyncStateTableStreamOperator<
 
     @Override
     public void processElement1(StreamRecord<RowData> element) throws Exception {
-        helper.processElement(element.getValue(), true);
+        helper.processElement(
+                element,
+                leftWindowEndIndex,
+                helper.getLeftLateRecordsDroppedRate(),
+                (windowEnd, rowData) -> leftWindowState.asyncAdd(windowEnd, rowData));
     }
 
     @Override
     public void processElement2(StreamRecord<RowData> element) throws Exception {
-        helper.processElement(element.getValue(), false);
+        helper.processElement(
+                element,
+                rightWindowEndIndex,
+                helper.getRightLateRecordsDroppedRate(),
+                (windowEnd, rowData) -> rightWindowState.asyncAdd(windowEnd, rowData));
     }
 
     @Override
@@ -252,20 +260,8 @@ public class AsyncStateWindowJoinOperator extends AsyncStateTableStreamOperator<
                     AsyncStateWindowJoinOperator.this.shiftTimeZone,
                     AsyncStateWindowJoinOperator.this.windowTimerService,
                     AsyncStateWindowJoinOperator.this.joinCondition,
-                    AsyncStateWindowJoinOperator.this.leftWindowEndIndex,
-                    AsyncStateWindowJoinOperator.this.rightWindowEndIndex,
                     AsyncStateWindowJoinOperator.this.collector,
                     AsyncStateWindowJoinOperator.this.joinType);
-        }
-
-        @Override
-        public void accToState(long windowEnd, RowData rowData, boolean isLeft) {
-            // no need to wait these async requests to end
-            if (isLeft) {
-                leftWindowState.asyncAdd(windowEnd, rowData);
-            } else {
-                rightWindowState.asyncAdd(windowEnd, rowData);
-            }
         }
 
         @Override
