@@ -45,6 +45,7 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.annotation.ArgumentTrait.OPTIONAL_PARTITION_BY;
+import static org.apache.flink.table.annotation.ArgumentTrait.PASS_COLUMNS_THROUGH;
 import static org.apache.flink.table.annotation.ArgumentTrait.TABLE_AS_ROW;
 import static org.apache.flink.table.annotation.ArgumentTrait.TABLE_AS_SET;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -132,6 +133,18 @@ public class ProcessTableFunctionTest extends TableTestBase {
         util.addTemporarySystemFunction("pojoCreator", PojoCreatingFunction.class);
         assertReachesOptimizer(
                 "SELECT * FROM f(input => TABLE t1, scalar => pojoCreator('Bob', 12), uid => 'my-ptf')");
+    }
+
+    @Test
+    void testTableAsSetPassThroughColumns() {
+        util.addTemporarySystemFunction("f", TableAsSetPassThroughFunction.class);
+        assertReachesOptimizer("SELECT * FROM f(r => TABLE t1 PARTITION BY name, i => 1)");
+    }
+
+    @Test
+    void testTableAsRowPassThroughColumns() {
+        util.addTemporarySystemFunction("f", TableAsRowPassThroughFunction.class);
+        assertReachesOptimizer("SELECT * FROM f(r => TABLE t1, i => 1)");
     }
 
     @ParameterizedTest
@@ -257,6 +270,18 @@ public class ProcessTableFunctionTest extends TableTestBase {
     public static class TableAsSetOptionalPartitionFunction extends ProcessTableFunction<String> {
         @SuppressWarnings("unused")
         public void eval(@ArgumentHint({TABLE_AS_SET, OPTIONAL_PARTITION_BY}) Row r, Integer i) {}
+    }
+
+    /** Testing function. */
+    public static class TableAsRowPassThroughFunction extends ProcessTableFunction<String> {
+        @SuppressWarnings("unused")
+        public void eval(@ArgumentHint({TABLE_AS_ROW, PASS_COLUMNS_THROUGH}) Row r, Integer i) {}
+    }
+
+    /** Testing function. */
+    public static class TableAsSetPassThroughFunction extends ProcessTableFunction<String> {
+        @SuppressWarnings("unused")
+        public void eval(@ArgumentHint({TABLE_AS_SET, PASS_COLUMNS_THROUGH}) Row r, Integer i) {}
     }
 
     /** Testing function. */

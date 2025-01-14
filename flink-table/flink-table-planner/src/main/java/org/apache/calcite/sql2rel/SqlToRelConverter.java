@@ -249,8 +249,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *   <li>Added in FLINK-32474: Lines 2499 ~ 2501
  *   <li>Added in FLINK-32474: Lines 2906 ~ 2918
  *   <li>Added in FLINK-32474: Lines 3019 ~ 3053
- *   <li>Added in FLINK-34312: Lines 5693 ~ 5696
- *   <li>Added in FLINK-34057, FLINK-34058, FLINK-34312: Lines 6144 ~ 6162
+ *   <li>Added in FLINK-34312: Lines 5804 ~ 5813
+ *   <li>Added in FLINK-34057, FLINK-34058, FLINK-34312: Lines 6263 ~ 6279
  * </ol>
  */
 @SuppressWarnings("UnstableApiUsage")
@@ -5801,8 +5801,16 @@ public class SqlToRelConverter {
                 }
             }
             // ----- FLINK MODIFICATION BEGIN -----
-            return exprConverter.convertCall(
-                    this, new FlinkSqlCallBinding(validator(), scope, call).permutedCall());
+            final SqlCall permutedCall =
+                    new FlinkSqlCallBinding(validator(), scope, call).permutedCall();
+            final RelDataType typeIfKnown = validator().getValidatedNodeTypeIfKnown(call);
+            if (typeIfKnown != null) {
+                // Argument permutation should not affect the output type,
+                // reset it if it was known. Otherwise, the type inference would be called twice
+                // when converting to RexNode.
+                validator().setValidatedNodeType(permutedCall, typeIfKnown);
+            }
+            return exprConverter.convertCall(this, permutedCall);
             // ----- FLINK MODIFICATION END -----
         }
 

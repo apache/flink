@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.DataTypes.Field;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.ProcessTableFunction;
@@ -31,7 +32,9 @@ import org.apache.flink.table.types.DataType;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -39,6 +42,7 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 /**
  * Extends the {@link TypeInference} function-aware by additional system columns and validation.
@@ -72,7 +76,8 @@ public class SystemTypeInference {
                 deriveSystemInputStrategy(functionKind, systemArgs, origin.getInputTypeStrategy()));
         builder.stateTypeStrategies(origin.getStateTypeStrategies());
         builder.outputTypeStrategy(
-                deriveSystemOutputStrategy(functionKind, origin.getOutputTypeStrategy()));
+                deriveSystemOutputStrategy(
+                        functionKind, systemArgs, origin.getOutputTypeStrategy()));
         return builder.build();
     }
 
@@ -137,18 +142,22 @@ public class SystemTypeInference {
     }
 
     private static TypeStrategy deriveSystemOutputStrategy(
-            FunctionKind functionKind, TypeStrategy outputStrategy) {
+            FunctionKind functionKind,
+            @Nullable List<StaticArgument> staticArgs,
+            TypeStrategy outputStrategy) {
         if (functionKind != FunctionKind.TABLE && functionKind != FunctionKind.PROCESS_TABLE) {
             return outputStrategy;
         }
-        return new SystemOutputStrategy(outputStrategy);
+        return new SystemOutputStrategy(staticArgs, outputStrategy);
     }
 
     private static class SystemOutputStrategy implements TypeStrategy {
 
+        private final List<StaticArgument> staticArgs;
         private final TypeStrategy origin;
 
-        private SystemOutputStrategy(TypeStrategy origin) {
+        private SystemOutputStrategy(List<StaticArgument> staticArgs, TypeStrategy origin) {
+            this.staticArgs = staticArgs;
             this.origin = origin;
         }
 
@@ -156,29 +165,86 @@ public class SystemTypeInference {
         public Optional<DataType> inferType(CallContext callContext) {
             return origin.inferType(callContext)
                     .map(
-                            dataType -> {
-                                final List<DataType> fieldTypes =
-                                        DataType.getFieldDataTypes(dataType);
-                                final List<String> fieldNames = DataType.getFieldNames(dataType);
+                            functionDataType -> {
                                 final List<Field> fields = new ArrayList<>();
-                                if (fieldTypes.isEmpty()) {
-                                    // Before the system type inference was introduced, SQL and
-                                    // Table API chose a different default field name.
-                                    // EXPR$0 is chosen for best-effort backwards compatibility for
-                                    // SQL users.
-                                    fields.add(DataTypes.FIELD("EXPR$0", dataType));
-                                } else {
-                                    IntStream.range(0, fieldTypes.size())
-                                            .mapToObj(
-                                                    pos ->
-                                                            DataTypes.FIELD(
-                                                                    fieldNames.get(pos),
-                                                                    fieldTypes.get(pos)))
-                                            .forEach(fields::add);
-                                }
 
-                                return DataTypes.ROW(fields).notNull();
+                                // According to the SQL standard, pass-through columns should
+                                // actually be added at the end of the output row type. However,
+                                // looking at the overall landscape we deviate from the standard in
+                                // this regard:
+                                // - Calcite built-in window functions add them at the beginning
+                                // - MATCH_RECOGNIZE adds PARTITION BY columns at the beginning
+                                // - Flink SESSION windows add pass-through columns at the beginning
+                                // - Oracle adds pass-through columns for all ROW semantics args, so
+                                // this whole topic is kind of vendor specific already
+                                fields.addAll(derivePassThroughFields(callContext));
+                                fields.addAll(deriveFunctionOutputFields(functionDataType));
+
+                                final List<Field> uniqueFields = makeFieldNamesUnique(fields);
+
+                                return DataTypes.ROW(uniqueFields).notNull();
                             });
+        }
+
+        private List<Field> makeFieldNamesUnique(List<Field> fields) {
+            final Map<String, Integer> fieldCount = new HashMap<>();
+            return fields.stream()
+                    .map(
+                            item -> {
+                                final int nextCount =
+                                        fieldCount.compute(
+                                                item.getName(),
+                                                (fieldName, count) ->
+                                                        count == null ? -1 : count + 1);
+                                final String newFieldName =
+                                        nextCount < 0 ? item.getName() : item.getName() + nextCount;
+                                return DataTypes.FIELD(newFieldName, item.getDataType());
+                            })
+                    .collect(Collectors.toList());
+        }
+
+        private List<Field> derivePassThroughFields(CallContext callContext) {
+            if (staticArgs == null) {
+                return List.of();
+            }
+            final List<DataType> argDataTypes = callContext.getArgumentDataTypes();
+            return IntStream.range(0, staticArgs.size())
+                    .mapToObj(
+                            pos -> {
+                                final StaticArgument arg = staticArgs.get(pos);
+                                if (arg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH)) {
+                                    return DataType.getFields(argDataTypes.get(pos)).stream();
+                                }
+                                if (!arg.is(StaticArgumentTrait.TABLE_AS_SET)) {
+                                    return Stream.<Field>empty();
+                                }
+                                final TableSemantics semantics =
+                                        callContext
+                                                .getTableSemantics(pos)
+                                                .orElseThrow(IllegalStateException::new);
+                                final DataType projectedRow =
+                                        Projection.of(semantics.partitionByColumns())
+                                                .project(argDataTypes.get(pos));
+                                return DataType.getFields(projectedRow).stream();
+                            })
+                    .flatMap(s -> s)
+                    .collect(Collectors.toList());
+        }
+
+        private List<Field> deriveFunctionOutputFields(DataType functionDataType) {
+            final List<DataType> fieldTypes = DataType.getFieldDataTypes(functionDataType);
+            final List<String> fieldNames = DataType.getFieldNames(functionDataType);
+
+            if (fieldTypes.isEmpty()) {
+                // Before the system type inference was introduced, SQL and
+                // Table API chose a different default field name.
+                // EXPR$0 is chosen for best-effort backwards compatibility for
+                // SQL users.
+                return List.of(DataTypes.FIELD("EXPR$0", functionDataType));
+            }
+            return IntStream.range(0, fieldTypes.size())
+                    .mapToObj(pos -> DataTypes.FIELD(fieldNames.get(pos), fieldTypes.get(pos)))
+                    .collect(Collectors.toList());
         }
     }
 
