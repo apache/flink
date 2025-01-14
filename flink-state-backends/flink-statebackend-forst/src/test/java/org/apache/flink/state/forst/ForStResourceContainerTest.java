@@ -310,7 +310,13 @@ public class ForStResourceContainerTest {
         Path remoteBasePath = new Path(TMP_FOLDER.newFolder().getPath());
         try (final ForStResourceContainer optionsContainer =
                 new ForStResourceContainer(
-                        new Configuration(), null, null, localBasePath, remoteBasePath, false)) {
+                        new Configuration(),
+                        null,
+                        null,
+                        localBasePath,
+                        remoteBasePath,
+                        null,
+                        false)) {
             optionsContainer.prepareDirectories();
             assertTrue(new File(localBasePath.getPath()).exists());
             assertTrue(new File(remoteBasePath.getPath()).exists());
