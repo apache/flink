@@ -80,8 +80,8 @@ public abstract class WindowJoinHelper {
     // Metrics
     // ------------------------------------------------------------------------
 
-    private final Meter leftLateRecordsDroppedRate;
-    private final Meter rightLateRecordsDroppedRate;
+    private Meter leftLateRecordsDroppedRate;
+    private Meter rightLateRecordsDroppedRate;
 
     public WindowJoinHelper(
             RowDataSerializer leftSerializer,
@@ -92,8 +92,7 @@ public abstract class WindowJoinHelper {
             int leftWindowEndIndex,
             int rightWindowEndIndex,
             TimestampedCollector<RowData> collector,
-            FlinkJoinType joinType,
-            OperatorMetricGroup metrics) {
+            FlinkJoinType joinType) {
         this.leftSerializer = leftSerializer;
         this.rightSerializer = rightSerializer;
         this.shiftTimeZone = shiftTimeZone;
@@ -104,7 +103,9 @@ public abstract class WindowJoinHelper {
         this.collector = collector;
 
         this.windowJoinProcessor = getWindowJoinProcessor(joinType);
+    }
 
+    public void registerMetric(OperatorMetricGroup metrics) {
         // register metrics
         Counter leftNumLateRecordsDropped = metrics.counter(LEFT_LATE_ELEMENTS_DROPPED_METRIC_NAME);
         this.leftLateRecordsDroppedRate =

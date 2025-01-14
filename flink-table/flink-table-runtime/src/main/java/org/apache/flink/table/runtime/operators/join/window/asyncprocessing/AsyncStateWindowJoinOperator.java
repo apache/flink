@@ -157,6 +157,7 @@ public class AsyncStateWindowJoinOperator extends AsyncStateTableStreamOperator<
                         (InternalListState<RowData, Long, RowData>) rightListState);
 
         this.helper = new AsyncStateWindowJoinHelper();
+        this.helper.registerMetric(getRuntimeContext().getMetricGroup());
     }
 
     @Override
@@ -254,8 +255,7 @@ public class AsyncStateWindowJoinOperator extends AsyncStateTableStreamOperator<
                     AsyncStateWindowJoinOperator.this.leftWindowEndIndex,
                     AsyncStateWindowJoinOperator.this.rightWindowEndIndex,
                     AsyncStateWindowJoinOperator.this.collector,
-                    AsyncStateWindowJoinOperator.this.joinType,
-                    AsyncStateWindowJoinOperator.this.metrics);
+                    AsyncStateWindowJoinOperator.this.joinType);
         }
 
         @Override

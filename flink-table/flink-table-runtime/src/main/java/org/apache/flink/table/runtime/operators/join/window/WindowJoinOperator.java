@@ -144,6 +144,7 @@ public class WindowJoinOperator extends TableStreamOperator<RowData>
                 new WindowListState<>((InternalListState<RowData, Long, RowData>) rightListState);
 
         this.helper = new SyncStateWindowJoinHelper();
+        this.helper.registerMetric(getRuntimeContext().getMetricGroup());
     }
 
     @Override
@@ -194,8 +195,7 @@ public class WindowJoinOperator extends TableStreamOperator<RowData>
                     WindowJoinOperator.this.leftWindowEndIndex,
                     WindowJoinOperator.this.rightWindowEndIndex,
                     WindowJoinOperator.this.collector,
-                    WindowJoinOperator.this.joinType,
-                    WindowJoinOperator.this.metrics);
+                    WindowJoinOperator.this.joinType);
         }
 
         @Override
