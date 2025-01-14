@@ -50,9 +50,6 @@ There are eight different categories of data types:
 
 #### Tuples
 
-{{< tabs "e24bb87b-46e8-4f17-8054-c3400aaa6ddc" >}}
-{{< tab "Java" >}}
-
 Tuples are composite types that contain a fixed number of fields with various types.
 The Java API provides classes from `Tuple1` up to `Tuple25`. Every field of a tuple
 can be an arbitrary Flink type including further tuples, resulting in nested tuples. Fields of a
@@ -76,8 +73,6 @@ wordCounts.keyBy(value -> value.f0);
 
 
 ```
-{{< /tab >}}
-{{< /tabs >}}
 
 #### POJOs
 
@@ -103,8 +98,6 @@ If you additionally want to ensure that no field of the POJO will be serialized 
 
 The following example shows a simple POJO with two public fields.
 
-{{< tabs "0589f3b3-76d8-4913-9595-276da92cbc77" >}}
-{{< tab "Java" >}}
 ```java
 public class WordWithCount {
 
@@ -126,8 +119,6 @@ DataStream<WordWithCount> wordCounts = env.fromElements(
 wordCounts.keyBy(value -> value.word);
 
 ```
-{{< /tab >}}
-{{< /tabs >}}
 
 #### Primitive Types
 
@@ -325,12 +316,8 @@ serialized with Kryo.
 
 #### Creating a TypeInformation or TypeSerializer
 
-To create a TypeInformation object for a type, use the language specific way:
-
-{{< tabs "013807cc-9f3f-4f91-a770-26b1e5e8c85c" >}}
-{{< tab "Java" >}}
 Because Java generally erases generic type information, you need to pass the type to the TypeInformation
-construction:
+construction.
 
 For non-generic types, you can pass the Class:
 ```java
@@ -343,8 +330,6 @@ TypeInformation<Tuple2<String, Double>> info = TypeInformation.of(new TypeHint<T
 ```
 Internally, this creates an anonymous subclass of the TypeHint that captures the generic information to preserve it
 until runtime.
-{{< /tab >}}
-{{< /tabs >}}
 
 There are two ways to create a TypeSerializer.
 
