@@ -204,40 +204,6 @@ ds = env.from_source(
 <span class="label label-info">Note</span> The `DataStream` created using `from_source` could be
 executed in both `batch` and `streaming` executing mode.
 
-### Create using Table & SQL connectors
-
-Table & SQL connectors could also be used to create a `DataStream`. You could firstly create a
-`Table` using Table & SQL connectors and then convert it to a `DataStream`.
-
-```python
-from pyflink.common.typeinfo import Types
-from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.table import StreamTableEnvironment
-
-env = StreamExecutionEnvironment.get_execution_environment()
-t_env = StreamTableEnvironment.create(stream_execution_environment=env)
-
-t_env.execute_sql("""
-        CREATE TABLE my_source (
-          a INT,
-          b VARCHAR
-        ) WITH (
-          'connector' = 'datagen',
-          'number-of-rows' = '10'
-        )
-    """)
-
-ds = t_env.to_append_stream(
-    t_env.from_path('my_source'),
-    Types.ROW([Types.INT(), Types.STRING()]))
-```
-
-<span class="label label-info">Note</span> The StreamExecutionEnvironment `env` should be specified
-when creating the TableEnvironment `t_env`.
-
-<span class="label label-info">Note</span> As all the Java Table & SQL connectors could be used in
-PyFlink Table API, this means that all of them could also be used in PyFlink DataStream API.
-
 {{< top >}}
 
 DataStream Transformations
@@ -266,8 +232,6 @@ It also supports to convert a `DataStream` to a `Table` and vice verse.
 table = t_env.from_data_stream(ds, 'a, b, c')
 
 # convert a Table to a DataStream
-ds = t_env.to_append_stream(table, Types.ROW([Types.INT(), Types.STRING()]))
-# or
 ds = t_env.to_retract_stream(table, Types.ROW([Types.INT(), Types.STRING()]))
 ```
 

@@ -764,10 +764,12 @@ public interface StreamTableEnvironment extends TableEnvironment {
     <T> void createTemporaryView(String path, DataStream<T> dataStream, Expression... fields);
 
     /**
-     * Converts the given {@link Table} into an append {@link DataStream} of a specified type.
+     * Converts the given {@link Table} into a {@link DataStream} of add and retract messages. The
+     * message will be encoded as {@link Tuple2}. The first field is a {@link Boolean} flag, the
+     * second field holds the record of the specified type {@link T}.
      *
-     * <p>The {@link Table} must only have insert (append) changes. If the {@link Table} is also
-     * modified by update or delete changes, the conversion will fail.
+     * <p>A true {@link Boolean} flag indicates an add message, a false flag indicates a retract
+     * message.
      *
      * <p>The fields of the {@link Table} are mapped to {@link DataStream} fields as follows:
      *
@@ -778,16 +780,13 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * </ul>
      *
      * @param table The {@link Table} to convert.
-     * @param clazz The class of the type of the resulting {@link DataStream}.
-     * @param <T> The type of the resulting {@link DataStream}.
+     * @param clazz The class of the requested record type.
+     * @param <T> The type of the requested record type.
      * @return The converted {@link DataStream}.
-     * @deprecated Use {@link #toDataStream(Table, Class)} instead. It integrates with the new type
-     *     system and supports all kinds of {@link DataTypes} that the table runtime can produce.
-     *     The semantics might be slightly different for raw and structured types. Use {@code
-     *     toDataStream(DataTypes.of(TypeInformation.of(Class)))} if {@link TypeInformation} should
-     *     be used as source of truth.
+     * @deprecated Use {@link #toChangelogStream(Table, Schema)} instead. It integrates with the new
+     *     type system and supports all kinds of {@link DataTypes} and every {@link ChangelogMode}
+     *     that the table runtime can produce.
      */
-    @Deprecated
     <T> DataStream<Tuple2<Boolean, T>> toRetractStream(Table table, Class<T> clazz);
 
     /**

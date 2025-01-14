@@ -3141,13 +3141,6 @@ Table table = tableEnv.fromValues(
     row("john", 35),
     row("sarah", 32));
 
-// Convert the Table into an append DataStream of Row by specifying the class
-DataStream<Row> dsRow = tableEnv.toAppendStream(table, Row.class);
-
-// Convert the Table into an append DataStream of Tuple2<String, Integer> with TypeInformation
-TupleTypeInfo<Tuple2<String, Integer>> tupleType = new TupleTypeInfo<>(Types.STRING(), Types.INT());
-DataStream<Tuple2<String, Integer>> dsTuple = tableEnv.toAppendStream(table, tupleType);
-
 // Convert the Table into a retract DataStream of Row.
 // A retract stream of type X is a DataStream<Tuple2<Boolean, X>>. 
 // The boolean field indicates the type of the change. 
@@ -3168,13 +3161,6 @@ val table: Table = tableEnv.fromValues(
     row("john", 35),
     row("sarah", 32))
 
-// Convert the Table into an append DataStream of Row by specifying the class
-val dsRow: DataStream[Row] = tableEnv.toAppendStream[Row](table)
-
-// Convert the Table into an append DataStream of (String, Integer) with TypeInformation
-val dsTuple: DataStream[(String, Int)] dsTuple = 
-  tableEnv.toAppendStream[(String, Int)](table)
-
 // Convert the Table into a retract DataStream of Row.
 // A retract stream of type X is a DataStream<Tuple2<Boolean, X>>. 
 // The boolean field indicates the type of the change. 
@@ -3192,12 +3178,6 @@ t_env = ...
 table = t_env.from_elements([("john", 35), ("sarah", 32)], 
               DataTypes.ROW([DataTypes.FIELD("name", DataTypes.STRING()),
                              DataTypes.FIELD("age", DataTypes.INT())]))
-
-# Convert the Table into an append DataStream of Row by specifying the type information
-ds_row = t_env.to_append_stream(table, Types.ROW([Types.STRING(), Types.INT()]))
-
-# Convert the Table into an append DataStream of Tuple[str, int] with TypeInformation
-ds_tuple = t_env.to_append_stream(table, Types.TUPLE([Types.STRING(), Types.INT()]))
 
 # Convert the Table into a retract DataStream of Row by specifying the type information
 # A retract stream of type X is a DataStream of Tuple[bool, X]. 

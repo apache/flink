@@ -1878,24 +1878,6 @@ class StreamTableEnvironment(TableEnvironment):
                     target_schema._j_schema,
                     changelog_mode._j_changelog_mode))
 
-    def to_append_stream(self, table: Table, type_info: TypeInformation) -> DataStream:
-        """
-        Converts the given Table into a DataStream of a specified type. The Table must only have
-        insert (append) changes. If the Table is also modified by update or delete changes, the
-        conversion will fail.
-
-        The fields of the Table are mapped to DataStream as follows: Row and Tuple types: Fields are
-        mapped by position, field types must match.
-
-        :param table: The Table to convert.
-        :param type_info: The TypeInformation that specifies the type of the DataStream.
-        :return: The converted DataStream.
-
-        .. versionadded:: 1.12.0
-        """
-        j_data_stream = self._j_tenv.toAppendStream(table._j_table, type_info.get_java_type_info())
-        return DataStream(j_data_stream=j_data_stream)
-
     def to_retract_stream(self, table: Table, type_info: TypeInformation) -> DataStream:
         """
         Converts the given Table into a DataStream of add and retract messages. The message will be
