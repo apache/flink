@@ -87,7 +87,7 @@ class CheckpointPropertiesTest {
             CheckpointProperties props =
                     CheckpointProperties.forSavepoint(true, SavepointFormatType.CANONICAL);
             assertThat(props.isSavepoint()).isTrue();
-            assertThat(props.isFull()).isFalse();
+            assertThat(props.isFull()).isTrue();
 
             CheckpointProperties deserializedCheckpointProperties =
                     InstantiationUtil.deserializeObject(

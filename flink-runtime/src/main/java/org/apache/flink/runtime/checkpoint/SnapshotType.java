@@ -25,7 +25,9 @@ public interface SnapshotType extends Serializable {
 
     boolean isSavepoint();
 
-    boolean isFull();
+    default boolean isFull() {
+        return getSharingFilesStrategy() != SharingFilesStrategy.FORWARD_BACKWARD;
+    }
 
     String getName();
 

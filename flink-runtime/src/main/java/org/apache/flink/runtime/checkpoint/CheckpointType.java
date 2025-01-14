@@ -46,10 +46,6 @@ public final class CheckpointType implements SnapshotType {
         return false;
     }
 
-    public boolean isFull() {
-        return getSharingFilesStrategy() != SharingFilesStrategy.FORWARD_BACKWARD;
-    }
-
     public String getName() {
         return name;
     }
