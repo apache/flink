@@ -359,7 +359,6 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                                 outputRankNumber,
                                 cacheSize);
             }
-            // TODO Use UnaryUpdateTopNFunction after SortedMapState is merged
         } else if (rankStrategy instanceof RankProcessStrategy.RetractStrategy) {
             EqualiserCodeGenerator equaliserCodeGen =
                     new EqualiserCodeGenerator(
