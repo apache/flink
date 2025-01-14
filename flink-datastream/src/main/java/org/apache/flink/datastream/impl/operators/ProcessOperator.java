@@ -30,6 +30,7 @@ import org.apache.flink.datastream.impl.context.DefaultNonPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultRuntimeContext;
 import org.apache.flink.datastream.impl.context.UnsupportedProcessingTimeManager;
+import org.apache.flink.datastream.impl.extension.eventtime.EventTimeExtensionImpl;
 import org.apache.flink.datastream.impl.extension.eventtime.functions.ExtractEventTimeProcessFunction;
 import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateUdfStreamOperator;
 import org.apache.flink.runtime.event.WatermarkEvent;
@@ -38,6 +39,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermark.AbstractInternalWatermarkDeclaration;
+import org.apache.flink.streaming.runtime.watermark.extension.eventtime.EventTimeWatermarkHandler;
 
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -59,6 +61,9 @@ public class ProcessOperator<IN, OUT>
 
     protected transient Map<String, AbstractInternalWatermarkDeclaration<?>>
             watermarkDeclarationMap;
+
+    // {@link EventTimeWatermarkHandler} will be used to process event time related watermarks
+    protected transient EventTimeWatermarkHandler eventTimeWatermarkHandler;
 
     public ProcessOperator(OneInputStreamProcessFunction<IN, OUT> userFunction) {
         super(userFunction);
@@ -99,6 +104,8 @@ public class ProcessOperator<IN, OUT>
         outputCollector = getOutputCollector();
         nonPartitionedContext = getNonPartitionedContext();
         partitionedContext.setNonPartitionedContext(nonPartitionedContext);
+        this.eventTimeWatermarkHandler =
+                new EventTimeWatermarkHandler(1, output, timeServiceManager);
 
         // Initialize event time extension related ProcessFunction
         if (userFunction instanceof ExtractEventTimeProcessFunction) {
@@ -128,7 +135,14 @@ public class ProcessOperator<IN, OUT>
                                 .get(watermark.getWatermark().getIdentifier())
                                 .getDefaultHandlingStrategy()
                         == WatermarkHandlingStrategy.FORWARD) {
-            output.emitWatermark(watermark);
+
+            if (EventTimeExtensionImpl.isEventTimeExtensionWatermark(watermark.getWatermark())) {
+                // if the watermark is event time related watermark, process them to advance event
+                // time
+                eventTimeWatermarkHandler.processWatermark(watermark.getWatermark(), 0);
+            } else {
+                output.emitWatermark(watermark);
+            }
         }
     }
 
