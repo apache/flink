@@ -787,6 +787,7 @@ public interface StreamTableEnvironment extends TableEnvironment {
      *     type system and supports all kinds of {@link DataTypes} and every {@link ChangelogMode}
      *     that the table runtime can produce.
      */
+    @Deprecated
     <T> DataStream<Tuple2<Boolean, T>> toRetractStream(Table table, Class<T> clazz);
 
     /**
