@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.calcite.RexSetSemanticsTableCall;
+import org.apache.flink.table.planner.calcite.RexTableArgCall;
 import org.apache.flink.table.planner.functions.sql.SqlWindowTableFunction;
 import org.apache.flink.table.planner.plan.logical.SessionWindowSpec;
 import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
@@ -154,7 +154,6 @@ public class ProjectWindowTableFunctionTransposeRule extends RelOptRule {
             RelNode newInput,
             Map<Integer, Integer> mapping) {
         relBuilder.push(newInput);
-        RexNode newCall = rewriteWindowCall((RexCall) oldScan.getCall(), mapping, relBuilder);
         RelOptCluster cluster = oldScan.getCluster();
         FlinkTypeFactory typeFactory = (FlinkTypeFactory) cluster.getTypeFactory();
         RelDataType newScanOutputType =
@@ -162,6 +161,14 @@ public class ProjectWindowTableFunctionTransposeRule extends RelOptRule {
                         typeFactory,
                         newInput.getRowType(),
                         typeFactory.createFieldTypeFromLogicalType(timeAttributeType));
+        RexNode newCall =
+                rewriteWindowCall(
+                        newInput.getRowType(),
+                        (RexCall) oldScan.getCall(),
+                        mapping,
+                        newScanOutputType,
+                        relBuilder);
+
         return LogicalTableFunctionScan.create(
                 cluster,
                 new ArrayList<>(Collections.singleton(newInput)),
@@ -172,20 +179,24 @@ public class ProjectWindowTableFunctionTransposeRule extends RelOptRule {
     }
 
     private RexNode rewriteWindowCall(
-            RexCall windowCall, Map<Integer, Integer> mapping, RelBuilder relBuilder) {
+            RelDataType newInputType,
+            RexCall windowCall,
+            Map<Integer, Integer> mapping,
+            RelDataType newScanOutputType,
+            RelBuilder relBuilder) {
         List<RexNode> newOperands = new ArrayList<>();
         for (RexNode next : windowCall.getOperands()) {
             newOperands.add(adjustInputRef(next, mapping));
         }
-        if (windowCall instanceof RexSetSemanticsTableCall) {
-            RexSetSemanticsTableCall originalCall = (RexSetSemanticsTableCall) windowCall;
-            int[] newPartitionKeys =
-                    Arrays.stream(originalCall.getPartitionKeys()).map(mapping::get).toArray();
-            int[] newOrderKeys =
-                    Arrays.stream(originalCall.getOrderKeys()).map(mapping::get).toArray();
-            return originalCall.copy(newOperands, newPartitionKeys, newOrderKeys);
-        }
-        return relBuilder.call(windowCall.getOperator(), newOperands);
+
+        RexTableArgCall tableArgCall = (RexTableArgCall) windowCall.operands.get(0);
+        int[] newPartitionKeys =
+                Arrays.stream(tableArgCall.getPartitionKeys()).map(mapping::get).toArray();
+        int[] newOrderKeys = Arrays.stream(tableArgCall.getOrderKeys()).map(mapping::get).toArray();
+        newOperands.set(0, tableArgCall.copy(newInputType, newPartitionKeys, newOrderKeys));
+        return relBuilder
+                .getRexBuilder()
+                .makeCall(newScanOutputType, windowCall.getOperator(), newOperands);
     }
 
     private RelNode createTopProject(

@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.functions.sql;
 
 import org.apache.flink.table.planner.calcite.FlinkSqlCallBinding;
+import org.apache.flink.table.types.inference.StaticArgument;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCall;
@@ -32,14 +33,14 @@ import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 
 /**
- * Marker for optional arguments inserted by {@link FlinkSqlCallBinding}. Compared to Calcite, this
- * operator stores its type.
+ * Marker for optional arguments in a signature of {@link StaticArgument}s inserted by {@link
+ * FlinkSqlCallBinding}. Compared to Calcite, this operator stores its type.
  */
-public class SqlDefaultOperator extends SqlSpecialOperator {
+public class SqlDefaultArgOperator extends SqlSpecialOperator {
 
     private final RelDataType returnType;
 
-    public SqlDefaultOperator(RelDataType returnType) {
+    public SqlDefaultArgOperator(RelDataType returnType) {
         super(
                 "DEFAULT",
                 SqlKind.DEFAULT,
