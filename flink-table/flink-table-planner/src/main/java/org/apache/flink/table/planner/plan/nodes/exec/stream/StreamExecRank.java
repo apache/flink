@@ -60,6 +60,7 @@ import org.apache.flink.table.runtime.operators.rank.RankType;
 import org.apache.flink.table.runtime.operators.rank.RetractableTopNFunction;
 import org.apache.flink.table.runtime.operators.rank.UpdatableTopNFunction;
 import org.apache.flink.table.runtime.operators.rank.async.AbstractAsyncStateTopNFunction;
+import org.apache.flink.table.runtime.operators.rank.async.AsyncStateAppendOnlyTopNFunction;
 import org.apache.flink.table.runtime.operators.rank.async.AsyncStateFastTop1Function;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
@@ -283,17 +284,31 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                                     cacheSize);
                 }
             } else {
-                processFunction =
-                        new AppendOnlyTopNFunction(
-                                ttlConfig,
-                                inputRowTypeInfo,
-                                sortKeyComparator,
-                                sortKeySelector,
-                                rankType,
-                                rankRange,
-                                generateUpdateBefore,
-                                outputRankNumber,
-                                cacheSize);
+                if (isAsyncStateEnabled) {
+                    processFunction =
+                            new AsyncStateAppendOnlyTopNFunction(
+                                    ttlConfig,
+                                    inputRowTypeInfo,
+                                    sortKeyComparator,
+                                    sortKeySelector,
+                                    rankType,
+                                    rankRange,
+                                    generateUpdateBefore,
+                                    outputRankNumber,
+                                    cacheSize);
+                } else {
+                    processFunction =
+                            new AppendOnlyTopNFunction(
+                                    ttlConfig,
+                                    inputRowTypeInfo,
+                                    sortKeyComparator,
+                                    sortKeySelector,
+                                    rankType,
+                                    rankRange,
+                                    generateUpdateBefore,
+                                    outputRankNumber,
+                                    cacheSize);
+                }
             }
         } else if (rankStrategy instanceof RankProcessStrategy.UpdateFastStrategy) {
             if (RankUtil.isTop1(rankRange)) {
@@ -344,7 +359,6 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                                 outputRankNumber,
                                 cacheSize);
             }
-            // TODO Use UnaryUpdateTopNFunction after SortedMapState is merged
         } else if (rankStrategy instanceof RankProcessStrategy.RetractStrategy) {
             EqualiserCodeGenerator equaliserCodeGen =
                     new EqualiserCodeGenerator(
