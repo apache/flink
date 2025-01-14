@@ -65,7 +65,7 @@ Table API 和 SQL 都是声明式 API。这包括表的声明。因此，执行 
 
 `DynamicTableSourceFactory` 和 `DynamicTableSinkFactory` 提供连接器特定的逻辑，用于将 `CatalogTable` 的元数据转换为 `DynamicTableSource` 和 `DynamicTableSink` 的实例。在大多数情况下，以工厂模式设计的目的是验证选项（例如示例中的 `'port'` = `'5022'` ），配置编码解码格式（ 如果需要 ），并创建表连接器的参数化实例。
 
-默认情况下，`DynamicTableSourceFactory` 和 `DynamicTableSinkFactory` 的实例是使用 Java的 [Service Provider Interfaces (SPI)] (https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html) 发现的。 `connector` 选项（例如示例中的 `'connector' = 'custom'`）必须对应于有效的工厂标识符。
+默认情况下，`DynamicTableSourceFactory` 和 `DynamicTableSinkFactory` 的实例是使用 Java的 [Service Provider Interfaces (SPI)](https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html) 发现的。 `connector` 选项（例如示例中的 `'connector' = 'custom'`）必须对应于有效的工厂标识符。
 
 
 尽管在类命名中可能不明显，但 `DynamicTableSource` 和 `DynamicTableSink` 也可以被视为有状态的工厂，它们最终会产生具体的运行时实现来读写实际数据。
