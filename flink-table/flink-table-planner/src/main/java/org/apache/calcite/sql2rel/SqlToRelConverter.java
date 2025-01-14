@@ -250,7 +250,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *   <li>Added in FLINK-32474: Lines 2906 ~ 2918
  *   <li>Added in FLINK-32474: Lines 3019 ~ 3053
  *   <li>Added in FLINK-34312: Lines 5804 ~ 5813
- *   <li>Added in FLINK-34057, FLINK-34058, FLINK-34312: Lines 6263 ~ 66279
+ *   <li>Added in FLINK-34057, FLINK-34058, FLINK-34312: Lines 6263 ~ 6279
  * </ol>
  */
 @SuppressWarnings("UnstableApiUsage")
