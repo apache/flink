@@ -30,7 +30,7 @@ import static java.util.Objects.requireNonNull;
 
 /**
  * Abstract class to describe statements like ALTER MODEL [IF EXISTS] [[catalogName.]
- * dataBasesName].modelName ...
+ * dataBasesName.]modelName ...
  */
 public abstract class SqlAlterModel extends SqlCall {
 

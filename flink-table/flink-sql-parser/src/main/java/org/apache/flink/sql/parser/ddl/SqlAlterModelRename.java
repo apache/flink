@@ -28,7 +28,7 @@ import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
-/** ALTER MODEL [IF EXISTS] [[catalogName.] dataBasesName].modelName RENAME TO newModelName. */
+/** ALTER MODEL [IF EXISTS] [[catalogName.] dataBasesName.]modelName RENAME TO newModelName. */
 public class SqlAlterModelRename extends SqlAlterModel {
 
     private final SqlIdentifier newModelName;
@@ -36,8 +36,8 @@ public class SqlAlterModelRename extends SqlAlterModel {
     public SqlAlterModelRename(
             SqlParserPos pos,
             SqlIdentifier modelName,
-            boolean ifModelExists,
-            SqlIdentifier newModelName) {
+            SqlIdentifier newModelName,
+            boolean ifModelExists) {
         super(pos, modelName, ifModelExists);
         this.newModelName = requireNonNull(newModelName, "newModelName should not be null");
     }
