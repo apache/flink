@@ -78,9 +78,5 @@ public interface SupportsProjectionPushDown {
      *     produced data
      * @param producedDataType the final output type of the source, with the projection applied
      */
-    default void applyProjection(int[][] projectedFields, DataType producedDataType) {
-        throw new UnsupportedOperationException(
-                "No implementation provided for SupportsProjectionPushDown. "
-                        + "Please implement SupportsProjectionPushDown#applyProjection(int[][], DataType)");
-    }
+    void applyProjection(int[][] projectedFields, DataType producedDataType);
 }
