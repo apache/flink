@@ -225,6 +225,276 @@ public class NonTimeUnboundedPrecedingFunctionTest extends RowTimeOverWindowTest
     }
 
     @Test
+    public void testInsertOnlyRecordsWithDuplicateSortKeys() throws Exception {
+        NonTimeUnboundedPrecedingFunction<RowData> function =
+                new NonTimeUnboundedPrecedingFunction<RowData>(
+                        0,
+                        2000,
+                        aggsHandleFunction,
+                        GENERATED_RECORD_EQUALISER,
+                        GENERATED_SORT_KEY_COMPARATOR,
+                        accTypes,
+                        inputFieldTypes,
+                        SORT_KEY_FIELD_GETTER,
+                        SORT_KEY_IDX) {};
+        KeyedProcessOperator<RowData, RowData, RowData> operator =
+                new KeyedProcessOperator<>(function);
+
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(operator);
+
+        testHarness.open();
+
+        // put some records
+        testHarness.processElement(insertRecord("key1", 1L, 100L));
+        testHarness.processElement(insertRecord("key1", 2L, 200L));
+        testHarness.processElement(insertRecord("key1", 5L, 500L));
+        testHarness.processElement(insertRecord("key1", 5L, 502L));
+        testHarness.processElement(insertRecord("key1", 5L, 501L));
+        testHarness.processElement(insertRecord("key1", 6L, 600L));
+        testHarness.processElement(insertRecord("key2", 1L, 100L));
+        testHarness.processElement(insertRecord("key2", 2L, 200L));
+
+        testHarness.processWatermark(new Watermark(500L));
+
+        // out of order record should trigger updates for all records after its inserted position
+        testHarness.processElement(insertRecord("key1", 2L, 203L));
+        testHarness.processElement(insertRecord("key1", 2L, 201L));
+        testHarness.processElement(insertRecord("key1", 4L, 400L));
+
+        List<RowData> expectedRows =
+                Arrays.asList(
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 1L, 100L),
+                                GenericRowData.ofKind(RowKind.INSERT, 1L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 2L, 200L),
+                                GenericRowData.ofKind(RowKind.INSERT, 3L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 8L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 8L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 13L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 5L, 502L),
+                                GenericRowData.ofKind(RowKind.INSERT, 13L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 13L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 18L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 502L),
+                                GenericRowData.ofKind(RowKind.INSERT, 13L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 502L),
+                                GenericRowData.ofKind(RowKind.INSERT, 18L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 5L, 501L),
+                                GenericRowData.ofKind(RowKind.INSERT, 18L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 6L, 600L),
+                                GenericRowData.ofKind(RowKind.INSERT, 24L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key2"), 1L, 100L),
+                                GenericRowData.ofKind(RowKind.INSERT, 1L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key2"), 2L, 200L),
+                                GenericRowData.ofKind(RowKind.INSERT, 3L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 2L, 200L),
+                                GenericRowData.ofKind(RowKind.INSERT, 3L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 2L, 200L),
+                                GenericRowData.ofKind(RowKind.INSERT, 5L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 2L, 203L),
+                                GenericRowData.ofKind(RowKind.INSERT, 5L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 18L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 20L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 502L),
+                                GenericRowData.ofKind(RowKind.INSERT, 18L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 502L),
+                                GenericRowData.ofKind(RowKind.INSERT, 20L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 501L),
+                                GenericRowData.ofKind(RowKind.INSERT, 18L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 501L),
+                                GenericRowData.ofKind(RowKind.INSERT, 20L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 6L, 600L),
+                                GenericRowData.ofKind(RowKind.INSERT, 24L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 6L, 600L),
+                                GenericRowData.ofKind(RowKind.INSERT, 26L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 2L, 200L),
+                                GenericRowData.ofKind(RowKind.INSERT, 5L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 2L, 200L),
+                                GenericRowData.ofKind(RowKind.INSERT, 7L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 2L, 203L),
+                                GenericRowData.ofKind(RowKind.INSERT, 5L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 2L, 203L),
+                                GenericRowData.ofKind(RowKind.INSERT, 7L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 2L, 201L),
+                                GenericRowData.ofKind(RowKind.INSERT, 7L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 20L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 22L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 502L),
+                                GenericRowData.ofKind(RowKind.INSERT, 20L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 502L),
+                                GenericRowData.ofKind(RowKind.INSERT, 22L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 501L),
+                                GenericRowData.ofKind(RowKind.INSERT, 20L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 501L),
+                                GenericRowData.ofKind(RowKind.INSERT, 22L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 6L, 600L),
+                                GenericRowData.ofKind(RowKind.INSERT, 26L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 6L, 600L),
+                                GenericRowData.ofKind(RowKind.INSERT, 28L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 4L, 400L),
+                                GenericRowData.ofKind(RowKind.INSERT, 11L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 22L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 26L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 502L),
+                                GenericRowData.ofKind(RowKind.INSERT, 22L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 502L),
+                                GenericRowData.ofKind(RowKind.INSERT, 26L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 501L),
+                                GenericRowData.ofKind(RowKind.INSERT, 22L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 501L),
+                                GenericRowData.ofKind(RowKind.INSERT, 26L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 6L, 600L),
+                                GenericRowData.ofKind(RowKind.INSERT, 28L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 6L, 600L),
+                                GenericRowData.ofKind(RowKind.INSERT, 32L)));
+
+        List<RowData> actualRows = testHarness.extractOutputValues();
+
+        validateRows(actualRows, expectedRows);
+    }
+
+    @Test
     public void testRetractingRecordsWithCustomSortKey() throws Exception {
         NonTimeUnboundedPrecedingFunction<RowData> function =
                 new NonTimeUnboundedPrecedingFunction<RowData>(
@@ -442,6 +712,437 @@ public class NonTimeUnboundedPrecedingFunctionTest extends RowTimeOverWindowTest
                                 GenericRowData.ofKind(
                                         RowKind.INSERT, StringData.fromString("key1"), 6L, 600L),
                                 GenericRowData.ofKind(RowKind.INSERT, 19L)));
+
+        List<RowData> actualRows = testHarness.extractOutputValues();
+
+        validateRows(actualRows, expectedRows);
+    }
+
+    @Test
+    public void testRetractWithFirstDuplicateSortKey() throws Exception {
+        NonTimeUnboundedPrecedingFunction<RowData> function =
+                new NonTimeUnboundedPrecedingFunction<RowData>(
+                        0,
+                        2000,
+                        aggsHandleFunction,
+                        GENERATED_RECORD_EQUALISER,
+                        GENERATED_SORT_KEY_COMPARATOR,
+                        accTypes,
+                        inputFieldTypes,
+                        SORT_KEY_FIELD_GETTER,
+                        SORT_KEY_IDX) {};
+        KeyedProcessOperator<RowData, RowData, RowData> operator =
+                new KeyedProcessOperator<>(function);
+
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(operator);
+
+        testHarness.open();
+
+        // put some records
+        testHarness.processElement(insertRecord("key1", 1L, 100L));
+        testHarness.processElement(insertRecord("key1", 2L, 200L));
+        testHarness.processElement(insertRecord("key1", 2L, 201L));
+        testHarness.processElement(insertRecord("key1", 5L, 500L));
+        testHarness.processElement(insertRecord("key1", 5L, 502L));
+        testHarness.processElement(insertRecord("key1", 5L, 501L));
+        testHarness.processElement(insertRecord("key1", 6L, 600L));
+        //testHarness.processElement(insertRecord("key1", 6L, 601L));
+        //testHarness.processElement(insertRecord("key1", 6L, 602L));
+        testHarness.processElement(updateBeforeRecord("key1", 5L, 500L));
+
+        List<RowData> expectedRows =
+                Arrays.asList(
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 1L, 100L),
+                                GenericRowData.ofKind(RowKind.INSERT, 1L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 2L, 200L),
+                                GenericRowData.ofKind(RowKind.INSERT, 3L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 2L, 200L),
+                                GenericRowData.ofKind(RowKind.INSERT, 3L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 2L, 200L),
+                                GenericRowData.ofKind(RowKind.INSERT, 5L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 2L, 201L),
+                                GenericRowData.ofKind(RowKind.INSERT, 5L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 10L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 10L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 15L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 5L, 502L),
+                                GenericRowData.ofKind(RowKind.INSERT, 15L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 15L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 20L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 502L),
+                                GenericRowData.ofKind(RowKind.INSERT, 15L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 502L),
+                                GenericRowData.ofKind(RowKind.INSERT, 20L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 5L, 501L),
+                                GenericRowData.ofKind(RowKind.INSERT, 20L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 6L, 600L),
+                                GenericRowData.ofKind(RowKind.INSERT, 26L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 20L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 502L),
+                                GenericRowData.ofKind(RowKind.INSERT, 20L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 502L),
+                                GenericRowData.ofKind(RowKind.INSERT, 15L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 501L),
+                                GenericRowData.ofKind(RowKind.INSERT, 20L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 501L),
+                                GenericRowData.ofKind(RowKind.INSERT, 15L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 6L, 600L),
+                                GenericRowData.ofKind(RowKind.INSERT, 26L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 6L, 600L),
+                                GenericRowData.ofKind(RowKind.INSERT, 21L))
+                        );
+
+        List<RowData> actualRows = testHarness.extractOutputValues();
+
+        validateRows(actualRows, expectedRows);
+    }
+
+    @Test
+    public void testRetractWithMiddleDuplicateSortKey() throws Exception {
+        NonTimeUnboundedPrecedingFunction<RowData> function =
+                new NonTimeUnboundedPrecedingFunction<RowData>(
+                        0,
+                        2000,
+                        aggsHandleFunction,
+                        GENERATED_RECORD_EQUALISER,
+                        GENERATED_SORT_KEY_COMPARATOR,
+                        accTypes,
+                        inputFieldTypes,
+                        SORT_KEY_FIELD_GETTER,
+                        SORT_KEY_IDX) {};
+        KeyedProcessOperator<RowData, RowData, RowData> operator =
+                new KeyedProcessOperator<>(function);
+
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(operator);
+
+        testHarness.open();
+
+        // put some records
+        testHarness.processElement(insertRecord("key1", 1L, 100L));
+        testHarness.processElement(insertRecord("key1", 2L, 200L));
+        testHarness.processElement(insertRecord("key1", 2L, 201L));
+        testHarness.processElement(insertRecord("key1", 5L, 500L));
+        testHarness.processElement(insertRecord("key1", 5L, 502L));
+        testHarness.processElement(insertRecord("key1", 5L, 501L));
+        testHarness.processElement(insertRecord("key1", 6L, 600L));
+        testHarness.processElement(updateBeforeRecord("key1", 5L, 502L));
+
+        List<RowData> expectedRows =
+                Arrays.asList(
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 1L, 100L),
+                                GenericRowData.ofKind(RowKind.INSERT, 1L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 2L, 200L),
+                                GenericRowData.ofKind(RowKind.INSERT, 3L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 2L, 200L),
+                                GenericRowData.ofKind(RowKind.INSERT, 3L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 2L, 200L),
+                                GenericRowData.ofKind(RowKind.INSERT, 5L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 2L, 201L),
+                                GenericRowData.ofKind(RowKind.INSERT, 5L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 10L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 10L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 15L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 5L, 502L),
+                                GenericRowData.ofKind(RowKind.INSERT, 15L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 15L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 20L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 502L),
+                                GenericRowData.ofKind(RowKind.INSERT, 15L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 502L),
+                                GenericRowData.ofKind(RowKind.INSERT, 20L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 5L, 501L),
+                                GenericRowData.ofKind(RowKind.INSERT, 20L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 6L, 600L),
+                                GenericRowData.ofKind(RowKind.INSERT, 26L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 20L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 15L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 502L),
+                                GenericRowData.ofKind(RowKind.INSERT, 20L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 501L),
+                                GenericRowData.ofKind(RowKind.INSERT, 20L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 501L),
+                                GenericRowData.ofKind(RowKind.INSERT, 15L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 6L, 600L),
+                                GenericRowData.ofKind(RowKind.INSERT, 26L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 6L, 600L),
+                                GenericRowData.ofKind(RowKind.INSERT, 21L))
+                );
+
+        List<RowData> actualRows = testHarness.extractOutputValues();
+
+        validateRows(actualRows, expectedRows);
+    }
+
+    @Test
+    public void testRetractWithLastDuplicateSortKey() throws Exception {
+        NonTimeUnboundedPrecedingFunction<RowData> function =
+                new NonTimeUnboundedPrecedingFunction<RowData>(
+                        0,
+                        2000,
+                        aggsHandleFunction,
+                        GENERATED_RECORD_EQUALISER,
+                        GENERATED_SORT_KEY_COMPARATOR,
+                        accTypes,
+                        inputFieldTypes,
+                        SORT_KEY_FIELD_GETTER,
+                        SORT_KEY_IDX) {};
+        KeyedProcessOperator<RowData, RowData, RowData> operator =
+                new KeyedProcessOperator<>(function);
+
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(operator);
+
+        testHarness.open();
+
+        // put some records
+        testHarness.processElement(insertRecord("key1", 1L, 100L));
+        testHarness.processElement(insertRecord("key1", 2L, 200L));
+        testHarness.processElement(insertRecord("key1", 2L, 201L));
+        testHarness.processElement(insertRecord("key1", 5L, 500L));
+        testHarness.processElement(insertRecord("key1", 5L, 502L));
+        testHarness.processElement(insertRecord("key1", 5L, 501L));
+        testHarness.processElement(insertRecord("key1", 6L, 600L));
+        testHarness.processElement(updateBeforeRecord("key1", 5L, 501L));
+
+        List<RowData> expectedRows =
+                Arrays.asList(
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 1L, 100L),
+                                GenericRowData.ofKind(RowKind.INSERT, 1L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 2L, 200L),
+                                GenericRowData.ofKind(RowKind.INSERT, 3L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 2L, 200L),
+                                GenericRowData.ofKind(RowKind.INSERT, 3L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 2L, 200L),
+                                GenericRowData.ofKind(RowKind.INSERT, 5L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 2L, 201L),
+                                GenericRowData.ofKind(RowKind.INSERT, 5L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 10L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 10L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 15L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 5L, 502L),
+                                GenericRowData.ofKind(RowKind.INSERT, 15L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 15L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 20L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 502L),
+                                GenericRowData.ofKind(RowKind.INSERT, 15L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 502L),
+                                GenericRowData.ofKind(RowKind.INSERT, 20L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 5L, 501L),
+                                GenericRowData.ofKind(RowKind.INSERT, 20L)),
+                        new JoinedRowData(
+                                GenericRowData.ofKind(
+                                        RowKind.INSERT, StringData.fromString("key1"), 6L, 600L),
+                                GenericRowData.ofKind(RowKind.INSERT, 26L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 20L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 500L),
+                                GenericRowData.ofKind(RowKind.INSERT, 15L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 502L),
+                                GenericRowData.ofKind(RowKind.INSERT, 20L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 5L, 502L),
+                                GenericRowData.ofKind(RowKind.INSERT, 15L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 5L, 501L),
+                                GenericRowData.ofKind(RowKind.INSERT, 20L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_BEFORE,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_BEFORE, StringData.fromString("key1"), 6L, 600L),
+                                GenericRowData.ofKind(RowKind.INSERT, 26L)),
+                        new JoinedRowData(
+                                RowKind.UPDATE_AFTER,
+                                GenericRowData.ofKind(
+                                        RowKind.UPDATE_AFTER, StringData.fromString("key1"), 6L, 600L),
+                                GenericRowData.ofKind(RowKind.INSERT, 21L))
+                );
 
         List<RowData> actualRows = testHarness.extractOutputValues();
 

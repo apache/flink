@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
+
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
@@ -87,6 +88,9 @@ public class NonTimeUnboundedPrecedingFunction<K>
     private transient MapState<Long, RowData> valueMapState;
     // state to hold row ID and its associated accumulator
     private transient MapState<Long, RowData> accMapState;
+
+    //private transient MapState<RowData, List<Integer>> sortIndexState;
+    private transient MapState<Long, List<Long>> sortIndexState;
 
     protected transient AggsHandleFunction currFunction;
 
@@ -158,6 +162,13 @@ public class NonTimeUnboundedPrecedingFunction<K>
                 new MapStateDescriptor<Long, RowData>("accMapState", Types.LONG, accTypeInfo);
         accMapState = getRuntimeContext().getMapState(accStateDescriptor);
 
+        // Initialize state which maintains the sorted key Index
+        ListTypeInfo<Long> listTypeInfo = new ListTypeInfo<Long>(Types.LONG);
+        // TODO: Key for the map should be RowData which can contain multiple sort keys
+        MapStateDescriptor<Long, List<Long>> sortedKeyIndexStateDescriptor =
+                new MapStateDescriptor<Long, List<Long>>("sortedKeyIndexState", Types.LONG, listTypeInfo);
+        sortIndexState = getRuntimeContext().getMapState(sortedKeyIndexStateDescriptor);
+
         initCleanupTimeState("NonTimeUnboundedPrecedingFunctionCleanupTime");
     }
 
@@ -203,29 +214,6 @@ public class NonTimeUnboundedPrecedingFunction<K>
         currFunction.cleanup();
     }
 
-    private void setAccumulatorOfPrevRow(List<RowData> sortedKeyList, int prevIndex)
-            throws Exception {
-        Long prevKey = sortedKeyList.get(prevIndex).getLong(keyIdx);
-        RowData prevAcc = accMapState.get(prevKey);
-        currFunction.setAccumulators(prevAcc);
-    }
-
-    private void insertRow(
-            List<RowData> sortedKeyList,
-            ListIterator<RowData> iterator,
-            Long id,
-            RowData inputKey,
-            RowData input)
-            throws Exception {
-        iterator.add(inputKey);
-        // Only accumulate input with currFunction
-        currFunction.accumulate(input);
-        valueMapState.put(id, input);
-        accMapState.put(id, currFunction.getAccumulators());
-        sortedKeyState.update(sortedKeyList);
-        idState.update(++id);
-    }
-
     private void insertIntoSortedList(RowData input, Collector<RowData> out) throws Exception {
         List<RowData> sortedKeyList = sortedKeyState.value();
         if (sortedKeyList == null) {
@@ -261,18 +249,77 @@ public class NonTimeUnboundedPrecedingFunction<K>
             insertRow(sortedKeyList, iterator, id, inputKey, input);
         }
 
-        // prepare output row
-        output.setRowKind(origRowKind);
-        output.replace(input, currFunction.getValue());
-        out.collect(output);
+        List<Long> ids = sortIndexState.get(inputKey.getLong(1));
+        if (ids.size() > 1) {
+            updateSameSortKeys(iterator, ids, id, out);
+        } else {
+            sendUpdate(input, origRowKind, out);
+        }
 
         // Emit updated agg value for all records after newly inserted row
         while (iterator.hasNext()) {
             RowData curKey = iterator.next();
-            if (!updateRow(curKey, out)) {
-                break;
+            ids = sortIndexState.get(curKey.getLong(1));
+            if (ids.size() > 1) {
+                updateSameSortKeys(iterator, ids, -1L, out);
+            } else {
+                if (!updateRow(curKey, out)) {
+                    break;
+                }
             }
         }
+    }
+
+    private void setAccumulatorOfPrevRow(List<RowData> sortedKeyList, int prevIndex)
+            throws Exception {
+        if (prevIndex < 0) {
+            currFunction.createAccumulators();
+        } else {
+            Long prevKey = sortedKeyList.get(prevIndex).getLong(keyIdx);
+            RowData prevAcc = accMapState.get(prevKey);
+            currFunction.setAccumulators(prevAcc);
+        }
+    }
+
+    private void insertRow(
+            List<RowData> sortedKeyList,
+            ListIterator<RowData> iterator,
+            Long id,
+            RowData inputKey,
+            RowData input)
+            throws Exception {
+        iterator.add(inputKey);
+        // Only accumulate input with currFunction
+        currFunction.accumulate(input);
+        valueMapState.put(id, input);
+        accMapState.put(id, currFunction.getAccumulators());
+        sortedKeyState.update(sortedKeyList);
+        List<Long> sortedIds = sortIndexState.get(inputKey.getLong(1));
+        if (sortedIds == null || sortedIds.isEmpty()) {
+            sortedIds = new ArrayList<>();
+        }
+        sortedIds.add(id);
+        sortIndexState.put(inputKey.getLong(1), sortedIds);
+        idState.update(++id);
+    }
+
+
+    private void sendUpdate(RowData value, RowKind rowKind, Collector<RowData> out) throws Exception {
+        output.setRowKind(rowKind);
+        output.replace(value, currFunction.getValue());
+        out.collect(output);
+    }
+
+    private void sendUpdateBefore(RowData value, RowData prevAcc, Collector<RowData> out) {
+        output.setRowKind(RowKind.UPDATE_BEFORE);
+        output.replace(value, prevAcc);
+        out.collect(output);
+    }
+
+    private void sendUpdateAfter(RowData value, Collector<RowData> out) throws Exception {
+        output.setRowKind(RowKind.UPDATE_AFTER);
+        output.replace(value, currFunction.getValue());
+        out.collect(output);
     }
 
     private boolean updateRow(RowData curKey, Collector<RowData> out) throws Exception {
@@ -284,23 +331,46 @@ public class NonTimeUnboundedPrecedingFunction<K>
             // break;
             return false;
         }
-        // Generate UPDATE_BEFORE
-        output.setRowKind(RowKind.UPDATE_BEFORE);
-        output.replace(curValue, prevAcc);
-        out.collect(output);
 
-        // Accumulate first for the UPDATE_AFTER Row
+        sendUpdateBefore(curValue, prevAcc, out);
         currFunction.accumulate(curValue);
-
-        // Generate UPDATE_AFTER
-        output.setRowKind(RowKind.UPDATE_AFTER);
-        output.replace(curValue, currFunction.getValue());
-        out.collect(output);
-
-        // accMapState.put(curKey.getLong(keyIdx), currFunction.getValue());
+        sendUpdateAfter(curValue, out);
         accMapState.put(curKey.getLong(keyIdx), currFunction.getAccumulators());
 
         return true;
+    }
+
+    private void updateSameSortKeys(ListIterator<RowData> iterator, List<Long> ids, Long insertedId, Collector<RowData> out)
+            throws Exception {
+        int i = 0;
+        RowData prevAcc;
+        if (insertedId == -1) {
+            prevAcc = currFunction.getAccumulators();
+            while (i < ids.size()) {
+                RowData curValue = valueMapState.get(ids.get(i));
+                prevAcc = accMapState.get(ids.get(i));
+                currFunction.accumulate(curValue);
+                accMapState.put(ids.get(i), currFunction.getAccumulators());
+                i++;
+            }
+            i = 0;
+        } else {
+            prevAcc = accMapState.get(ids.get(ids.size() - 2));
+        }
+
+        while (i < ids.size()) {
+            RowData curValue = valueMapState.get(ids.get(i));
+            if (ids.get(i) == insertedId) {
+                sendUpdate(curValue, RowKind.INSERT, out);
+            } else {
+                sendUpdateBefore(curValue, prevAcc, out);
+                sendUpdateAfter(curValue, out);
+                if (i != 0 && insertedId == -1) {
+                    iterator.next();
+                }
+            }
+            i++;
+        }
     }
 
     private void removeFromSortedList(RowData input, Collector<RowData> out) throws Exception {
@@ -313,30 +383,94 @@ public class NonTimeUnboundedPrecedingFunction<K>
             RowData curKey = iterator.next();
             RowData curValue = valueMapState.get(curKey.getLong(keyIdx));
             if (isRetracted) {
-                if (!updateRow(curKey, out)) {
-                    break;
+                List<Long> ids = sortIndexState.get(curKey.getLong(1));
+                if (ids.size() > 1) {
+                    updateSameSortKeys(iterator, ids, -1L, out);
+                } else {
+                    // Update single row
+                    if (!updateRow(curKey, out)) {
+                        break;
+                    }
                 }
             } else if (equaliser.equals(curValue, input)) {
-                // Retract record
-                RowData curAcc = accMapState.get(curKey.getLong(keyIdx));
-                currFunction.setAccumulators(curAcc);
-                output.setRowKind(RowKind.UPDATE_BEFORE);
-                output.replace(input, currFunction.getValue());
-                out.collect(output);
-
-                iterator.remove();
-
-                sortedKeyState.update(sortedKeyList);
-                valueMapState.remove(curKey.getLong(keyIdx));
-                accMapState.remove(curKey.getLong(keyIdx));
-                if (iterator.hasPrevious()) {
-                    setAccumulatorOfPrevRow(sortedKeyList, iterator.previousIndex());
+                List<Long> ids = sortIndexState.get(curKey.getLong(1));
+                if (ids.size() > 1) {
+                    removeRowFromSameSortKeys(sortedKeyList, curKey, iterator, ids, out);
                 } else {
-                    currFunction.setAccumulators(currFunction.createAccumulators());
+                    // Retract single record
+                    RowData curAcc = accMapState.get(curKey.getLong(keyIdx));
+                    sendUpdateBefore(input, curAcc, out);
+                    iterator.remove();
+                    removeFromState(sortedKeyList, ids, curKey.getLong(keyIdx), -1, curKey.getLong(1));
+                    if (iterator.hasPrevious()) {
+                        setAccumulatorOfPrevRow(sortedKeyList, iterator.previousIndex());
+                    } else {
+                        currFunction.setAccumulators(currFunction.createAccumulators());
+                    }
                 }
                 isRetracted = true;
             }
         }
+    }
+
+    private void removeRowFromSameSortKeys(List<RowData> sortedKeyList, RowData curKey, ListIterator<RowData> iterator, List<Long> ids, Collector<RowData> out)
+            throws Exception {
+        int i = 0;
+        int removeIndex = -1;
+        while (i < ids.size()) {
+            if (ids.get(i) == curKey.getLong(keyIdx)) {
+                removeIndex = i;
+                break;
+            }
+            i++;
+        }
+
+        setAccumulatorOfPrevRow(sortedKeyList, iterator.nextIndex() - 1 - i  - 1);
+        RowData lastAcc = accMapState.get(ids.get(ids.size() - 1));
+        i = 0;
+        while (i < ids.size()) {
+            if (ids.get(i) == curKey.getLong(keyIdx)) {
+                // skip accumulating
+            } else {
+                RowData value = valueMapState.get(ids.get(i));
+                currFunction.accumulate(value);
+                accMapState.put(ids.get(i), currFunction.getAccumulators());
+            }
+            i++;
+        }
+
+        i = 0;
+        while (i < ids.size()) {
+            RowData value = valueMapState.get(ids.get(i));
+            if (ids.get(i) == curKey.getLong(keyIdx)) {
+                sendUpdateBefore(value, lastAcc, out);
+                iterator.remove();
+            } else {
+                sendUpdateBefore(value, lastAcc, out);
+                sendUpdateAfter(value, out);
+                if (i >= removeIndex) {
+                    iterator.next();
+                }
+            }
+            i++;
+        }
+
+        if (removeIndex != -1) {
+            removeFromState(sortedKeyList, ids, ids.get(removeIndex), removeIndex, curKey.getLong(1));
+        }
+    }
+
+    private void removeFromState(List<RowData> sortedKeyList, List<Long> ids, Long id, int removeIndex, Long sortKey)
+            throws Exception {
+        sortedKeyState.update(sortedKeyList);
+        valueMapState.remove(id);
+        accMapState.remove(id);
+        if (removeIndex == -1) {
+            ids.remove(id);
+        } else {
+            ids.remove(removeIndex);
+        }
+        sortIndexState.put(sortKey, ids);
     }
 
     @Override

@@ -61,10 +61,10 @@ public class OverWindowTestPrograms {
                                     + "bLag FROM t")
                     .build();
 
-    static final TableTestProgram OVER_AGGREGATE_NON_TIME_UNBOUNDED_RETRACT_MODE =
+    static final TableTestProgram OVER_AGGREGATE_NON_TIME_SUM_RETRACT_MODE =
             TableTestProgram.of(
-                            "over-aggregate-sum-retract-mode",
-                            "validates restoring an unbounded preceding sum function in retract mode")
+                            "over-aggregate-non-time-sum-retract-mode",
+                            "validates restoring a non-time unbounded preceding sum function in retract mode")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
                                     .addSchema("key STRING", "val BIGINT", "ts BIGINT")
@@ -147,10 +147,10 @@ public class OverWindowTestPrograms {
                     .build();
 
     static final TableTestProgram
-            OVER_AGGREGATE_NON_TIME_UNBOUNDED_RETRACT_MODE_SOURCE_PRIMARY_KEY =
+            OVER_AGGREGATE_NON_TIME_SUM_RETRACT_MODE_SOURCE_PRIMARY_KEY =
                     TableTestProgram.of(
-                                    "over-aggregate-sum-retract-mode-source-primary-key",
-                                    "validates restoring an unbounded preceding sum function in retract mode")
+                                    "over-aggregate-non-time-sum-retract-mode-source-primary-key",
+                                    "validates restoring a non-time unbounded preceding sum function in retract mode with source table having primary key")
                             .setupTableSource(
                                     SourceTestStep.newBuilder("source_t")
                                             .addSchema(
@@ -379,10 +379,10 @@ public class OverWindowTestPrograms {
                                             + "FROM source_t")
                             .build();
 
-    static final TableTestProgram OVER_AGGREGATE_NON_TIME_UNBOUNDED_RETRACT_MODE_SINK_PRIMARY_KEY =
+    static final TableTestProgram OVER_AGGREGATE_NON_TIME_SUM_RETRACT_MODE_SINK_PRIMARY_KEY =
             TableTestProgram.of(
-                            "over-aggregate-sum-retract-mode-sink-primary-key",
-                            "validates restoring an unbounded preceding sum function in retract mode")
+                            "over-aggregate-non-time-sum-retract-mode-sink-primary-key",
+                            "validates restoring a non-time unbounded preceding sum function in retract mode with sink table having primary key")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
                                     .addSchema("key STRING", "val BIGINT", "ts BIGINT")
@@ -445,10 +445,10 @@ public class OverWindowTestPrograms {
                     .build();
 
     static final TableTestProgram
-            OVER_AGGREGATE_NON_TIME_UNBOUNDED_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY =
+            OVER_AGGREGATE_NON_TIME_SUM_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY =
                     TableTestProgram.of(
-                                    "over-aggregate-sum-retract-mode-source-sink-primary-key",
-                                    "validates restoring an unbounded preceding sum function in retract mode")
+                                    "over-aggregate-non-time-sum-retract-mode-source-sink-primary-key",
+                                    "validates restoring a non-time unbounded preceding sum function in retract mode with source and sink tables having primary key")
                             .setupConfig(
                                     // This option helps create a ChangelogNormalize node after the
                                     // source
@@ -599,10 +599,10 @@ public class OverWindowTestPrograms {
                             .build();
 
     static final TableTestProgram
-            OVER_AGGREGATE_NON_TIME_UNBOUNDED_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY_PARTITION_BY_NON_PK =
+            OVER_AGGREGATE_NON_TIME_SUM_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY_PARTITION_BY_NON_PK =
                     TableTestProgram.of(
-                                    "over-aggregate-sum-retract-mode-source-sink-primary-key-partition-by-non-pk",
-                                    "validates restoring an unbounded preceding sum function in retract mode")
+                                    "over-aggregate-non-time-sum-retract-mode-source-sink-primary-key-partition-by-non-pk",
+                                    "validates restoring a non-time unbounded preceding sum function in retract mode with source and sink table having primary key but partition by non-primary key")
                             .setupTableSource(
                                     SourceTestStep.newBuilder("source_t")
                                             .addSchema(
@@ -756,10 +756,10 @@ public class OverWindowTestPrograms {
                                             + "FROM source_t")
                             .build();
 
-    static final TableTestProgram OVER_AGGREGATE_NON_TIME_UNBOUNDED_APPEND_MODE =
+    static final TableTestProgram OVER_AGGREGATE_NON_TIME_SUM_APPEND_MODE =
             TableTestProgram.of(
-                            "over-aggregate-sum-append-mode",
-                            "validates restoring an unbounded preceding sum function in append mode")
+                            "over-aggregate-non-time-sum-append-mode",
+                            "validates restoring a non-time unbounded preceding sum function in append mode")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
                                     .addSchema("key STRING", "val BIGINT", "ts BIGINT")
@@ -804,10 +804,10 @@ public class OverWindowTestPrograms {
                                     + "FROM source_t")
                     .build();
 
-    static final TableTestProgram OVER_AGGREGATE_AVG_NON_TIME_UNBOUNDED_APPEND_MODE =
+    static final TableTestProgram OVER_AGGREGATE_NON_TIME_AVG_APPEND_MODE =
             TableTestProgram.of(
-                            "over-aggregate-avg-append-mode",
-                            "validates restoring an unbounded preceding avg function in append mode")
+                            "over-aggregate-non-time-avg-append-mode",
+                            "validates restoring a non-time unbounded preceding avg function in append mode")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
                                     .addSchema("key STRING", "val BIGINT", "ts BIGINT")
@@ -851,10 +851,10 @@ public class OverWindowTestPrograms {
                                     + "FROM source_t")
                     .build();
 
-    static final TableTestProgram OVER_AGGREGATE_NON_TIME_UNBOUNDED_APPEND_MODE_MULTIPLE_AGGS =
+    static final TableTestProgram OVER_AGGREGATE_NON_TIME_MULTIPLE_AGGS_APPEND_MODE =
             TableTestProgram.of(
-                            "over-aggregate-sum-append-mode-multiple-aggs",
-                            "validates restoring an unbounded preceding sum function in append mode")
+                            "over-aggregate-non-time-multiple-aggs-append-mode",
+                            "validates restoring a non-time unbounded preceding sum function in append mode with multiple aggregations")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
                                     .addSchema("key STRING", "val BIGINT", "ts BIGINT")
@@ -929,10 +929,10 @@ public class OverWindowTestPrograms {
                                     + "FROM source_t")
                     .build();
 
-    static final TableTestProgram OVER_AGGREGATE_NON_TIME_UNBOUNDED_NO_PARTITION_BY =
+    static final TableTestProgram OVER_AGGREGATE_NON_TIME_SUM_NO_PARTITION_BY =
             TableTestProgram.of(
-                            "over-aggregate-sum-no-partition-by",
-                            "validates restoring an unbounded preceding sum function without partition by")
+                            "over-aggregate-non-time-sum-no-partition-by",
+                            "validates restoring a non-time unbounded preceding sum function without partition by")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
                                     .addSchema("key STRING", "val BIGINT", "ts BIGINT")
@@ -958,6 +958,8 @@ public class OverWindowTestPrograms {
                                             Row.of("key1", 2L, 200L, 3L),
                                             Row.of("key1", 5L, 500L, 8L),
                                             Row.of("key1", 6L, 600L, 14L),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, "key1", 1L, 100L, 1L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "key1", 1L, 100L, 2L),
                                             Row.of("key2", 1L, 100L, 2L),
                                             Row.ofKind(RowKind.UPDATE_BEFORE, "key1", 2L, 200L, 3L),
                                             Row.ofKind(RowKind.UPDATE_AFTER, "key1", 2L, 200L, 4L),
@@ -966,6 +968,8 @@ public class OverWindowTestPrograms {
                                             Row.ofKind(
                                                     RowKind.UPDATE_BEFORE, "key1", 6L, 600L, 14L),
                                             Row.ofKind(RowKind.UPDATE_AFTER, "key1", 6L, 600L, 15L),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, "key1", 2L, 200L, 4L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "key1", 2L, 200L, 6L),
                                             Row.of("key2", 2L, 200L, 6L),
                                             Row.ofKind(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 9L),
                                             Row.ofKind(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 11L),
