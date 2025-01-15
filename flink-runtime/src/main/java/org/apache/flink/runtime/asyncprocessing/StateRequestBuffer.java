@@ -201,18 +201,17 @@ public class StateRequestBuffer<K> implements Closeable {
      * @return The first record context with the same key in blocking queue, null if no such record.
      */
     @Nullable
-    RecordContext<K> tryActivateOneByKey(K key) {
+    StateRequest<K, ?, ?, ?> unblockOneByKey(K key) {
         if (!blockingQueue.containsKey(key)) {
             return null;
         }
 
         StateRequest<K, ?, ?, ?> stateRequest = blockingQueue.get(key).removeFirst();
-        enqueueToActive(stateRequest);
         if (blockingQueue.get(key).isEmpty()) {
             blockingQueue.remove(key);
         }
         blockingQueueSize--;
-        return stateRequest.getRecordContext();
+        return stateRequest;
     }
 
     /**
