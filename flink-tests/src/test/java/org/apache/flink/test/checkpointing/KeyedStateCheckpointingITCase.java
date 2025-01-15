@@ -25,10 +25,13 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.state.forst.ForStOptions;
 import org.apache.flink.state.rocksdb.RocksDBOptions;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -137,6 +140,21 @@ public class KeyedStateCheckpointingITCase extends TestLogger {
                 new Configuration()
                         .set(
                                 RocksDBOptions.LOCAL_DIRECTORIES,
+                                tmpFolder.newFolder().getAbsolutePath()));
+        CheckpointStorageUtils.configureFileSystemCheckpointStorage(
+                env, tmpFolder.newFolder().toURI().toString());
+        testProgramWithBackend(env);
+    }
+
+    @Test
+    public void testWithForStBackendIncremental() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.configure(
+                new Configuration()
+                        .set(StateBackendOptions.STATE_BACKEND, "forst")
+                        .set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true)
+                        .set(
+                                ForStOptions.LOCAL_DIRECTORIES,
                                 tmpFolder.newFolder().getAbsolutePath()));
         CheckpointStorageUtils.configureFileSystemCheckpointStorage(
                 env, tmpFolder.newFolder().toURI().toString());

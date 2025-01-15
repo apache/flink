@@ -19,9 +19,12 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.state.v2.StateFuture;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
@@ -40,8 +43,10 @@ import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
@@ -56,8 +61,12 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
@@ -74,6 +83,7 @@ import static org.junit.Assert.assertNotNull;
  * NotifyingDefiniteKeySource, SubtaskIndexFlatMapper and CollectionSink refer to RescalingITCase,
  * because the static fields in these classes can not be shared.
  */
+@RunWith(Parameterized.class)
 public class RescaleCheckpointManuallyITCase extends TestLogger {
 
     private static final int NUM_TASK_MANAGERS = 2;
@@ -84,10 +94,24 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
 
     @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
+    @Parameterized.Parameter(0)
+    public String statebackendType;
+
+    @Parameterized.Parameter(1)
+    public boolean enableAsyncState;
+
+    @Parameterized.Parameters(name = "statebackend type ={0}, enableAsyncState={1}")
+    public static Collection<Object[]> parameter() {
+        return Arrays.asList(
+                new Object[][] {
+                    {"forst", true}, {"forst", false}, {"rocksdb", true}, {"rocksdb", false}
+                });
+    }
+
     @Before
     public void setup() throws Exception {
         Configuration config = new Configuration();
-        config.set(StateBackendOptions.STATE_BACKEND, "rocksdb");
+        config.set(StateBackendOptions.STATE_BACKEND, statebackendType);
         config.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true);
 
         cluster =
@@ -263,7 +287,7 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
 
         SharedReference<JobID> jobID = sharedObjects.add(new JobID());
         SharedReference<MiniCluster> miniClusterRef = sharedObjects.add(miniCluster);
-        DataStream<Integer> input =
+        KeyedStream<Integer, Integer> input =
                 env.addSource(
                                 new NotifyingDefiniteKeySource(
                                         numberKeys, numberElements, failAfterEmission) {
@@ -300,10 +324,18 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
                                         return value;
                                     }
                                 });
-        DataStream<Tuple2<Integer, Integer>> result =
-                input.flatMap(new SubtaskIndexFlatMapper(numberElementsExpect));
+        if (enableAsyncState) {
+            input.enableAsyncState();
+            DataStream<Tuple2<Integer, Integer>> result =
+                    input.flatMap(new AsyncSubtaskIndexFlatMapper(numberElementsExpect));
 
-        result.sinkTo(new CollectionSink<>());
+            result.sinkTo(new CollectionSink<>());
+        } else {
+            DataStream<Tuple2<Integer, Integer>> result =
+                    input.flatMap(new SubtaskIndexFlatMapper(numberElementsExpect));
+
+            result.sinkTo(new CollectionSink<>());
+        }
 
         return env.getStreamGraph().getJobGraph(env.getClass().getClassLoader(), jobID.get());
     }
@@ -349,8 +381,9 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
                 } else {
                     boolean newCheckpoint = false;
                     long waited = 0L;
+                    running = false;
                     // maximum wait 5min
-                    while (!newCheckpoint && waited < 30000L) {
+                    while (!newCheckpoint && waited < 300000L) {
                         synchronized (ctx.getCheckpointLock()) {
                             newCheckpoint = waitCheckpointCompleted();
                         }
@@ -420,6 +453,79 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
             sum =
                     context.getKeyedStateStore()
                             .getState(new ValueStateDescriptor<>("sum", Integer.class));
+        }
+    }
+
+    private static class AsyncSubtaskIndexFlatMapper
+            extends RichFlatMapFunction<Integer, Tuple2<Integer, Integer>>
+            implements CheckpointedFunction {
+
+        private static final long serialVersionUID = 1L;
+
+        private transient org.apache.flink.api.common.state.v2.ValueState<Integer> counter;
+        private transient org.apache.flink.api.common.state.v2.ValueState<Integer> sum;
+
+        private final int numberElements;
+
+        public AsyncSubtaskIndexFlatMapper(int numberElements) {
+            this.numberElements = numberElements;
+        }
+
+        @Override
+        public void flatMap(Integer value, Collector<Tuple2<Integer, Integer>> out)
+                throws Exception {
+            StateFuture<Integer> counterFuture =
+                    counter.asyncValue()
+                            .thenCompose(
+                                    (Integer c) -> {
+                                        int updated = c == null ? 1 : c + 1;
+                                        return counter.asyncUpdate(updated)
+                                                .thenApply(nothing -> updated);
+                                    });
+            StateFuture<Integer> sumFuture =
+                    sum.asyncValue()
+                            .thenCompose(
+                                    (Integer s) -> {
+                                        int updated = s == null ? value : s + value;
+                                        return sum.asyncUpdate(updated)
+                                                .thenApply(nothing -> updated);
+                                    });
+
+            counterFuture.thenCombine(
+                    sumFuture,
+                    (c, s) -> {
+                        if (c == numberElements) {
+                            out.collect(
+                                    Tuple2.of(
+                                            getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getIndexOfThisSubtask(),
+                                            s));
+                        }
+                        return null;
+                    });
+        }
+
+        @Override
+        public void snapshotState(FunctionSnapshotContext context) throws Exception {
+            // all managed, nothing to do.
+        }
+
+        @Override
+        public void initializeState(FunctionInitializationContext context) throws Exception {}
+
+        @Override
+        public void open(OpenContext openContext) throws Exception {
+            counter =
+                    ((StreamingRuntimeContext) getRuntimeContext())
+                            .getValueState(
+                                    new org.apache.flink.api.common.state.v2.ValueStateDescriptor<>(
+                                            "counter", BasicTypeInfo.INT_TYPE_INFO));
+            sum =
+                    ((StreamingRuntimeContext) getRuntimeContext())
+                            .getValueState(
+                                    new org.apache.flink.api.common.state.v2.ValueStateDescriptor<>(
+                                            "sum", BasicTypeInfo.INT_TYPE_INFO));
         }
     }
 

@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessingOperator;
 
 import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
 
@@ -183,6 +184,16 @@ public class OneInputTransformation<IN, OUT> extends PhysicalTransformation<OUT>
     @Override
     public final void setChainingStrategy(ChainingStrategy strategy) {
         operatorFactory.setChainingStrategy(strategy);
+    }
+
+    @Override
+    public void enableAsyncState() {
+        OneInputStreamOperator<IN, OUT> operator =
+                (OneInputStreamOperator<IN, OUT>)
+                        ((SimpleOperatorFactory<OUT>) operatorFactory).getOperator();
+        if (!(operator instanceof AsyncStateProcessingOperator)) {
+            super.enableAsyncState();
+        }
     }
 
     public boolean isOutputOnlyAfterEndOfStream() {
