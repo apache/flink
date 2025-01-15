@@ -25,6 +25,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
@@ -38,6 +39,8 @@ import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -156,6 +159,15 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
         return timerService;
     }
 
+    <N> InternalTimerServiceImpl<K, N> restoreTimeService(
+            String name, TimerSerializer<K, N> timerSerializer) {
+        if (priorityQueueSetFactory instanceof AsyncKeyedStateBackend) {
+            return registerOrGetAsyncTimerService(name, timerSerializer, null);
+        } else {
+            return registerOrGetTimerService(name, timerSerializer);
+        }
+    }
+
     @SuppressWarnings("unchecked")
     <N> InternalTimerServiceImpl<K, N> registerOrGetTimerService(
             String name, TimerSerializer<K, N> timerSerializer) {
@@ -203,10 +215,11 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
         return timerService;
     }
 
+    @SuppressWarnings("unchecked")
     <N> InternalTimerServiceAsyncImpl<K, N> registerOrGetAsyncTimerService(
             String name,
             TimerSerializer<K, N> timerSerializer,
-            AsyncExecutionController<K> asyncExecutionController) {
+            @Nullable AsyncExecutionController<K> asyncExecutionController) {
         InternalTimerServiceAsyncImpl<K, N> timerService =
                 (InternalTimerServiceAsyncImpl<K, N>) timerServices.get(name);
         if (timerService == null) {
@@ -221,8 +234,9 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
                             createTimerPriorityQueue(EVENT_TIMER_PREFIX + name, timerSerializer),
                             cancellationContext,
                             asyncExecutionController);
-
             timerServices.put(name, timerService);
+        } else {
+            timerService.setup(asyncExecutionController);
         }
         return timerService;
     }
