@@ -180,8 +180,9 @@ public class JsonGeneratorTest {
         expectedJobVertexIds.add(null);
         validateStreamGraph(streamGraph, parsedStreamGraph, expectedJobVertexIds);
 
-        jobVertexIdMap.put(1, new JobVertexID());
-        jobVertexIdMap.put(2, new JobVertexID());
+        for (StreamNode node : streamGraph.getStreamNodes()) {
+            jobVertexIdMap.put(node.getId(), new JobVertexID());
+        }
         streamGraphJson = JsonPlanGenerator.generateStreamGraphJson(streamGraph, jobVertexIdMap);
 
         parsedStreamGraph = mapper.readValue(streamGraphJson, StreamGraphJsonSchema.class);
