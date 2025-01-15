@@ -26,6 +26,7 @@ import org.apache.flink.api.connector.dsv2.WrappedSink;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.datastream.api.extension.join.JoinFunction;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
 import org.apache.flink.datastream.api.function.TwoInputBroadcastStreamProcessFunction;
 import org.apache.flink.datastream.api.function.TwoInputNonBroadcastStreamProcessFunction;
@@ -33,6 +34,7 @@ import org.apache.flink.datastream.api.function.TwoOutputStreamProcessFunction;
 import org.apache.flink.datastream.api.stream.GlobalStream.ProcessConfigurableAndGlobalStream;
 import org.apache.flink.datastream.api.stream.KeyedPartitionStream.ProcessConfigurableAndKeyedPartitionStream;
 import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream.ProcessConfigurableAndNonKeyedPartitionStream;
+import org.apache.flink.datastream.impl.extension.join.operators.TwoInputNonBroadcastJoinProcessFunction;
 import org.apache.flink.datastream.impl.stream.AbstractDataStream;
 import org.apache.flink.datastream.impl.stream.GlobalStreamImpl;
 import org.apache.flink.datastream.impl.stream.KeyedPartitionStreamImpl;
@@ -84,6 +86,21 @@ public final class StreamUtils {
                     TwoInputNonBroadcastStreamProcessFunction<IN1, IN2, OUT> processFunction,
                     TypeInformation<IN1> in1TypeInformation,
                     TypeInformation<IN2> in2TypeInformation) {
+        if (processFunction instanceof TwoInputNonBroadcastJoinProcessFunction) {
+            return TypeExtractor.getBinaryOperatorReturnType(
+                    ((TwoInputNonBroadcastJoinProcessFunction<IN1, IN2, OUT>) processFunction)
+                            .getJoinFunction(),
+                    JoinFunction.class,
+                    0,
+                    1,
+                    2,
+                    TypeExtractor.NO_INDEX,
+                    in1TypeInformation,
+                    in2TypeInformation,
+                    Utils.getCallLocationName(),
+                    true);
+        }
+
         return TypeExtractor.getBinaryOperatorReturnType(
                 processFunction,
                 TwoInputNonBroadcastStreamProcessFunction.class,
