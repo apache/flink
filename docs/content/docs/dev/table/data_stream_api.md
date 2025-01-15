@@ -3141,6 +3141,13 @@ Table table = tableEnv.fromValues(
     row("john", 35),
     row("sarah", 32));
 
+// Convert the Table into an append DataStream of Row by specifying the class
+DataStream<Row> dsRow = tableEnv.toDataStream(table, Row.class);
+
+// Convert the Table into an append DataStream of Tuple2<String, Integer> with TypeInformation
+TupleTypeInfo<Tuple2<String, Integer>> tupleType = new TupleTypeInfo<>(Types.STRING(), Types.INT());
+DataStream<Tuple2<String, Integer>> dsTuple = tableEnv.toDataStream(table, tupleType);
+
 // Convert the Table into a retract DataStream of Row.
 // A retract stream of type X is a DataStream<Tuple2<Boolean, X>>. 
 // The boolean field indicates the type of the change. 
@@ -3160,6 +3167,13 @@ val table: Table = tableEnv.fromValues(
         DataTypes.FIELD("age", DataTypes.INT()),
     row("john", 35),
     row("sarah", 32))
+
+// Convert the Table into an append DataStream of Row by specifying the class
+val dsRow: DataStream[Row] = tableEnv.toDataStream[Row](table)
+
+// Convert the Table into an append DataStream of (String, Integer) with TypeInformation
+val dsTuple: DataStream[(String, Int)] dsTuple =
+  tableEnv.toDataStream[(String, Int)](table)
 
 // Convert the Table into a retract DataStream of Row.
 // A retract stream of type X is a DataStream<Tuple2<Boolean, X>>. 

@@ -143,7 +143,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             if (ds.withChangeFlag) {
               (ModifyKindSetTrait.ALL_CHANGES, "toRetractStream")
             } else {
-              (ModifyKindSetTrait.INSERT_ONLY, "toAppendStream")
+              (ModifyKindSetTrait.INSERT_ONLY, "toDataStream")
             }
           case _ =>
             throw new UnsupportedOperationException(
