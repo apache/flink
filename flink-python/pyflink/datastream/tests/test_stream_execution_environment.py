@@ -301,7 +301,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
         tab = t_env.from_data_stream(ds, col('a')) \
                    .select(add_three(col('a')))
-        t_env.to_data_stream(tab, Types.ROW([Types.LONG()])) \
+        t_env.to_data_stream_with_type(tab, Types.ROW([Types.LONG()])) \
              .map(lambda i: i[0]) \
              .add_sink(self.test_sink)
         env.execute("test add_python_file")

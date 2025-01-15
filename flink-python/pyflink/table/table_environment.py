@@ -1784,7 +1784,7 @@ class StreamTableEnvironment(TableEnvironment):
         """
         return DataStream(self._j_tenv.toDataStream(table._j_table))
 
-    def to_data_stream(self, table: Table, type_info: TypeInformation) -> DataStream:
+    def to_data_stream_with_type(self, table: Table, type_info: TypeInformation) -> DataStream:
         """
         Converts the given Table into a DataStream.
 

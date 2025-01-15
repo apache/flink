@@ -443,19 +443,19 @@ class DataStreamConversionTestCases(PyFlinkUTTestCase):
                     '+I[2, 1970-06-07, 08:09:10, 1970-06-07T08:09:10]']
         self.assertEqual(expected, results)
 
-     def test_to_data_stream(self):
+    def test_to_data_stream_with_type(self):
         self.env.set_parallelism(1)
         t_env = StreamTableEnvironment.create(
             self.env,
             environment_settings=EnvironmentSettings.in_streaming_mode())
         table = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hi")], ["a", "b", "c"])
         new_table = table.select(table.a + 1, table.b + 'flink', table.c)
-        ds = t_env.to_data_stream(table=new_table, type_info=Types.ROW([Types.LONG(),
+        ds = t_env.to_data_stream_with_type(table=new_table, type_info=Types.ROW([Types.LONG(),
                                                                           Types.STRING(),
                                                                           Types.STRING()]))
         test_sink = DataStreamTestSinkFunction()
         ds.add_sink(test_sink)
-        self.env.execute("test_to_data_stream")
+        self.env.execute("test_to_data_stream_with_type")
         result = test_sink.get_results(False)
         expected = ['+I[2, Hiflink, Hello]', '+I[3, Helloflink, Hi]']
         self.assertEqual(result, expected)

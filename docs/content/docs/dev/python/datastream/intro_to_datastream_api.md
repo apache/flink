@@ -227,7 +227,7 @@ t_env.execute_sql("""
         )
     """)
 
-ds = t_env.to_data_stream(
+ds = t_env.to_data_stream_with_type(
     t_env.from_path('my_source'),
     Types.ROW([Types.INT(), Types.STRING()]))
 ```
@@ -266,7 +266,7 @@ It also supports to convert a `DataStream` to a `Table` and vice verse.
 table = t_env.from_data_stream(ds, 'a, b, c')
 
 # convert a Table to a DataStream
-ds = t_env.to_data_stream(table, Types.ROW([Types.INT(), Types.STRING()]))
+ds = t_env.to_data_stream_with_type(table, Types.ROW([Types.INT(), Types.STRING()]))
 # or
 ds = t_env.to_retract_stream(table, Types.ROW([Types.INT(), Types.STRING()]))
 ```
