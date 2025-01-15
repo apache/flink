@@ -126,6 +126,42 @@ public class AbstractStateIteratorTest {
         aec.drainInflightRecords(0);
     }
 
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public void testPartialLoadingWithConversionToIterable() {
+        TestIteratorStateExecutor stateExecutor = new TestIteratorStateExecutor(100, 3);
+        AsyncExecutionController aec =
+                new AsyncExecutionController(
+                        new SyncMailboxExecutor(),
+                        (a, b) -> {},
+                        stateExecutor,
+                        new DeclarationManager(),
+                        1,
+                        100,
+                        1000,
+                        1,
+                        null);
+        stateExecutor.bindAec(aec);
+        RecordContext<String> recordContext = aec.buildContext("1", "key1");
+        aec.setCurrentContext(recordContext);
+
+        AtomicInteger processed = new AtomicInteger();
+
+        StateFutureUtils.toIterable(aec.handleRequest(null, StateRequestType.MAP_ITER, null))
+                .thenAccept(
+                        (iter) -> {
+                            assertThat(iter instanceof Iterable);
+                            ((Iterable<Integer>) iter)
+                                    .forEach(
+                                            item -> {
+                                                assertThat(item)
+                                                        .isEqualTo(processed.getAndIncrement());
+                                            });
+                            assertThat(processed.get()).isEqualTo(100);
+                        });
+        aec.drainInflightRecords(0);
+    }
+
     /**
      * A brief implementation of {@link StateExecutor}, to illustrate the interaction between AEC
      * and StateExecutor.
@@ -231,7 +267,7 @@ public class AbstractStateIteratorTest {
             }
 
             @Override
-            protected boolean hasNext() {
+            public boolean hasNextLoading() {
                 return current < limit;
             }
 

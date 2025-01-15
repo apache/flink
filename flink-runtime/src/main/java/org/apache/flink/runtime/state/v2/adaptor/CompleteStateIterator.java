@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.state.v2.adaptor;
 
 import org.apache.flink.api.common.state.v2.StateFuture;
-import org.apache.flink.api.common.state.v2.StateIterator;
+import org.apache.flink.core.state.InternalStateIterator;
 import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.FunctionWithException;
@@ -32,7 +32,7 @@ import java.util.Collection;
 import java.util.Collections;
 
 /** A {@link org.apache.flink.api.common.state.v2.StateIterator} that has all elements. */
-public class CompleteStateIterator<T> implements StateIterator<T> {
+public class CompleteStateIterator<T> implements InternalStateIterator<T> {
 
     final Iterable<T> iterable;
     final boolean empty;
@@ -82,5 +82,15 @@ public class CompleteStateIterator<T> implements StateIterator<T> {
     @Override
     public boolean isEmpty() {
         return empty;
+    }
+
+    @Override
+    public boolean hasNextLoading() {
+        return false;
+    }
+
+    @Override
+    public Iterable<T> getCurrentCache() {
+        return iterable;
     }
 }
