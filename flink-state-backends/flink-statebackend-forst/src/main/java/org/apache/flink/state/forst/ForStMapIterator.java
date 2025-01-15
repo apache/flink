@@ -32,7 +32,7 @@ public class ForStMapIterator<T> extends AbstractStateIterator<T> {
 
     /**
      * Whether the iterator has encountered the end, which determines the return value of {@link
-     * #hasNext}.
+     * #hasNextLoading}.
      */
     private boolean encounterEnd;
 
@@ -60,7 +60,7 @@ public class ForStMapIterator<T> extends AbstractStateIterator<T> {
     }
 
     @Override
-    protected boolean hasNext() {
+    public boolean hasNextLoading() {
         return !encounterEnd;
     }
 
