@@ -53,7 +53,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -427,41 +426,32 @@ public final class FactoryUtil {
                             MODULE_TYPE.key(), options.get(MODULE_TYPE.key())));
         }
 
+        final DefaultModuleContext discoveryContext =
+                new DefaultModuleContext(options, configuration, classLoader);
         try {
-            final Map<String, String> optionsWithType = new HashMap<>(options);
-            optionsWithType.put(MODULE_TYPE.key(), moduleName);
+            final ModuleFactory factory =
+                    discoverFactory(
+                            ((ModuleFactory.Context) discoveryContext).getClassLoader(),
+                            ModuleFactory.class,
+                            moduleName);
 
-            final ModuleFactory legacyFactory =
-                    TableFactoryService.find(ModuleFactory.class, optionsWithType, classLoader);
-            return legacyFactory.createModule(optionsWithType);
-        } catch (NoMatchingTableFactoryException e) {
-            final DefaultModuleContext discoveryContext =
+            final DefaultModuleContext context =
                     new DefaultModuleContext(options, configuration, classLoader);
-            try {
-                final ModuleFactory factory =
-                        discoverFactory(
-                                ((ModuleFactory.Context) discoveryContext).getClassLoader(),
-                                ModuleFactory.class,
-                                moduleName);
-
-                final DefaultModuleContext context =
-                        new DefaultModuleContext(options, configuration, classLoader);
-                return factory.createModule(context);
-            } catch (Throwable t) {
-                throw new ValidationException(
-                        String.format(
-                                "Unable to create module '%s'.%n%nModule options are:%n%s",
-                                moduleName,
-                                options.entrySet().stream()
-                                        .map(
-                                                optionEntry ->
-                                                        stringifyOption(
-                                                                optionEntry.getKey(),
-                                                                optionEntry.getValue()))
-                                        .sorted()
-                                        .collect(Collectors.joining("\n"))),
-                        t);
-            }
+            return factory.createModule(context);
+        } catch (Throwable t) {
+            throw new ValidationException(
+                    String.format(
+                            "Unable to create module '%s'.%n%nModule options are:%n%s",
+                            moduleName,
+                            options.entrySet().stream()
+                                    .map(
+                                            optionEntry ->
+                                                    stringifyOption(
+                                                            optionEntry.getKey(),
+                                                            optionEntry.getValue()))
+                                    .sorted()
+                                    .collect(Collectors.joining("\n"))),
+                    t);
         }
     }
 
