@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.state.v2.StateIterator;
 import org.apache.flink.core.state.InternalStateFuture;
+import org.apache.flink.core.state.InternalStateIterator;
 import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.FunctionWithException;
@@ -35,15 +36,15 @@ import java.util.function.Consumer;
 /**
  * A {@link StateIterator} implementation to facilitate async data load of iterator. Each state
  * backend could override this class to maintain more variables in need. Any subclass should
- * implement two methods, {@link #hasNext()} and {@link #nextPayloadForContinuousLoading()}. The
- * philosophy behind this class is to carry some already loaded elements and provide iterating right
- * on the task thread, and load following ones if needed (determined by {@link #hasNext()}) by
- * creating **ANOTHER** iterating request. Thus, later it returns another iterator instance, and we
- * continue to apply the user iteration on that instance. The whole elements will be iterated by
- * recursive call of {@code #onNext()}.
+ * implement two methods, {@link #hasNextLoading()} and {@link #nextPayloadForContinuousLoading()}.
+ * The philosophy behind this class is to carry some already loaded elements and provide iterating
+ * right on the task thread, and load following ones if needed (determined by {@link
+ * #hasNextLoading()}) by creating **ANOTHER** iterating request. Thus, later it returns another
+ * iterator instance, and we continue to apply the user iteration on that instance. The whole
+ * elements will be iterated by recursive call of {@code #onNext()}.
  */
 @SuppressWarnings("rawtypes")
-public abstract class AbstractStateIterator<T> implements StateIterator<T> {
+public abstract class AbstractStateIterator<T> implements InternalStateIterator<T> {
 
     /** The state this iterator iterates on. */
     final State originalState;
@@ -69,7 +70,7 @@ public abstract class AbstractStateIterator<T> implements StateIterator<T> {
     }
 
     /** Return whether this iterator has more elements to load besides current cache. */
-    protected abstract boolean hasNext();
+    public abstract boolean hasNextLoading();
 
     /**
      * To perform following loading, build and get next payload for the next request. This will put
@@ -78,6 +79,10 @@ public abstract class AbstractStateIterator<T> implements StateIterator<T> {
      * @return the packed payload for next loading.
      */
     protected abstract Object nextPayloadForContinuousLoading();
+
+    public Iterable<T> getCurrentCache() {
+        return cache == null ? Collections.emptyList() : cache;
+    }
 
     protected StateRequestType getRequestType() {
         return requestType;
@@ -118,7 +123,7 @@ public abstract class AbstractStateIterator<T> implements StateIterator<T> {
             // Since this is on task thread, we can directly throw the runtime exception.
             throw new FlinkRuntimeException("Failed to iterate over state.", e);
         }
-        if (hasNext()) {
+        if (hasNextLoading()) {
             return StateFutureUtils.combineAll(resultFutures)
                     .thenCombine(
                             asyncNextLoad().thenCompose(itr -> itr.onNext(iterating)),
@@ -149,7 +154,7 @@ public abstract class AbstractStateIterator<T> implements StateIterator<T> {
             // Since this is on task thread, we can directly throw the runtime exception.
             throw new FlinkRuntimeException("Failed to iterate over state.", e);
         }
-        if (hasNext()) {
+        if (hasNextLoading()) {
             return asyncNextLoad().thenCompose(itr -> itr.onNext(iterating));
         } else {
             return StateFutureUtils.completedVoidFuture();
@@ -163,13 +168,13 @@ public abstract class AbstractStateIterator<T> implements StateIterator<T> {
         for (T item : cache) {
             iterating.accept(item);
         }
-        if (hasNext()) {
+        if (hasNextLoading()) {
             ((AbstractStateIterator<T>) syncNextLoad()).onNextSync(iterating);
         }
     }
 
     @Override
     public boolean isEmpty() {
-        return (cache == null || cache.isEmpty()) && !hasNext();
+        return (cache == null || cache.isEmpty()) && !hasNextLoading();
     }
 }

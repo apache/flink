@@ -37,7 +37,7 @@ public class ForStListIterator<V> extends AbstractStateIterator<V> {
     }
 
     @Override
-    protected boolean hasNext() {
+    public boolean hasNextLoading() {
         return false;
     }
 
