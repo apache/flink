@@ -108,7 +108,7 @@ def data_stream_api_demo():
             )
         """)
 
-    ds = t_env.toDataStream(
+    ds = t_env.to_data_stream(
         t_env.from_path('my_source'),
         Types.ROW([Types.INT(), Types.STRING()]))
 

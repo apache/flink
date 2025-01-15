@@ -3193,6 +3193,12 @@ table = t_env.from_elements([("john", 35), ("sarah", 32)],
               DataTypes.ROW([DataTypes.FIELD("name", DataTypes.STRING()),
                              DataTypes.FIELD("age", DataTypes.INT())]))
 
+# Convert the Table into an append DataStream of Row by specifying the type information
+ds_row = t_env.to_data_stream(table, Types.ROW([Types.STRING(), Types.INT()]))
+
+# Convert the Table into an append DataStream of Tuple[str, int] with TypeInformation
+ds_tuple = t_env.to_data_stream(table, Types.TUPLE([Types.STRING(), Types.INT()]))
+
 # Convert the Table into a retract DataStream of Row by specifying the type information
 # A retract stream of type X is a DataStream of Tuple[bool, X]. 
 # The boolean field indicates the type of the change. 
