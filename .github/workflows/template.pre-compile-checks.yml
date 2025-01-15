@@ -23,7 +23,7 @@ on:
     inputs:
       jdk_version:
         description: "The JDK version that shall be used as a default within the Flink CI Docker container."
-        default: "11"
+        default: "17"
         type: choice
         options: ["11", "17", "21"]
 
@@ -31,7 +31,7 @@ on:
     inputs:
       jdk_version:
         description: "The JDK version that shall be used as a default within the Flink CI Docker container."
-        default: 11
+        default: 17
         type: number
 
 permissions: read-all
