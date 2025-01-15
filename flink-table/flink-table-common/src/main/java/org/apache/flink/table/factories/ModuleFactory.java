@@ -65,15 +65,9 @@ public interface ModuleFactory extends Factory {
         ClassLoader getClassLoader();
     }
 
-    default String factoryIdentifier() {
-        throw new ModuleException("Module factories must implement factoryIdentifier()");
-    }
+    String factoryIdentifier();
 
-    default Set<ConfigOption<?>> requiredOptions() {
-        throw new ModuleException("Module factories must implement requiredOptions()");
-    }
+    Set<ConfigOption<?>> requiredOptions();
 
-    default Set<ConfigOption<?>> optionalOptions() {
-        throw new ModuleException("Module factories must implement optionalOptions()");
-    }
+    Set<ConfigOption<?>> optionalOptions();
 }
