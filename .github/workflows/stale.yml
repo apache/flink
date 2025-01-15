@@ -50,7 +50,7 @@ jobs:
             If the PR has merge conflicts, update it with the latest from the base branch.
 
             If you are having difficulty finding a reviewer, please reach out to the 
-            [community](https://flink.apache.org/what-is-flink/community/).
+            community, contact details can be found here: https://flink.apache.org/what-is-flink/community/
 
             If this PR is no longer valid or desired, please feel free to close it. 
             If no activity occurs in the next 90 days, it will be automatically closed.
