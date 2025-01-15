@@ -25,14 +25,14 @@ import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 
 /**
  * Use TestFunctionDefinitionFactory to test loading function to ensure the function can be loaded
- * correctly if only implement legacy interface {@link
- * FunctionDefinitionFactory#createFunctionDefinition(String, CatalogFunction)}.
+ * correctly with the classloader provided by {@link Context}.
  */
 public class TestFunctionDefinitionFactory implements FunctionDefinitionFactory {
 
+    @Override
     public FunctionDefinition createFunctionDefinition(
-            String name, CatalogFunction catalogFunction) {
+            String name, CatalogFunction catalogFunction, Context context) {
         return UserDefinedFunctionHelper.instantiateFunction(
-                Thread.currentThread().getContextClassLoader(), null, name, catalogFunction);
+                context.getClassLoader(), null, name, catalogFunction);
     }
 }

@@ -1093,16 +1093,6 @@ class CatalogFunction(object):
         else:
             return None
 
-    def is_generic(self) -> bool:
-        """
-        Whether or not is the function a flink UDF.
-
-        :return: Whether is the function a flink UDF.
-
-        .. versionadded:: 1.10.0
-        """
-        return self._j_catalog_function.isGeneric()
-
     def get_function_language(self):
         """
         Get the language used for the function definition.

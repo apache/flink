@@ -1739,7 +1739,6 @@ public abstract class CatalogTest {
 
     protected void checkEquals(CatalogFunction f1, CatalogFunction f2) {
         assertThat(f2.getClassName()).isEqualTo(f1.getClassName());
-        assertThat(f2.isGeneric()).isEqualTo(f1.isGeneric());
         assertThat(f2.getFunctionLanguage()).isEqualTo(f1.getFunctionLanguage());
     }
 
