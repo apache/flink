@@ -48,10 +48,10 @@ jobs:
             This PR is being marked as stale since it has not had any activity in the last 180 days. 
             If you would like to keep this PR alive, please leave a comment asking for a review. 
             If the PR has merge conflicts, update it with the latest from the base branch.
-            <p>
+
             If you are having difficulty finding a reviewer, please reach out to the 
             [community](https://flink.apache.org/what-is-flink/community/).
-            <p>
+
             If this PR is no longer valid or desired, please feel free to close it. 
             If no activity occurs in the next 90 days, it will be automatically closed.
           close-pr-label: 'closed-stale'
