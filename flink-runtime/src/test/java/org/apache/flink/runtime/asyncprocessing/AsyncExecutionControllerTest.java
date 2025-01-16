@@ -488,7 +488,7 @@ class AsyncExecutionControllerTest {
         RecordContext<String> recordContext = aec.buildContext("record", "key");
         aec.setCurrentContext(recordContext);
         recordContext.retain();
-        aec.syncPointRequestWithCallback(counter::incrementAndGet);
+        aec.syncPointRequestWithCallback(counter::incrementAndGet, false);
         assertThat(counter.get()).isEqualTo(1);
         assertThat(recordContext.getReferenceCount()).isEqualTo(1);
         assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(0);
@@ -505,7 +505,7 @@ class AsyncExecutionControllerTest {
 
         RecordContext<String> recordContext2 = aec.buildContext("record2", "occupied");
         aec.setCurrentContext(recordContext2);
-        aec.syncPointRequestWithCallback(counter::incrementAndGet);
+        aec.syncPointRequestWithCallback(counter::incrementAndGet, false);
         recordContext2.retain();
         assertThat(counter.get()).isEqualTo(0);
         assertThat(recordContext2.getReferenceCount()).isGreaterThan(1);
@@ -517,6 +517,43 @@ class AsyncExecutionControllerTest {
         assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
         assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(1);
         aec.triggerIfNeeded(true);
+        assertThat(counter.get()).isEqualTo(1);
+        assertThat(recordContext2.getReferenceCount()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(0);
+        assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(0);
+        recordContext2.release();
+
+        resourceRegistry.close();
+    }
+
+    @Test
+    public void testSyncPointWithOverdraft() throws IOException {
+        CloseableRegistry resourceRegistry = new CloseableRegistry();
+        setup(
+                1,
+                10000L,
+                1,
+                new SyncMailboxExecutor(),
+                new TestAsyncFrameworkExceptionHandler(),
+                resourceRegistry);
+        AtomicInteger counter = new AtomicInteger(0);
+
+        // Test the sync point processing with a key occupied.
+        RecordContext<String> recordContext1 = aec.buildContext("record1", "occupied");
+        aec.setCurrentContext(recordContext1);
+        // retain this to avoid the recordContext1 being released before the sync point
+        recordContext1.retain();
+        userCode.run();
+
+        RecordContext<String> recordContext2 = aec.buildContext("record2", "occupied");
+        aec.setCurrentContext(recordContext2);
+        aec.syncPointRequestWithCallback(counter::incrementAndGet, true);
+        recordContext2.retain();
+        assertThat(counter.get()).isEqualTo(0);
+        assertThat(recordContext2.getReferenceCount()).isGreaterThan(1);
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(0);
+        assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(1);
+        recordContext1.release();
         assertThat(counter.get()).isEqualTo(1);
         assertThat(recordContext2.getReferenceCount()).isEqualTo(1);
         assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(0);

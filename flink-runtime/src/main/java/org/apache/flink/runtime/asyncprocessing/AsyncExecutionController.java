@@ -40,7 +40,6 @@ import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -69,7 +68,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
     private final int batchSize;
 
     /** The runner for callbacks. Basically a wrapper of mailbox executor. */
-    private final BatchCallbackRunner callbackRunner;
+    private final CallbackRunnerWrapper callbackRunner;
 
     /**
      * The timeout of {@link StateRequestBuffer#activeQueue} triggering in milliseconds. If the
@@ -147,6 +146,9 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
     /** Flag indicating if this AEC is under waiting status. */
     private volatile boolean waitingMail = false;
 
+    /** The recursive depth of the drain process. */
+    private int drainDepth = 0;
+
     public AsyncExecutionController(
             MailboxExecutor mailboxExecutor,
             AsyncFrameworkExceptionHandler exceptionHandler,
@@ -160,7 +162,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
         this.keyAccountingUnit = new KeyAccountingUnit<>(maxInFlightRecords);
         this.mailboxExecutor = mailboxExecutor;
         this.exceptionHandler = exceptionHandler;
-        this.callbackRunner = new BatchCallbackRunner(mailboxExecutor, this::notifyNewMail);
+        this.callbackRunner = new CallbackRunnerWrapper(mailboxExecutor, this::notifyNewMail);
         this.stateFutureFactory = new StateFutureFactory<>(this, callbackRunner, exceptionHandler);
 
         this.stateExecutor = stateExecutor;
@@ -245,10 +247,12 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
      * @param switchingContext the context to switch.
      */
     public void setCurrentContext(RecordContext<K> switchingContext) {
-        currentContext = switchingContext;
-        declarationManager.setCurrentContext(switchingContext);
-        if (switchContextListener != null) {
-            switchContextListener.switchContext(switchingContext);
+        if (currentContext != switchingContext) {
+            currentContext = switchingContext;
+            declarationManager.setCurrentContext(switchingContext);
+            if (switchContextListener != null) {
+                switchContextListener.switchContext(switchingContext);
+            }
         }
     }
 
@@ -265,10 +269,11 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
         epochManager.completeOneRecord(toDispose.getEpoch());
         keyAccountingUnit.release(toDispose.getRecord(), toDispose.getKey());
         inFlightRecordNum.decrementAndGet();
-        RecordContext<K> nextRecordCtx =
-                stateRequestsBuffer.tryActivateOneByKey(toDispose.getKey());
-        if (nextRecordCtx != null) {
-            Preconditions.checkState(tryOccupyKey(nextRecordCtx));
+        StateRequest<K, ?, ?, ?> nextRequest =
+                stateRequestsBuffer.unblockOneByKey(toDispose.getKey());
+        if (nextRequest != null) {
+            Preconditions.checkState(tryOccupyKey(nextRequest.getRecordContext()));
+            insertActiveBuffer(nextRequest);
         }
     }
 
@@ -300,6 +305,24 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
     @Override
     public <IN, OUT> InternalStateFuture<OUT> handleRequest(
             @Nullable State state, StateRequestType type, @Nullable IN payload) {
+        return handleRequest(state, type, payload, false);
+    }
+
+    /**
+     * Submit a {@link StateRequest} to this AsyncExecutionController and trigger it if needed.
+     *
+     * @param state the state to request. Could be {@code null} if the type is {@link
+     *     StateRequestType#SYNC_POINT}.
+     * @param type the type of this request.
+     * @param payload the payload input for this request.
+     * @param allowOverdraft whether to allow overdraft.
+     * @return the state future.
+     */
+    public <IN, OUT> InternalStateFuture<OUT> handleRequest(
+            @Nullable State state,
+            StateRequestType type,
+            @Nullable IN payload,
+            boolean allowOverdraft) {
         // Step 1: build state future & assign context.
         InternalStateFuture<OUT> stateFuture = stateFutureFactory.create(currentContext);
         StateRequest<K, ?, IN, OUT> request =
@@ -307,7 +330,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
 
         // Step 2: try to seize the capacity, if the current in-flight records exceeds the limit,
         // block the current state request from entering until some buffered requests are processed.
-        seizeCapacity();
+        seizeCapacity(allowOverdraft);
 
         // Step 3: try to occupy the key and place it into right buffer.
         if (tryOccupyKey(currentContext)) {
@@ -362,46 +385,50 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
      *
      * @param force whether to trigger requests in force.
      */
-    public void triggerIfNeeded(boolean force) {
+    public boolean triggerIfNeeded(boolean force) {
         if (!force && stateRequestsBuffer.activeQueueSize() < batchSize) {
-            return;
+            return false;
         }
 
         Optional<StateRequestContainer> toRun =
                 stateRequestsBuffer.popActive(
                         batchSize, () -> stateExecutor.createStateRequestContainer());
         if (!toRun.isPresent() || toRun.get().isEmpty()) {
-            return;
+            return false;
         }
         stateExecutor.executeBatchRequests(toRun.get());
         stateRequestsBuffer.advanceSeq();
+        return true;
     }
 
-    private void seizeCapacity() {
+    /**
+     * Seize capacity from the in-flight request limit. Will drain if reach the limit.
+     *
+     * @param allowOverdraft whether to allow overdraft. If true, it won't drain the in-flight
+     *     requests even though it reaches the limit.
+     */
+    private void seizeCapacity(boolean allowOverdraft) {
         // 1. Check if the record is already in buffer. If yes, this indicates that it is a state
         // request resulting from a callback statement, otherwise, it signifies the initial state
         // request for a newly entered record.
         if (currentContext.isKeyOccupied()) {
             return;
         }
-        RecordContext<K> storedContext = currentContext;
         // 2. If the state request is for a newly entered record, the in-flight record number should
         // be less than the max in-flight record number.
         // Note: the currentContext may be updated by {@code StateFutureFactory#build}.
-        if (currentContext.getRecord() != RecordContext.EMPTY_RECORD) {
-            // We only drain the records when there is a real record or timer assigned.
-            // Typically, if it is an empty record, this is a derived request by another request (by
-            // initializing a process directly via #asyncProcessWithKey), meaning that we are in
-            // middle of another processing and creating a new one here. If we block here, there
-            // might be a deadlock (current processing waiting here to drain while draining the
-            // current processing).
-            // There probably cause the number of records actually run to be greater than the limit.
-            // But overall it is under-control since there should not be many derived requests
-            // within each request.
-            drainInflightRecords(maxInFlightRecordNum);
-        }
-        // 3. Ensure the currentContext is restored.
-        setCurrentContext(storedContext);
+
+        // We allow a derived request by another request (by initializing a process directly via
+        // #asyncProcessWithKey, or timer triggering right after a record processing), meaning
+        // that we are in middle of another processing and creating a new one here. If we block
+        // here, there might be a deadlock (current processing waiting here to drain the current
+        // processing, this is a rare case when all the records share the same key).
+        // This probably cause the number of records actually run to be greater than the limit.
+        // But overall it is under-control since there should not be many derived requests
+        // within each request.
+        // We perform a drain to keep the buffer limit. But when allowing overdraft, we won't wait
+        // here.
+        drainInflightRecords(maxInFlightRecordNum, !allowOverdraft);
         inFlightRecordNum.incrementAndGet();
     }
 
@@ -410,9 +437,11 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
      * (once the record is not blocked).
      *
      * @param callback the callback to run if it finishes (once the record is not blocked).
+     * @param allowOverdraft whether to overdraft the in-flight buffer.
      */
-    public StateFuture<Void> syncPointRequestWithCallback(ThrowingRunnable<Exception> callback) {
-        return handleRequest(null, StateRequestType.SYNC_POINT, null)
+    public StateFuture<Void> syncPointRequestWithCallback(
+            ThrowingRunnable<Exception> callback, boolean allowOverdraft) {
+        return handleRequest(null, StateRequestType.SYNC_POINT, null, allowOverdraft)
                 .thenAccept(v -> callback.run());
     }
 
@@ -423,28 +452,65 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
      * @param targetNum the target {@link #inFlightRecordNum} to achieve.
      */
     public void drainInflightRecords(int targetNum) {
+        drainInflightRecords(targetNum, true);
+    }
+
+    /**
+     * A helper function to drain in-flight records util {@link #inFlightRecordNum} within the limit
+     * of given {@code targetNum}.
+     *
+     * @param targetNum the target {@link #inFlightRecordNum} to achieve.
+     * @param forceToWait whether to force to wait until the target number is reached. If false,
+     *     only drain in best efforts and return when no progress is made.
+     */
+    private void drainInflightRecords(int targetNum, boolean forceToWait) {
+        if (!forceToWait && drainDepth > 0) {
+            // We don't allow recursive call of drain if we are not forced to wait here.
+            // This is to avoid stack overflow, since the yield will pick up another processing,
+            // which may cause another drain.
+            return;
+        }
+        // Store the current context, which might be switched below.
+        RecordContext<K> storedContext = currentContext;
+        drainDepth++;
         try {
-            while (inFlightRecordNum.get() > targetNum) {
+            boolean shouldWait = true;
+            while (shouldWait && inFlightRecordNum.get() > targetNum) {
                 if (!mailboxExecutor.tryYield()) {
+                    boolean triggered = false;
                     // We force trigger the buffer if targetNum == 0 (for draining) or the state
                     // executor is not fully loaded.
                     if (targetNum == 0 || !stateExecutor.fullyLoaded()) {
-                        triggerIfNeeded(true);
+                        triggered = triggerIfNeeded(true);
                     }
-                    waitForNewMails();
+                    if (!forceToWait
+                            && !triggered
+                            && !stateExecutor.fullyLoaded()
+                            && !callbackRunner.isHasMail()) {
+                        // Decision of waiting is based on whether we are making progress of state
+                        // accessing (or if there is a deadlock). Based on the following factors:
+                        // 1. We failed triggered some state requests. AND
+                        // 2. The state executor is not fully loaded, meaning that state is not
+                        // being accessed. AND
+                        // 3. There is no new mail, meaning that the mailbox has no callbacks ready.
+                        //
+                        // We cannot make progress anywhere, then there probably is a deadlock. We'd
+                        // better give up waiting.
+                        shouldWait = false;
+                        // What if we force to wait here but cannot make any progress?
+                        // There must be a bug. TODO: Print necessary debug info in this case.
+                    } else {
+                        waitForNewMails();
+                    }
                 }
             }
         } catch (InterruptedException ignored) {
             // ignore the interrupted exception to avoid throwing fatal error when the task cancel
             // or exit.
-        }
-    }
-
-    /** A helper function to drain in-flight requests emitted by timer. */
-    public void drainWithTimerIfNeeded(CompletableFuture<Void> timerFuture) {
-        if (epochParallelMode == ParallelMode.SERIAL_BETWEEN_EPOCH) {
-            drainInflightRecords(0);
-            Preconditions.checkState(timerFuture.isDone());
+        } finally {
+            drainDepth--;
+            // Restore the previously stored context.
+            setCurrentContext(storedContext);
         }
     }
 
@@ -482,9 +548,9 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
                             try {
                                 // We clear the current context since this is a non-record context.
                                 RecordContext<K> previousContext = currentContext;
-                                currentContext = null;
+                                setCurrentContext(null);
                                 triggerAction.run();
-                                currentContext = previousContext;
+                                setCurrentContext(previousContext);
                             } catch (Exception e) {
                                 exceptionHandler.handleException(
                                         "Failed to process non-record.", e);
@@ -495,9 +561,9 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
                         : () -> {
                             try {
                                 RecordContext<K> previousContext = currentContext;
-                                currentContext = null;
+                                setCurrentContext(null);
                                 finalAction.run();
-                                currentContext = previousContext;
+                                setCurrentContext(previousContext);
                             } catch (Exception e) {
                                 exceptionHandler.handleException(
                                         "Failed to process non-record.", e);

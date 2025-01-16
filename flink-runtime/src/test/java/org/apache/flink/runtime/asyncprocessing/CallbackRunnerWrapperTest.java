@@ -30,8 +30,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for {@link BatchCallbackRunner}. */
-public class BatchCallbackRunnerTest {
+/** Tests for {@link CallbackRunnerWrapper}. */
+public class CallbackRunnerWrapperTest {
 
     private static final ThrowingRunnable<? extends Exception> DUMMY = () -> {};
 
@@ -39,34 +39,13 @@ public class BatchCallbackRunnerTest {
     void testSingleSubmit() {
         ManualMailboxExecutor executor = new ManualMailboxExecutor();
         AtomicBoolean notified = new AtomicBoolean(false);
-        BatchCallbackRunner runner = new BatchCallbackRunner(executor, () -> notified.set(true));
+        CallbackRunnerWrapper runner =
+                new CallbackRunnerWrapper(executor, () -> notified.set(true));
         runner.submit(DUMMY);
         assertThat(runner.isHasMail()).isTrue();
         assertThat(notified.get()).isTrue();
         executor.runOne();
         assertThat(runner.isHasMail()).isFalse();
-    }
-
-    @Test
-    void testHugeBatch() {
-        ManualMailboxExecutor executor = new ManualMailboxExecutor();
-        AtomicBoolean notified = new AtomicBoolean(false);
-        BatchCallbackRunner runner = new BatchCallbackRunner(executor, () -> notified.set(true));
-        for (int i = 0; i < BatchCallbackRunner.DEFAULT_BATCH_SIZE + 1; i++) {
-            runner.submit(DUMMY);
-        }
-        assertThat(runner.isHasMail()).isTrue();
-        assertThat(notified.get()).isTrue();
-        executor.runOne();
-        assertThat(runner.isHasMail()).isTrue();
-        notified.set(false);
-        runner.submit(DUMMY);
-        assertThat(notified.get()).isFalse();
-        executor.runOne();
-        assertThat(runner.isHasMail()).isFalse();
-        runner.submit(DUMMY);
-        assertThat(runner.isHasMail()).isTrue();
-        assertThat(notified.get()).isTrue();
     }
 
     /** A mailbox executor that immediately executes code in the current thread. */
