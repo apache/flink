@@ -1,4 +1,5 @@
 github:
+  homepage: https://flink.apache.org/
   enabled_merge_buttons:
     squash: true
     merge: false
