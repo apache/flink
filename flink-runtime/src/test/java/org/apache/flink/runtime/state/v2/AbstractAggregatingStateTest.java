@@ -115,6 +115,7 @@ class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
                         100,
                         10000,
                         1,
+                        null,
                         null);
         AbstractAggregatingState<String, String, Integer, Integer, Integer> aggregatingState =
                 new AbstractAggregatingState<>(aec, descriptor);

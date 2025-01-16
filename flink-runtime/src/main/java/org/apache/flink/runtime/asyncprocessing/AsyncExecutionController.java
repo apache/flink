@@ -24,6 +24,7 @@ import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.asyncprocessing.EpochManager.ParallelMode;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -60,6 +61,8 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
     private static final Logger LOG = LoggerFactory.getLogger(AsyncExecutionController.class);
 
     private static final long DEFAULT_BUFFER_TIMEOUT_CHECK_INTERVAL = 100;
+
+    private static final String METRIC_PREFIX = "aec";
 
     /**
      * The batch size. When the number of state requests in the active buffer exceeds the batch
@@ -158,7 +161,8 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
             int batchSize,
             long bufferTimeout,
             int maxInFlightRecords,
-            SwitchContextListener<K> switchContextListener) {
+            @Nullable SwitchContextListener<K> switchContextListener,
+            @Nullable MetricGroup metricGroup) {
         this.keyAccountingUnit = new KeyAccountingUnit<>(maxInFlightRecords);
         this.mailboxExecutor = mailboxExecutor;
         this.exceptionHandler = exceptionHandler;
@@ -187,6 +191,17 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
 
         this.epochManager = new EpochManager(this);
         this.switchContextListener = switchContextListener;
+        if (metricGroup != null) {
+            metricGroup.gauge(METRIC_PREFIX + ".numInFlightRecords", this::getInFlightRecordNum);
+            metricGroup.gauge(
+                    METRIC_PREFIX + ".activeBufferSize",
+                    () -> stateRequestsBuffer.activeQueueSize());
+            metricGroup.gauge(
+                    METRIC_PREFIX + ".blockingBufferSize",
+                    () -> stateRequestsBuffer.blockingQueueSize());
+            metricGroup.gauge(
+                    METRIC_PREFIX + ".numBlockingKeys", () -> stateRequestsBuffer.blockingKeyNum());
+        }
         LOG.info(
                 "Create AsyncExecutionController: batchSize {}, bufferTimeout {}, maxInFlightRecordNum {}, epochParallelMode {}",
                 this.batchSize,

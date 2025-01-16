@@ -27,6 +27,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
 import org.apache.flink.core.state.StateFutureUtils;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.asyncprocessing.EpochManager.Epoch;
 import org.apache.flink.runtime.asyncprocessing.EpochManager.ParallelMode;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
@@ -45,6 +47,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -72,6 +75,7 @@ class AsyncExecutionControllerTest {
                                 })
                         .thenAccept(val -> output.set(val));
             };
+    final Map<String, Gauge> registeredGauges = new HashMap<>();
 
     void setup(
             int batchSize,
@@ -97,6 +101,15 @@ class AsyncExecutionControllerTest {
         }
         closeableRegistry.registerCloseable(asyncKeyedStateBackend);
         closeableRegistry.registerCloseable(asyncKeyedStateBackend::dispose);
+
+        UnregisteredMetricsGroup metricsGroup =
+                new UnregisteredMetricsGroup() {
+                    @Override
+                    public <T, G extends Gauge<T>> G gauge(String name, G gauge) {
+                        registeredGauges.put(name, gauge);
+                        return gauge;
+                    }
+                };
         aec =
                 new AsyncExecutionController<>(
                         mailboxExecutor,
@@ -107,7 +120,8 @@ class AsyncExecutionControllerTest {
                         batchSize,
                         timeout,
                         maxInFlight,
-                        null);
+                        null,
+                        metricsGroup);
         asyncKeyedStateBackend.setup(aec);
 
         try {
@@ -148,6 +162,11 @@ class AsyncExecutionControllerTest {
         assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
         assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(1);
         assertThat(aec.inFlightRecordNum.get()).isEqualTo(1);
+        assertThat(registeredGauges.get("aec.numInFlightRecords").getValue()).isEqualTo(1);
+        assertThat(registeredGauges.get("aec.activeBufferSize").getValue()).isEqualTo(1);
+        assertThat(registeredGauges.get("aec.blockingBufferSize").getValue()).isEqualTo(0);
+        assertThat(registeredGauges.get("aec.numBlockingKeys").getValue()).isEqualTo(0);
+
         aec.triggerIfNeeded(true);
         // After running, the value update is in active buffer.
         assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
@@ -188,6 +207,10 @@ class AsyncExecutionControllerTest {
         assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(1);
         assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(1);
         assertThat(aec.inFlightRecordNum.get()).isEqualTo(2);
+        assertThat(registeredGauges.get("aec.numInFlightRecords").getValue()).isEqualTo(2);
+        assertThat(registeredGauges.get("aec.activeBufferSize").getValue()).isEqualTo(1);
+        assertThat(registeredGauges.get("aec.blockingBufferSize").getValue()).isEqualTo(1);
+        assertThat(registeredGauges.get("aec.numBlockingKeys").getValue()).isEqualTo(1);
         aec.triggerIfNeeded(true);
         // Value update for record2 finishes. The value get for record3 is migrated from blocking
         // buffer to active buffer actively.

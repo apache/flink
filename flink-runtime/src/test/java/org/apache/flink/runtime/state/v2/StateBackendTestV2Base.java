@@ -234,6 +234,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                             aecBatchSize,
                             aecBufferTimeout,
                             aecMaxInFlightRecords,
+                            null,
                             null);
             backend.setup(aec);
 
@@ -324,6 +325,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                             aecBatchSize,
                             aecBufferTimeout,
                             aecMaxInFlightRecords,
+                            null,
                             null);
             backend.setup(aec);
 
@@ -410,6 +412,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                             aecBatchSize,
                             aecBufferTimeout,
                             aecMaxInFlightRecords,
+                            null,
                             null);
             backend.setup(aec);
 
@@ -480,6 +483,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                             aecBatchSize,
                             aecBufferTimeout,
                             aecMaxInFlightRecords,
+                            null,
                             null);
             backend.setup(aec);
 
@@ -585,6 +589,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                         1,
                         -1,
                         1,
+                        null,
                         null);
         backend.setup(aec);
         try {
