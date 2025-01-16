@@ -262,8 +262,11 @@ public abstract class AbstractStreamOperator<OUT>
         return metrics;
     }
 
+    /** Initialize necessary state components before initializing state components. */
+    protected void beforeInitializeStateHandler() {}
+
     @Override
-    public void initializeState(StreamTaskStateInitializer streamTaskStateManager)
+    public final void initializeState(StreamTaskStateInitializer streamTaskStateManager)
             throws Exception {
 
         final TypeSerializer<?> keySerializer =
@@ -296,6 +299,8 @@ public abstract class AbstractStreamOperator<OUT>
                 isAsyncStateProcessingEnabled()
                         ? context.asyncInternalTimerServiceManager()
                         : context.internalTimerServiceManager();
+
+        beforeInitializeStateHandler();
         stateHandler.initializeOperatorState(this);
         runtimeContext.setKeyedStateStore(stateHandler.getKeyedStateStore().orElse(null));
     }

@@ -168,14 +168,17 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
                 (InternalTimerServiceImpl<K, N>) timerServices.get(name);
         if (timerService == null) {
             if (priorityQueueSetFactory instanceof AsyncKeyedStateBackend) {
-                new InternalTimerServiceAsyncImpl<>(
-                        taskIOMetricGroup,
-                        localKeyGroupRange,
-                        keyContext,
-                        processingTimeService,
-                        createTimerPriorityQueue(PROCESSING_TIMER_PREFIX + name, timerSerializer),
-                        createTimerPriorityQueue(EVENT_TIMER_PREFIX + name, timerSerializer),
-                        cancellationContext);
+                timerService =
+                        new InternalTimerServiceAsyncImpl<>(
+                                taskIOMetricGroup,
+                                localKeyGroupRange,
+                                keyContext,
+                                processingTimeService,
+                                createTimerPriorityQueue(
+                                        PROCESSING_TIMER_PREFIX + name, timerSerializer),
+                                createTimerPriorityQueue(
+                                        EVENT_TIMER_PREFIX + name, timerSerializer),
+                                cancellationContext);
             } else {
                 timerService =
                         new InternalTimerServiceImpl<>(

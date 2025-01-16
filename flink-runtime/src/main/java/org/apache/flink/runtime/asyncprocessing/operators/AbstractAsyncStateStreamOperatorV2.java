@@ -38,7 +38,6 @@ import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.InternalTimerServiceAsyncImpl;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
-import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessing;
@@ -93,9 +92,7 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
 
     /** Initialize necessary state components for {@link AbstractStreamOperatorV2}. */
     @Override
-    public final void initializeState(StreamTaskStateInitializer streamTaskStateManager)
-            throws Exception {
-        super.initializeState(streamTaskStateManager);
+    public final void beforeInitializeStateHandler() {
         KeyedStateStore stateStore = stateHandler.getKeyedStateStore().orElse(null);
         if (stateStore instanceof DefaultKeyedStateStore) {
             ((DefaultKeyedStateStore) stateStore).setSupportKeyedStateApiSetV2();
