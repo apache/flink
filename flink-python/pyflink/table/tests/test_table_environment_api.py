@@ -451,8 +451,8 @@ class DataStreamConversionTestCases(PyFlinkUTTestCase):
         table = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hi")], ["a", "b", "c"])
         new_table = table.select(table.a + 1, table.b + 'flink', table.c)
         ds = t_env.to_data_stream_with_type(table=new_table, type_info=Types.ROW([Types.LONG(),
-                                                                          Types.STRING(),
-                                                                          Types.STRING()]))
+                                                                                  Types.STRING(),
+                                                                                  Types.STRING()]))
         test_sink = DataStreamTestSinkFunction()
         ds.add_sink(test_sink)
         self.env.execute("test_to_data_stream_with_type")
