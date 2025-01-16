@@ -42,25 +42,37 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.ListIterator;
 
-/** A basic implementation to support unbounded event-time over-window. */
-public abstract class AbstractRowTimeUnboundedPrecedingOver<K>
+import static org.apache.flink.table.runtime.operators.over.AbstractRowTimeUnboundedPrecedingOver.ACCUMULATOR_STATE_NAME;
+import static org.apache.flink.table.runtime.operators.over.AbstractRowTimeUnboundedPrecedingOver.CLEANUP_STATE_NAME;
+import static org.apache.flink.table.runtime.operators.over.AbstractRowTimeUnboundedPrecedingOver.INPUT_STATE_NAME;
+import static org.apache.flink.table.runtime.operators.over.AbstractRowTimeUnboundedPrecedingOver.LATE_ELEMENTS_DROPPED_METRIC_NAME;
+import static org.apache.flink.table.runtime.operators.over.RowTimeRangeUnboundedPrecedingFunction.processElementsWithSameTimestampRange;
+import static org.apache.flink.table.runtime.operators.over.RowTimeRowsUnboundedPrecedingFunction.processElementsWithSameTimestampRows;
+
+/**
+ * A ProcessFunction to support unbounded ROWS and RANGE windows.
+ *
+ * <p>ROWS E.g.: SELECT rowtime, b, c, min(c) OVER (PARTITION BY b ORDER BY rowtime ROWS BETWEEN
+ * UNBOUNDED preceding AND CURRENT ROW), max(c) OVER (PARTITION BY b ORDER BY rowtime ROWS BETWEEN
+ * UNBOUNDED preceding AND CURRENT ROW) FROM T.
+ *
+ * <p>RANGE E.g.: SELECT rowtime, b, c, min(c) OVER (PARTITION BY b ORDER BY rowtime RANGE BETWEEN
+ * UNBOUNDED preceding AND CURRENT ROW), max(c) OVER (PARTITION BY b ORDER BY rowtime RANGE BETWEEN
+ * UNBOUNDED preceding AND CURRENT ROW) FROM T.
+ */
+public class RowTimeUnboundedPrecedingOverFunctionV2<K>
         extends KeyedProcessFunctionWithCleanupState<K, RowData, RowData> {
-    public static final int FIRST_OVER_VERSION = 1;
-    public static final String LATE_ELEMENTS_DROPPED_METRIC_NAME = "numLateRecordsDropped";
-    public static final String ACCUMULATOR_STATE_NAME = "accState";
-    public static final String INPUT_STATE_NAME = "inputState";
-    public static final String CLEANUP_STATE_NAME = "RowTimeUnboundedOverCleanupTime";
+    public static final int SECOND_OVER_VERSION = 2;
 
     private static final long serialVersionUID = 1L;
 
     private static final Logger LOG =
-            LoggerFactory.getLogger(AbstractRowTimeUnboundedPrecedingOver.class);
+            LoggerFactory.getLogger(RowTimeUnboundedPrecedingOverFunctionV2.class);
 
+    // whether this is a ROWS or RANGE operation
+    private final boolean isRowsWindow;
     private final GeneratedAggsHandleFunction genAggsHandler;
     private final LogicalType[] accTypes;
     private final LogicalType[] inputFieldTypes;
@@ -71,8 +83,6 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K>
     private transient ValueState<RowData> accState;
     // state to hold rows until the next watermark arrives
     private transient MapState<Long, List<RowData>> inputState;
-    // list to sort timestamps to access rows in timestamp order
-    private transient LinkedList<Long> sortedTimestamps;
 
     protected transient AggsHandleFunction function;
 
@@ -83,7 +93,8 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K>
         return numLateRecordsDropped;
     }
 
-    public AbstractRowTimeUnboundedPrecedingOver(
+    public RowTimeUnboundedPrecedingOverFunctionV2(
+            boolean isRowsWindow,
             long minRetentionTime,
             long maxRetentionTime,
             GeneratedAggsHandleFunction genAggsHandler,
@@ -91,6 +102,7 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K>
             LogicalType[] inputFieldTypes,
             int rowTimeIdx) {
         super(minRetentionTime, maxRetentionTime);
+        this.isRowsWindow = isRowsWindow;
         this.genAggsHandler = genAggsHandler;
         this.accTypes = accTypes;
         this.inputFieldTypes = inputFieldTypes;
@@ -104,20 +116,17 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K>
 
         output = new JoinedRowData();
 
-        sortedTimestamps = new LinkedList<Long>();
-
         // initialize accumulator state
         InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
         ValueStateDescriptor<RowData> accStateDesc =
-                new ValueStateDescriptor<RowData>(ACCUMULATOR_STATE_NAME, accTypeInfo);
+                new ValueStateDescriptor<>(ACCUMULATOR_STATE_NAME, accTypeInfo);
         accState = getRuntimeContext().getState(accStateDesc);
 
         // input element are all binary row as they are came from network
         InternalTypeInfo<RowData> inputType = InternalTypeInfo.ofFields(inputFieldTypes);
-        ListTypeInfo<RowData> rowListTypeInfo = new ListTypeInfo<RowData>(inputType);
+        ListTypeInfo<RowData> rowListTypeInfo = new ListTypeInfo<>(inputType);
         MapStateDescriptor<Long, List<RowData>> inputStateDesc =
-                new MapStateDescriptor<Long, List<RowData>>(
-                        INPUT_STATE_NAME, Types.LONG, rowListTypeInfo);
+                new MapStateDescriptor<>(INPUT_STATE_NAME, Types.LONG, rowListTypeInfo);
         inputState = getRuntimeContext().getMapState(inputStateDesc);
 
         initCleanupTimeState(CLEANUP_STATE_NAME);
@@ -150,23 +159,21 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K>
         long timestamp = input.getLong(rowTimeIdx);
         long curWatermark = ctx.timerService().currentWatermark();
 
-        if (timestamp > curWatermark) {
-            // ensure every key just registers one timer
-            // default watermark is Long.Min, avoid overflow we use zero when watermark < 0
-            long triggerTs = curWatermark < 0 ? 0 : curWatermark + 1;
-            ctx.timerService().registerEventTimeTimer(triggerTs);
-
-            // put row into state
-            List<RowData> rowList = inputState.get(timestamp);
-            if (rowList == null) {
-                rowList = new ArrayList<RowData>();
-            }
-            rowList.add(input);
-            inputState.put(timestamp, rowList);
-        } else {
+        if (timestamp <= curWatermark) {
             // discard late record
             numLateRecordsDropped.inc();
+            return;
         }
+        // put row into state
+        List<RowData> rowList = inputState.get(timestamp);
+        if (rowList == null) {
+            rowList = new ArrayList<>();
+            // if that's the first timestamp for the given key, register the timer to process
+            // those records.
+            ctx.timerService().registerEventTimeTimer(timestamp);
+        }
+        rowList.add(input);
+        inputState.put(timestamp, rowList);
     }
 
     @Override
@@ -176,108 +183,63 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K>
             Collector<RowData> out)
             throws Exception {
         if (isProcessingTimeTimer(ctx)) {
-            if (stateCleaningEnabled) {
-
-                // we check whether there are still records which have not been processed yet
-                if (inputState.isEmpty()) {
-                    // we clean the state
-                    cleanupState(inputState, accState);
-                    function.cleanup();
-                } else {
-                    // There are records left to process because a watermark has not been received
-                    // yet.
-                    // This would only happen if the input stream has stopped. So we don't need to
-                    // clean up.
-                    // We leave the state as it is and schedule a new cleanup timer
-                    registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime());
-                }
-            }
+            cleanupState(ctx);
             return;
         }
 
-        Iterator<Long> keyIterator = inputState.keys().iterator();
-        if (keyIterator.hasNext()) {
-            Long curWatermark = ctx.timerService().currentWatermark();
-            boolean existEarlyRecord = false;
-
-            // sort the record timestamps
-            do {
-                Long recordTime = keyIterator.next();
-                // only take timestamps smaller/equal to the watermark
-                if (recordTime <= curWatermark) {
-                    insertToSortedList(recordTime);
-                } else {
-                    existEarlyRecord = true;
-                }
-            } while (keyIterator.hasNext());
-
-            // get last accumulator
-            RowData lastAccumulator = accState.value();
-            if (lastAccumulator == null) {
-                // initialize accumulator
-                lastAccumulator = function.createAccumulators();
-            }
-            // set accumulator in function context first
-            function.setAccumulators(lastAccumulator);
-
-            // emit the rows in order
-            while (!sortedTimestamps.isEmpty()) {
-                Long curTimestamp = sortedTimestamps.removeFirst();
-                List<RowData> curRowList = inputState.get(curTimestamp);
-                if (curRowList != null) {
-                    // process the same timestamp datas, the mechanism is different according ROWS
-                    // or RANGE
-                    processElementsWithSameTimestamp(curRowList, out);
-                } else {
-                    // Ignore the same timestamp datas if the state is cleared already.
-                    LOG.warn(
-                            "The state is cleared because of state ttl. "
-                                    + "This will result in incorrect result. "
-                                    + "You can increase the state ttl to avoid this.");
-                }
-                inputState.remove(curTimestamp);
-            }
-
-            // update acc state
-            lastAccumulator = function.getAccumulators();
-            accState.update(lastAccumulator);
-
-            // if are are rows with timestamp > watermark, register a timer for the next watermark
-            if (existEarlyRecord) {
-                ctx.timerService().registerEventTimeTimer(curWatermark + 1);
-            }
+        RowData lastAccumulator = accState.value();
+        if (lastAccumulator == null) {
+            lastAccumulator = function.createAccumulators();
         }
+        function.setAccumulators(lastAccumulator);
 
-        // update cleanup timer
+        processElementsWithSameTimestamp(timestamp, out);
+
+        lastAccumulator = function.getAccumulators();
+        accState.update(lastAccumulator);
+
         registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime());
-    }
-
-    /**
-     * Inserts timestamps in order into a linked list. If timestamps arrive in order (as in case of
-     * using the RocksDB state backend) this is just an append with O(1).
-     */
-    private void insertToSortedList(Long recordTimestamp) {
-        ListIterator<Long> listIterator = sortedTimestamps.listIterator(sortedTimestamps.size());
-        boolean isContinue = true;
-        while (listIterator.hasPrevious() && isContinue) {
-            Long timestamp = listIterator.previous();
-            if (recordTimestamp >= timestamp) {
-                listIterator.next();
-                listIterator.add(recordTimestamp);
-                isContinue = false;
-            }
-        }
-
-        if (isContinue) {
-            sortedTimestamps.addFirst(recordTimestamp);
-        }
     }
 
     /**
      * Process the same timestamp datas, the mechanism is different between rows and range window.
      */
-    protected abstract void processElementsWithSameTimestamp(
-            List<RowData> curRowList, Collector<RowData> out) throws Exception;
+    private void processElementsWithSameTimestamp(long timestamp, Collector<RowData> out)
+            throws Exception {
+        List<RowData> curRowList = inputState.get(timestamp);
+        if (curRowList == null) {
+            // Ignore the same timestamp datas if the state is cleared already.
+            LOG.warn(
+                    "The state is cleared because of state ttl. "
+                            + "This will result in incorrect result. "
+                            + "You can increase the state ttl to avoid this.");
+        } else {
+            if (isRowsWindow) {
+                processElementsWithSameTimestampRows(function, output, curRowList, out);
+            } else {
+                processElementsWithSameTimestampRange(function, output, curRowList, out);
+            }
+        }
+        inputState.remove(timestamp);
+    }
+
+    private void cleanupState(OnTimerContext ctx) throws Exception {
+        if (stateCleaningEnabled) {
+            // we check whether there are still records which have not been processed yet
+            if (inputState.isEmpty()) {
+                // we clean the state
+                cleanupState(inputState, accState);
+                function.cleanup();
+            } else {
+                // There are records left to process because a watermark has not been received
+                // yet.
+                // This would only happen if the input stream has stopped. So we don't need to
+                // clean up.
+                // We leave the state as it is and schedule a new cleanup timer
+                registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime());
+            }
+        }
+    }
 
     @Override
     public void close() throws Exception {
