@@ -28,6 +28,7 @@ import org.apache.flink.datastream.impl.common.OutputCollector;
 import org.apache.flink.datastream.impl.common.TimestampCollector;
 import org.apache.flink.datastream.impl.context.DefaultNonPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultProcessingTimeManager;
+import org.apache.flink.datastream.impl.extension.eventtime.functions.EventTimeWrappedTwoInputBroadcastStreamProcessFunction;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.operators.InternalTimer;
@@ -39,6 +40,7 @@ import javax.annotation.Nullable;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Supplier;
 
 /** Operator for {@link TwoInputBroadcastStreamProcessFunction} in {@link KeyedPartitionStream}. */
 public class KeyedTwoInputBroadcastProcessOperator<KEY, IN1, IN2, OUT>
@@ -90,7 +92,10 @@ public class KeyedTwoInputBroadcastProcessOperator<KEY, IN1, IN2, OUT>
 
     @Override
     public void onEventTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
-        // do nothing at the moment.
+        if (userFunction instanceof EventTimeWrappedTwoInputBroadcastStreamProcessFunction) {
+            ((EventTimeWrappedTwoInputBroadcastStreamProcessFunction<IN1, IN2, OUT>) userFunction)
+                    .onEventTime(timer.getTimestamp(), getOutputCollector(), partitionedContext);
+        }
     }
 
     @Override
@@ -122,5 +127,15 @@ public class KeyedTwoInputBroadcastProcessOperator<KEY, IN1, IN2, OUT>
     @Override
     public boolean isAsyncStateProcessingEnabled() {
         return true;
+    }
+
+    @Override
+    protected InternalTimerService<VoidNamespace> getTimerService() {
+        return timerService;
+    }
+
+    @Override
+    protected Supplier<Long> getEventTimeSupplier() {
+        return () -> timerService.currentWatermark();
     }
 }

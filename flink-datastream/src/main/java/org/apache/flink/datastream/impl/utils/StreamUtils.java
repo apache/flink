@@ -34,6 +34,10 @@ import org.apache.flink.datastream.api.function.TwoOutputStreamProcessFunction;
 import org.apache.flink.datastream.api.stream.GlobalStream.ProcessConfigurableAndGlobalStream;
 import org.apache.flink.datastream.api.stream.KeyedPartitionStream.ProcessConfigurableAndKeyedPartitionStream;
 import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream.ProcessConfigurableAndNonKeyedPartitionStream;
+import org.apache.flink.datastream.impl.extension.eventtime.functions.EventTimeWrappedOneInputStreamProcessFunction;
+import org.apache.flink.datastream.impl.extension.eventtime.functions.EventTimeWrappedTwoInputBroadcastStreamProcessFunction;
+import org.apache.flink.datastream.impl.extension.eventtime.functions.EventTimeWrappedTwoInputNonBroadcastStreamProcessFunction;
+import org.apache.flink.datastream.impl.extension.eventtime.functions.EventTimeWrappedTwoOutputStreamProcessFunction;
 import org.apache.flink.datastream.impl.extension.join.operators.TwoInputNonBroadcastJoinProcessFunction;
 import org.apache.flink.datastream.impl.stream.AbstractDataStream;
 import org.apache.flink.datastream.impl.stream.GlobalStreamImpl;
@@ -66,6 +70,12 @@ public final class StreamUtils {
     public static <IN, OUT> TypeInformation<OUT> getOutputTypeForOneInputProcessFunction(
             OneInputStreamProcessFunction<IN, OUT> processFunction,
             TypeInformation<IN> inTypeInformation) {
+        if (processFunction instanceof EventTimeWrappedOneInputStreamProcessFunction) {
+            processFunction =
+                    ((EventTimeWrappedOneInputStreamProcessFunction) processFunction)
+                            .getWrappedUserFunction();
+        }
+
         return TypeExtractor.getUnaryOperatorReturnType(
                 processFunction,
                 OneInputStreamProcessFunction.class,
@@ -101,6 +111,12 @@ public final class StreamUtils {
                     true);
         }
 
+        if (processFunction instanceof EventTimeWrappedTwoInputNonBroadcastStreamProcessFunction) {
+            processFunction =
+                    ((EventTimeWrappedTwoInputNonBroadcastStreamProcessFunction) processFunction)
+                            .getWrappedUserFunction();
+        }
+
         return TypeExtractor.getBinaryOperatorReturnType(
                 processFunction,
                 TwoInputNonBroadcastStreamProcessFunction.class,
@@ -123,6 +139,12 @@ public final class StreamUtils {
                     TwoInputBroadcastStreamProcessFunction<IN1, IN2, OUT> processFunction,
                     TypeInformation<IN1> in1TypeInformation,
                     TypeInformation<IN2> in2TypeInformation) {
+        if (processFunction instanceof EventTimeWrappedTwoInputBroadcastStreamProcessFunction) {
+            processFunction =
+                    ((EventTimeWrappedTwoInputBroadcastStreamProcessFunction) processFunction)
+                            .getWrappedUserFunction();
+        }
+
         return TypeExtractor.getBinaryOperatorReturnType(
                 processFunction,
                 TwoInputBroadcastStreamProcessFunction.class,
@@ -146,6 +168,15 @@ public final class StreamUtils {
                             TwoOutputStreamProcessFunction<IN, OUT1, OUT2>
                                     twoOutputStreamProcessFunction,
                             TypeInformation<IN> inTypeInformation) {
+
+        if (twoOutputStreamProcessFunction
+                instanceof EventTimeWrappedTwoOutputStreamProcessFunction) {
+            twoOutputStreamProcessFunction =
+                    ((EventTimeWrappedTwoOutputStreamProcessFunction)
+                                    twoOutputStreamProcessFunction)
+                            .getWrappedUserFunction();
+        }
+
         TypeInformation<OUT1> firstOutputType =
                 TypeExtractor.getUnaryOperatorReturnType(
                         twoOutputStreamProcessFunction,

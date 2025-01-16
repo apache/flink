@@ -32,9 +32,12 @@ import org.apache.flink.datastream.impl.context.DefaultTwoOutputNonPartitionedCo
 import org.apache.flink.datastream.impl.context.DefaultTwoOutputPartitionedContext;
 import org.apache.flink.datastream.impl.context.UnsupportedProcessingTimeManager;
 import org.apache.flink.datastream.impl.extension.eventtime.EventTimeExtensionImpl;
+import org.apache.flink.datastream.impl.extension.eventtime.functions.EventTimeWrappedTwoOutputStreamProcessFunction;
 import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateUdfStreamOperator;
 import org.apache.flink.runtime.event.WatermarkEvent;
+import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
+import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
@@ -46,6 +49,7 @@ import org.apache.flink.util.OutputTag;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -119,6 +123,13 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
         this.partitionedContext.setNonPartitionedContext(nonPartitionedContext);
         this.eventTimeWatermarkHandler =
                 new EventTimeWatermarkHandler(1, output, timeServiceManager);
+        if (userFunction instanceof EventTimeWrappedTwoOutputStreamProcessFunction) {
+            // note that the {@code initEventTimeExtension} in EventTimeWrappedProcessFunction
+            // should be invoked before the {@code open}.
+            ((EventTimeWrappedTwoOutputStreamProcessFunction<IN, OUT_MAIN, OUT_SIDE>) userFunction)
+                    .initEventTimeExtension(
+                            getTimerService(), getEventTimeSupplier(), eventTimeWatermarkHandler);
+        }
 
         this.userFunction.open(this.nonPartitionedContext);
     }
@@ -235,5 +246,13 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
     public boolean isAsyncStateProcessingEnabled() {
         // For non-keyed operators, we disable async state processing.
         return false;
+    }
+
+    protected InternalTimerService<VoidNamespace> getTimerService() {
+        return null;
+    }
+
+    protected Supplier<Long> getEventTimeSupplier() {
+        return () -> eventTimeWatermarkHandler.getLastEmitWatermark();
     }
 }

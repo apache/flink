@@ -63,6 +63,11 @@ public class BroadcastStreamImpl<T> extends AbstractDataStream<T> implements Bro
         // no state redistribution mode check is required here, since all redistribution modes are
         // acceptable
 
+        other =
+                other instanceof ProcessConfigurableAndKeyedPartitionStreamImpl
+                        ? ((ProcessConfigurableAndKeyedPartitionStreamImpl) other)
+                                .getKeyedPartitionStream()
+                        : other;
         TypeInformation<OUT> outTypeInfo =
                 StreamUtils.getOutputTypeForTwoInputBroadcastProcessFunction(
                         processFunction,
@@ -92,6 +97,11 @@ public class BroadcastStreamImpl<T> extends AbstractDataStream<T> implements Bro
                 processFunction.usesStates(),
                 new HashSet<>(Collections.singletonList(StateDeclaration.RedistributionMode.NONE)));
 
+        other =
+                other instanceof ProcessConfigurableAndNonKeyedPartitionStreamImpl
+                        ? ((ProcessConfigurableAndNonKeyedPartitionStreamImpl) other)
+                                .getNonKeyedPartitionStream()
+                        : other;
         TypeInformation<OUT> outTypeInfo =
                 StreamUtils.getOutputTypeForTwoInputBroadcastProcessFunction(
                         processFunction,
@@ -118,6 +128,11 @@ public class BroadcastStreamImpl<T> extends AbstractDataStream<T> implements Bro
             KeyedPartitionStream<K, T_OTHER> other,
             TwoInputBroadcastStreamProcessFunction<T_OTHER, T, OUT> processFunction,
             KeySelector<OUT, K> newKeySelector) {
+        other =
+                other instanceof ProcessConfigurableAndKeyedPartitionStreamImpl
+                        ? ((ProcessConfigurableAndKeyedPartitionStreamImpl) other)
+                                .getKeyedPartitionStream()
+                        : other;
         TypeInformation<OUT> outTypeInfo =
                 StreamUtils.getOutputTypeForTwoInputBroadcastProcessFunction(
                         processFunction,

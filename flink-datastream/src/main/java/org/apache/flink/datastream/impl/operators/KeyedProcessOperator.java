@@ -28,6 +28,7 @@ import org.apache.flink.datastream.impl.common.OutputCollector;
 import org.apache.flink.datastream.impl.common.TimestampCollector;
 import org.apache.flink.datastream.impl.context.DefaultNonPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultProcessingTimeManager;
+import org.apache.flink.datastream.impl.extension.eventtime.functions.EventTimeWrappedOneInputStreamProcessFunction;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.operators.InternalTimer;
@@ -39,6 +40,7 @@ import javax.annotation.Nullable;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Supplier;
 
 /** Operator for {@link OneInputStreamProcessFunction} in {@link KeyedPartitionStream}. */
 public class KeyedProcessOperator<KEY, IN, OUT> extends ProcessOperator<IN, OUT>
@@ -84,7 +86,10 @@ public class KeyedProcessOperator<KEY, IN, OUT> extends ProcessOperator<IN, OUT>
 
     @Override
     public void onEventTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
-        // do nothing at the moment.
+        if (userFunction instanceof EventTimeWrappedOneInputStreamProcessFunction) {
+            ((EventTimeWrappedOneInputStreamProcessFunction<IN, OUT>) userFunction)
+                    .onEventTime(timer.getTimestamp(), getOutputCollector(), partitionedContext);
+        }
     }
 
     @Override
@@ -120,5 +125,15 @@ public class KeyedProcessOperator<KEY, IN, OUT> extends ProcessOperator<IN, OUT>
     @Override
     public boolean isAsyncStateProcessingEnabled() {
         return true;
+    }
+
+    @Override
+    protected InternalTimerService<VoidNamespace> getTimerService() {
+        return timerService;
+    }
+
+    @Override
+    protected Supplier<Long> getEventTimeSupplier() {
+        return () -> timerService.currentWatermark();
     }
 }

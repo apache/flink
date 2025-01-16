@@ -23,9 +23,20 @@ import org.apache.flink.api.common.watermark.BoolWatermarkDeclaration;
 import org.apache.flink.api.common.watermark.LongWatermarkDeclaration;
 import org.apache.flink.api.common.watermark.Watermark;
 import org.apache.flink.api.common.watermark.WatermarkDeclarations;
+import org.apache.flink.datastream.api.extension.eventtime.function.EventTimeProcessFunction;
+import org.apache.flink.datastream.api.extension.eventtime.function.OneInputEventTimeStreamProcessFunction;
+import org.apache.flink.datastream.api.extension.eventtime.function.TwoInputBroadcastEventTimeStreamProcessFunction;
+import org.apache.flink.datastream.api.extension.eventtime.function.TwoInputNonBroadcastEventTimeStreamProcessFunction;
+import org.apache.flink.datastream.api.extension.eventtime.function.TwoOutputEventTimeStreamProcessFunction;
 import org.apache.flink.datastream.api.extension.eventtime.strategy.EventTimeExtractor;
 import org.apache.flink.datastream.api.extension.eventtime.strategy.EventTimeWatermarkGeneratorBuilder;
+import org.apache.flink.datastream.api.extension.eventtime.timer.EventTimeManager;
+import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
 import org.apache.flink.datastream.api.function.ProcessFunction;
+import org.apache.flink.datastream.api.function.TwoInputBroadcastStreamProcessFunction;
+import org.apache.flink.datastream.api.function.TwoInputNonBroadcastStreamProcessFunction;
+import org.apache.flink.datastream.api.function.TwoOutputStreamProcessFunction;
+import org.apache.flink.datastream.api.stream.KeyedPartitionStream;
 
 /**
  * The entry point for the event-time extension, which provides the following functionality:
@@ -45,6 +56,16 @@ import org.apache.flink.datastream.api.function.ProcessFunction;
  *       .periodicWatermark()
  *       .buildAsProcessFunction();
  * source.process(watermarkGeneratorProcessFunction)
+ *       .process(...)
+ * }</pre>
+ *   <li>provides a tool to encapsulate a user-defined {@link EventTimeProcessFunction} to provide
+ *       the relevant components of the event-time extension.
+ *       <pre>{@code
+ * stream.process(
+ *          EventTimeExtension.wrapProcessFunction(
+ *              new CustomEventTimeProcessFunction()
+ *          )
+ *       )
  *       .process(...)
  * }</pre>
  * </ul>
@@ -135,5 +156,118 @@ public class EventTimeExtension {
     public static <T> EventTimeWatermarkGeneratorBuilder<T> newWatermarkGeneratorBuilder(
             EventTimeExtractor<T> eventTimeExtractor) {
         return new EventTimeWatermarkGeneratorBuilder<>(eventTimeExtractor);
+    }
+
+    // ======== Wrap user-defined {@link EventTimeProcessFunction} =========
+
+    /**
+     * Wrap the user-defined {@link OneInputEventTimeStreamProcessFunction}, which will provide
+     * related components such as {@link EventTimeManager} and declare the necessary built-in state
+     * required for the Timer, etc. Note that registering event timers of {@link
+     * EventTimeProcessFunction} can only be used with {@link KeyedPartitionStream}.
+     *
+     * @param processFunction The user-defined {@link OneInputEventTimeStreamProcessFunction} that
+     *     needs to be wrapped.
+     * @return The wrapped {@link OneInputStreamProcessFunction}.
+     */
+    public static <IN, OUT> OneInputStreamProcessFunction<IN, OUT> wrapProcessFunction(
+            OneInputEventTimeStreamProcessFunction<IN, OUT> processFunction) {
+        try {
+            return (OneInputStreamProcessFunction<IN, OUT>)
+                    getEventTimeExtensionImplClass()
+                            .getMethod(
+                                    "wrapProcessFunction",
+                                    OneInputEventTimeStreamProcessFunction.class)
+                            .invoke(null, processFunction);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Wrap the user-defined {@link TwoOutputStreamProcessFunction}, which will provide related
+     * components such as {@link EventTimeManager} and declare the necessary built-in state required
+     * for the Timer, etc. Note that registering event timers of {@link EventTimeProcessFunction}
+     * can only be used with {@link KeyedPartitionStream}.
+     *
+     * @param processFunction The user-defined {@link TwoOutputEventTimeStreamProcessFunction} that
+     *     needs to be wrapped.
+     * @return The wrapped {@link TwoOutputStreamProcessFunction}.
+     */
+    public static <IN, OUT1, OUT2>
+            TwoOutputStreamProcessFunction<IN, OUT1, OUT2> wrapProcessFunction(
+                    TwoOutputEventTimeStreamProcessFunction<IN, OUT1, OUT2> processFunction) {
+        try {
+            return (TwoOutputStreamProcessFunction<IN, OUT1, OUT2>)
+                    getEventTimeExtensionImplClass()
+                            .getMethod(
+                                    "wrapProcessFunction",
+                                    TwoOutputEventTimeStreamProcessFunction.class)
+                            .invoke(null, processFunction);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Wrap the user-defined {@link TwoInputNonBroadcastEventTimeStreamProcessFunction}, which will
+     * provide related components such as {@link EventTimeManager} and declare the necessary
+     * built-in state required for the Timer, etc. Note that registering event timers of {@link
+     * EventTimeProcessFunction} can only be used with {@link KeyedPartitionStream}.
+     *
+     * @param processFunction The user-defined {@link
+     *     TwoInputNonBroadcastEventTimeStreamProcessFunction} that needs to be wrapped.
+     * @return The wrapped {@link TwoInputNonBroadcastStreamProcessFunction}.
+     */
+    public static <IN1, IN2, OUT>
+            TwoInputNonBroadcastStreamProcessFunction<IN1, IN2, OUT> wrapProcessFunction(
+                    TwoInputNonBroadcastEventTimeStreamProcessFunction<IN1, IN2, OUT>
+                            processFunction) {
+        try {
+            return (TwoInputNonBroadcastStreamProcessFunction<IN1, IN2, OUT>)
+                    getEventTimeExtensionImplClass()
+                            .getMethod(
+                                    "wrapProcessFunction",
+                                    TwoInputNonBroadcastEventTimeStreamProcessFunction.class)
+                            .invoke(null, processFunction);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Wrap the user-defined {@link TwoInputBroadcastEventTimeStreamProcessFunction}, which will
+     * provide related components such as {@link EventTimeManager} and declare the necessary
+     * built-in state required for the Timer, etc. Note that registering event timers of {@link
+     * EventTimeProcessFunction} can only be used with {@link KeyedPartitionStream}.
+     *
+     * @param processFunction The user-defined {@link
+     *     TwoInputBroadcastEventTimeStreamProcessFunction} that needs to be wrapped.
+     * @return The wrapped {@link TwoInputBroadcastStreamProcessFunction}.
+     */
+    public static <IN1, IN2, OUT>
+            TwoInputBroadcastStreamProcessFunction<IN1, IN2, OUT> wrapProcessFunction(
+                    TwoInputBroadcastEventTimeStreamProcessFunction<IN1, IN2, OUT>
+                            processFunction) {
+        try {
+            return (TwoInputBroadcastStreamProcessFunction<IN1, IN2, OUT>)
+                    getEventTimeExtensionImplClass()
+                            .getMethod(
+                                    "wrapProcessFunction",
+                                    TwoInputBroadcastEventTimeStreamProcessFunction.class)
+                            .invoke(null, processFunction);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /** Get the implementation class of EventTimeExtension. */
+    private static Class<?> getEventTimeExtensionImplClass() {
+        try {
+            return Class.forName(
+                    "org.apache.flink.datastream.impl.extension.eventtime.EventTimeExtensionImpl");
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException("Please ensure that flink-datastream in your class path");
+        }
     }
 }
