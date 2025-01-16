@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
-import org.apache.flink.table.planner.calcite.RexSetSemanticsTableCall
+import org.apache.flink.table.planner.calcite.RexTableArgCall
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -70,12 +70,12 @@ class StreamPhysicalWindowTableFunctionRule(config: Config) extends ConverterRul
   private def getDistribution(windowCall: RexCall): FlinkRelDistribution = {
     windowCall.getOperator match {
       case FlinkSqlOperatorTable.SESSION =>
-        windowCall match {
-          case setSemanticsTableCall: RexSetSemanticsTableCall =>
-            val partitionKeys = setSemanticsTableCall.getPartitionKeys
-            FlinkRelDistribution.hash(partitionKeys, requireStrict = true)
-          case _ =>
-            FlinkRelDistribution.SINGLETON
+        val tableArgCall = windowCall.operands.get(0).asInstanceOf[RexTableArgCall]
+        val partitionKeys = tableArgCall.getPartitionKeys
+        if (partitionKeys.nonEmpty) {
+          FlinkRelDistribution.hash(partitionKeys, requireStrict = true)
+        } else {
+          FlinkRelDistribution.SINGLETON
         }
       case _ =>
         FlinkRelDistribution.DEFAULT

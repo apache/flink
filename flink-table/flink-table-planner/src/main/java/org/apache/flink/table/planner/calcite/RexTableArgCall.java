@@ -18,35 +18,40 @@
 
 package org.apache.flink.table.planner.calcite;
 
+import org.apache.flink.table.planner.functions.sql.SqlTableArgOperator;
+import org.apache.flink.table.types.inference.StaticArgument;
+import org.apache.flink.table.types.inference.StaticArgumentTrait;
+
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.SqlSyntax;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * A special {@link RexCall} that is used to represent a table function with set semantics. See more
- * details in {@link FlinkConvertletTable#convertSetSemanticsWindowTableFunction}.
+ * A special {@link RexCall} that represents a table argument in a signature of {@link
+ * StaticArgument}s. The table arguments describe a {@link StaticArgumentTrait#TABLE_AS_SET} or
+ * {@link StaticArgumentTrait#TABLE_AS_ROW}.
+ *
+ * @see FlinkConvertletTable
  */
-public class RexSetSemanticsTableCall extends RexCall {
+public class RexTableArgCall extends RexCall {
 
+    private final int inputIndex;
     private final int[] partitionKeys;
-
     private final int[] orderKeys;
 
-    public RexSetSemanticsTableCall(
-            RelDataType type,
-            SqlOperator operator,
-            List<? extends RexNode> operands,
-            int[] partitionKeys,
-            int[] orderKeys) {
-        super(type, operator, operands);
+    public RexTableArgCall(RelDataType type, int inputIndex, int[] partitionKeys, int[] orderKeys) {
+        super(type, SqlTableArgOperator.INSTANCE, List.of());
+        this.inputIndex = inputIndex;
         this.partitionKeys = partitionKeys;
         this.orderKeys = orderKeys;
+    }
+
+    public int getInputIndex() {
+        return inputIndex;
     }
 
     public int[] getPartitionKeys() {
@@ -59,43 +64,36 @@ public class RexSetSemanticsTableCall extends RexCall {
 
     @Override
     protected String computeDigest(boolean withType) {
-        if ((operands.isEmpty()) && (op.getSyntax() == SqlSyntax.FUNCTION_ID)) {
-            return super.computeDigest(withType);
-        }
         final StringBuilder sb = new StringBuilder(op.getName());
         sb.append("(");
-        appendKeys(partitionKeys, "PARTITION BY", sb);
-        appendKeys(orderKeys, "ORDER BY", sb);
-        appendOperands(sb);
+        sb.append("#");
+        sb.append(inputIndex);
         sb.append(")");
         if (withType) {
             sb.append(":");
-
-            // NOTE jvs 16-Jan-2005:  for digests, it is very important
-            // to use the full type string.
             sb.append(type.getFullTypeString());
         }
+        formatKeys(sb, partitionKeys, " PARTITION BY");
+        formatKeys(sb, orderKeys, " ORDER BY");
         return sb.toString();
     }
 
-    private void appendKeys(int[] keys, String prefix, StringBuilder sb) {
+    private void formatKeys(StringBuilder sb, int[] keys, String prefix) {
         if (keys.length == 0) {
             return;
         }
         sb.append(
                 Arrays.stream(keys)
                         .mapToObj(key -> "$" + key)
-                        .collect(Collectors.joining(", ", prefix + "(", "), ")));
-    }
-
-    public RexSetSemanticsTableCall copy(
-            List<? extends RexNode> newOperands, int[] newPartitionKeys, int[] newOrderKeys) {
-        return new RexSetSemanticsTableCall(type, op, newOperands, newPartitionKeys, newOrderKeys);
+                        .collect(Collectors.joining(", ", prefix + "(", ")")));
     }
 
     @Override
-    public RexSetSemanticsTableCall clone(RelDataType type, List<RexNode> operands) {
-        return new RexSetSemanticsTableCall(
-                type, getOperator(), operands, partitionKeys, orderKeys);
+    public RexCall clone(RelDataType type, List<RexNode> operands) {
+        return new RexTableArgCall(type, inputIndex, partitionKeys, orderKeys);
+    }
+
+    public RexTableArgCall copy(RelDataType type, int[] partitionKeys, int[] orderKeys) {
+        return new RexTableArgCall(type, inputIndex, partitionKeys, orderKeys);
     }
 }

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.calcite;
 
-import org.apache.flink.table.planner.functions.sql.SqlDefaultOperator;
+import org.apache.flink.table.planner.functions.sql.SqlDefaultArgOperator;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCall;
@@ -107,7 +107,8 @@ public class FlinkSqlCallBinding extends SqlCallBinding {
                     && ((SqlCall) operand).getOperator() == SqlStdOperatorTable.DEFAULT) {
                 final RelDataType argumentType = fixedArgumentTypes.get(rewrittenOperands.size());
                 final SqlCall defaultArg =
-                        new SqlDefaultOperator(argumentType).createCall(SqlParserPos.ZERO);
+                        new SqlDefaultArgOperator(argumentType).createCall(SqlParserPos.ZERO);
+                getValidator().setValidatedNodeType(defaultArg, argumentType);
                 rewrittenOperands.add(defaultArg);
             } else {
                 rewrittenOperands.add(operand);
