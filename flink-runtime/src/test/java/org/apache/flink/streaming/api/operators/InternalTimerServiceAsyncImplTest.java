@@ -327,15 +327,18 @@ class InternalTimerServiceAsyncImplTest {
         TimerSerializer<K, N> timerSerializer =
                 new TimerSerializer<>(keySerializer, namespaceSerializer);
 
-        return new InternalTimerServiceAsyncImpl<>(
-                taskIOMetricGroup,
-                keyGroupsList,
-                keyContext,
-                processingTimeService,
-                priorityQueueSetFactory.create("__async_processing_timers", timerSerializer),
-                priorityQueueSetFactory.create("__async_event_timers", timerSerializer),
-                StreamTaskCancellationContext.alwaysRunning(),
-                asyncExecutionController);
+        InternalTimerServiceAsyncImpl serviceAsync =
+                new InternalTimerServiceAsyncImpl<>(
+                        taskIOMetricGroup,
+                        keyGroupsList,
+                        keyContext,
+                        processingTimeService,
+                        priorityQueueSetFactory.create(
+                                "__async_processing_timers", timerSerializer),
+                        priorityQueueSetFactory.create("__async_event_timers", timerSerializer),
+                        StreamTaskCancellationContext.alwaysRunning());
+        serviceAsync.setup(asyncExecutionController);
+        return serviceAsync;
     }
 
     private static int getKeyInKeyGroupRange(KeyGroupRange range, int maxParallelism) {

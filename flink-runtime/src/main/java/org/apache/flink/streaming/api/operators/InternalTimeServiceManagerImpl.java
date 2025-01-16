@@ -79,6 +79,8 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
 
     private final Map<String, InternalTimerServiceImpl<K, ?>> timerServices;
 
+    @Nullable AsyncExecutionController<K> asyncExecutionController;
+
     private InternalTimeServiceManagerImpl(
             TaskIOMetricGroup taskIOMetricGroup,
             KeyGroupRange localKeyGroupRange,
@@ -159,84 +161,36 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
         return timerService;
     }
 
-    <N> InternalTimerServiceImpl<K, N> restoreTimeService(
-            String name, TimerSerializer<K, N> timerSerializer) {
-        if (priorityQueueSetFactory instanceof AsyncKeyedStateBackend) {
-            return registerOrGetAsyncTimerService(name, timerSerializer, null);
-        } else {
-            return registerOrGetTimerService(name, timerSerializer);
-        }
-    }
-
     @SuppressWarnings("unchecked")
     <N> InternalTimerServiceImpl<K, N> registerOrGetTimerService(
             String name, TimerSerializer<K, N> timerSerializer) {
         InternalTimerServiceImpl<K, N> timerService =
                 (InternalTimerServiceImpl<K, N>) timerServices.get(name);
         if (timerService == null) {
-
-            timerService =
-                    new InternalTimerServiceImpl<>(
-                            taskIOMetricGroup,
-                            localKeyGroupRange,
-                            keyContext,
-                            processingTimeService,
-                            createTimerPriorityQueue(
-                                    PROCESSING_TIMER_PREFIX + name, timerSerializer),
-                            createTimerPriorityQueue(EVENT_TIMER_PREFIX + name, timerSerializer),
-                            cancellationContext);
+            if (priorityQueueSetFactory instanceof AsyncKeyedStateBackend) {
+                new InternalTimerServiceAsyncImpl<>(
+                        taskIOMetricGroup,
+                        localKeyGroupRange,
+                        keyContext,
+                        processingTimeService,
+                        createTimerPriorityQueue(PROCESSING_TIMER_PREFIX + name, timerSerializer),
+                        createTimerPriorityQueue(EVENT_TIMER_PREFIX + name, timerSerializer),
+                        cancellationContext);
+            } else {
+                timerService =
+                        new InternalTimerServiceImpl<>(
+                                taskIOMetricGroup,
+                                localKeyGroupRange,
+                                keyContext,
+                                processingTimeService,
+                                createTimerPriorityQueue(
+                                        PROCESSING_TIMER_PREFIX + name, timerSerializer),
+                                createTimerPriorityQueue(
+                                        EVENT_TIMER_PREFIX + name, timerSerializer),
+                                cancellationContext);
+            }
 
             timerServices.put(name, timerService);
-        }
-        return timerService;
-    }
-
-    @Override
-    public <N> InternalTimerService<N> getAsyncInternalTimerService(
-            String name,
-            TypeSerializer<K> keySerializer,
-            TypeSerializer<N> namespaceSerializer,
-            Triggerable<K, N> triggerable,
-            AsyncExecutionController<K> asyncExecutionController) {
-        checkNotNull(keySerializer, "Timers can only be used on keyed operators.");
-
-        // the following casting is to overcome type restrictions.
-        TimerSerializer<K, N> timerSerializer =
-                new TimerSerializer<>(keySerializer, namespaceSerializer);
-
-        InternalTimerServiceAsyncImpl<K, N> timerService =
-                registerOrGetAsyncTimerService(name, timerSerializer, asyncExecutionController);
-
-        timerService.startTimerService(
-                timerSerializer.getKeySerializer(),
-                timerSerializer.getNamespaceSerializer(),
-                triggerable);
-
-        return timerService;
-    }
-
-    @SuppressWarnings("unchecked")
-    <N> InternalTimerServiceAsyncImpl<K, N> registerOrGetAsyncTimerService(
-            String name,
-            TimerSerializer<K, N> timerSerializer,
-            @Nullable AsyncExecutionController<K> asyncExecutionController) {
-        InternalTimerServiceAsyncImpl<K, N> timerService =
-                (InternalTimerServiceAsyncImpl<K, N>) timerServices.get(name);
-        if (timerService == null) {
-            timerService =
-                    new InternalTimerServiceAsyncImpl<>(
-                            taskIOMetricGroup,
-                            localKeyGroupRange,
-                            keyContext,
-                            processingTimeService,
-                            createTimerPriorityQueue(
-                                    PROCESSING_TIMER_PREFIX + name, timerSerializer),
-                            createTimerPriorityQueue(EVENT_TIMER_PREFIX + name, timerSerializer),
-                            cancellationContext,
-                            asyncExecutionController);
-            timerServices.put(name, timerService);
-        } else {
-            timerService.setup(asyncExecutionController);
         }
         return timerService;
     }

@@ -55,8 +55,7 @@ public class InternalTimerServiceAsyncImpl<K, N> extends InternalTimerServiceImp
             ProcessingTimeService processingTimeService,
             KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> processingTimeTimersQueue,
             KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> eventTimeTimersQueue,
-            StreamTaskCancellationContext cancellationContext,
-            AsyncExecutionController<K> asyncExecutionController) {
+            StreamTaskCancellationContext cancellationContext) {
         super(
                 taskIOMetricGroup,
                 localKeyGroupRange,
@@ -65,7 +64,6 @@ public class InternalTimerServiceAsyncImpl<K, N> extends InternalTimerServiceImp
                 processingTimeTimersQueue,
                 eventTimeTimersQueue,
                 cancellationContext);
-        this.asyncExecutionController = asyncExecutionController;
     }
 
     public void setup(AsyncExecutionController<K> asyncExecutionController) {

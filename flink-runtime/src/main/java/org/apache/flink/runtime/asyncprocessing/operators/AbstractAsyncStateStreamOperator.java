@@ -40,6 +40,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
+import org.apache.flink.streaming.api.operators.InternalTimerServiceAsyncImpl;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -293,12 +294,11 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
         checkState(keySerializer != null, "Timers can only be used on keyed operators.");
         // A {@link RecordContext} will be set as the current processing context to preserve record
         // order when the given {@link Triggerable} is invoked.
-        return keyedTimeServiceHandler.getAsyncInternalTimerService(
-                name,
-                keySerializer,
-                namespaceSerializer,
-                triggerable,
-                (AsyncExecutionController<K>) asyncExecutionController);
+        InternalTimerService<N> service =
+                keyedTimeServiceHandler.getInternalTimerService(
+                        name, keySerializer, namespaceSerializer, triggerable);
+        ((InternalTimerServiceAsyncImpl<K, N>) service).setup(asyncExecutionController);
+        return service;
     }
 
     @Override
