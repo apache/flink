@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.window.tvf.common;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -34,6 +35,7 @@ import java.io.Serializable;
  * @param <W> the window type.
  * @param <C> the context that provides some information for the window processor.
  */
+@Internal
 public interface WindowProcessor<W, C extends WindowProcessor.Context<W>> extends Serializable {
 
     /** Initialization method for the function. It is called before the actual working methods. */

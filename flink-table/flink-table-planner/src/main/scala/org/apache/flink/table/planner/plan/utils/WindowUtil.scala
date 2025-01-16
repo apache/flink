@@ -363,7 +363,7 @@ object WindowUtil {
     if (!config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED)) {
       return false
     }
-    // currently, unslice assigner does not support async state
+    // currently, unsliced assigner does not support async state
     if (!windowAssigner.isInstanceOf[SliceAssigner]) {
       return false
     }
