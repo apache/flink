@@ -81,6 +81,12 @@ class AdaptiveSkewedJoinITCase extends AdaptiveJoinITCase {
     checkResult(sql)
   }
 
+  @Test
+  def testJoinWithUnspecifiedForwardOutput(): Unit = {
+    val sql = "SELECT a1 as a, b1 as b, c1 as c, d1 as d FROM T1, T2 WHERE a1 = a2"
+    checkResult(sql)
+  }
+
   override def checkResult(sql: String): Unit = {
     tEnv.getConfig
       .set(

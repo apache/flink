@@ -30,7 +30,6 @@ import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An edge in the streaming topology. One edge like this does not necessarily gets converted to a
@@ -291,8 +290,6 @@ public class StreamEdge implements Serializable {
     }
 
     public void setIntraInputKeyCorrelated(boolean intraInputKeyCorrelated) {
-        // We hope to strictly control the behavior of this modification to avoid unexpected errors.
-        checkState(interInputsKeysCorrelated, "interInputsKeysCorrelated must be true");
         this.intraInputKeyCorrelated = intraInputKeyCorrelated;
     }
 }
