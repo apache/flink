@@ -9,24 +9,6 @@
     </thead>
     <tbody>
         <tr>
-            <td><h5>table.optimizer.skewed-join-optimization.strategy</h5><br> <span class="label label-primary">Batch</span></td>
-            <td style="word-wrap: break-word;">auto</td>
-            <td><p>Enum</p></td>
-            <td>Flink will handle skew in shuffled joins (sort-merge and hash) at runtime by splitting data according to the skewed join key. The value of this configuration determines how Flink performs this optimization. AUTO means Flink will automatically apply this optimization, FORCED means Flink will enforce this optimization even if it introduces extra hash shuffle, and NONE means this optimization will not be executed.<br /><br />Possible values:<ul><li>"auto":  Flink will automatically perform this optimization.</li><li>"forced": Flink will perform this optimization even if it introduces extra hash shuffling.</li><li>"none": Skewed join optimization will not be performed.</li></ul></td>
-        </tr>
-        <tr>
-            <td><h5>table.optimizer.skewed-join-optimization.skewed-factor</h5><br> <span class="label label-primary">Batch</span></td>
-            <td style="word-wrap: break-word;">4.0</td>
-            <td><p>Double</p></td>
-            <td>When a join operator instance encounters input data that exceeds N times the median size of other concurrent join operator instances, it is considered skewed (where N represents this skewed-factor). In such cases, Flink may automatically split the skewed data into multiple parts to ensure a more balanced data distribution, unless the data volume is below the skewed threshold(defined using table.optimizer.skewed-join-optimization.skewed-threshold).</td>
-        </tr>
-        <tr>
-            <td><h5>table.optimizer.skewed-join-optimization.skewed-threshold</h5><br> <span class="label label-primary">Batch</span></td>
-            <td style="word-wrap: break-word;">256 mb</td>
-            <td><p>MemorySize</p></td>
-            <td>When a join operator instance encounters input data that exceeds N times the median size of other concurrent join operator instances, it is considered skewed (where N represents the table.optimizer.skewed-join-optimization.skewed-factor). In such cases, Flink may automatically split the skewed data into multiple parts to ensure a more balanced data distribution, unless the data volume is below this skewed threshold.</td>
-        </tr>
-        <tr>
             <td><h5>table.optimizer.adaptive-broadcast-join.strategy</h5><br> <span class="label label-primary">Batch</span></td>
             <td style="word-wrap: break-word;">auto</td>
             <td><p>Enum</p></td>
@@ -136,6 +118,24 @@ ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggre
             <td style="word-wrap: break-word;">10 gb</td>
             <td>MemorySize</td>
             <td>Min data volume threshold of the runtime filter probe side. Estimated data volume needs to be over this value to try to inject runtime filter.This value should be larger than <code class="highlighter-rouge">table.optimizer.runtime-filter.max-build-data-size</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>table.optimizer.skewed-join-optimization.skewed-factor</h5><br> <span class="label label-primary">Batch</span></td>
+            <td style="word-wrap: break-word;">4.0</td>
+            <td>Double</td>
+            <td>When a join operator instance encounters input data that exceeds N times the median size of other concurrent join operator instances, it is considered skewed (where N represents this skewed-factor). In such cases, Flink may automatically split the skewed data into multiple parts to ensure a more balanced data distribution, unless the data volume is below the skewed threshold(defined using table.optimizer.skewed-join-optimization.skewed-threshold).</td>
+        </tr>
+        <tr>
+            <td><h5>table.optimizer.skewed-join-optimization.skewed-threshold</h5><br> <span class="label label-primary">Batch</span></td>
+            <td style="word-wrap: break-word;">256 mb</td>
+            <td>MemorySize</td>
+            <td>When a join operator instance encounters input data that exceeds N times the median size of other concurrent join operator instances, it is considered skewed (where N represents the table.optimizer.skewed-join-optimization.skewed-factor). In such cases, Flink may automatically split the skewed data into multiple parts to ensure a more balanced data distribution, unless the data volume is below this skewed threshold.</td>
+        </tr>
+        <tr>
+            <td><h5>table.optimizer.skewed-join-optimization.strategy</h5><br> <span class="label label-primary">Batch</span></td>
+            <td style="word-wrap: break-word;">auto</td>
+            <td><p>Enum</p></td>
+            <td>Flink will handle skew in shuffled joins (sort-merge and hash) at runtime by splitting data according to the skewed join key. The value of this configuration determines how Flink performs this optimization. AUTO means Flink will automatically apply this optimization, FORCED means Flink will enforce this optimization even if it introduces extra hash shuffle, and NONE means this optimization will not be executed.<br /><br />Possible values:<ul><li>"auto":  Flink will automatically perform this optimization.</li><li>"forced": Flink will perform this optimization even if it introduces extra hash shuffling.</li><li>"none": Skewed join optimization will not be performed.</li></ul></td>
         </tr>
         <tr>
             <td><h5>table.optimizer.source.report-statistics-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>

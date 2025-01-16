@@ -19,6 +19,8 @@
 package org.apache.flink.table.runtime.operators.over;
 
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.utils.JoinedRowData;
+import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
@@ -56,23 +58,26 @@ public class RowTimeRangeUnboundedPrecedingFunction<K>
     @Override
     public void processElementsWithSameTimestamp(List<RowData> curRowList, Collector<RowData> out)
             throws Exception {
-        int i = 0;
-        // all same timestamp data should have same aggregation value.
-        while (i < curRowList.size()) {
-            RowData curRow = curRowList.get(i);
-            function.accumulate(curRow);
-            i += 1;
-        }
+        processElementsWithSameTimestampRange(function, output, curRowList, out);
+    }
 
-        // emit output row
-        i = 0;
+    /**
+     * First aggregate all the records with the same timestamp, only then in second step emit them.
+     * All emitted records with same timestamp should have the same aggregated value.
+     */
+    static void processElementsWithSameTimestampRange(
+            AggsHandleFunction function,
+            JoinedRowData outputRecord,
+            List<RowData> curRowList,
+            Collector<RowData> out)
+            throws Exception {
+        for (RowData curRow : curRowList) {
+            function.accumulate(curRow);
+        }
         RowData aggValue = function.getValue();
-        while (i < curRowList.size()) {
-            RowData curRow = curRowList.get(i);
-            // prepare output row
-            output.replace(curRow, aggValue);
-            out.collect(output);
-            i += 1;
+        for (RowData curRow : curRowList) {
+            outputRecord.replace(curRow, aggValue);
+            out.collect(outputRecord);
         }
     }
 }

@@ -302,7 +302,8 @@
         "fieldType" : "BIGINT NOT NULL"
       } ]
     },
-    "description" : "OverAggregate(partitionBy=[a], orderBy=[t ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, t, w0$o0])"
+    "description" : "OverAggregate(partitionBy=[a], orderBy=[t ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, t, w0$o0])",
+    "unboundedOverVersion" : 1
   }, {
     "id" : 6,
     "type" : "batch-exec-calc_1",
