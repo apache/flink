@@ -27,6 +27,7 @@ import org.apache.flink.datastream.impl.common.OutputCollector;
 import org.apache.flink.datastream.impl.common.TimestampCollector;
 import org.apache.flink.datastream.impl.context.DefaultProcessingTimeManager;
 import org.apache.flink.datastream.impl.context.DefaultTwoOutputNonPartitionedContext;
+import org.apache.flink.datastream.impl.extension.eventtime.functions.EventTimeWrappedTwoOutputStreamProcessFunction;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.operators.InternalTimer;
@@ -40,6 +41,7 @@ import javax.annotation.Nullable;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Supplier;
 
 /** */
 public class KeyedTwoOutputProcessOperator<KEY, IN, OUT_MAIN, OUT_SIDE>
@@ -113,7 +115,14 @@ public class KeyedTwoOutputProcessOperator<KEY, IN, OUT_MAIN, OUT_SIDE>
 
     @Override
     public void onEventTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
-        // do nothing at the moment.
+        if (userFunction instanceof EventTimeWrappedTwoOutputStreamProcessFunction) {
+            ((EventTimeWrappedTwoOutputStreamProcessFunction<IN, OUT_MAIN, OUT_SIDE>) userFunction)
+                    .onEventTime(
+                            timer.getTimestamp(),
+                            getMainCollector(),
+                            getSideCollector(),
+                            partitionedContext);
+        }
     }
 
     @Override
@@ -145,5 +154,15 @@ public class KeyedTwoOutputProcessOperator<KEY, IN, OUT_MAIN, OUT_SIDE>
     @Override
     public boolean isAsyncStateProcessingEnabled() {
         return true;
+    }
+
+    @Override
+    protected InternalTimerService<VoidNamespace> getTimerService() {
+        return timerService;
+    }
+
+    @Override
+    protected Supplier<Long> getEventTimeSupplier() {
+        return () -> timerService.currentWatermark();
     }
 }

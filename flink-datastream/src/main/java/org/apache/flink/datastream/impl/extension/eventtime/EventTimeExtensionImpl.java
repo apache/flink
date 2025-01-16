@@ -19,8 +19,19 @@ package org.apache.flink.datastream.impl.extension.eventtime;
 
 import org.apache.flink.api.common.watermark.Watermark;
 import org.apache.flink.datastream.api.extension.eventtime.EventTimeExtension;
+import org.apache.flink.datastream.api.extension.eventtime.function.OneInputEventTimeStreamProcessFunction;
+import org.apache.flink.datastream.api.extension.eventtime.function.TwoInputBroadcastEventTimeStreamProcessFunction;
+import org.apache.flink.datastream.api.extension.eventtime.function.TwoInputNonBroadcastEventTimeStreamProcessFunction;
+import org.apache.flink.datastream.api.extension.eventtime.function.TwoOutputEventTimeStreamProcessFunction;
 import org.apache.flink.datastream.api.extension.eventtime.strategy.EventTimeWatermarkStrategy;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
+import org.apache.flink.datastream.api.function.TwoInputBroadcastStreamProcessFunction;
+import org.apache.flink.datastream.api.function.TwoInputNonBroadcastStreamProcessFunction;
+import org.apache.flink.datastream.api.function.TwoOutputStreamProcessFunction;
+import org.apache.flink.datastream.impl.extension.eventtime.functions.EventTimeWrappedOneInputStreamProcessFunction;
+import org.apache.flink.datastream.impl.extension.eventtime.functions.EventTimeWrappedTwoInputBroadcastStreamProcessFunction;
+import org.apache.flink.datastream.impl.extension.eventtime.functions.EventTimeWrappedTwoInputNonBroadcastStreamProcessFunction;
+import org.apache.flink.datastream.impl.extension.eventtime.functions.EventTimeWrappedTwoOutputStreamProcessFunction;
 import org.apache.flink.datastream.impl.extension.eventtime.functions.ExtractEventTimeProcessFunction;
 
 /** The implementation of {@link EventTimeExtension}. */
@@ -35,6 +46,33 @@ public class EventTimeExtensionImpl {
     public static <T> OneInputStreamProcessFunction<T, T> buildAsProcessFunction(
             EventTimeWatermarkStrategy<T> strategy) {
         return new ExtractEventTimeProcessFunction<>(strategy);
+    }
+
+    // ============= Wrap Event Time Process Function =============
+
+    public static <IN, OUT> OneInputStreamProcessFunction<IN, OUT> wrapProcessFunction(
+            OneInputEventTimeStreamProcessFunction<IN, OUT> processFunction) {
+        return new EventTimeWrappedOneInputStreamProcessFunction<>(processFunction);
+    }
+
+    public static <IN, OUT1, OUT2>
+            TwoOutputStreamProcessFunction<IN, OUT1, OUT2> wrapProcessFunction(
+                    TwoOutputEventTimeStreamProcessFunction<IN, OUT1, OUT2> processFunction) {
+        return new EventTimeWrappedTwoOutputStreamProcessFunction<>(processFunction);
+    }
+
+    public static <IN1, IN2, OUT>
+            TwoInputNonBroadcastStreamProcessFunction<IN1, IN2, OUT> wrapProcessFunction(
+                    TwoInputNonBroadcastEventTimeStreamProcessFunction<IN1, IN2, OUT>
+                            processFunction) {
+        return new EventTimeWrappedTwoInputNonBroadcastStreamProcessFunction<>(processFunction);
+    }
+
+    public static <IN1, IN2, OUT>
+            TwoInputBroadcastStreamProcessFunction<IN1, IN2, OUT> wrapProcessFunction(
+                    TwoInputBroadcastEventTimeStreamProcessFunction<IN1, IN2, OUT>
+                            processFunction) {
+        return new EventTimeWrappedTwoInputBroadcastStreamProcessFunction<>(processFunction);
     }
 
     // ============= Other Utils =============
