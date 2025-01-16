@@ -239,7 +239,7 @@ A catalog implementation for Jdbc.
 
 
 CatalogDescriptor
------------
+-----------------
 
 Describes a catalog with the catalog name and configuration.
 A CatalogDescriptor is a template for creating a catalog instance. It closely resembles the
