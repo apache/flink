@@ -618,6 +618,11 @@ public class AdaptiveGraphManager
                                     streamGraph.getStreamNode(edge.getSourceId()), streamGraph))
                     || isChainable(edge, streamGraph)) {
                 edge.setPartitioner(new ForwardPartitioner<>());
+                // Currently, there is no intra input key correlation for edge with
+                // ForwardForUnspecifiedPartitioner, and we need to modify it to false.
+                if (partitioner instanceof ForwardForUnspecifiedPartitioner) {
+                    edge.setIntraInputKeyCorrelated(false);
+                }
             }
         }
     }
