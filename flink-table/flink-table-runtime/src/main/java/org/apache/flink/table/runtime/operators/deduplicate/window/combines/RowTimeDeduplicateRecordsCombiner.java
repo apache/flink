@@ -32,7 +32,7 @@ import org.apache.flink.table.runtime.util.WindowKey;
 import java.util.Iterator;
 
 import static org.apache.flink.table.data.util.RowDataUtil.isAccumulateMsg;
-import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.isDuplicate;
+import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.isDuplicate;
 
 /**
  * An implementation of {@link RecordsCombiner} that stores the first/last records of incremental

@@ -18,13 +18,16 @@
 
 package org.apache.flink.table.runtime.operators.deduplicate;
 
+import org.apache.flink.runtime.asyncprocessing.operators.AsyncKeyedProcessOperator;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator;
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger;
+import org.apache.flink.table.runtime.operators.deduplicate.asyncprocessing.AsyncStateRowTimeDeduplicateFunction;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.RowKind;
@@ -41,21 +44,26 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
 
 /**
- * Harness tests for {@link RowTimeDeduplicateFunction} and {@link
- * RowTimeMiniBatchDeduplicateFunction}.
+ * Harness tests for {@link RowTimeDeduplicateFunction}, {@link
+ * AsyncStateRowTimeDeduplicateFunction} and {@link RowTimeMiniBatchDeduplicateFunction}.
  */
 @ExtendWith(ParameterizedTestExtension.class)
 class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTestBase {
 
     private final boolean miniBatchEnable;
+    private final boolean enableAsyncState;
 
-    RowTimeDeduplicateFunctionTest(boolean miniBacthEnable) {
-        this.miniBatchEnable = miniBacthEnable;
+    RowTimeDeduplicateFunctionTest(boolean miniBatchEnable, boolean enableAsyncState) {
+        this.enableAsyncState = enableAsyncState;
+        this.miniBatchEnable = miniBatchEnable;
     }
 
-    @Parameters(name = "miniBatchEnable = {0}")
+    @Parameters(name = "miniBatchEnable = {0}, enableAsyncState = {1}")
     private static Collection<Boolean[]> runMode() {
-        return Arrays.asList(new Boolean[] {false}, new Boolean[] {true});
+        return Arrays.asList(
+                new Boolean[] {false, false},
+                new Boolean[] {false, true},
+                new Boolean[] {true, false});
     }
 
     @TestTemplate
@@ -66,8 +74,11 @@ class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTestBase 
         expectedOutput.add(new Watermark(102));
         expectedOutput.add(record(RowKind.INSERT, "key3", 5, 299L));
         expectedOutput.add(new Watermark(302));
-        expectedOutput.add(record(RowKind.INSERT, "key1", 12, 400L));
-        expectedOutput.add(record(RowKind.INSERT, "key2", 11, 401L));
+        // async state does not support set ttl
+        if (!enableAsyncState) {
+            expectedOutput.add(record(RowKind.INSERT, "key1", 12, 400L));
+            expectedOutput.add(record(RowKind.INSERT, "key2", 11, 401L));
+        }
         expectedOutput.add(new Watermark(402));
 
         // generateUpdateBefore: true, generateInsert: true
@@ -86,8 +97,11 @@ class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTestBase 
         expectedOutput.add(new Watermark(102));
         expectedOutput.add(record(RowKind.UPDATE_AFTER, "key3", 5, 299L));
         expectedOutput.add(new Watermark(302));
-        expectedOutput.add(record(RowKind.UPDATE_AFTER, "key1", 12, 400L));
-        expectedOutput.add(record(RowKind.UPDATE_AFTER, "key2", 11, 401L));
+        // async state does not support set ttl
+        if (!enableAsyncState) {
+            expectedOutput.add(record(RowKind.UPDATE_AFTER, "key1", 12, 400L));
+            expectedOutput.add(record(RowKind.UPDATE_AFTER, "key2", 11, 401L));
+        }
         expectedOutput.add(new Watermark(402));
         testRowTimeDeduplicateKeepFirstRow(false, false, expectedOutput);
     }
@@ -106,8 +120,17 @@ class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTestBase 
         expectedOutput.add(record(RowKind.UPDATE_AFTER, "key2", 11, 301L));
         expectedOutput.add(record(RowKind.INSERT, "key3", 5, 299L));
         expectedOutput.add(new Watermark(302));
-        expectedOutput.add(record(RowKind.INSERT, "key1", 12, 400L));
-        expectedOutput.add(record(RowKind.INSERT, "key2", 11, 401L));
+        if (enableAsyncState) {
+            // async state does not support set ttl
+            expectedOutput.add(record(RowKind.UPDATE_BEFORE, "key1", 12, 300L));
+            expectedOutput.add(record(RowKind.UPDATE_AFTER, "key1", 12, 400L));
+            expectedOutput.add(record(RowKind.UPDATE_BEFORE, "key2", 11, 301L));
+            expectedOutput.add(record(RowKind.UPDATE_AFTER, "key2", 11, 401L));
+        } else {
+            expectedOutput.add(record(RowKind.INSERT, "key1", 12, 400L));
+            expectedOutput.add(record(RowKind.INSERT, "key2", 11, 401L));
+        }
+
         expectedOutput.add(new Watermark(402));
 
         // generateUpdateBefore: true, generateInsert: true
@@ -126,8 +149,14 @@ class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTestBase 
         expectedOutput.add(record(RowKind.UPDATE_AFTER, "key2", 11, 301L));
         expectedOutput.add(record(RowKind.INSERT, "key3", 5, 299L));
         expectedOutput.add(new Watermark(302));
-        expectedOutput.add(record(RowKind.INSERT, "key1", 12, 400L));
-        expectedOutput.add(record(RowKind.INSERT, "key2", 11, 401L));
+        if (enableAsyncState) {
+            // async state does not support set ttl
+            expectedOutput.add(record(RowKind.UPDATE_AFTER, "key1", 12, 400L));
+            expectedOutput.add(record(RowKind.UPDATE_AFTER, "key2", 11, 401L));
+        } else {
+            expectedOutput.add(record(RowKind.INSERT, "key1", 12, 400L));
+            expectedOutput.add(record(RowKind.INSERT, "key2", 11, 401L));
+        }
         expectedOutput.add(new Watermark(402));
         testRowTimeDeduplicateKeepLastRow(false, true, expectedOutput);
 
@@ -153,30 +182,47 @@ class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTestBase 
         final boolean keepLastRow = false;
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness;
         KeyedMapBundleOperator<RowData, RowData, RowData, RowData> keyedMapBundleOperator = null;
-        KeyedProcessOperator keyedProcessOperator = null;
+        OneInputStreamOperator<RowData, RowData> keyedProcessOperator = null;
         if (miniBatchEnable) {
-            RowTimeMiniBatchDeduplicateFunction func =
-                    new RowTimeMiniBatchDeduplicateFunction(
-                            inputRowType,
-                            serializer,
-                            minTtlTime.toMillis(),
-                            rowTimeIndex,
-                            generateUpdateBefore,
-                            generateInsert,
-                            keepLastRow);
-            CountBundleTrigger trigger = new CountBundleTrigger<RowData>(miniBatchSize);
-            keyedMapBundleOperator = new KeyedMapBundleOperator(func, trigger);
-            testHarness = createTestHarness(keyedMapBundleOperator);
+            if (enableAsyncState) {
+                throw new UnsupportedOperationException(
+                        "Mini-batch deduplicate op is not supported async state api");
+            } else {
+                RowTimeMiniBatchDeduplicateFunction func =
+                        new RowTimeMiniBatchDeduplicateFunction(
+                                inputRowType,
+                                serializer,
+                                minTtlTime.toMillis(),
+                                rowTimeIndex,
+                                generateUpdateBefore,
+                                generateInsert,
+                                keepLastRow);
+                CountBundleTrigger<RowData> trigger = new CountBundleTrigger<>(miniBatchSize);
+                keyedMapBundleOperator = new KeyedMapBundleOperator(func, trigger);
+                testHarness = createTestHarness(keyedMapBundleOperator);
+            }
         } else {
-            RowTimeDeduplicateFunction func =
-                    new RowTimeDeduplicateFunction(
-                            inputRowType,
-                            minTtlTime.toMillis(),
-                            rowTimeIndex,
-                            generateUpdateBefore,
-                            generateInsert,
-                            keepLastRow);
-            keyedProcessOperator = new KeyedProcessOperator<>(func);
+            if (enableAsyncState) {
+                AsyncStateRowTimeDeduplicateFunction func =
+                        new AsyncStateRowTimeDeduplicateFunction(
+                                inputRowType,
+                                minTtlTime.toMillis(),
+                                rowTimeIndex,
+                                generateUpdateBefore,
+                                generateInsert,
+                                keepLastRow);
+                keyedProcessOperator = new AsyncKeyedProcessOperator<>(func);
+            } else {
+                RowTimeDeduplicateFunction func =
+                        new RowTimeDeduplicateFunction(
+                                inputRowType,
+                                minTtlTime.toMillis(),
+                                rowTimeIndex,
+                                generateUpdateBefore,
+                                generateInsert,
+                                keepLastRow);
+                keyedProcessOperator = new KeyedProcessOperator<>(func);
+            }
             testHarness = createTestHarness(keyedProcessOperator);
         }
 
@@ -233,30 +279,47 @@ class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTestBase 
         final boolean keepLastRow = true;
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness;
         KeyedMapBundleOperator<RowData, RowData, RowData, RowData> keyedMapBundleOperator = null;
-        KeyedProcessOperator keyedProcessOperator = null;
+        OneInputStreamOperator<RowData, RowData> keyedProcessOperator = null;
         if (miniBatchEnable) {
-            RowTimeMiniBatchDeduplicateFunction func =
-                    new RowTimeMiniBatchDeduplicateFunction(
-                            inputRowType,
-                            serializer,
-                            minTtlTime.toMillis(),
-                            rowTimeIndex,
-                            generateUpdateBefore,
-                            generateInsert,
-                            keepLastRow);
-            CountBundleTrigger trigger = new CountBundleTrigger<RowData>(miniBatchSize);
-            keyedMapBundleOperator = new KeyedMapBundleOperator(func, trigger);
-            testHarness = createTestHarness(keyedMapBundleOperator);
+            if (enableAsyncState) {
+                throw new UnsupportedOperationException(
+                        "Mini-batch deduplicate op is not supported async state api");
+            } else {
+                RowTimeMiniBatchDeduplicateFunction func =
+                        new RowTimeMiniBatchDeduplicateFunction(
+                                inputRowType,
+                                serializer,
+                                minTtlTime.toMillis(),
+                                rowTimeIndex,
+                                generateUpdateBefore,
+                                generateInsert,
+                                keepLastRow);
+                CountBundleTrigger<RowData> trigger = new CountBundleTrigger<>(miniBatchSize);
+                keyedMapBundleOperator = new KeyedMapBundleOperator(func, trigger);
+                testHarness = createTestHarness(keyedMapBundleOperator);
+            }
         } else {
-            RowTimeDeduplicateFunction func =
-                    new RowTimeDeduplicateFunction(
-                            inputRowType,
-                            minTtlTime.toMillis(),
-                            rowTimeIndex,
-                            generateUpdateBefore,
-                            generateInsert,
-                            true);
-            keyedProcessOperator = new KeyedProcessOperator<>(func);
+            if (enableAsyncState) {
+                AsyncStateRowTimeDeduplicateFunction func =
+                        new AsyncStateRowTimeDeduplicateFunction(
+                                inputRowType,
+                                minTtlTime.toMillis(),
+                                rowTimeIndex,
+                                generateUpdateBefore,
+                                generateInsert,
+                                true);
+                keyedProcessOperator = new AsyncKeyedProcessOperator<>(func);
+            } else {
+                RowTimeDeduplicateFunction func =
+                        new RowTimeDeduplicateFunction(
+                                inputRowType,
+                                minTtlTime.toMillis(),
+                                rowTimeIndex,
+                                generateUpdateBefore,
+                                generateInsert,
+                                true);
+                keyedProcessOperator = new KeyedProcessOperator<>(func);
+            }
             testHarness = createTestHarness(keyedProcessOperator);
         }
 
@@ -298,8 +361,11 @@ class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTestBase 
         testHarness.processElement(insertRecord("key2", 11, 401L));
         testHarness.processWatermark(402);
 
-        // all state has expired, so the record ("key1", 12, 400L), ("key2", 12, 401L) will be
-        // INSERT message
+        // all state has expired with sync state api, so the record ("key1", 12, 400L),
+        // ("key2", 12, 401L) will be INSERT message;
+        // the state does not expire with async state api because async state api does not support
+        // set ttl , so the record ("key1", 12, 400L), ("key2", 12, 401L) will be output with
+        // UPDATE_AFTER message
         actualOutput.addAll(testHarness.getOutput());
 
         assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, actualOutput);

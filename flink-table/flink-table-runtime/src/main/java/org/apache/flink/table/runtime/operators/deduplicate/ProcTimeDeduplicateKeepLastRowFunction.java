@@ -25,12 +25,12 @@ import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Collector;
 
-import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.processLastRowOnChangelog;
-import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.processLastRowOnProcTime;
+import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.processLastRowOnChangelog;
+import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.processLastRowOnProcTime;
 
 /** This function is used to deduplicate on keys and keeps only last row. */
 public class ProcTimeDeduplicateKeepLastRowFunction
-        extends DeduplicateFunctionBase<RowData, RowData, RowData, RowData> {
+        extends SyncStateDeduplicateFunctionBase<RowData, RowData, RowData, RowData> {
 
     private static final long serialVersionUID = -291348892087180350L;
     private final boolean generateUpdateBefore;

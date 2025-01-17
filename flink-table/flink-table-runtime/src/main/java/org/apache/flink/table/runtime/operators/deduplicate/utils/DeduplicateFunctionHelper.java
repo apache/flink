@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.deduplicate;
+package org.apache.flink.table.runtime.operators.deduplicate.utils;
 
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.table.data.RowData;
@@ -25,7 +25,12 @@ import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
-/** Utility for deduplicate function. */
+/**
+ * Utility for deduplicate function.
+ *
+ * <p>TODO utilize the respective helper classes that inherit from an abstract deduplicate function
+ * helper in each deduplicate function.
+ */
 public class DeduplicateFunctionHelper {
 
     /**
@@ -39,7 +44,7 @@ public class DeduplicateFunctionHelper {
      * @param isStateTtlEnabled whether state ttl is disabled
      * @param equaliser the record equaliser used to equal RowData.
      */
-    static void processLastRowOnProcTime(
+    public static void processLastRowOnProcTime(
             RowData currentRow,
             boolean generateUpdateBefore,
             boolean generateInsert,
@@ -95,7 +100,7 @@ public class DeduplicateFunctionHelper {
      * @param state state of function
      * @param out underlying collector
      */
-    static void processLastRowOnChangelog(
+    public static void processLastRowOnChangelog(
             RowData currentRow,
             boolean generateUpdateBefore,
             ValueState<RowData> state,
@@ -155,7 +160,7 @@ public class DeduplicateFunctionHelper {
      * @param state state of function
      * @param out underlying collector
      */
-    static void processFirstRowOnProcTime(
+    public static void processFirstRowOnProcTime(
             RowData currentRow, ValueState<Boolean> state, Collector<RowData> out)
             throws Exception {
 
@@ -178,7 +183,7 @@ public class DeduplicateFunctionHelper {
      * @param currentRow current row under the key which is the duplicate row
      * @param out underlying collector
      */
-    static void updateDeduplicateResult(
+    public static void updateDeduplicateResult(
             boolean generateUpdateBefore,
             boolean generateInsert,
             RowData preRow,
@@ -223,7 +228,7 @@ public class DeduplicateFunctionHelper {
     }
 
     /** check message should be insert only. */
-    static void checkInsertOnly(RowData currentRow) {
+    public static void checkInsertOnly(RowData currentRow) {
         Preconditions.checkArgument(currentRow.getRowKind() == RowKind.INSERT);
     }
 
