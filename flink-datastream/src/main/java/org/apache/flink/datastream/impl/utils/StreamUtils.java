@@ -18,15 +18,21 @@
 
 package org.apache.flink.datastream.impl.utils;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.IllegalRedistributionModeException;
 import org.apache.flink.api.common.state.StateDeclaration;
+import org.apache.flink.api.common.state.v2.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.dsv2.Sink;
 import org.apache.flink.api.connector.dsv2.WrappedSink;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.datastream.api.extension.join.JoinFunction;
+import org.apache.flink.datastream.api.extension.window.function.OneInputWindowStreamProcessFunction;
+import org.apache.flink.datastream.api.extension.window.function.TwoInputNonBroadcastWindowStreamProcessFunction;
+import org.apache.flink.datastream.api.extension.window.function.TwoOutputWindowStreamProcessFunction;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
 import org.apache.flink.datastream.api.function.TwoInputBroadcastStreamProcessFunction;
 import org.apache.flink.datastream.api.function.TwoInputNonBroadcastStreamProcessFunction;
@@ -39,6 +45,12 @@ import org.apache.flink.datastream.impl.extension.eventtime.functions.EventTimeW
 import org.apache.flink.datastream.impl.extension.eventtime.functions.EventTimeWrappedTwoInputNonBroadcastStreamProcessFunction;
 import org.apache.flink.datastream.impl.extension.eventtime.functions.EventTimeWrappedTwoOutputStreamProcessFunction;
 import org.apache.flink.datastream.impl.extension.join.operators.TwoInputNonBroadcastJoinProcessFunction;
+import org.apache.flink.datastream.impl.extension.window.function.InternalOneInputWindowStreamProcessFunction;
+import org.apache.flink.datastream.impl.extension.window.function.InternalTwoInputWindowStreamProcessFunction;
+import org.apache.flink.datastream.impl.extension.window.function.InternalTwoOutputWindowStreamProcessFunction;
+import org.apache.flink.datastream.impl.extension.window.operators.OneInputWindowProcessOperator;
+import org.apache.flink.datastream.impl.extension.window.operators.TwoInputNonBroadcastWindowProcessOperator;
+import org.apache.flink.datastream.impl.extension.window.operators.TwoOutputWindowProcessOperator;
 import org.apache.flink.datastream.impl.stream.AbstractDataStream;
 import org.apache.flink.datastream.impl.stream.GlobalStreamImpl;
 import org.apache.flink.datastream.impl.stream.KeyedPartitionStreamImpl;
@@ -54,6 +66,10 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.DataStreamV2SinkTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
+import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
+import org.apache.flink.streaming.api.windowing.windows.Window;
+import org.apache.flink.util.OutputTag;
+import org.apache.flink.util.TaggedUnion;
 import org.apache.flink.util.Utils;
 
 import java.util.Set;
@@ -70,6 +86,20 @@ public final class StreamUtils {
     public static <IN, OUT> TypeInformation<OUT> getOutputTypeForOneInputProcessFunction(
             OneInputStreamProcessFunction<IN, OUT> processFunction,
             TypeInformation<IN> inTypeInformation) {
+        TypeInformation<OUT> outType;
+        if (processFunction instanceof InternalOneInputWindowStreamProcessFunction) {
+            return TypeExtractor.getUnaryOperatorReturnType(
+                    ((InternalOneInputWindowStreamProcessFunction<IN, OUT, ?>) processFunction)
+                            .getWindowProcessFunction(),
+                    OneInputWindowStreamProcessFunction.class,
+                    0,
+                    1,
+                    new int[] {1, 0},
+                    null,
+                    Utils.getCallLocationName(),
+                    false);
+        }
+
         if (processFunction instanceof EventTimeWrappedOneInputStreamProcessFunction) {
             processFunction =
                     ((EventTimeWrappedOneInputStreamProcessFunction) processFunction)
@@ -109,6 +139,22 @@ public final class StreamUtils {
                     in2TypeInformation,
                     Utils.getCallLocationName(),
                     true);
+        }
+
+        if (processFunction instanceof InternalTwoInputWindowStreamProcessFunction) {
+            return TypeExtractor.getBinaryOperatorReturnType(
+                    ((InternalTwoInputWindowStreamProcessFunction<IN1, IN2, OUT, ?>)
+                                    processFunction)
+                            .getWindowProcessFunction(),
+                    TwoInputNonBroadcastWindowStreamProcessFunction.class,
+                    0,
+                    1,
+                    2,
+                    new int[] {2, 0},
+                    null,
+                    null,
+                    Utils.getCallLocationName(),
+                    false);
         }
 
         if (processFunction instanceof EventTimeWrappedTwoInputNonBroadcastStreamProcessFunction) {
@@ -168,6 +214,34 @@ public final class StreamUtils {
                             TwoOutputStreamProcessFunction<IN, OUT1, OUT2>
                                     twoOutputStreamProcessFunction,
                             TypeInformation<IN> inTypeInformation) {
+        if (twoOutputStreamProcessFunction
+                instanceof InternalTwoOutputWindowStreamProcessFunction) {
+            TypeInformation<OUT1> firstOutputType =
+                    TypeExtractor.getUnaryOperatorReturnType(
+                            ((InternalTwoOutputWindowStreamProcessFunction<IN, OUT1, OUT2, ?>)
+                                            twoOutputStreamProcessFunction)
+                                    .getWindowProcessFunction(),
+                            TwoOutputWindowStreamProcessFunction.class,
+                            0,
+                            1,
+                            new int[] {1, 0},
+                            inTypeInformation,
+                            Utils.getCallLocationName(),
+                            true);
+            TypeInformation<OUT2> secondOutputType =
+                    TypeExtractor.getUnaryOperatorReturnType(
+                            ((InternalTwoOutputWindowStreamProcessFunction<IN, OUT1, OUT2, ?>)
+                                            twoOutputStreamProcessFunction)
+                                    .getWindowProcessFunction(),
+                            TwoOutputWindowStreamProcessFunction.class,
+                            0,
+                            2,
+                            new int[] {2, 0},
+                            inTypeInformation,
+                            Utils.getCallLocationName(),
+                            true);
+            return Tuple2.of(firstOutputType, secondOutputType);
+        }
 
         if (twoOutputStreamProcessFunction
                 instanceof EventTimeWrappedTwoOutputStreamProcessFunction) {
@@ -293,6 +367,44 @@ public final class StreamUtils {
         return transform;
     }
 
+    /** Construct and return a {@link TwoInputTransformation} from two input streams. */
+    public static <K, IN1, IN2, OUT>
+            TwoInputTransformation<IN1, IN2, OUT> getTwoInputTransformation(
+                    String operatorName,
+                    Transformation<IN1> inputStream1,
+                    Transformation<IN2> inputStream2,
+                    TypeInformation<OUT> outTypeInformation,
+                    TwoInputStreamOperator<IN1, IN2, OUT> operator,
+                    KeySelector<IN1, K> keySelector1,
+                    TypeInformation<K> keyType1,
+                    KeySelector<IN2, K> keySelector2,
+                    TypeInformation<K> keyType2) {
+
+        if (!(keyType1.canEqual(keyType2) && keyType1.equals(keyType2))) {
+            throw new UnsupportedOperationException(
+                    "Key types if input KeyedStreams "
+                            + "don't match: "
+                            + keyType1
+                            + " and "
+                            + keyType2
+                            + ".");
+        }
+
+        TwoInputTransformation<IN1, IN2, OUT> transform =
+                new TwoInputTransformation<>(
+                        inputStream1,
+                        inputStream2,
+                        operatorName,
+                        SimpleOperatorFactory.of(operator),
+                        outTypeInformation,
+                        // inputStream1 & 2 share the same env.
+                        inputStream1.getParallelism(),
+                        false);
+        transform.setStateKeySelectors(keySelector1, keySelector2);
+        transform.setStateKeyType(keyType1);
+        return transform;
+    }
+
     /** Construct and return a new DataStream with one input operator. */
     public static <T, R> AbstractDataStream<R> transformOneInputOperator(
             String operatorName,
@@ -317,6 +429,118 @@ public final class StreamUtils {
         inputStream.getEnvironment().addOperator(resultTransform);
 
         return returnStream;
+    }
+
+    /** Construct and return a {@link OneInputTransformation} of one input window operator. */
+    public static <K, IN, OUT, W extends Window> Transformation<OUT> transformOneInputWindow(
+            ExecutionConfig executionConfig,
+            AbstractDataStream<IN> inputStream,
+            TypeInformation<IN> inputType,
+            TypeInformation<OUT> outType,
+            InternalOneInputWindowStreamProcessFunction<IN, OUT, W> internalWindowFunction,
+            KeySelector<IN, K> keySelector,
+            TypeInformation<K> keyType) {
+        WindowAssigner<IN, W> assigner = internalWindowFunction.getAssigner();
+        ListStateDescriptor<IN> stateDesc =
+                new ListStateDescriptor<>(
+                        "window-state", TypeExtractor.createTypeInfo(inputType.getTypeClass()));
+
+        OneInputWindowProcessOperator<K, IN, OUT, W> windowProcessOperator =
+                new OneInputWindowProcessOperator<>(
+                        internalWindowFunction,
+                        assigner,
+                        internalWindowFunction.getTrigger(),
+                        assigner.getWindowSerializer(executionConfig),
+                        stateDesc,
+                        internalWindowFunction.getAllowedLateness());
+        return StreamUtils.getOneInputKeyedTransformation(
+                "Window", inputStream, outType, windowProcessOperator, keySelector, keyType);
+    }
+
+    /** Construct and return a {@link OneInputTransformation} of one input window operator. */
+    public static <K, IN1, IN2, OUT, W extends Window>
+            Transformation<OUT> transformTwoInputNonBroadcastWindow(
+                    ExecutionConfig executionConfig,
+                    Transformation<IN1> inputStream1,
+                    TypeInformation<IN1> inputType1,
+                    Transformation<IN2> inputStream2,
+                    TypeInformation<IN2> inputType2,
+                    TypeInformation<OUT> outType,
+                    InternalTwoInputWindowStreamProcessFunction<IN1, IN2, OUT, W>
+                            internalWindowFunction,
+                    KeySelector<IN1, K> keySelector1,
+                    TypeInformation<K> keyType1,
+                    KeySelector<IN2, K> keySelector2,
+                    TypeInformation<K> keyType2) {
+        WindowAssigner<TaggedUnion<IN1, IN2>, W> assigner = internalWindowFunction.getAssigner();
+        ListStateDescriptor<IN1> leftStateDesc =
+                new ListStateDescriptor<>(
+                        "two-input-window-left-state",
+                        TypeExtractor.createTypeInfo(inputType1.getTypeClass()));
+
+        ListStateDescriptor<IN2> rightStateDesc =
+                new ListStateDescriptor<>(
+                        "two-input-window-right-state",
+                        TypeExtractor.createTypeInfo(inputType2.getTypeClass()));
+
+        TwoInputNonBroadcastWindowProcessOperator<K, IN1, IN2, OUT, W> windowProcessOperator =
+                new TwoInputNonBroadcastWindowProcessOperator<>(
+                        internalWindowFunction,
+                        assigner,
+                        internalWindowFunction.getTrigger(),
+                        assigner.getWindowSerializer(executionConfig),
+                        leftStateDesc,
+                        rightStateDesc,
+                        internalWindowFunction.getAllowedLateness());
+        return StreamUtils.getTwoInputTransformation(
+                "TwoInput-NonBroadcast-Window",
+                inputStream1,
+                inputStream2,
+                outType,
+                windowProcessOperator,
+                keySelector1,
+                keyType1,
+                keySelector2,
+                keyType2);
+    }
+
+    /** Construct and return a {@link OneInputTransformation} of two output window operator. */
+    public static <K, IN, OUT1, OUT2, W extends Window>
+            Transformation<OUT1> transformTwoOutputWindow(
+                    ExecutionConfig executionConfig,
+                    AbstractDataStream<IN> inputStream,
+                    TypeInformation<IN> inputType,
+                    TypeInformation<OUT1> outType1,
+                    TypeInformation<OUT2> outType2,
+                    OutputTag<OUT2> secondOutputTag,
+                    InternalTwoOutputWindowStreamProcessFunction<IN, OUT1, OUT2, W>
+                            internalWindowFunction,
+                    KeySelector<IN, K> keySelector,
+                    TypeInformation<K> keyType) {
+        WindowAssigner<IN, W> assigner = internalWindowFunction.getAssigner();
+        ListStateDescriptor<IN> stateDesc =
+                new ListStateDescriptor<>(
+                        "two-output-window-state",
+                        TypeExtractor.createTypeInfo(inputType.getTypeClass()));
+
+        TwoOutputWindowProcessOperator<K, IN, OUT1, OUT2, W> windowProcessOperator =
+                new TwoOutputWindowProcessOperator<>(
+                        internalWindowFunction,
+                        secondOutputTag,
+                        null,
+                        null,
+                        assigner,
+                        internalWindowFunction.getTrigger(),
+                        assigner.getWindowSerializer(executionConfig),
+                        stateDesc,
+                        internalWindowFunction.getAllowedLateness());
+        return StreamUtils.getOneInputKeyedTransformation(
+                "TwoOutput-Window",
+                inputStream,
+                outType1,
+                windowProcessOperator,
+                keySelector,
+                keyType);
     }
 
     /** Add sink operator to the input stream. */

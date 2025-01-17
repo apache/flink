@@ -542,7 +542,7 @@ public abstract class AbstractStreamOperator<OUT>
      * @throws IllegalStateException Thrown, if the key/value state was already initialized.
      * @throws Exception Thrown, if the state backend cannot create the key/value state.
      */
-    protected <S extends State, N> S getPartitionedState(
+    public <S extends State, N> S getPartitionedState(
             N namespace,
             TypeSerializer<N> namespaceSerializer,
             StateDescriptor<S, ?> stateDescriptor)
