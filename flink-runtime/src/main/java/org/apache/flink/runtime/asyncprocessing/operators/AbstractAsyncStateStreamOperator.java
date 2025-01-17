@@ -236,7 +236,7 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
     }
 
     /** Create new state (v2) based on new state descriptor. */
-    protected <N, S extends State, T> S getOrCreateKeyedState(
+    public <N, S extends State, T> S getOrCreateKeyedState(
             @Nonnull N defaultNamespace,
             @Nonnull TypeSerializer<N> namespaceSerializer,
             @Nonnull StateDescriptor<T> stateDescriptor)
