@@ -1816,7 +1816,8 @@ class StreamTableEnvironment(TableEnvironment):
         :param type_info: The TypeInformation that specifies the type of the DataStream.
         :return: The converted DataStream.
         """
-        return DataStream(self._j_tenv.toDataStream(table._j_table, type_info.get_java_type_info()))
+        j_data_stream = self._j_tenv.toDataStream(table._j_table, type_info.get_java_type_info())
+        return DataStream(j_data_stream=j_data_stream)
 
     def to_changelog_stream(self,
                             table: Table,
