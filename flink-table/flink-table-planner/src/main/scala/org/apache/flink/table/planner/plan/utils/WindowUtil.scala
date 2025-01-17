@@ -17,18 +17,22 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.{DataTypes, TableConfig, TableException, ValidationException}
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.JBigDecimal
-import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexSetSemanticsTableCall}
+import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexTableArgCall}
 import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlWindowTableFunction}
 import org.apache.flink.table.planner.plan.`trait`.RelWindowProperties
 import org.apache.flink.table.planner.plan.logical._
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
-import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalAggregate, FlinkLogicalMatch, FlinkLogicalOverAggregate, FlinkLogicalRank, FlinkLogicalTableFunctionScan}
+import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.inferAggAccumulatorNames
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
 import org.apache.flink.table.planner.typeutils.RowTypeUtils
 import org.apache.flink.table.runtime.groupwindow._
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAssigner
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.logical.TimestampType
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.canBeTimeAttributeType
@@ -173,7 +177,7 @@ object WindowUtil {
   }
 
   def validateTimeFieldWithTimeAttribute(windowCall: RexCall, inputRowType: RelDataType): Unit = {
-    val timeIndex = getTimeAttributeIndex(windowCall.operands(0))
+    val timeIndex = getTimeAttributeIndex(windowCall.operands(1))
     val fieldType = inputRowType.getFieldList.get(timeIndex).getType
     if (!FlinkTypeFactory.isTimeIndicatorType(fieldType)) {
       throw new ValidationException(
@@ -194,7 +198,7 @@ object WindowUtil {
           "function, can't convert it into WindowingStrategy")
     }
 
-    val timeIndex = getTimeAttributeIndex(windowCall.operands(0))
+    val timeIndex = getTimeAttributeIndex(windowCall.operands(1))
     val inputRowType = scanInput.getRowType
     val fieldType = inputRowType.getFieldList.get(timeIndex).getType
     val timeAttributeType = FlinkTypeFactory.toLogicalType(fieldType)
@@ -207,49 +211,40 @@ object WindowUtil {
     val windowFunction = windowCall.getOperator.asInstanceOf[SqlWindowTableFunction]
     val windowSpec = windowFunction match {
       case FlinkSqlOperatorTable.TUMBLE =>
-        val offset: Duration = if (windowCall.operands.size() == 3) {
-          Duration.ofMillis(getOperandAsLong(windowCall.operands(2)))
+        val offset: Duration = if (windowCall.operands.size() == 4) {
+          Duration.ofMillis(getOperandAsLong(windowCall.operands(3)))
         } else {
           null
         }
-        val interval = getOperandAsLong(windowCall.operands(1))
+        val interval = getOperandAsLong(windowCall.operands(2))
         new TumblingWindowSpec(Duration.ofMillis(interval), offset)
 
       case FlinkSqlOperatorTable.HOP =>
-        val offset = if (windowCall.operands.size() == 4) {
-          Duration.ofMillis(getOperandAsLong(windowCall.operands(3)))
+        val offset = if (windowCall.operands.size() == 5) {
+          Duration.ofMillis(getOperandAsLong(windowCall.operands(4)))
         } else {
           null
         }
-        val slide = getOperandAsLong(windowCall.operands(1))
-        val size = getOperandAsLong(windowCall.operands(2))
+        val slide = getOperandAsLong(windowCall.operands(2))
+        val size = getOperandAsLong(windowCall.operands(3))
         new HoppingWindowSpec(Duration.ofMillis(size), Duration.ofMillis(slide), offset)
 
       case FlinkSqlOperatorTable.CUMULATE =>
-        val offset = if (windowCall.operands.size() == 4) {
-          Duration.ofMillis(getOperandAsLong(windowCall.operands(3)))
+        val offset = if (windowCall.operands.size() == 5) {
+          Duration.ofMillis(getOperandAsLong(windowCall.operands(4)))
         } else {
           null
         }
-        val step = getOperandAsLong(windowCall.operands(1))
-        val maxSize = getOperandAsLong(windowCall.operands(2))
+        val step = getOperandAsLong(windowCall.operands(2))
+        val maxSize = getOperandAsLong(windowCall.operands(3))
         new CumulativeWindowSpec(Duration.ofMillis(maxSize), Duration.ofMillis(step), offset)
       case FlinkSqlOperatorTable.SESSION =>
-        windowCall match {
-          // with syntax partition key
-          case setSemanticsTableCall: RexSetSemanticsTableCall =>
-            if (!setSemanticsTableCall.getOrderKeys.isEmpty) {
-              throw new ValidationException("Session window TVF doesn't support order by clause.")
-            }
-            val gap = getOperandAsLong(windowCall.operands(1))
-            new SessionWindowSpec(
-              Duration.ofMillis(gap),
-              windowCall.asInstanceOf[RexSetSemanticsTableCall].getPartitionKeys)
-          // without syntax partition key
-          case _ =>
-            val gap = getOperandAsLong(windowCall.operands(1))
-            new SessionWindowSpec(Duration.ofMillis(gap), new Array[Int](0))
+        val tableArgCall = windowCall.operands(0).asInstanceOf[RexTableArgCall]
+        if (!tableArgCall.getOrderKeys.isEmpty) {
+          throw new ValidationException("Session window TVF doesn't support order by clause.")
         }
+        val gap = getOperandAsLong(windowCall.operands(2))
+        new SessionWindowSpec(Duration.ofMillis(gap), tableArgCall.getPartitionKeys)
     }
 
     new TimeAttributeWindowingStrategy(windowSpec, timeAttributeType, timeIndex)
@@ -350,6 +345,21 @@ object WindowUtil {
     } else {
       false
     }
+  }
+
+  def isAsyncStateEnabled(
+      config: ReadableConfig,
+      windowAssigner: WindowAssigner,
+      aggInfoList: AggregateInfoList): Boolean = {
+    if (!config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED)) {
+      return false
+    }
+    // currently, unsliced assigner does not support async state
+    if (!windowAssigner.isInstanceOf[SliceAssigner]) {
+      return false
+    }
+
+    AggregateUtil.isAsyncStateEnabled(config, aggInfoList)
   }
 
   // ------------------------------------------------------------------------------------------

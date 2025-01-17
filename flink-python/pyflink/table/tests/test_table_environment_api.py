@@ -34,7 +34,7 @@ from pyflink.datastream.window import TimeWindowSerializer
 from pyflink.java_gateway import get_gateway
 from pyflink.table import (DataTypes, StreamTableEnvironment, EnvironmentSettings, Module,
                            ResultKind, ModuleEntry, Schema)
-from pyflink.table.catalog import ObjectPath, CatalogBaseTable
+from pyflink.table.catalog import ObjectPath, CatalogBaseTable, CatalogDescriptor
 from pyflink.table.explain_detail import ExplainDetail
 from pyflink.table.expressions import col, source_watermark
 from pyflink.table.table_descriptor import TableDescriptor
@@ -656,6 +656,14 @@ class DataStreamConversionTestCases(PyFlinkUTTestCase):
         result = [str(i) for i in table_result.collect()]
         result.sort()
         self.assertEqual(expected, result)
+
+    def test_create_catalog(self):
+        config = Configuration()
+        config.set_string("type", "generic_in_memory")
+        catalog_desc = CatalogDescriptor.of("mycat", config, None)
+        self.t_env.create_catalog("mycat", catalog_desc)
+        mycat = self.t_env.get_catalog("mycat")
+        self.assertIsNotNone(mycat)
 
 
 class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):

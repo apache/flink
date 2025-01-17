@@ -37,11 +37,14 @@ import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream.ProcessCon
 import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream.ProcessConfigurableAndTwoNonKeyedPartitionStream;
 import org.apache.flink.datastream.api.stream.ProcessConfigurable;
 import org.apache.flink.datastream.impl.attribute.AttributeParser;
+import org.apache.flink.datastream.impl.extension.join.operators.TwoInputNonBroadcastJoinProcessFunction;
+import org.apache.flink.datastream.impl.extension.join.operators.TwoInputNonBroadcastJoinProcessOperator;
 import org.apache.flink.datastream.impl.operators.KeyedProcessOperator;
 import org.apache.flink.datastream.impl.operators.KeyedTwoInputBroadcastProcessOperator;
 import org.apache.flink.datastream.impl.operators.KeyedTwoInputNonBroadcastProcessOperator;
 import org.apache.flink.datastream.impl.operators.KeyedTwoOutputProcessOperator;
 import org.apache.flink.datastream.impl.utils.StreamUtils;
+import org.apache.flink.runtime.state.v2.ListStateDescriptor;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.transformations.DataStreamV2SinkTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
@@ -263,15 +266,22 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
                         getType(),
                         ((KeyedPartitionStreamImpl<K, T_OTHER>) other).getType());
 
-        KeyedTwoInputNonBroadcastProcessOperator<K, V, T_OTHER, OUT> processOperator =
-                new KeyedTwoInputNonBroadcastProcessOperator<>(processFunction);
-        Transformation<OUT> outTransformation =
-                StreamUtils.getTwoInputTransformation(
-                        "Keyed-TwoInput-Process",
-                        this,
-                        (KeyedPartitionStreamImpl<K, T_OTHER>) other,
-                        outTypeInfo,
-                        processOperator);
+        Transformation<OUT> outTransformation;
+
+        if (processFunction instanceof TwoInputNonBroadcastJoinProcessFunction) {
+            outTransformation = getJoinTransformation(other, processFunction, outTypeInfo);
+        } else {
+            KeyedTwoInputNonBroadcastProcessOperator<K, V, T_OTHER, OUT> processOperator =
+                    new KeyedTwoInputNonBroadcastProcessOperator<>(processFunction);
+            outTransformation =
+                    StreamUtils.getTwoInputTransformation(
+                            "Keyed-TwoInput-Process",
+                            this,
+                            (KeyedPartitionStreamImpl<K, T_OTHER>) other,
+                            outTypeInfo,
+                            processOperator);
+        }
+
         outTransformation.setAttribute(AttributeParser.parseAttribute(processFunction));
         environment.addOperator(outTransformation);
         return StreamUtils.wrapWithConfigureHandle(
@@ -387,6 +397,31 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
                         outTransformation,
                         newKeySelector,
                         TypeExtractor.getKeySelectorTypes(newKeySelector, outputStream.getType())));
+    }
+
+    public <T_OTHER, OUT> Transformation<OUT> getJoinTransformation(
+            KeyedPartitionStream<K, T_OTHER> other,
+            TwoInputNonBroadcastStreamProcessFunction<V, T_OTHER, OUT> processFunction,
+            TypeInformation<OUT> outTypeInfo) {
+        ListStateDescriptor<V> leftStateDesc =
+                new ListStateDescriptor<>(
+                        "join-left-state", TypeExtractor.createTypeInfo(getType().getTypeClass()));
+        ListStateDescriptor<T_OTHER> rightStateDesc =
+                new ListStateDescriptor<>(
+                        "join-right-state",
+                        TypeExtractor.createTypeInfo(
+                                ((KeyedPartitionStreamImpl<Object, T_OTHER>) other)
+                                        .getType()
+                                        .getTypeClass()));
+        TwoInputNonBroadcastJoinProcessOperator<K, V, T_OTHER, OUT> joinProcessOperator =
+                new TwoInputNonBroadcastJoinProcessOperator<>(
+                        processFunction, leftStateDesc, rightStateDesc);
+        return StreamUtils.getTwoInputTransformation(
+                "Keyed-Join-Process",
+                this,
+                (KeyedPartitionStreamImpl<K, T_OTHER>) other,
+                outTypeInfo,
+                joinProcessOperator);
     }
 
     public TypeInformation<K> getKeyType() {

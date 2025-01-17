@@ -22,18 +22,30 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.operators.window.async.tvf.common.AsyncStateWindowProcessor;
 
 import java.io.Serializable;
 
-/** A processor that processes elements for windows. */
+/**
+ * A base window processor provides common methods used for {@link SyncStateWindowProcessor} and
+ * {@link AsyncStateWindowProcessor}.
+ *
+ * @param <W> the window type.
+ * @param <C> the context that provides some information for the window processor.
+ */
 @Internal
-public interface WindowProcessor<W> extends Serializable {
+public interface WindowProcessor<W, C extends WindowProcessor.Context<W>> extends Serializable {
 
     /** Initialization method for the function. It is called before the actual working methods. */
-    void open(Context<W> context) throws Exception;
+    void open(C context) throws Exception;
+
+    /**
+     * The tear-down method of the function. It is called after the last call to the main working
+     * methods.
+     */
+    void close() throws Exception;
 
     /**
      * Initializes the watermark which restores from state. The method is called after open method
@@ -42,56 +54,6 @@ public interface WindowProcessor<W> extends Serializable {
      * @param watermark the initial watermark
      */
     void initializeWatermark(long watermark);
-
-    /**
-     * Process an element with associated key from the input stream. Returns true if this element is
-     * dropped because of late arrival.
-     *
-     * @param key the key associated with the element
-     * @param element The element to process.
-     */
-    boolean processElement(RowData key, RowData element) throws Exception;
-
-    /**
-     * Advances the progress time, the progress time is watermark if working in event-time mode, or
-     * current processing time if working in processing-time mode.
-     *
-     * <p>This will potentially flush buffered data into states, because the watermark advancement
-     * may be in a very small step, but we don't need to flush buffered data for every watermark
-     * advancement.
-     *
-     * @param progress the current progress time
-     */
-    void advanceProgress(long progress) throws Exception;
-
-    /** Performs a preparation before checkpoint. This usually flushes buffered data into state. */
-    void prepareCheckpoint() throws Exception;
-
-    /**
-     * Emit results of the given window.
-     *
-     * <p>Note: the key context has been set.
-     *
-     * @param timerTimestamp the fired timestamp
-     * @param window the window to emit
-     */
-    void fireWindow(long timerTimestamp, W window) throws Exception;
-
-    /**
-     * Clear state and resources associated with the given window namespace.
-     *
-     * <p>Note: the key context has been set.
-     *
-     * @param timerTimestamp the fired timestamp
-     * @param window the window to clear
-     */
-    void clearWindow(long timerTimestamp, W window) throws Exception;
-
-    /**
-     * The tear-down method of the function. It is called after the last call to the main working
-     * methods.
-     */
-    void close() throws Exception;
 
     /** Returns the serializer of the window type. */
     TypeSerializer<W> createWindowSerializer();
@@ -112,9 +74,6 @@ public interface WindowProcessor<W> extends Serializable {
 
         /** Returns the managed memory size can be used by this operator. */
         long getMemorySize();
-
-        /** Returns the current {@link KeyedStateBackend}. */
-        KeyedStateBackend<RowData> getKeyedStateBackend();
 
         /** Returns the current {@link InternalTimerService}. */
         InternalTimerService<W> getTimerService();

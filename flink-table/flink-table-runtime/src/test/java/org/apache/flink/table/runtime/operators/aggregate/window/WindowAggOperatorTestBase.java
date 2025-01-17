@@ -19,16 +19,23 @@
 package org.apache.flink.table.runtime.operators.aggregate.window;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.dataview.StateDataViewStore;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
+import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
+import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.runtime.operators.window.async.tvf.common.AsyncStateWindowAggOperator;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAggOperator;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
@@ -41,6 +48,8 @@ import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
+import javax.annotation.Nullable;
+
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -48,6 +57,7 @@ import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 /** A test base for window aggregate operator. */
@@ -58,8 +68,11 @@ abstract class WindowAggOperatorTestBase {
 
     protected final ZoneId shiftTimeZone;
 
-    WindowAggOperatorTestBase(ZoneId shiftTimeZone) {
+    private final boolean enableAsyncState;
+
+    WindowAggOperatorTestBase(ZoneId shiftTimeZone, boolean enableAsyncState) {
         this.shiftTimeZone = shiftTimeZone;
+        this.enableAsyncState = enableAsyncState;
     }
 
     /** Get the timestamp in mills by given epoch mills and timezone. */
@@ -78,12 +91,12 @@ abstract class WindowAggOperatorTestBase {
                             new RowType.RowField("f1", new IntType()),
                             new RowType.RowField("f2", new TimestampType())));
 
-    protected static final RowDataSerializer INPUT_ROW_SER = new RowDataSerializer(INPUT_ROW_TYPE);
+    private static final RowDataSerializer INPUT_ROW_SER = new RowDataSerializer(INPUT_ROW_TYPE);
 
-    protected static final RowDataSerializer ACC_SER =
+    private static final RowDataSerializer ACC_SER =
             new RowDataSerializer(new BigIntType(), new BigIntType());
 
-    protected static final LogicalType[] OUTPUT_TYPES =
+    private static final LogicalType[] OUTPUT_TYPES =
             new LogicalType[] {
                 new VarCharType(Integer.MAX_VALUE),
                 new BigIntType(),
@@ -92,12 +105,22 @@ abstract class WindowAggOperatorTestBase {
                 new BigIntType()
             };
 
-    protected static final RowDataKeySelector KEY_SELECTOR =
+    private static final RowDataKeySelector KEY_SELECTOR =
             HandwrittenSelectorUtil.getRowDataSelector(
                     new int[] {0}, INPUT_ROW_TYPE.getChildren().toArray(new LogicalType[0]));
 
-    protected static final PagedTypeSerializer<RowData> KEY_SER =
+    private static final PagedTypeSerializer<RowData> KEY_SER =
             (PagedTypeSerializer<RowData>) KEY_SELECTOR.getProducedType().toSerializer();
+
+    private static final GeneratedRecordEqualiser GEN_KEY_EQUALISER =
+            new GeneratedRecordEqualiser("", "", new Object[0]) {
+                private static final long serialVersionUID = 1L;
+
+                @Override
+                public RecordEqualiser newInstance(ClassLoader classLoader) {
+                    return (key1, key2) -> key1.getString(0).equals(key2.getString(0));
+                }
+            };
 
     protected static final TypeSerializer<RowData> OUT_SERIALIZER =
             new RowDataSerializer(OUTPUT_TYPES);
@@ -108,10 +131,54 @@ abstract class WindowAggOperatorTestBase {
 
     // ============================== Util Functions ==============================
 
+    protected OneInputStreamOperator<RowData, RowData> buildWindowOperator(
+            WindowAssigner assigner,
+            NamespaceAggsHandleFunction<?> aggsFunction,
+            @Nullable Integer countStarIndex) {
+        return buildWindowOperator(assigner, aggsFunction, KEY_SER, countStarIndex);
+    }
+
+    protected OneInputStreamOperator<RowData, RowData> buildWindowOperator(
+            WindowAssigner assigner,
+            NamespaceAggsHandleFunction<?> aggsFunction,
+            PagedTypeSerializer<RowData> keySerializer,
+            @Nullable Integer countStarIndex) {
+        WindowAggOperatorBuilder builder =
+                WindowAggOperatorBuilder.builder()
+                        .inputSerializer(INPUT_ROW_SER)
+                        .shiftTimeZone(shiftTimeZone)
+                        .keySerializer(keySerializer)
+                        .assigner(assigner)
+                        .aggregate(createGeneratedAggsHandle(aggsFunction), ACC_SER);
+        if (countStarIndex != null) {
+            builder.countStarIndex(countStarIndex);
+        }
+        // unslice assigner does not support async state yet
+        if (enableAsyncState && assigner instanceof SliceAssigner) {
+            builder.generatedKeyEqualiser(GEN_KEY_EQUALISER);
+            builder.enableAsyncState();
+        }
+
+        OneInputStreamOperator<RowData, RowData> operator = builder.build();
+
+        if (assigner instanceof SliceAssigner) {
+            assertThat(isAsyncStateOperator(operator)).isEqualTo(enableAsyncState);
+        } else {
+            assertThat(isAsyncStateOperator(operator)).isFalse();
+        }
+
+        return operator;
+    }
+
     protected static OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
-            WindowAggOperator<RowData, ?> operator) throws Exception {
-        return new KeyedOneInputStreamOperatorTestHarness<>(
-                operator, KEY_SELECTOR, KEY_SELECTOR.getProducedType());
+            OneInputStreamOperator<RowData, RowData> operator) throws Exception {
+        if (isAsyncStateOperator(operator)) {
+            return AsyncKeyedOneInputStreamOperatorTestHarness.create(
+                    operator, KEY_SELECTOR, KEY_SELECTOR.getProducedType());
+        } else {
+            return new KeyedOneInputStreamOperatorTestHarness<>(
+                    operator, KEY_SELECTOR, KEY_SELECTOR.getProducedType());
+        }
     }
 
     protected static <T> GeneratedNamespaceAggsHandleFunction<T> createGeneratedAggsHandle(
@@ -131,6 +198,39 @@ abstract class WindowAggOperatorTestBase {
         LocalDateTime localDateTime = LocalDateTime.parse(timestampStr);
         ZoneOffset zoneOffset = shiftTimeZone.getRules().getOffset(localDateTime);
         return localDateTime.toInstant(zoneOffset).toEpochMilli();
+    }
+
+    protected static long getNumLateRecordsDroppedCount(
+            OneInputStreamOperator<RowData, RowData> operator) {
+        if (operator instanceof WindowAggOperator) {
+            return ((WindowAggOperator<RowData, RowData>) operator)
+                    .getNumLateRecordsDropped()
+                    .getCount();
+        } else if (operator instanceof AsyncStateWindowAggOperator) {
+            return ((AsyncStateWindowAggOperator<RowData, RowData>) operator)
+                    .getNumLateRecordsDropped()
+                    .getCount();
+        } else {
+            throw new IllegalStateException("Unknown operator: " + operator);
+        }
+    }
+
+    protected static long getWatermarkLatency(OneInputStreamOperator<RowData, RowData> operator) {
+        if (operator instanceof WindowAggOperator) {
+            return ((WindowAggOperator<RowData, RowData>) operator)
+                    .getWatermarkLatency()
+                    .getValue();
+        } else if (operator instanceof AsyncStateWindowAggOperator) {
+            return ((AsyncStateWindowAggOperator<RowData, RowData>) operator)
+                    .getWatermarkLatency()
+                    .getValue();
+        } else {
+            throw new IllegalStateException("Unknown operator: " + operator);
+        }
+    }
+
+    private static boolean isAsyncStateOperator(OneInputStreamOperator<RowData, RowData> operator) {
+        return operator instanceof AsyncStateWindowAggOperator;
     }
 
     /**

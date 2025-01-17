@@ -82,8 +82,13 @@ public class RocksDBWriteBatchWrapperTest {
                                 cancellationCheckInterval,
                                 batchSizeBytes)) {
             registry.registerCloseable(writeBatchWrapper.getCancelCloseable());
+            // After the `writeStartedFuture` completes, the registry will start to close.
             writeStartedFuture.complete(null);
 
+            // In the infinite loop, we want to verify that the `put` method will check cancellation
+            // state on every `batch.count() % cancellationCheckInterval == 0`. We set
+            // cancellationCheckInterval to 1, So, we expect it will throw CancelTaskException
+            // no later than batch count becoming 2 in this test case.
             //noinspection InfiniteLoopStatement
             for (int i = 0; ; i++) {
                 try {
@@ -96,6 +101,11 @@ public class RocksDBWriteBatchWrapperTest {
                 // make sure that cancellation is triggered earlier than periodic flush
                 // but allow some delay of cancellation propagation
                 assertThat(i).isLessThan(cancellationCheckInterval * 2);
+                if (i == 0) {
+                    // make sure the registry is closed at least after the first run, so that we
+                    // can verify the cancellation check is validating correctly.
+                    cancellationRequestedFuture.join();
+                }
             }
         }
     }

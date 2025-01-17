@@ -119,7 +119,7 @@ class WatermarkUtilsTest {
                             public void processRecord(
                                     Integer record,
                                     Collector<Integer> output,
-                                    PartitionedContext ctx)
+                                    PartitionedContext<Integer> ctx)
                                     throws Exception {}
 
                             @Override
@@ -137,7 +137,7 @@ class WatermarkUtilsTest {
                                             Integer record,
                                             Collector<Integer> output1,
                                             Collector<Integer> output2,
-                                            TwoOutputPartitionedContext ctx)
+                                            TwoOutputPartitionedContext<Integer, Integer> ctx)
                                             throws Exception {}
 
                                     @Override

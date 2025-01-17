@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.runtime.operators;
 
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateStreamOperator;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -52,6 +54,20 @@ public abstract class AsyncStateTableStreamOperator<OUT>
     @Override
     public boolean useSplittableTimers() {
         return true;
+    }
+
+    /** Compute memory size from memory faction. */
+    public long computeMemorySize() {
+        final Environment environment = getContainingTask().getEnvironment();
+        return environment
+                .getMemoryManager()
+                .computeMemorySize(
+                        getOperatorConfig()
+                                .getManagedMemoryFractionOperatorUseCaseOfSlot(
+                                        ManagedMemoryUseCase.OPERATOR,
+                                        environment.getJobConfiguration(),
+                                        environment.getTaskManagerInfo().getConfiguration(),
+                                        environment.getUserCodeClassLoader().asClassLoader()));
     }
 
     @Override
@@ -94,25 +110,25 @@ public abstract class AsyncStateTableStreamOperator<OUT>
         @Override
         public void registerProcessingTimeTimer(long time) {
             throw new UnsupportedOperationException(
-                    "Setting timers is only supported on a keyed streams.");
+                    "Setting timers is only supported on keyed streams.");
         }
 
         @Override
         public void registerEventTimeTimer(long time) {
             throw new UnsupportedOperationException(
-                    "Setting timers is only supported on a keyed streams.");
+                    "Setting timers is only supported on keyed streams.");
         }
 
         @Override
         public void deleteProcessingTimeTimer(long time) {
             throw new UnsupportedOperationException(
-                    "Delete timers is only supported on a keyed streams.");
+                    "Delete timers is only supported on keyed streams.");
         }
 
         @Override
         public void deleteEventTimeTimer(long time) {
             throw new UnsupportedOperationException(
-                    "Delete timers is only supported on a keyed streams.");
+                    "Delete timers is only supported on keyed streams.");
         }
 
         public TimerService timerService() {

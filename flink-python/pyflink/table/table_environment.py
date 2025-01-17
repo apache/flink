@@ -33,7 +33,7 @@ from pyflink.java_gateway import get_gateway
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table import Table, EnvironmentSettings, Expression, ExplainDetail, \
     Module, ModuleEntry, Schema, ChangelogMode
-from pyflink.table.catalog import Catalog
+from pyflink.table.catalog import Catalog, CatalogDescriptor
 from pyflink.table.serializers import ArrowSerializer
 from pyflink.table.statement_set import StatementSet
 from pyflink.table.table_config import TableConfig
@@ -116,6 +116,17 @@ class TableEnvironment(object):
 
         j_tenv = gateway.jvm.TableEnvironment.create(environment_settings._j_environment_settings)
         return TableEnvironment(j_tenv)
+
+    def create_catalog(self, catalog_name: str, catalog_descriptor: CatalogDescriptor):
+        """
+        Creates a :class:`~pyflink.table.catalog.Catalog` using the provided
+        :class:`~pyflink.table.catalog.CatalogDescriptor`. All table registered in the
+        :class:`~pyflink.table.catalog.Catalog` can be accessed.
+
+         :param catalog_name: The name under which the catalog will be created.
+         :param catalog_descriptor: The catalog descriptor for creating catalog.
+        """
+        self._j_tenv.createCatalog(catalog_name, catalog_descriptor._j_catalog_descriptor)
 
     def register_catalog(self, catalog_name: str, catalog: Catalog):
         """
