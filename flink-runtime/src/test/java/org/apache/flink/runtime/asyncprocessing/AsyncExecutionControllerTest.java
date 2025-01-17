@@ -28,6 +28,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
 import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.asyncprocessing.EpochManager.Epoch;
 import org.apache.flink.runtime.asyncprocessing.EpochManager.ParallelMode;
@@ -104,10 +105,18 @@ class AsyncExecutionControllerTest {
 
         UnregisteredMetricsGroup metricsGroup =
                 new UnregisteredMetricsGroup() {
+                    String prefix = "";
+
                     @Override
                     public <T, G extends Gauge<T>> G gauge(String name, G gauge) {
-                        registeredGauges.put(name, gauge);
+                        registeredGauges.put(prefix + "." + name, gauge);
                         return gauge;
+                    }
+
+                    @Override
+                    public MetricGroup addGroup(String name) {
+                        prefix = name;
+                        return this;
                     }
                 };
         aec =
@@ -121,7 +130,7 @@ class AsyncExecutionControllerTest {
                         timeout,
                         maxInFlight,
                         null,
-                        metricsGroup);
+                        metricsGroup.addGroup("asyncStateProcessing"));
         asyncKeyedStateBackend.setup(aec);
 
         try {
@@ -162,10 +171,14 @@ class AsyncExecutionControllerTest {
         assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
         assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(1);
         assertThat(aec.inFlightRecordNum.get()).isEqualTo(1);
-        assertThat(registeredGauges.get("aec.numInFlightRecords").getValue()).isEqualTo(1);
-        assertThat(registeredGauges.get("aec.activeBufferSize").getValue()).isEqualTo(1);
-        assertThat(registeredGauges.get("aec.blockingBufferSize").getValue()).isEqualTo(0);
-        assertThat(registeredGauges.get("aec.numBlockingKeys").getValue()).isEqualTo(0);
+        assertThat(registeredGauges.get("asyncStateProcessing.numInFlightRecords").getValue())
+                .isEqualTo(1);
+        assertThat(registeredGauges.get("asyncStateProcessing.activeBufferSize").getValue())
+                .isEqualTo(1);
+        assertThat(registeredGauges.get("asyncStateProcessing.blockingBufferSize").getValue())
+                .isEqualTo(0);
+        assertThat(registeredGauges.get("asyncStateProcessing.numBlockingKeys").getValue())
+                .isEqualTo(0);
 
         aec.triggerIfNeeded(true);
         // After running, the value update is in active buffer.
@@ -207,10 +220,14 @@ class AsyncExecutionControllerTest {
         assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(1);
         assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(1);
         assertThat(aec.inFlightRecordNum.get()).isEqualTo(2);
-        assertThat(registeredGauges.get("aec.numInFlightRecords").getValue()).isEqualTo(2);
-        assertThat(registeredGauges.get("aec.activeBufferSize").getValue()).isEqualTo(1);
-        assertThat(registeredGauges.get("aec.blockingBufferSize").getValue()).isEqualTo(1);
-        assertThat(registeredGauges.get("aec.numBlockingKeys").getValue()).isEqualTo(1);
+        assertThat(registeredGauges.get("asyncStateProcessing.numInFlightRecords").getValue())
+                .isEqualTo(2);
+        assertThat(registeredGauges.get("asyncStateProcessing.activeBufferSize").getValue())
+                .isEqualTo(1);
+        assertThat(registeredGauges.get("asyncStateProcessing.blockingBufferSize").getValue())
+                .isEqualTo(1);
+        assertThat(registeredGauges.get("asyncStateProcessing.numBlockingKeys").getValue())
+                .isEqualTo(1);
         aec.triggerIfNeeded(true);
         // Value update for record2 finishes. The value get for record3 is migrated from blocking
         // buffer to active buffer actively.

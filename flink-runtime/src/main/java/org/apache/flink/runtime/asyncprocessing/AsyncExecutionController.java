@@ -62,8 +62,6 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
 
     private static final long DEFAULT_BUFFER_TIMEOUT_CHECK_INTERVAL = 100;
 
-    private static final String METRIC_PREFIX = "aec";
-
     /**
      * The batch size. When the number of state requests in the active buffer exceeds the batch
      * size, a batched state execution would be triggered.
@@ -192,15 +190,10 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
         this.epochManager = new EpochManager(this);
         this.switchContextListener = switchContextListener;
         if (metricGroup != null) {
-            metricGroup.gauge(METRIC_PREFIX + ".numInFlightRecords", this::getInFlightRecordNum);
-            metricGroup.gauge(
-                    METRIC_PREFIX + ".activeBufferSize",
-                    () -> stateRequestsBuffer.activeQueueSize());
-            metricGroup.gauge(
-                    METRIC_PREFIX + ".blockingBufferSize",
-                    () -> stateRequestsBuffer.blockingQueueSize());
-            metricGroup.gauge(
-                    METRIC_PREFIX + ".numBlockingKeys", () -> stateRequestsBuffer.blockingKeyNum());
+            metricGroup.gauge("numInFlightRecords", this::getInFlightRecordNum);
+            metricGroup.gauge("activeBufferSize", () -> stateRequestsBuffer.activeQueueSize());
+            metricGroup.gauge("blockingBufferSize", () -> stateRequestsBuffer.blockingQueueSize());
+            metricGroup.gauge("numBlockingKeys", () -> stateRequestsBuffer.blockingKeyNum());
         }
         LOG.info(
                 "Create AsyncExecutionController: batchSize {}, bufferTimeout {}, maxInFlightRecordNum {}, epochParallelMode {}",

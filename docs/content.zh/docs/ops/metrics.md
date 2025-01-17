@@ -2288,16 +2288,16 @@ logged by `SystemResourcesMetricsInitializer` during the startup.
   <thead>
     <tr>
       <th class="text-left" style="width: 15%">Scope</th>
-      <th class="text-left" style="width: 7%">Infix</th>
+      <th class="text-left" style="width: 10%">Infix</th>
       <th class="text-left" style="width: 20%">Metrics</th>
       <th class="text-left" style="width: 50%">Description</th>
-      <th class="text-left" style="width: 8%">Type</th>
+      <th class="text-left" style="width: 5%">Type</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <th rowspan="4"><strong>Operator</strong></th>
-      <td rowspan="4">aec</td>
+      <td rowspan="4">asyncStateProcessing</td>
       <td>numInFlightRecords</td>
       <td>The number of in-flight records in the async execution controller's buffers.</td>
       <td>Gauge</td>

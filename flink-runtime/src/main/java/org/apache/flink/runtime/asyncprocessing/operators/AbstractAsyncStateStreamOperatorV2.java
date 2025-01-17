@@ -121,7 +121,7 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
                                 asyncBufferTimeout,
                                 inFlightRecordsLimit,
                                 asyncKeyedStateBackend,
-                                getMetricGroup());
+                                getMetricGroup().addGroup("asyncStateProcessing"));
                 asyncKeyedStateBackend.setup(asyncExecutionController);
                 if (asyncKeyedStateBackend instanceof AsyncKeyedStateBackendAdaptor) {
                     LOG.warn(
