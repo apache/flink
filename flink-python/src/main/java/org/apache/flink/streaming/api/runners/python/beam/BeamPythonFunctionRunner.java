@@ -634,7 +634,6 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     private OutputReceiverFactory createOutputReceiverFactory() {
         return new OutputReceiverFactory() {
-
             // the input value type is always byte array
             @SuppressWarnings("unchecked")
             @Override
