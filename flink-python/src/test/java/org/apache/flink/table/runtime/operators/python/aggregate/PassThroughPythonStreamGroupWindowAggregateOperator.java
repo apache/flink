@@ -196,6 +196,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
     @Override
     public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
         return new PassThroughStreamGroupWindowAggregatePythonFunctionRunner(
+                getContainingTask().getEnvironment(),
                 getRuntimeContext().getTaskInfo().getTaskName(),
                 PythonTestUtils.createTestProcessEnvironmentManager(),
                 userDefinedFunctionInputType,
