@@ -27,13 +27,14 @@ import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceUnshared
 import java.time.ZoneId;
 
 /**
- * An window aggregate processor implementation which works for {@link SliceUnsharedAssigner}, e.g.
+ * A window aggregate processor implementation which works for {@link SliceUnsharedAssigner}, e.g.
  * tumbling windows.
  */
-public final class SliceUnsharedWindowAggProcessor extends AbstractSliceWindowAggProcessor {
+public final class SliceUnsharedSyncStateWindowAggProcessor
+        extends AbstractSliceSyncStateWindowAggProcessor {
     private static final long serialVersionUID = 1L;
 
-    public SliceUnsharedWindowAggProcessor(
+    public SliceUnsharedSyncStateWindowAggProcessor(
             GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler,
             WindowBuffer.Factory windowBufferFactory,
             SliceUnsharedAssigner sliceAssigner,

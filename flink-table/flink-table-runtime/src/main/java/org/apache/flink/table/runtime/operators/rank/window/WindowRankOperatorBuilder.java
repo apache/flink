@@ -24,10 +24,10 @@ import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.RecordsWindowBuffer;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
 import org.apache.flink.table.runtime.operators.rank.window.combines.TopNRecordsCombiner;
-import org.apache.flink.table.runtime.operators.rank.window.processors.WindowRankProcessor;
+import org.apache.flink.table.runtime.operators.rank.window.processors.SyncStateWindowRankProcessor;
 import org.apache.flink.table.runtime.operators.window.tvf.combines.RecordsCombiner;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAggOperator;
-import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingSyncStateWindowProcessor;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 
@@ -149,8 +149,8 @@ public class WindowRankOperatorBuilder {
                         generatedSortKeyComparator, sortKeySelector, inputSerializer, rankEnd);
         final WindowBuffer.Factory bufferFactory =
                 new RecordsWindowBuffer.Factory(keySerializer, inputSerializer, combinerFactory);
-        final SlicingWindowProcessor<Long> windowProcessor =
-                new WindowRankProcessor(
+        final SlicingSyncStateWindowProcessor<Long> windowProcessor =
+                new SyncStateWindowRankProcessor(
                         inputSerializer,
                         generatedSortKeyComparator,
                         sortKeySelector.getProducedType().toSerializer(),

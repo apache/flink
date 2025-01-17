@@ -16,22 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.window.tvf.common;
+package org.apache.flink.table.runtime.operators.window.async.tvf.common;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.v2.ListState;
+import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MeterView;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
+import org.apache.flink.runtime.state.v2.ListStateDescriptor;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.KeyContext;
@@ -42,58 +43,26 @@ import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.operators.TableStreamOperator;
-import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingSyncStateWindowProcessor;
-import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnslicingSyncStateWindowProcessor;
+import org.apache.flink.table.runtime.operators.AsyncStateTableStreamOperator;
+import org.apache.flink.table.runtime.operators.window.async.tvf.state.AsyncStateKeyContext;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAggOperator;
+import org.apache.flink.table.runtime.util.AsyncStateUtils;
 
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * We divide windows into 2 categories: Aligned Windows and Unaligned Windows.
+ * A processor that processes elements for windows with async state api.
  *
- * <h3>Concept of Aligned Window and Unaligned Window</h3>
+ * <p>Different with {@link WindowAggOperator}, this class mainly handles processing related to
+ * async state.
  *
- * <p>Aligned Windows are windows have predetermined window boundaries and windows can be divided
- * into finite number of non-overlapping chunks. The boundary of an aligned window is determined
- * independently from the time characteristic of the data stream, or messages it receives. For
- * example, hopping (sliding) window is an aligned window as the window boundaries are predetermined
- * based on the window size and slide. Aligned windows include tumbling, hopping, cumulative
- * windows.
- *
- * <p>Unaligned Windows are windows determined dynamically based on elements. For example, session
- * window is an unaligned window as the window boundaries are determined based on the messages
- * timestamps and their correlations. Currently, unaligned windows include session window only.
- *
- * <p>Because aligned windows can be divided into finite number of non-overlapping chunks (a.k.a.
- * slices), which can apply efficient processing to share intermediate results.
- *
- * <pre>
- * Window
- * |
- * +-- Aligned Window (Slicing Window)
- * |    |
- * |    +-- Tumble (Slice Unshared Window)
- * |    |
- * |    +-- Hop (Slice Shared Window)
- * |    |
- * |    +-- Cumulate (Slice Shared Window)
- * |
- * +-- Unaligned Window (Unslice Window)
- *      |
- *      +-- Session
- *
- * </pre>
- *
- * <p>Note: currently, {@link WindowAggOperator} doesn't support early-fire and late-arrival. Thus
- * late elements (elements belong to emitted windows) will be simply dropped.
- *
- * <p>See more in {@link SlicingSyncStateWindowProcessor} and {@link
- * UnslicingSyncStateWindowProcessor}.
+ * <p>You can see more at {@link WindowAggOperator}.
  */
 @Internal
-public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
+public final class AsyncStateWindowAggOperator<K, W> extends AsyncStateTableStreamOperator<RowData>
         implements OneInputStreamOperator<RowData, RowData>, Triggerable<K, W>, KeyContext {
 
     private static final long serialVersionUID = 1L;
@@ -103,7 +72,7 @@ public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
     private static final String WATERMARK_LATENCY_METRIC_NAME = "watermarkLatency";
 
     /** The concrete window operator implementation. */
-    private final SyncStateWindowProcessor<W> windowProcessor;
+    private final AsyncStateWindowProcessor<W> windowProcessor;
 
     private final boolean isEventTime;
 
@@ -127,9 +96,11 @@ public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
 
     private transient Counter numLateRecordsDropped;
     private transient Meter lateRecordsDroppedRate;
+
     private transient Gauge<Long> watermarkLatency;
 
-    public WindowAggOperator(SyncStateWindowProcessor<W> windowProcessor, boolean isEventTime) {
+    public AsyncStateWindowAggOperator(
+            AsyncStateWindowProcessor<W> windowProcessor, boolean isEventTime) {
         this.windowProcessor = windowProcessor;
         this.isEventTime = isEventTime;
     }
@@ -147,12 +118,12 @@ public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
                         "window-timers", windowProcessor.createWindowSerializer(), this);
 
         windowProcessor.open(
-                new WindowProcessorSyncStateContext<>(
+                new WindowProcessorAsyncStateContext<>(
                         getContainingTask(),
                         getContainingTask().getEnvironment().getMemoryManager(),
                         computeMemorySize(),
                         internalTimerService,
-                        getKeyedStateBackend(),
+                        new AsyncStateKeyContext(this, getAsyncKeyedStateBackend()),
                         collector,
                         getRuntimeContext()));
         // initialize watermark
@@ -182,25 +153,33 @@ public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
         super.initializeState(context);
         ListStateDescriptor<Long> watermarkStateDesc =
                 new ListStateDescriptor<>("watermark", LongSerializer.INSTANCE);
-        this.watermarkState = context.getOperatorStateStore().getUnionListState(watermarkStateDesc);
+        this.watermarkState =
+                ((OperatorStateBackend) context.getOperatorStateStore())
+                        .getUnionListState(watermarkStateDesc);
         if (context.isRestored()) {
-            Iterable<Long> watermarks = watermarkState.get();
-            if (watermarks != null) {
-                long minWatermark = Long.MAX_VALUE;
-                for (Long watermark : watermarks) {
-                    minWatermark = Math.min(watermark, minWatermark);
-                }
-                if (minWatermark != Long.MAX_VALUE) {
-                    this.currentWatermark = minWatermark;
-                }
-            }
+            AtomicLong minWatermark = new AtomicLong(Long.MAX_VALUE);
+            watermarkState
+                    .asyncGet()
+                    .thenCompose(
+                            its ->
+                                    its.onNext(
+                                            watermark -> {
+                                                minWatermark.set(
+                                                        Math.min(watermark, minWatermark.get()));
+                                            }))
+                    .thenAccept(
+                            VOID -> {
+                                if (minWatermark.get() != Long.MAX_VALUE) {
+                                    this.currentWatermark = minWatermark.get();
+                                }
+                            });
         }
     }
 
     @Override
     public void snapshotState(StateSnapshotContext context) throws Exception {
         super.snapshotState(context);
-        this.watermarkState.update(Collections.singletonList(currentWatermark));
+        this.watermarkState.asyncUpdate(Collections.singletonList(currentWatermark));
     }
 
     @Override
@@ -214,24 +193,28 @@ public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
     public void processElement(StreamRecord<RowData> element) throws Exception {
         RowData inputRow = element.getValue();
         RowData currentKey = (RowData) getCurrentKey();
-        boolean isElementDropped = windowProcessor.processElement(currentKey, inputRow);
-        if (isElementDropped) {
-            // markEvent will increase numLateRecordsDropped
-            lateRecordsDroppedRate.markEvent();
-        }
+        windowProcessor
+                .processElement(currentKey, inputRow)
+                .thenAccept(
+                        isElementDropped -> {
+                            if (isElementDropped) {
+                                // markEvent will increase numLateRecordsDropped
+                                lateRecordsDroppedRate.markEvent();
+                            }
+                        });
     }
 
     @Override
-    public void processWatermark(Watermark mark) throws Exception {
+    public Watermark preProcessWatermark(Watermark mark) throws Exception {
         if (mark.getTimestamp() > currentWatermark) {
             // If this is a proctime window, progress should not be advanced by watermark, or it'll
             // disturb timer-based processing
             if (isEventTime) {
-                windowProcessor.advanceProgress(mark.getTimestamp());
+                windowProcessor.advanceProgress(null, mark.getTimestamp());
             }
-            super.processWatermark(mark);
+            return super.preProcessWatermark(mark);
         } else {
-            super.processWatermark(new Watermark(currentWatermark));
+            return super.preProcessWatermark(new Watermark(currentWatermark));
         }
     }
 
@@ -242,56 +225,61 @@ public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
 
     @Override
     public void onProcessingTime(InternalTimer<K, W> timer) throws Exception {
+        StateFuture<Void> advanceFuture = AsyncStateUtils.REUSABLE_VOID_STATE_FUTURE;
         if (timer.getTimestamp() > lastTriggeredProcessingTime) {
             // similar to the watermark advance,
             // we need to notify WindowProcessor first to flush buffer into state
             lastTriggeredProcessingTime = timer.getTimestamp();
-            windowProcessor.advanceProgress(timer.getTimestamp());
+            advanceFuture =
+                    windowProcessor.advanceProgress(
+                            (RowData) getCurrentKey(), timer.getTimestamp());
             // timers registered in advanceProgress() should always be smaller than current timer
             // so, it should be safe to trigger current timer straightforwards.
         }
-        onTimer(timer);
+        advanceFuture.thenAccept(VOID -> onTimer(timer));
     }
 
     private void onTimer(InternalTimer<K, W> timer) throws Exception {
-        setCurrentKey(timer.getKey());
         W window = timer.getNamespace();
-        windowProcessor.fireWindow(timer.getTimestamp(), window);
-        windowProcessor.clearWindow(timer.getTimestamp(), window);
+        windowProcessor
+                .fireWindow(timer.getTimestamp(), window)
+                .thenAccept(VOID -> windowProcessor.clearWindow(timer.getTimestamp(), window));
         // we don't need to clear window timers,
         // because there should only be one timer for each window now, which is current timer.
     }
 
     @Override
     public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
+        super.prepareSnapshotPreBarrier(checkpointId);
         windowProcessor.prepareCheckpoint();
+        drainStateRequests();
     }
 
-    /** Context implementation for {@link SyncStateWindowProcessor.SyncStateContext}. */
-    private static final class WindowProcessorSyncStateContext<W>
-            implements SyncStateWindowProcessor.SyncStateContext<W> {
+    /** Context implementation for {@link AsyncStateWindowProcessor.AsyncStateContext}. */
+    private static final class WindowProcessorAsyncStateContext<W>
+            implements AsyncStateWindowProcessor.AsyncStateContext<W> {
 
         private final Object operatorOwner;
         private final MemoryManager memoryManager;
         private final long memorySize;
         private final InternalTimerService<W> timerService;
-        private final KeyedStateBackend<RowData> keyedStateBackend;
+        private final AsyncStateKeyContext asyncStateKeyContext;
         private final Output<RowData> collector;
         private final RuntimeContext runtimeContext;
 
-        private WindowProcessorSyncStateContext(
+        private WindowProcessorAsyncStateContext(
                 Object operatorOwner,
                 MemoryManager memoryManager,
                 long memorySize,
                 InternalTimerService<W> timerService,
-                KeyedStateBackend<RowData> keyedStateBackend,
+                AsyncStateKeyContext asyncStateKeyContext,
                 Output<RowData> collector,
                 RuntimeContext runtimeContext) {
             this.operatorOwner = operatorOwner;
             this.memoryManager = memoryManager;
             this.memorySize = memorySize;
             this.timerService = timerService;
-            this.keyedStateBackend = checkNotNull(keyedStateBackend);
+            this.asyncStateKeyContext = checkNotNull(asyncStateKeyContext);
             this.collector = checkNotNull(collector);
             this.runtimeContext = checkNotNull(runtimeContext);
         }
@@ -312,8 +300,8 @@ public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
         }
 
         @Override
-        public KeyedStateBackend<RowData> getKeyedStateBackend() {
-            return keyedStateBackend;
+        public AsyncStateKeyContext getAsyncKeyContext() {
+            return asyncStateKeyContext;
         }
 
         @Override

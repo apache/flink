@@ -19,10 +19,13 @@
 package org.apache.flink.table.runtime.operators.window.tvf.slicing;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.state.v2.StateFuture;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.runtime.operators.window.MergeCallback;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
+import org.apache.flink.table.runtime.operators.window.async.AsyncMergeCallback;
 import org.apache.flink.table.runtime.operators.window.tvf.common.ClockService;
 import org.apache.flink.util.IterableIterator;
 import org.apache.flink.util.MathUtils;
@@ -36,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
@@ -276,8 +280,28 @@ public final class SliceAssigners {
         }
 
         @Override
+        public StateFuture<Tuple2<RowData, RowData>> asyncMergeSlices(
+                long sliceEnd, AsyncMergeCallback<Long, Iterable<Long>> callback) throws Exception {
+            // the iterable to list all the slices of the triggered window
+            Iterable<Long> toBeMerged =
+                    new HoppingSlicesIterable(sliceEnd, sliceSize, numSlicesPerWindow);
+            // null namespace means use heap data views, instead of state data views
+            return callback.asyncMerge(null, toBeMerged, sliceEnd);
+        }
+
+        @Override
         public Optional<Long> nextTriggerWindow(long windowEnd, Supplier<Boolean> isWindowEmpty) {
             if (isWindowEmpty.get()) {
+                return Optional.empty();
+            } else {
+                return Optional.of(windowEnd + sliceSize);
+            }
+        }
+
+        @Override
+        public Optional<Long> nextTriggerWindow(
+                long windowEnd, RowData acc, Function<RowData, Boolean> isWindowEmpty) {
+            if (isWindowEmpty.apply(acc)) {
                 return Optional.empty();
             } else {
                 return Optional.of(windowEnd + sliceSize);
@@ -373,20 +397,29 @@ public final class SliceAssigners {
         @Override
         public void mergeSlices(long sliceEnd, MergeCallback<Long, Iterable<Long>> callback)
                 throws Exception {
-            long windowStart = getWindowStart(sliceEnd);
-            long firstSliceEnd = windowStart + step;
-            if (sliceEnd == firstSliceEnd) {
-                // if this is the first slice, there is nothing to merge
-                reuseToBeMergedList.clear();
-            } else {
-                // otherwise, merge the current slice state into the first slice state
-                reuseToBeMergedList.reset(sliceEnd);
-            }
-            callback.merge(firstSliceEnd, reuseToBeMergedList);
+            prepareReusableMergedList(sliceEnd);
+            callback.merge(getFirstSliceEnd(sliceEnd), reuseToBeMergedList);
+        }
+
+        @Override
+        public StateFuture<Tuple2<RowData, RowData>> asyncMergeSlices(
+                long sliceEnd, AsyncMergeCallback<Long, Iterable<Long>> callback) throws Exception {
+            prepareReusableMergedList(sliceEnd);
+            return callback.asyncMerge(getFirstSliceEnd(sliceEnd), reuseToBeMergedList, sliceEnd);
         }
 
         @Override
         public Optional<Long> nextTriggerWindow(long windowEnd, Supplier<Boolean> isWindowEmpty) {
+            return nextTriggerWindow(windowEnd);
+        }
+
+        @Override
+        public Optional<Long> nextTriggerWindow(
+                long windowEnd, RowData acc, Function<RowData, Boolean> isWindowEmpty) {
+            return nextTriggerWindow(windowEnd);
+        }
+
+        private Optional<Long> nextTriggerWindow(long windowEnd) {
             long nextWindowEnd = windowEnd + step;
             long maxWindowEnd = getWindowStart(windowEnd) + maxSize;
             if (nextWindowEnd > maxWindowEnd) {
@@ -401,6 +434,22 @@ public final class SliceAssigners {
             return String.format(
                     "CumulativeWindow(maxSize=%dms, step=%dms, offset=%dms)",
                     maxSize, step, offset);
+        }
+
+        private long getFirstSliceEnd(long sliceEnd) {
+            long windowStart = getWindowStart(sliceEnd);
+            return windowStart + step;
+        }
+
+        private void prepareReusableMergedList(long sliceEnd) {
+            long firstSliceEnd = getFirstSliceEnd(sliceEnd);
+            if (sliceEnd == firstSliceEnd) {
+                // if this is the first slice, there is nothing to merge
+                reuseToBeMergedList.clear();
+            } else {
+                // otherwise, merge the current slice state into the first slice state
+                reuseToBeMergedList.reset(sliceEnd);
+            }
         }
     }
 
@@ -486,8 +535,20 @@ public final class SliceAssigners {
         }
 
         @Override
+        public StateFuture<Tuple2<RowData, RowData>> asyncMergeSlices(
+                long sliceEnd, AsyncMergeCallback<Long, Iterable<Long>> callback) throws Exception {
+            return innerSharedAssigner.asyncMergeSlices(sliceEnd, callback);
+        }
+
+        @Override
         public Optional<Long> nextTriggerWindow(long windowEnd, Supplier<Boolean> isWindowEmpty) {
             return innerSharedAssigner.nextTriggerWindow(windowEnd, isWindowEmpty);
+        }
+
+        @Override
+        public Optional<Long> nextTriggerWindow(
+                long windowEnd, RowData acc, Function<RowData, Boolean> isWindowEmpty) {
+            return innerSharedAssigner.nextTriggerWindow(windowEnd, acc, isWindowEmpty);
         }
 
         @Override

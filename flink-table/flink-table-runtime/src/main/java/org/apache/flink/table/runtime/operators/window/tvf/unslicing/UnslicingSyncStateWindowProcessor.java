@@ -19,18 +19,19 @@
 package org.apache.flink.table.runtime.operators.window.tvf.unslicing;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.runtime.operators.window.tvf.common.SyncStateWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAggOperator;
-import org.apache.flink.table.runtime.operators.window.tvf.common.WindowProcessor;
 
 /**
- * The {@link UnslicingWindowProcessor} is an optimized processing for unaligned windows.
+ * The {@link UnslicingSyncStateWindowProcessor} is an optimized processing for unaligned windows.
  *
- * <p>A {@link UnslicingWindowProcessor} usually leverages the {@link UnsliceAssigner} to assign
- * slices and calculate based on the window.
+ * <p>A {@link UnslicingSyncStateWindowProcessor} usually leverages the {@link UnsliceAssigner} to
+ * assign slices and calculate based on the window.
  *
- * <p>Note: Currently, the {@link UnslicingWindowProcessor} only support session time window.
+ * <p>Note: Currently, the {@link UnslicingSyncStateWindowProcessor} only support session time
+ * window.
  *
  * <p>See more details in {@link WindowAggOperator}.
  */
 @Internal
-public interface UnslicingWindowProcessor<W> extends WindowProcessor<W> {}
+public interface UnslicingSyncStateWindowProcessor<W> extends SyncStateWindowProcessor<W> {}

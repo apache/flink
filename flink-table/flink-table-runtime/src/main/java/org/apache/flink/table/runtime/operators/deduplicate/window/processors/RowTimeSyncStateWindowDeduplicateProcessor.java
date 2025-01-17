@@ -26,7 +26,7 @@ import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
-import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingSyncStateWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowTimerServiceImpl;
 import org.apache.flink.table.runtime.operators.window.tvf.state.WindowValueState;
 
@@ -35,7 +35,8 @@ import java.time.ZoneId;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
 
 /** A rowtime window deduplicate processor. */
-public final class RowTimeWindowDeduplicateProcessor implements SlicingWindowProcessor<Long> {
+public final class RowTimeSyncStateWindowDeduplicateProcessor
+        implements SlicingSyncStateWindowProcessor<Long> {
     private static final long serialVersionUID = 1L;
 
     private final WindowBuffer.Factory bufferFactory;
@@ -47,7 +48,7 @@ public final class RowTimeWindowDeduplicateProcessor implements SlicingWindowPro
 
     private transient long currentProgress;
 
-    private transient Context<Long> ctx;
+    private transient SyncStateContext<Long> ctx;
 
     private transient WindowTimerService<Long> windowTimerService;
 
@@ -56,7 +57,7 @@ public final class RowTimeWindowDeduplicateProcessor implements SlicingWindowPro
     /** state schema: [key, window_end, first/last record]. */
     private transient WindowValueState<Long> windowState;
 
-    public RowTimeWindowDeduplicateProcessor(
+    public RowTimeSyncStateWindowDeduplicateProcessor(
             TypeSerializer<RowData> inputSerializer,
             WindowBuffer.Factory bufferFactory,
             int windowEndIndex,
@@ -68,7 +69,7 @@ public final class RowTimeWindowDeduplicateProcessor implements SlicingWindowPro
     }
 
     @Override
-    public void open(Context<Long> context) throws Exception {
+    public void open(SyncStateContext<Long> context) throws Exception {
         this.ctx = context;
         final LongSerializer namespaceSerializer = LongSerializer.INSTANCE;
         ValueStateDescriptor<RowData> valueStateDescriptor =
