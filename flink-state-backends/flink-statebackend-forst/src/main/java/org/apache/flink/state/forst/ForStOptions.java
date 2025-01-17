@@ -28,6 +28,7 @@ import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
 import static org.apache.flink.state.forst.ForStStateBackend.PriorityQueueStateType.ForStDB;
+import static org.apache.flink.state.forst.ForStStateBackend.REMOTE_SHORTCUT_CHECKPOINT;
 
 /** Configuration options for the ForStStateBackend. */
 @Experimental
@@ -55,8 +56,9 @@ public class ForStOptions {
                     .noDefaultValue()
                     .withDescription(
                             String.format(
-                                    "The remote directory where ForSt puts its SST files, fallback to %s if not configured.",
-                                    LOCAL_DIRECTORIES.key()));
+                                    "The remote directory where ForSt puts its SST files, fallback to %s if not configured."
+                                            + " Recognized shortcut name is '%s', which means that forst shares the directory with checkpoint.",
+                                    LOCAL_DIRECTORIES.key(), REMOTE_SHORTCUT_CHECKPOINT));
 
     public static final ConfigOption<String> CACHE_DIRECTORY =
             ConfigOptions.key("state.backend.forst.cache.dir")
