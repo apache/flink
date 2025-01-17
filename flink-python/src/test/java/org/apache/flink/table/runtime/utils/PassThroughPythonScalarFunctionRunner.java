@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.process.FlinkMetricContainer;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -44,6 +45,7 @@ public class PassThroughPythonScalarFunctionRunner extends BeamTablePythonFuncti
     private final List<byte[]> buffer;
 
     public PassThroughPythonScalarFunctionRunner(
+            Environment environment,
             String taskName,
             ProcessPythonEnvironmentManager environmentManager,
             RowType inputType,
@@ -52,6 +54,7 @@ public class PassThroughPythonScalarFunctionRunner extends BeamTablePythonFuncti
             FlinkFnApi.UserDefinedFunctions userDefinedFunctions,
             FlinkMetricContainer flinkMetricContainer) {
         super(
+                environment,
                 taskName,
                 environmentManager,
                 functionUrn,

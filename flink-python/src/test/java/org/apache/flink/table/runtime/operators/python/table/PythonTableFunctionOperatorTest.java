@@ -124,6 +124,7 @@ public class PythonTableFunctionOperatorTest
         @Override
         public PythonFunctionRunner createPythonFunctionRunner() {
             return new PassThroughPythonTableFunctionRunner(
+                    getContainingTask().getEnvironment(),
                     getRuntimeContext().getTaskInfo().getTaskName(),
                     PythonTestUtils.createTestProcessEnvironmentManager(),
                     udfInputType,
