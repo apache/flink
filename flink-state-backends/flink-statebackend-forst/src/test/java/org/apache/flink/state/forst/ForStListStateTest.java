@@ -18,8 +18,8 @@
 
 package org.apache.flink.state.forst;
 
+import org.apache.flink.api.common.state.v2.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.runtime.state.v2.ListStateDescriptor;
 import org.apache.flink.runtime.state.v2.internal.InternalListState;
 
 import org.junit.jupiter.api.Test;

@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.planner.functions;
 
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.JsonExistsOnError;
+import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
@@ -27,6 +29,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.stream.Stream;
 
@@ -34,6 +38,8 @@ import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
 import static org.apache.flink.table.api.DataTypes.DATE;
 import static org.apache.flink.table.api.DataTypes.DAY;
+import static org.apache.flink.table.api.DataTypes.DOUBLE;
+import static org.apache.flink.table.api.DataTypes.FLOAT;
 import static org.apache.flink.table.api.DataTypes.HOUR;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.INTERVAL;
@@ -44,7 +50,10 @@ import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
+import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.temporalOverlaps;
+import static org.apache.flink.table.api.Expressions.toTimestampLtz;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.literal;
 
 /** Test time-related built-in functions. */
 class TimeFunctionsITCase extends BuiltInFunctionTestBase {
@@ -58,7 +67,8 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                         extractTestCases(),
                         temporalOverlapsTestCases(),
                         ceilTestCases(),
-                        floorTestCases())
+                        floorTestCases(),
+                        toTimestampLtzTestCases())
                 .flatMap(s -> s);
     }
 
@@ -803,5 +813,198 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 LocalDateTime.of(2020, 2, 29, 1, 56, 59, 987_000_000)
                                         .format(TIMESTAMP_FORMATTER),
                                 STRING().nullable()));
+    }
+
+    private Stream<TestSetSpec> toTimestampLtzTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.TO_TIMESTAMP_LTZ)
+                        .onFieldsWithData(
+                                100,
+                                1234,
+                                -100,
+                                DecimalDataUtils.castFrom(-Double.MAX_VALUE, 38, 18),
+                                100.01)
+                        .andDataTypes(
+                                DOUBLE(), BIGINT(), BIGINT(), DataTypes.DECIMAL(38, 18), FLOAT())
+                        .testResult(
+                                toTimestampLtz($("f0")),
+                                "TO_TIMESTAMP_LTZ(f0)",
+                                LocalDateTime.of(1970, 1, 1, 0, 0, 0, 100000000)
+                                        .atZone(ZoneOffset.UTC)
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz($("f1"), literal(3)),
+                                "TO_TIMESTAMP_LTZ(f1, 3)",
+                                LocalDateTime.of(1970, 1, 1, 0, 0, 1, 234000000)
+                                        .atZone(ZoneOffset.UTC)
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz($("f2"), literal(0)),
+                                "TO_TIMESTAMP_LTZ(f2, 0)",
+                                LocalDateTime.of(1969, 12, 31, 23, 58, 20)
+                                        .atZone(ZoneOffset.UTC)
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz($("f3"), literal(0)),
+                                "TO_TIMESTAMP_LTZ(-" + Double.MAX_VALUE + ", 0)",
+                                null,
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz($("f4"), literal(3)),
+                                "TO_TIMESTAMP_LTZ(f4, 3)",
+                                LocalDateTime.of(1970, 1, 1, 0, 0, 0, 100000000)
+                                        .atZone(ZoneOffset.UTC)
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz("2023-01-01 00:00:00"),
+                                "TO_TIMESTAMP_LTZ('2023-01-01 00:00:00')",
+                                LocalDateTime.of(2023, 1, 1, 0, 0, 0)
+                                        .atZone(ZoneOffset.UTC)
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz("01/01/2023 00:00:00", "dd/MM/yyyy HH:mm:ss"),
+                                "TO_TIMESTAMP_LTZ('01/01/2023 00:00:00', 'dd/MM/yyyy HH:mm:ss')",
+                                LocalDateTime.of(2023, 1, 1, 0, 0, 0)
+                                        .atZone(ZoneOffset.UTC)
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz("1970-01-01 00:00:00.123456789"),
+                                "TO_TIMESTAMP_LTZ('1970-01-01 00:00:00.123456789')",
+                                LocalDateTime.of(1970, 1, 1, 0, 0, 0, 123000000)
+                                        .atZone(ZoneOffset.UTC)
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz(
+                                        "1970-01-01 00:00:00.12345", "yyyy-MM-dd HH:mm:ss.SSSSS"),
+                                "TO_TIMESTAMP_LTZ('1970-01-01 00:00:00.12345', 'yyyy-MM-dd HH:mm:ss.SSSSS')",
+                                LocalDateTime.of(1970, 1, 1, 0, 0, 0, 123000000)
+                                        .atZone(ZoneOffset.UTC)
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz("20000202 59:59.1234567", "yyyyMMdd mm:ss.SSSSSSS"),
+                                "TO_TIMESTAMP_LTZ('20000202 59:59.1234567', 'yyyyMMdd mm:ss.SSSSSSS')",
+                                LocalDateTime.of(2000, 2, 2, 0, 59, 59, 123000000)
+                                        .atZone(ZoneOffset.UTC)
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz("1234567", "SSSSSSS"),
+                                "TO_TIMESTAMP_LTZ('1234567', 'SSSSSSS')",
+                                LocalDateTime.of(1970, 1, 1, 0, 0, 0, 123000000)
+                                        .atZone(ZoneOffset.UTC)
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz(
+                                        "2017-09-15 00:00:00.12345", "yyyy-MM-dd HH:mm:ss.SSS"),
+                                "TO_TIMESTAMP_LTZ('2017-09-15 00:00:00.12345', 'yyyy-MM-dd HH:mm:ss.SSS')",
+                                LocalDateTime.of(2017, 9, 15, 0, 0, 0, 123000000)
+                                        .atZone(ZoneOffset.UTC)
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz(
+                                        "2023-01-01 00:00:00",
+                                        "yyyy-MM-dd HH:mm:ss",
+                                        "Asia/Shanghai"),
+                                "TO_TIMESTAMP_LTZ('2023-01-01 00:00:00', 'yyyy-MM-dd HH:mm:ss', 'Asia/Shanghai')",
+                                LocalDateTime.of(2023, 1, 1, 0, 0, 0)
+                                        .atZone(ZoneId.of("Asia/Shanghai"))
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz("2023-01-01 00:00:00", "yyyy-MM-dd HH:mm:ss", "UTC"),
+                                "TO_TIMESTAMP_LTZ('2023-01-01 00:00:00', 'yyyy-MM-dd HH:mm:ss', 'UTC')",
+                                LocalDateTime.of(2023, 1, 1, 0, 0, 0)
+                                        .atZone(ZoneOffset.UTC)
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz(
+                                        "01/01/2023 08:00:00",
+                                        "dd/MM/yyyy HH:mm:ss",
+                                        "America/Los_Angeles"),
+                                "TO_TIMESTAMP_LTZ('01/01/2023 08:00:00', 'dd/MM/yyyy HH:mm:ss', 'America/Los_Angeles')",
+                                LocalDateTime.of(2023, 1, 1, 8, 0, 0)
+                                        .atZone(ZoneId.of("America/Los_Angeles"))
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz(
+                                        "01/01/2023 08:00:00",
+                                        literal("yyyy-MM-dd HH:mm:ss"),
+                                        literal("un-parsable timezone")),
+                                "TO_TIMESTAMP_LTZ('01/01/2023 08:00:00', 'yyyy-MM-dd HH:mm:ss', 'un-parsable timezone')",
+                                null,
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz(
+                                        "01/01/2023 08:00:00",
+                                        literal("un-parsable format"),
+                                        literal("UTC")),
+                                "TO_TIMESTAMP_LTZ('01/01/2023 08:00:00', 'un-parsable format', 'UTC')",
+                                null,
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz(
+                                        "un-parsable timestamp",
+                                        literal("yyyy-MM-dd HH:mm:ss"),
+                                        literal("UTC")),
+                                "TO_TIMESTAMP_LTZ('un-parsable timestamp', 'yyyy-MM-dd HH:mm:ss', 'UTC')",
+                                null,
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz(lit(123L), lit(null, DataTypes.INT())),
+                                "TO_TIMESTAMP_LTZ(123, CAST(NULL AS INTEGER))",
+                                null,
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz(lit(null, DataTypes.INT()), 3),
+                                "TO_TIMESTAMP_LTZ(123, CAST(NULL AS INTEGER))",
+                                null,
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz(null),
+                                "TO_TIMESTAMP_LTZ(NULL)",
+                                null,
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz(null, "yyyy-MM-dd HH:mm:ss.SSS"),
+                                "TO_TIMESTAMP_LTZ(NULL, 'yyyy-MM-dd HH:mm:ss.SSS')",
+                                null,
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz("1970-01-01 00:00:00.12345", null),
+                                "TO_TIMESTAMP_LTZ('1970-01-01 00:00:00.12345', NULL)",
+                                null,
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz(null, "dd/MM/yyyy HH:mm:ss", "America/Los_Angeles"),
+                                "TO_TIMESTAMP_LTZ(NULL, 'dd/MM/yyyy HH:mm:ss', 'America/Los_Angeles')",
+                                null,
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz("2023-01-01 00:00:00", null, "America/Los_Angeles"),
+                                "TO_TIMESTAMP_LTZ('2023-01-01 00:00:00', NULL, 'America/Los_Angeles')",
+                                null,
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz("2023-01-01 00:00:00", "dd/MM/yyyy HH:mm:ss", null),
+                                "TO_TIMESTAMP_LTZ('2023-01-01 00:00:00', 'dd/MM/yyyy HH:mm:ss', NULL)",
+                                null,
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz(null),
+                                "TO_TIMESTAMP_LTZ(NULL)",
+                                null,
+                                TIMESTAMP_LTZ(3).nullable()));
     }
 }

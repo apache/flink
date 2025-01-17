@@ -35,6 +35,7 @@ import org.apache.flink.table.catalog.listener.DropModelEvent;
 import org.apache.flink.table.catalog.listener.DropTableEvent;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.table.utils.ExpressionResolverMocks;
+import org.apache.flink.table.utils.ParserMock;
 
 import org.junit.jupiter.api.Test;
 
@@ -133,7 +134,8 @@ class CatalogManagerTest {
                                 dropFuture,
                                 dropTemporaryFuture));
 
-        catalogManager.initSchemaResolver(true, ExpressionResolverMocks.dummyResolver());
+        catalogManager.initSchemaResolver(
+                true, ExpressionResolverMocks.dummyResolver(), new ParserMock());
         // Create a view
         catalogManager.createTable(
                 CatalogView.of(Schema.newBuilder().build(), null, "", "", Collections.emptyMap()),
@@ -146,11 +148,7 @@ class CatalogManagerTest {
 
         // Create a table
         catalogManager.createTable(
-                CatalogTable.of(
-                        Schema.newBuilder().build(),
-                        null,
-                        Collections.emptyList(),
-                        Collections.emptyMap()),
+                CatalogTable.newBuilder().schema(Schema.newBuilder().build()).build(),
                 ObjectIdentifier.of(
                         catalogManager.getCurrentCatalog(),
                         catalogManager.getCurrentDatabase(),
@@ -163,11 +161,7 @@ class CatalogManagerTest {
 
         // Create a temporary table
         catalogManager.createTemporaryTable(
-                CatalogTable.of(
-                        Schema.newBuilder().build(),
-                        null,
-                        Collections.emptyList(),
-                        Collections.emptyMap()),
+                CatalogTable.newBuilder().schema(Schema.newBuilder().build()).build(),
                 ObjectIdentifier.of(
                         catalogManager.getCurrentCatalog(),
                         catalogManager.getCurrentDatabase(),
@@ -180,11 +174,10 @@ class CatalogManagerTest {
 
         // Alter a table
         catalogManager.alterTable(
-                CatalogTable.of(
-                        Schema.newBuilder().build(),
-                        "table1 comment",
-                        Collections.emptyList(),
-                        Collections.emptyMap()),
+                CatalogTable.newBuilder()
+                        .schema(Schema.newBuilder().build())
+                        .comment("table1 comment")
+                        .build(),
                 ObjectIdentifier.of(
                         catalogManager.getCurrentCatalog(),
                         catalogManager.getCurrentDatabase(),
@@ -288,7 +281,8 @@ class CatalogManagerTest {
                                         .build())
                         .build();
 
-        catalogManager.initSchemaResolver(true, ExpressionResolverMocks.dummyResolver());
+        catalogManager.initSchemaResolver(
+                true, ExpressionResolverMocks.dummyResolver(), new ParserMock());
 
         HashMap<String, String> options =
                 new HashMap<String, String>() {
@@ -612,11 +606,7 @@ class CatalogManagerTest {
                 new CatalogDatabaseImpl(Collections.emptyMap(), "database for exist_cat"),
                 false);
         catalogManager.createTable(
-                CatalogTable.of(
-                        Schema.newBuilder().build(),
-                        null,
-                        Collections.emptyList(),
-                        Collections.emptyMap()),
+                CatalogTable.newBuilder().schema(Schema.newBuilder().build()).build(),
                 ObjectIdentifier.of("exist_cat", "cat_db", "test_table"),
                 false);
         catalogManager.createModel(

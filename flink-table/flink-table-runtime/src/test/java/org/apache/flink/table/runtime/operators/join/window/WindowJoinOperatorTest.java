@@ -19,8 +19,10 @@
 package org.apache.flink.table.runtime.operators.join.window;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
@@ -72,13 +74,20 @@ class WindowJoinOperatorTest {
 
     private final ZoneId shiftTimeZone;
 
-    WindowJoinOperatorTest(ZoneId shiftTimeZone) {
+    private final boolean enableAsyncState;
+
+    WindowJoinOperatorTest(ZoneId shiftTimeZone, boolean enableAsyncState) {
         this.shiftTimeZone = shiftTimeZone;
+        this.enableAsyncState = enableAsyncState;
     }
 
-    @Parameters(name = "TimeZone = {0}")
+    @Parameters(name = "TimeZone = {0}, EnableAsyncState = {1}")
     private static Collection<Object[]> runMode() {
-        return Arrays.asList(new Object[] {UTC_ZONE_ID}, new Object[] {SHANGHAI_ZONE_ID});
+        return Arrays.asList(
+                new Object[] {UTC_ZONE_ID, false},
+                new Object[] {UTC_ZONE_ID, true},
+                new Object[] {SHANGHAI_ZONE_ID, false},
+                new Object[] {SHANGHAI_ZONE_ID, true});
     }
 
     @TestTemplate
@@ -516,7 +525,8 @@ class WindowJoinOperatorTest {
                 HandwrittenSelectorUtil.getRowDataSelector(
                         new int[] {keyIdx}, INPUT_ROW_TYPE.toRowFieldTypes());
         TypeInformation<RowData> keyType = InternalTypeInfo.ofFields();
-        WindowJoinOperator operator =
+
+        WindowJoinOperatorBuilder operatorBuilder =
                 WindowJoinOperatorBuilder.builder()
                         .leftSerializer(INPUT_ROW_TYPE.toRowSerializer())
                         .rightSerializer(INPUT_ROW_TYPE.toRowSerializer())
@@ -525,11 +535,16 @@ class WindowJoinOperatorTest {
                         .rightWindowEndIndex(0)
                         .filterNullKeys(new boolean[] {true})
                         .joinType(joinType)
-                        .withShiftTimezone(shiftTimeZone)
-                        .build();
-        KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
-                new KeyedTwoInputStreamOperatorTestHarness<>(
-                        operator, keySelector, keySelector, keyType);
-        return testHarness;
+                        .withShiftTimezone(shiftTimeZone);
+        if (enableAsyncState) {
+            operatorBuilder.enableAsyncState();
+            TwoInputStreamOperator<RowData, RowData, RowData> operator = operatorBuilder.build();
+            return AsyncKeyedTwoInputStreamOperatorTestHarness.create(
+                    operator, keySelector, keySelector, keyType, 1, 1, 0);
+        } else {
+            TwoInputStreamOperator<RowData, RowData, RowData> operator = operatorBuilder.build();
+            return new KeyedTwoInputStreamOperatorTestHarness<>(
+                    operator, keySelector, keySelector, keyType);
+        }
     }
 }

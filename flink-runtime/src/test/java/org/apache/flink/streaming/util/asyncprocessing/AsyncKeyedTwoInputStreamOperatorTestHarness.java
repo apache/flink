@@ -18,10 +18,13 @@
 
 package org.apache.flink.streaming.util.asyncprocessing;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateStreamOperator;
+import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
+import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
+import org.apache.flink.runtime.state.v2.adaptor.AsyncKeyedStateBackendAdaptor;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -31,8 +34,9 @@ import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStatePr
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
-import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -42,6 +46,7 @@ import java.util.concurrent.Executors;
 
 import static org.apache.flink.streaming.util.asyncprocessing.AsyncProcessingTestUtil.drain;
 import static org.apache.flink.streaming.util.asyncprocessing.AsyncProcessingTestUtil.execute;
+import static org.apache.flink.streaming.util.asyncprocessing.AsyncProcessingTestUtil.unwrapAsyncException;
 import static org.assertj.core.api.Assertions.fail;
 
 /**
@@ -51,7 +56,7 @@ import static org.assertj.core.api.Assertions.fail;
  * async processing, please use methods of test harness instead of operator.
  */
 public class AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
-        extends TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> {
+        extends KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT> {
 
     private final TwoInputStreamOperator<IN1, IN2, OUT> twoInputOperator;
 
@@ -60,6 +65,28 @@ public class AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
 
     /** The executor service for async state processing. */
     private final ExecutorService executor;
+
+    /** Create an instance of the subclass of this class. */
+    public static <
+                    K,
+                    IN1,
+                    IN2,
+                    OUT,
+                    OP extends AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>>
+            OP create(FunctionWithException<ExecutorService, OP, Exception> constructor)
+                    throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        CompletableFuture<OP> future = new CompletableFuture<>();
+        executor.execute(
+                () -> {
+                    try {
+                        future.complete(constructor.apply(executor));
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+        return future.get();
+    }
 
     public static <K, IN1, IN2, OUT>
             AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT> create(
@@ -104,15 +131,14 @@ public class AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
             int numSubtasks,
             int subtaskIndex)
             throws Exception {
-        super(operator, maxParallelism, numSubtasks, subtaskIndex);
-
-        ClosureCleaner.clean(keySelector1, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, false);
-        ClosureCleaner.clean(keySelector2, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, false);
-        config.setStatePartitioner(0, keySelector1);
-        config.setStatePartitioner(1, keySelector2);
-        config.setStateKeySerializer(
-                keyType.createSerializer(executionConfig.getSerializerConfig()));
-        config.serializeAllConfigs();
+        super(
+                operator,
+                keySelector1,
+                keySelector2,
+                keyType,
+                maxParallelism,
+                numSubtasks,
+                subtaskIndex);
 
         Preconditions.checkState(
                 operator instanceof AsyncStateProcessingOperator,
@@ -215,15 +241,48 @@ public class AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
         executor.shutdown();
     }
 
+    @Override
+    public int numKeyedStateEntries() {
+        AbstractAsyncStateStreamOperator<OUT> asyncOp =
+                (AbstractAsyncStateStreamOperator<OUT>) operator;
+        AsyncKeyedStateBackend<Object> asyncKeyedStateBackend = asyncOp.getAsyncKeyedStateBackend();
+        KeyedStateBackend<?> keyedStateBackend;
+        if (asyncKeyedStateBackend instanceof AsyncKeyedStateBackendAdaptor) {
+            keyedStateBackend =
+                    ((AsyncKeyedStateBackendAdaptor<?>) asyncKeyedStateBackend)
+                            .getKeyedStateBackend();
+
+        } else {
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "Unsupported async keyed state backend: %s",
+                            asyncKeyedStateBackend.getClass().getCanonicalName()));
+        }
+
+        if (keyedStateBackend instanceof HeapKeyedStateBackend) {
+            return ((HeapKeyedStateBackend) keyedStateBackend).numKeyValueStateEntries();
+        } else {
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "Unsupported keyed state backend: %s",
+                            keyedStateBackend.getClass().getCanonicalName()));
+        }
+    }
+
     private void executeAndGet(RunnableWithException runnable) throws Exception {
-        execute(
-                        executor,
-                        () -> {
-                            checkEnvState();
-                            runnable.run();
-                        })
-                .get();
-        checkEnvState();
+        try {
+            execute(
+                            executor,
+                            () -> {
+                                checkEnvState();
+                                runnable.run();
+                            })
+                    .get();
+            checkEnvState();
+        } catch (Exception e) {
+            execute(executor, () -> mockTask.cleanUp(e)).get();
+            throw unwrapAsyncException(e);
+        }
     }
 
     private void checkEnvState() {

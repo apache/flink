@@ -22,10 +22,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
 
-import java.util.Arrays;
-import java.util.Set;
-import java.util.stream.Collectors;
-
 /**
  * Declares traits for {@link ArgumentHint}. They enable basic validation by the framework.
  *
@@ -83,24 +79,37 @@ public enum ArgumentTrait {
      * Defines that a PARTITION BY clause is optional for {@link #TABLE_AS_SET}. By default, it is
      * mandatory for improving the parallel execution by distributing the table by key.
      */
-    OPTIONAL_PARTITION_BY(false, StaticArgumentTrait.OPTIONAL_PARTITION_BY, TABLE_AS_SET);
+    OPTIONAL_PARTITION_BY(false, StaticArgumentTrait.OPTIONAL_PARTITION_BY),
+
+    /**
+     * Defines that all columns of a table argument (i.e. {@link #TABLE_AS_ROW} or {@link
+     * #TABLE_AS_SET}) are included in the output of the PTF. By default, only columns of the
+     * PARTITION BY clause are passed through.
+     *
+     * <p>Given a table t (containing columns k and v), and a PTF f() (producing columns c1 and c2),
+     * the output of a {@code SELECT * FROM f(tableArg => TABLE t PARTITION BY k)} uses the
+     * following order:
+     *
+     * <pre>
+     *     Default: | k | c1 | c2 |
+     *     With pass-through columns: | k | v | c1 | c2 |
+     * </pre>
+     *
+     * <p>In case of multiple table arguments, pass-through columns are added according to the
+     * declaration order in the PTF signature.
+     */
+    PASS_COLUMNS_THROUGH(false, StaticArgumentTrait.PASS_COLUMNS_THROUGH);
 
     private final boolean isRoot;
     private final StaticArgumentTrait staticTrait;
-    private final Set<ArgumentTrait> requirements;
 
-    ArgumentTrait(boolean isRoot, StaticArgumentTrait staticTrait, ArgumentTrait... requirements) {
+    ArgumentTrait(boolean isRoot, StaticArgumentTrait staticTrait) {
         this.isRoot = isRoot;
         this.staticTrait = staticTrait;
-        this.requirements = Arrays.stream(requirements).collect(Collectors.toSet());
     }
 
     public boolean isRoot() {
         return isRoot;
-    }
-
-    public Set<ArgumentTrait> getRequirements() {
-        return requirements;
     }
 
     public StaticArgumentTrait toStaticTrait() {

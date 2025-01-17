@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common;
 
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
@@ -62,24 +63,36 @@ class ExecutionConfigFromConfigurationTest {
                         .whenSetFromFile("pipeline.force-avro", "true")
                         .viaSetter(
                                 booleanSetter(
-                                        (ec) -> ec.getSerializerConfig().setForceAvro(true),
-                                        (ec) -> ec.getSerializerConfig().setForceAvro(false)))
+                                        (ec) ->
+                                                ((SerializerConfigImpl) ec.getSerializerConfig())
+                                                        .setForceAvro(true),
+                                        (ec) ->
+                                                ((SerializerConfigImpl) ec.getSerializerConfig())
+                                                        .setForceAvro(false)))
                         .getterVia((ec) -> ec.getSerializerConfig().isForceAvroEnabled())
                         .nonDefaultValue(true),
                 TestSpec.testValue(false)
                         .whenSetFromFile("pipeline.force-kryo", "false")
                         .viaSetter(
                                 booleanSetter(
-                                        (ec) -> ec.getSerializerConfig().setForceKryo(true),
-                                        (ec) -> ec.getSerializerConfig().setForceKryo(false)))
+                                        (ec) ->
+                                                ((SerializerConfigImpl) ec.getSerializerConfig())
+                                                        .setForceKryo(true),
+                                        (ec) ->
+                                                ((SerializerConfigImpl) ec.getSerializerConfig())
+                                                        .setForceKryo(false)))
                         .getterVia((ec) -> ec.getSerializerConfig().isForceKryoEnabled())
                         .nonDefaultValue(false),
                 TestSpec.testValue(false)
                         .whenSetFromFile("pipeline.generic-types", "false")
                         .viaSetter(
                                 booleanSetter(
-                                        (ec) -> ec.getSerializerConfig().setGenericTypes(true),
-                                        (ec) -> ec.getSerializerConfig().setGenericTypes(false)))
+                                        (ec) ->
+                                                ((SerializerConfigImpl) ec.getSerializerConfig())
+                                                        .setGenericTypes(true),
+                                        (ec) ->
+                                                ((SerializerConfigImpl) ec.getSerializerConfig())
+                                                        .setGenericTypes(false)))
                         .getterVia(
                                 execConfig ->
                                         !execConfig.getSerializerConfig().hasGenericTypesDisabled())

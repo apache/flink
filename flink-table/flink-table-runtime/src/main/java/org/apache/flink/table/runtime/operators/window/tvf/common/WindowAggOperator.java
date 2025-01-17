@@ -43,8 +43,8 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
-import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowProcessor;
-import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnslicingWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingSyncStateWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnslicingSyncStateWindowProcessor;
 
 import java.util.Collections;
 
@@ -89,7 +89,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>Note: currently, {@link WindowAggOperator} doesn't support early-fire and late-arrival. Thus
  * late elements (elements belong to emitted windows) will be simply dropped.
  *
- * <p>See more in {@link SlicingWindowProcessor} and {@link UnslicingWindowProcessor}.
+ * <p>See more in {@link SlicingSyncStateWindowProcessor} and {@link
+ * UnslicingSyncStateWindowProcessor}.
  */
 @Internal
 public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
@@ -102,7 +103,7 @@ public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
     private static final String WATERMARK_LATENCY_METRIC_NAME = "watermarkLatency";
 
     /** The concrete window operator implementation. */
-    private final WindowProcessor<W> windowProcessor;
+    private final SyncStateWindowProcessor<W> windowProcessor;
 
     private final boolean isEventTime;
 
@@ -128,7 +129,7 @@ public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
     private transient Meter lateRecordsDroppedRate;
     private transient Gauge<Long> watermarkLatency;
 
-    public WindowAggOperator(WindowProcessor<W> windowProcessor, boolean isEventTime) {
+    public WindowAggOperator(SyncStateWindowProcessor<W> windowProcessor, boolean isEventTime) {
         this.windowProcessor = windowProcessor;
         this.isEventTime = isEventTime;
     }
@@ -146,7 +147,7 @@ public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
                         "window-timers", windowProcessor.createWindowSerializer(), this);
 
         windowProcessor.open(
-                new WindowProcessorContext<>(
+                new WindowProcessorSyncStateContext<>(
                         getContainingTask(),
                         getContainingTask().getEnvironment().getMemoryManager(),
                         computeMemorySize(),
@@ -266,8 +267,9 @@ public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
         windowProcessor.prepareCheckpoint();
     }
 
-    /** Context implementation for {@link WindowProcessor.Context}. */
-    private static final class WindowProcessorContext<W> implements WindowProcessor.Context<W> {
+    /** Context implementation for {@link SyncStateWindowProcessor.SyncStateContext}. */
+    private static final class WindowProcessorSyncStateContext<W>
+            implements SyncStateWindowProcessor.SyncStateContext<W> {
 
         private final Object operatorOwner;
         private final MemoryManager memoryManager;
@@ -277,7 +279,7 @@ public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
         private final Output<RowData> collector;
         private final RuntimeContext runtimeContext;
 
-        private WindowProcessorContext(
+        private WindowProcessorSyncStateContext(
                 Object operatorOwner,
                 MemoryManager memoryManager,
                 long memorySize,

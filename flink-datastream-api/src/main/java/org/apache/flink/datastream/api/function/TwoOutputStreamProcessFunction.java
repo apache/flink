@@ -52,7 +52,7 @@ public interface TwoOutputStreamProcessFunction<IN, OUT1, OUT2> extends ProcessF
             IN record,
             Collector<OUT1> output1,
             Collector<OUT2> output2,
-            TwoOutputPartitionedContext ctx)
+            TwoOutputPartitionedContext<OUT1, OUT2> ctx)
             throws Exception;
 
     /**
@@ -75,7 +75,7 @@ public interface TwoOutputStreamProcessFunction<IN, OUT1, OUT2> extends ProcessF
             long timestamp,
             Collector<OUT1> output1,
             Collector<OUT2> output2,
-            TwoOutputPartitionedContext ctx) {}
+            TwoOutputPartitionedContext<OUT1, OUT2> ctx) {}
 
     /**
      * Callback function when receive the watermark from the input.

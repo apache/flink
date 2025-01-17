@@ -22,9 +22,13 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.forwardgroup.StreamNodeForwardGroup;
+import org.apache.flink.streaming.api.graph.util.ImmutableStreamEdge;
 import org.apache.flink.streaming.api.graph.util.ImmutableStreamGraph;
+import org.apache.flink.streaming.api.graph.util.ImmutableStreamNode;
 import org.apache.flink.streaming.api.graph.util.StreamEdgeUpdateRequestInfo;
+import org.apache.flink.streaming.api.graph.util.StreamNodeUpdateRequestInfo;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.partitioner.ForwardForConsecutiveHashPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardForUnspecifiedPartitioner;
@@ -74,6 +78,7 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
     private final Map<Integer, Map<StreamEdge, NonChainedOutput>> opIntermediateOutputsCaches;
 
     private final Map<String, IntermediateDataSet> consumerEdgeIdToIntermediateDataSetMap;
+    private final Set<Integer> finishedStreamNodeIds;
 
     @Nullable private final StreamGraphUpdateListener streamGraphUpdateListener;
 
@@ -83,13 +88,17 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
             Map<Integer, StreamNodeForwardGroup> steamNodeIdToForwardGroupMap,
             Map<Integer, Integer> frozenNodeToStartNodeMap,
             Map<Integer, Map<StreamEdge, NonChainedOutput>> opIntermediateOutputsCaches,
-            Map<String, IntermediateDataSet> consumerEdgeIdToIntermediateDataSetMap) {
+            Map<String, IntermediateDataSet> consumerEdgeIdToIntermediateDataSetMap,
+            Set<Integer> finishedStreamNodeIds,
+            ClassLoader userClassloader) {
         this(
                 streamGraph,
                 steamNodeIdToForwardGroupMap,
                 frozenNodeToStartNodeMap,
                 opIntermediateOutputsCaches,
                 consumerEdgeIdToIntermediateDataSetMap,
+                finishedStreamNodeIds,
+                userClassloader,
                 null);
     }
 
@@ -99,14 +108,17 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
             Map<Integer, Integer> frozenNodeToStartNodeMap,
             Map<Integer, Map<StreamEdge, NonChainedOutput>> opIntermediateOutputsCaches,
             Map<String, IntermediateDataSet> consumerEdgeIdToIntermediateDataSetMap,
+            Set<Integer> finishedStreamNodeIds,
+            ClassLoader userClassloader,
             @Nullable StreamGraphUpdateListener streamGraphUpdateListener) {
         this.streamGraph = checkNotNull(streamGraph);
         this.steamNodeIdToForwardGroupMap = checkNotNull(steamNodeIdToForwardGroupMap);
         this.frozenNodeToStartNodeMap = checkNotNull(frozenNodeToStartNodeMap);
         this.opIntermediateOutputsCaches = checkNotNull(opIntermediateOutputsCaches);
-        this.immutableStreamGraph = new ImmutableStreamGraph(this.streamGraph);
+        this.immutableStreamGraph = new ImmutableStreamGraph(this.streamGraph, userClassloader);
         this.consumerEdgeIdToIntermediateDataSetMap =
                 checkNotNull(consumerEdgeIdToIntermediateDataSetMap);
+        this.finishedStreamNodeIds = finishedStreamNodeIds;
         this.streamGraphUpdateListener = streamGraphUpdateListener;
     }
 
@@ -140,6 +152,13 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
             if (newPartitioner != null) {
                 modifyOutputPartitioner(targetEdge, newPartitioner);
             }
+            if (requestInfo.getTypeNumber() != 0) {
+                targetEdge.setTypeNumber(requestInfo.getTypeNumber());
+            }
+            if (requestInfo.getIntraInputKeyCorrelated() != null) {
+                modifyIntraInputKeyCorrelation(
+                        targetEdge, requestInfo.getIntraInputKeyCorrelated());
+            }
         }
 
         // Notify the listener that the StreamGraph has been updated.
@@ -150,32 +169,76 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
         return true;
     }
 
+    @Override
+    public boolean modifyStreamNode(List<StreamNodeUpdateRequestInfo> requestInfos) {
+        for (StreamNodeUpdateRequestInfo requestInfo : requestInfos) {
+            StreamNode streamNode = streamGraph.getStreamNode(requestInfo.getNodeId());
+            if (requestInfo.getTypeSerializersIn() != null) {
+                if (requestInfo.getTypeSerializersIn().length
+                        != streamNode.getTypeSerializersIn().length) {
+                    LOG.info(
+                            "Modification for node {} is not allowed as the array size of typeSerializersIn is not matched.",
+                            requestInfo.getNodeId());
+                    return false;
+                }
+                streamNode.setSerializersIn(requestInfo.getTypeSerializersIn());
+            }
+        }
+
+        // Notify the listener that the StreamGraph has been updated.
+        if (streamGraphUpdateListener != null) {
+            streamGraphUpdateListener.onStreamGraphUpdated();
+        }
+
+        return true;
+    }
+
+    @Override
+    public boolean areAllUpstreamNodesFinished(ImmutableStreamNode streamNode) {
+        for (ImmutableStreamEdge streamEdge : streamNode.getInEdges()) {
+            if (!finishedStreamNodeIds.contains(streamEdge.getSourceId())) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    @Override
+    public IntermediateDataSetID getConsumedIntermediateDataSetId(String edgeId) {
+        return consumerEdgeIdToIntermediateDataSetMap.get(edgeId).getId();
+    }
+
+    @Override
+    public StreamPartitioner<?> getOutputPartitioner(
+            String edgeId, Integer sourceId, Integer targetId) {
+        return checkNotNull(getStreamEdge(sourceId, targetId, edgeId)).getPartitioner();
+    }
+
     private boolean validateStreamEdgeUpdateRequest(StreamEdgeUpdateRequestInfo requestInfo) {
         Integer sourceNodeId = requestInfo.getSourceId();
         Integer targetNodeId = requestInfo.getTargetId();
 
         StreamEdge targetEdge = getStreamEdge(sourceNodeId, targetNodeId, requestInfo.getEdgeId());
 
-        if (targetEdge == null) {
-            return false;
-        }
-
-        // Modification is not allowed when the subscribing output is reused.
-        Map<StreamEdge, NonChainedOutput> opIntermediateOutputs =
-                opIntermediateOutputsCaches.get(sourceNodeId);
-        NonChainedOutput output =
-                opIntermediateOutputs != null ? opIntermediateOutputs.get(targetEdge) : null;
-        if (output != null) {
-            Set<StreamEdge> consumerStreamEdges =
-                    opIntermediateOutputs.entrySet().stream()
-                            .filter(entry -> entry.getValue().equals(output))
-                            .map(Map.Entry::getKey)
-                            .collect(Collectors.toSet());
-            if (consumerStreamEdges.size() != 1) {
-                LOG.info(
-                        "Skip modifying edge {} because the subscribing output is reused.",
-                        targetEdge);
-                return false;
+        // Modification to output partitioner is not allowed when the subscribing output is reused.
+        if (requestInfo.getOutputPartitioner() != null) {
+            Map<StreamEdge, NonChainedOutput> opIntermediateOutputs =
+                    opIntermediateOutputsCaches.get(sourceNodeId);
+            NonChainedOutput output =
+                    opIntermediateOutputs != null ? opIntermediateOutputs.get(targetEdge) : null;
+            if (output != null) {
+                Set<StreamEdge> consumerStreamEdges =
+                        opIntermediateOutputs.entrySet().stream()
+                                .filter(entry -> entry.getValue().equals(output))
+                                .map(Map.Entry::getKey)
+                                .collect(Collectors.toSet());
+                if (consumerStreamEdges.size() != 1) {
+                    LOG.info(
+                            "Skip modifying edge {} because the subscribing output is reused.",
+                            targetEdge);
+                    return false;
+                }
             }
         }
 
@@ -212,7 +275,7 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
 
     private void modifyOutputPartitioner(
             StreamEdge targetEdge, StreamPartitioner<?> newPartitioner) {
-        if (newPartitioner == null || targetEdge == null) {
+        if (newPartitioner == null) {
             return;
         }
         StreamPartitioner<?> oldPartitioner = targetEdge.getPartitioner();
@@ -255,6 +318,14 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
                 oldPartitioner,
                 newPartitioner,
                 targetEdge.getPartitioner());
+    }
+
+    private void modifyIntraInputKeyCorrelation(
+            StreamEdge targetEdge, boolean existIntraInputKeyCorrelation) {
+        if (targetEdge.isIntraInputKeyCorrelated() == existIntraInputKeyCorrelation) {
+            return;
+        }
+        targetEdge.setIntraInputKeyCorrelated(existIntraInputKeyCorrelation);
     }
 
     private void tryConvertForwardPartitionerAndMergeForwardGroup(StreamEdge targetEdge) {
@@ -316,6 +387,10 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
                 return edge;
             }
         }
-        return null;
+
+        throw new RuntimeException(
+                String.format(
+                        "Stream edge with id '%s' is not found whose source id is %d, target id is %d.",
+                        edgeId, sourceId, targetId));
     }
 }

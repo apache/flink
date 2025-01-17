@@ -56,7 +56,7 @@ MATCH_RECOGNIZE (
     <Resource name="ast">
       <![CDATA[
 LogicalProject(symbol=[$0], dPrice=[$1], matchRowtime=[$2])
-+- LogicalMatch(partition=[[0]], order=[[1 ASC-nulls-first]], outputFields=[[symbol, dPrice, matchRowtime]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[_UTF-16LE'A'], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[>=(PREV(A.$1, 0), -(CURRENT_TIMESTAMP, 86400000:INTERVAL DAY))]], inputFields=[[symbol, matchRowtime, price, startTime]])
++- LogicalMatch(partition=[[0]], order=[[1 ASC-nulls-first]], outputFields=[[symbol, dPrice, matchRowtime]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[_UTF-16LE'A'], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[>=(PREV(A.$1, 0), -(CURRENT_TIMESTAMP(), 86400000:INTERVAL DAY))]], inputFields=[[symbol, matchRowtime, price, startTime]])
    +- LogicalProject(symbol=[$0], matchRowtime=[$1], price=[$2], startTime=[TUMBLE_START($3)])
       +- LogicalAggregate(group=[{0, 1, 2, 3}])
          +- LogicalProject(symbol=[$0], matchRowtime=[$3], price=[$1], $f3=[$TUMBLE($3, 3000:INTERVAL SECOND)])
@@ -67,7 +67,7 @@ LogicalProject(symbol=[$0], dPrice=[$1], matchRowtime=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Match(partitionBy=[symbol], orderBy=[matchRowtime ASC], measures=[FINAL(A.price) AS dPrice, FINAL(A.matchRowtime) AS matchRowtime], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[_UTF-16LE'A'], define=[{A=>=(PREV(A.$1, 0), -(CURRENT_TIMESTAMP, 86400000:INTERVAL DAY))}])
+Match(partitionBy=[symbol], orderBy=[matchRowtime ASC], measures=[FINAL(A.price) AS dPrice, FINAL(A.matchRowtime) AS matchRowtime], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[_UTF-16LE'A'], define=[{A=>=(PREV(A.$1, 0), -(CURRENT_TIMESTAMP(), 86400000:INTERVAL DAY))}])
 +- Exchange(distribution=[hash[symbol]])
    +- Calc(select=[symbol, matchRowtime, price, w$start AS startTime])
       +- GroupWindowAggregate(groupBy=[symbol, price, matchRowtime], window=[TumblingGroupWindow('w$, matchRowtime0, 3000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[symbol, price, matchRowtime, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
@@ -218,7 +218,7 @@ FROM TABLE(TUMBLE(TABLE T, DESCRIPTOR(matchRowtime), INTERVAL '3' second))
     <Resource name="ast">
       <![CDATA[
 LogicalProject(symbol=[$0], price=[$1], tax=[$2], matchRowtime=[$3], window_start=[$4], window_end=[$5], window_time=[$6]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP_LTZ(3) *ROWTIME* window_time)]
-+- LogicalTableFunctionScan(invocation=[TUMBLE(DESCRIPTOR($3), 3000:INTERVAL SECOND)], rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP_LTZ(3) *ROWTIME* window_time)]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP_LTZ(3) *ROWTIME* window_time)]
++- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR($3), 3000:INTERVAL SECOND)], rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP_LTZ(3) *ROWTIME* window_time)]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP_LTZ(3) *ROWTIME* window_time)]
    +- LogicalProject(symbol=[$0], price=[$1], tax=[$2], matchRowtime=[$3]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime)]
       +- LogicalProject(symbol=[$0], price=[$1], tax=[$2], matchRowtime=[$3]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime)]
          +- LogicalMatch(partition=[[0]], order=[[1 ASC-nulls-first]], outputFields=[[symbol, price, tax, matchRowtime]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[_UTF-16LE'A'], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[>(PREV(A.$2, 0), 0)]], inputFields=[[symbol, ts_ltz, price, tax]]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime)]

@@ -67,7 +67,6 @@ public class TruncateTableOperation implements ExecutableOperation {
         }
 
         if (TableFactoryUtil.isLegacyConnectorOptions(
-                catalogManager.getCatalog(objectIdentifier.getCatalogName()).orElse(null),
                 ctx.getTableConfig(),
                 ctx.isStreamingMode(),
                 tableIdentifier,

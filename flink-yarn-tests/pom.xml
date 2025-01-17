@@ -44,7 +44,11 @@ under the License.
 			MiniYARNCluster
 			-->--add-opens=java.base/java.lang=ALL-UNNAMED <!--
 			YARNSessionFIFOSecuredITCase
-			-->--add-exports=java.security.jgss/sun.security.krb5=ALL-UNNAMED
+			-->--add-exports=java.security.jgss/sun.security.krb5=ALL-UNNAMED <!--
+			YARNSessionCapacitySchedulerITCase has to override YarnTestBase methods
+			JUnit changed this behavior since 5.11.x, to restore it back need this flag as mentioned at
+			https://junit.org/junit5/docs/current/user-guide/#extensions-supported-utilities-search-semantics
+			-->-Djunit.platform.reflection.search.useLegacySemantics=true
 		</surefire.module.config>
 	</properties>
 

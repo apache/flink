@@ -25,6 +25,7 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.state.forst.fs.cache.BundledCacheLimitPolicy;
 import org.apache.flink.state.forst.fs.cache.CacheLimitPolicy;
 import org.apache.flink.state.forst.fs.cache.CachedDataInputStream;
@@ -98,7 +99,8 @@ public class ForStFlinkFileSystem extends FileSystem {
     }
 
     public static FileBasedCache getFileBasedCache(
-            Path cacheBase, long cacheCapacity, long cacheReservedSize) throws IOException {
+            Path cacheBase, long cacheCapacity, long cacheReservedSize, MetricGroup metricGroup)
+            throws IOException {
         if (cacheBase == null || cacheCapacity <= 0 && cacheReservedSize <= 0) {
             return null;
         }
@@ -119,7 +121,11 @@ public class ForStFlinkFileSystem extends FileSystem {
                             new File(cacheBase.toString()), cacheReservedSize, SST_FILE_SIZE);
         }
         return new FileBasedCache(
-                Integer.MAX_VALUE, cacheLimitPolicy, cacheBase.getFileSystem(), cacheBase);
+                Integer.MAX_VALUE,
+                cacheLimitPolicy,
+                cacheBase.getFileSystem(),
+                cacheBase,
+                metricGroup);
     }
 
     /**

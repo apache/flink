@@ -338,7 +338,7 @@ public abstract class SourceTestSuiteBase<T> {
         String savepointPath =
                 jobClient
                         .stopWithSavepoint(
-                                true, testEnv.getCheckpointUri(), SavepointFormatType.CANONICAL)
+                                false, testEnv.getCheckpointUri(), SavepointFormatType.CANONICAL)
                         .get(30, TimeUnit.SECONDS);
         waitForJobStatus(jobClient, singletonList(JobStatus.FINISHED));
 

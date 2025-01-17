@@ -221,7 +221,7 @@ public interface SqlCallSyntax {
     /**
      * Special sql syntax for TRIM.
      *
-     * <p>Example: TRIM BOTH ' ' FROM 0;
+     * <p>Example: TRIM(BOTH ' ' FROM ' 0 ');
      */
     SqlCallSyntax TRIM =
             (sqlName, operands) -> {

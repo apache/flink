@@ -17,6 +17,7 @@
 ################################################################################
 from py4j.java_gateway import java_import
 
+from pyflink.common.configuration import Configuration
 from pyflink.java_gateway import get_gateway
 from pyflink.table.schema import Schema
 from pyflink.table.table_schema import TableSchema
@@ -24,7 +25,7 @@ from typing import Dict, List, Optional
 
 __all__ = ['Catalog', 'CatalogDatabase', 'CatalogBaseTable', 'CatalogPartition', 'CatalogFunction',
            'Procedure', 'ObjectPath', 'CatalogPartitionSpec', 'CatalogTableStatistics',
-           'CatalogColumnStatistics', 'HiveCatalog']
+           'CatalogColumnStatistics', 'HiveCatalog', 'CatalogDescriptor']
 
 
 class Catalog(object):
@@ -830,8 +831,12 @@ class CatalogBaseTable(object):
 
         gateway = get_gateway()
         return CatalogBaseTable(
-            gateway.jvm.org.apache.flink.table.catalog.CatalogTableImpl(
-                schema._j_table_schema, partition_keys, properties, comment))
+            gateway.jvm.org.apache.flink.table.catalog.CatalogTable.newBuilder()
+            .schema(schema._j_table_schema.toSchema())
+            .comment(comment)
+            .partitionKeys(partition_keys)
+            .options(properties)
+            .build())
 
     @staticmethod
     def create_view(
@@ -1088,16 +1093,6 @@ class CatalogFunction(object):
             return detailed_description.get()
         else:
             return None
-
-    def is_generic(self) -> bool:
-        """
-        Whether or not is the function a flink UDF.
-
-        :return: Whether is the function a flink UDF.
-
-        .. versionadded:: 1.10.0
-        """
-        return self._j_catalog_function.isGeneric()
 
     def get_function_language(self):
         """
@@ -1374,3 +1369,25 @@ class JdbcCatalog(Catalog):
         j_jdbc_catalog = gateway.jvm.org.apache.flink.connector.jdbc.catalog.JdbcCatalog(
             catalog_name, default_database, username, pwd, base_url)
         super(JdbcCatalog, self).__init__(j_jdbc_catalog)
+
+
+class CatalogDescriptor:
+    """
+    Describes a catalog with the catalog name and configuration.
+    A CatalogDescriptor is a template for creating a catalog instance. It closely resembles the
+    "CREATE CATALOG" SQL DDL statement, containing catalog name and catalog configuration.
+    """
+    def __init__(self, j_catalog_descriptor):
+        self._j_catalog_descriptor = j_catalog_descriptor
+
+    @staticmethod
+    def of(catalog_name: str, configuration: Configuration, comment: str = None):
+        assert catalog_name is not None
+        assert configuration is not None
+
+        from pyflink.java_gateway import get_gateway
+        gateway = get_gateway()
+
+        j_catalog_descriptor = gateway.jvm.org.apache.flink.table.catalog.CatalogDescriptor.of(
+            catalog_name, configuration._j_configuration, comment)
+        return CatalogDescriptor(j_catalog_descriptor)

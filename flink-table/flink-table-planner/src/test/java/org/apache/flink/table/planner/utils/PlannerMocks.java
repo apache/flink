@@ -106,7 +106,8 @@ public class PlannerMocks {
                         },
                         functionCatalog.asLookup(parser::parseIdentifier),
                         catalogManager.getDataTypeFactory(),
-                        parser::parseSqlExpression));
+                        parser::parseSqlExpression),
+                parser);
     }
 
     public FlinkPlannerImpl getPlanner() {
@@ -135,11 +136,13 @@ public class PlannerMocks {
 
     public PlannerMocks registerTemporaryTable(String tableName, Schema tableSchema) {
         final CatalogTable table =
-                CatalogTable.of(
-                        tableSchema,
-                        null,
-                        Collections.emptyList(),
-                        Map.of("connector", TestSimpleDynamicTableSourceFactory.IDENTIFIER()));
+                CatalogTable.newBuilder()
+                        .schema(tableSchema)
+                        .options(
+                                Map.of(
+                                        "connector",
+                                        TestSimpleDynamicTableSourceFactory.IDENTIFIER()))
+                        .build();
 
         this.getCatalogManager()
                 .createTemporaryTable(

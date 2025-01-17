@@ -19,9 +19,13 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.streaming.api.graph.util.ImmutableStreamGraph;
+import org.apache.flink.streaming.api.graph.util.ImmutableStreamNode;
 import org.apache.flink.streaming.api.graph.util.StreamEdgeUpdateRequestInfo;
+import org.apache.flink.streaming.api.graph.util.StreamNodeUpdateRequestInfo;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 import javax.annotation.Nullable;
 
@@ -63,10 +67,45 @@ public interface StreamGraphContext {
      */
     boolean modifyStreamEdge(List<StreamEdgeUpdateRequestInfo> requestInfos);
 
+    /**
+     * Modifies stream nodes within the StreamGraph.
+     *
+     * @param requestInfos the stream nodes to be modified.
+     * @return true if the modification was successful, false otherwise.
+     */
+    boolean modifyStreamNode(List<StreamNodeUpdateRequestInfo> requestInfos);
+
+    /**
+     * Check whether all upstream nodes of the stream node have finished executing.
+     *
+     * @param streamNode the stream node that needs to be determined.
+     * @return true if all upstream nodes are finished, false otherwise.
+     */
+    boolean areAllUpstreamNodesFinished(ImmutableStreamNode streamNode);
+
+    /**
+     * Retrieves the IntermediateDataSetID consumed by the specified edge.
+     *
+     * @param edgeId id of the edge
+     * @return the consumed IntermediateDataSetID
+     */
+    IntermediateDataSetID getConsumedIntermediateDataSetId(String edgeId);
+
     /** Interface for observers that monitor the status of a StreamGraph. */
     @Internal
     interface StreamGraphUpdateListener {
         /** This method is called whenever the StreamGraph is updated. */
         void onStreamGraphUpdated();
     }
+
+    /**
+     * Gets the output partitioner of the specified edge.
+     *
+     * @param edgeId id of the edge
+     * @param sourceId source node id of the edge
+     * @param targetId target node id of the edge
+     * @return the output partitioner
+     */
+    @Nullable
+    StreamPartitioner<?> getOutputPartitioner(String edgeId, Integer sourceId, Integer targetId);
 }

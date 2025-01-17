@@ -29,7 +29,6 @@ import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -77,7 +76,12 @@ public class TestTimeTravelCatalog extends GenericInMemoryCatalog {
             String tableName, Schema schema, Map<String, String> properties, long timestamp)
             throws TableAlreadyExistException, DatabaseNotExistException, TableNotExistException {
         CatalogTable catalogTable =
-                CatalogTable.of(schema, "", Collections.emptyList(), properties, timestamp);
+                CatalogTable.newBuilder()
+                        .schema(schema)
+                        .comment("")
+                        .options(properties)
+                        .snapshot(timestamp)
+                        .build();
         ObjectPath objectPath = new ObjectPath(getDefaultDatabase(), tableName);
         if (!timeTravelTables.containsKey(objectPath)) {
             timeTravelTables.put(objectPath, new ArrayList<>());

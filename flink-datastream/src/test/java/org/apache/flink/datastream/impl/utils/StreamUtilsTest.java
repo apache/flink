@@ -53,7 +53,9 @@ class StreamUtilsTest {
                         new OneInputStreamProcessFunction<Integer, Long>() {
                             @Override
                             public void processRecord(
-                                    Integer record, Collector<Long> output, PartitionedContext ctx)
+                                    Integer record,
+                                    Collector<Long> output,
+                                    PartitionedContext<Long> ctx)
                                     throws Exception {
                                 // ignore
                             }
@@ -83,14 +85,16 @@ class StreamUtilsTest {
                             public void processRecordFromFirstInput(
                                     Integer record,
                                     Collector<String> output,
-                                    PartitionedContext ctx)
+                                    PartitionedContext<String> ctx)
                                     throws Exception {
                                 // ignore
                             }
 
                             @Override
                             public void processRecordFromSecondInput(
-                                    Long record, Collector<String> output, PartitionedContext ctx)
+                                    Long record,
+                                    Collector<String> output,
+                                    PartitionedContext<String> ctx)
                                     throws Exception {
                                 // ignore
                             }
@@ -106,7 +110,7 @@ class StreamUtilsTest {
                             public void processRecordFromNonBroadcastInput(
                                     Integer record,
                                     Collector<String> output,
-                                    PartitionedContext ctx)
+                                    PartitionedContext<String> ctx)
                                     throws Exception {
                                 // ignore
                             }
@@ -133,7 +137,7 @@ class StreamUtilsTest {
                                     Integer record,
                                     Collector<Long> output1,
                                     Collector<String> output2,
-                                    TwoOutputPartitionedContext ctx)
+                                    TwoOutputPartitionedContext<Long, String> ctx)
                                     throws Exception {
                                 // ignore
                             }

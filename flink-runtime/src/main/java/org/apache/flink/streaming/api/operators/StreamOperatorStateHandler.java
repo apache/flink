@@ -85,8 +85,6 @@ public class StreamOperatorStateHandler {
 
     @Nullable private final AsyncKeyedStateBackend<?> asyncKeyedStateBackend;
 
-    @Nullable private final org.apache.flink.runtime.state.v2.KeyedStateStore keyedStateStoreV2;
-
     /** Backend for keyed state. This might be empty if we're not on a keyed stream. */
     @Nullable private final CheckpointableKeyedStateBackend<?> keyedStateBackend;
 
@@ -103,12 +101,14 @@ public class StreamOperatorStateHandler {
         this.keySerializer = context.keySerializer();
         this.operatorStateBackend = context.operatorStateBackend();
         this.keyedStateBackend = context.keyedStateBackend();
+        this.asyncKeyedStateBackend = context.asyncKeyedStateBackend();
         this.closeableRegistry = closeableRegistry;
 
-        if (keyedStateBackend != null) {
+        if (keyedStateBackend != null || asyncKeyedStateBackend != null) {
             keyedStateStore =
                     new DefaultKeyedStateStore(
                             keyedStateBackend,
+                            asyncKeyedStateBackend,
                             new SerializerFactory() {
                                 @Override
                                 public <T> TypeSerializer<T> createSerializer(
@@ -120,21 +120,6 @@ public class StreamOperatorStateHandler {
         } else {
             keyedStateStore = null;
         }
-
-        this.asyncKeyedStateBackend = context.asyncKeyedStateBackend();
-        this.keyedStateStoreV2 =
-                asyncKeyedStateBackend != null
-                        ? new org.apache.flink.runtime.state.v2.DefaultKeyedStateStore(
-                                asyncKeyedStateBackend,
-                                new SerializerFactory() {
-                                    @Override
-                                    public <T> TypeSerializer<T> createSerializer(
-                                            TypeInformation<T> typeInformation) {
-                                        return typeInformation.createSerializer(
-                                                executionConfig.getSerializerConfig());
-                                    }
-                                })
-                        : null;
     }
 
     public void initializeOperatorState(CheckpointedStreamOperator streamOperator)
@@ -421,7 +406,7 @@ public class StreamOperatorStateHandler {
     public <N, S extends org.apache.flink.api.common.state.v2.State, T> S getOrCreateKeyedState(
             N defaultNamespace,
             TypeSerializer<N> namespaceSerializer,
-            org.apache.flink.runtime.state.v2.StateDescriptor<T> stateDescriptor)
+            org.apache.flink.api.common.state.v2.StateDescriptor<T> stateDescriptor)
             throws Exception {
 
         if (asyncKeyedStateBackend != null) {
@@ -494,10 +479,6 @@ public class StreamOperatorStateHandler {
 
     public Optional<KeyedStateStore> getKeyedStateStore() {
         return Optional.ofNullable(keyedStateStore);
-    }
-
-    public Optional<org.apache.flink.runtime.state.v2.KeyedStateStore> getKeyedStateStoreV2() {
-        return Optional.ofNullable(keyedStateStoreV2);
     }
 
     /** Custom state handling hooks to be invoked by {@link StreamOperatorStateHandler}. */

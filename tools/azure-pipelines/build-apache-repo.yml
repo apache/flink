@@ -69,10 +69,10 @@ stages:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-22.04'
-          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Djdk11 -Pjava11-target"
+          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Djdk17 -Pjava17-target"
           run_end_to_end: false
           container: flink-build-container
-          jdk: 11
+          jdk: 17
       - job: docs_404_check # run on a MSFT provided machine
         pool:
           vmImage: 'ubuntu-22.04'
@@ -103,14 +103,36 @@ stages:
       - template: build-nightly-dist.yml
         parameters:
           stage_name: cron_snapshot_deployment
-          environment: PROFILE="-Djdk11 -Pjava11-target"
+          environment: PROFILE="-Djdk17 -Pjava17-target"
           container: flink-build-container
-          jdk: 11
+          jdk: 17
       - template: jobs-template.yml
         parameters:
           stage_name: cron_azure
           test_pool_definition:
             vmImage: 'ubuntu-22.04'
+          e2e_pool_definition:
+            vmImage: 'ubuntu-22.04'
+          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Djdk17 -Pjava17-target"
+          run_end_to_end: true
+          container: flink-build-container
+          jdk: 17
+      - template: jobs-template.yml
+        parameters:
+          stage_name: cron_hadoop313
+          test_pool_definition:
+            name: Default
+          e2e_pool_definition:
+            vmImage: 'ubuntu-22.04'
+          environment: PROFILE="-Dflink.hadoop.version=3.2.3 -Phadoop3-tests,hive3 -Djdk17 -Pjava17-target"
+          run_end_to_end: true
+          container: flink-build-container
+          jdk: 17
+      - template: jobs-template.yml
+        parameters:
+          stage_name: cron_jdk11
+          test_pool_definition:
+            name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-22.04'
           environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Djdk11 -Pjava11-target"
@@ -119,34 +141,12 @@ stages:
           jdk: 11
       - template: jobs-template.yml
         parameters:
-          stage_name: cron_hadoop313
-          test_pool_definition:
-            name: Default
-          e2e_pool_definition:
-            vmImage: 'ubuntu-22.04'
-          environment: PROFILE="-Dflink.hadoop.version=3.2.3 -Phadoop3-tests,hive3 -Djdk11 -Pjava11-target"
-          run_end_to_end: true
-          container: flink-build-container
-          jdk: 11
-      - template: jobs-template.yml
-        parameters:
-          stage_name: cron_jdk17
-          test_pool_definition:
-            name: Default
-          e2e_pool_definition:
-            vmImage: 'ubuntu-22.04'
-          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Djdk11 -Djdk17 -Pjava17-target"
-          run_end_to_end: true
-          container: flink-build-container
-          jdk: 17
-      - template: jobs-template.yml
-        parameters:
           stage_name: cron_jdk21
           test_pool_definition:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-22.04'
-          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Djdk11 -Djdk17 -Djdk21 -Pjava21-target"
+          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Djdk21 -Pjava21-target"
           run_end_to_end: true
           container: flink-build-container
           jdk: 21
@@ -157,10 +157,10 @@ stages:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-22.04'
-          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Penable-adaptive-scheduler -Djdk11 -Pjava11-target"
+          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Penable-adaptive-scheduler -Djdk17 -Pjava17-target"
           run_end_to_end: true
           container: flink-build-container
-          jdk: 11
+          jdk: 17
       - job: docs_404_check # run on a MSFT provided machine
         pool:
           vmImage: 'ubuntu-22.04'
@@ -172,5 +172,5 @@ stages:
       - template: build-python-wheels.yml
         parameters:
           stage_name: cron_python_wheels
-          environment: PROFILE="-Dflink.hadoop.version=2.10.2"
+          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Djdk17 -Pjava17-target"
           container: flink-build-container

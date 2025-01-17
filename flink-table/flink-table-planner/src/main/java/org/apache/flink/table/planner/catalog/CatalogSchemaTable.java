@@ -173,17 +173,19 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
                         new TableSourceFactoryContextImpl(
                                 contextResolvedTable.getIdentifier(),
                                 new ResolvedCatalogTable(
-                                        CatalogTable.of(
-                                                Schema.newBuilder()
-                                                        .fromResolvedSchema(
-                                                                TableSchemaUtils
-                                                                        .removeTimeAttributeFromResolvedSchema(
-                                                                                originTable
-                                                                                        .getResolvedSchema()))
-                                                        .build(),
-                                                originTable.getComment(),
-                                                originTable.getPartitionKeys(),
-                                                originTable.getOptions()),
+                                        CatalogTable.newBuilder()
+                                                .schema(
+                                                        Schema.newBuilder()
+                                                                .fromResolvedSchema(
+                                                                        TableSchemaUtils
+                                                                                .removeTimeAttributeFromResolvedSchema(
+                                                                                        originTable
+                                                                                                .getResolvedSchema()))
+                                                                .build())
+                                                .comment(originTable.getComment())
+                                                .partitionKeys(originTable.getPartitionKeys())
+                                                .options(originTable.getOptions())
+                                                .build(),
                                         originTable.getResolvedSchema()),
                                 config,
                                 contextResolvedTable.isTemporary());

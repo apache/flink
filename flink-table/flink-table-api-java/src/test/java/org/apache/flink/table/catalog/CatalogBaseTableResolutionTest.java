@@ -33,6 +33,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.table.utils.ExpressionResolverMocks;
+import org.apache.flink.table.utils.ParserMock;
 
 import org.junit.jupiter.api.Test;
 
@@ -341,7 +342,12 @@ class CatalogBaseTableResolutionTest {
         options.put("connector", "custom");
         options.put("version", "12");
 
-        return CatalogTable.of(TABLE_SCHEMA, comment, partitionKeys, options);
+        return CatalogTable.newBuilder()
+                .schema(TABLE_SCHEMA)
+                .comment(comment)
+                .partitionKeys(partitionKeys)
+                .options(options)
+                .build();
     }
 
     private static Map<String, String> catalogTableAsProperties() {
@@ -455,7 +461,7 @@ class CatalogBaseTableResolutionTest {
                 ExpressionResolverMocks.forSqlExpression(
                         CatalogBaseTableResolutionTest::resolveSqlExpression);
 
-        catalogManager.initSchemaResolver(true, expressionResolverBuilder);
+        catalogManager.initSchemaResolver(true, expressionResolverBuilder, new ParserMock());
 
         return catalogManager;
     }

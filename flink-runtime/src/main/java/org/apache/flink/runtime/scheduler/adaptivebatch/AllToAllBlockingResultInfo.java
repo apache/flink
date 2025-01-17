@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
@@ -119,31 +118,6 @@ public class AllToAllBlockingResultInfo extends AbstractBlockingResultInfo {
         } else {
             return bytes.stream().reduce(0L, Long::sum);
         }
-    }
-
-    @Override
-    public long getNumBytesProduced(
-            IndexRange partitionIndexRange, IndexRange subpartitionIndexRange) {
-        List<Long> bytes =
-                Optional.ofNullable(aggregatedSubpartitionBytes)
-                        .orElse(getAggregatedSubpartitionBytesInternal());
-
-        checkState(
-                partitionIndexRange.getStartIndex() == 0
-                        && partitionIndexRange.getEndIndex() == numOfPartitions - 1,
-                "For All-To-All edges, the partition range should always be [0, %s).",
-                numOfPartitions);
-        checkState(
-                subpartitionIndexRange.getEndIndex() < numOfSubpartitions,
-                "Subpartition index %s is out of range.",
-                subpartitionIndexRange.getEndIndex());
-
-        return bytes
-                .subList(
-                        subpartitionIndexRange.getStartIndex(),
-                        subpartitionIndexRange.getEndIndex() + 1)
-                .stream()
-                .reduce(0L, Long::sum);
     }
 
     @Override

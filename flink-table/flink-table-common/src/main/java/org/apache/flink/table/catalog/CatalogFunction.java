@@ -57,16 +57,6 @@ public interface CatalogFunction {
     Optional<String> getDetailedDescription();
 
     /**
-     * Distinguish if the function is a generic function.
-     *
-     * @return whether the function is a generic function
-     * @deprecated There is no replacement for this function, as now functions have type inference
-     *     strategies
-     */
-    @Deprecated
-    boolean isGeneric();
-
-    /**
      * Get the language used for the definition of function.
      *
      * @return the language type of the function definition

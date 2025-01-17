@@ -21,10 +21,10 @@ import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.data.util.DataFormatConverters
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
-import org.apache.flink.table.planner.codegen.GenerateUtils.{generateCallIfArgsNotNull, generateCallIfArgsNullable, generateNonNullField, generateNullLiteral, generateStringResultCallIfArgsNotNull}
+import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
-import org.apache.flink.table.planner.functions.sql.SqlDefaultOperator
+import org.apache.flink.table.planner.functions.sql.SqlDefaultArgOperator
 import org.apache.flink.table.runtime.functions.SqlFunctionUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isTimestamp, isTimestampWithLocalZone}
 import org.apache.flink.table.types.logical._
@@ -239,7 +239,7 @@ object StringCallGen {
         generateNonNullField(returnType, currentDatabase)
 
       case op => {
-        if (op.isInstanceOf[SqlDefaultOperator]) {
+        if (op.isInstanceOf[SqlDefaultArgOperator]) {
           generateNullLiteral(returnType)
         } else {
           null

@@ -277,7 +277,7 @@ class DefaultAdaptiveExecutionHandlerTest {
                                         outEdge.getEdgeId(),
                                         outEdge.getSourceId(),
                                         outEdge.getTargetId());
-                        requestInfo.outputPartitioner(new RebalancePartitioner<>());
+                        requestInfo.withOutputPartitioner(new RebalancePartitioner<>());
                         requestInfos.add(requestInfo);
                     }
                 }

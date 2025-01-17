@@ -161,7 +161,7 @@ GROUP BY window_start, window_end]]>
 LogicalProject(EXPR$0=[$2], window_start=[$0])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[SUM($2)])
    +- LogicalProject(window_start=[$2], window_end=[$3], i=[$0])
-      +- LogicalTableFunctionScan(invocation=[TUMBLE(DESCRIPTOR($1), 600000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER i, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) window_time)])
+      +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR($1), 600000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER i, TIMESTAMP_LTZ(3) *ROWTIME* ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP_LTZ(3) *ROWTIME* window_time)])
          +- LogicalProject(i=[$0], ts=[$1])
             +- LogicalProject(i=[$0], ts=[$1])
                +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$1])
@@ -176,6 +176,32 @@ Calc(select=[EXPR$0, window_start])
       +- LocalWindowAggregate(window=[TUMBLE(time_col=[ts], size=[10 min])], select=[SUM(i) AS sum$0, slice_end('w$) AS $slice_end])
          +- WatermarkAssigner(rowtime=[ts], watermark=[ts])
             +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTimeAttributeOfViewSelect[streamingMode = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM `cat`.`default`.v]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(order_id=[$0], customer_id=[$1], product_id=[$2], ts=[$3])
++- LogicalProject(order_id=[$0], customer_id=[$1], product_id=[$5], ts=[$4])
+   +- LogicalCorrelate(correlation=[$cor3], joinType=[inner], requiredColumns=[{3}])
+      :- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$4])
+      :  +- LogicalTableScan(table=[[cat, default, t]])
+      +- LogicalProject(product_id=[$0])
+         +- Uncollect
+            +- LogicalProject(product_ids=[$cor3.product_ids])
+               +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[order_id, customer_id, f0 AS product_id, ts])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor3.product_ids)], correlate=[table($UNNEST_ROWS$1($cor3.product_ids))], select=[order_id,customer_id,product_id,product_ids,ts,f0], rowType=[RecordType(INTEGER order_id, INTEGER customer_id, INTEGER product_id, INTEGER ARRAY product_ids, TIMESTAMP_LTZ(3) *ROWTIME* ts, INTEGER f0)], joinType=[INNER])
+   +- WatermarkAssigner(rowtime=[ts], watermark=[ts])
+      +- TableSourceScan(table=[[cat, default, t]], fields=[order_id, customer_id, product_id, product_ids, ts])
 ]]>
     </Resource>
   </TestCase>

@@ -177,6 +177,31 @@ class JavaCatalogTableTest extends TableTestBase {
                         + "GROUP BY window_start, window_end");
     }
 
+    @TestTemplate
+    void testTimeAttributeOfViewSelect() {
+        if (!streamingMode) {
+            // time attributes not supported in batch
+            return;
+        }
+        TableTestUtil testUtil = getTestUtil();
+        TableEnvironment tableEnvironment = testUtil.getTableEnv();
+        tableEnvironment.registerCatalog("cat", new CustomCatalog("cat"));
+        tableEnvironment.executeSql(
+                "CREATE TABLE `cat`.`default`.`t`("
+                        + " order_id INT, "
+                        + " customer_id INT, "
+                        + " product_id INT, "
+                        + " product_ids ARRAY<INT>, "
+                        + " ts TIMESTAMP_LTZ(3), WATERMARK FOR ts AS ts) "
+                        + "WITH ('connector' = 'datagen')");
+        tableEnvironment.executeSql(
+                "CREATE VIEW `cat`.`default`.v AS "
+                        + "SELECT `o`.`order_id`, `o`.`customer_id`, `pids`.`product_id`, `o`.`ts`\n"
+                        + "FROM `cat`.`default`.`t` AS `o`\n"
+                        + "CROSS JOIN UNNEST(`o`.`product_ids`) AS `pids` (`product_id`)");
+        testUtil.verifyExecPlan("SELECT * FROM `cat`.`default`.v");
+    }
+
     private static class CustomCatalog extends GenericInMemoryCatalog {
         public CustomCatalog(String name) {
             super(name);
@@ -283,11 +308,6 @@ class JavaCatalogTableTest extends TableTestBase {
         @Override
         public CatalogTable copy(Map<String, String> options) {
             return this;
-        }
-
-        @Override
-        public Map<String, String> toProperties() {
-            return Collections.emptyMap();
         }
 
         @Override

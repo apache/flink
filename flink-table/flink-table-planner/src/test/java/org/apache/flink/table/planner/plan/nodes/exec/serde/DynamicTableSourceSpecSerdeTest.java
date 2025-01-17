@@ -107,11 +107,10 @@ public class DynamicTableSourceSpecSerdeTest {
                         null);
 
         final CatalogTable catalogTable1 =
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(resolvedSchema1).build(),
-                        null,
-                        Collections.emptyList(),
-                        options1);
+                CatalogTable.newBuilder()
+                        .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema1).build())
+                        .options(options1)
+                        .build();
 
         DynamicTableSourceSpec spec1 =
                 new DynamicTableSourceSpec(
@@ -145,11 +144,10 @@ public class DynamicTableSourceSpecSerdeTest {
                         null);
 
         final CatalogTable catalogTable2 =
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(resolvedSchema2).build(),
-                        null,
-                        Collections.emptyList(),
-                        options2);
+                CatalogTable.newBuilder()
+                        .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema2).build())
+                        .options(options2)
+                        .build();
 
         FlinkTypeFactory factory =
                 new FlinkTypeFactory(
@@ -366,11 +364,10 @@ public class DynamicTableSourceSpecSerdeTest {
                         null);
 
         return new ResolvedCatalogTable(
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
-                        null,
-                        Collections.emptyList(),
-                        options),
+                CatalogTable.newBuilder()
+                        .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema).build())
+                        .options(options)
+                        .build(),
                 resolvedSchema);
     }
 }

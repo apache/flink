@@ -30,6 +30,7 @@ import org.apache.calcite.plan.Contexts;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptSchema;
 import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 
@@ -77,6 +78,7 @@ public class QueryOperationCatalogViewTable extends ExpandingPreparingTable {
         final Context chain = Contexts.of(context, cluster.getPlanner().getContext());
         final FlinkRelBuilder relBuilder = FlinkRelBuilder.of(chain, cluster, getRelOptSchema());
 
-        return relBuilder.queryOperation(catalogView.getQueryOperation()).build();
+        return RelOptUtil.createCastRel(
+                relBuilder.queryOperation(catalogView.getQueryOperation()).build(), rowType, true);
     }
 }

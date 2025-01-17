@@ -104,15 +104,46 @@ Prerequisites for building Flink:
 * Unix-like environment (we use Linux, Mac OS X, Cygwin, WSL)
 * Git
 * Maven (we require version 3.8.6)
-* Java 11
+* Java (version 11, 17, or 21)
+
+### Basic Build Instructions
+
+First, clone the repository:
 
 ```
 git clone https://github.com/apache/flink.git
 cd flink
-./mvnw clean package -DskipTests # this will take up to 10 minutes
 ```
 
-Flink is now installed in `build-target`.
+Then, choose one of the following commands based on your preferred Java version:
+
+**For Java 11**
+
+```
+./mvnw clean package -DskipTests -Djdk11 -Pjava11-target
+```
+
+**For Java 17 (Default)**
+
+```
+./mvnw clean package -DskipTests -Djdk17 -Pjava17-target
+```
+
+**For Java 21**
+
+```
+./mvnw clean package -DskipTests -Djdk21 -Pjava21-target
+```
+
+The build process will take approximately 10 minutes to complete.
+Flink will be installed in `build-target`.
+
+### Notes
+
+* Make sure your JAVA_HOME environment variable points to the correct JDK version
+* The build command uses Maven wrapper (mvnw) which ensures the correct Maven version is used
+* The -DskipTests flag skips running tests to speed up the build process
+* Each Java version requires its corresponding profile (-Pjava<version>-target) and JDK flag (-Djdk<version>)
 
 ## Developing Flink
 

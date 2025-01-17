@@ -24,54 +24,25 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import javax.annotation.Nonnull;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
- * {@link StateDescriptor} for {@link org.apache.flink.api.common.state.v2.ReducingState}.
- *
- * @param <T> The type of the values that can be added to the state.
+ * This class is deprecated and only a placeholder for compatibility for EXISTING PRs. This is never
+ * released before, and will be safely removed before 2.0 release.
  */
-public class ReducingStateDescriptor<T> extends StateDescriptor<T> {
+@Deprecated
+public class ReducingStateDescriptor<T>
+        extends org.apache.flink.api.common.state.v2.ReducingStateDescriptor<T> {
 
-    private final ReduceFunction<T> reduceFunction;
-
-    /**
-     * Creates a new {@code ReducingStateDescriptor} with the given name and default value.
-     *
-     * @param name The (unique) name for the state.
-     * @param reduceFunction The {@code ReduceFunction} used to aggregate the state.
-     * @param typeInfo The type of the values in the state.
-     */
     public ReducingStateDescriptor(
             @Nonnull String name,
             @Nonnull ReduceFunction<T> reduceFunction,
             @Nonnull TypeInformation<T> typeInfo) {
-        super(name, typeInfo);
-        this.reduceFunction = checkNotNull(reduceFunction);
+        super(name, reduceFunction, typeInfo);
     }
 
-    /**
-     * Create a new {@code ReducingStateDescriptor} with the given stateId and the given type
-     * serializer.
-     *
-     * @param stateId The (unique) stateId for the state.
-     * @param serializer The type serializer for the values in the state.
-     */
     public ReducingStateDescriptor(
             @Nonnull String stateId,
             @Nonnull ReduceFunction<T> reduceFunction,
             @Nonnull TypeSerializer<T> serializer) {
-        super(stateId, serializer);
-        this.reduceFunction = checkNotNull(reduceFunction);
-    }
-
-    /** Returns the reduce function to be used for the reducing state. */
-    public ReduceFunction<T> getReduceFunction() {
-        return reduceFunction;
-    }
-
-    @Override
-    public Type getType() {
-        return Type.REDUCING;
+        super(stateId, reduceFunction, serializer);
     }
 }

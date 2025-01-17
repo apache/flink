@@ -268,12 +268,10 @@ public final class SerializerConfigImpl implements SerializerConfig {
         configuration.set(PipelineOptions.FORCE_AVRO, forceAvro);
     }
 
-    @Override
     public void setForceKryoAvro(boolean forceKryoAvro) {
         configuration.set(PipelineOptions.FORCE_KRYO_AVRO, forceKryoAvro);
     }
 
-    @Override
     public TernaryBoolean isForceKryoAvroEnabled() {
         return configuration
                 .getOptional(PipelineOptions.FORCE_KRYO_AVRO)
@@ -356,59 +354,9 @@ public final class SerializerConfigImpl implements SerializerConfig {
         configuration
                 .getOptional(PipelineOptions.FORCE_KRYO_AVRO)
                 .ifPresent(this::setForceKryoAvro);
-
-        try {
-            configuration
-                    .getOptional(PipelineOptions.SERIALIZATION_CONFIG)
-                    .ifPresent(c -> parseSerializationConfigWithExceptionHandling(classLoader, c));
-        } catch (Exception e) {
-            throw e;
-        }
-    }
-
-    private LinkedHashSet<Class<?>> loadClasses(
-            List<String> classNames, ClassLoader classLoader, String errorMessage) {
-        return classNames.stream()
-                .map(name -> this.<Class<?>>loadClass(name, classLoader, errorMessage))
-                .collect(Collectors.toCollection(LinkedHashSet::new));
-    }
-
-    private LinkedHashMap<Class<?>, Class<? extends Serializer<?>>>
-            parseKryoSerializersWithExceptionHandling(
-                    ClassLoader classLoader, List<String> kryoSerializers) {
-        try {
-            return parseKryoSerializers(classLoader, kryoSerializers);
-        } catch (Exception e) {
-            throw new IllegalArgumentException(
-                    String.format(
-                            "Could not configure kryo serializers from %s. The expected format is:"
-                                    + "'class:<fully qualified class name>,serializer:<fully qualified serializer name>;...",
-                            kryoSerializers),
-                    e);
-        }
-    }
-
-    private LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> parseKryoSerializers(
-            ClassLoader classLoader, List<String> kryoSerializers) {
-        return kryoSerializers.stream()
-                .map(ConfigurationUtils::parseStringToMap)
-                .collect(
-                        Collectors.toMap(
-                                m ->
-                                        loadClass(
-                                                m.get("class"),
-                                                classLoader,
-                                                "Could not load class for kryo serialization"),
-                                m ->
-                                        loadClass(
-                                                m.get("serializer"),
-                                                classLoader,
-                                                "Could not load serializer's class"),
-                                (m1, m2) -> {
-                                    throw new IllegalArgumentException(
-                                            "Duplicated serializer for class: " + m1);
-                                },
-                                LinkedHashMap::new));
+        configuration
+                .getOptional(PipelineOptions.SERIALIZATION_CONFIG)
+                .ifPresent(c -> parseSerializationConfigWithExceptionHandling(classLoader, c));
     }
 
     @SuppressWarnings("unchecked")

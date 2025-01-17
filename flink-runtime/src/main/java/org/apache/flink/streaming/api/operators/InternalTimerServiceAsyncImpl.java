@@ -32,9 +32,9 @@ import org.apache.flink.util.function.ThrowingRunnable;
 
 /**
  * An implementation of {@link InternalTimerService} that is used by {@link
- * org.apache.flink.streaming.runtime.operators.asyncprocessing.AbstractAsyncStateStreamOperator}.
- * The timer service will set {@link RecordContext} for the timers before invoking action to
- * preserve the execution order between timer firing and records processing.
+ * org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateStreamOperator}. The timer
+ * service will set {@link RecordContext} for the timers before invoking action to preserve the
+ * execution order between timer firing and records processing.
  *
  * @see <a
  *     href=https://cwiki.apache.org/confluence/display/FLINK/FLIP-425%3A+Asynchronous+Execution+Model#FLIP425:AsynchronousExecutionModel-Timers>FLIP-425
@@ -130,7 +130,8 @@ public class InternalTimerServiceAsyncImpl<K, N> extends InternalTimerServiceImp
         recordCtx.retain();
         asyncExecutionController.setCurrentContext(recordCtx);
         keyContext.setCurrentKey(timer.getKey());
-        StateFuture<Void> future = asyncExecutionController.syncPointRequestWithCallback(runnable);
+        StateFuture<Void> future =
+                asyncExecutionController.syncPointRequestWithCallback(runnable, true);
         recordCtx.release();
         return future;
     }

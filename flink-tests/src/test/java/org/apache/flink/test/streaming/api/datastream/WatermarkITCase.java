@@ -653,7 +653,7 @@ class WatermarkITCase {
         }
 
         @Override
-        public void processRecord(Long record, Collector<Long> output, PartitionedContext ctx)
+        public void processRecord(Long record, Collector<Long> output, PartitionedContext<Long> ctx)
                 throws Exception {
             receivedRecords.add(record);
             output.collect(record * 2);
@@ -722,7 +722,7 @@ class WatermarkITCase {
         }
 
         @Override
-        public void processRecord(Long record, Collector<Long> output, PartitionedContext ctx)
+        public void processRecord(Long record, Collector<Long> output, PartitionedContext<Long> ctx)
                 throws Exception {
             receivedRecords.add(record);
             output.collect(record + 1);
@@ -769,7 +769,7 @@ class WatermarkITCase {
         }
 
         @Override
-        public void processRecord(Long record, Collector<Long> output, PartitionedContext ctx)
+        public void processRecord(Long record, Collector<Long> output, PartitionedContext<Long> ctx)
                 throws Exception {
             receivedRecords.add(record);
         }

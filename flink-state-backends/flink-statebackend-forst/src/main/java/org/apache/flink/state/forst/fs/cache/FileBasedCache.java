@@ -22,6 +22,9 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.ThreadSafeSimpleCounter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +40,8 @@ import java.io.IOException;
 public class FileBasedCache extends LruCache<String, FileCacheEntry> {
     private static final Logger LOG = LoggerFactory.getLogger(FileBasedCache.class);
 
+    private static final String FORST_CACHE_PREFIX = "forst.fileCache";
+
     /** The file system of cache. */
     final FileSystem cacheFs;
 
@@ -46,12 +51,35 @@ public class FileBasedCache extends LruCache<String, FileCacheEntry> {
     /** Whether the cache is closed. */
     private volatile boolean closed;
 
+    private MetricGroup metricGroup;
+
+    /** Hit metric. */
+    private transient Counter hitCounter;
+
+    /** Miss metric. */
+    private transient Counter missCounter;
+
     public FileBasedCache(
-            int capacity, CacheLimitPolicy cacheLimitPolicy, FileSystem cacheFs, Path basePath) {
+            int capacity,
+            CacheLimitPolicy cacheLimitPolicy,
+            FileSystem cacheFs,
+            Path basePath,
+            MetricGroup metricGroup) {
         super(capacity, cacheLimitPolicy);
         this.closed = false;
         this.cacheFs = cacheFs;
         this.basePath = basePath;
+        if (metricGroup != null) {
+            this.metricGroup = metricGroup;
+            this.hitCounter =
+                    metricGroup.counter(FORST_CACHE_PREFIX + ".hit", new ThreadSafeSimpleCounter());
+            this.missCounter =
+                    metricGroup.counter(
+                            FORST_CACHE_PREFIX + ".miss", new ThreadSafeSimpleCounter());
+            metricGroup.gauge(
+                    FORST_CACHE_PREFIX + ".usedBytes", () -> cacheLimitPolicy.usedBytes());
+            cacheLimitPolicy.registerCustomizedMetrics(FORST_CACHE_PREFIX, metricGroup);
+        }
         LOG.info(
                 "FileBasedCache initialized, basePath: {}, cache limit policy: {}",
                 basePath,
@@ -97,6 +125,13 @@ public class FileBasedCache extends LruCache<String, FileCacheEntry> {
 
     @Override
     FileCacheEntry internalGet(String key, FileCacheEntry value) {
+        if (metricGroup != null) {
+            if (value != null) {
+                hitCounter.inc();
+            } else {
+                missCounter.inc();
+            }
+        }
         return value;
     }
 

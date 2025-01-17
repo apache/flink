@@ -23,6 +23,7 @@ import org.apache.flink.api.common.watermark.WatermarkHandlingResult;
 import org.apache.flink.api.common.watermark.WatermarkHandlingStrategy;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.ProcessingTimeManager;
+import org.apache.flink.datastream.api.extension.eventtime.timer.EventTimeManager;
 import org.apache.flink.datastream.api.function.TwoInputNonBroadcastStreamProcessFunction;
 import org.apache.flink.datastream.impl.common.OutputCollector;
 import org.apache.flink.datastream.impl.common.TimestampCollector;
@@ -30,18 +31,25 @@ import org.apache.flink.datastream.impl.context.DefaultNonPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultRuntimeContext;
 import org.apache.flink.datastream.impl.context.UnsupportedProcessingTimeManager;
+import org.apache.flink.datastream.impl.extension.eventtime.EventTimeExtensionImpl;
+import org.apache.flink.datastream.impl.extension.eventtime.functions.EventTimeWrappedTwoInputNonBroadcastStreamProcessFunction;
+import org.apache.flink.datastream.impl.extension.eventtime.timer.DefaultEventTimeManager;
 import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateUdfStreamOperator;
 import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
+import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermark.AbstractInternalWatermarkDeclaration;
+import org.apache.flink.streaming.runtime.watermark.extension.eventtime.EventTimeWatermarkHandler;
 
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -62,6 +70,9 @@ public class TwoInputNonBroadcastProcessOperator<IN1, IN2, OUT>
 
     protected transient Map<String, AbstractInternalWatermarkDeclaration<?>>
             watermarkDeclarationMap;
+
+    // {@link EventTimeWatermarkHandler} will be used to process event time related watermarks
+    protected transient EventTimeWatermarkHandler eventTimeWatermarkHandler;
 
     public TwoInputNonBroadcastProcessOperator(
             TwoInputNonBroadcastStreamProcessFunction<IN1, IN2, OUT> userFunction) {
@@ -103,6 +114,20 @@ public class TwoInputNonBroadcastProcessOperator<IN1, IN2, OUT>
                         operatorStateBackend);
         this.nonPartitionedContext = getNonPartitionedContext();
         this.partitionedContext.setNonPartitionedContext(this.nonPartitionedContext);
+        this.eventTimeWatermarkHandler =
+                new EventTimeWatermarkHandler(2, output, timeServiceManager);
+
+        if (userFunction instanceof EventTimeWrappedTwoInputNonBroadcastStreamProcessFunction) {
+            // note that the {@code initEventTimeExtension} in EventTimeWrappedProcessFunction
+            // should be invoked before the {@code open}.
+            EventTimeManager eventTimeManager =
+                    new DefaultEventTimeManager(getTimerService(), getEventTimeSupplier());
+            ((EventTimeWrappedTwoInputNonBroadcastStreamProcessFunction<IN1, IN2, OUT>)
+                            userFunction)
+                    .initEventTimeExtension(
+                            getTimerService(), getEventTimeSupplier(), eventTimeWatermarkHandler);
+        }
+
         this.userFunction.open(this.nonPartitionedContext);
     }
 
@@ -129,7 +154,13 @@ public class TwoInputNonBroadcastProcessOperator<IN1, IN2, OUT>
                                 .get(watermark.getWatermark().getIdentifier())
                                 .getDefaultHandlingStrategy()
                         == WatermarkHandlingStrategy.FORWARD) {
-            output.emitWatermark(watermark);
+            if (EventTimeExtensionImpl.isEventTimeExtensionWatermark(watermark.getWatermark())) {
+                // if the watermark is event time related watermark, process them to advance event
+                // time
+                eventTimeWatermarkHandler.processWatermark(watermark.getWatermark(), 0);
+            } else {
+                output.emitWatermark(watermark);
+            }
         }
     }
 
@@ -143,7 +174,13 @@ public class TwoInputNonBroadcastProcessOperator<IN1, IN2, OUT>
                                 .get(watermark.getWatermark().getIdentifier())
                                 .getDefaultHandlingStrategy()
                         == WatermarkHandlingStrategy.FORWARD) {
-            output.emitWatermark(watermark);
+            if (EventTimeExtensionImpl.isEventTimeExtensionWatermark(watermark.getWatermark())) {
+                // if the watermark is event time related watermark, process them to advance event
+                // time
+                eventTimeWatermarkHandler.processWatermark(watermark.getWatermark(), 1);
+            } else {
+                output.emitWatermark(watermark);
+            }
         }
     }
 
@@ -206,5 +243,13 @@ public class TwoInputNonBroadcastProcessOperator<IN1, IN2, OUT>
     public boolean isAsyncStateProcessingEnabled() {
         // For non-keyed operators, we disable async state processing.
         return false;
+    }
+
+    protected InternalTimerService<VoidNamespace> getTimerService() {
+        return null;
+    }
+
+    protected Supplier<Long> getEventTimeSupplier() {
+        return () -> eventTimeWatermarkHandler.getLastEmitWatermark();
     }
 }

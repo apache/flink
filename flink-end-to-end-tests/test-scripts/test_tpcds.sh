@@ -72,6 +72,11 @@ function run_test() {
         set_config_key "execution.batch.speculative.block-slow-node-duration" "0s"
         set_config_key "slow-task-detector.execution-time.baseline-ratio" "0.0"
         set_config_key "slow-task-detector.execution-time.baseline-lower-bound" "0s"
+        set_config_key "table.optimizer.adaptive-broadcast-join.strategy" "auto"
+        set_config_key "table.optimizer.join.broadcast-threshold" "10485760L"
+        set_config_key "table.optimizer.skewed-join-optimization.strategy" "auto"
+        set_config_key "table.optimizer.skewed-join-optimization.skewed-threshold" "100kb"
+        set_config_key "table.optimizer.skewed-join-optimization.skewed-factor" "1.0"
     else
         echo "ERROR: Scheduler ${scheduler} is unsupported for tpcds test. Aborting..."
         exit 1

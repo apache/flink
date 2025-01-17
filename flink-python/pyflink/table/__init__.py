@@ -66,6 +66,8 @@ Classes for catalog:
       from and to a catalog.
     - :class:`catalog.HiveCatalog`
       Responsible for reading and writing metadata stored in Hive.
+    - :class:`catalog.CatalogDescriptor`
+      Responsible for describing a Catalog with the catalog name and configuration.
 
 Classes to define source & sink:
 

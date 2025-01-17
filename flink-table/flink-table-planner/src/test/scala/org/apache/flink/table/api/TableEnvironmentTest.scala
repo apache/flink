@@ -1632,12 +1632,6 @@ class TableEnvironmentTest {
   }
 
   @Test
-  def testLegacyModule(): Unit = {
-    tableEnv.executeSql("LOAD MODULE LegacyModule")
-    validateShowModules(("core", true), ("LegacyModule", true))
-  }
-
-  @Test
   def testExecuteSqlWithCreateDropView(): Unit = {
     createTableForTests()
 
@@ -2945,11 +2939,12 @@ class TableEnvironmentTest {
         table: CatalogBaseTable): CatalogBaseTable = {
       numTempTable += 1
       if (table.isInstanceOf[CatalogTable]) {
-        CatalogTable.of(
-          table.getUnresolvedSchema,
-          tableComment,
-          Collections.emptyList(),
-          table.getOptions)
+        CatalogTable
+          .newBuilder()
+          .schema(table.getUnresolvedSchema)
+          .comment(tableComment)
+          .options(table.getOptions)
+          .build()
       } else {
         val view = table.asInstanceOf[CatalogView]
         CatalogView.of(

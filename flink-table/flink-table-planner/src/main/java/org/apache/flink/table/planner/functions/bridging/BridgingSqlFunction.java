@@ -279,5 +279,15 @@ public class BridgingSqlFunction extends SqlFunction {
             }
             return TableCharacteristic.builder(semantics).build();
         }
+
+        @Override
+        public boolean argumentMustBeScalar(int ordinal) {
+            final List<StaticArgument> args = typeInference.getStaticArguments().orElse(null);
+            if (args == null || ordinal >= args.size()) {
+                return true;
+            }
+            final StaticArgument arg = args.get(ordinal);
+            return !arg.is(StaticArgumentTrait.TABLE);
+        }
     }
 }

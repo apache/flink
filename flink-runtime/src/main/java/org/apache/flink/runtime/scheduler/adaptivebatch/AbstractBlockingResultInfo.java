@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
@@ -80,5 +81,31 @@ abstract class AbstractBlockingResultInfo implements BlockingResultInfo {
     @Override
     public Map<Integer, long[]> getSubpartitionBytesByPartitionIndex() {
         return Collections.unmodifiableMap(subpartitionBytesByPartitionIndex);
+    }
+
+    @Override
+    public long getNumBytesProduced(
+            IndexRange partitionIndexRange, IndexRange subpartitionIndexRange) {
+        long inputBytes = 0;
+        for (int i = partitionIndexRange.getStartIndex();
+                i <= partitionIndexRange.getEndIndex();
+                ++i) {
+            checkState(
+                    subpartitionBytesByPartitionIndex.get(i) != null,
+                    "Partition index %s is not ready.",
+                    i);
+            checkState(
+                    subpartitionIndexRange.getEndIndex()
+                            < subpartitionBytesByPartitionIndex.get(i).length,
+                    "Subpartition end index %s is out of range of partition %s.",
+                    subpartitionIndexRange.getEndIndex(),
+                    i);
+            for (int j = subpartitionIndexRange.getStartIndex();
+                    j <= subpartitionIndexRange.getEndIndex();
+                    ++j) {
+                inputBytes += subpartitionBytesByPartitionIndex.get(i)[j];
+            }
+        }
+        return inputBytes;
     }
 }

@@ -99,7 +99,8 @@ public class SqlNodeToOperationConversionTestBase {
     public void before() throws TableAlreadyExistException, DatabaseNotExistException {
         catalogManager.initSchemaResolver(
                 isStreamingMode,
-                ExpressionResolverMocks.basicResolver(catalogManager, functionCatalog, parser));
+                ExpressionResolverMocks.basicResolver(catalogManager, functionCatalog, parser),
+                parser);
 
         final ObjectPath path1 = new ObjectPath(catalogManager.getCurrentDatabase(), "t1");
         final ObjectPath path2 = new ObjectPath(catalogManager.getCurrentDatabase(), "t2");
@@ -115,7 +116,7 @@ public class SqlNodeToOperationConversionTestBase {
         Map<String, String> options = new HashMap<>();
         options.put("connector", "COLLECTION");
         final CatalogTable catalogTable =
-                CatalogTable.of(tableSchema, "", Collections.emptyList(), options);
+                CatalogTable.newBuilder().schema(tableSchema).comment("").options(options).build();
         catalog.createTable(path1, catalogTable, true);
         catalog.createTable(path2, catalogTable, true);
     }

@@ -31,7 +31,6 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
@@ -239,12 +238,6 @@ public class DeployScriptITCase {
                     return new TestClusterClient();
                 }
             };
-        }
-
-        @Override
-        public ClusterClientProvider<T> deployJobCluster(
-                ClusterSpecification clusterSpecification, JobGraph jobGraph, boolean detached) {
-            throw new UnsupportedOperationException();
         }
 
         @Override

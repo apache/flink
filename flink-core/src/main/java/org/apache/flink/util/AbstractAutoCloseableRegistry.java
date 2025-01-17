@@ -137,13 +137,13 @@ public abstract class AbstractAutoCloseableRegistry<
 
     /**
      * Does the actual registration of the closeable with the registry map. This should not do any
-     * long running or potentially blocking operations as is is executed under the registry's lock.
+     * long running or potentially blocking operations as it is executed under the registry's lock.
      */
     protected abstract void doRegister(@Nonnull C closeable, @Nonnull Map<R, T> closeableMap);
 
     /**
      * Does the actual un-registration of the closeable from the registry map. This should not do
-     * any long running or potentially blocking operations as is is executed under the registry's
+     * any long running or potentially blocking operations as it is executed under the registry's
      * lock.
      */
     protected abstract boolean doUnRegister(@Nonnull C closeable, @Nonnull Map<R, T> closeableMap);
