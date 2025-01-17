@@ -557,7 +557,7 @@ public class KubernetesConfigOptions {
     public static final ConfigOption<Boolean> KUBERNETES_LOG_MOUNT_DECORATOR_ENABLED =
             key("kubernetes.decorator.log-mount.enabled")
                     .booleanType()
-                    .defaultValue(true)
+                    .defaultValue(false)
                     .withDescription(
                             "Whether to enable log mount decorator. ");
 
