@@ -136,6 +136,11 @@ public abstract class AbstractExternalPythonFunctionOperator<OUT>
         }
     }
 
+    @Override
+    protected void drainUnregisteredTimers() {
+        pythonFunctionRunner.drainUnregisteredTimers();
+    }
+
     protected void emitResults() throws Exception {
         Tuple3<String, byte[], Integer> resultTuple;
         while ((resultTuple = pythonFunctionRunner.pollResult()) != null && resultTuple.f2 != 0) {

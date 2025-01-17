@@ -148,6 +148,7 @@ public class PythonScalarFunctionOperatorTest
         @Override
         public PythonFunctionRunner createPythonFunctionRunner() throws IOException {
             return new PassThroughPythonScalarFunctionRunner(
+                    getContainingTask().getEnvironment(),
                     getRuntimeContext().getTaskInfo().getTaskName(),
                     PythonTestUtils.createTestProcessEnvironmentManager(),
                     udfInputType,
