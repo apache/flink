@@ -1,24 +1,24 @@
 == Abstract Syntax Tree ==
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
+LogicalSink(table=[default_catalog.default_database.MySink], fields=[last])
 +- LogicalProject(last=[$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: first, id, score, last)]]])
 
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
+LogicalSink(table=[default_catalog.default_database.MySink], fields=[first])
 +- LogicalProject(first=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: first, id, score, last)]]])
 
 == Optimized Physical Plan ==
-LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
+Sink(table=[default_catalog.default_database.MySink], fields=[last])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: last)]]], fields=[last])
 
-LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
+Sink(table=[default_catalog.default_database.MySink], fields=[first])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: first)]]], fields=[first])
 
 == Optimized Execution Plan ==
-LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
+Sink(table=[default_catalog.default_database.MySink], fields=[last])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: last)]]], fields=[last])
 
-LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
+Sink(table=[default_catalog.default_database.MySink], fields=[first])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: first)]]], fields=[first])
 
 == Physical Execution Plan ==
@@ -53,20 +53,9 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
     } ]
   }, {
     "id" : ,
-    "type" : "SinkConversion[]",
+    "type" : "StreamingFileWriter",
     "pact" : "Operator",
-    "contents" : "[]:SinkConversion To Row",
-    "parallelism" : 1,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "FORWARD",
-      "side" : "second"
-    } ]
-  }, {
-    "id" : ,
-    "type" : "Map",
-    "pact" : "Operator",
-    "contents" : "Map",
+    "contents" : "StreamingFileWriter",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -103,9 +92,9 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
     } ]
   }, {
     "id" : ,
-    "type" : "SinkConversion[]",
+    "type" : "StreamingFileWriter",
     "pact" : "Operator",
-    "contents" : "[]:SinkConversion To Row",
+    "contents" : "StreamingFileWriter",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -114,9 +103,9 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
     } ]
   }, {
     "id" : ,
-    "type" : "Map",
+    "type" : "end: Writer",
     "pact" : "Operator",
-    "contents" : "Map",
+    "contents" : "end: Writer",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -125,20 +114,9 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
     } ]
   }, {
     "id" : ,
-    "type" : "Sink: CsvTableSink(first)",
-    "pact" : "Data Sink",
-    "contents" : "Sink: CsvTableSink(first)",
-    "parallelism" : 1,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "FORWARD",
-      "side" : "second"
-    } ]
-  }, {
-    "id" : ,
-    "type" : "Sink: CsvTableSink(first)",
-    "pact" : "Data Sink",
-    "contents" : "Sink: CsvTableSink(first)",
+    "type" : "end: Writer",
+    "pact" : "Operator",
+    "contents" : "end: Writer",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,

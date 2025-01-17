@@ -19,10 +19,11 @@ package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED}
+import org.apache.flink.table.planner.runtime.utils.TestSinkUtil
 import org.apache.flink.table.planner.utils.TableTestBase
-import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
+import org.apache.flink.table.types.DataType
 
 import org.junit.jupiter.api.{BeforeEach, Test}
 
@@ -31,9 +32,9 @@ import java.time.Duration
 class MiniBatchIntervalInferTest extends TableTestBase {
   private val util = streamTestUtil()
 
-  val STRING = VarCharType.STRING_TYPE
-  val LONG = new BigIntType()
-  val INT = new IntType()
+  val STRING: DataType = DataTypes.STRING
+  val LONG: DataType = DataTypes.BIGINT
+  val INT: DataType = DataTypes.INT
 
   @BeforeEach
   def setup(): Unit = {
@@ -355,10 +356,13 @@ class MiniBatchIntervalInferTest extends TableTestBase {
                                |FROM TempTable2
                                |GROUP BY HOP(ts, INTERVAL '12' SECOND, INTERVAL '4' SECOND), id1
       """.stripMargin)
-    val appendSink1 = util.createAppendTableSink(Array("a", "b"), Array(INT, STRING))
-    util.tableEnv
-      .asInstanceOf[TableEnvironmentInternal]
-      .registerTableSinkInternal("appendSink1", appendSink1)
+    TestSinkUtil.addValuesSink(
+      util.tableEnv,
+      "appendSink1",
+      List("a", "b"),
+      List(INT, STRING),
+      ChangelogMode.insertOnly()
+    )
     stmtSet.addInsert("appendSink1", table3)
 
     val table4 = util.tableEnv.sqlQuery("""
@@ -367,10 +371,13 @@ class MiniBatchIntervalInferTest extends TableTestBase {
                                           |FROM TempTable1
                                           |GROUP BY TUMBLE(ts, INTERVAL '9' SECOND), id1
       """.stripMargin)
-    val appendSink2 = util.createAppendTableSink(Array("a", "b"), Array(INT, STRING))
-    util.tableEnv
-      .asInstanceOf[TableEnvironmentInternal]
-      .registerTableSinkInternal("appendSink2", appendSink2)
+    TestSinkUtil.addValuesSink(
+      util.tableEnv,
+      "appendSink2",
+      List("a", "b"),
+      List(INT, STRING),
+      ChangelogMode.insertOnly()
+    )
     stmtSet.addInsert("appendSink2", table4)
 
     val table5 = util.tableEnv.sqlQuery("""
@@ -379,11 +386,14 @@ class MiniBatchIntervalInferTest extends TableTestBase {
                                           |FROM TempTable2
                                           |GROUP BY id1
       """.stripMargin)
-    val appendSink3 = util.createRetractTableSink(Array("a", "b"), Array(INT, LONG))
-    util.tableEnv
-      .asInstanceOf[TableEnvironmentInternal]
-      .registerTableSinkInternal("appendSink3", appendSink3)
-    stmtSet.addInsert("appendSink3", table5)
+    TestSinkUtil.addValuesSink(
+      util.tableEnv,
+      "retractSink3",
+      List("a", "b"),
+      List(INT, LONG),
+      ChangelogMode.all()
+    )
+    stmtSet.addInsert("retractSink3", table5)
 
     util.verifyExplain(stmtSet)
   }
