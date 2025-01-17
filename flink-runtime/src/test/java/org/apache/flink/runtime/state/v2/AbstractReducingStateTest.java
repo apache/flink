@@ -187,6 +187,11 @@ public class AbstractReducingStateTest extends AbstractKeyedStateTestBase {
         }
 
         @Override
+        public void executeRequestSync(StateRequest<?, ?, ?, ?> stateRequest) {
+            throw new UnsupportedOperationException("Unsupported synchronous execution");
+        }
+
+        @Override
         public boolean fullyLoaded() {
             return false;
         }

@@ -349,7 +349,8 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
         RecordContext<K> recordContext =
                 new RecordContext<>(record, key, t -> {}, keyGroup, new Epoch(0), 0);
         TestStateFuture stateFuture = new TestStateFuture<>();
-        return new StateRequest<>(innerTable, requestType, value, stateFuture, recordContext);
+        return new StateRequest<>(
+                innerTable, requestType, false, value, stateFuture, recordContext);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -363,6 +364,7 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
         RecordContext<K> recordContext =
                 new RecordContext<>(record, key, t -> {}, keyGroup, new Epoch(0), 0);
         TestStateFuture stateFuture = new TestStateFuture<>();
-        return new StateRequest<>(innerTable, requestType, value, stateFuture, recordContext);
+        return new StateRequest<>(
+                innerTable, requestType, false, value, stateFuture, recordContext);
     }
 }

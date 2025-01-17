@@ -46,7 +46,14 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
 
     @Override
     public void offer(StateRequest<?, ?, ?, ?> stateRequest) {
-        convertStateRequestsToForStDBRequests(stateRequest);
+        Object forstDbRequest = convertRequests(stateRequest);
+        if (forstDbRequest instanceof ForStDBGetRequest) {
+            dbGetRequests.add((ForStDBGetRequest<?, ?, ?, ?>) forstDbRequest);
+        } else if (forstDbRequest instanceof ForStDBPutRequest) {
+            dbPutRequests.add((ForStDBPutRequest<?, ?, ?>) forstDbRequest);
+        } else {
+            dbIterRequests.add((ForStDBIterRequest<?, ?, ?, ?, ?>) forstDbRequest);
+        }
     }
 
     @Override
@@ -55,7 +62,7 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
     }
 
     @SuppressWarnings("ConstantConditions")
-    private void convertStateRequestsToForStDBRequests(StateRequest<?, ?, ?, ?> stateRequest) {
+    public static Object convertRequests(StateRequest<?, ?, ?, ?> stateRequest) {
         StateRequestType stateRequestType = stateRequest.getRequestType();
         switch (stateRequestType) {
             case VALUE_GET:
@@ -68,8 +75,7 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
                 {
                     ForStInnerTable<?, ?, ?> innerTable =
                             (ForStInnerTable<?, ?, ?>) stateRequest.getState();
-                    dbGetRequests.add(innerTable.buildDBGetRequest(stateRequest));
-                    return;
+                    return innerTable.buildDBGetRequest(stateRequest);
                 }
             case VALUE_UPDATE:
             case LIST_UPDATE:
@@ -82,8 +88,7 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
                 {
                     ForStInnerTable<?, ?, ?> innerTable =
                             (ForStInnerTable<?, ?, ?>) stateRequest.getState();
-                    dbPutRequests.add(innerTable.buildDBPutRequest(stateRequest));
-                    return;
+                    return innerTable.buildDBPutRequest(stateRequest);
                 }
             case MAP_ITER:
             case MAP_ITER_KEY:
@@ -92,28 +97,24 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
                 {
                     ForStMapState<?, ?, ?, ?> forStMapState =
                             (ForStMapState<?, ?, ?, ?>) stateRequest.getState();
-                    dbIterRequests.add(forStMapState.buildDBIterRequest(stateRequest));
-                    return;
+                    return forStMapState.buildDBIterRequest(stateRequest);
                 }
             case MAP_PUT_ALL:
                 {
                     ForStMapState<?, ?, ?, ?> forStMapState =
                             (ForStMapState<?, ?, ?, ?>) stateRequest.getState();
-                    dbPutRequests.add(forStMapState.buildDBBunchPutRequest(stateRequest));
-                    return;
+                    return forStMapState.buildDBBunchPutRequest(stateRequest);
                 }
             case CLEAR:
                 {
                     if (stateRequest.getState() instanceof ForStMapState) {
                         ForStMapState<?, ?, ?, ?> forStMapState =
                                 (ForStMapState<?, ?, ?, ?>) stateRequest.getState();
-                        dbPutRequests.add(forStMapState.buildDBBunchPutRequest(stateRequest));
-                        return;
+                        return forStMapState.buildDBBunchPutRequest(stateRequest);
                     } else if (stateRequest.getState() instanceof ForStInnerTable) {
                         ForStInnerTable<?, ?, ?> innerTable =
                                 (ForStInnerTable<?, ?, ?>) stateRequest.getState();
-                        dbPutRequests.add(innerTable.buildDBPutRequest(stateRequest));
-                        return;
+                        return innerTable.buildDBPutRequest(stateRequest);
                     } else {
                         throw new UnsupportedOperationException(
                                 "The State "
@@ -123,8 +124,7 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
                 }
             case CUSTOMIZED:
                 {
-                    handleCustomizedStateRequests(stateRequest);
-                    return;
+                    return handleCustomizedStateRequests(stateRequest);
                 }
             default:
                 throw new UnsupportedOperationException(
@@ -133,7 +133,7 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
     }
 
     @SuppressWarnings("unchecked")
-    private void handleCustomizedStateRequests(StateRequest<?, ?, ?, ?> stateRequest) {
+    private static Object handleCustomizedStateRequests(StateRequest<?, ?, ?, ?> stateRequest) {
         Tuple2<ForStStateRequestType, ?> payload =
                 (Tuple2<ForStStateRequestType, ?>) stateRequest.getPayload();
         ForStStateRequestType requestType = payload.f0;
@@ -142,15 +142,13 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
                 {
                     ForStListState<?, ?, ?> forStListState =
                             (ForStListState<?, ?, ?>) stateRequest.getState();
-                    dbGetRequests.add(forStListState.buildDBGetRequest(stateRequest));
-                    return;
+                    return forStListState.buildDBGetRequest(stateRequest);
                 }
             case MERGE_ALL_RAW:
                 {
                     ForStListState<?, ?, ?> forStListState =
                             (ForStListState<?, ?, ?>) stateRequest.getState();
-                    dbPutRequests.add(forStListState.buildDBPutRequest(stateRequest));
-                    return;
+                    return forStListState.buildDBPutRequest(stateRequest);
                 }
             default:
                 throw new UnsupportedOperationException(
