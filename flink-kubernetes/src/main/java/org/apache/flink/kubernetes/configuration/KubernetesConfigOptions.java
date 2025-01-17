@@ -554,6 +554,13 @@ public class KubernetesConfigOptions {
                                     + "Flink. A typical use-case is when one uses Flink Kubernetes "
                                     + "Operator.");
 
+    public static final ConfigOption<Boolean> KUBERNETES_LOG_MOUNT_DECORATOR_ENABLED =
+            key("kubernetes.decorator.log-mount.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Whether to enable log mount decorator. ");
+
     public static final ConfigOption<Boolean> LOCAL_UPLOAD_ENABLED =
             ConfigOptions.key("kubernetes.artifacts.local-upload-enabled")
                     .booleanType()

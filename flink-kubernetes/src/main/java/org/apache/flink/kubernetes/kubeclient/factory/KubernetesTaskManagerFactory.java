@@ -42,6 +42,7 @@ import java.util.List;
 
 import static org.apache.flink.kubernetes.configuration.KubernetesConfigOptions.KUBERNETES_HADOOP_CONF_MOUNT_DECORATOR_ENABLED;
 import static org.apache.flink.kubernetes.configuration.KubernetesConfigOptions.KUBERNETES_KERBEROS_MOUNT_DECORATOR_ENABLED;
+import static org.apache.flink.kubernetes.configuration.KubernetesConfigOptions.KUBERNETES_LOG_MOUNT_DECORATOR_ENABLED;
 
 /** Utility class for constructing the TaskManager Pod on the JobManager. */
 public class KubernetesTaskManagerFactory {
@@ -66,8 +67,12 @@ public class KubernetesTaskManagerFactory {
             stepDecorators.add(new KerberosMountDecorator(kubernetesTaskManagerParameters));
         }
 
+        if (configuration.get(KUBERNETES_LOG_MOUNT_DECORATOR_ENABLED)) {
+            stepDecorators.add(new FlinkLogDecorator(kubernetesTaskManagerParameters));
+        }
+
         stepDecorators.add(new FlinkConfMountDecorator(kubernetesTaskManagerParameters));
-        stepDecorators.add(new FlinkLogDecorator(kubernetesTaskManagerParameters));
+
         for (KubernetesStepDecorator stepDecorator : stepDecorators) {
             flinkPod = stepDecorator.decorateFlinkPod(flinkPod);
         }
