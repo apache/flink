@@ -22,7 +22,6 @@ import org.apache.flink.api.common.watermark.BoolWatermark;
 import org.apache.flink.api.common.watermark.LongWatermark;
 import org.apache.flink.api.common.watermark.Watermark;
 import org.apache.flink.datastream.api.extension.eventtime.EventTimeExtension;
-import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
@@ -260,16 +259,6 @@ class EventTimeWatermarkHandlerTest {
                 TypeSerializer<Long> keySerializer,
                 TypeSerializer<N> namespaceSerializer,
                 Triggerable<Long, N> triggerable) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public <N> InternalTimerService<N> getAsyncInternalTimerService(
-                String name,
-                TypeSerializer<Long> keySerializer,
-                TypeSerializer<N> namespaceSerializer,
-                Triggerable<Long, N> triggerable,
-                AsyncExecutionController<Long> asyncExecutionController) {
             throw new UnsupportedOperationException();
         }
 
