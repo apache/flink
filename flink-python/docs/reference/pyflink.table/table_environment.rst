@@ -190,6 +190,7 @@ keyword, thus must be escaped) in a catalog named 'cat.1' and database named 'db
     TableEnvironment.list_user_defined_functions
     TableEnvironment.list_views
     TableEnvironment.load_module
+    TableEnvironment.create_catalog
     TableEnvironment.register_catalog
     TableEnvironment.set_python_requirements
     TableEnvironment.sql_query
@@ -246,6 +247,7 @@ StreamTableEnvironment
     StreamTableEnvironment.list_user_defined_functions
     StreamTableEnvironment.list_views
     StreamTableEnvironment.load_module
+    StreamTableEnvironment.create_catalog
     StreamTableEnvironment.register_catalog
     StreamTableEnvironment.set_python_requirements
     StreamTableEnvironment.sql_query

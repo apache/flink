@@ -234,3 +234,19 @@ A catalog implementation for Jdbc.
     :toctree: api/
 
     JdbcCatalog
+
+
+
+CatalogDescriptor
+-----------------
+
+Describes a catalog with the catalog name and configuration.
+A CatalogDescriptor is a template for creating a catalog instance. It closely resembles the
+"CREATE CATALOG" SQL DDL statement, containing catalog name and catalog configuration.
+
+.. currentmodule:: pyflink.table.catalog
+
+.. autosummary::
+    :toctree: api/
+
+    CatalogDescriptor.of

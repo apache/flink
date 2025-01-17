@@ -44,8 +44,6 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTest
             'compilePlanSql',
             'executePlan',
             'explainPlan',
-            # See FLINK-32647
-            'createCatalog',
             'registerFunction',
             'scan',
             'registerTable'}
