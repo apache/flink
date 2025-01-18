@@ -127,6 +127,28 @@ public class StreamingExamplesITCase extends AbstractTestBaseJUnit4 {
     }
 
     @Test
+    public void testAsyncWindowWordCount() throws Exception {
+        final String windowSize = "25";
+        final String slideSize = "15";
+        final String textPath = createTempFile("text.txt", WordCountData.TEXT);
+        final String resultPath = getTempDirPath("result");
+
+        org.apache.flink.streaming.examples.windowing.WindowWordCount.main(
+                new String[] {
+                    "--input", textPath,
+                    "--output", resultPath,
+                    "--window", windowSize,
+                    "--slide", slideSize,
+                    "--async-state"
+                });
+
+        // since the parallel tokenizers might have different speed
+        // the exact output can not be checked just whether it is well-formed
+        // checks that the result lines look like e.g. (faust, 2)
+        checkLinesAgainstRegexp(resultPath, "^\\([a-z]+,(\\d)+\\)");
+    }
+
+    @Test
     public void testWordCount() throws Exception {
         final String textPath = createTempFile("text.txt", WordCountData.TEXT);
         final String resultPath = getTempDirPath("result");

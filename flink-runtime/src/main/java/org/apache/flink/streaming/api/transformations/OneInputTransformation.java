@@ -192,4 +192,9 @@ public class OneInputTransformation<IN, OUT> extends PhysicalTransformation<OUT>
     public boolean isInternalSorterSupported() {
         return operatorFactory.getOperatorAttributes().isInternalSorterSupported();
     }
+
+    @Override
+    public void enableAsyncState() {
+        // nothing to do.
+    }
 }
