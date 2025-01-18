@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.operators.aggregate.async;
 
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.v2.ValueState;
-import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
+import org.apache.flink.api.common.state.v2.ValueStateDescriptor;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;

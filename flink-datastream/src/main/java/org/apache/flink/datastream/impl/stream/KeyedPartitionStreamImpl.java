@@ -19,6 +19,7 @@
 package org.apache.flink.datastream.impl.stream;
 
 import org.apache.flink.api.common.state.StateDeclaration;
+import org.apache.flink.api.common.state.v2.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.dsv2.Sink;
 import org.apache.flink.api.dag.Transformation;
@@ -44,7 +45,6 @@ import org.apache.flink.datastream.impl.operators.KeyedTwoInputBroadcastProcessO
 import org.apache.flink.datastream.impl.operators.KeyedTwoInputNonBroadcastProcessOperator;
 import org.apache.flink.datastream.impl.operators.KeyedTwoOutputProcessOperator;
 import org.apache.flink.datastream.impl.utils.StreamUtils;
-import org.apache.flink.runtime.state.v2.ListStateDescriptor;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.transformations.DataStreamV2SinkTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;

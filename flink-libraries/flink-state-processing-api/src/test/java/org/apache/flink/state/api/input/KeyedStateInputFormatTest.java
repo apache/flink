@@ -333,12 +333,12 @@ class KeyedStateInputFormatTest {
 
     static class AsyncStatefulFunction extends RichFlatMapFunction<Integer, Void> {
         org.apache.flink.api.common.state.v2.ValueState<Integer> state;
-        org.apache.flink.runtime.state.v2.ValueStateDescriptor<Integer> asyncStateDescriptor;
+        org.apache.flink.api.common.state.v2.ValueStateDescriptor<Integer> asyncStateDescriptor;
 
         @Override
         public void open(OpenContext openContext) {
             asyncStateDescriptor =
-                    new org.apache.flink.runtime.state.v2.ValueStateDescriptor<>(
+                    new org.apache.flink.api.common.state.v2.ValueStateDescriptor<>(
                             "state", Types.INT);
             state =
                     ((StreamingRuntimeContext) getRuntimeContext())
