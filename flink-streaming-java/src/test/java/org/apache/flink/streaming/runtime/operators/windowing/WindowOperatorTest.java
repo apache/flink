@@ -30,11 +30,16 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.runtime.asyncprocessing.operators.windowing.AsyncWindowOperator;
+import org.apache.flink.runtime.asyncprocessing.operators.windowing.triggers.AsyncContinuousEventTimeTrigger;
+import org.apache.flink.runtime.asyncprocessing.operators.windowing.triggers.AsyncCountTrigger;
+import org.apache.flink.runtime.asyncprocessing.operators.windowing.triggers.AsyncPurgingTrigger;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.functions.windowing.PassThroughWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.DynamicEventTimeSessionWindows;
@@ -66,6 +71,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
@@ -73,6 +79,8 @@ import org.apache.flink.shaded.guava32.com.google.common.base.Joiner;
 import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.Serializable;
 import java.time.Duration;
@@ -88,8 +96,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /** Tests for {@link WindowOperator}. */
-@SuppressWarnings("serial")
 class WindowOperatorTest {
+
+    private interface HarnessProvider<IN, OUT> {
+        OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
+                create();
+    }
 
     private static final TypeInformation<Tuple2<String, Integer>> STRING_INT_TUPLE =
             TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {});
@@ -102,12 +114,11 @@ class WindowOperatorTest {
             new OutputTag<Tuple2<String, Integer>>("late-output") {};
 
     private void testSlidingEventTimeWindows(
-            OneInputStreamOperatorFactory<Tuple2<String, Integer>, Tuple2<String, Integer>>
-                    operator)
+            HarnessProvider<Tuple2<String, Integer>, Tuple2<String, Integer>> harnessProvider)
             throws Exception {
 
         OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
-                testHarness = createTestHarness(operator);
+                testHarness = harnessProvider.create();
 
         testHarness.setup();
         testHarness.open();
@@ -160,7 +171,7 @@ class WindowOperatorTest {
         testHarness.close();
 
         expectedOutput.clear();
-        testHarness = createTestHarness(operator);
+        testHarness = harnessProvider.create();
         testHarness.setup();
         testHarness.initializeState(snapshot);
         testHarness.open();
@@ -207,9 +218,10 @@ class WindowOperatorTest {
         testHarness.close();
     }
 
-    @Test
     @SuppressWarnings("unchecked")
-    void testSlidingEventTimeWindowsReduce() throws Exception {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void testSlidingEventTimeWindowsReduce(boolean enableAsyncState) throws Exception {
         closeCalled.set(0);
 
         final int windowSize = 3;
@@ -244,11 +256,29 @@ class WindowOperatorTest {
                                 0,
                                 null /* late data output tag */);
 
-        testSlidingEventTimeWindows(operator);
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, TimeWindow> builder =
+                new WindowOperatorBuilder<>(
+                        SlidingEventTimeWindows.of(
+                                Duration.ofSeconds(windowSize), Duration.ofSeconds(windowSlide)),
+                        EventTimeTrigger.create(),
+                        new ExecutionConfig(),
+                        STRING_INT_TUPLE,
+                        new TupleKeySelector(),
+                        TypeInformation.of(String.class));
+
+        testSlidingEventTimeWindows(
+                enableAsyncState
+                        ? () ->
+                                createAsyncTestHarness(
+                                        builder.asyncReduce(
+                                                new SumReducer(),
+                                                new PassThroughWindowFunction<>()))
+                        : () -> createTestHarness(operator));
     }
 
-    @Test
-    void testSlidingEventTimeWindowsApply() throws Exception {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void testSlidingEventTimeWindowsApply(boolean enableAsyncState) throws Exception {
         closeCalled.set(0);
 
         final int windowSize = 3;
@@ -281,18 +311,30 @@ class WindowOperatorTest {
                                 0,
                                 null /* late data output tag */);
 
-        testSlidingEventTimeWindows(operator);
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, TimeWindow> builder =
+                new WindowOperatorBuilder<>(
+                        SlidingEventTimeWindows.of(
+                                Duration.ofSeconds(windowSize), Duration.ofSeconds(windowSlide)),
+                        EventTimeTrigger.create(),
+                        new ExecutionConfig(),
+                        STRING_INT_TUPLE,
+                        new TupleKeySelector(),
+                        TypeInformation.of(String.class));
+
+        testSlidingEventTimeWindows(
+                enableAsyncState
+                        ? () -> createAsyncTestHarness(builder.asyncApply(new RichSumReducer<>()))
+                        : () -> createTestHarness(operator));
 
         // we close once in the rest...
         assertThat(closeCalled).as("Close was not called.").hasValue(2);
     }
 
     private void testTumblingEventTimeWindows(
-            OneInputStreamOperatorFactory<Tuple2<String, Integer>, Tuple2<String, Integer>>
-                    operator)
+            HarnessProvider<Tuple2<String, Integer>, Tuple2<String, Integer>> harnessProvider)
             throws Exception {
         OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
-                testHarness = createTestHarness(operator);
+                testHarness = harnessProvider.create();
 
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -335,7 +377,7 @@ class WindowOperatorTest {
                 new Tuple2ResultSortComparator());
         testHarness.close();
 
-        testHarness = createTestHarness(operator);
+        testHarness = harnessProvider.create();
         expectedOutput.clear();
         testHarness.setup();
         testHarness.initializeState(snapshot);
@@ -391,9 +433,10 @@ class WindowOperatorTest {
         testHarness.close();
     }
 
-    @Test
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
     @SuppressWarnings("unchecked")
-    void testTumblingEventTimeWindowsReduce() throws Exception {
+    void testTumblingEventTimeWindowsReduce(boolean enableAsyncState) throws Exception {
         closeCalled.set(0);
 
         final int windowSize = 3;
@@ -425,12 +468,29 @@ class WindowOperatorTest {
                                 0,
                                 null /* late data output tag */);
 
-        testTumblingEventTimeWindows(operator);
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, TimeWindow> builder =
+                new WindowOperatorBuilder<>(
+                        TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
+                        EventTimeTrigger.create(),
+                        new ExecutionConfig(),
+                        STRING_INT_TUPLE,
+                        new TupleKeySelector(),
+                        TypeInformation.of(String.class));
+
+        testTumblingEventTimeWindows(
+                enableAsyncState
+                        ? () ->
+                                createAsyncTestHarness(
+                                        builder.asyncReduce(
+                                                new SumReducer(),
+                                                new PassThroughWindowFunction<>()))
+                        : () -> createTestHarness(operator));
     }
 
-    @Test
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
     @SuppressWarnings("unchecked")
-    void testTumblingEventTimeWindowsApply() throws Exception {
+    void testTumblingEventTimeWindowsApply(boolean enableAsyncState) throws Exception {
         closeCalled.set(0);
 
         final int windowSize = 3;
@@ -460,7 +520,19 @@ class WindowOperatorTest {
                                 0,
                                 null /* late data output tag */);
 
-        testTumblingEventTimeWindows(operator);
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, TimeWindow> builder =
+                new WindowOperatorBuilder<>(
+                        TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
+                        EventTimeTrigger.create(),
+                        new ExecutionConfig(),
+                        STRING_INT_TUPLE,
+                        new TupleKeySelector(),
+                        TypeInformation.of(String.class));
+
+        testTumblingEventTimeWindows(
+                enableAsyncState
+                        ? () -> createAsyncTestHarness(builder.asyncApply(new RichSumReducer<>()))
+                        : () -> createTestHarness(operator));
 
         // we close once in the rest...
         assertThat(closeCalled).as("Close was not called.").hasValue(2);
@@ -1086,15 +1158,30 @@ class WindowOperatorTest {
 
     private static <OUT>
             OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, OUT> createTestHarness(
-                    OneInputStreamOperatorFactory<Tuple2<String, Integer>, OUT> operator)
-                    throws Exception {
-        return new KeyedOneInputStreamOperatorTestHarness<>(
-                operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+                    OneInputStreamOperatorFactory<Tuple2<String, Integer>, OUT> operator) {
+        try {
+            return new KeyedOneInputStreamOperatorTestHarness<>(
+                    operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    @Test
+    private static <OUT>
+            OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, OUT> createAsyncTestHarness(
+                    OneInputStreamOperator<Tuple2<String, Integer>, OUT> operator) {
+        try {
+            return AsyncKeyedOneInputStreamOperatorTestHarness.create(
+                    operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
     @SuppressWarnings("unchecked")
-    void testContinuousWatermarkTrigger() throws Exception {
+    void testContinuousWatermarkTrigger(boolean enableAsyncState) throws Exception {
         closeCalled.set(0);
 
         final int windowSize = 3;
@@ -1126,8 +1213,25 @@ class WindowOperatorTest {
                                 0,
                                 null /* late data output tag */);
 
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, GlobalWindow> builder =
+                new WindowOperatorBuilder<>(
+                                GlobalWindows.create(),
+                                null, /*Required async trigger*/
+                                new ExecutionConfig(),
+                                STRING_INT_TUPLE,
+                                new TupleKeySelector(),
+                                TypeInformation.of(String.class))
+                        .asyncTrigger(
+                                AsyncContinuousEventTimeTrigger.of(Duration.ofSeconds(windowSize)));
+
         OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
-                testHarness = createTestHarness(operator);
+                testHarness =
+                        enableAsyncState
+                                ? createAsyncTestHarness(
+                                        builder.asyncReduce(
+                                                new SumReducer(),
+                                                new PassThroughWindowFunction<>()))
+                                : createTestHarness(operator);
 
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -1216,9 +1320,10 @@ class WindowOperatorTest {
         testHarness.close();
     }
 
-    @Test
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
     @SuppressWarnings("unchecked")
-    void testCountTrigger() throws Exception {
+    void testCountTrigger(boolean enableAsyncState) throws Exception {
         closeCalled.set(0);
 
         final int windowSize = 4;
@@ -1250,8 +1355,24 @@ class WindowOperatorTest {
                                 0,
                                 null /* late data output tag */);
 
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, GlobalWindow> builder =
+                new WindowOperatorBuilder<>(
+                                GlobalWindows.create(),
+                                null, /*Required async trigger*/
+                                new ExecutionConfig(),
+                                STRING_INT_TUPLE,
+                                new TupleKeySelector(),
+                                TypeInformation.of(String.class))
+                        .asyncTrigger(AsyncPurgingTrigger.of(AsyncCountTrigger.of(windowSize)));
+
         OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
-                testHarness = createTestHarness(operator);
+                testHarness =
+                        enableAsyncState
+                                ? createAsyncTestHarness(
+                                        builder.asyncReduce(
+                                                new SumReducer(),
+                                                new PassThroughWindowFunction<>()))
+                                : createTestHarness(operator);
 
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -1331,8 +1452,9 @@ class WindowOperatorTest {
         testHarness.close();
     }
 
-    @Test
-    void testEndOfStreamTrigger() throws Exception {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void testEndOfStreamTrigger(boolean enableAsyncState) throws Exception {
         ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc =
                 new ReducingStateDescriptor<>(
                         "window-contents",
@@ -1361,8 +1483,23 @@ class WindowOperatorTest {
                                 0,
                                 null /* late data output tag */);
 
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, GlobalWindow> builder =
+                new WindowOperatorBuilder<>(
+                        GlobalWindows.createWithEndOfStreamTrigger(),
+                        GlobalWindows.createWithEndOfStreamTrigger().getDefaultTrigger(),
+                        new ExecutionConfig(),
+                        STRING_INT_TUPLE,
+                        new TupleKeySelector(),
+                        TypeInformation.of(String.class));
+
         OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
-                testHarness = createTestHarness(operator);
+                testHarness =
+                        enableAsyncState
+                                ? createAsyncTestHarness(
+                                        builder.asyncReduce(
+                                                new SumReducer(),
+                                                new PassThroughWindowFunction<>()))
+                                : createTestHarness(operator);
 
         testHarness.open();
 
@@ -1398,8 +1535,9 @@ class WindowOperatorTest {
         testHarness.close();
     }
 
-    @Test
-    void testProcessingTimeTumblingWindows() throws Throwable {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void testProcessingTimeTumblingWindows(boolean enableAsyncState) throws Throwable {
         final int windowSize = 3;
 
         ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc =
@@ -1429,8 +1567,23 @@ class WindowOperatorTest {
                                 0,
                                 null /* late data output tag */);
 
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, TimeWindow> builder =
+                new WindowOperatorBuilder<>(
+                        TumblingProcessingTimeWindows.of(Duration.ofSeconds(windowSize)),
+                        ProcessingTimeTrigger.create(),
+                        new ExecutionConfig(),
+                        STRING_INT_TUPLE,
+                        new TupleKeySelector(),
+                        TypeInformation.of(String.class));
+
         OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
-                testHarness = createTestHarness(operator);
+                testHarness =
+                        enableAsyncState
+                                ? createAsyncTestHarness(
+                                        builder.asyncReduce(
+                                                new SumReducer(),
+                                                new PassThroughWindowFunction<>()))
+                                : createTestHarness(operator);
 
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -1474,8 +1627,9 @@ class WindowOperatorTest {
         testHarness.close();
     }
 
-    @Test
-    void testProcessingTimeSlidingWindows() throws Throwable {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void testProcessingTimeSlidingWindows(boolean enableAsyncState) throws Throwable {
         final int windowSize = 3;
         final int windowSlide = 1;
 
@@ -1508,8 +1662,24 @@ class WindowOperatorTest {
                                 0,
                                 null /* late data output tag */);
 
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, TimeWindow> builder =
+                new WindowOperatorBuilder<>(
+                        SlidingProcessingTimeWindows.of(
+                                Duration.ofSeconds(windowSize), Duration.ofSeconds(windowSlide)),
+                        ProcessingTimeTrigger.create(),
+                        new ExecutionConfig(),
+                        STRING_INT_TUPLE,
+                        new TupleKeySelector(),
+                        TypeInformation.of(String.class));
+
         OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
-                testHarness = createTestHarness(operator);
+                testHarness =
+                        enableAsyncState
+                                ? createAsyncTestHarness(
+                                        builder.asyncReduce(
+                                                new SumReducer(),
+                                                new PassThroughWindowFunction<>()))
+                                : createTestHarness(operator);
 
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -1863,8 +2033,9 @@ class WindowOperatorTest {
         testHarness.close();
     }
 
-    @Test
-    void testLateness() throws Exception {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void testLateness(boolean enableAsyncState) throws Exception {
         final int windowSize = 2;
         final long lateness = 500;
 
@@ -1895,8 +2066,25 @@ class WindowOperatorTest {
                                 lateness,
                                 lateOutputTag);
 
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, TimeWindow> builder =
+                new WindowOperatorBuilder<>(
+                        TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
+                        PurgingTrigger.of(EventTimeTrigger.create()),
+                        new ExecutionConfig(),
+                        STRING_INT_TUPLE,
+                        new TupleKeySelector(),
+                        TypeInformation.of(String.class));
+        builder.allowedLateness(Duration.ofMillis(lateness));
+        builder.sideOutputLateData(lateOutputTag);
+
         OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
-                testHarness = createTestHarness(operator);
+                testHarness =
+                        enableAsyncState
+                                ? createAsyncTestHarness(
+                                        builder.asyncReduce(
+                                                new SumReducer(),
+                                                new PassThroughWindowFunction<>()))
+                                : createTestHarness(operator);
 
         testHarness.open();
 
@@ -1946,8 +2134,9 @@ class WindowOperatorTest {
         testHarness.close();
     }
 
-    @Test
-    void testCleanupTimeOverflow() throws Exception {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void testCleanupTimeOverflow(boolean enableAsyncState) throws Exception {
         final int windowSize = 1000;
         final long lateness = 2000;
 
@@ -1981,8 +2170,24 @@ class WindowOperatorTest {
                                 lateness,
                                 null /* late data output tag */);
 
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, TimeWindow> builder =
+                new WindowOperatorBuilder<>(
+                        windowAssigner,
+                        EventTimeTrigger.create(),
+                        new ExecutionConfig(),
+                        STRING_INT_TUPLE,
+                        new TupleKeySelector(),
+                        TypeInformation.of(String.class));
+        builder.allowedLateness(Duration.ofMillis(lateness));
+
         OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
-                testHarness = createTestHarness(operator);
+                testHarness =
+                        enableAsyncState
+                                ? createAsyncTestHarness(
+                                        builder.asyncReduce(
+                                                new SumReducer(),
+                                                new PassThroughWindowFunction<>()))
+                                : createTestHarness(operator);
 
         testHarness.open();
 
@@ -1996,8 +2201,14 @@ class WindowOperatorTest {
                         new WindowAssigner.WindowAssignerContext() {
                             @Override
                             public long getCurrentProcessingTime() {
-                                return ((WindowOperator<?, ?, ?, ?, ?>) testHarness.getOperator())
-                                        .windowAssignerContext.getCurrentProcessingTime();
+                                return enableAsyncState
+                                        ? ((AsyncWindowOperator<?, ?, ?, ?, ?>)
+                                                        testHarness.getOperator())
+                                                .getWindowAssignerContext()
+                                                .getCurrentProcessingTime()
+                                        : ((WindowOperator<?, ?, ?, ?, ?>)
+                                                        testHarness.getOperator())
+                                                .windowAssignerContext.getCurrentProcessingTime();
                             }
                         });
         TimeWindow window = Iterables.getOnlyElement(windows);
@@ -2033,8 +2244,9 @@ class WindowOperatorTest {
         testHarness.close();
     }
 
-    @Test
-    void testSideOutputDueToLatenessTumbling() throws Exception {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void testSideOutputDueToLatenessTumbling(boolean enableAsyncState) throws Exception {
         final int windowSize = 2;
         final long lateness = 0;
 
@@ -2065,8 +2277,25 @@ class WindowOperatorTest {
                                 lateness,
                                 lateOutputTag);
 
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, TimeWindow> builder =
+                new WindowOperatorBuilder<>(
+                        TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
+                        EventTimeTrigger.create(),
+                        new ExecutionConfig(),
+                        STRING_INT_TUPLE,
+                        new TupleKeySelector(),
+                        TypeInformation.of(String.class));
+        builder.allowedLateness(Duration.ofMillis(lateness));
+        builder.sideOutputLateData(lateOutputTag);
+
         OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
-                testHarness = createTestHarness(operator);
+                testHarness =
+                        enableAsyncState
+                                ? createAsyncTestHarness(
+                                        builder.asyncReduce(
+                                                new SumReducer(),
+                                                new PassThroughWindowFunction<>()))
+                                : createTestHarness(operator);
 
         testHarness.open();
 
@@ -2114,8 +2343,9 @@ class WindowOperatorTest {
         testHarness.close();
     }
 
-    @Test
-    void testSideOutputDueToLatenessSliding() throws Exception {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void testSideOutputDueToLatenessSliding(boolean enableAsyncState) throws Exception {
         final int windowSize = 3;
         final int windowSlide = 1;
         final long lateness = 0;
@@ -2149,8 +2379,26 @@ class WindowOperatorTest {
                                 lateness,
                                 lateOutputTag /* late data output tag */);
 
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, TimeWindow> builder =
+                new WindowOperatorBuilder<>(
+                        SlidingEventTimeWindows.of(
+                                Duration.ofSeconds(windowSize), Duration.ofSeconds(windowSlide)),
+                        EventTimeTrigger.create(),
+                        new ExecutionConfig(),
+                        STRING_INT_TUPLE,
+                        new TupleKeySelector(),
+                        TypeInformation.of(String.class));
+        builder.allowedLateness(Duration.ofMillis(lateness));
+        builder.sideOutputLateData(lateOutputTag);
+
         OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
-                testHarness = createTestHarness(operator);
+                testHarness =
+                        enableAsyncState
+                                ? createAsyncTestHarness(
+                                        builder.asyncReduce(
+                                                new SumReducer(),
+                                                new PassThroughWindowFunction<>()))
+                                : createTestHarness(operator);
 
         testHarness.open();
 
@@ -2836,8 +3084,10 @@ class WindowOperatorTest {
         testHarness.close();
     }
 
-    @Test
-    void testCleanupTimerWithEmptyListStateForTumblingWindows2() throws Exception {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void testCleanupTimerWithEmptyListStateForTumblingWindows2(boolean enableAsyncState)
+            throws Exception {
         final int windowSize = 2;
         final long lateness = 100;
 
@@ -2865,8 +3115,20 @@ class WindowOperatorTest {
                                 lateness,
                                 null /* late data output tag */);
 
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, TimeWindow> builder =
+                new WindowOperatorBuilder<>(
+                        TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
+                        new EventTimeTriggerAccumGC(lateness),
+                        new ExecutionConfig(),
+                        STRING_INT_TUPLE,
+                        new TupleKeySelector(),
+                        TypeInformation.of(String.class));
+        builder.allowedLateness(Duration.ofMillis(lateness));
+
         OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, String> testHarness =
-                createTestHarness(operator);
+                enableAsyncState
+                        ? createAsyncTestHarness(builder.asyncApply(new PassThroughFunction2()))
+                        : createTestHarness(operator);
 
         testHarness.open();
 
@@ -2908,8 +3170,10 @@ class WindowOperatorTest {
         }
     }
 
-    @Test
-    void testCleanupTimerWithEmptyListStateForTumblingWindows() throws Exception {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void testCleanupTimerWithEmptyListStateForTumblingWindows(boolean enableAsyncState)
+            throws Exception {
         final int windowSize = 2;
         final long lateness = 1;
 
@@ -2937,8 +3201,22 @@ class WindowOperatorTest {
                                 lateness,
                                 null /* late data output tag */);
 
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, TimeWindow> builder =
+                new WindowOperatorBuilder<>(
+                        TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
+                        EventTimeTrigger.create(),
+                        new ExecutionConfig(),
+                        STRING_INT_TUPLE,
+                        new TupleKeySelector(),
+                        TypeInformation.of(String.class));
+        builder.allowedLateness(Duration.ofMillis(lateness));
+
         OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
-                testHarness = createTestHarness(operator);
+                testHarness =
+                        enableAsyncState
+                                ? createAsyncTestHarness(
+                                        builder.asyncApply(new PassThroughFunction()))
+                                : createTestHarness(operator);
 
         testHarness.open();
 
@@ -2965,8 +3243,10 @@ class WindowOperatorTest {
         testHarness.close();
     }
 
-    @Test
-    void testCleanupTimerWithEmptyReduceStateForTumblingWindows() throws Exception {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void testCleanupTimerWithEmptyReduceStateForTumblingWindows(boolean enableAsyncState)
+            throws Exception {
         final int windowSize = 2;
         final long lateness = 1;
 
@@ -2997,8 +3277,24 @@ class WindowOperatorTest {
                                 lateness,
                                 null /* late data output tag */);
 
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, TimeWindow> builder =
+                new WindowOperatorBuilder<>(
+                        TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
+                        EventTimeTrigger.create(),
+                        new ExecutionConfig(),
+                        STRING_INT_TUPLE,
+                        new TupleKeySelector(),
+                        TypeInformation.of(String.class));
+        builder.allowedLateness(Duration.ofMillis(lateness));
+
         OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
-                testHarness = createTestHarness(operator);
+                testHarness =
+                        enableAsyncState
+                                ? createAsyncTestHarness(
+                                        builder.asyncReduce(
+                                                new SumReducer(),
+                                                new PassThroughWindowFunction<>()))
+                                : createTestHarness(operator);
 
         testHarness.open();
 
@@ -3130,8 +3426,10 @@ class WindowOperatorTest {
         testHarness.close();
     }
 
-    @Test
-    void testCleanupTimerWithEmptyStateNoResultForTumblingWindows() throws Exception {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void testCleanupTimerWithEmptyStateNoResultForTumblingWindows(boolean enableAsyncState)
+            throws Exception {
         final int windowSize = 2;
         final long lateness = 1;
 
@@ -3139,6 +3437,11 @@ class WindowOperatorTest {
                 new ListStateDescriptor<>(
                         "window-contents",
                         STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
+        org.apache.flink.api.common.state.v2.ListStateDescriptor<Tuple2<String, Integer>>
+                windowStateDescV2 =
+                        new org.apache.flink.api.common.state.v2.ListStateDescriptor<>(
+                                "window-contents",
+                                STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperatorFactory<
                         String,
@@ -3159,76 +3462,166 @@ class WindowOperatorTest {
                                 lateness,
                                 null /* late data output tag */);
 
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, TimeWindow> builder =
+                new WindowOperatorBuilder<>(
+                        TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
+                        new FireEverytimeOnElementAndEventTimeTrigger(),
+                        new ExecutionConfig(),
+                        STRING_INT_TUPLE,
+                        new TupleKeySelector(),
+                        TypeInformation.of(String.class));
+        builder.allowedLateness(Duration.ofMillis(lateness));
+
         OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
-                testHarness = createTestHarness(operator);
+                testHarness =
+                        enableAsyncState
+                                ? createAsyncTestHarness(
+                                        builder.asyncApply(new EmptyReturnFunction()))
+                                : createTestHarness(operator);
 
         testHarness.open();
 
         ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
         // normal element
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("test_key", 1), 1000));
-        assertThat(
-                        ((WindowOperator<?, ?, ?, ?, ?>) testHarness.getOperator())
-                                .processContext
-                                .windowState()
-                                .getListState(windowStateDesc)
-                                .get()
-                                .toString())
-                .isEqualTo("[(test_key,1)]");
+        if (enableAsyncState) {
+            assertThat(
+                            ((AsyncWindowOperator<?, ?, ?, ?, ?>) testHarness.getOperator())
+                                    .getProcessContext()
+                                    .windowState()
+                                    .getListState(windowStateDescV2)
+                                    .get()
+                                    .toString())
+                    .isEqualTo("[(test_key,1)]");
+        } else {
+            assertThat(
+                            ((WindowOperator<?, ?, ?, ?, ?>) testHarness.getOperator())
+                                    .processContext
+                                    .windowState()
+                                    .getListState(windowStateDesc)
+                                    .get()
+                                    .toString())
+                    .isEqualTo("[(test_key,1)]");
+        }
         testHarness.processWatermark(new Watermark(1599));
-        assertThat(
-                        ((WindowOperator<?, ?, ?, ?, ?>) testHarness.getOperator())
-                                .processContext
-                                .windowState()
-                                .getListState(windowStateDesc)
-                                .get()
-                                .toString())
-                .isEqualTo("[(test_key,1)]");
+        if (enableAsyncState) {
+            assertThat(
+                            ((AsyncWindowOperator<?, ?, ?, ?, ?>) testHarness.getOperator())
+                                    .getProcessContext()
+                                    .windowState()
+                                    .getListState(windowStateDescV2)
+                                    .get()
+                                    .toString())
+                    .isEqualTo("[(test_key,1)]");
+        } else {
+            assertThat(
+                            ((WindowOperator<?, ?, ?, ?, ?>) testHarness.getOperator())
+                                    .processContext
+                                    .windowState()
+                                    .getListState(windowStateDesc)
+                                    .get()
+                                    .toString())
+                    .isEqualTo("[(test_key,1)]");
+        }
         testHarness.processWatermark(new Watermark(1699));
-        assertThat(
-                        ((WindowOperator<?, ?, ?, ?, ?>) testHarness.getOperator())
-                                .processContext
-                                .windowState()
-                                .getListState(windowStateDesc)
-                                .get()
-                                .toString())
-                .isEqualTo("[(test_key,1)]");
+        if (enableAsyncState) {
+            assertThat(
+                            ((AsyncWindowOperator<?, ?, ?, ?, ?>) testHarness.getOperator())
+                                    .getProcessContext()
+                                    .windowState()
+                                    .getListState(windowStateDescV2)
+                                    .get()
+                                    .toString())
+                    .isEqualTo("[(test_key,1)]");
+        } else {
+            assertThat(
+                            ((WindowOperator<?, ?, ?, ?, ?>) testHarness.getOperator())
+                                    .processContext
+                                    .windowState()
+                                    .getListState(windowStateDesc)
+                                    .get()
+                                    .toString())
+                    .isEqualTo("[(test_key,1)]");
+        }
         testHarness.processWatermark(new Watermark(1799));
-        assertThat(
-                        ((WindowOperator<?, ?, ?, ?, ?>) testHarness.getOperator())
-                                .processContext
-                                .windowState()
-                                .getListState(windowStateDesc)
-                                .get()
-                                .toString())
-                .isEqualTo("[(test_key,1)]");
+        if (enableAsyncState) {
+            assertThat(
+                            ((AsyncWindowOperator<?, ?, ?, ?, ?>) testHarness.getOperator())
+                                    .getProcessContext()
+                                    .windowState()
+                                    .getListState(windowStateDescV2)
+                                    .get()
+                                    .toString())
+                    .isEqualTo("[(test_key,1)]");
+        } else {
+            assertThat(
+                            ((WindowOperator<?, ?, ?, ?, ?>) testHarness.getOperator())
+                                    .processContext
+                                    .windowState()
+                                    .getListState(windowStateDesc)
+                                    .get()
+                                    .toString())
+                    .isEqualTo("[(test_key,1)]");
+        }
         testHarness.processWatermark(new Watermark(1999));
-        assertThat(
-                        ((WindowOperator<?, ?, ?, ?, ?>) testHarness.getOperator())
-                                .processContext
-                                .windowState()
-                                .getListState(windowStateDesc)
-                                .get()
-                                .toString())
-                .isEqualTo("[(test_key,1)]");
+        if (enableAsyncState) {
+            assertThat(
+                            ((AsyncWindowOperator<?, ?, ?, ?, ?>) testHarness.getOperator())
+                                    .getProcessContext()
+                                    .windowState()
+                                    .getListState(windowStateDescV2)
+                                    .get()
+                                    .toString())
+                    .isEqualTo("[(test_key,1)]");
+        } else {
+            assertThat(
+                            ((WindowOperator<?, ?, ?, ?, ?>) testHarness.getOperator())
+                                    .processContext
+                                    .windowState()
+                                    .getListState(windowStateDesc)
+                                    .get()
+                                    .toString())
+                    .isEqualTo("[(test_key,1)]");
+        }
         testHarness.processWatermark(new Watermark(2000));
-        assertThat(
-                        ((WindowOperator<?, ?, ?, ?, ?>) testHarness.getOperator())
-                                .processContext
-                                .windowState()
-                                .getListState(windowStateDesc)
-                                .get()
-                                .toString())
-                .isEqualTo("[]");
+        if (enableAsyncState) {
+            // Be empty => list.get() is null
+            assertThat(
+                            ((AsyncWindowOperator<?, ?, ?, ?, ?>) testHarness.getOperator())
+                                    .getProcessContext()
+                                    .windowState()
+                                    .getListState(windowStateDescV2)
+                                    .get())
+                    .isNull();
+        } else {
+            assertThat(
+                            ((WindowOperator<?, ?, ?, ?, ?>) testHarness.getOperator())
+                                    .processContext
+                                    .windowState()
+                                    .getListState(windowStateDesc)
+                                    .get()
+                                    .toString())
+                    .isEqualTo("[]");
+        }
         testHarness.processWatermark(new Watermark(5000));
-        assertThat(
-                        ((WindowOperator<?, ?, ?, ?, ?>) testHarness.getOperator())
-                                .processContext
-                                .windowState()
-                                .getListState(windowStateDesc)
-                                .get()
-                                .toString())
-                .isEqualTo("[]");
+        if (enableAsyncState) {
+            assertThat(
+                            ((AsyncWindowOperator<?, ?, ?, ?, ?>) testHarness.getOperator())
+                                    .getProcessContext()
+                                    .windowState()
+                                    .getListState(windowStateDescV2)
+                                    .get())
+                    .isNull();
+        } else {
+            assertThat(
+                            ((WindowOperator<?, ?, ?, ?, ?>) testHarness.getOperator())
+                                    .processContext
+                                    .windowState()
+                                    .getListState(windowStateDesc)
+                                    .get()
+                                    .toString())
+                    .isEqualTo("[]");
+        }
 
         expected.add(new Watermark(1599));
         expected.add(new Watermark(1699));

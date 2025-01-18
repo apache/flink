@@ -16,22 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.windowing.triggers;
+package org.apache.flink.runtime.asyncprocessing.operators.windowing.triggers;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.state.ReducingState;
-import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.v2.ReducingState;
+import org.apache.flink.api.common.state.v2.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.core.state.StateFutureUtils;
+import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 /**
- * A {@link Trigger} that fires once the count of elements in a pane reaches the given count.
+ * A {@link AsyncTrigger} that fires once the count of elements in a pane reaches the given count.
+ * This is for async window operator.
  *
  * @param <W> The type of {@link Window Windows} on which this trigger can operate.
  */
-@PublicEvolving
-public class CountTrigger<W extends Window> extends Trigger<Object, W> {
+@Experimental
+public class AsyncCountTrigger<W extends Window> extends AsyncTrigger<Object, W> {
     private static final long serialVersionUID = 1L;
 
     private final long maxCount;
@@ -39,36 +43,46 @@ public class CountTrigger<W extends Window> extends Trigger<Object, W> {
     private final ReducingStateDescriptor<Long> stateDesc =
             new ReducingStateDescriptor<>("count", new Sum(), LongSerializer.INSTANCE);
 
-    private CountTrigger(long maxCount) {
+    private AsyncCountTrigger(long maxCount) {
         this.maxCount = maxCount;
     }
 
     @Override
-    public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx)
-            throws Exception {
+    public StateFuture<TriggerResult> onElement(
+            Object element, long timestamp, W window, TriggerContext ctx) throws Exception {
         ReducingState<Long> count = ctx.getPartitionedState(stateDesc);
-        count.add(1L);
-        if (count.get() >= maxCount) {
-            count.clear();
-            return TriggerResult.FIRE;
-        }
-        return TriggerResult.CONTINUE;
+
+        return count.asyncAdd(1L)
+                .thenCompose(
+                        ignore -> {
+                            return count.asyncGet();
+                        })
+                .thenCompose(
+                        cnt -> {
+                            return cnt >= maxCount
+                                    ? count.asyncClear()
+                                            .thenCompose(
+                                                    ignore ->
+                                                            StateFutureUtils.completedFuture(
+                                                                    TriggerResult.FIRE))
+                                    : StateFutureUtils.completedFuture(TriggerResult.CONTINUE);
+                        });
     }
 
     @Override
-    public TriggerResult onEventTime(long time, W window, TriggerContext ctx) {
-        return TriggerResult.CONTINUE;
+    public StateFuture<TriggerResult> onEventTime(long time, W window, TriggerContext ctx) {
+        return StateFutureUtils.completedFuture(TriggerResult.CONTINUE);
     }
 
     @Override
-    public TriggerResult onProcessingTime(long time, W window, TriggerContext ctx)
+    public StateFuture<TriggerResult> onProcessingTime(long time, W window, TriggerContext ctx)
             throws Exception {
-        return TriggerResult.CONTINUE;
+        return StateFutureUtils.completedFuture(TriggerResult.CONTINUE);
     }
 
     @Override
-    public void clear(W window, TriggerContext ctx) throws Exception {
-        ctx.getPartitionedState(stateDesc).clear();
+    public StateFuture<Void> clear(W window, TriggerContext ctx) throws Exception {
+        return ctx.getPartitionedState(stateDesc).asyncClear();
     }
 
     @Override
@@ -86,18 +100,14 @@ public class CountTrigger<W extends Window> extends Trigger<Object, W> {
         return "CountTrigger(" + maxCount + ")";
     }
 
-    public long getMaxCount() {
-        return maxCount;
-    }
-
     /**
      * Creates a trigger that fires once the number of elements in a pane reaches the given count.
      *
      * @param maxCount The count of elements at which to fire.
      * @param <W> The type of {@link Window Windows} on which this trigger can operate.
      */
-    public static <W extends Window> CountTrigger<W> of(long maxCount) {
-        return new CountTrigger<>(maxCount);
+    public static <W extends Window> AsyncCountTrigger<W> of(long maxCount) {
+        return new AsyncCountTrigger<>(maxCount);
     }
 
     private static class Sum implements ReduceFunction<Long> {
