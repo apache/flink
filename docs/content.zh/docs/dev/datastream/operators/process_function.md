@@ -313,9 +313,8 @@ if __name__ == '__main__':
             )
         """)
 
-    stream = t_env.to_data_stream_with_type(
-        t_env.from_path('my_source'),
-        Types.ROW([Types.SQL_TIMESTAMP(), Types.STRING(), Types.STRING()]))
+    stream = t_env.to_data_stream(
+        t_env.from_path('my_source'))
     watermarked_stream = stream.assign_timestamps_and_watermarks(
         WatermarkStrategy.for_monotonous_timestamps()
                          .with_timestamp_assigner(MyTimestampAssigner()))

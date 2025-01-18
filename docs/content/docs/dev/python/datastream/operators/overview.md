@@ -108,9 +108,8 @@ def data_stream_api_demo():
             )
         """)
 
-    ds = t_env.to_data_stream_with_type(
-        t_env.from_path('my_source'),
-        Types.ROW([Types.INT(), Types.STRING()]))
+    ds = t_env.to_data_stream(
+        t_env.from_path('my_source'))
 
     def split(s):
         splits = s[1].split("|")

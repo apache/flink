@@ -1795,30 +1795,6 @@ class StreamTableEnvironment(TableEnvironment):
         """
         return DataStream(self._j_tenv.toDataStream(table._j_table))
 
-    def to_data_stream_with_type(self, table: Table, type_info: TypeInformation) -> DataStream:
-        """
-        Converts the given Table into a DataStream.
-
-        Since the DataStream API does not support changelog processing natively, this method
-        assumes append-only/insert-only semantics during the table-to-stream conversion. The records
-        of class Row will always describe RowKind#INSERT changes. Updating tables are
-        not supported by this method and will produce an exception.
-
-        Note that the type system of the table ecosystem is richer than the one of the DataStream
-        API. The table runtime will make sure to properly serialize the output records to the first
-        operator of the DataStream API. Afterwards, the Types semantics of the DataStream API
-        need to be considered.
-
-        If the input table contains a single rowtime column, it will be propagated into a stream
-        record's timestamp. Watermarks will be propagated as well.
-
-        :param table: The Table to convert.
-        :param type_info: The TypeInformation that specifies the type of the DataStream.
-        :return: The converted DataStream.
-        """
-        j_data_stream = self._j_tenv.toDataStream(table._j_table, type_info.get_java_type_info())
-        return DataStream(j_data_stream=j_data_stream)
-
     def to_changelog_stream(self,
                             table: Table,
                             target_schema: Schema = None,
