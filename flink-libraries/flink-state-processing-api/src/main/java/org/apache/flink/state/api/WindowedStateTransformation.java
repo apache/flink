@@ -153,7 +153,8 @@ public class WindowedStateTransformation<T, K, W extends Window> {
         function = input.getExecutionEnvironment().clean(function);
         reduceFunction = input.getExecutionEnvironment().clean(reduceFunction);
 
-        WindowOperator<K, T, ?, R, W> operator = builder.reduce(reduceFunction, function);
+        WindowOperator<K, T, ?, R, W> operator =
+                (WindowOperator<K, T, ?, R, W>) builder.reduce(reduceFunction, function);
 
         SavepointWriterOperatorFactory factory =
                 (timestamp, path) ->
@@ -180,7 +181,8 @@ public class WindowedStateTransformation<T, K, W extends Window> {
         function = input.getExecutionEnvironment().clean(function);
         reduceFunction = input.getExecutionEnvironment().clean(reduceFunction);
 
-        WindowOperator<K, T, ?, R, W> operator = builder.reduce(reduceFunction, function);
+        WindowOperator<K, T, ?, R, W> operator =
+                (WindowOperator<K, T, ?, R, W>) builder.reduce(reduceFunction, function);
 
         SavepointWriterOperatorFactory factory =
                 (timestamp, path) ->
@@ -316,7 +318,8 @@ public class WindowedStateTransformation<T, K, W extends Window> {
         aggregateFunction = input.getExecutionEnvironment().clean(aggregateFunction);
 
         WindowOperator<K, T, ?, R, W> operator =
-                builder.aggregate(aggregateFunction, windowFunction, accumulatorType);
+                (WindowOperator<K, T, ?, R, W>)
+                        builder.aggregate(aggregateFunction, windowFunction, accumulatorType);
 
         SavepointWriterOperatorFactory factory =
                 (timestamp, path) ->
@@ -394,7 +397,8 @@ public class WindowedStateTransformation<T, K, W extends Window> {
         aggregateFunction = input.getExecutionEnvironment().clean(aggregateFunction);
 
         WindowOperator<K, T, ?, R, W> operator =
-                builder.aggregate(aggregateFunction, windowFunction, accumulatorType);
+                (WindowOperator<K, T, ?, R, W>)
+                        builder.aggregate(aggregateFunction, windowFunction, accumulatorType);
 
         SavepointWriterOperatorFactory factory =
                 (timestamp, path) ->
@@ -419,7 +423,8 @@ public class WindowedStateTransformation<T, K, W extends Window> {
      * @return The data stream that is the result of applying the window function to the window.
      */
     public <R> StateBootstrapTransformation<T> apply(WindowFunction<T, R, K, W> function) {
-        WindowOperator<K, T, ?, R, W> operator = builder.apply(function);
+        WindowOperator<K, T, ?, R, W> operator =
+                (WindowOperator<K, T, ?, R, W>) builder.apply(function);
 
         SavepointWriterOperatorFactory factory =
                 (timestamp, path) ->
@@ -444,7 +449,8 @@ public class WindowedStateTransformation<T, K, W extends Window> {
             WindowFunction<T, R, K, W> function, TypeInformation<R> resultType) {
         function = input.getExecutionEnvironment().clean(function);
 
-        WindowOperator<K, T, ?, R, W> operator = builder.apply(function);
+        WindowOperator<K, T, ?, R, W> operator =
+                (WindowOperator<K, T, ?, R, W>) builder.apply(function);
 
         SavepointWriterOperatorFactory factory =
                 (timestamp, path) ->
@@ -466,7 +472,8 @@ public class WindowedStateTransformation<T, K, W extends Window> {
      */
     @PublicEvolving
     public <R> StateBootstrapTransformation<T> process(ProcessWindowFunction<T, R, K, W> function) {
-        WindowOperator<K, T, ?, R, W> operator = builder.process(function);
+        WindowOperator<K, T, ?, R, W> operator =
+                (WindowOperator<K, T, ?, R, W>) builder.process(function);
 
         SavepointWriterOperatorFactory factory =
                 (timestamp, path) ->
