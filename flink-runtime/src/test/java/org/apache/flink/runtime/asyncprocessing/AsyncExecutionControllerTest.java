@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
 import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.runtime.asyncprocessing.EpochManager.Epoch;
@@ -847,26 +848,7 @@ class AsyncExecutionControllerTest {
             CompletableFuture<Void> future = new CompletableFuture<>();
             for (StateRequest request :
                     ((MockStateRequestContainer) stateRequestContainer).getStateRequestList()) {
-                if (request.getRequestType() == StateRequestType.VALUE_GET) {
-                    Preconditions.checkState(request.getState() != null);
-                    TestValueState state = (TestValueState) request.getState();
-                    Integer val =
-                            state.underlyingState.get(
-                                    (String) request.getRecordContext().getKey(),
-                                    (String) request.getRecordContext().getNamespace(state));
-                    request.getFuture().complete(val);
-                } else if (request.getRequestType() == StateRequestType.VALUE_UPDATE) {
-                    Preconditions.checkState(request.getState() != null);
-                    TestValueState state = (TestValueState) request.getState();
-
-                    state.underlyingState.update(
-                            (String) request.getRecordContext().getKey(),
-                            (String) request.getRecordContext().getNamespace(state),
-                            (Integer) request.getPayload());
-                    request.getFuture().complete(null);
-                } else {
-                    throw new UnsupportedOperationException("Unsupported request type");
-                }
+                executeRequestSync(request);
             }
             future.complete(null);
             return future;
@@ -875,6 +857,30 @@ class AsyncExecutionControllerTest {
         @Override
         public StateRequestContainer createStateRequestContainer() {
             return new MockStateRequestContainer();
+        }
+
+        @Override
+        public void executeRequestSync(StateRequest<?, ?, ?, ?> request) {
+            if (request.getRequestType() == StateRequestType.VALUE_GET) {
+                Preconditions.checkState(request.getState() != null);
+                TestValueState state = (TestValueState) request.getState();
+                Integer val =
+                        state.underlyingState.get(
+                                (String) request.getRecordContext().getKey(),
+                                (String) request.getRecordContext().getNamespace(state));
+                ((InternalStateFuture<Integer>) request.getFuture()).complete(val);
+            } else if (request.getRequestType() == StateRequestType.VALUE_UPDATE) {
+                Preconditions.checkState(request.getState() != null);
+                TestValueState state = (TestValueState) request.getState();
+
+                state.underlyingState.update(
+                        (String) request.getRecordContext().getKey(),
+                        (String) request.getRecordContext().getNamespace(state),
+                        (Integer) request.getPayload());
+                request.getFuture().complete(null);
+            } else {
+                throw new UnsupportedOperationException("Unsupported request type");
+            }
         }
 
         @Override

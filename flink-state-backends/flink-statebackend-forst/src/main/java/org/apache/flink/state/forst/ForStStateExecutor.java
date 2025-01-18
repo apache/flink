@@ -32,12 +32,15 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+
+import static org.apache.flink.state.forst.ForStStateRequestClassifier.convertRequests;
 
 /**
  * The {@link StateExecutor} implementation which executing batch {@link StateRequest}s for
@@ -74,6 +77,9 @@ public class ForStStateExecutor implements StateExecutor {
     /** The ongoing sub-processes count. */
     private final AtomicLong ongoing;
 
+    private final ExecutorService directExecutor =
+            org.apache.flink.util.concurrent.Executors.newDirectExecutorService();
+
     public ForStStateExecutor(
             boolean coordinatorInline,
             boolean isWriteInline,
@@ -85,7 +91,7 @@ public class ForStStateExecutor implements StateExecutor {
             Preconditions.checkState(readIoParallelism > 0);
             this.coordinatorThread =
                     coordinatorInline
-                            ? org.apache.flink.util.concurrent.Executors.newDirectExecutorService()
+                            ? directExecutor
                             : Executors.newSingleThreadExecutor(
                                     new ExecutorThreadFactory(
                                             "ForSt-StateExecutor-Coordinator-And-Write"));
@@ -94,14 +100,13 @@ public class ForStStateExecutor implements StateExecutor {
                     Executors.newFixedThreadPool(
                             readIoParallelism,
                             new ExecutorThreadFactory("ForSt-StateExecutor-read-IO"));
-            this.writeThreads =
-                    org.apache.flink.util.concurrent.Executors.newDirectExecutorService();
+            this.writeThreads = directExecutor;
             this.sharedWriteThread = true;
         } else {
             Preconditions.checkState(readIoParallelism > 0 || writeIoParallelism > 0);
             this.coordinatorThread =
                     coordinatorInline
-                            ? org.apache.flink.util.concurrent.Executors.newDirectExecutorService()
+                            ? directExecutor
                             : Executors.newSingleThreadExecutor(
                                     new ExecutorThreadFactory("ForSt-StateExecutor-Coordinator"));
             if (readIoParallelism <= 0 || writeIoParallelism <= 0) {
@@ -221,6 +226,53 @@ public class ForStStateExecutor implements StateExecutor {
     public StateRequestContainer createStateRequestContainer() {
         checkState();
         return new ForStStateRequestClassifier();
+    }
+
+    @Override
+    public void executeRequestSync(StateRequest<?, ?, ?, ?> stateRequest) {
+        checkState();
+        Object forstRequest = convertRequests(stateRequest);
+        try {
+            ForStDBOperation operation;
+            if (forstRequest instanceof ForStDBGetRequest) {
+                operation =
+                        new ForStGeneralMultiGetOperation(
+                                db,
+                                Collections.singletonList(
+                                        (ForStDBGetRequest<?, ?, ?, ?>) forstRequest),
+                                directExecutor,
+                                1,
+                                null);
+            } else if (forstRequest instanceof ForStDBIterRequest) {
+                operation =
+                        new ForStIterateOperation(
+                                db,
+                                Collections.singletonList(
+                                        (ForStDBIterRequest<?, ?, ?, ?, ?>) forstRequest),
+                                directExecutor,
+                                null);
+            } else if (forstRequest instanceof ForStDBPutRequest) {
+                operation =
+                        new ForStWriteBatchOperation(
+                                db,
+                                Collections.singletonList(
+                                        (ForStDBPutRequest<?, ?, ?>) forstRequest),
+                                writeOptions,
+                                directExecutor);
+            } else {
+                throw new IllegalArgumentException("Unknown request type: " + forstRequest);
+            }
+            operation
+                    .process()
+                    .exceptionally(
+                            throwable -> {
+                                executionError = throwable;
+                                return null;
+                            });
+        } catch (Exception e) {
+            executionError = e;
+        }
+        checkState();
     }
 
     @Override

@@ -44,6 +44,8 @@ public class StateRequest<K, N, IN, OUT> implements Serializable {
     /** The type of this request. */
     private final StateRequestType type;
 
+    private final boolean sync;
+
     /** The payload(input) of this request. */
     @Nullable private final IN payload;
 
@@ -58,11 +60,13 @@ public class StateRequest<K, N, IN, OUT> implements Serializable {
     public StateRequest(
             @Nullable State state,
             StateRequestType type,
+            boolean sync,
             @Nullable IN payload,
             InternalStateFuture<OUT> stateFuture,
             RecordContext<K> context) {
         this.state = state;
         this.type = type;
+        this.sync = sync;
         this.payload = payload;
         this.stateFuture = stateFuture;
         this.context = context;
@@ -77,6 +81,10 @@ public class StateRequest<K, N, IN, OUT> implements Serializable {
     @Nullable
     public IN getPayload() {
         return payload;
+    }
+
+    public boolean isSync() {
+        return sync;
     }
 
     @Nullable

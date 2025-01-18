@@ -305,7 +305,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
     @Override
     public <IN, OUT> InternalStateFuture<OUT> handleRequest(
             @Nullable State state, StateRequestType type, @Nullable IN payload) {
-        return handleRequest(state, type, payload, false);
+        return handleRequest(state, type, false, payload, false);
     }
 
     /**
@@ -314,6 +314,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
      * @param state the state to request. Could be {@code null} if the type is {@link
      *     StateRequestType#SYNC_POINT}.
      * @param type the type of this request.
+     * @param sync whether to trigger the request synchronously once it's ready.
      * @param payload the payload input for this request.
      * @param allowOverdraft whether to allow overdraft.
      * @return the state future.
@@ -321,12 +322,19 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
     public <IN, OUT> InternalStateFuture<OUT> handleRequest(
             @Nullable State state,
             StateRequestType type,
+            boolean sync,
             @Nullable IN payload,
             boolean allowOverdraft) {
         // Step 1: build state future & assign context.
         InternalStateFuture<OUT> stateFuture = stateFutureFactory.create(currentContext);
         StateRequest<K, ?, IN, OUT> request =
-                new StateRequest<>(state, type, payload, stateFuture, currentContext);
+                new StateRequest<>(
+                        state,
+                        type,
+                        sync || type == StateRequestType.SYNC_POINT,
+                        payload,
+                        stateFuture,
+                        currentContext);
 
         // Step 2: try to seize the capacity, if the current in-flight records exceeds the limit,
         // block the current state request from entering until some buffered requests are processed.
@@ -346,22 +354,25 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
     @Override
     public <IN, OUT> OUT handleRequestSync(
             State state, StateRequestType type, @Nullable IN payload) {
-        InternalStateFuture<OUT> stateFuture = handleRequest(state, type, payload);
-        // Trigger since we are waiting the result.
-        triggerIfNeeded(true);
-        try {
-            while (!stateFuture.isDone()) {
-                if (!mailboxExecutor.tryYield()) {
-                    // We force trigger the buffer if the executor is not fully loaded.
-                    if (!stateExecutor.fullyLoaded()) {
-                        triggerIfNeeded(true);
+        InternalStateFuture<OUT> stateFuture = handleRequest(state, type, true, payload, false);
+        if (!stateFuture.isDone()) {
+            // Trigger since we are waiting the result.
+            triggerIfNeeded(true);
+            try {
+                while (!stateFuture.isDone()) {
+                    if (!mailboxExecutor.tryYield()) {
+                        // We force trigger the buffer if the executor is not fully loaded.
+                        if (!stateExecutor.fullyLoaded()) {
+                            triggerIfNeeded(true);
+                        }
+                        waitForNewMails();
                     }
-                    waitForNewMails();
                 }
+            } catch (InterruptedException ignored) {
+                // ignore the interrupted exception to avoid throwing fatal error when the task
+                // cancel
+                // or exit.
             }
-        } catch (InterruptedException ignored) {
-            // ignore the interrupted exception to avoid throwing fatal error when the task cancel
-            // or exit.
         }
         return stateFuture.get();
     }
@@ -373,7 +384,15 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
     }
 
     <IN, OUT> void insertActiveBuffer(StateRequest<K, ?, IN, OUT> request) {
-        stateRequestsBuffer.enqueueToActive(request);
+        if (request.isSync()) {
+            if (request.getRequestType() == StateRequestType.SYNC_POINT) {
+                request.getFuture().complete(null);
+            } else {
+                stateExecutor.executeRequestSync(request);
+            }
+        } else {
+            stateRequestsBuffer.enqueueToActive(request);
+        }
     }
 
     <IN, OUT> void insertBlockingBuffer(StateRequest<K, ?, IN, OUT> request) {
@@ -441,7 +460,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
      */
     public StateFuture<Void> syncPointRequestWithCallback(
             ThrowingRunnable<Exception> callback, boolean allowOverdraft) {
-        return handleRequest(null, StateRequestType.SYNC_POINT, null, allowOverdraft)
+        return handleRequest(null, StateRequestType.SYNC_POINT, true, null, allowOverdraft)
                 .thenAccept(v -> callback.run());
     }
 
@@ -464,7 +483,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
      *     only drain in best efforts and return when no progress is made.
      */
     private void drainInflightRecords(int targetNum, boolean forceToWait) {
-        if (!forceToWait && drainDepth > 0) {
+        if (!forceToWait && drainDepth > 5) {
             // We don't allow recursive call of drain if we are not forced to wait here.
             // This is to avoid stack overflow, since the yield will pick up another processing,
             // which may cause another drain.
