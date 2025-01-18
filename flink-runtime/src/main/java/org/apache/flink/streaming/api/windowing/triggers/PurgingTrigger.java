@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.windowing.triggers;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 /**
@@ -90,7 +89,6 @@ public class PurgingTrigger<T, W extends Window> extends Trigger<T, W> {
         return new PurgingTrigger<>(nestedTrigger);
     }
 
-    @VisibleForTesting
     public Trigger<T, W> getNestedTrigger() {
         return nestedTrigger;
     }
