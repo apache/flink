@@ -30,9 +30,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.checkInsertOnly;
-import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.isDuplicate;
-import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.updateDeduplicateResult;
+import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.checkInsertOnly;
+import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.isDuplicate;
+import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.updateDeduplicateResult;
 
 /** This function is used to get the first or last row for every key partition in miniBatch mode. */
 public class RowTimeMiniBatchDeduplicateFunction

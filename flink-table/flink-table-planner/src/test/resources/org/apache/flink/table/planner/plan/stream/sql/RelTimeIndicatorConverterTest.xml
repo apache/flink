@@ -125,13 +125,13 @@ Calc(select=[EXPR$0])
   <TestCase name="testKeepProcessTimeAttrAfterSubGraphOptimize">
     <Resource name="ast">
       <![CDATA[
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[long, sum])
+LogicalSink(table=[default_catalog.default_database.appendSink1], fields=[long, sum])
 +- LogicalProject(long=[$1], sum=[CAST($2):BIGINT])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[SUM($2)])
       +- LogicalProject($f0=[$TUMBLE($2, 10000:INTERVAL SECOND)], long=[$0], int=[$1])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[long, sum])
+LogicalSink(table=[default_catalog.default_database.appendSink2], fields=[long, sum])
 +- LogicalProject(long=[$1], sum=[CAST($2):BIGINT])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[SUM($2)])
       +- LogicalProject($f0=[$TUMBLE($2, 10000:INTERVAL SECOND)], long=[$0], int=[$1])
@@ -145,10 +145,10 @@ Calc(select=[long, CAST(EXPR$1 AS BIGINT) AS sum])(reuse_id=[1])
    +- Exchange(distribution=[hash[long]])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[long, int, proctime])
 
-LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[long, sum])
+Sink(table=[default_catalog.default_database.appendSink1], fields=[long, sum])
 +- Reused(reference_id=[1])
 
-LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[long, sum])
+Sink(table=[default_catalog.default_database.appendSink2], fields=[long, sum])
 +- Reused(reference_id=[1])
 ]]>
     </Resource>

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.asyncprocessing;
 
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.StateIterator;
+import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
@@ -196,40 +197,7 @@ public class AbstractStateIteratorTest {
             CompletableFuture<Void> future = new CompletableFuture<>();
             for (StateRequest request :
                     ((MockStateRequestContainer) stateRequestContainer).getStateRequestList()) {
-                if (request.getRequestType() == StateRequestType.MAP_ITER) {
-                    ArrayList<Integer> results = new ArrayList<>(step);
-                    for (int i = 0; current < limit && i < step; i++) {
-                        results.add(current++);
-                    }
-                    request.getFuture()
-                            .complete(
-                                    new TestIterator(
-                                            request.getState(),
-                                            request.getRequestType(),
-                                            aec,
-                                            results,
-                                            current,
-                                            limit));
-                } else if (request.getRequestType() == StateRequestType.ITERATOR_LOADING) {
-                    assertThat(request.getPayload()).isInstanceOf(TestIterator.class);
-                    assertThat(((TestIterator) request.getPayload()).current).isEqualTo(current);
-                    ArrayList<Integer> results = new ArrayList<>(step);
-                    for (int i = 0; current < limit && i < step; i++) {
-                        results.add(current++);
-                    }
-                    request.getFuture()
-                            .complete(
-                                    new TestIterator(
-                                            request.getState(),
-                                            ((TestIterator) request.getPayload()).getRequestType(),
-                                            aec,
-                                            results,
-                                            current,
-                                            limit));
-                } else {
-                    fail("Unsupported request type " + request.getRequestType());
-                }
-                processedCount.incrementAndGet();
+                executeRequestSync(request);
             }
             future.complete(null);
             return future;
@@ -238,6 +206,44 @@ public class AbstractStateIteratorTest {
         @Override
         public StateRequestContainer createStateRequestContainer() {
             return new MockStateRequestContainer();
+        }
+
+        @Override
+        public void executeRequestSync(StateRequest<?, ?, ?, ?> request) {
+            if (request.getRequestType() == StateRequestType.MAP_ITER) {
+                ArrayList<Integer> results = new ArrayList<>(step);
+                for (int i = 0; current < limit && i < step; i++) {
+                    results.add(current++);
+                }
+                ((InternalStateFuture<StateIterator<Integer>>) request.getFuture())
+                        .complete(
+                                new TestIterator(
+                                        request.getState(),
+                                        request.getRequestType(),
+                                        aec,
+                                        results,
+                                        current,
+                                        limit));
+            } else if (request.getRequestType() == StateRequestType.ITERATOR_LOADING) {
+                assertThat(request.getPayload()).isInstanceOf(TestIterator.class);
+                assertThat(((TestIterator) request.getPayload()).current).isEqualTo(current);
+                ArrayList<Integer> results = new ArrayList<>(step);
+                for (int i = 0; current < limit && i < step; i++) {
+                    results.add(current++);
+                }
+                ((InternalStateFuture<StateIterator<Integer>>) request.getFuture())
+                        .complete(
+                                new TestIterator(
+                                        request.getState(),
+                                        ((TestIterator) request.getPayload()).getRequestType(),
+                                        aec,
+                                        results,
+                                        current,
+                                        limit));
+            } else {
+                fail("Unsupported request type " + request.getRequestType());
+            }
+            processedCount.incrementAndGet();
         }
 
         @Override

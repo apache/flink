@@ -29,11 +29,11 @@ import org.apache.flink.legacy.table.sources.{InputFormatTableSource, StreamTabl
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.legacy.io.CollectionInputFormat
-import org.apache.flink.table.api.{DataTypes, TableEnvironment}
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.api.{DataTypes, TableDescriptor, TableEnvironment}
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.descriptors._
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR, CONNECTOR_TYPE}
+import org.apache.flink.table.factories.FactoryUtil
 import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.legacy.descriptors.Schema
 import org.apache.flink.table.legacy.factories.{TableSinkFactory, TableSourceFactory}
@@ -44,18 +44,19 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.hint.OptionsHintTest.IS_BOUNDED
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
-import org.apache.flink.table.sinks.CsvBatchTableSinkFactory
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.table.utils.TableSchemaUtils.getPhysicalSchema
 import org.apache.flink.types.Row
 
+import _root_.java.{lang, util}
 import _root_.java.io.{File, FileOutputStream, OutputStreamWriter}
-import _root_.java.util
 import _root_.java.util.function.BiConsumer
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.mutable
+
+import java.nio.file.Files
 
 object TestTableSourceSinks {
   def createPersonCsvTemporaryTable(tEnv: TableEnvironment, tableName: String): Unit = {
@@ -110,26 +111,24 @@ object TestTableSourceSinks {
 
   def createCsvTemporarySinkTable(
       tEnv: TableEnvironment,
-      schema: TableSchema,
+      tableSchema: TableSchema,
       tableName: String,
       numFiles: Int = 1): String = {
-    val tempFile = File.createTempFile("csv-test", null)
-    tempFile.deleteOnExit()
-    val path = tempFile.getAbsolutePath
+    val tempDir = Files.createTempDirectory("csv-test").toFile
+    tempDir.deleteOnExit()
+    val tempDirPath = tempDir.getAbsolutePath
 
-    val sinkOptions = collection.mutable.Map(
-      "connector.type" -> "filesystem",
-      "connector.path" -> path,
-      "format.type" -> "csv",
-      "format.write-mode" -> "OVERWRITE",
-      "format.num-files" -> numFiles.toString
-    )
-    sinkOptions.putAll(new Schema().schema(schema).toProperties)
+    val schema = tableSchema.toSchema
+    val tableDescriptor = TableDescriptor
+      .forConnector("filesystem")
+      .schema(schema)
+      .option("path", tempDirPath)
+      .option(FactoryUtil.SINK_PARALLELISM, lang.Integer.valueOf(numFiles))
+      .format("testcsv")
+      .build()
 
-    val sink = new CsvBatchTableSinkFactory().createStreamTableSink(sinkOptions);
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(tableName, sink)
-
-    path
+    tEnv.createTable(tableName, tableDescriptor)
+    tempDirPath
   }
 
   /**

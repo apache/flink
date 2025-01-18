@@ -46,6 +46,13 @@ public interface StateExecutor {
     StateRequestContainer createStateRequestContainer();
 
     /**
+     * Execute a single state request *synchronously*. This is for synchronous APIs.
+     *
+     * @param stateRequest the request to run.
+     */
+    void executeRequestSync(StateRequest<?, ?, ?, ?> stateRequest);
+
+    /**
      * Check if this executor is fully loaded. Will be invoked to determine whether to give more
      * requests to run or wait for a while.
      *

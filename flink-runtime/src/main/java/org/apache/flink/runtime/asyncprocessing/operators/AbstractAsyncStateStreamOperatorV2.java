@@ -36,8 +36,8 @@ import org.apache.flink.runtime.state.v2.adaptor.AsyncKeyedStateBackendAdaptor;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
+import org.apache.flink.streaming.api.operators.InternalTimerServiceAsyncImpl;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
-import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessing;
@@ -92,9 +92,7 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
 
     /** Initialize necessary state components for {@link AbstractStreamOperatorV2}. */
     @Override
-    public final void initializeState(StreamTaskStateInitializer streamTaskStateManager)
-            throws Exception {
-        super.initializeState(streamTaskStateManager);
+    public final void beforeInitializeStateHandler() {
         KeyedStateStore stateStore = stateHandler.getKeyedStateStore().orElse(null);
         if (stateStore instanceof DefaultKeyedStateStore) {
             ((DefaultKeyedStateStore) stateStore).setSupportKeyedStateApiSetV2();
@@ -258,12 +256,11 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
         checkState(keySerializer != null, "Timers can only be used on keyed operators.");
         // A {@link RecordContext} will be set as the current processing context to preserve record
         // order when the given {@link Triggerable} is invoked.
-        return keyedTimeServiceHandler.getAsyncInternalTimerService(
-                name,
-                keySerializer,
-                namespaceSerializer,
-                triggerable,
-                (AsyncExecutionController<K>) asyncExecutionController);
+        InternalTimerService<N> service =
+                keyedTimeServiceHandler.getInternalTimerService(
+                        name, keySerializer, namespaceSerializer, triggerable);
+        ((InternalTimerServiceAsyncImpl<K, N>) service).setup(asyncExecutionController);
+        return service;
     }
 
     // ------------------------------------------------------------------------

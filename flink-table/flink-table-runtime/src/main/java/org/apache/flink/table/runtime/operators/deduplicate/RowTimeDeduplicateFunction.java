@@ -18,18 +18,15 @@
 
 package org.apache.flink.table.runtime.operators.deduplicate;
 
-import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.operators.deduplicate.utils.RowTimeDeduplicateFunctionHelper;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Collector;
 
-import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.checkInsertOnly;
-import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.isDuplicate;
-import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.updateDeduplicateResult;
-
 /** This function is used to deduplicate on keys and keeps only first or last row on row time. */
 public class RowTimeDeduplicateFunction
-        extends DeduplicateFunctionBase<RowData, RowData, RowData, RowData> {
+        extends SyncStateDeduplicateFunctionBase<RowData, RowData, RowData, RowData> {
 
     private static final long serialVersionUID = 1L;
 
@@ -37,6 +34,8 @@ public class RowTimeDeduplicateFunction
     private final boolean generateInsert;
     private final int rowtimeIndex;
     private final boolean keepLastRow;
+
+    private transient SyncStateRowTimeDeduplicateFunctionHelper helper;
 
     public RowTimeDeduplicateFunction(
             InternalTypeInfo<RowData> typeInfo,
@@ -53,38 +52,28 @@ public class RowTimeDeduplicateFunction
     }
 
     @Override
-    public void processElement(RowData input, Context ctx, Collector<RowData> out)
-            throws Exception {
-        deduplicateOnRowTime(
-                state, input, out, generateUpdateBefore, generateInsert, rowtimeIndex, keepLastRow);
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
+
+        helper = new SyncStateRowTimeDeduplicateFunctionHelper();
     }
 
-    /**
-     * Processes element to deduplicate on keys with row time semantic, sends current element if it
-     * is last or first row, retracts previous element if needed.
-     *
-     * @param state state of function
-     * @param currentRow latest row received by deduplicate function
-     * @param out underlying collector
-     * @param generateUpdateBefore flag to generate UPDATE_BEFORE message or not
-     * @param generateInsert flag to gennerate INSERT message or not
-     * @param rowtimeIndex the index of rowtime field
-     * @param keepLastRow flag to keep last row or keep first row
-     */
-    public static void deduplicateOnRowTime(
-            ValueState<RowData> state,
-            RowData currentRow,
-            Collector<RowData> out,
-            boolean generateUpdateBefore,
-            boolean generateInsert,
-            int rowtimeIndex,
-            boolean keepLastRow)
+    @Override
+    public void processElement(RowData input, Context ctx, Collector<RowData> out)
             throws Exception {
-        checkInsertOnly(currentRow);
-        RowData preRow = state.value();
+        RowData prevRow = state.value();
+        helper.deduplicateOnRowTime(input, prevRow, out);
+    }
 
-        if (isDuplicate(preRow, currentRow, rowtimeIndex, keepLastRow)) {
-            updateDeduplicateResult(generateUpdateBefore, generateInsert, preRow, currentRow, out);
+    private class SyncStateRowTimeDeduplicateFunctionHelper
+            extends RowTimeDeduplicateFunctionHelper {
+
+        public SyncStateRowTimeDeduplicateFunctionHelper() {
+            super(generateUpdateBefore, generateInsert, rowtimeIndex, keepLastRow);
+        }
+
+        @Override
+        protected void updateState(RowData currentRow) throws Exception {
             state.update(currentRow);
         }
     }

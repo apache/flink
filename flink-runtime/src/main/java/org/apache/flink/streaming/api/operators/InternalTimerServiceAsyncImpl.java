@@ -27,6 +27,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -54,8 +55,7 @@ public class InternalTimerServiceAsyncImpl<K, N> extends InternalTimerServiceImp
             ProcessingTimeService processingTimeService,
             KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> processingTimeTimersQueue,
             KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> eventTimeTimersQueue,
-            StreamTaskCancellationContext cancellationContext,
-            AsyncExecutionController<K> asyncExecutionController) {
+            StreamTaskCancellationContext cancellationContext) {
         super(
                 taskIOMetricGroup,
                 localKeyGroupRange,
@@ -64,11 +64,17 @@ public class InternalTimerServiceAsyncImpl<K, N> extends InternalTimerServiceImp
                 processingTimeTimersQueue,
                 eventTimeTimersQueue,
                 cancellationContext);
-        this.asyncExecutionController = asyncExecutionController;
+    }
+
+    public void setup(AsyncExecutionController<K> asyncExecutionController) {
+        if (asyncExecutionController != null) {
+            this.asyncExecutionController = asyncExecutionController;
+        }
     }
 
     @Override
     void onProcessingTime(long time) throws Exception {
+        Preconditions.checkNotNull(asyncExecutionController);
         // null out the timer in case the Triggerable calls registerProcessingTimeTimer()
         // inside the callback.
         nextTimer = null;
@@ -99,6 +105,7 @@ public class InternalTimerServiceAsyncImpl<K, N> extends InternalTimerServiceImp
      */
     @Override
     public void advanceWatermark(long time) throws Exception {
+        Preconditions.checkNotNull(asyncExecutionController);
         currentWatermark = time;
         InternalTimer<K, N> timer;
         while ((timer = eventTimeTimersQueue.peek()) != null

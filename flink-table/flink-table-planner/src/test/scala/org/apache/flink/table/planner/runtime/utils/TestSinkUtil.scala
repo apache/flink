@@ -17,14 +17,15 @@
  */
 package org.apache.flink.table.planner.runtime.utils
 
-import org.apache.flink.table.api.{Table, TableException}
+import org.apache.flink.table.api.{Schema, Table, TableDescriptor, TableEnvironment}
+import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.data.GenericRowData
-import org.apache.flink.table.legacy.sinks.TableSink
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.runtime.utils.JavaPojos.Pojo1
 import org.apache.flink.table.planner.utils.TableTestUtil
-import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
-import org.apache.flink.types.Row
+import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.utils.TypeConversions
+import org.apache.flink.types.{Row, RowKind}
 import org.apache.flink.util.StringUtils
 
 import org.apache.calcite.avatica.util.DateTimeUtils
@@ -36,22 +37,64 @@ import scala.collection.JavaConverters._
 
 object TestSinkUtil {
 
-  def configureSink[T <: TableSink[_]](table: Table, sink: T): T = {
+  def addValuesSink(
+      tEnv: TableEnvironment,
+      tablePath: String,
+      table: Table,
+      changelogMode: ChangelogMode): Unit = {
     val rowType = TableTestUtil.toRelNode(table).getRowType
-    val fieldNames = rowType.getFieldNames.asScala.toArray
+    val fieldNames = rowType.getFieldNames.asScala.toList
     val fieldTypes = rowType.getFieldList.asScala
       .map(field => FlinkTypeFactory.toLogicalType(field.getType))
-      .map(TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo)
-      .toArray
-    sink match {
-      case _: TestingAppendTableSink =>
-        new TestingAppendTableSink().configure(fieldNames, fieldTypes).asInstanceOf[T]
-      case s: TestingUpsertTableSink =>
-        new TestingUpsertTableSink(s.keys, s.tz).configure(fieldNames, fieldTypes).asInstanceOf[T]
-      case _: TestingRetractTableSink =>
-        new TestingRetractTableSink().configure(fieldNames, fieldTypes).asInstanceOf[T]
-      case _ => throw new TableException(s"Unsupported sink: $sink")
+      .map(TypeConversions.fromLogicalToDataType)
+      .toList
+
+    addValuesSink(tEnv, tablePath, fieldNames, fieldTypes, changelogMode)
+  }
+
+  def addValuesSink(
+      tEnv: TableEnvironment,
+      tablePath: String,
+      fieldNames: List[String],
+      fieldTypes: List[DataType],
+      changelogMode: ChangelogMode,
+      pk: List[String] = List()): Unit = {
+    val schemaBuilder = Schema.newBuilder()
+
+    if (pk.nonEmpty) {
+      schemaBuilder.primaryKey(pk.asJava)
     }
+
+    fieldNames.indices.foreach(
+      i => {
+        val fieldName = fieldNames(i)
+        val fieldType =
+          if (pk.contains(fieldName)) {
+            fieldTypes(i).notNull()
+          } else {
+            fieldTypes(i)
+          }
+
+        schemaBuilder.column(fieldName, fieldType)
+      })
+
+    val tableDesc = TableDescriptor
+      .forConnector("values")
+      .schema(schemaBuilder.build())
+      .option("sink-insert-only", String.valueOf(changelogMode.equals(ChangelogMode.insertOnly())))
+      .option(
+        "sink-changelog-mode-enforced",
+        changelogMode.getContainedKinds.asScala
+          .map {
+            case RowKind.INSERT => "I"
+            case RowKind.UPDATE_BEFORE => "UB"
+            case RowKind.UPDATE_AFTER => "UA"
+            case RowKind.DELETE => "D"
+          }
+          .mkString(",")
+      )
+      .build()
+    tEnv.createTable(tablePath, tableDesc)
   }
 
   def fieldToString(field: Any, tz: TimeZone): String = {

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.state.v2.AggregatingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.MockStateRequestContainer;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
@@ -233,22 +234,7 @@ class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
                 StateRequestContainer stateRequestContainer) {
             for (StateRequest stateRequest :
                     ((MockStateRequestContainer) stateRequestContainer).getStateRequestList()) {
-                String key = (String) stateRequest.getRecordContext().getKey();
-                String namespace = (String) stateRequest.getNamespace();
-                if (stateRequest.getRequestType() == StateRequestType.AGGREGATING_ADD) {
-                    if (stateRequest.getPayload() == null) {
-                        hashMap.remove(Tuple2.of(key, namespace));
-                        stateRequest.getFuture().complete(null);
-                    } else {
-                        hashMap.put(Tuple2.of(key, namespace), (Integer) stateRequest.getPayload());
-                        stateRequest.getFuture().complete(null);
-                    }
-                } else if (stateRequest.getRequestType() == StateRequestType.AGGREGATING_GET) {
-                    Integer val = hashMap.get(Tuple2.of(key, namespace));
-                    stateRequest.getFuture().complete(val);
-                } else {
-                    throw new UnsupportedOperationException("Unsupported type");
-                }
+                executeRequestSync(stateRequest);
             }
             CompletableFuture<Void> future = new CompletableFuture<>();
             future.complete(null);
@@ -258,6 +244,26 @@ class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
         @Override
         public StateRequestContainer createStateRequestContainer() {
             return new MockStateRequestContainer();
+        }
+
+        @Override
+        public void executeRequestSync(StateRequest<?, ?, ?, ?> stateRequest) {
+            String key = (String) stateRequest.getRecordContext().getKey();
+            String namespace = (String) stateRequest.getNamespace();
+            if (stateRequest.getRequestType() == StateRequestType.AGGREGATING_ADD) {
+                if (stateRequest.getPayload() == null) {
+                    hashMap.remove(Tuple2.of(key, namespace));
+                    stateRequest.getFuture().complete(null);
+                } else {
+                    hashMap.put(Tuple2.of(key, namespace), (Integer) stateRequest.getPayload());
+                    stateRequest.getFuture().complete(null);
+                }
+            } else if (stateRequest.getRequestType() == StateRequestType.AGGREGATING_GET) {
+                Integer val = hashMap.get(Tuple2.of(key, namespace));
+                ((InternalStateFuture<Integer>) stateRequest.getFuture()).complete(val);
+            } else {
+                throw new UnsupportedOperationException("Unsupported type");
+            }
         }
 
         @Override

@@ -19,8 +19,9 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.legacy.api.Types
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.UdfWithOpen
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.{NonDeterministicTableFunc, StringSplit}
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.{BeforeEach, Test}
 
 import java.lang.{Boolean => JBoolean}
 
+import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 class CorrelateITCase extends StreamingTestBase {
@@ -288,12 +290,14 @@ class CorrelateITCase extends StreamingTestBase {
     val sql = "SELECT * FROM T1 left join lateral table(STRING_SPLIT(c, '|')) as T(v) on true"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    TestSinkUtil.addValuesSink(tEnv, "MySink", result, ChangelogMode.insertOnly())
     result.executeInsert("MySink").await()
 
-    val expected = List("1,2,,null", "1,3,,null")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    val expected = List("+I[1, 2, , null]", "+I[1, 3, , null]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -308,12 +312,14 @@ class CorrelateITCase extends StreamingTestBase {
     val sql = "SELECT v FROM T1, lateral table(STRING_SPLIT(c, '|')) as T(v)"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    TestSinkUtil.addValuesSink(tEnv, "MySink", result, ChangelogMode.insertOnly())
     result.executeInsert("MySink").await()
 
-    val expected = List("3018-06-10", "2018-06-03", "2018-06-01", "2018-06-02")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    val expected = List("+I[3018-06-10]", "+I[2018-06-03]", "+I[2018-06-01]", "+I[2018-06-02]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -328,12 +334,15 @@ class CorrelateITCase extends StreamingTestBase {
     val sql = "SELECT a, v FROM T1, lateral table(STRING_SPLIT(c, '|')) as T(v)"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    TestSinkUtil.addValuesSink(tEnv, "MySink", result, ChangelogMode.insertOnly())
     result.executeInsert("MySink").await()
 
-    val expected = List("1,3018-06-10", "1,2018-06-03", "1,2018-06-01", "1,2018-06-02")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    val expected =
+      List("+I[1, 3018-06-10]", "+I[1, 2018-06-03]", "+I[1, 2018-06-01]", "+I[1, 2018-06-02]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -348,12 +357,14 @@ class CorrelateITCase extends StreamingTestBase {
     val sql = "SELECT v FROM T1, lateral table(STRING_SPLIT(c, '|')) as T(v)"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    TestSinkUtil.addValuesSink(tEnv, "MySink", result, ChangelogMode.insertOnly())
     result.executeInsert("MySink").await()
 
-    val expected = List("a")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    val expected = List("+I[a]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -368,13 +379,15 @@ class CorrelateITCase extends StreamingTestBase {
     val sql = "SELECT v FROM T1 left join lateral table(STRING_SPLIT(c, '|')) as T(v) on true"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    TestSinkUtil.addValuesSink(tEnv, "MySink", result, ChangelogMode.insertOnly())
     result.executeInsert("MySink").await()
 
     // output two null
-    val expected = List("null", "null")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    val expected = List("+I[null]", "+I[null]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -389,12 +402,14 @@ class CorrelateITCase extends StreamingTestBase {
     val sql = "SELECT a, v FROM T1, lateral table(STRING_SPLIT(c, '|')) as T(v)"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    TestSinkUtil.addValuesSink(tEnv, "MySink", result, ChangelogMode.insertOnly())
     result.executeInsert("MySink").await()
 
-    val expected = List("1,a")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    val expected = List("+I[1, a]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -409,12 +424,14 @@ class CorrelateITCase extends StreamingTestBase {
     val sql = "SELECT b, v FROM T1 left join lateral table(STRING_SPLIT(c, '|')) as T(v) on true"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    TestSinkUtil.addValuesSink(tEnv, "MySink", result, ChangelogMode.insertOnly())
     result.executeInsert("MySink").await()
 
-    val expected = List("2,null", "3,null")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    val expected = List("+I[2, null]", "+I[3, null]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -430,12 +447,19 @@ class CorrelateITCase extends StreamingTestBase {
       "SELECT * FROM T1 as t, LATERAL TABLE(STRING_SPLIT(t.c,'|')) CROSS JOIN (VALUES ('A'), ('B'));"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+
+    TestSinkUtil.addValuesSink(tEnv, "MySink", result, ChangelogMode.insertOnly())
     result.executeInsert("MySink").await()
 
-    val expected = List("1,2,x|y,x,A", "1,2,x|y,x,B", "1,2,x|y,y,A", "1,2,x|y,y,B")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    val expected = List(
+      "+I[1, 2, x|y, x, A]",
+      "+I[1, 2, x|y, x, B]",
+      "+I[1, 2, x|y, y, A]",
+      "+I[1, 2, x|y, y, B]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
   // TODO support agg

@@ -17,13 +17,13 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.{changelogRow, registerData}
@@ -1705,9 +1705,13 @@ class AggregateITCase(
     val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTable", t)
 
-    val tableSink = new TestingUpsertTableSink(Array(0))
-      .configure(Array[String]("c", "bMax"), Array[TypeInformation[_]](Types.STRING, Types.LONG))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("testSink", tableSink)
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "testSink",
+      List("c", "bMax"),
+      List(DataTypes.STRING, DataTypes.BIGINT),
+      ChangelogMode.upsert,
+      List("c"))
 
     tEnv
       .executeSql("""
@@ -1718,8 +1722,12 @@ class AggregateITCase(
       """.stripMargin)
       .await()
 
-    val expected = List("A,1", "B,2", "C,3")
-    assertThat(tableSink.getUpsertResults.sorted).isEqualTo(expected.sorted)
+    val expected = List("+I[A, 1]", "+I[B, 2]", "+I[C, 3]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("testSink")
+        .sorted)
+      .isEqualTo(expected.sorted)
   }
 
   @TestTemplate

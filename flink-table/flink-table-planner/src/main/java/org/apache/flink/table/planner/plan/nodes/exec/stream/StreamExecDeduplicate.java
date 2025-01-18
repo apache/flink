@@ -22,6 +22,7 @@ import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.runtime.asyncprocessing.operators.AsyncKeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -51,6 +52,7 @@ import org.apache.flink.table.runtime.operators.deduplicate.ProcTimeMiniBatchDed
 import org.apache.flink.table.runtime.operators.deduplicate.RowTimeDeduplicateFunction;
 import org.apache.flink.table.runtime.operators.deduplicate.RowTimeMiniBatchDeduplicateFunction;
 import org.apache.flink.table.runtime.operators.deduplicate.RowTimeMiniBatchLatestChangeDeduplicateFunction;
+import org.apache.flink.table.runtime.operators.deduplicate.asyncprocessing.AsyncStateRowTimeDeduplicateFunction;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
 import org.apache.flink.table.types.logical.RowType;
@@ -256,6 +258,10 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
             return config.get(TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES_ENABLED);
         }
 
+        protected boolean isAsyncStateEnabled() {
+            return config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED);
+        }
+
         protected long getMiniBatchSize() {
             if (isMiniBatchEnabled()) {
                 long size = config.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE);
@@ -332,15 +338,27 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
                             trigger);
                 }
             } else {
-                RowTimeDeduplicateFunction processFunction =
-                        new RowTimeDeduplicateFunction(
-                                rowTypeInfo,
-                                stateRetentionTime,
-                                rowtimeIndex,
-                                generateUpdateBefore,
-                                generateInsert(),
-                                keepLastRow);
-                return new KeyedProcessOperator<>(processFunction);
+                if (isAsyncStateEnabled()) {
+                    AsyncStateRowTimeDeduplicateFunction processFunction =
+                            new AsyncStateRowTimeDeduplicateFunction(
+                                    rowTypeInfo,
+                                    stateRetentionTime,
+                                    rowtimeIndex,
+                                    generateUpdateBefore,
+                                    generateInsert(),
+                                    keepLastRow);
+                    return new AsyncKeyedProcessOperator<>(processFunction);
+                } else {
+                    RowTimeDeduplicateFunction processFunction =
+                            new RowTimeDeduplicateFunction(
+                                    rowTypeInfo,
+                                    stateRetentionTime,
+                                    rowtimeIndex,
+                                    generateUpdateBefore,
+                                    generateInsert(),
+                                    keepLastRow);
+                    return new KeyedProcessOperator<>(processFunction);
+                }
             }
         }
     }
