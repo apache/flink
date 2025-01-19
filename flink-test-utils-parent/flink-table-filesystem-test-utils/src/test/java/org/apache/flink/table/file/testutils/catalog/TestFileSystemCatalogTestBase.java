@@ -43,7 +43,7 @@ public abstract class TestFileSystemCatalogTestBase extends AbstractTestBase {
         File testDb = new File(tempFile, TEST_DEFAULT_DATABASE);
         testDb.mkdir();
 
-        String catalogPathStr = tempFile.getAbsolutePath();
+        String catalogPathStr = "file:" + tempFile.getAbsolutePath();
         catalog = new TestFileSystemCatalog(catalogPathStr, TEST_CATALOG, TEST_DEFAULT_DATABASE);
         catalog.open();
     }
