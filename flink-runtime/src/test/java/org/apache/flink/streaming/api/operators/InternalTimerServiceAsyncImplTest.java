@@ -79,6 +79,7 @@ class InternalTimerServiceAsyncImplTest {
                         2,
                         1000L,
                         10,
+                        null,
                         null);
         // ensure arbitrary key is in the key group
         int totalKeyGroups = 128;

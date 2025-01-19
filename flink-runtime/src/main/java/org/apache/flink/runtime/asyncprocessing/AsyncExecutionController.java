@@ -24,6 +24,7 @@ import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.asyncprocessing.EpochManager.ParallelMode;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -158,7 +159,8 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
             int batchSize,
             long bufferTimeout,
             int maxInFlightRecords,
-            SwitchContextListener<K> switchContextListener) {
+            @Nullable SwitchContextListener<K> switchContextListener,
+            @Nullable MetricGroup metricGroup) {
         this.keyAccountingUnit = new KeyAccountingUnit<>(maxInFlightRecords);
         this.mailboxExecutor = mailboxExecutor;
         this.exceptionHandler = exceptionHandler;
@@ -187,6 +189,12 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
 
         this.epochManager = new EpochManager(this);
         this.switchContextListener = switchContextListener;
+        if (metricGroup != null) {
+            metricGroup.gauge("numInFlightRecords", this::getInFlightRecordNum);
+            metricGroup.gauge("activeBufferSize", () -> stateRequestsBuffer.activeQueueSize());
+            metricGroup.gauge("blockingBufferSize", () -> stateRequestsBuffer.blockingQueueSize());
+            metricGroup.gauge("numBlockingKeys", () -> stateRequestsBuffer.blockingKeyNum());
+        }
         LOG.info(
                 "Create AsyncExecutionController: batchSize {}, bufferTimeout {}, maxInFlightRecordNum {}, epochParallelMode {}",
                 this.batchSize,
