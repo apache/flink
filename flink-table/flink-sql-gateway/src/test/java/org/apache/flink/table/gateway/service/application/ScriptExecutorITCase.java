@@ -127,6 +127,23 @@ public class ScriptExecutorITCase extends AbstractSqlGatewayStatementITCaseBase 
     }
 
     @Test
+    void testParseStatementWithoutSemicolon() throws Exception {
+        assertThat(runScript("no_semicolon.q"))
+                .contains(
+                        "+------+------+------+-----+--------+-----------+"
+                                + System.lineSeparator()
+                                + "| name | type | null | key | extras | watermark |"
+                                + System.lineSeparator()
+                                + "+------+------+------+-----+--------+-----------+"
+                                + System.lineSeparator()
+                                + "|    a |  INT | TRUE |     |        |           |"
+                                + System.lineSeparator()
+                                + "|    b |  INT | TRUE |     |        |           |"
+                                + System.lineSeparator()
+                                + "+------+------+------+-----+--------+-----------+");
+    }
+
+    @Test
     void testParseErrorPositionIsCorrect() throws Exception {
         assertThat(runScript("error.q"))
                 .contains(
