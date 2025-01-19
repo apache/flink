@@ -273,7 +273,7 @@ public class TestFileSystemCatalog extends AbstractCatalog {
             return deserializeTable(
                     tableInfo.getTableKind(),
                     tableInfo.getCatalogTableInfo(),
-                    tableDataPath.getPath());
+                    tableDataPath.toString());
         } catch (IOException e) {
             throw new CatalogException(
                     String.format("Getting table %s occur exception.", tablePath), e);
