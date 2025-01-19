@@ -27,4 +27,9 @@ public class StandaloneClusterId {
     public static StandaloneClusterId getInstance() {
         return INSTANCE;
     }
+
+    @Override
+    public String toString() {
+        return "StandaloneClusterId";
+    }
 }
