@@ -194,6 +194,7 @@ public class ScriptExecutor {
                     return true;
                 }
             }
+            position = script.length();
 
             statement = currentSqlBuilder.toString();
             if (!StringUtils.isNullOrWhitespaceOnly(statement)) {
