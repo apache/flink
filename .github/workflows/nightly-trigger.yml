@@ -33,7 +33,6 @@ jobs:
           - master
           - release-1.20
           - release-1.19
-          - release-1.18
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Workflow
