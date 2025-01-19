@@ -39,6 +39,7 @@ import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
+import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.state.forst.ForStMemoryControllerUtils.ForStMemoryFactory;
 import org.apache.flink.state.forst.sync.ForStPriorityQueueConfig;
@@ -90,6 +91,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 @Experimental
 public class ForStStateBackend extends AbstractManagedMemoryStateBackend
         implements ConfigurableStateBackend {
+
+    public static final String REMOTE_SHORTCUT_CHECKPOINT = "checkpoint-dir";
 
     private static final long serialVersionUID = 1L;
 
@@ -173,6 +176,8 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
      */
     private final TernaryBoolean rescalingUseDeleteFilesInRange;
 
+    private boolean remoteShareWithCheckpoint;
+
     // ------------------------------------------------------------------------
 
     /** Creates a new {@code ForStStateBackend} for storing state. */
@@ -184,6 +189,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
         this.overlapFractionThreshold = UNDEFINED_OVERLAP_FRACTION_THRESHOLD;
         this.useIngestDbRestoreMode = TernaryBoolean.UNDEFINED;
         this.rescalingUseDeleteFilesInRange = TernaryBoolean.UNDEFINED;
+        this.remoteShareWithCheckpoint = false;
     }
 
     /**
@@ -200,11 +206,17 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                         original.memoryConfiguration, config);
         this.memoryConfiguration.validate();
 
+        this.remoteShareWithCheckpoint = false;
         if (original.remoteForStDirectory != null) {
             this.remoteForStDirectory = original.remoteForStDirectory;
         } else {
             String remoteDirStr = config.get(ForStOptions.REMOTE_DIRECTORY);
-            this.remoteForStDirectory = remoteDirStr == null ? null : new Path(remoteDirStr);
+            if (REMOTE_SHORTCUT_CHECKPOINT.equals(remoteDirStr)) {
+                this.remoteForStDirectory = null;
+                this.remoteShareWithCheckpoint = true;
+            } else {
+                this.remoteForStDirectory = remoteDirStr == null ? null : new Path(remoteDirStr);
+            }
         }
 
         this.priorityQueueConfig =
@@ -383,10 +395,22 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                 new Path(
                         new File(new File(getNextStoragePath(), jobId.toHexString()), opChildPath)
                                 .getAbsolutePath());
-        Path remoteBasePath =
-                remoteForStDirectory != null
-                        ? new Path(new Path(remoteForStDirectory, jobId.toHexString()), opChildPath)
-                        : null;
+        Path remoteBasePath = null;
+        if (remoteForStDirectory != null) {
+            remoteBasePath =
+                    new Path(new Path(remoteForStDirectory, jobId.toHexString()), opChildPath);
+        } else if (remoteShareWithCheckpoint) {
+            if (env.getCheckpointStorageAccess() instanceof FsCheckpointStorageAccess) {
+                Path sharedStateDirectory =
+                        ((FsCheckpointStorageAccess) env.getCheckpointStorageAccess())
+                                .getSharedStateDirectory();
+                remoteBasePath = new Path(sharedStateDirectory, opChildPath);
+                LOG.info("Set remote ForSt directory to checkpoint directory {}", remoteBasePath);
+            } else {
+                LOG.warn(
+                        "Remote ForSt directory can't be set, because checkpoint directory isn't on file system.");
+            }
+        }
 
         final OpaqueMemoryResource<ForStSharedResources> sharedResources =
                 ForStOperationUtils.allocateSharedCachesIfConfigured(

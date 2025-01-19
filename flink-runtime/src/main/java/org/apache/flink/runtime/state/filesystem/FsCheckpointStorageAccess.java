@@ -128,6 +128,10 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
         return checkpointsDirectory;
     }
 
+    public Path getSharedStateDirectory() {
+        return sharedStateDirectory;
+    }
+
     // ------------------------------------------------------------------------
     //  CheckpointStorage implementation
     // ------------------------------------------------------------------------
