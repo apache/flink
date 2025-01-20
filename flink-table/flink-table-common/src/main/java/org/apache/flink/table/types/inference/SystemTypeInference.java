@@ -81,6 +81,10 @@ public class SystemTypeInference {
         return builder.build();
     }
 
+    public static boolean isValidUidForProcessTableFunction(String uid) {
+        return UID_FORMAT.test(uid);
+    }
+
     // --------------------------------------------------------------------------------------------
 
     private static void checkScalarArgsOnly(List<StaticArgument> defaultArgs) {
@@ -283,7 +287,7 @@ public class SystemTypeInference {
                                 + "that is not overloaded and doesn't contain varargs.");
             }
 
-            checkUidColumn(callContext);
+            checkUidArg(callContext);
             checkMultipleTableArgs(callContext);
             checkTableArgTraits(staticArgs, callContext);
 
@@ -297,16 +301,16 @@ public class SystemTypeInference {
             return origin.getExpectedSignatures(definition);
         }
 
-        private static void checkUidColumn(CallContext callContext) {
+        private static void checkUidArg(CallContext callContext) {
             final List<DataType> args = callContext.getArgumentDataTypes();
 
             // Verify the uid format if provided
             int uidPos = args.size() - 1;
             if (!callContext.isArgumentNull(uidPos)) {
                 final String uid = callContext.getArgumentValue(uidPos, String.class).orElse("");
-                if (!UID_FORMAT.test(uid)) {
+                if (!isValidUidForProcessTableFunction(uid)) {
                     throw new ValidationException(
-                            "Invalid unique identifier for process table function. The 'uid' argument "
+                            "Invalid unique identifier for process table function. The `uid` argument "
                                     + "must be a string literal that follows the pattern [a-zA-Z_][a-zA-Z-_0-9]*. "
                                     + "But found: "
                                     + uid);
