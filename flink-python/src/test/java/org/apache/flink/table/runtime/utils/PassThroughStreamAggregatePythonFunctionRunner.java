@@ -29,7 +29,7 @@ import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonFunctio
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Struct;
 
 import java.util.LinkedList;
 import java.util.List;
