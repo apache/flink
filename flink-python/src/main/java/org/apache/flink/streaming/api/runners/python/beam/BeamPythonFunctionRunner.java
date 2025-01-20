@@ -195,7 +195,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     private transient Environment environment;
 
-    private transient List<TimerRegistrationAction> unregisteredTimers;
+    private transient volatile List<TimerRegistrationAction> unregisteredTimers;
 
     public BeamPythonFunctionRunner(
             Environment environment,
@@ -311,7 +311,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 ShutdownHookUtil.addShutdownHook(
                         this, BeamPythonFunctionRunner.class.getSimpleName(), LOG);
 
-        unregisteredTimers = new LinkedList<>();
+        unregisteredTimers = Collections.synchronizedList(new LinkedList<>());
     }
 
     @Override
@@ -352,10 +352,12 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     @Override
     public void drainUnregisteredTimers() {
-        for (TimerRegistrationAction timerRegistrationAction : unregisteredTimers) {
-            timerRegistrationAction.run();
+        synchronized (unregisteredTimers) {
+            for (TimerRegistrationAction timerRegistrationAction : unregisteredTimers) {
+                timerRegistrationAction.registerTimer();
+            }
+            unregisteredTimers.clear();
         }
-        unregisteredTimers.clear();
     }
 
     @Override
@@ -703,7 +705,9 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 (timer, timerData) -> {
                     TimerRegistrationAction timerRegistrationAction =
                             new TimerRegistrationAction(
-                                    timerRegistration, (byte[]) timer.getUserKey());
+                                    timerRegistration,
+                                    (byte[]) timer.getUserKey(),
+                                    unregisteredTimers);
                     unregisteredTimers.add(timerRegistrationAction);
                     environment
                             .getMainMailboxExecutor()
