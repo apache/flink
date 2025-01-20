@@ -168,15 +168,8 @@ class SlicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
                         2, shiftTimeZone, Duration.ofSeconds(3), Duration.ofSeconds(1));
         final SlicingSumAndCountAggsFunction aggsFunction =
                 new SlicingSumAndCountAggsFunction(assigner);
-        WindowAggOperator<RowData, ?> operator =
-                WindowAggOperatorBuilder.builder()
-                        .inputSerializer(INPUT_ROW_SER)
-                        .shiftTimeZone(shiftTimeZone)
-                        .keySerializer(KEY_SER)
-                        .assigner(assigner)
-                        .aggregate(createGeneratedAggsHandle(aggsFunction), ACC_SER)
-                        .countStarIndex(1)
-                        .build();
+        OneInputStreamOperator<RowData, RowData> operator =
+                buildWindowOperator(assigner, aggsFunction, 1);
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createTestHarness(operator);
@@ -235,15 +228,8 @@ class SlicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
                         2, shiftTimeZone, Duration.ofSeconds(3), Duration.ofSeconds(1));
         final SlicingSumAndCountAggsFunction aggsFunction =
                 new SlicingSumAndCountAggsFunction(assigner);
-        WindowAggOperator<RowData, ?> operator =
-                WindowAggOperatorBuilder.builder()
-                        .inputSerializer(INPUT_ROW_SER)
-                        .shiftTimeZone(shiftTimeZone)
-                        .keySerializer(KEY_SER)
-                        .assigner(assigner)
-                        .aggregate(createGeneratedAggsHandle(aggsFunction), ACC_SER)
-                        .countStarIndex(1)
-                        .build();
+        OneInputStreamOperator<RowData, RowData> operator =
+                buildWindowOperator(assigner, aggsFunction, 1);
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createTestHarness(operator);
