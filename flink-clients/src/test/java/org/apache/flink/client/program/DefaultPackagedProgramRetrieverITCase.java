@@ -64,6 +64,10 @@ class DefaultPackagedProgramRetrieverITCase {
             ClasspathProviderExtension.createWithSingleEntryClass();
 
     @RegisterExtension
+    ClasspathProviderExtension symlinkClasspathProvider =
+            ClasspathProviderExtension.createWithSymlink();
+
+    @RegisterExtension
     ClasspathProviderExtension multipleEntryClassesClasspathProvider =
             ClasspathProviderExtension.createWithMultipleEntryClasses();
 
@@ -523,6 +527,34 @@ class DefaultPackagedProgramRetrieverITCase {
     }
 
     @Test
+    void testRetrieveFromJarFileWithSymlinkUserLib()
+            throws IOException, FlinkException, ProgramInvocationException {
+        final File actualUsrLib = new File(symlinkClasspathProvider.getDirectory(), "usrlib");
+        final PackagedProgramRetriever retrieverUnderTest =
+                DefaultPackagedProgramRetriever.create(
+                        actualUsrLib,
+                        // the testJob jar is not on the user classpath
+                        testJobEntryClassClasspathProvider.getJobJar(),
+                        null,
+                        null,
+                        ClasspathProviderExtension.parametersForTestJob("suffix"),
+                        new Configuration());
+        final JobGraph jobGraph = retrieveJobGraph(retrieverUnderTest, new Configuration());
+
+        assertThat(jobGraph.getUserJars())
+                .contains(
+                        new org.apache.flink.core.fs.Path(
+                                testJobEntryClassClasspathProvider.getJobJar().toURI()));
+        final List<String> actualClasspath =
+                jobGraph.getClasspaths().stream().map(URL::toString).collect(Collectors.toList());
+        final List<String> expectedClasspath =
+                extractRelativizedURLsForJarsFromDirectory(actualUsrLib);
+
+        assertThat(actualClasspath).hasSize(2);
+        assertThat(actualClasspath).isEqualTo(expectedClasspath);
+    }
+
+    @Test
     void testRetrieveFromJarFileWithArtifacts()
             throws IOException, FlinkException, ProgramInvocationException {
         final PackagedProgramRetriever retrieverUnderTest =
@@ -684,6 +716,11 @@ class DefaultPackagedProgramRetrieverITCase {
         final List<String> relativizedURLs = new ArrayList<>();
         final Path workingDirectory = FileUtils.getCurrentWorkingDirectory();
         for (File file : Preconditions.checkNotNull(directory.listFiles())) {
+            if (file.isDirectory()) {
+                relativizedURLs.addAll(extractRelativizedURLsForJarsFromDirectory(file));
+                continue;
+            }
+
             if (!FileUtils.isJarFile(file.toPath())) {
                 // any non-JARs are filtered by PackagedProgramRetrieverImpl
                 continue;
