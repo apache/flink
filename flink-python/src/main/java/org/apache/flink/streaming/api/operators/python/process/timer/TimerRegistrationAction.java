@@ -18,6 +18,9 @@
 
 package org.apache.flink.streaming.api.operators.python.process.timer;
 
+import java.util.List;
+
+/** {@link TimerRegistrationAction} used to register Timer. */
 public class TimerRegistrationAction {
 
     private final TimerRegistration timerRegistration;
@@ -26,17 +29,33 @@ public class TimerRegistrationAction {
 
     private boolean isRegistered;
 
+    private final List<TimerRegistrationAction> containingList;
+
     public TimerRegistrationAction(
-            TimerRegistration timerRegistration, byte[] serializedTimerData) {
+            TimerRegistration timerRegistration,
+            byte[] serializedTimerData,
+            List<TimerRegistrationAction> containingList) {
         this.timerRegistration = timerRegistration;
         this.serializedTimerData = serializedTimerData;
+        this.containingList = containingList;
         this.isRegistered = false;
     }
 
     public void run() {
+        registerTimer();
+        cleanup();
+    }
+
+    public void registerTimer() {
         if (!isRegistered) {
             timerRegistration.setTimer(serializedTimerData);
             isRegistered = true;
+        }
+    }
+
+    private void cleanup() {
+        if (isRegistered) {
+            containingList.remove(this);
         }
     }
 }
