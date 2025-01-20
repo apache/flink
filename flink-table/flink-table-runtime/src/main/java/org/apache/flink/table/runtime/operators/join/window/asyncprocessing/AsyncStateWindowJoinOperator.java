@@ -48,6 +48,9 @@ import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerSer
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowTimerServiceImpl;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.time.ZoneId;
 
 /**
@@ -68,6 +71,8 @@ public class AsyncStateWindowJoinOperator extends AsyncStateTableStreamOperator<
                 KeyContext {
 
     private static final long serialVersionUID = 1L;
+
+    private static final Logger LOG = LoggerFactory.getLogger(AsyncStateWindowJoinOperator.class);
 
     private static final String LEFT_RECORDS_STATE_NAME = "left-records";
     private static final String RIGHT_RECORDS_STATE_NAME = "right-records";
@@ -118,6 +123,8 @@ public class AsyncStateWindowJoinOperator extends AsyncStateTableStreamOperator<
     @Override
     public void open() throws Exception {
         super.open();
+
+        LOG.info("Window join is using async state");
 
         this.collector = new TimestampedCollector<>(output);
         collector.eraseTimestamp();
