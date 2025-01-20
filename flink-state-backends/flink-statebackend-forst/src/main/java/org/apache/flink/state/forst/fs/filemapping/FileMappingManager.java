@@ -50,21 +50,11 @@ public class FileMappingManager {
 
     private final HashMap<String, MappingEntry> mappingTable;
 
-    private final FileOwnershipDecider fileOwnershipDecider;
-
     private final String remoteBase;
     private final String localBase;
 
-    public FileMappingManager(
-            FileSystem fileSystem,
-            @Nullable FileOwnershipDecider fileOwnershipDecider,
-            String remoteBase,
-            String localBase) {
+    public FileMappingManager(FileSystem fileSystem, String remoteBase, String localBase) {
         this.fileSystem = fileSystem;
-        this.fileOwnershipDecider =
-                fileOwnershipDecider == null
-                        ? FileOwnershipDecider.getDefault()
-                        : fileOwnershipDecider;
         this.mappingTable = new HashMap<>();
         this.remoteBase = remoteBase;
         this.localBase = localBase;
@@ -77,11 +67,8 @@ public class FileMappingManager {
             filePath = forceLocalPath(filePath);
         }
 
-        filePath = toUUIDPath(filePath);
-
-        LOG.trace("decide file ownership for new file: {} {}", filePath, fileOwnershipDecider);
         return addFileToMappingTable(
-                key, filePath, fileOwnershipDecider.decideForNewFile(filePath));
+                key, toUUIDPath(filePath), FileOwnershipDecider.decideForNewFile(filePath));
     }
 
     /** Register a file restored from checkpoints to the mapping table. */
@@ -92,7 +79,7 @@ public class FileMappingManager {
         //  - Add to mapping table based on cpFilePath, so we can access the real file.
         LOG.trace("decide restored file ownership based on dbFilePath: {}", dbFilePath);
         return addHandleBackedFileToMappingTable(
-                key, stateHandle, fileOwnershipDecider.decideForRestoredFile(dbFilePath));
+                key, stateHandle, FileOwnershipDecider.decideForRestoredFile(dbFilePath));
     }
 
     private MappingEntry addHandleBackedFileToMappingTable(
@@ -109,7 +96,7 @@ public class FileMappingManager {
         MappingEntrySource source = new FileBackedMappingEntrySource(filePath);
         MappingEntry existingEntry = getExistingMappingEntry(key, source, fileOwnership);
         return existingEntry == null
-                ? addMappingEntry(key, new MappingEntry(1, filePath, fileOwnership, false))
+                ? addMappingEntry(key, new MappingEntry(1, source, fileOwnership, false))
                 : existingEntry;
     }
 

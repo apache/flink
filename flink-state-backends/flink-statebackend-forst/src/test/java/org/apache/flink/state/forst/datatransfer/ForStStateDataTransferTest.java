@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
@@ -108,6 +109,7 @@ class ForStStateDataTransferTest extends TestLogger {
             assertThatThrownBy(
                             () ->
                                     stateTransfer.transferFilesToCheckpointFs(
+                                            SnapshotType.SharingFilesStrategy.FORWARD_BACKWARD,
                                             filePaths,
                                             checkpointStreamFactory,
                                             CheckpointedStateScope.SHARED,
@@ -149,6 +151,7 @@ class ForStStateDataTransferTest extends TestLogger {
         CloseableRegistry tmpResourcesRegistry = new CloseableRegistry();
         try (ForStStateDataTransfer stateTransfer = new ForStStateDataTransfer(1)) {
             stateTransfer.transferFilesToCheckpointFs(
+                    SnapshotType.SharingFilesStrategy.FORWARD_BACKWARD,
                     filePaths,
                     checkpointStreamFactory,
                     CheckpointedStateScope.SHARED,
@@ -158,6 +161,7 @@ class ForStStateDataTransferTest extends TestLogger {
             assertThatThrownBy(
                             () ->
                                     stateTransfer.transferFilesToCheckpointFs(
+                                            SnapshotType.SharingFilesStrategy.FORWARD_BACKWARD,
                                             filePaths,
                                             new LastFailingCheckpointStateOutputStreamFactory(
                                                     checkpointStreamFactory,
@@ -179,6 +183,7 @@ class ForStStateDataTransferTest extends TestLogger {
             assertThatThrownBy(
                             () ->
                                     stateTransfer.transferFilesToCheckpointFs(
+                                            SnapshotType.SharingFilesStrategy.FORWARD_BACKWARD,
                                             Collections.singletonList(first),
                                             checkpointStreamFactory,
                                             CheckpointedStateScope.SHARED,
@@ -222,6 +227,7 @@ class ForStStateDataTransferTest extends TestLogger {
         try (ForStStateDataTransfer stateTransfer = new ForStStateDataTransfer(5)) {
             HandleAndLocalPath handleAndLocalPath =
                     stateTransfer.transferFileToCheckpointFs(
+                            SnapshotType.SharingFilesStrategy.FORWARD_BACKWARD,
                             sstFile,
                             headBytes,
                             checkpointStreamFactory,
@@ -264,6 +270,7 @@ class ForStStateDataTransferTest extends TestLogger {
         try (ForStStateDataTransfer stateTransfer = new ForStStateDataTransfer(5)) {
             List<HandleAndLocalPath> sstFiles =
                     stateTransfer.transferFilesToCheckpointFs(
+                            SnapshotType.SharingFilesStrategy.FORWARD_BACKWARD,
                             sstFilePaths,
                             checkpointStreamFactory,
                             CheckpointedStateScope.SHARED,

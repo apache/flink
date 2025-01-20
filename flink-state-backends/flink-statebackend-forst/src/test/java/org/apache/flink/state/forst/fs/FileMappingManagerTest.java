@@ -18,13 +18,11 @@
 
 package org.apache.flink.state.forst.fs;
 
-import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.state.forst.fs.filemapping.FileMappingManager;
-import org.apache.flink.state.forst.fs.filemapping.FileOwnershipDecider;
 import org.apache.flink.state.forst.fs.filemapping.MappingEntry;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
@@ -52,10 +50,6 @@ public class FileMappingManagerTest {
 
     @Parameter public boolean reuseCp;
 
-    FileOwnershipDecider createFileOwnershipDecider() {
-        return new FileOwnershipDecider(RecoveryClaimMode.CLAIM);
-    }
-
     private MappingEntry registerFile(FileMappingManager manager, Path filePath) {
         if (reuseCp) {
             return manager.registerReusedRestoredFile(
@@ -69,11 +63,7 @@ public class FileMappingManagerTest {
     void testFileLink() throws IOException {
         FileSystem localFS = FileSystem.getLocalFileSystem();
         FileMappingManager fileMappingManager =
-                new FileMappingManager(
-                        localFS,
-                        createFileOwnershipDecider(),
-                        tempDir.toString(),
-                        tempDir.toString());
+                new FileMappingManager(localFS, tempDir.toString(), tempDir.toString());
         String src = tempDir + "/source";
         FSDataOutputStream os = localFS.create(new Path(src), FileSystem.WriteMode.OVERWRITE);
         os.write(233);
@@ -92,11 +82,7 @@ public class FileMappingManagerTest {
         // link d->c
         FileSystem localFS = FileSystem.getLocalFileSystem();
         FileMappingManager fileMappingManager =
-                new FileMappingManager(
-                        localFS,
-                        createFileOwnershipDecider(),
-                        tempDir.toString(),
-                        tempDir.toString());
+                new FileMappingManager(localFS, tempDir.toString(), tempDir.toString());
         String src = tempDir + "/a";
         FSDataOutputStream os = localFS.create(new Path(src), FileSystem.WriteMode.OVERWRITE);
         os.write(233);
@@ -127,11 +113,7 @@ public class FileMappingManagerTest {
     void testFileDelete() throws IOException {
         FileSystem localFS = FileSystem.getLocalFileSystem();
         FileMappingManager fileMappingManager =
-                new FileMappingManager(
-                        localFS,
-                        createFileOwnershipDecider(),
-                        tempDir.toString(),
-                        tempDir.toString());
+                new FileMappingManager(localFS, tempDir.toString(), tempDir.toString());
         String src = tempDir + "/source";
         registerFile(fileMappingManager, new Path(src));
         Path srcFileRealPath = fileMappingManager.mappingEntry(src).getSourcePath();
@@ -160,10 +142,7 @@ public class FileMappingManagerTest {
         FileSystem localFS = FileSystem.getLocalFileSystem();
         FileMappingManager fileMappingManager =
                 new FileMappingManager(
-                        localFS,
-                        createFileOwnershipDecider(),
-                        tempDir.toString() + "/db",
-                        tempDir.toString() + "/db");
+                        localFS, tempDir.toString() + "/db", tempDir.toString() + "/db");
         String testDir = tempDir + "/testDir";
         localFS.mkdirs(new Path(testDir));
         String src = testDir + "/source";
@@ -190,10 +169,7 @@ public class FileMappingManagerTest {
         FileSystem localFS = FileSystem.getLocalFileSystem();
         FileMappingManager fileMappingManager =
                 new FileMappingManager(
-                        localFS,
-                        createFileOwnershipDecider(),
-                        tempDir.toString() + "/db",
-                        tempDir.toString() + "/db");
+                        localFS, tempDir.toString() + "/db", tempDir.toString() + "/db");
         String testDir = tempDir + "/testDir";
         localFS.mkdirs(new Path(testDir));
         String src = testDir + "/source";
@@ -245,10 +221,7 @@ public class FileMappingManagerTest {
         FileSystem localFS = FileSystem.getLocalFileSystem();
         FileMappingManager fileMappingManager =
                 new FileMappingManager(
-                        localFS,
-                        createFileOwnershipDecider(),
-                        tempDir.toString() + "/db",
-                        tempDir.toString() + "/db");
+                        localFS, tempDir.toString() + "/db", tempDir.toString() + "/db");
         String testDir = tempDir + "/testDir";
         localFS.mkdirs(new Path(testDir));
         String src = testDir + "/source";
