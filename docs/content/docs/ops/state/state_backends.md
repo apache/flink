@@ -110,7 +110,7 @@ take a savepoint with the new version, and only after that you can restore it wi
 
 ## Configuring a State Backend
 
-The default state backend, if you specify nothing, is the jobmanager. If you wish to establish a different default for all jobs on your cluster, you can do so by defining a new default state backend in [**Flink configuration file**]({{< ref "docs/deployment/config#flink-configuration-file" >}}). The default state backend can be overridden on a per-job basis, as shown below.
+The default state backend, if you specify nothing, is the `HashMapStateBackend`. If you wish to establish a different default for all jobs on your cluster, you can do so by defining a new default state backend in [**Flink configuration file**]({{< ref "docs/deployment/config#flink-configuration-file" >}}). The default state backend can be overridden on a per-job basis, as shown below.
 
 ### Setting the Per-job State Backend
 
