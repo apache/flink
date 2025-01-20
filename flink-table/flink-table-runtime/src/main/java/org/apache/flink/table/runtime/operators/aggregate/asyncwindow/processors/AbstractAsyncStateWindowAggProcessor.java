@@ -19,8 +19,8 @@
 package org.apache.flink.table.runtime.operators.aggregate.asyncwindow.processors;
 
 import org.apache.flink.api.common.state.v2.ValueState;
+import org.apache.flink.api.common.state.v2.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.runtime.state.v2.internal.InternalValueState;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.dataview.UnsupportedStateDataViewStore;
