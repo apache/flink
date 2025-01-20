@@ -111,6 +111,7 @@ class PartitionedFileWriteReadTest {
             }
         }
         IOUtils.closeAllQuietly(dataFileChannel, indexFileChannel);
+        partitionedFile.deleteQuietly();
 
         for (int subpartition = 0; subpartition < numSubpartitions; ++subpartition) {
             assertThat(buffersWritten[subpartition]).hasSameSizeAs(buffersRead[subpartition]);
@@ -190,6 +191,7 @@ class PartitionedFileWriteReadTest {
                 nonBroadcastPartitionedFile,
                 regionStat,
                 broadcastRegion);
+        nonBroadcastPartitionedFile.deleteQuietly();
     }
 
     private void verifyReadablePosition(
@@ -313,6 +315,7 @@ class PartitionedFileWriteReadTest {
             }
         }
         IOUtils.closeAllQuietly(dataFileChannel, indexFileChannel);
+        partitionedFile.deleteQuietly();
 
         for (int subpartition = 0; subpartition < numSubpartitions; subpartition += 2) {
             assertThat(buffersWritten[subpartition / 2])
@@ -483,6 +486,7 @@ class PartitionedFileWriteReadTest {
             assertThat(subpartitionBuffers[subpartition]).isEmpty();
         }
         IOUtils.closeAllQuietly(dataFileChannel, indexFileChannel);
+        partitionedFile.deleteQuietly();
     }
 
     @Test
@@ -545,6 +549,7 @@ class PartitionedFileWriteReadTest {
             }
         }
         IOUtils.closeAllQuietly(dataFileChannel, indexFileChannel);
+        partitionedFile.deleteQuietly();
     }
 
     private void assertBufferEquals(Buffer expected, Buffer actual) {
@@ -586,7 +591,7 @@ class PartitionedFileWriteReadTest {
                     .isInstanceOf(IllegalStateException.class);
 
         } finally {
-            partitionedFileWriter.finish();
+            partitionedFileWriter.finish().deleteQuietly();
         }
     }
 
@@ -641,6 +646,7 @@ class PartitionedFileWriteReadTest {
                 buffer -> addReadBuffer(buffer, buffersRead[targetSubpartition]));
         assertThat(buffersRead[targetSubpartition]).isEmpty();
         IOUtils.closeAllQuietly(dataFileChannel, indexFileChannel);
+        partitionedFile.deleteQuietly();
     }
 
     /**
@@ -715,6 +721,7 @@ class PartitionedFileWriteReadTest {
         }
 
         IOUtils.closeAllQuietly(dataFileChannel, indexFileChannel);
+        partitionedFile.deleteQuietly();
     }
 
     private FileChannel openFileChannel(Path path) throws IOException {
@@ -755,7 +762,7 @@ class PartitionedFileWriteReadTest {
 
     private PartitionedFileWriter createAndFinishPartitionedFileWriter() throws IOException {
         PartitionedFileWriter partitionedFileWriter = createPartitionedFileWriter(1, new int[0]);
-        partitionedFileWriter.finish();
+        partitionedFileWriter.finish().deleteQuietly();
         return partitionedFileWriter;
     }
 
