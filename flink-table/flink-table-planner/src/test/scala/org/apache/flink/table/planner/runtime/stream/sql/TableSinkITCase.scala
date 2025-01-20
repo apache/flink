@@ -654,10 +654,14 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       changelogRow("+I", Int.box(1), "Jim"),
       changelogRow("-U", Int.box(1), "Jim"),
       changelogRow("+U", Int.box(1), "Ketty"),
-      changelogRow("+I", Int.box(2), "Sam"),
-      changelogRow("-U", Int.box(2), "Sam"),
-      changelogRow("+U", Int.box(2), "Boob"),
-      changelogRow("-D", Int.box(2), "Boob")
+      changelogRow("+I", Int.box(2), "Lilith"),
+      changelogRow("-U", Int.box(2), "Lilith"),
+      // failover
+      changelogRow("+I", Int.box(3), "Sam"),
+      changelogRow("-U", Int.box(3), "Sam"),
+      changelogRow("+U", Int.box(3), "Boob"),
+      changelogRow("-D", Int.box(3), "Boob"),
+      changelogRow("+I", Int.box(4), "Julia")
     )
     tEnv.executeSql(s"""
                        |CREATE TABLE pk_src (
@@ -684,11 +688,11 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
     tEnv
       .executeSql("""
-                    |INSERT INTO pk_snk SELECT * FROM pk_src;
+                    |INSERT INTO pk_snk SELECT * FROM pk_src where name <> 'unknown';
                     |""".stripMargin)
       .await()
 
-    val expected = List("+I[1, Ketty]")
+    val expected = List("+I[1, Ketty]", "+I[4, Julia]")
 
     assertThat(TestValuesTableFactory.getResultsAsStrings("pk_snk").sorted)
       .isEqualTo(expected.sorted)
