@@ -263,7 +263,7 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
                         ForStStateDataTransfer.DEFAULT_THREAD_NUM,
                         optionsContainer.getFileSystem())) {
             transfer.transferAllStateDataToDirectory(
-                    specs, cancelStreamRegistry, RecoveryClaimMode.DEFAULT);
+                    specs, cancelStreamRegistry, recoveryClaimMode);
         }
     }
 
