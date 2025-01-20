@@ -524,7 +524,9 @@ final class TestValuesRuntimeFunctions {
                                     if (isDelete) {
                                         localUpsertResult.remove(key);
                                     } else {
-                                        localUpsertResult.put(key, row);
+                                        final Row upsertRow = Row.copy(row);
+                                        upsertRow.setKind(RowKind.INSERT);
+                                        localUpsertResult.put(key, upsertRow);
                                     }
                                 });
             }

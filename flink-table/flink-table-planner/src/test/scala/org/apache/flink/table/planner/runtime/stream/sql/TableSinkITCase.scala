@@ -140,7 +140,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
                     |""".stripMargin)
       .await()
 
-    val result = TestValuesTableFactory.getResultsAsStrings("SinkDisorderChangeLog")
+    val result = TestValuesTableFactory.getResultsAsStrings("SinkDisorderChangeLog").toList
     val expected = List("+I[jason, 4, 22.5]")
     assertThat(result.sorted).isEqualTo(expected.sorted)
   }
@@ -169,7 +169,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
           |""".stripMargin)
       .await()
 
-    val result = TestValuesTableFactory.getResultsAsStrings("SinkRankChangeLog")
+    val result = TestValuesTableFactory.getResultsAsStrings("SinkRankChangeLog").toList
     val expected = List("+I[jason, 4]")
     assertThat(result.sorted).isEqualTo(expected.sorted)
   }
