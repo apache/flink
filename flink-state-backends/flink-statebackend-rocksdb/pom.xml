@@ -63,7 +63,7 @@ under the License.
 		<dependency>
 			<groupId>com.ververica</groupId>
 			<artifactId>frocksdbjni</artifactId>
-			<version>8.10.0-ververica-beta-1.0</version>
+			<version>8.10.0-ververica-1.0</version>
 		</dependency>
 
 		<dependency>
