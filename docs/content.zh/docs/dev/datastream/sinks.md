@@ -32,7 +32,7 @@ This page describes Flink's Data Sink API and the concepts and architecture behi
 If you are looking for pre-defined sink connectors, please check the [Connector Docs]({{< ref "docs/connectors/datastream/overview" >}}).
 
 ## The Data Sink API
-This section describes the major interfaces of the new Sink API introduced in [FLIP-191](https://cwiki.apache.org/confluence/display/FLINK/FLIP-191%3A+Extend+unified+Sink+interface+to+support+small+file+compaction), and provides tips to the developers on the Sink development. 
+This section describes the major interfaces of the new Sink API introduced in [FLIP-191](https://cwiki.apache.org/confluence/display/FLINK/FLIP-191%3A+Extend+unified+Sink+interface+to+support+small+file+compaction) and [FLIP-372](https://cwiki.apache.org/confluence/display/FLINK/FLIP-372%3A+Enhance+and+synchronize+Sink+API+to+match+the+Source+API), and provides tips to the developers on the Sink development.
 
 ### Sink
 The {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/sink2/Sink.java" name="Sink" >}} API is a factory style interface to create the [SinkWriter](#sinkwriter) to write the data.
@@ -56,40 +56,8 @@ DataStream<Integer> stream = env.fromSource(
 
 Sink mySink = new MySink(...);
 
-stream.sinkTo(mySink);
+        stream.sinkTo(mySink);
 ...
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-
-val mySource = new MySource(...)
-
-val stream = env.fromSource(
-      mySource,
-      WatermarkStrategy.noWatermarks(),
-      "MySourceName")
-val mySink = new MySink(...)
-
-val stream = stream.sinkTo(mySink)
-...
-```
-{{< /tab >}}
-{{< tab "Python" >}}
-```python
-env = StreamExecutionEnvironment.get_execution_environment()
-
-my_source = ...
-
-env.from_source(
-    my_source,
-    WatermarkStrategy.no_watermarks(),
-    "my_source_name")
-
-my_sink = ...
-
-env.sinkTo(my_sink)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -102,10 +70,10 @@ The core {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connect
 
 The `SinkWriter` API only has three methods:
 - write(InputT element, Context context): Adds an element to the writer.
-- flush(boolean endOfInput): Called on checkpoint or end of input so that the writer to flush all pending data for at-least-once.
+- flush(boolean endOfInput): Called on checkpoint or end of the input, setting this flag causes the writer to flush all pending data for `at-least-once`. To archive `exactly-once` semantic, the writer should implement the [SupportsCommitter](#supportscommitter) interface.
 - writeWatermark(Watermark watermark): Adds a watermark to the writer.
 
-Please check the Java doc of the class for more details.
+Please check the [Java doc](https://nightlies.apache.org/flink/flink-docs-release-2.0/api/java//org/apache/flink/api/connector/sink2/SinkWriter.html) of the class for more details.
 
 ## Advanced Sink API
 
@@ -113,7 +81,7 @@ Please check the Java doc of the class for more details.
 
 The {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/sink2/SupportsWriterState.java" name="SupportsWriterState" >}} interface is used to indicate that the sink supports writer state, which means that the sink can be recovered from a failure.
 
-The `SupportsWriterState` interface would require the `SinkWriter` to implement the {{ gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/sink2/StatefulSinkWriter.java" name="StatefulSinkWriter" >}} interface.
+The `SupportsWriterState` interface requires the `SinkWriter` to implement the {{ gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/sink2/StatefulSinkWriter.java" name="StatefulSinkWriter" >}} interface.
 
 ### SupportsCommitter
 
@@ -123,14 +91,32 @@ The `Sink` consists of a `CommittingSinkWriter` that performs the precommits and
 
 The `Sink` needs to be serializable. All configuration should be validated eagerly. The respective sink writers and committers are transient and will only be created in the subtasks on the TaskManagers.
 
-### SupportsPreWriteTopology
+### Alternative 3 Custom sink topology
+
+For advanced developers, they may want to specify their own sink topology, such as collecting `committables` to one subtask and processing them together, or performing operations such as merging small files after `Committer`. Flink provides the following interfaces to allow expert users to customize the sink topology.
+
+#### SupportsPreWriteTopology
 
 Allows expert users to implement a custom topology before `SinkWriter`.
 
-### SupportsPreCommitTopology
+The following figure shows the topology of `SupportsPreWriteTopology`:
+
+{{< img src="/fig/dev/datastream/SupportsPreWriteTopology.png" class="center" >}}
+
+#### SupportsPreCommitTopology
 
 Allows expert users to implement a custom topology after `SinkWriter` and before `Committer`.
 
-### SupportsPostCommitTopology
+The following figure shows the topology of `SupportsPreCommitTopology`:
+
+{{< img src="/fig/dev/datastream/SupportsPreWriteTopology.png" class="center" >}}
+
+Please note that the parallelism has only been modified here for display purposes. In fact, the parallelism can be set by user.
+
+#### SupportsPostCommitTopology
 
 Allows expert users to implement a custom topology after `Committer`.
+
+The following figure shows the topology of `SupportsPostCommitTopology`:
+
+{{< img src="/fig/dev/datastream/SupportsPostCommitTopology.png" class="center" >}}
