@@ -114,7 +114,7 @@ EmbeddedRocksDBStateBackend 是目前唯一支持增量 CheckPoint 的 State Bac
 
 ## 设置 State Backend
 
-如果没有明确指定，将使用 jobmanager 做为默认的 state backend。你能在 [**Flink 配置文件**]({{< ref "docs/deployment/config#flink-配置文件" >}}) 中为所有 Job 设置其他默认的 State Backend。
+如果没有明确指定，将使用 `HashMapStateBackend` 做为默认的 state backend。你能在 [**Flink 配置文件**]({{< ref "docs/deployment/config#flink-配置文件" >}}) 中为所有 Job 设置其他默认的 State Backend。
 每一个 Job 的 state backend 配置会覆盖默认的 state backend 配置，如下所示：
 
 <a name="setting-the-per-job-state-backend"></a>
