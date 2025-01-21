@@ -28,6 +28,7 @@ import org.apache.calcite.rex.RexNode;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -95,5 +96,30 @@ public class RexTableArgCall extends RexCall {
 
     public RexTableArgCall copy(RelDataType type, int[] partitionKeys, int[] orderKeys) {
         return new RexTableArgCall(type, inputIndex, partitionKeys, orderKeys);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        final RexTableArgCall that = (RexTableArgCall) o;
+        return inputIndex == that.inputIndex
+                && Arrays.equals(partitionKeys, that.partitionKeys)
+                && Arrays.equals(orderKeys, that.orderKeys);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Objects.hash(super.hashCode(), inputIndex);
+        result = 31 * result + Arrays.hashCode(partitionKeys);
+        result = 31 * result + Arrays.hashCode(orderKeys);
+        return result;
     }
 }

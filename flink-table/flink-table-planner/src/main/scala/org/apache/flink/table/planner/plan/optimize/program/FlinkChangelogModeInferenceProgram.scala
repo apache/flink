@@ -31,6 +31,7 @@ import org.apache.flink.table.planner.plan.utils.RankProcessStrategy.{AppendFast
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
+import org.apache.flink.table.types.inference.{StaticArgument, StaticArgumentTrait}
 import org.apache.flink.types.RowKind
 
 import org.apache.calcite.rel.RelNode
@@ -329,6 +330,29 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val providedTrait = new ModifyKindSetTrait(scan.intermediateTable.modifyKindSet)
         createNewNode(scan, List(), providedTrait, requiredTrait, requester)
 
+      case process: StreamPhysicalProcessTableFunction =>
+        // Accepted changes depend on input argument declaration
+        val requiredChildrenTraits = process.getProvidedInputArgs
+          .map(
+            arg =>
+              if (arg.is(StaticArgumentTrait.SUPPORT_UPDATES)) {
+                ModifyKindSetTrait.ALL_CHANGES
+              } else {
+                ModifyKindSetTrait.INSERT_ONLY
+              })
+          .toList
+
+        val children = if (requiredChildrenTraits.isEmpty) {
+          // Constant function has a single StreamPhysicalValues input
+          visitChildren(process, ModifyKindSetTrait.INSERT_ONLY)
+        } else {
+          visitChildren(process, requiredChildrenTraits)
+        }
+
+        // Currently, PTFs will only output insert-only
+        val providedTrait = ModifyKindSetTrait.INSERT_ONLY
+        createNewNode(process, children, providedTrait, requiredTrait, requester)
+
       case _ =>
         throw new UnsupportedOperationException(
           s"Unsupported visit for ${rel.getClass.getSimpleName}")
@@ -346,6 +370,16 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         requester: String): List[StreamPhysicalRel] = {
       val newChildren = for (i <- 0 until parent.getInputs.size()) yield {
         visitChild(parent, i, requiredChildrenTrait, requester)
+      }
+      newChildren.toList
+    }
+
+    private def visitChildren(
+        parent: StreamPhysicalRel,
+        requiredChildrenTraits: List[ModifyKindSetTrait]): List[StreamPhysicalRel] = {
+      val requester = getNodeName(parent)
+      val newChildren = for (i <- 0 until parent.getInputs.size()) yield {
+        visitChild(parent, i, requiredChildrenTraits(i), requester)
       }
       newChildren.toList
     }
@@ -675,6 +709,20 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           } else {
             createNewNode(rel, Some(List()), providedTrait)
           }
+
+        case process: StreamPhysicalProcessTableFunction =>
+          // ProcessTableFunction currently only consumes retract or insert-only
+          val children = process.getInputs.map {
+            case child: StreamPhysicalRel =>
+              val childModifyKindSet = getModifyKindSet(child)
+              val requiredChildTrait = if (childModifyKindSet.isInsertOnly) {
+                UpdateKindTrait.NONE
+              } else {
+                UpdateKindTrait.BEFORE_AND_AFTER
+              }
+              this.visit(child, requiredChildTrait)
+          }.toList
+          createNewNode(rel, Some(children.flatten), UpdateKindTrait.NONE)
 
         case _ =>
           throw new UnsupportedOperationException(

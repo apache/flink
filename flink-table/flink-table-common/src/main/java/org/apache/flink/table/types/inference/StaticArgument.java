@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.StructuredType;
@@ -273,29 +274,46 @@ public class StaticArgument {
         }
     }
 
-    void checkTableType() {
+    private void checkTableType() {
         if (!traits.contains(StaticArgumentTrait.TABLE)) {
             return;
         }
-        if (dataType == null
-                && conversionClass != null
-                && !DUMMY_ROW_TYPE.supportsInputConversion(conversionClass)) {
+        checkPolymorphicTableType();
+        checkTypedTableType();
+    }
+
+    private void checkPolymorphicTableType() {
+        if (dataType != null || conversionClass == null) {
+            return;
+        }
+        if (!DUMMY_ROW_TYPE.supportsInputConversion(conversionClass)) {
             throw new ValidationException(
                     String.format(
                             "Invalid conversion class '%s' for argument '%s'. "
                                     + "Polymorphic, untyped table arguments must use a row class.",
                             conversionClass.getName(), name));
         }
-        if (dataType != null) {
-            final LogicalType type = dataType.getLogicalType();
-            if (traits.contains(StaticArgumentTrait.TABLE)
-                    && !LogicalTypeChecks.isCompositeType(type)) {
-                throw new ValidationException(
-                        String.format(
-                                "Invalid data type '%s' for table argument '%s'. "
-                                        + "Typed table arguments must use a composite type (i.e. row or structured type).",
-                                type, name));
-            }
+    }
+
+    private void checkTypedTableType() {
+        if (dataType == null) {
+            return;
+        }
+        final LogicalType type = dataType.getLogicalType();
+        if (traits.contains(StaticArgumentTrait.TABLE)
+                && !LogicalTypeChecks.isCompositeType(type)) {
+            throw new ValidationException(
+                    String.format(
+                            "Invalid data type '%s' for table argument '%s'. "
+                                    + "Typed table arguments must use a composite type (i.e. row or structured type).",
+                            type, name));
+        }
+        if (is(StaticArgumentTrait.SUPPORT_UPDATES) && !type.is(LogicalTypeRoot.ROW)) {
+            throw new ValidationException(
+                    String.format(
+                            "Invalid data type '%s' for table argument '%s'. "
+                                    + "Table arguments that support updates must use a row type.",
+                            type, name));
         }
     }
 }
