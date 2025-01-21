@@ -240,6 +240,8 @@ fi
 
 if [ -z "${MAX_LOG_FILE_NUMBER}" ]; then
     MAX_LOG_FILE_NUMBER=$(readFromConfig ${KEY_ENV_LOG_MAX} ${DEFAULT_ENV_LOG_MAX} "${YAML_CONF}")
+    # Remove leading and ending single quotes (if present) of value
+    MAX_LOG_FILE_NUMBER="$( echo "${MAX_LOG_FILE_NUMBER}" | sed -e "s/^'//"  -e "s/'$//" )"
     export MAX_LOG_FILE_NUMBER
 fi
 
