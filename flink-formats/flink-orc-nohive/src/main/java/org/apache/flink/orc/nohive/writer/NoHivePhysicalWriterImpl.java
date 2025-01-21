@@ -21,9 +21,9 @@ package org.apache.flink.orc.nohive.writer;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.orc.writer.PhysicalWriterImpl;
 
+import com.google.protobuf25.CodedOutputStream;
 import org.apache.orc.OrcFile;
 import org.apache.orc.OrcProto;
-import org.apache.orc.protobuf.CodedOutputStream;
 
 import java.io.IOException;
 
