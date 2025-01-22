@@ -453,6 +453,11 @@ object BuiltInMethods {
     Types.lookupMethod(classOf[DateTimeUtils], "subtractMonths", classOf[Long], classOf[Long])
 
   // JSON functions
+  val JSON = Types.lookupMethod(
+    classOf[SqlJsonUtils],
+    "json",
+    classOf[String]
+  )
 
   val JSON_EXISTS =
     Types.lookupMethod(classOf[SqlJsonUtils], "jsonExists", classOf[String], classOf[String])

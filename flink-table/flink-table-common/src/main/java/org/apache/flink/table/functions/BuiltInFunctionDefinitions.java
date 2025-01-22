@@ -2819,6 +2819,15 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeDeferred()
                     .build();
 
+    public static final BuiltInFunctionDefinition JSON =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("JSON")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.JsonFunction")
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Other functions
     // --------------------------------------------------------------------------------------------
