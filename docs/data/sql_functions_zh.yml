@@ -396,7 +396,7 @@ string:
       返回一个 STRING 格式的裁剪后的 str。如果任何参数为 `NULL`，则返回 `NULL`。
   - sql: BTRIM(str[, trimStr])
     table: str.btrim([trimStr])
-    description: |      
+    description: |
       从 str 的开头和结尾删除 trimStr 中的字符。trimStr 默认设置为空格。      
       
       E.g., BTRIM('  www.apache.org  ') or '  www.apache.org  '.btrim() returns "www.apache.org", BTRIM('/www.apache.org/', '/') or '  www.apache.org  '.btrim() returns "www.apache.org".
@@ -857,7 +857,7 @@ conditional:
     description: ｜
       从 value1, value2, ... 返回第一个不为 `NULL` 的值。例如 `COALESCE(3, 5, 3)` 返回 3。
       如果所有参数为 `NULL`，返回 `NULL`。返回类型是所有参数的限制最最少的通用类型，如果所有参数是可空的类型，返回类型也是可空的类型。
-    
+      
       ```sql
       -- 返回 'default'
       COALESCE(NULL, 'default')
@@ -923,7 +923,7 @@ collection:
   - sql: CARDINALITY(map)
     table: MAP.cardinality()
     description: 返回 map 中的 entries 数量。
-  - sql: map ‘[’ value ‘]’
+  - sql: map '[' value ']'
     table: MAP.at(ANY)
     description: 返回 map 中指定 key 对应的值。
   - sql: ARRAY_APPEND(array, element)
@@ -1083,7 +1083,7 @@ json:
 
       对于空路径表达式或错误，可以将行为定义为返回 `null`、引发错误或返回定义的默认值。当省略时，默认为 `NULL ON EMPTY` 或
       `NULL ON ERROR`。默认值可以是文字或表达式。如果默认值本身引发错误，就会造成 `ON EMPTY` 的错误行为，并引发 `ON ERROR` 的错误。
- 
+      
       对于路径表达式中包含特殊字符（如空格），你可以使用`['property']` 或 `["property"]`来引用父对象中指定的属性。请确保在属性名两侧加上单引号或双引号。
       当在 SQL 使用 JSON_VALUE 时，路径作为一个字符串参数已经被单引号引用了，因此你必须将属性名上的单引号转义，如`JSON_VALUE('{"a b": "true"}', '$.[''a b'']')`。
       
@@ -1177,6 +1177,9 @@ json:
       JSON_OBJECT(KEY 'K1' VALUE CAST(NULL AS STRING) NULL ON NULL)   -- '{"K1":null}'
       JSON_OBJECT(KEY 'K1' VALUE CAST(NULL AS STRING) ABSENT ON NULL) -- '{}'
 
+      -- '{"K1":{"K2":{"value":42}}}'
+      JSON_OBJECT('K1' VALUE JSON('{"K2": {"value": 42}}'))
+      
       -- '{"K1":{"K2":"V"}}'
       JSON_OBJECT(
         KEY 'K1'
@@ -1186,6 +1189,22 @@ json:
         )
       )
       ```
+      - sql: JSON(value)
+      table: json(value)  
+        description: |
+          需要一个原始的、预先格式化的 JSON 字符串，并按原样返回其值，而不将其作为字符串转义。
+          该函数目前只能在“JSON_OBJECT”函数中使用。它允许通过预格式化的 JSON 字符串将直接插入到生成的 JSON 结构中，而不是作为字符串值转义。
+          这允许将嵌套的 JSON 结构存储在JSON_OBJECT 而不将它们作为字符串处理。如果值为 NULL 或空，则该函数返回 NULL。
+          ```sql
+          -- {"K":{"K2":42}}
+          JSON_OBJECT('K' VALUE JSON('{"K2": 42}'))
+          -- {"K":{"K2":{"K3":42}}}
+          JSON_OBJECT('K' VALUE JSON('{"K2":{"K3":42}}'))
+          -- {"K": null}
+          JSON_OBJECT('K' VALUE JSON(''))
+          -- JSON 函数只能在 JSON_OBJECT 函数中使用
+          JSON('{"value": 42}')
+          ```
   - sql: JSON_ARRAY([value]* [ { NULL | ABSENT } ON NULL ])
     table: jsonArray(JsonOnNull, values...)
     description: |
@@ -1225,10 +1244,10 @@ valueconstruction:
     description: |
       返回从值列表 (value1, value2, ...) 创建的行。隐式行构造函数至少需要两个字段。显式行构造函数可以处理任意数量的字段。
       两者都支持任意表达式作为字段
-  - sql: ARRAY ‘[’ value1 [, value2 ]* ‘]’
+  - sql: ARRAY '[' value1 [, value2 ]* ']'
     table: array(ANY1, ANY2, ...)
     description: 返回从值列表 (value1, value2, ...) 创建的数组。
-  - sql: MAP ‘[’ value1, value2 [, value3, value4 ]* ‘]’
+  - sql: MAP '[' value1, value2 [, value3, value4 ]* ']'
     table: map(ANY1, ANY2, ANY3, ANY4, ...)
     description: 返回从键值对列表 ((value1, value2), (value3, value4), ...) 创建的 map。
   - table: NUMERIC.rows
