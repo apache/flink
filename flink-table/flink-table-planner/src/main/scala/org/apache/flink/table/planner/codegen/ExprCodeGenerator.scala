@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
@@ -29,7 +29,8 @@ import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexDistinctKeyV
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.GenerateUtils._
-import org.apache.flink.table.planner.codegen.calls._
+import org.apache.flink.table.planner.codegen.JsonGenerateUtils.{isJsonFunctionOperand, isJsonObjectOperand, isJsonObjectOrArrayOperand}
+import org.apache.flink.table.planner.codegen.calls.{JsonCallGen, _}
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
 import org.apache.flink.table.planner.codegen.calls.SearchOperatorGen.generateSearch
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
@@ -459,6 +460,14 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
   override def visitCall(call: RexCall): GeneratedExpression = {
     val resultType = FlinkTypeFactory.toLogicalType(call.getType)
+
+    // throw exception if json function is called outside JSON_OBJECT
+    if (isJsonFunctionOperand(call)) {
+      throw new ValidationException(
+        "The JSON() function is currently only supported inside a JSON_OBJECT() function." +
+          " Example: JSON_OBJECT('a', JSON('{\"key\": \"value\"}'))")
+    }
+
     if (call.getKind == SqlKind.SEARCH) {
       return generateSearch(
         ctx,
@@ -475,6 +484,11 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
           if operandLiteral.getType.getSqlTypeName == SqlTypeName.NULL &&
             call.getOperator.getReturnTypeInference == ReturnTypes.ARG0 =>
         generateNullLiteral(resultType)
+
+      // We only support JSON function operands as the value param of a JSON_OBJECT function
+      case (operand: RexNode, i)
+          if i == 2 && isJsonObjectOperand(call) && isJsonFunctionOperand(operand) =>
+        generateJsonCall(operand)
 
       case (o @ _, _) => o.accept(this)
     }
@@ -822,6 +836,9 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
             val right = operands(1)
             generateBinaryArithmeticOperator(ctx, "-", resultType, left, right)
 
+          case BuiltInFunctionDefinitions.JSON =>
+            new JsonCallGen().generate(ctx, operands, FlinkTypeFactory.toLogicalType(call.getType))
+
           case _ =>
             new BridgingSqlFunctionCallGen(call).generate(ctx, operands, resultType)
         }
@@ -848,6 +865,16 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         val explainCall = s"$call(${operands.map(_.resultType).mkString(", ")})"
         throw new CodeGenException(s"Unsupported call: $explainCall")
     }
+  }
+
+  private def generateJsonCall(operand: RexNode) = {
+    val jsonCall = operand.asInstanceOf[RexCall]
+    val jsonOperands = jsonCall.getOperands.map(_.accept(this))
+    generateCallExpression(
+      ctx,
+      jsonCall,
+      jsonOperands,
+      FlinkTypeFactory.toLogicalType(jsonCall.getType))
   }
 
   def getOperandLiterals(operands: Seq[GeneratedExpression]): Array[AnyRef] = {

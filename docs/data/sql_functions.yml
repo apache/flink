@@ -793,7 +793,7 @@ collection:
   - sql: CARDINALITY(map)
     table: MAP.cardinality()
     description: Returns the number of entries in map.
-  - sql: map ‘[’ value ‘]’
+  - sql: map '[' value ']'
     table: MAP.at(ANY)
     description: Returns the value specified by key value in map.
   - sql: ARRAY_APPEND(array, element)
@@ -1066,6 +1066,9 @@ json:
       JSON_OBJECT(KEY 'K1' VALUE CAST(NULL AS STRING) NULL ON NULL)   -- '{"K1":null}'
       JSON_OBJECT(KEY 'K1' VALUE CAST(NULL AS STRING) ABSENT ON NULL) -- '{}'
 
+      -- '{"K1":{"K2":{"value":42}}}'
+      JSON_OBJECT('K1' VALUE JSON('{"K2": {"value": 42}}'))
+      
       -- '{"K1":{"K2":"V"}}'
       JSON_OBJECT(
         KEY 'K1'
@@ -1074,6 +1077,30 @@ json:
           VALUE 'V'
         )
       )
+      ```
+  - sql: JSON(value)
+    table: json(value)  
+    description: |
+      Expects a raw, pre-formatted JSON string and returns its values as-is without escaping it as a string.
+
+      This function can currently only be used within the `JSON_OBJECT` function. It allows passing 
+      pre-formatted JSON strings that will be inserted directly into the resulting JSON structure 
+      rather than being escaped as a string value. This allows storing nested JSON structures in a 
+      JSON_OBJECT without processing them as strings. If the value is NULL or empty, the function 
+      returns NULL.
+
+      ```sql
+      -- {"K":{"K2":42}}
+      JSON_OBJECT('K' VALUE JSON('{"K2": 42}'))
+
+      -- {"K":{"K2":{"K3":42}}}
+      JSON_OBJECT('K' VALUE JSON('{"K2":{"K3":42}}'))
+
+      -- {"K": null}
+      JSON_OBJECT('K' VALUE JSON(''))
+
+      -- Invalid - JSON function can only be used within JSON_OBJECT
+      JSON('{"value": 42}')
       ```
   - sql: JSON_ARRAY([value]* [ { NULL | ABSENT } ON NULL ])
     table: jsonArray(JsonOnNull, values...)
@@ -1119,10 +1146,10 @@ valueconstruction:
       Returns a row created from a list of values (value1, value2,...).
 
       The implicit row constructor requires at least two fields. The explicit row constructor can deal with an arbitrary number of fields. Both of them support arbitrary expressions as fields.
-  - sql: ARRAY ‘[’ value1 [, value2 ]* ‘]’
+  - sql: ARRAY '[' value1 [, value2 ]* ']'
     table: array(ANY1, ANY2, ...)
     description: Returns an array created from a list of values (value1, value2, ...).
-  - sql: MAP ‘[’ value1, value2 [, value3, value4 ]* ‘]’
+  - sql: MAP '[' value1, value2 [, value3, value4 ]* ']'
     table: map(ANY1, ANY2, ANY3, ANY4, ...)
     description: Returns a map created from a list of key-value pairs ((value1, value2), (value3, value4), ...).
   - table: NUMERIC.rows
