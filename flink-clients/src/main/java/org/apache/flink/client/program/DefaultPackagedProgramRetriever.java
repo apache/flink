@@ -35,6 +35,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -237,7 +238,7 @@ public class DefaultPackagedProgramRetriever implements PackagedProgramRetriever
             return Collections.emptyList();
         }
 
-        try (Stream<Path> files = Files.walk(userLibDir.toPath())) {
+        try (Stream<Path> files = Files.walk(userLibDir.toPath(), FileVisitOption.FOLLOW_LINKS)) {
             return getClasspathsFromArtifacts(files, jarFile);
         }
     }
