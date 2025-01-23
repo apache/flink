@@ -62,6 +62,7 @@ under the License.
 
 {{< columns >}}
 * [DataStream API]({{< ref "docs/dev/datastream/overview" >}})
+* [DataStream API (V2)]({{< ref "docs/dev/datastream-v2/overview" >}})
 * [Table API & SQL]({{< ref "docs/dev/table/overview" >}})
 * [Stateful Functions](https://nightlies.apache.org/flink/flink-statefun-docs-stable/)
 
