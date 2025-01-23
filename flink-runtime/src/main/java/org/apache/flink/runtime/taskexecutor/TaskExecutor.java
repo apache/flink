@@ -1288,15 +1288,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             SlotID slotId, JobID jobId, AllocationID allocationId, ResourceProfile resourceProfile)
             throws SlotAllocationException {
         if (taskSlotTable.isSlotFree(slotId.getSlotNumber())) {
-            if (!taskSlotTable.allocateSlot(
+            taskSlotTable.allocateSlot(
                     slotId.getSlotNumber(),
                     jobId,
                     allocationId,
                     resourceProfile,
-                    taskManagerConfiguration.getSlotTimeout())) {
-                log.info("Could not allocate slot for {}.", allocationId);
-                throw new SlotAllocationException("Could not allocate slot.");
-            }
+                    taskManagerConfiguration.getSlotTimeout());
         } else if (!taskSlotTable.isAllocated(slotId.getSlotNumber(), jobId, allocationId)) {
             final String message =
                     "The slot " + slotId + " has already been allocated for a different job.";

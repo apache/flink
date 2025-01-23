@@ -27,6 +27,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
+import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.util.AutoCloseableAsync;
 
 import javax.annotation.Nullable;
@@ -93,10 +94,11 @@ public interface TaskSlotTable<T extends TaskSlotPayload>
      * @param jobId to allocate the task slot for
      * @param allocationId identifying the allocation
      * @param slotTimeout until the slot times out
-     * @return True if the task slot could be allocated; otherwise false
+     * @throws SlotAllocationException if allocating the slot failed.
      */
     @VisibleForTesting
-    boolean allocateSlot(int index, JobID jobId, AllocationID allocationId, Duration slotTimeout);
+    void allocateSlot(int index, JobID jobId, AllocationID allocationId, Duration slotTimeout)
+            throws SlotAllocationException;
 
     /**
      * Allocate the slot with the given index for the given job and allocation id. If negative index
@@ -109,14 +111,15 @@ public interface TaskSlotTable<T extends TaskSlotPayload>
      * @param resourceProfile of the requested slot, used only for dynamic slot allocation and will
      *     be ignored otherwise
      * @param slotTimeout until the slot times out
-     * @return True if the task slot could be allocated; otherwise false
+     * @throws SlotAllocationException if allocating the slot failed.
      */
-    boolean allocateSlot(
+    void allocateSlot(
             int index,
             JobID jobId,
             AllocationID allocationId,
             ResourceProfile resourceProfile,
-            Duration slotTimeout);
+            Duration slotTimeout)
+            throws SlotAllocationException;
 
     /**
      * Marks the slot under the given allocation id as active. If the slot could not be found, then
