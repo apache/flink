@@ -34,7 +34,7 @@ set_config_key "taskmanager.numberOfTaskSlots" "20"
 set_config_key "taskmanager.network.netty.num-arenas" "1"
 
 # Limits the direct memory to be one chunk (4M) plus some margins.
-set_config_key "taskmanager.memory.framework.off-heap.size" "7m"
+set_config_key "taskmanager.memory.framework.off-heap.size" "12m"
 
 # Starts the cluster which includes one TaskManager.
 start_cluster
