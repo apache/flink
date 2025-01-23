@@ -26,7 +26,6 @@ import org.apache.flink.datastream.impl.common.KeyCheckedOutputCollector;
 import org.apache.flink.datastream.impl.common.OutputCollector;
 import org.apache.flink.datastream.impl.common.TimestampCollector;
 import org.apache.flink.datastream.impl.context.DefaultTwoOutputNonPartitionedContext;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
@@ -105,10 +104,8 @@ public class BaseKeyedTwoOutputProcessOperator<KEY, IN, OUT_MAIN, OUT_SIDE>
     }
 
     @Override
-    @SuppressWarnings({"rawtypes"})
-    public void setKeyContextElement1(StreamRecord record) throws Exception {
-        super.setKeyContextElement1(record);
-        keySet.add(getCurrentKey());
+    public void newKeySelected(Object newKey) {
+        keySet.add(newKey);
     }
 
     @Override
