@@ -57,6 +57,54 @@ the job can fail because the deployment environment can kill the offending conta
 
 See also description of [container memory exceeded]({{< ref "docs/deployment/memory/mem_trouble" >}}#container-memory-exceeded) failure.
 
+## Configure memory for Netty4
+
+As the version of Apache Pekko was updated, now Flink RPC also uses Netty4. Netty4 introduces some changes regarding byte buffers compared to Netty3 that is worth mentioning.
+Mainly Netty4 brought pooled byte buffers, which enables better performance, but it allocates slightly more memory.
+
+### Configure byte buffer allocator type
+
+{{< hint warning >}}
+Be aware that specifying the byte buffer allocator type will affect both Flink RPC and [Flink's shuffle](({{< ref "docs/dev/datastream/execution_mode#task-scheduling-and-network-shuffle" >}})) performance!
+{{< /hint >}}
+
+In highly resource-limited use-cases it might make sense to fine-tune these configurations.
+This can be done via setting the following JVM property for the TaskManager(s) and/or JobManager(s): `org.apache.flink.shaded.netty4.io.netty.allocator.type`.
+The possible allocator types are the following:
+
+* `pooled`: use `PooledByteBufAllocator.DEFAULT`
+* `unpooled`: use `UnpooledByteBufAllocator.DEFAULT`
+* `adaptive`: use `AdaptiveByteBufAllocator`
+
+#### Example
+
+```yaml
+# In <flink-root-dir>/conf/config.yaml
+env:
+  java:
+    opts:
+      jobmanager: -Dorg.apache.flink.shaded.netty4.io.netty.allocator.type=unpooled
+      taskmanager: -Dorg.apache.flink.shaded.netty4.io.netty.allocator.type=unpooled
+```
+
+For more information about these byte buffer allocators please check the relevant parts of the [Netty4 documentation](https://netty.io/wiki/new-and-noteworthy-in-4.0.html#buffer-api-changes).
+
+### Enable reflection in JDK >= 11
+
+Since by default Flink has `--add-opens=java.base/java.lang.reflect=ALL-UNNAMED`, using reflection in Netty4 should also not be a problem in most environments.
+Setting `org.apache.flink.shaded.netty4.io.netty.tryReflectionSetAccessible` enables some optimizations that reduces GC pressure, and improves performance.
+
+#### Example
+
+```yaml
+# In <flink-root-dir>/conf/config.yaml
+env:
+  java:
+    opts:
+      jobmanager: -Dorg.apache.flink.shaded.netty4.io.netty.tryReflectionSetAccessible=true
+      taskmanager: -Dorg.apache.flink.shaded.netty4.io.netty.tryReflectionSetAccessible=true
+```
+
 ## Configure memory for state backends
 
 This is only relevant for TaskManagers.
