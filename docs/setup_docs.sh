@@ -32,7 +32,7 @@ function integrate_connector_docs {
   theme_dir="../themes/connectors"
   mkdir -p "${theme_dir}"
 
-  rsync -a flink-connector-${connector}/docs/* "${theme_dir}/"
+  cp -r flink-connector-${connector}/docs/* "${theme_dir}/"
 }
 
 
