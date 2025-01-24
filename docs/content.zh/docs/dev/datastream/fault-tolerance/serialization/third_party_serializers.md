@@ -29,34 +29,37 @@ under the License.
 
 如果在 Flink 程序中使用了 Flink 类型序列化器无法进行序列化的用户自定义类型，Flink 会回退到通用的 Kryo 序列化器。
 可以使用 Kryo 注册自己的序列化器或序列化系统，比如 Google Protobuf 或 Apache Thrift。
-使用方法是在 Flink 程序中的 `ExecutionConfig` 注册类类型以及序列化器。
+使用方法是在 Flink 程序中使用配置 [pipeline.serialization-config]({{< ref "docs/deployment/config#pipeline-serialization-config" >}})
+注册类类型以及序列化器：
+
+```yaml
+pipeline.serialization-config:
+  - org.example.MyCustomType: {type: kryo, kryo-type: registered, class: org.example.MyCustomSerializer}
+```
+
+你也可以使用代码设置：
 
 ```java
-final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+Configuration config = new Configuration();
 
-// 为类型注册序列化器类
-env.getConfig().registerTypeWithKryoSerializer(MyCustomType.class, MyCustomSerializer.class);
+// register the class of the serializer as serializer for a type
+config.set(PipelineOptions.SERIALIZATION_CONFIG, 
+    List.of("org.example.MyCustomType: {type: kryo, kryo-type: registered, class: org.example.MyCustomSerializer}"));
 
-// 为类型注册序列化器实例
-MySerializer mySerializer = new MySerializer();
-env.getConfig().registerTypeWithKryoSerializer(MyCustomType.class, mySerializer);
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 ```
 
 需要确保你的自定义序列化器继承了 Kryo 的序列化器类。
 对于 Google Protobuf 或 Apache Thrift，这一点已经为你做好了：
 
-```java
-
-final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-// 使用 Kryo 注册 Google Protobuf 序列化器
-env.getConfig().registerTypeWithKryoSerializer(MyCustomType.class, ProtobufSerializer.class);
-
-// 注册 Apache Thrift 序列化器为标准序列化器
-// TBaseSerializer 需要初始化为默认的 kryo 序列化器
-env.getConfig().addDefaultKryoSerializer(MyCustomType.class, TBaseSerializer.class);
-
-```
+```yaml
+pipeline.serialization-config:
+# register the Google Protobuf serializer with Kryo
+  - org.example.MyCustomProtobufType: {type: kryo, kryo-type: registered, class: com.twitter.chill.protobuf.ProtobufSerializer}
+# register the serializer included with Apache Thrift as the standard serializer
+# TBaseSerializer states it should be initialized as a default Kryo serializer
+  - org.example.MyCustomThriftType: {type: kryo, kryo-type: default, class: com.twitter.chill.thrift.TBaseSerializer}
+````
 
 为了使上面的例子正常工作，需要在 Maven 项目文件中（pom.xml）包含必要的依赖。
 为 Apache Thrift 添加以下依赖：
