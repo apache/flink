@@ -111,14 +111,14 @@ class SortMergeSubpartitionReader
         }
     }
 
-    private void addBuffer(Buffer buffer) {
+    private void addBuffer(Buffer buffer, int repeatCount) {
         boolean needRecycleBuffer = false;
 
         synchronized (lock) {
             if (isReleased) {
                 needRecycleBuffer = true;
             } else {
-                addBufferToFullyFilledBuffer(buffer);
+                addBufferToFullyFilledBuffer(buffer, repeatCount);
             }
         }
 
@@ -126,6 +126,14 @@ class SortMergeSubpartitionReader
             buffer.recycleBuffer();
             throw new IllegalStateException("Subpartition reader has been already released.");
         }
+    }
+
+    private void addBufferToFullyFilledBuffer(Buffer buffer, int repeatCount) {
+        for (int i = 0; i < repeatCount; i++) {
+            addBufferToFullyFilledBuffer(buffer);
+            buffer.retainBuffer();
+        }
+        buffer.recycleBuffer();
     }
 
     private void addBufferToFullyFilledBuffer(Buffer buffer) {
