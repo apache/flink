@@ -42,8 +42,6 @@ to specify the state's name, as well as information about the type of the state.
 It is also possible to completely bypass this and let Flink use your own custom serializer to serialize managed states,
 simply by directly instantiating the `StateDescriptor` with your own `TypeSerializer` implementation:
 
-{{< tabs "ee215ff6-2e21-4a40-a1b4-7f114560546f" >}}
-{{< tab "Java" >}}
 ```java
 public class CustomTypeSerializer extends TypeSerializer<Tuple2<String, Integer>> {...};
 
@@ -54,20 +52,6 @@ ListStateDescriptor<Tuple2<String, Integer>> descriptor =
 
 checkpointedState = getRuntimeContext().getListState(descriptor);
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-class CustomTypeSerializer extends TypeSerializer[(String, Integer)] {...}
-
-val descriptor = new ListStateDescriptor[(String, Integer)](
-    "state-name",
-    new CustomTypeSerializer)
-)
-
-checkpointedState = getRuntimeContext.getListState(descriptor)
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 ## State serializers and schema evolution
 
@@ -151,7 +135,7 @@ To wrap up, this section concludes how Flink, or more specifically the state bac
 abstractions. The interaction is slightly different depending on the state backend, but this is orthogonal
 to the implementation of state serializers and their serializer snapshots.
 
-#### Off-heap state backends (e.g. `RocksDBStateBackend`)
+#### Off-heap state backends (e.g. `EmbeddedRocksDBStateBackend`)
 
  1. **Register new state with a state serializer that has schema _A_**
   - the registered `TypeSerializer` for the state is used to read / write state on every state access.
@@ -172,7 +156,7 @@ to the implementation of state serializers and their serializer snapshots.
    of the accessed state is migrated all-together before processing continues.
   - If the resolution signals incompatibility, then the state access fails with an exception.
  
-#### Heap state backends (e.g. `MemoryStateBackend`, `FsStateBackend`)
+#### Heap state backends (e.g. `HashMapStateBackend`)
 
  1. **Register new state with a state serializer that has schema _A_**
   - the registered `TypeSerializer` is maintained by the state backend.
@@ -284,6 +268,7 @@ public class MapSerializerSnapshot<K, V> extends CompositeTypeSerializerSnapshot
 }
 ```
 
+
 When implementing a new serializer snapshot as a subclass of `CompositeTypeSerializerSnapshot`,
 the following three methods must be implemented:
  * `#getCurrentOuterSnapshotVersion()`: This method defines the version of
@@ -310,6 +295,7 @@ has outer snapshot information, then all three methods must be implemented.
 
 Below is an example of how the `CompositeTypeSerializerSnapshot` is used for composite serializer snapshots
 that do have outer snapshot information, using Flink's `GenericArraySerializer` as an example:
+
 
 ```java
 public final class GenericArraySerializerSnapshot<C> extends CompositeTypeSerializerSnapshot<C[], GenericArraySerializer> {
@@ -364,6 +350,7 @@ public final class GenericArraySerializerSnapshot<C> extends CompositeTypeSerial
     }
 }
 ```
+
 
 There are two important things to notice in the above code snippet. First of all, since this
 `CompositeTypeSerializerSnapshot` implementation has outer snapshot information that is written as part of the snapshot,
@@ -449,18 +436,18 @@ migrate from the old abstractions. The steps to do this is as follows:
 
 This section is a guide for a method migration from the serializer snapshots that existed before Flink 1.19.
 
-Before Flink 1.19, when using a customized serializer to process data, the schema compatibility in the old serializer
-(maybe in Flink library) has to meet the future need.
-Or else TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializer<T> newSerializer) of the old serializer has to be modified.
-There are no ways to specify the compatibility with the old serializer in the new serializer, which also makes scheme evolution
+Before Flink 1.19, when using a customized serializer to process data, the schema compatibility in the old serializer 
+(maybe in Flink library) has to meet the future need. 
+Or else TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializer<T> newSerializer) of the old serializer has to be modified. 
+There are no ways to specify the compatibility with the old serializer in the new serializer, which also makes scheme evolution 
 not supported in some scenarios.
 
-So from Flink 1.19, the direction of resolving schema compatibility has been reversed. The old method
-`TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializer newSerializer)` is now removed and needs to be replaced with
+So from Flink 1.19, the direction of resolving schema compatibility has been reversed. The old method 
+`TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializer newSerializer)` is now removed and needs to be replaced with 
 `TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializerSnapshot oldSerializerSnapshot)`.
 To make this transition, follow these steps:
 
-1. Implement the `TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializerSnapshot oldSerializerSnapshot)` whose logic
+1. Implement the `TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializerSnapshot oldSerializerSnapshot)` whose logic 
    should be same as the original `TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializer newSerializer)`.
 2. Remove the old method `TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializer newSerializer)`.
 
