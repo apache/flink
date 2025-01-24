@@ -36,6 +36,10 @@ under the License.
 	<!-- Allow users to pass custom jcuda versions -->
 	<properties>
 		<jcuda.version>10.0.0</jcuda.version>
+		<surefire.module.config><!--
+			DataStream V2 API examples
+			-->--add-opens=java.base/java.util=ALL-UNNAMED
+		</surefire.module.config>
 	</properties>
 
 	<dependencies>
@@ -64,6 +68,12 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-kafka</artifactId>
 			<version>3.0.0-1.17</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-csv</artifactId>
+			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
