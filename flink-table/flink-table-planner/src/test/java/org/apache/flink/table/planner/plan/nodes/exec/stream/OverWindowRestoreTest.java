@@ -52,18 +52,19 @@ public class OverWindowRestoreTest extends RestoreTestBase {
     public List<TableTestProgram> programs() {
         return Arrays.asList(
                 OverWindowTestPrograms.LAG_OVER_FUNCTION,
-                OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_SUM_RETRACT_MODE,
-                OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_SUM_APPEND_MODE,
-                OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_AVG_APPEND_MODE,
-                OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_MULTIPLE_AGGS_APPEND_MODE,
-                OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_SUM_NO_PARTITION_BY,
+                OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_SUM_RETRACT_MODE,
+                OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_SUM_APPEND_MODE,
+                OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_AVG_APPEND_MODE,
                 OverWindowTestPrograms
-                        .OVER_AGGREGATE_NON_TIME_SUM_RETRACT_MODE_SOURCE_PRIMARY_KEY,
+                        .OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_MULTIPLE_AGGS_APPEND_MODE,
+                OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_SUM_NO_PARTITION_BY,
                 OverWindowTestPrograms
-                        .OVER_AGGREGATE_NON_TIME_SUM_RETRACT_MODE_SINK_PRIMARY_KEY,
+                        .OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_SUM_RETRACT_MODE_SOURCE_PRIMARY_KEY,
                 OverWindowTestPrograms
-                        .OVER_AGGREGATE_NON_TIME_SUM_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY,
+                        .OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_SUM_RETRACT_MODE_SINK_PRIMARY_KEY,
                 OverWindowTestPrograms
-                        .OVER_AGGREGATE_NON_TIME_SUM_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY_PARTITION_BY_NON_PK);
+                        .OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_SUM_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY,
+                OverWindowTestPrograms
+                        .OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_SUM_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY_PARTITION_BY_NON_PK);
     }
 }

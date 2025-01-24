@@ -61,9 +61,9 @@ public class OverWindowTestPrograms {
                                     + "bLag FROM t")
                     .build();
 
-    static final TableTestProgram OVER_AGGREGATE_NON_TIME_SUM_RETRACT_MODE =
+    static final TableTestProgram OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_SUM_RETRACT_MODE =
             TableTestProgram.of(
-                            "over-aggregate-non-time-sum-retract-mode",
+                            "over-aggregate-non-time-range-unbounded-sum-retract-mode",
                             "validates restoring a non-time unbounded preceding sum function in retract mode")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
@@ -147,9 +147,9 @@ public class OverWindowTestPrograms {
                     .build();
 
     static final TableTestProgram
-            OVER_AGGREGATE_NON_TIME_SUM_RETRACT_MODE_SOURCE_PRIMARY_KEY =
+            OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_SUM_RETRACT_MODE_SOURCE_PRIMARY_KEY =
                     TableTestProgram.of(
-                                    "over-aggregate-non-time-sum-retract-mode-source-primary-key",
+                                    "over-aggregate-non-time-range-unbounded-sum-retract-mode-source-primary-key",
                                     "validates restoring a non-time unbounded preceding sum function in retract mode with source table having primary key")
                             .setupTableSource(
                                     SourceTestStep.newBuilder("source_t")
@@ -379,75 +379,181 @@ public class OverWindowTestPrograms {
                                             + "FROM source_t")
                             .build();
 
-    static final TableTestProgram OVER_AGGREGATE_NON_TIME_SUM_RETRACT_MODE_SINK_PRIMARY_KEY =
-            TableTestProgram.of(
-                            "over-aggregate-non-time-sum-retract-mode-sink-primary-key",
-                            "validates restoring a non-time unbounded preceding sum function in retract mode with sink table having primary key")
-                    .setupTableSource(
-                            SourceTestStep.newBuilder("source_t")
-                                    .addSchema("key STRING", "val BIGINT", "ts BIGINT")
-                                    .addOption("changelog-mode", "I,UB,UA")
-                                    .producedBeforeRestore(
-                                            Row.of("key1", 1L, 100L),
-                                            Row.of("key1", 2L, 200L),
-                                            Row.of("key1", 5L, 500L),
-                                            Row.of("key1", 6L, 600L),
-                                            Row.ofKind(RowKind.UPDATE_BEFORE, "key1", 2L, 200L),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "key1", 3L, 200L),
-                                            Row.of("key2", 1L, 100L),
-                                            Row.of("key2", 2L, 200L))
-                                    .producedAfterRestore(
-                                            Row.of("key3", 1L, 100L),
-                                            Row.of("key1", 4L, 400L),
-                                            Row.ofKind(RowKind.UPDATE_BEFORE, "key1", 3L, 200L),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "key1", 3L, 300L))
-                                    .build())
-                    .setupTableSink(
-                            SinkTestStep.newBuilder("sink_t")
-                                    .addSchema(
-                                            "key STRING",
-                                            "val BIGINT",
-                                            "ts BIGINT",
-                                            "sum_val BIGINT",
-                                            "PRIMARY KEY(key) NOT ENFORCED")
-                                    .consumedBeforeRestore(
-                                            Row.of("key1", 1L, 100L, 1L),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "key1", 2L, 200L, 3L),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 8L),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "key1", 6L, 600L, 14L),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 6L),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "key1", 6L, 600L, 12L),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "key1", 3L, 200L, 4L),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 9L),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "key1", 6L, 600L, 15L),
-                                            Row.of("key2", 1L, 100L, 1L),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "key2", 2L, 200L, 3L))
-                                    .consumedAfterRestore(
-                                            Row.of("key3", 1L, 100L, 1L),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "key1", 4L, 400L, 8L),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 13L),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "key1", 6L, 600L, 19L),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "key1", 4L, 400L, 5L),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 10L),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "key1", 6L, 600L, 16L),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "key1", 3L, 300L, 4L),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "key1", 4L, 400L, 8L),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 13L),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "key1", 6L, 600L, 19L))
-                                    .build())
-                    .runSql(
-                            "INSERT INTO sink_t SELECT key, val, ts, SUM(val) OVER ("
-                                    + "PARTITION BY key "
-                                    + "ORDER BY val "
-                                    + "RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) "
-                                    + "AS sum_val "
-                                    + "FROM source_t")
-                    .build();
+    static final TableTestProgram
+            OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_SUM_RETRACT_MODE_SINK_PRIMARY_KEY =
+                    TableTestProgram.of(
+                                    "over-aggregate-non-time-range-unbounded-sum-retract-mode-sink-primary-key",
+                                    "validates restoring a non-time unbounded preceding sum function in retract mode with sink table having primary key")
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("source_t")
+                                            .addSchema("key STRING", "val BIGINT", "ts BIGINT")
+                                            .addOption("changelog-mode", "I,UB,UA")
+                                            .producedBeforeRestore(
+                                                    Row.of("key1", 1L, 100L),
+                                                    Row.of("key1", 2L, 200L),
+                                                    Row.of("key1", 5L, 500L),
+                                                    Row.of("key1", 6L, 600L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_BEFORE,
+                                                            "key1",
+                                                            2L,
+                                                            200L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER, "key1", 3L, 200L),
+                                                    Row.of("key2", 1L, 100L),
+                                                    Row.of("key2", 2L, 200L))
+                                            .producedAfterRestore(
+                                                    Row.of("key3", 1L, 100L),
+                                                    Row.of("key1", 4L, 400L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_BEFORE,
+                                                            "key1",
+                                                            3L,
+                                                            200L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER, "key1", 3L, 300L))
+                                            .build())
+                            .setupTableSink(
+                                    SinkTestStep.newBuilder("sink_t")
+                                            .addSchema(
+                                                    "key STRING",
+                                                    "val BIGINT",
+                                                    "ts BIGINT",
+                                                    "sum_val BIGINT",
+                                                    "PRIMARY KEY(key) NOT ENFORCED")
+                                            .consumedBeforeRestore(
+                                                    Row.of("key1", 1L, 100L, 1L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER,
+                                                            "key1",
+                                                            2L,
+                                                            200L,
+                                                            3L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER,
+                                                            "key1",
+                                                            5L,
+                                                            500L,
+                                                            8L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER,
+                                                            "key1",
+                                                            6L,
+                                                            600L,
+                                                            14L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER,
+                                                            "key1",
+                                                            5L,
+                                                            500L,
+                                                            6L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER,
+                                                            "key1",
+                                                            6L,
+                                                            600L,
+                                                            12L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER,
+                                                            "key1",
+                                                            3L,
+                                                            200L,
+                                                            4L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER,
+                                                            "key1",
+                                                            5L,
+                                                            500L,
+                                                            9L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER,
+                                                            "key1",
+                                                            6L,
+                                                            600L,
+                                                            15L),
+                                                    Row.of("key2", 1L, 100L, 1L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER,
+                                                            "key2",
+                                                            2L,
+                                                            200L,
+                                                            3L))
+                                            .consumedAfterRestore(
+                                                    Row.of("key3", 1L, 100L, 1L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER,
+                                                            "key1",
+                                                            4L,
+                                                            400L,
+                                                            8L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER,
+                                                            "key1",
+                                                            5L,
+                                                            500L,
+                                                            13L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER,
+                                                            "key1",
+                                                            6L,
+                                                            600L,
+                                                            19L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER,
+                                                            "key1",
+                                                            4L,
+                                                            400L,
+                                                            5L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER,
+                                                            "key1",
+                                                            5L,
+                                                            500L,
+                                                            10L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER,
+                                                            "key1",
+                                                            6L,
+                                                            600L,
+                                                            16L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER,
+                                                            "key1",
+                                                            3L,
+                                                            300L,
+                                                            4L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER,
+                                                            "key1",
+                                                            4L,
+                                                            400L,
+                                                            8L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER,
+                                                            "key1",
+                                                            5L,
+                                                            500L,
+                                                            13L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER,
+                                                            "key1",
+                                                            6L,
+                                                            600L,
+                                                            19L))
+                                            .build())
+                            .runSql(
+                                    "INSERT INTO sink_t SELECT key, val, ts, SUM(val) OVER ("
+                                            + "PARTITION BY key "
+                                            + "ORDER BY val "
+                                            + "RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) "
+                                            + "AS sum_val "
+                                            + "FROM source_t")
+                            .build();
 
     static final TableTestProgram
-            OVER_AGGREGATE_NON_TIME_SUM_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY =
+            OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_SUM_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY =
                     TableTestProgram.of(
-                                    "over-aggregate-non-time-sum-retract-mode-source-sink-primary-key",
+                                    "over-aggregate-non-time-range-unbounded-sum-retract-mode-source-sink-primary-key",
                                     "validates restoring a non-time unbounded preceding sum function in retract mode with source and sink tables having primary key")
                             .setupConfig(
                                     // This option helps create a ChangelogNormalize node after the
@@ -599,9 +705,9 @@ public class OverWindowTestPrograms {
                             .build();
 
     static final TableTestProgram
-            OVER_AGGREGATE_NON_TIME_SUM_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY_PARTITION_BY_NON_PK =
+            OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_SUM_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY_PARTITION_BY_NON_PK =
                     TableTestProgram.of(
-                                    "over-aggregate-non-time-sum-retract-mode-source-sink-primary-key-partition-by-non-pk",
+                                    "over-aggregate-non-time-range-unbounded-sum-retract-mode-source-sink-primary-key-partition-by-non-pk",
                                     "validates restoring a non-time unbounded preceding sum function in retract mode with source and sink table having primary key but partition by non-primary key")
                             .setupTableSource(
                                     SourceTestStep.newBuilder("source_t")
@@ -756,9 +862,9 @@ public class OverWindowTestPrograms {
                                             + "FROM source_t")
                             .build();
 
-    static final TableTestProgram OVER_AGGREGATE_NON_TIME_SUM_APPEND_MODE =
+    static final TableTestProgram OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_SUM_APPEND_MODE =
             TableTestProgram.of(
-                            "over-aggregate-non-time-sum-append-mode",
+                            "over-aggregate-non-time-range-unbounded-sum-append-mode",
                             "validates restoring a non-time unbounded preceding sum function in append mode")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
@@ -804,9 +910,9 @@ public class OverWindowTestPrograms {
                                     + "FROM source_t")
                     .build();
 
-    static final TableTestProgram OVER_AGGREGATE_NON_TIME_AVG_APPEND_MODE =
+    static final TableTestProgram OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_AVG_APPEND_MODE =
             TableTestProgram.of(
-                            "over-aggregate-non-time-avg-append-mode",
+                            "over-aggregate-non-time-range-unbounded-avg-append-mode",
                             "validates restoring a non-time unbounded preceding avg function in append mode")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
@@ -851,87 +957,88 @@ public class OverWindowTestPrograms {
                                     + "FROM source_t")
                     .build();
 
-    static final TableTestProgram OVER_AGGREGATE_NON_TIME_MULTIPLE_AGGS_APPEND_MODE =
-            TableTestProgram.of(
-                            "over-aggregate-non-time-multiple-aggs-append-mode",
-                            "validates restoring a non-time unbounded preceding sum function in append mode with multiple aggregations")
-                    .setupTableSource(
-                            SourceTestStep.newBuilder("source_t")
-                                    .addSchema("key STRING", "val BIGINT", "ts BIGINT")
-                                    .addOption("changelog-mode", "I")
-                                    .producedBeforeRestore(
-                                            Row.of("key1", 1L, 100L),
-                                            Row.of("key1", 2L, 200L),
-                                            Row.of("key1", 5L, 500L),
-                                            Row.of("key1", 6L, 600L),
-                                            Row.of("key2", 1L, 100L),
-                                            Row.of("key2", 2L, 200L))
-                                    .producedAfterRestore(Row.of("key1", 4L, 400L))
-                                    .build())
-                    .setupTableSink(
-                            SinkTestStep.newBuilder("sink_t")
-                                    .addSchema(
-                                            "key STRING",
-                                            "val BIGINT",
-                                            "ts BIGINT",
-                                            "sum_val BIGINT",
-                                            "cnt_key BIGINT")
-                                    .consumedBeforeRestore(
-                                            Row.of("key1", 1L, 100L, 1L, 1L),
-                                            Row.of("key1", 2L, 200L, 3L, 2L),
-                                            Row.of("key1", 5L, 500L, 8L, 3L),
-                                            Row.of("key1", 6L, 600L, 14L, 4L),
-                                            Row.of("key2", 1L, 100L, 1L, 1L),
-                                            Row.of("key2", 2L, 200L, 3L, 2L))
-                                    .consumedAfterRestore(
-                                            Row.of("key1", 4L, 400L, 7L, 3L),
-                                            Row.ofKind(
-                                                    RowKind.UPDATE_BEFORE,
-                                                    "key1",
-                                                    5L,
-                                                    500L,
-                                                    8L,
-                                                    3L),
-                                            Row.ofKind(
-                                                    RowKind.UPDATE_AFTER,
-                                                    "key1",
-                                                    5L,
-                                                    500L,
-                                                    12L,
-                                                    4L),
-                                            Row.ofKind(
-                                                    RowKind.UPDATE_BEFORE,
-                                                    "key1",
-                                                    6L,
-                                                    600L,
-                                                    14L,
-                                                    4L),
-                                            Row.ofKind(
-                                                    RowKind.UPDATE_AFTER,
-                                                    "key1",
-                                                    6L,
-                                                    600L,
-                                                    18L,
-                                                    5L))
-                                    .build())
-                    .runSql(
-                            "INSERT INTO sink_t SELECT key, val, ts, "
-                                    + "SUM(val) OVER ("
-                                    + "PARTITION BY key "
-                                    + "ORDER BY val "
-                                    + "RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) "
-                                    + "AS sum_val, "
-                                    + "COUNT(key) OVER ("
-                                    + "PARTITION BY key "
-                                    + "ORDER BY val "
-                                    + "RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) "
-                                    + "AS cnt_key "
-                                    + "FROM source_t")
-                    .build();
+    static final TableTestProgram
+            OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_MULTIPLE_AGGS_APPEND_MODE =
+                    TableTestProgram.of(
+                                    "over-aggregate-non-time-range-unbounded-multiple-aggs-append-mode",
+                                    "validates restoring a non-time unbounded preceding sum function in append mode with multiple aggregations")
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("source_t")
+                                            .addSchema("key STRING", "val BIGINT", "ts BIGINT")
+                                            .addOption("changelog-mode", "I")
+                                            .producedBeforeRestore(
+                                                    Row.of("key1", 1L, 100L),
+                                                    Row.of("key1", 2L, 200L),
+                                                    Row.of("key1", 5L, 500L),
+                                                    Row.of("key1", 6L, 600L),
+                                                    Row.of("key2", 1L, 100L),
+                                                    Row.of("key2", 2L, 200L))
+                                            .producedAfterRestore(Row.of("key1", 4L, 400L))
+                                            .build())
+                            .setupTableSink(
+                                    SinkTestStep.newBuilder("sink_t")
+                                            .addSchema(
+                                                    "key STRING",
+                                                    "val BIGINT",
+                                                    "ts BIGINT",
+                                                    "sum_val BIGINT",
+                                                    "cnt_key BIGINT")
+                                            .consumedBeforeRestore(
+                                                    Row.of("key1", 1L, 100L, 1L, 1L),
+                                                    Row.of("key1", 2L, 200L, 3L, 2L),
+                                                    Row.of("key1", 5L, 500L, 8L, 3L),
+                                                    Row.of("key1", 6L, 600L, 14L, 4L),
+                                                    Row.of("key2", 1L, 100L, 1L, 1L),
+                                                    Row.of("key2", 2L, 200L, 3L, 2L))
+                                            .consumedAfterRestore(
+                                                    Row.of("key1", 4L, 400L, 7L, 3L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_BEFORE,
+                                                            "key1",
+                                                            5L,
+                                                            500L,
+                                                            8L,
+                                                            3L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER,
+                                                            "key1",
+                                                            5L,
+                                                            500L,
+                                                            12L,
+                                                            4L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_BEFORE,
+                                                            "key1",
+                                                            6L,
+                                                            600L,
+                                                            14L,
+                                                            4L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER,
+                                                            "key1",
+                                                            6L,
+                                                            600L,
+                                                            18L,
+                                                            5L))
+                                            .build())
+                            .runSql(
+                                    "INSERT INTO sink_t SELECT key, val, ts, "
+                                            + "SUM(val) OVER ("
+                                            + "PARTITION BY key "
+                                            + "ORDER BY val "
+                                            + "RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) "
+                                            + "AS sum_val, "
+                                            + "COUNT(key) OVER ("
+                                            + "PARTITION BY key "
+                                            + "ORDER BY val "
+                                            + "RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) "
+                                            + "AS cnt_key "
+                                            + "FROM source_t")
+                            .build();
 
-    static final TableTestProgram OVER_AGGREGATE_NON_TIME_SUM_NO_PARTITION_BY =
+    static final TableTestProgram OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_SUM_NO_PARTITION_BY =
             TableTestProgram.of(
-                            "over-aggregate-non-time-sum-no-partition-by",
+                            "over-aggregate-non-time-range-unbounded-sum-no-partition-by",
                             "validates restoring a non-time unbounded preceding sum function without partition by")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")

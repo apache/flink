@@ -24,7 +24,6 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
@@ -43,12 +42,12 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.OverAggregateUtil;
-import org.apache.flink.table.planner.plan.utils.SortUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
@@ -56,7 +55,7 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.over.AbstractRowTimeUnboundedPrecedingOver;
-import org.apache.flink.table.runtime.operators.over.NonTimeUnboundedPrecedingFunction;
+import org.apache.flink.table.runtime.operators.over.NonTimeRangeUnboundedPrecedingFunction;
 import org.apache.flink.table.runtime.operators.over.ProcTimeRangeBoundedPrecedingFunction;
 import org.apache.flink.table.runtime.operators.over.ProcTimeRowsBoundedPrecedingFunction;
 import org.apache.flink.table.runtime.operators.over.ProcTimeUnboundedPrecedingFunction;
@@ -394,33 +393,70 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                         genAggsHandler,
                         flattenAccTypes);
             case NON_TIME:
-                final int sortKeyIdx = orderKeys[0];
-                LogicalType sortKeyType = inputRowType.getTypeAt(sortKeyIdx);
-                final GeneratedRecordEqualiser generatedEqualiser =
+                if (isRowsClause) {
+                    // Non-Time Rows Unbounded Preceding Function
+                    throw new TableException(
+                            "Non-Time Rows Unbounded Preceding Function not supported yet.");
+                }
+
+                final GeneratedRecordEqualiser generatedRecordEqualiser =
                         new EqualiserCodeGenerator(inputRowType, ctx.classLoader())
                                 .generateRecordEqualiser("FirstMatchingRowEqualiser");
+
+                final LogicalType[] sortKeyTypes = new LogicalType[orderKeys.length];
+                for (int i = 0; i < orderKeys.length; i++) {
+                    sortKeyTypes[i] = inputRowType.getFields().get(orderKeys[i]).getType();
+                }
+                final RowType sortKeyRowType = RowType.of(sortKeyTypes);
+
+                final GeneratedRecordEqualiser generatedSortKeyEqualiser =
+                        new EqualiserCodeGenerator(sortKeyRowType, ctx.classLoader())
+                                .generateRecordEqualiser("FirstMatchingSortKeyEqualiser");
+
+                // Create SortSpec to match sortKeyRowType
+                SortSpec.SortSpecBuilder builder = SortSpec.builder();
+                IntStream.range(0, orderKeys.length)
+                        .forEach(
+                                idx ->
+                                        builder.addField(
+                                                idx,
+                                                overSpec.getGroups()
+                                                        .get(0)
+                                                        .getSort()
+                                                        .getFieldSpec(idx)
+                                                        .getIsAscendingOrder(),
+                                                overSpec.getGroups()
+                                                        .get(0)
+                                                        .getSort()
+                                                        .getFieldSpec(idx)
+                                                        .getNullIsLast()));
+                SortSpec sortSpecInSortKey = builder.build();
 
                 final GeneratedRecordComparator generatedRecordComparator =
                         ComparatorCodeGenerator.gen(
                                 config,
                                 ctx.classLoader(),
                                 "SortComparator",
-                                RowType.of(DataTypes.BIGINT().getLogicalType(), sortKeyType),
-                                SortUtil.getAscendingSortSpec(orderKeys));
+                                sortKeyRowType,
+                                sortSpecInSortKey);
 
-                RowData.FieldGetter sortKeyFieldGetter =
-                        RowData.createFieldGetter(sortKeyType, sortKeyIdx);
+                InternalTypeInfo<RowData> inputRowTypeInfo = InternalTypeInfo.of(inputRowType);
+                RowDataKeySelector sortKeySelector =
+                        KeySelectorUtil.getRowDataSelector(
+                                ctx.classLoader(), orderKeys, inputRowTypeInfo);
 
-                return new NonTimeUnboundedPrecedingFunction<>(
+                // Non-Time Range Unbounded Preceding Function
+                return new NonTimeRangeUnboundedPrecedingFunction<>(
                         config.getStateRetentionTime(),
                         TableConfigUtils.getMaxIdleStateRetentionTime(config),
                         genAggsHandler,
-                        generatedEqualiser,
+                        generatedRecordEqualiser,
+                        generatedSortKeyEqualiser,
                         generatedRecordComparator,
                         flattenAccTypes,
                         fieldTypes,
-                        sortKeyFieldGetter,
-                        sortKeyIdx);
+                        sortKeyTypes,
+                        sortKeySelector);
             default:
                 throw new TableException(
                         "Unsupported unbounded operation encountered for over aggregate");
