@@ -137,7 +137,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     /** Service to retrieve the job leader ids. */
     private final JobLeaderIdService jobLeaderIdService;
 
-    /** All currently registered TaskExecutors with there framework specific worker information. */
+    /** All currently registered TaskExecutors with their framework specific worker information. */
     private final Map<ResourceID, WorkerRegistration<WorkerType>> taskExecutors;
 
     /** Ongoing registration of TaskExecutors per resource ID. */
