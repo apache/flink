@@ -34,7 +34,6 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.Triggerable;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import javax.annotation.Nullable;
 
@@ -117,11 +116,8 @@ public class KeyedTwoInputBroadcastProcessOperator<KEY, IN1, IN2, OUT>
     }
 
     @Override
-    @SuppressWarnings({"rawtypes"})
-    // Only element from input1 should be considered as the other side is broadcast input.
-    public void setKeyContextElement1(StreamRecord record) throws Exception {
-        super.setKeyContextElement1(record);
-        keySet.add(getCurrentKey());
+    public void newKeySelected(Object newKey) {
+        keySet.add(newKey);
     }
 
     @Override

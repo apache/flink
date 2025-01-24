@@ -26,7 +26,6 @@ import org.apache.flink.datastream.impl.common.KeyCheckedOutputCollector;
 import org.apache.flink.datastream.impl.common.OutputCollector;
 import org.apache.flink.datastream.impl.common.TimestampCollector;
 import org.apache.flink.datastream.impl.context.DefaultNonPartitionedContext;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import javax.annotation.Nullable;
 
@@ -83,10 +82,8 @@ public class BaseKeyedProcessOperator<KEY, IN, OUT> extends ProcessOperator<IN, 
     }
 
     @Override
-    @SuppressWarnings({"rawtypes"})
-    public void setKeyContextElement1(StreamRecord record) throws Exception {
-        super.setKeyContextElement1(record);
-        keySet.add(getCurrentKey());
+    public void newKeySelected(Object newKey) {
+        keySet.add(newKey);
     }
 
     @Override

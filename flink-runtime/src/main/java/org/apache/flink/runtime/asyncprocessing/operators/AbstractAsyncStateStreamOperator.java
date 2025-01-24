@@ -166,6 +166,18 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
         // in Fig.5, each state request itself is also protected by a paired reference count.
         currentProcessingContext.retain();
         asyncExecutionController.setCurrentContext(currentProcessingContext);
+        newKeySelected(currentProcessingContext.getKey());
+    }
+
+    /**
+     * A hook that will be invoked after a new key is selected. It is not recommended to perform
+     * async state here. Only some synchronous logic is suggested.
+     *
+     * @param newKey the new key selected.
+     */
+    public void newKeySelected(Object newKey) {
+        // By default, do nothing.
+        // Subclass could override this method to do some operations when a new key is selected.
     }
 
     @Override
@@ -300,32 +312,36 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public void setKeyContextElement1(StreamRecord record) throws Exception {
+        // This method is invoked only when isAsyncStateProcessingEnabled() is false.
         super.setKeyContextElement1(record);
         if (stateKeySelector1 != null) {
-            setAsyncKeyedContextElement(record, stateKeySelector1);
+            newKeySelected(getCurrentKey());
         }
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public void setKeyContextElement2(StreamRecord record) throws Exception {
+        // This method is invoked only when isAsyncStateProcessingEnabled() is false.
         super.setKeyContextElement2(record);
         if (stateKeySelector2 != null) {
-            setAsyncKeyedContextElement(record, stateKeySelector2);
+            newKeySelected(getCurrentKey());
         }
     }
 
     @Override
     public Object getCurrentKey() {
-        RecordContext currentContext = asyncExecutionController.getCurrentContext();
-        if (currentContext == null) {
-            throw new UnsupportedOperationException(
-                    "Have not set the current key yet, this may because the operator has not "
-                            + "started to run, or you are invoking this under a non-keyed context.");
+        if (isAsyncStateProcessingEnabled()) {
+            RecordContext currentContext = asyncExecutionController.getCurrentContext();
+            if (currentContext == null) {
+                throw new UnsupportedOperationException(
+                        "Have not set the current key yet, this may because the operator has not "
+                                + "started to run, or you are invoking this under a non-keyed context.");
+            }
+            return currentContext.getKey();
+        } else {
+            return super.getCurrentKey();
         }
-        return currentContext.getKey();
     }
 
     // ------------------------------------------------------------------------
