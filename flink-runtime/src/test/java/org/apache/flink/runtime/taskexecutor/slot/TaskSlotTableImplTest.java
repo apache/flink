@@ -62,7 +62,7 @@ class TaskSlotTableImplTest {
 
     private static final Duration SLOT_TIMEOUT = Duration.ofSeconds(100L);
 
-    /** Tests that one can can mark allocated slots as active. */
+    /** Tests that one can mark allocated slots as active. */
     @Test
     void testTryMarkSlotActive() throws Exception {
         final TaskSlotTableImpl<?> taskSlotTable = createTaskSlotTableAndStart(3);
