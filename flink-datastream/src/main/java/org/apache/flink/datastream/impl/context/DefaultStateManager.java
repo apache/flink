@@ -92,12 +92,7 @@ public class DefaultStateManager implements StateManager {
     @Override
     public <T> ValueState<T> getState(ValueStateDeclaration<T> stateDeclaration) throws Exception {
         Optional<ValueState<T>> stateOptional = getStateOptional(stateDeclaration);
-        if (stateOptional.isEmpty()) {
-            throw new RuntimeException(
-                    "Failed to access the State. You may need to declare it first and ensure that "
-                            + "the context can access the state. For example, retrieving a "
-                            + "keyed state is not allowed in a non-keyed context.");
-        }
+        checkStateIsAvailable(stateOptional);
         return stateOptional.get();
     }
 
@@ -128,12 +123,7 @@ public class DefaultStateManager implements StateManager {
     @Override
     public <T> ListState<T> getState(ListStateDeclaration<T> stateDeclaration) throws Exception {
         Optional<ListState<T>> stateOptional = getStateOptional(stateDeclaration);
-        if (stateOptional.isEmpty()) {
-            throw new RuntimeException(
-                    "Failed to access the State. You may need to declare it first and ensure that "
-                            + "the context can access the state. For example, retrieving a "
-                            + "keyed state is not allowed in a non-keyed context.");
-        }
+        checkStateIsAvailable(stateOptional);
         return stateOptional.get();
     }
 
@@ -154,12 +144,7 @@ public class DefaultStateManager implements StateManager {
     public <K, V> MapState<K, V> getState(MapStateDeclaration<K, V> stateDeclaration)
             throws Exception {
         Optional<MapState<K, V>> stateOptional = getStateOptional(stateDeclaration);
-        if (stateOptional.isEmpty()) {
-            throw new RuntimeException(
-                    "Failed to access the State. You may need to declare it first and ensure that "
-                            + "the context can access the state. For example, retrieving a "
-                            + "keyed state is not allowed in a non-keyed context.");
-        }
+        checkStateIsAvailable(stateOptional);
         return stateOptional.get();
     }
 
@@ -179,12 +164,7 @@ public class DefaultStateManager implements StateManager {
     public <T> ReducingState<T> getState(ReducingStateDeclaration<T> stateDeclaration)
             throws Exception {
         Optional<ReducingState<T>> stateOptional = getStateOptional(stateDeclaration);
-        if (stateOptional.isEmpty()) {
-            throw new RuntimeException(
-                    "Failed to access the State. You may need to declare it first and ensure that "
-                            + "the context can access the state. For example, retrieving a "
-                            + "keyed state is not allowed in a non-keyed context.");
-        }
+        checkStateIsAvailable(stateOptional);
         return stateOptional.get();
     }
 
@@ -204,12 +184,7 @@ public class DefaultStateManager implements StateManager {
     public <IN, ACC, OUT> AggregatingState<IN, OUT> getState(
             AggregatingStateDeclaration<IN, ACC, OUT> stateDeclaration) throws Exception {
         Optional<AggregatingState<IN, OUT>> stateOptional = getStateOptional(stateDeclaration);
-        if (stateOptional.isEmpty()) {
-            throw new RuntimeException(
-                    "Failed to access the State. You may need to declare it first and ensure that "
-                            + "the context can access the state. For example, retrieving a "
-                            + "keyed state is not allowed in a non-keyed context.");
-        }
+        checkStateIsAvailable(stateOptional);
         return stateOptional.get();
     }
 
@@ -230,13 +205,19 @@ public class DefaultStateManager implements StateManager {
     public <K, V> BroadcastState<K, V> getState(BroadcastStateDeclaration<K, V> stateDeclaration)
             throws Exception {
         Optional<BroadcastState<K, V>> stateOptional = getStateOptional(stateDeclaration);
-        if (stateOptional.isEmpty()) {
-            throw new RuntimeException(
-                    "Failed to access the State. You may need to declare it first and ensure that "
-                            + "the context can access the state. For example, retrieving a "
-                            + "keyed state is not allowed in a non-keyed context.");
-        }
+        checkStateIsAvailable(stateOptional);
         return stateOptional.get();
+    }
+
+    private void checkStateIsAvailable(Optional<?> stateOptional) {
+        if (stateOptional.isEmpty()) {
+            throw new IllegalStateException(
+                    "Failed to access the State. You may need to declare it first and ensure that "
+                            + "the context can access the State. For more information, please refer"
+                            + " to 'https://nightlies.apache.org/flink/flink-docs-master/docs"
+                            + "/dev/datastream-v2/context_and_state_processing"
+                            + "/#the-legitimacy-of-state-declaration-and-access'.");
+        }
     }
 
     /**
