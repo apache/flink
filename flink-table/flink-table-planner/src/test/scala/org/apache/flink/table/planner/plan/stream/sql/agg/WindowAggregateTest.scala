@@ -124,6 +124,28 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
   }
 
   @TestTemplate
+  def testTumbleWithNegativeParam(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '-15' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining("Tumbling Window parameters must satisfy size > 0")
+      .isInstanceOf[IllegalArgumentException]
+  }
+
+  @TestTemplate
   def testTumble_OnRowtimeWithCDCSource(): Unit = {
     val sql =
       """
@@ -497,6 +519,49 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
   }
 
   @TestTemplate
+  def testCumulateWithNegativeParam(): Unit = {
+    var sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '-10' MINUTE, INTERVAL '1' HOUR))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining("Cumulate Window parameters must satisfy step > 0")
+      .isInstanceOf[IllegalArgumentException]
+
+    sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '-1' HOUR))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining("Cumulate Window parameters must satisfy size > 0")
+      .isInstanceOf[IllegalArgumentException]
+  }
+
+  @TestTemplate
   def testCumulate_OnRowtimeWithCDCSource(): Unit = {
     val sql =
       """
@@ -597,6 +662,48 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
         |GROUP BY a, window_start, window_end
       """.stripMargin
     util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testHopWithNegativeParam(): Unit = {
+    var sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |   HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '-5' MINUTE, INTERVAL '10' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining("Hop Window parameters must satisfy slide > 0")
+      .isInstanceOf[IllegalArgumentException]
+
+    sql = """
+            |SELECT
+            |   a,
+            |   window_start,
+            |   window_end,
+            |   count(*),
+            |   sum(d),
+            |   max(d) filter (where b > 1000),
+            |   weightedAvg(b, e) AS wAvg,
+            |   count(distinct c) AS uv
+            |FROM TABLE(
+            |   HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '-10' MINUTE))
+            |GROUP BY a, window_start, window_end
+      """.stripMargin
+
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining("Hop Window parameters must satisfy size > 0")
+      .isInstanceOf[IllegalArgumentException]
   }
 
   @TestTemplate
@@ -1474,6 +1581,29 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
         |GROUP BY a, window_start, window_end
       """.stripMargin
     util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testSessionWithNegativeParam(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  SESSION(TABLE MyTable PARTITION BY a, DESCRIPTOR(rowtime), INTERVAL '-5' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining("Session Window parameters must satisfy gap > 0")
+      .isInstanceOf[IllegalArgumentException]
   }
 
   @TestTemplate
