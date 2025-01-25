@@ -485,6 +485,7 @@ class FlinkRelMdColumnUniquenessTest extends FlinkRelMdHandlerTestBase {
         assertTrue(mq.areColumnsUnique(agg, ImmutableBitSet.of(0, 5)))
         assertTrue(mq.areColumnsUnique(agg, ImmutableBitSet.of(0, 10)))
         assertNull(mq.areColumnsUnique(agg, ImmutableBitSet.of(5, 10)))
+        assertTrue(mq.areColumnsUnique(agg, ImmutableBitSet.of(4, 5)))
     }
     assertTrue(mq.areColumnsUnique(streamOverAgg, ImmutableBitSet.of(0)))
     assertFalse(mq.areColumnsUnique(streamOverAgg, ImmutableBitSet.of(1)))
