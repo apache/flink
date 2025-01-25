@@ -1142,7 +1142,6 @@ under the License.
 							<source>17</source>
 							<target>17</target>
 							<compilerArgs combine.children="append">
-								<arg>--add-exports=java.base/sun.net.util=ALL-UNNAMED</arg>
 								<arg>--add-exports=java.management/sun.management=ALL-UNNAMED</arg>
 								<arg>--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED</arg>
 								<arg>--add-exports=java.security.jgss/sun.security.krb5=ALL-UNNAMED</arg>
@@ -1189,7 +1188,6 @@ under the License.
 							<source>21</source>
 							<target>21</target>
 							<compilerArgs combine.children="append">
-								<arg>--add-exports=java.base/sun.net.util=ALL-UNNAMED</arg>
 								<arg>--add-exports=java.management/sun.management=ALL-UNNAMED</arg>
 								<arg>--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED</arg>
 								<arg>--add-exports=java.security.jgss/sun.security.krb5=ALL-UNNAMED</arg>
@@ -2109,7 +2107,6 @@ under the License.
 						<compilerArgs>
 							<!-- Prevents recompilation due to missing package-info.class, see MCOMPILER-205 -->
 							<arg>-Xpkginfo:always</arg>
-							<arg>--add-exports=java.base/sun.net.util=ALL-UNNAMED</arg>
 							<arg>--add-exports=java.management/sun.management=ALL-UNNAMED</arg>
 							<arg>--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED</arg>
 							<arg>--add-exports=java.security.jgss/sun.security.krb5=ALL-UNNAMED</arg>
