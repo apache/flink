@@ -252,6 +252,19 @@ alerts.addSink(new AlertSink());
 {{< /tab >}}
 {{< /tabs >}}
 
+#### Executing the Job
+
+Flink applications are built lazily and shipped to the cluster for execution only once fully formed.
+Call `StreamExecutionEnvironment#execute` to begin the execution of our Job and give it a name.
+
+{{< tabs "sink" >}}
+{{< tab "Java" >}}
+```java
+env.execute("Fraud Detection");
+```
+{{< /tab >}}
+{{< /tabs >}}
+
 #### The Fraud Detector
 
 The fraud detector is implemented as a `KeyedProcessFunction`.
