@@ -90,7 +90,8 @@ public class BigUserProgramJobSubmitITCase extends TestLogger {
         final RestClusterClient<StandaloneClusterId> restClusterClient =
                 new RestClusterClient<>(
                         MINI_CLUSTER_RESOURCE.getClientConfiguration(),
-                        StandaloneClusterId.getInstance());
+                        StandaloneClusterId.fromConfiguration(
+                                MINI_CLUSTER_RESOURCE.getClientConfiguration()));
 
         try {
             submitJobAndWaitForResult(restClusterClient, jobGraph, getClass().getClassLoader());

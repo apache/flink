@@ -234,7 +234,7 @@ class RestClusterClientTest {
         return new RestClusterClient<>(
                 clientConfig,
                 createRestClient(),
-                StandaloneClusterId.getInstance(),
+                StandaloneClusterId.fromConfiguration(clientConfig),
                 (attempt) -> 0);
     }
 
