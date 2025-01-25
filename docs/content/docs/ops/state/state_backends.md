@@ -170,7 +170,7 @@ A sample section in the configuration file could look as follows:
 
 ```yaml
 # The backend that will be used to store operator state checkpoints
-state.backend: hashmap
+state.backend.type: hashmap
 
 # Directory for storing checkpoints
 execution.checkpointing.dir: hdfs://namenode:40010/flink/checkpoints
