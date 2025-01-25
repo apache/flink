@@ -21,6 +21,7 @@ package org.apache.flink.formats.json;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.common.TimestampFormat;
+import org.apache.flink.formats.json.JsonFormatOptions.ZeroTimestampBehavior;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -56,9 +57,29 @@ public class JsonRowDataDeserializationSchema extends AbstractJsonDeserializatio
             boolean failOnMissingField,
             boolean ignoreParseErrors,
             TimestampFormat timestampFormat) {
+        this(
+                rowType,
+                resultTypeInfo,
+                failOnMissingField,
+                ignoreParseErrors,
+                timestampFormat,
+                ZeroTimestampBehavior.FAIL);
+    }
+
+    public JsonRowDataDeserializationSchema(
+            RowType rowType,
+            TypeInformation<RowData> resultTypeInfo,
+            boolean failOnMissingField,
+            boolean ignoreParseErrors,
+            TimestampFormat timestampFormat,
+            ZeroTimestampBehavior zeroTimestampBehavior) {
         super(rowType, resultTypeInfo, failOnMissingField, ignoreParseErrors, timestampFormat);
         this.runtimeConverter =
-                new JsonToRowDataConverters(failOnMissingField, ignoreParseErrors, timestampFormat)
+                new JsonToRowDataConverters(
+                                failOnMissingField,
+                                ignoreParseErrors,
+                                timestampFormat,
+                                zeroTimestampBehavior)
                         .createConverter(checkNotNull(rowType));
     }
 

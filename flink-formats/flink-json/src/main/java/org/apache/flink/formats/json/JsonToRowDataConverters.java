@@ -20,6 +20,7 @@ package org.apache.flink.formats.json;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.formats.common.TimestampFormat;
+import org.apache.flink.formats.json.JsonFormatOptions.ZeroTimestampBehavior;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericArrayData;
@@ -79,13 +80,25 @@ public class JsonToRowDataConverters implements Serializable {
     /** Timestamp format specification which is used to parse timestamp. */
     private final TimestampFormat timestampFormat;
 
+    /** Behavior mode for zero timestamp. */
+    private final JsonFormatOptions.ZeroTimestampBehavior zeroTimestampBehavior;
+
     public JsonToRowDataConverters(
             boolean failOnMissingField,
             boolean ignoreParseErrors,
             TimestampFormat timestampFormat) {
+        this(failOnMissingField, ignoreParseErrors, timestampFormat, ZeroTimestampBehavior.FAIL);
+    }
+
+    public JsonToRowDataConverters(
+            boolean failOnMissingField,
+            boolean ignoreParseErrors,
+            TimestampFormat timestampFormat,
+            ZeroTimestampBehavior zeroTimestampBehavior) {
         this.failOnMissingField = failOnMissingField;
         this.ignoreParseErrors = ignoreParseErrors;
         this.timestampFormat = timestampFormat;
+        this.zeroTimestampBehavior = zeroTimestampBehavior;
     }
 
     /**
@@ -218,13 +231,31 @@ public class JsonToRowDataConverters implements Serializable {
     }
 
     private TimestampData convertToTimestamp(JsonNode jsonNode) {
+        String timestampValue = jsonNode.asText();
+        if (isZeroTimestamp(timestampValue)) {
+            switch (zeroTimestampBehavior) {
+                case FAIL:
+                    throw new JsonParseException(
+                            String.format(
+                                    "Unable to parse zero timestamp '%s' in 'FAIL' zero-timestamp.behavior.",
+                                    timestampValue));
+                case CONVERT_TO_NULL:
+                    return null;
+                default:
+                    throw new TableException(
+                            String.format(
+                                    "Unsupported zero timestamp behavior '%s'. Validator should have checked that.",
+                                    zeroTimestampBehavior));
+            }
+        }
+
         TemporalAccessor parsedTimestamp;
         switch (timestampFormat) {
             case SQL:
-                parsedTimestamp = SQL_TIMESTAMP_FORMAT.parse(jsonNode.asText());
+                parsedTimestamp = SQL_TIMESTAMP_FORMAT.parse(timestampValue);
                 break;
             case ISO_8601:
-                parsedTimestamp = ISO8601_TIMESTAMP_FORMAT.parse(jsonNode.asText());
+                parsedTimestamp = ISO8601_TIMESTAMP_FORMAT.parse(timestampValue);
                 break;
             default:
                 throw new TableException(
@@ -236,6 +267,13 @@ public class JsonToRowDataConverters implements Serializable {
         LocalDate localDate = parsedTimestamp.query(TemporalQueries.localDate());
 
         return TimestampData.fromLocalDateTime(LocalDateTime.of(localDate, localTime));
+    }
+
+    private boolean isZeroTimestamp(String timestampValue) {
+        if (timestampValue.equals("0000-00-00") || timestampValue.equals("0000-00-00 00:00:00")) {
+            return true;
+        }
+        return false;
     }
 
     private TimestampData convertToTimestampWithLocalZone(JsonNode jsonNode) {

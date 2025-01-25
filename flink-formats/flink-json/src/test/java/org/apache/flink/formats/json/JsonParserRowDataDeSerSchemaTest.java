@@ -21,6 +21,7 @@ package org.apache.flink.formats.json;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.common.TimestampFormat;
+import org.apache.flink.formats.json.JsonFormatOptions.ZeroTimestampBehavior;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -169,6 +170,7 @@ public class JsonParserRowDataDeSerSchemaTest {
                         false,
                         false,
                         TimestampFormat.ISO_8601,
+                        ZeroTimestampBehavior.FAIL,
                         new String[][] {
                             new String[] {"f1"},
                             new String[] {"f4"},
@@ -262,6 +264,7 @@ public class JsonParserRowDataDeSerSchemaTest {
                         false,
                         false,
                         TimestampFormat.ISO_8601,
+                        ZeroTimestampBehavior.FAIL,
                         new String[][] {
                             new String[] {"f1"},
                             new String[] {"f3", "f1"},
@@ -329,6 +332,7 @@ public class JsonParserRowDataDeSerSchemaTest {
                         false,
                         false,
                         TimestampFormat.ISO_8601,
+                        ZeroTimestampBehavior.FAIL,
                         new String[][] {
                             new String[] {"f1"},
                             new String[] {"f3", "f2"},
