@@ -45,8 +45,9 @@ Common classes used by both Flink DataStream API and Table API:
       :class:`~pyflink.datastream.formats.csv.CsvRowSerializationSchema`,
       :class:`~pyflink.datastream.formats.csv.CsvRowDeserializationSchema`,
       :class:`~pyflink.datastream.formats.avro.AvroRowSerializationSchema`,
-      :class:`~pyflink.datastream.formats.avro.AvroRowDeserializationSchema` and
-      :class:`~SimpleStringSchema` for more details.
+      :class:`~pyflink.datastream.formats.avro.AvroRowDeserializationSchema`,
+      :class:`~SimpleStringSchema` and
+      :class:`~SimpleByteSchema` for more details.
 """
 from pyflink.common.completable_future import CompletableFuture
 from pyflink.common.config_options import ConfigOption, ConfigOptions
@@ -59,7 +60,7 @@ from pyflink.common.job_id import JobID
 from pyflink.common.job_status import JobStatus
 from pyflink.common.restart_strategy import RestartStrategies, RestartStrategyConfiguration
 from pyflink.common.serialization import SerializationSchema, DeserializationSchema, \
-    SimpleStringSchema, Encoder
+    SimpleStringSchema, SimpleByteSchema, Encoder
 from pyflink.common.serializer import TypeSerializer
 from pyflink.common.typeinfo import Types, TypeInformation
 from pyflink.common.types import Row, RowKind
@@ -78,6 +79,7 @@ __all__ = [
     'SerializationSchema',
     'DeserializationSchema',
     'SimpleStringSchema',
+    'SimpleByteSchema',
     'Encoder',
     'CompletableFuture',
     'InputDependencyConstraint',

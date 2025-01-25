@@ -23,6 +23,7 @@ __all__ = [
     'SerializationSchema',
     'DeserializationSchema',
     'SimpleStringSchema',
+    'SimpleByteSchema',
     'Encoder',
     'BulkWriterFactory'
 ]
@@ -67,6 +68,19 @@ class SimpleStringSchema(SerializationSchema, DeserializationSchema):
         DeserializationSchema.__init__(
             self, j_deserialization_schema=j_simple_string_serialization_schema)
 
+class SimpleByteSchema(SerializationSchema, DeserializationSchema):
+    """
+    Simple serialization/deserialization schema for bytes.
+    """
+
+    def __init__(self):
+        gate_way = get_gateway()
+        j_simple_byte_serialization_schema = gate_way \
+            .jvm.org.apache.flink.api.common.serialization.SimpleByteSchema()
+        SerializationSchema.__init__(self,
+                                     j_serialization_schema=j_simple_byte_serialization_schema)
+        DeserializationSchema.__init__(
+            self, j_deserialization_schema=j_simple_byte_serialization_schema)
 
 class Encoder(object):
     """
