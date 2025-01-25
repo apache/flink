@@ -45,6 +45,7 @@ import scala.collection.{JavaConverters, Seq}
 trait FileSystemITCaseBase {
 
   protected var resultPath: String = _
+  protected var resultPath2: String = _
 
   @TempDir
   protected var fileTempFolder: Path = _
@@ -69,6 +70,8 @@ trait FileSystemITCaseBase {
 
   def open(): Unit = {
     resultPath = TempDirUtils.newFolder(fileTempFolder).toURI.getPath
+    resultPath2 = TempDirUtils.newFolder(fileTempFolder).toURI.getPath
+
     BatchTableEnvUtil.registerCollection(
       tableEnv,
       "originalT",
@@ -90,6 +93,23 @@ trait FileSystemITCaseBase {
          |)
        """.stripMargin
     )
+
+    tableEnv.executeSql(
+      s"""
+         |create table partitionedTable2 (
+         |  x2 string,
+         |  y2 int,
+         |  a2 int,
+         |  b2 bigint,
+         |  c2 as b2 + 1
+         |) partitioned by (a2, b2) with (
+         |  'connector' = 'filesystem',
+         |  'path' = '$getScheme://$resultPath2',
+         |  ${formatProperties().mkString(",\n")}
+         |)
+       """.stripMargin
+    )
+
     if (supportsReadingMetadata) {
       tableEnv.executeSql(
         s"""
@@ -325,6 +345,34 @@ trait FileSystemITCaseBase {
         row("x17", 17),
         row("x18", 18),
         row("x19", 19)
+      )
+    )
+  }
+
+  @TestTemplate
+  def testJoinPartitionedTables(): Unit = {
+    tableEnv
+      .executeSql(
+        "insert into partitionedTable " +
+          "select * from originalT where a=1 and b=1 and x='x1'")
+      .await()
+
+    tableEnv
+      .executeSql(
+        "insert into partitionedTable " +
+          "select * from originalT where a=2 and b=2 and x='x16'")
+      .await()
+
+    tableEnv
+      .executeSql(
+        "insert into partitionedTable2 " +
+          "select * from originalT where a=2 and b=2 and x='x16'")
+      .await()
+
+    check(
+      "select t1.a, t2.a2, t1.b, t2.b2 from partitionedTable t1 inner join partitionedTable2 t2 on t1.a = t2.a2 and t1.b = t2.b2",
+      Seq(
+        row(2, 2, 2, 2)
       )
     )
   }
