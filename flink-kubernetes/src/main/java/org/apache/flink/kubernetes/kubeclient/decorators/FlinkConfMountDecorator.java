@@ -51,6 +51,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -179,18 +180,29 @@ public class FlinkConfMountDecorator extends AbstractKubernetesStepDecorator {
 
     private List<File> getLocalLogConfFiles() {
         final String confDir = kubernetesComponentConf.getConfigDirectory();
-        final File logbackFile = new File(confDir, CONFIG_FILE_LOGBACK_NAME);
-        final File log4jFile = new File(confDir, CONFIG_FILE_LOG4J_NAME);
+        List<File> localConfFiles = new ArrayList<>();
 
-        List<File> localLogConfFiles = new ArrayList<>();
-        if (logbackFile.exists()) {
-            localLogConfFiles.add(logbackFile);
-        }
-        if (log4jFile.exists()) {
-            localLogConfFiles.add(log4jFile);
-        }
+        List<String> localFileNames =
+                new ArrayList<>(Arrays.asList(CONFIG_FILE_LOGBACK_NAME, CONFIG_FILE_LOG4J_NAME));
+        // Additional files to be included
+        localFileNames.addAll(kubernetesComponentConf.getAdditionalLocalFiles());
 
-        return localLogConfFiles;
+        for (String fileName : localFileNames) {
+            File localFile = new File(confDir, fileName);
+            if (localFile.exists()) {
+                logger.info(
+                        String.format(
+                                "Local config file %s adding in flink configmap",
+                                localFile.getPath()));
+                localConfFiles.add(localFile);
+            } else {
+                logger.warn(
+                        String.format(
+                                "Local config file %s does not exist, skipping adding in flink configmap",
+                                localFile.getPath()));
+            }
+        }
+        return localConfFiles;
     }
 
     @VisibleForTesting
