@@ -180,8 +180,7 @@ class BashJavaUtilsITCase extends JavaBashTestBase {
                         "env:",
                         "  java:",
                         "    opts:",
-                        "      all: --add-exports=java.base/sun.net.util=ALL-UNNAMED "
-                                + "--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED "
+                        "      all: --add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED "
                                 + "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED "
                                 + "--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED "
                                 + "--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED "
