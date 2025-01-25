@@ -62,6 +62,14 @@ Note also that while the streaming connectors listed in this section are part of
 Flink project and are included in source releases, they are not included in the binary distributions. 
 Further instructions can be found in the corresponding subsections.
 
+{{< hint info >}}
+Because the flink-connector-base dependency has been bundled in flink-dist,
+these externalized connectors start to stop bundling the flink-connector-base dependency. See more
+in <a href="https://issues.apache.org/jira/browse/FLINK-30400">FLINK-30400</a>.
+If you need to run examples locally, make sure that the flink-connector-base dependency is
+provided and can be found in your own classpath.
+{{< /hint >}}
+
 ## Connectors in Apache Bahir
 
 Additional streaming connectors for Flink are being released through [Apache Bahir](https://bahir.apache.org/), including:
