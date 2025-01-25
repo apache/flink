@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog.hive.factories;
 
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.factories.CatalogFactory;
@@ -35,6 +36,7 @@ import static org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOp
 import static org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions.HADOOP_CONF_DIR;
 import static org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions.HIVE_CONF_DIR;
 import static org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions.HIVE_VERSION;
+import static org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions.PROPERTIES_PREFIX;
 import static org.apache.flink.table.factories.FactoryUtil.PROPERTY_VERSION;
 
 /** Catalog factory for {@link HiveCatalog}. */
@@ -66,13 +68,8 @@ public class HiveCatalogFactory implements CatalogFactory {
     public Catalog createCatalog(Context context) {
         final FactoryUtil.CatalogFactoryHelper helper =
                 FactoryUtil.createCatalogFactoryHelper(this, context);
-        helper.validate();
+        helper.validateExcept(PROPERTIES_PREFIX);
 
-        return new HiveCatalog(
-                context.getName(),
-                helper.getOptions().get(DEFAULT_DATABASE),
-                helper.getOptions().get(HIVE_CONF_DIR),
-                helper.getOptions().get(HADOOP_CONF_DIR),
-                helper.getOptions().get(HIVE_VERSION));
+        return new HiveCatalog(context.getName(), (Configuration) helper.getOptions());
     }
 }
