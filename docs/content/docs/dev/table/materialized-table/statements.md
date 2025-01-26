@@ -334,24 +334,24 @@ ALTER MATERIALIZED TABLE my_materialized_table REFRESH PARTITION (ds='2024-06-28
 ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name AS <select_statement>
 ```
 
-The `AS <select_statement>` clause allows you to modify the query definition of a materialized table. It updates the query used by the materialized table refresh job and infers a new schema based on the updated query to adjust the table’s schema. However, this operation does not directly affect existing data.
+The `AS <select_statement>` clause allows you to modify the query definition for refreshing materialized table. It will first evolve the table's schema using the schema derived from the new query and then use the new query to refresh the table data. It is important to emphasize that, by default, this does not impact historical data.
 
 The modification process depends on the refresh mode of the materialized table:
 
 **Full mode:**
 
-1. Update the schema and query definition of the materialized table.
-2. During the next refresh job, the table is refreshed using the new query definition:
-- If the table is a partitioned table and [partition.fields.#.date-formatter]({{< ref "docs/dev/table/config" >}}#partition-fields-date-formatter) is correctly set, only the latest partition will be refreshed.
-- Otherwise, the entire table will be refreshed.
+1. Update the `schema` and `query definition` of the materialized table.
+2. The table is refreshed using the new query definition when the next refresh job is triggered:
+- If it is a partitioned table and [partition.fields.#.date-formatter]({{< ref "docs/dev/table/config" >}}#partition-fields-date-formatter) is correctly set, only the latest partition will be refreshed.
+- Otherwise, the table will be overwritten entirely.
 
 **Continuous mode:**
 
-1. Pause the current continuous refresh jobs.
+1. Pause the current running refresh job.
 2. Update the `schema` and `query definition` of the materialized table.
-3. Start a new continuous refresh job to refresh the materialized table:
+3. Start a new refresh job to refresh the materialized table:
 - The new refresh job starts from the beginning and does not restore from the previous state.
-- The starting consumption position of the data source is determined by the connector’s default implementation or the option hint specified in the query.
+- The starting offset of the data source is determined by the connector’s default implementation or the `option hint` specified in the query.
 
 **Example:**
 

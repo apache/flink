@@ -333,14 +333,14 @@ ALTER MATERIALIZED TABLE my_materialized_table REFRESH PARTITION (ds='2024-06-28
 ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name AS <select_statement>
 ```
 
-`AS <select_statement>` 用于修改物化表的查询定义。它会更新物化表刷新任务中使用的查询，并基于更新后的查询推导出新的 `schema` ，从而调整表的 `schema` 。但该操作不会直接影响现有数据。
+`AS <select_statement>` 子句用于修改刷新物化表的查询定义。它会先使用新查询派生的 `schema` 更新表的 `schema`，然后使用新查询刷新表数据。需要特别强调的是，默认情况下，这不会影响历史数据。
 
 具体修改流程取决于物化表的刷新模式：
 
 **全量模式：**
 
 1. 更新物化表的 `schema` 和查询定义。
-2. 下次刷新任务启动时，将使用新的查询刷新:
+2. 在刷新任务下次触发执行时，将使用新的查询定义刷新数据:
 - 如果修改的物化表是分区表，且[partition.fields.#.date-formatter]({{< ref "docs/dev/table/config" >}}#partition-fields-date-formatter) 配置正确，则仅刷新最新分区。
 - 否则，将刷新整个表的数据。
 
@@ -348,9 +348,9 @@ ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name AS <select_statemen
 
 1. 暂停当前的实时刷新任务。
 2. 更新物化表的 `schema` 和查询定义。
-3. 启动新的实时任务以刷新物化表：
-- 新的刷新任务会从头开始，而不是从之前的状态继续。
-- 数据源的起始消费位置会由到连接器的默认实现或查询中设置的 `option hint` 决定）
+3. 启动新的流式任务以刷新物化表：
+- 新的流式任务会从头开始，而不会从之前的流式任务状态恢复。
+- 数据源的起始位点会由到连接器的默认实现或查询中设置的 `option hint` 决定。
 
 **示例：**
 
@@ -386,8 +386,8 @@ GROUP BY
 ```
 
 <span class="label label-danger">注意</span>
-- Schema 修改仅支持在原表 schema 末尾添加 `nullable` 列。
-- 在持续模式下，新的刷新任务不会从原来的刷新任务的状态恢复。这可能会导致短暂的数据重复或丢失。
+- Schema 演进当前仅支持在原表 schema 尾部添加`可空列`。
+- 在持续模式下，新的流式任务不会从原来的流式任务的状态恢复。这可能会导致短暂的数据重复或丢失。
 
 # DROP MATERIALIZED TABLE
 
