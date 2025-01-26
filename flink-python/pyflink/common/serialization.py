@@ -68,6 +68,7 @@ class SimpleStringSchema(SerializationSchema, DeserializationSchema):
         DeserializationSchema.__init__(
             self, j_deserialization_schema=j_simple_string_serialization_schema)
 
+
 class SimpleByteSchema(SerializationSchema, DeserializationSchema):
     """
     Simple serialization/deserialization schema for bytes.
@@ -81,6 +82,7 @@ class SimpleByteSchema(SerializationSchema, DeserializationSchema):
                                      j_serialization_schema=j_simple_byte_serialization_schema)
         DeserializationSchema.__init__(
             self, j_deserialization_schema=j_simple_byte_serialization_schema)
+
 
 class Encoder(object):
     """
