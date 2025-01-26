@@ -131,8 +131,7 @@ env.execute("Word Count Example")
 
 ### Client Level
 
-The parallelism can be set at the Client when submitting jobs to Flink. The
-Client can either be a Java or a Scala program. One example of such a Client is
+The parallelism can be set at the Client when submitting jobs to Flink. One example of such a Client is
 Flink's Command-line Interface (CLI).
 
 For the CLI client, the parallelism parameter can be specified with `-p`. For
@@ -141,7 +140,7 @@ example:
     ./bin/flink run -p 10 ../examples/*WordCount-java*.jar
 
 
-In a Java/Scala program, the parallelism is set as follows:
+In a client program, the parallelism is set as follows:
 
 {{< tabs "54c4adac-7461-40e9-b85c-69bbc0b3a36d" >}}
 {{< tab "Java" >}}

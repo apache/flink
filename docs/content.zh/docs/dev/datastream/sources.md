@@ -203,19 +203,6 @@ DataStream<Integer> stream = env.fromSource(
 ...
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-
-val mySource = new MySource(...)
-
-val stream = env.fromSource(
-      mySource,
-      WatermarkStrategy.noWatermarks(),
-      "MySourceName")
-...
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 env = StreamExecutionEnvironment.get_execution_environment()

@@ -66,8 +66,6 @@ Flink 的异步 I/O API 允许用户在流处理中使用异步请求客户端�
 
 下面是基本的代码模板：
 
-{{< tabs "b9213242-26c1-4416-95c2-076a23777eec" >}}
-{{< tab "Java" >}}
 ```java
 // 这个例子使用 Java 8 的 Future 接口（与 Flink 的 Future 相同）实现了异步请求和回调。
 
@@ -133,55 +131,6 @@ AsyncRetryStrategy asyncRetryStrategy =
 DataStream<Tuple2<String, String>> resultStream =
 	AsyncDataStream.unorderedWaitWithRetry(stream, new AsyncDatabaseRequest(), 1000, TimeUnit.MILLISECONDS, 100, asyncRetryStrategy);
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-/**
- * 实现 'AsyncFunction' 用于发送请求和设置回调。
- */
-class AsyncDatabaseRequest extends AsyncFunction[String, (String, String)] {
-
-    /** 能够利用回调函数并发发送请求的数据库客户端 */
-    lazy val client: DatabaseClient = new DatabaseClient(host, post, credentials)
-
-    /** 用于 future 回调的上下文环境 */
-    implicit lazy val executor: ExecutionContext = ExecutionContext.fromExecutor(Executors.directExecutor())
-
-
-    override def asyncInvoke(str: String, resultFuture: ResultFuture[(String, String)]): Unit = {
-
-        // 发送异步请求，接收 future 结果
-        val resultFutureRequested: Future[String] = client.query(str)
-
-        // 设置客户端完成请求后要执行的回调函数
-        // 回调函数只是简单地把结果发给 future
-        resultFutureRequested.onSuccess {
-            case result: String => resultFuture.complete(Iterable((str, result)))
-        }
-    }
-}
-
-// 创建初始 DataStream
-val stream: DataStream[String] = ...
-
-// 应用异步 I/O 转换操作，不启用重试
-val resultStream: DataStream[(String, String)] =
-    AsyncDataStream.unorderedWait(stream, new AsyncDatabaseRequest(), 1000, TimeUnit.MILLISECONDS, 100)
-
-// 或 应用异步 I/O 转换操作并启用重试
-// 创建一个异步重试策略
-val asyncRetryStrategy: AsyncRetryStrategy[String] =
-  new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder(3, 100L) // maxAttempts=3, fixedDelay=100ms
-    .ifResult(RetryPredicates.EMPTY_RESULT_PREDICATE)
-    .ifException(RetryPredicates.HAS_EXCEPTION_PREDICATE)
-    .build();
-
-// 应用异步 I/O 转换操作并启用重试
-val resultStream: DataStream[(String, String)] =
-  AsyncDataStream.unorderedWaitWithRetry(stream, new AsyncDatabaseRequest(), 1000, TimeUnit.MILLISECONDS, 100, asyncRetryStrategy)
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 **重要提示**： 第一次调用 `ResultFuture.complete` 后 `ResultFuture` 就完成了。
 后续的 `complete` 调用都将被忽略。
@@ -248,7 +197,7 @@ Flink 提供两种模式控制结果记录以何种顺序发出。
 
 ### 实现提示
 
-在实现使用 *Executor*（或者 Scala 中的 *ExecutionContext*）和回调的 *Futures* 时，建议使用 `DirectExecutor`，因为通常回调的工作量很小，`DirectExecutor` 避免了额外的线程切换开销。回调通常只是把结果发送给 `ResultFuture`，也就是把它添加进输出缓冲。从这里开始，包括发送记录和与 chenkpoint 交互在内的繁重逻辑都将在专有的线程池中进行处理。
+在实现使用 *Executor* 和回调的 *Futures* 时，建议使用 `DirectExecutor`，因为通常回调的工作量很小，`DirectExecutor` 避免了额外的线程切换开销。回调通常只是把结果发送给 `ResultFuture`，也就是把它添加进输出缓冲。从这里开始，包括发送记录和与 chenkpoint 交互在内的繁重逻辑都将在专有的线程池中进行处理。
 
 `DirectExecutor` 可以通过 `org.apache.flink.util.concurrent.Executors.directExecutor()` 或
 `com.google.common.util.concurrent.MoreExecutors.directExecutor()` 获得。

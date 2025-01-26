@@ -82,7 +82,7 @@ For example, you can add the Kafka connector as a dependency like this:
 
 Then execute `mvn install` on the command line. 
 
-Projects created from the `Java Project Template`, the `Scala Project Template`, or Gradle are configured
+Projects created from the `Java Project Template` or Gradle are configured
 to automatically include the application dependencies into the application JAR when you run `mvn clean package`.
 For projects that are not set up from those templates, we recommend adding the Maven Shade Plugin to
 build the application jar with all required dependencies.
