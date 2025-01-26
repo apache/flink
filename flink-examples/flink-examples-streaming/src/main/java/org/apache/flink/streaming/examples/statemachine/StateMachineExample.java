@@ -25,7 +25,7 @@ import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
+import org.apache.flink.api.connector.source.util.ratelimit.PerSecondRateLimiterStrategy;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
@@ -49,6 +49,8 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.ParameterTool;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collection;
 
 /**
  * Main class of the state machine example. This class implements the streaming application that
@@ -85,6 +87,7 @@ public class StateMachineExample {
         // create the environment to create streams and configure execution
         Configuration configuration = new Configuration();
 
+        final Collection<AutoCloseable> closeables = new ArrayList<>();
         final String stateBackend = params.get("backend", "memory");
         if ("hashmap".equals(stateBackend)) {
             final String checkpointDir = params.get("checkpoint-dir");
@@ -136,13 +139,17 @@ public class StateMachineExample {
                     errorRate, recordsPerSecond);
             System.out.println();
 
+            final PerSecondRateLimiterStrategy rateLimiterStrategy =
+                    PerSecondRateLimiterStrategy.create(recordsPerSecond);
+            closeables.add(rateLimiterStrategy);
+
             GeneratorFunction<Long, Event> generatorFunction =
                     new EventsGeneratorFunction(errorRate);
             DataGeneratorSource<Event> eventGeneratorSource =
                     new DataGeneratorSource<>(
                             generatorFunction,
                             Long.MAX_VALUE,
-                            RateLimiterStrategy.perSecond(recordsPerSecond),
+                            rateLimiterStrategy,
                             TypeInformation.of(Event.class));
 
             events =
@@ -187,6 +194,10 @@ public class StateMachineExample {
 
         // trigger program execution
         env.execute("State machine job");
+
+        for (AutoCloseable closeable : closeables) {
+            closeable.close();
+        }
     }
 
     // ------------------------------------------------------------------------

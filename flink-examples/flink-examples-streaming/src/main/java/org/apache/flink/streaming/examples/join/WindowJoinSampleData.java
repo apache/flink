@@ -37,18 +37,18 @@ public class WindowJoinSampleData {
 
     /** Continuously generates (name, grade). */
     public static DataGeneratorSource<Tuple2<String, Integer>> getGradeGeneratorSource(
-            double elementsPerSecond) {
-        return getTupleGeneratorSource(GRADE_COUNT, elementsPerSecond);
+            RateLimiterStrategy rateLimiterStrategy) {
+        return getTupleGeneratorSource(GRADE_COUNT, rateLimiterStrategy);
     }
 
     /** Continuously generates (name, salary). */
     public static DataGeneratorSource<Tuple2<String, Integer>> getSalaryGeneratorSource(
-            double elementsPerSecond) {
-        return getTupleGeneratorSource(SALARY_MAX, elementsPerSecond);
+            RateLimiterStrategy rateLimiterStrategy) {
+        return getTupleGeneratorSource(SALARY_MAX, rateLimiterStrategy);
     }
 
     private static DataGeneratorSource<Tuple2<String, Integer>> getTupleGeneratorSource(
-            int maxValue, double elementsPerSecond) {
+            int maxValue, RateLimiterStrategy rateLimiterStrategy) {
         final Random rnd = new Random();
         final GeneratorFunction<Long, Tuple2<String, Integer>> generatorFunction =
                 index -> new Tuple2<>(NAMES[rnd.nextInt(NAMES.length)], rnd.nextInt(maxValue) + 1);
@@ -56,7 +56,7 @@ public class WindowJoinSampleData {
         return new DataGeneratorSource<>(
                 generatorFunction,
                 Long.MAX_VALUE,
-                RateLimiterStrategy.perSecond(elementsPerSecond),
+                rateLimiterStrategy,
                 TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {}));
     }
 }

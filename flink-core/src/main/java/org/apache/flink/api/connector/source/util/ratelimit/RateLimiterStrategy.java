@@ -20,6 +20,7 @@ package org.apache.flink.api.connector.source.util.ratelimit;
 import org.apache.flink.annotation.Experimental;
 
 import java.io.Serializable;
+import java.time.Duration;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -42,9 +43,14 @@ public interface RateLimiterStrategy extends Serializable {
      * @param recordsPerSecond The number of records produced per second. The actual number of
      *     produced records is subject to rounding due to dividing the number of produced records
      *     among the parallel instances.
+     * @deprecated Use {@link PerSecondRateLimiterStrategy#create(double, Duration)}, instead, to
+     *     avoid thread leakage.
      */
+    @Deprecated
     static RateLimiterStrategy perSecond(double recordsPerSecond) {
-        return parallelism -> new GuavaRateLimiter(recordsPerSecond / parallelism);
+        // no timeout is set because closing the PerSecondRateLimiterStrategy#close interface isn't
+        // exposed
+        return PerSecondRateLimiterStrategy.create(recordsPerSecond, Duration.ZERO);
     }
 
     /**

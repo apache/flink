@@ -20,7 +20,7 @@ package org.apache.flink.streaming.examples.datagen;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
+import org.apache.flink.api.connector.source.util.ratelimit.PerSecondRateLimiterStrategy;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -35,17 +35,17 @@ public class DataGenerator {
 
         GeneratorFunction<Long, String> generatorFunction = index -> "Number: " + index;
 
-        DataGeneratorSource<String> source =
-                new DataGeneratorSource<>(
-                        generatorFunction,
-                        Long.MAX_VALUE,
-                        RateLimiterStrategy.perSecond(100),
-                        Types.STRING);
+        try (final PerSecondRateLimiterStrategy rateLimiterStrategy =
+                PerSecondRateLimiterStrategy.create(100)) {
+            DataGeneratorSource<String> source =
+                    new DataGeneratorSource<>(
+                            generatorFunction, Long.MAX_VALUE, rateLimiterStrategy, Types.STRING);
 
-        DataStreamSource<String> streamSource =
-                env.fromSource(source, WatermarkStrategy.noWatermarks(), "Data Generator");
-        streamSource.print();
+            DataStreamSource<String> streamSource =
+                    env.fromSource(source, WatermarkStrategy.noWatermarks(), "Data Generator");
+            streamSource.print();
 
-        env.execute("Data Generator Source Example");
+            env.execute("Data Generator Source Example");
+        }
     }
 }

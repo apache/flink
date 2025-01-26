@@ -25,6 +25,7 @@ import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
+import org.apache.flink.api.connector.source.util.ratelimit.PerSecondRateLimiterStrategy;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -71,46 +72,52 @@ public class WindowJoin {
         // make parameters available in the web interface
         env.getConfig().setGlobalJobParameters(params);
 
-        // create the data sources for both grades and salaries
-        DataStream<Tuple2<String, Integer>> grades =
-                env.fromSource(
-                                WindowJoinSampleData.getGradeGeneratorSource(rate),
-                                IngestionTimeWatermarkStrategy.create(),
-                                "Grades Data Generator")
-                        .setParallelism(1);
+        try (final PerSecondRateLimiterStrategy rateLimiterStrategy =
+                PerSecondRateLimiterStrategy.create(rate)) {
+            // create the data sources for both grades and salaries
+            DataStream<Tuple2<String, Integer>> grades =
+                    env.fromSource(
+                                    WindowJoinSampleData.getGradeGeneratorSource(
+                                            rateLimiterStrategy),
+                                    IngestionTimeWatermarkStrategy.create(),
+                                    "Grades Data Generator")
+                            .setParallelism(1);
 
-        DataStream<Tuple2<String, Integer>> salaries =
-                env.fromSource(
-                                WindowJoinSampleData.getSalaryGeneratorSource(rate),
-                                IngestionTimeWatermarkStrategy.create(),
-                                "Grades Data Generator")
-                        .setParallelism(1);
+            DataStream<Tuple2<String, Integer>> salaries =
+                    env.fromSource(
+                                    WindowJoinSampleData.getSalaryGeneratorSource(
+                                            rateLimiterStrategy),
+                                    IngestionTimeWatermarkStrategy.create(),
+                                    "Grades Data Generator")
+                            .setParallelism(1);
 
-        // run the actual window join program
-        // for testability, this functionality is in a separate method.
-        DataStream<Tuple3<String, Integer, Integer>> joinedStream =
-                runWindowJoin(grades, salaries, windowSize);
+            // run the actual window join program
+            // for testability, this functionality is in a separate method.
+            DataStream<Tuple3<String, Integer, Integer>> joinedStream =
+                    runWindowJoin(grades, salaries, windowSize);
 
-        if (fileOutput) {
-            joinedStream
-                    .sinkTo(
-                            FileSink.<Tuple3<String, Integer, Integer>>forRowFormat(
-                                            new Path(params.get("output")),
-                                            new SimpleStringEncoder<>())
-                                    .withRollingPolicy(
-                                            DefaultRollingPolicy.builder()
-                                                    .withMaxPartSize(MemorySize.ofMebiBytes(1))
-                                                    .withRolloverInterval(Duration.ofSeconds(10))
-                                                    .build())
-                                    .build())
-                    .name("output");
-        } else {
-            // print the results with a single thread, rather than in parallel
-            joinedStream.print().setParallelism(1);
+            if (fileOutput) {
+                joinedStream
+                        .sinkTo(
+                                FileSink.<Tuple3<String, Integer, Integer>>forRowFormat(
+                                                new Path(params.get("output")),
+                                                new SimpleStringEncoder<>())
+                                        .withRollingPolicy(
+                                                DefaultRollingPolicy.builder()
+                                                        .withMaxPartSize(MemorySize.ofMebiBytes(1))
+                                                        .withRolloverInterval(
+                                                                Duration.ofSeconds(10))
+                                                        .build())
+                                        .build())
+                        .name("output");
+            } else {
+                // print the results with a single thread, rather than in parallel
+                joinedStream.print().setParallelism(1);
+            }
+
+            // execute program
+            env.execute("Windowed Join Example");
         }
-
-        // execute program
-        env.execute("Windowed Join Example");
     }
 
     public static DataStream<Tuple3<String, Integer, Integer>> runWindowJoin(

@@ -20,7 +20,7 @@ package org.apache.flink.streaming.examples.async;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
+import org.apache.flink.api.connector.source.util.ratelimit.PerSecondRateLimiterStrategy;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -76,45 +76,45 @@ public class AsyncIOExample {
             throw e;
         }
 
-        // obtain execution environment
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        try (final PerSecondRateLimiterStrategy rateLimiterStrategy =
+                PerSecondRateLimiterStrategy.create(100)) {
+            // obtain execution environment
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataGeneratorSource<Integer> generatorSource =
-                new DataGeneratorSource<>(
-                        Long::intValue,
-                        Integer.MAX_VALUE,
-                        RateLimiterStrategy.perSecond(100),
-                        Types.INT);
+            DataGeneratorSource<Integer> generatorSource =
+                    new DataGeneratorSource<>(
+                            Long::intValue, Integer.MAX_VALUE, rateLimiterStrategy, Types.INT);
 
-        // create input stream of a single integer
-        DataStream<Integer> inputStream =
-                env.fromSource(
-                        generatorSource,
-                        WatermarkStrategy.noWatermarks(),
-                        "Integers-generating Source");
+            // create input stream of a single integer
+            DataStream<Integer> inputStream =
+                    env.fromSource(
+                            generatorSource,
+                            WatermarkStrategy.noWatermarks(),
+                            "Integers-generating Source");
 
-        AsyncFunction<Integer, String> function = new SampleAsyncFunction();
+            AsyncFunction<Integer, String> function = new SampleAsyncFunction();
 
-        // add async operator to streaming job
-        DataStream<String> result;
-        switch (mode.toUpperCase()) {
-            case "ORDERED":
-                result =
-                        AsyncDataStream.orderedWait(
-                                inputStream, function, timeout, TimeUnit.MILLISECONDS, 20);
-                break;
-            case "UNORDERED":
-                result =
-                        AsyncDataStream.unorderedWait(
-                                inputStream, function, timeout, TimeUnit.MILLISECONDS, 20);
-                break;
-            default:
-                throw new IllegalStateException("Unknown mode: " + mode);
+            // add async operator to streaming job
+            DataStream<String> result;
+            switch (mode.toUpperCase()) {
+                case "ORDERED":
+                    result =
+                            AsyncDataStream.orderedWait(
+                                    inputStream, function, timeout, TimeUnit.MILLISECONDS, 20);
+                    break;
+                case "UNORDERED":
+                    result =
+                            AsyncDataStream.unorderedWait(
+                                    inputStream, function, timeout, TimeUnit.MILLISECONDS, 20);
+                    break;
+                default:
+                    throw new IllegalStateException("Unknown mode: " + mode);
+            }
+
+            result.print();
+
+            // execute the program
+            env.execute("Async IO Example: " + mode);
         }
-
-        result.print();
-
-        // execute the program
-        env.execute("Async IO Example: " + mode);
     }
 }

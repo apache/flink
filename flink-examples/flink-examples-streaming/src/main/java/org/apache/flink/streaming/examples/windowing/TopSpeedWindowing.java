@@ -22,7 +22,7 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.connector.source.util.ratelimit.GuavaRateLimiter;
+import org.apache.flink.api.connector.source.util.ratelimit.PerSecondRateLimiterStrategy;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
@@ -41,6 +41,8 @@ import org.apache.flink.streaming.examples.windowing.util.CarGeneratorFunction;
 import org.apache.flink.streaming.examples.wordcount.util.CLI;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collection;
 
 /**
  * An example of grouped stream windowing where different eviction and trigger policies can be used.
@@ -85,6 +87,7 @@ public class TopSpeedWindowing {
         // available in the Flink UI.
         env.getConfig().setGlobalJobParameters(params);
 
+        final Collection<AutoCloseable> closeables = new ArrayList<>();
         SingleOutputStreamOperator<Tuple4<Integer, Integer, Double, Long>> carData;
         if (params.getInputs().isPresent()) {
             // Create a new file source that will read files from a given set of directories.
@@ -103,11 +106,15 @@ public class TopSpeedWindowing {
                             .name("parse-input");
         } else {
             CarGeneratorFunction carGenerator = new CarGeneratorFunction(2);
+            final PerSecondRateLimiterStrategy rateLimiterStrategy =
+                    PerSecondRateLimiterStrategy.create(10);
+            closeables.add(rateLimiterStrategy);
+
             DataGeneratorSource<Tuple4<Integer, Integer, Double, Long>> carGeneratorSource =
                     new DataGeneratorSource<>(
                             carGenerator,
                             Long.MAX_VALUE,
-                            parallelismIgnored -> new GuavaRateLimiter(10),
+                            rateLimiterStrategy,
                             TypeInformation.of(
                                     new TypeHint<Tuple4<Integer, Integer, Double, Long>>() {}));
             carData =
@@ -170,6 +177,10 @@ public class TopSpeedWindowing {
         }
 
         env.execute("CarTopSpeedWindowingExample");
+
+        for (AutoCloseable closeable : closeables) {
+            closeable.close();
+        }
     }
 
     // *************************************************************************
