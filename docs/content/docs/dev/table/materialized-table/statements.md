@@ -388,7 +388,7 @@ ALTER MATERIALIZED TABLE my_materialized_table
 ```
 
 <span class="label label-danger">Note</span>
-- Schema modification only supports adding `nullable` columns at the end of the original table's schema.
+- Schema evolution currently only supports adding `nullable` columns to the end of the original table's schema.
 - In continuous mode, the new refresh job will not restore from the state of the original refresh job. This may result in temporary data duplication or loss.
 
 # DROP MATERIALIZED TABLE
