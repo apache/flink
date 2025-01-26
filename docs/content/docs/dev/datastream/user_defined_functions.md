@@ -30,9 +30,6 @@ Most operations require a user-defined function. This section lists different
 ways of how they can be specified. We also cover `Accumulators`, which can be
 used to gain insights into your Flink application.
 
-{{< tabs "ff746fe9-c77d-443f-b7ec-41716f968349" >}}
-{{< tab "Java" >}}
-
 ## Implementing an interface
 
 The most basic way is to implement one of the provided interfaces:
@@ -96,59 +93,6 @@ data.map (new RichMapFunction<String, Integer>() {
   public Integer map(String value) { return Integer.parseInt(value); }
 });
 ```
-
-{{< /tab >}}
-{{< tab "Scala" >}}
-
-## Lambda Functions
-
-As already seen in previous examples all operations accept lambda functions for describing
-the operation:
-```scala
-val data: DataStream[String] = // [...]
-data.filter { _.startsWith("http://") }
-```
-
-```scala
-val data: DataStream[Int] = // [...]
-data.reduce { (i1,i2) => i1 + i2 }
-// or
-data.reduce { _ + _ }
-```
-
-## Rich functions
-
-All transformations that take as argument a lambda function can
-instead take as argument a *rich* function. For example, instead of
-
-```scala
-data.map { x => x.toInt }
-```
-
-you can write
-
-```scala
-class MyMapFunction extends RichMapFunction[String, Int] {
-  def map(in: String): Int = in.toInt
-}
-```
-
-and pass the function to a `map` transformation:
-
-```scala
-data.map(new MyMapFunction())
-```
-
-Rich functions can also be defined as an anonymous class:
-```scala
-data.map (new RichMapFunction[String, Int] {
-  def map(in: String): Int = in.toInt
-})
-```
-{{< /tab >}}
-{{< /tabs >}}
-
-{{< top >}}
 
 ## Accumulators & Counters
 

@@ -72,14 +72,6 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 env.getCheckpointConfig().enableUnalignedCheckpoints();
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-
-// 启用非对齐 Checkpoint
-env.getCheckpointConfig.enableUnalignedCheckpoints()
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 env = StreamExecutionEnvironment.get_execution_environment()

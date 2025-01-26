@@ -31,7 +31,7 @@ under the License.
 Flink 的 Java DataStream API 可以将任何可序列化的对象转化为流。Flink  自带的序列化器有
 
 - 基本类型，即 String、Long、Integer、Boolean、Array
-- 复合类型：Tuples、POJOs 和 Scala case classes
+- 复合类型：Tuples、POJOs
 
 而且 Flink 会交给 Kryo 序列化其他类型。也可以将其他序列化器和 Flink 一起使用。特别是有良好支持的 Avro。
 
@@ -75,18 +75,6 @@ Person person = new Person("Fred Flintstone", 35);
 ```
 
 Flink 的序列化器[支持的 POJO 类型数据结构升级]({{< ref "docs/dev/datastream/fault-tolerance/serialization/schema_evolution" >}}#pojo-types)。
-
-### Scala tuples 和 case classes
-
-如果你了解 Scala，那一定知道 tuple 和 case class。
-
-{{< hint warning >}}
-All Flink Scala APIs are deprecated and will be removed in a future Flink version. You can still build your application in Scala, but you should move to the Java version of either the DataStream and/or Table API.
-
-See <a href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-265+Deprecate+and+remove+Scala+API+support">FLIP-265 Deprecate and remove Scala API support</a>
-{{< /hint >}}
-
-{{< top >}}
 
 ## 一个完整的示例
 

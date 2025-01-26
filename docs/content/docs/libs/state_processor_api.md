@@ -332,12 +332,6 @@ Each savepoint is made up of one or more `StateBootstrapTransformation`'s (expla
 When using the `SavepointWriter`, your application must be executed under [BATCH]({{< ref "docs/dev/datastream/execution_mode" >}}) execution.
 {{< /hint >}}
 
-{{< hint info >}}
-**Note** The state processor api does not currently provide a Scala API. As a result
-it will always auto-derive serializers using the Java type stack. To bootstrap 
-a savepoint for the Scala DataStream API please manually pass in all type information.
-{{< /hint >}}
-
 ```java
 int maxParallelism = 128;
 

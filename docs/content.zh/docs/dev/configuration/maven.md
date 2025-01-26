@@ -67,7 +67,7 @@ __注意：__ 如果您使用不同于 `DataStreamJob` 的类作为应用程序�
 
 然后在命令行执行 `mvn install`。
 
-当您在由 `Java Project Template`、`Scala Project Template` 或 Gradle 创建出来的项目里，运行 `mvn clean package` 会自动将应用程序依赖打包进应用程序 JAR。对于不是通过这些模板创建的项目，我们建议使用 Maven Shade 插件以将所有必需的依赖项打包进应用程序 jar。
+当您在由 `Java Project Template` 或 Gradle 创建出来的项目里，运行 `mvn clean package` 会自动将应用程序依赖打包进应用程序 JAR。对于不是通过这些模板创建的项目，我们建议使用 Maven Shade 插件以将所有必需的依赖项打包进应用程序 jar。
 
 **重要提示：** 请注意，应将所有这些（核心）依赖项的生效范围置为 [*provided*](https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html#dependency-scope)。这意味着需要对它们进行编译，但不应将它们打包进项目生成的应用程序 JAR 文件中。如果不设置为 *provided*，最好的情况是生成的 JAR 变得过大，因为它还包含所有 Flink 核心依赖项。最坏的情况是添加到应用程序 JAR 文件中的 Flink 核心依赖项与您自己的一些依赖项的版本冲突（通常通过反向类加载来避免）。
 

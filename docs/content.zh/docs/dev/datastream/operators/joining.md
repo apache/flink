@@ -54,8 +54,6 @@ stream.join(otherStream)
 
 如图所示，我们定义了一个大小为 2 毫秒的滚动窗口，即形成了边界为 `[0,1], [2,3], ...` 的窗口。图中展示了如何将每个窗口中的元素组合成对，组合的结果将被传递给 `JoinFunction`。注意，滚动窗口 `[6,7]` 将不会输出任何数据，因为绿色流当中没有数据可以与橙色流的 ⑥ 和 ⑦ 配对。
 
-{{< tabs "a8e08868-40d6-4719-b554-e2cabf2e1f6f" >}}
-{{< tab "Java" >}}
 ```java
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
@@ -77,27 +75,6 @@ orangeStream.join(greenStream)
         }
     });
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-
-```scala
-import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
-import java.time.Duration
-
-...
-
-val orangeStream: DataStream[Integer] = ...
-val greenStream: DataStream[Integer] = ...
-
-orangeStream.join(greenStream)
-    .where(elem => /* select key */)
-    .equalTo(elem => /* select key */)
-    .window(TumblingEventTimeWindows.of(Duration.ofMillis(2)))
-    .apply { (e1, e2) => e1 + "," + e2 }
-```
-
-{{< /tab >}}
-{{< /tabs >}}
 
 ### 滑动 Window Join
 
@@ -107,9 +84,6 @@ orangeStream.join(greenStream)
 
 本例中我们定义了长度为两毫秒，滑动距离为一毫秒的滑动窗口，生成的窗口实例区间为 `[-1, 0],[0,1],[1,2],[2,3], …`。<!-- TODO: Can -1 actually exist?--> 
 X 轴下方是每个滑动窗口中被 join 后传递给 `JoinFunction` 的元素。图中可以看到橙色 ② 与绿色 ③ 在窗口 `[2,3]` 中 join，但没有与窗口 `[1,2]` 中任何元素 join。
-
-{{< tabs "a3d3218b-dd25-4428-bfbb-d02522d95661" >}}
-{{< tab "Java" >}}
 
 ```java
 import org.apache.flink.api.java.functions.KeySelector;
@@ -132,26 +106,6 @@ orangeStream.join(greenStream)
         }
     });
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-
-```scala
-import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows
-import java.time.Duration
-
-...
-
-val orangeStream: DataStream[Integer] = ...
-val greenStream: DataStream[Integer] = ...
-
-orangeStream.join(greenStream)
-    .where(elem => /* select key */)
-    .equalTo(elem => /* select key */)
-    .window(SlidingEventTimeWindows.of(Duration.ofMillis(2) /* size */, Duration.ofMillis(1) /* slide */))
-    .apply { (e1, e2) => e1 + "," + e2 }
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 ### 会话 Window Join
 
@@ -160,9 +114,6 @@ orangeStream.join(greenStream)
 {{< img src="/fig/session-window-join.svg" width="80%" >}} 
 
 这里我们定义了一个间隔为至少一毫秒的会话窗口。图中总共有三个会话，前两者中两个流都有元素，它们被 join 并传递给 `JoinFunction`。而第三个会话中，绿流没有任何元素，所以 ⑧ 和 ⑨ 没有被 join！
-
-{{< tabs "0e75f447-e1f7-4f38-b68c-de42ddd33512" >}}
-{{< tab "Java" >}}
 
 ```java
 import org.apache.flink.api.java.functions.KeySelector;
@@ -185,27 +136,6 @@ orangeStream.join(greenStream)
         }
     });
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-
-```scala
-import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows
-import java.time.Duration
-
-...
-
-val orangeStream: DataStream[Integer] = ...
-val greenStream: DataStream[Integer] = ...
-
-orangeStream.join(greenStream)
-    .where(elem => /* select key */)
-    .equalTo(elem => /* select key */)
-    .window(EventTimeSessionWindows.withGap(Duration.ofMillis(1)))
-    .apply { (e1, e2) => e1 + "," + e2 }
-```
-
-{{< /tab >}}
-{{< /tabs >}}
 
 ## Interval Join
 
@@ -234,9 +164,6 @@ Interval join 目前仅支持 event time。
 
 `orangeElem.ts + lowerBound <= greenElem.ts <= orangeElem.ts + upperBound`
 
-{{< tabs "63cebeb2-5869-4d2e-998d-d77fb466e2e6" >}}
-{{< tab "Java" >}}
-
 ```java
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
@@ -259,32 +186,5 @@ orangeStream
         }
     });
 ```
-
-{{< /tab >}}
-{{< tab "Scala" >}}
-
-```scala
-import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction
-import java.time.Duration
-
-...
-
-val orangeStream: DataStream[Integer] = ...
-val greenStream: DataStream[Integer] = ...
-
-orangeStream
-    .keyBy(elem => /* select key */)
-    .intervalJoin(greenStream.keyBy(elem => /* select key */))
-    .between(Duration.ofMillis(-2), Duration.ofMillis(1))
-    .process(new ProcessJoinFunction[Integer, Integer, String] {
-        override def processElement(left: Integer, right: Integer, ctx: ProcessJoinFunction[Integer, Integer, String]#Context, out: Collector[String]): Unit = {
-            out.collect(left + "," + right)
-        }
-    })
-
-```
-
-{{< /tab >}}
-{{< /tabs >}}
 
 {{< top >}}

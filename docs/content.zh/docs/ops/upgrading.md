@@ -32,7 +32,7 @@ Flink DataStream 程序通常设计为长时间运行，例如数周、数月甚
 
 ## API compatibility guarantees
 
-The classes & methods of the Java/Scala APIs that are intended for users are annotated with the following stability annotations:
+The classes & methods of the Java APIs that are intended for users are annotated with the following stability annotations:
 * `Public`
 * `PublicEvolving`
 * `Experimental`
@@ -99,9 +99,9 @@ That same code would have to be recompiled when upgrading to 1.16.0 though.
 
 当应用程序从 Savepoint 重新启动时，Flink 会将 Savepoint 中存储的算子状态与已启动应用程序的有状态算子进行匹配。匹配是基于算子 ID 完成的，算子 ID 也存储在 Savepoint 中。每个算子都有一个默认 ID，该 ID 源自算子在应用程序算子拓扑中的位置。因此，未修改的应用程序始终可以从其自己的 Savepoint 之一重新启动。但是，如果应用程序被修改，运营商的默认 ID 可能会发生变化。因此，只有明确指定了算子 ID，才能从 Savepoint 启动修改后的应用程序。为算子分配 ID 非常简单，使用 uid(String) 方法完成，如下所示：
 
-```scala
-val mappedEvents: DataStream[(Int, Long)] = events
-  .map(new MyStatefulMapFunc()).uid("mapper-1")
+```java
+DataStream<String> mappedEvents = event
+  .map(new MyStatefulMapFunc()).uid("mapper-1");
 ```
 
 **Note:** 由于 Savepoint 中存储的算子 ID 和要启动的应用程序中的算子 ID 必须相等，因此强烈建议为将来可能升级的应用程序的所有算子分配唯一 ID。此建议适用于所有算子，即有和没有明确声明算子状态的算子，因为某些算子具有用户不可见的内部状态。在没有分配算子 ID 的情况下升级应用程序要困难得多，并且只能通过使用 `setUidHash()` 方法的低级解决方法来实现。
