@@ -59,12 +59,6 @@ to create a Flink project.
 You can create a project based on an [Archetype](https://maven.apache.org/guides/introduction/introduction-to-archetypes.html)
 with the Maven command below or use the provided quickstart bash script.
 
-{{< hint warning >}}
-All Flink Scala APIs are deprecated and will be removed in a future Flink version. You can still build your application in Scala, but you should move to the Java version of either the DataStream and/or Table API.
-
-See <a href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-265+Deprecate+and+remove+Scala+API+support">FLIP-265 Deprecate and remove Scala API support</a>
-{{< /hint >}}
-
 ### Maven command
 ```bash
 $ mvn archetype:generate                \
@@ -228,7 +222,7 @@ In case of Table API programs, you will also need `flink-table-runtime` and `fli
 
 As a rule of thumb, we **suggest** packaging the application code and all its required dependencies into one fat/uber JAR.
 This includes packaging connectors, formats, and third-party dependencies of your job.
-This rule **does not apply** to Java APIs, DataStream Scala APIs, and the aforementioned runtime modules, 
+This rule **does not apply** to Java APIs and the aforementioned runtime modules, 
 which are already provided by Flink itself and **should not** be included in a job uber JAR.
 This job JAR can be submitted to an already running Flink cluster, or added to a Flink application
 container image easily without modifying the distribution.

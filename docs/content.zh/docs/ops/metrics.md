@@ -67,26 +67,6 @@ public class MyMapper extends RichMapFunction<String, String> {
 
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-class MyMapper extends RichMapFunction[String,String] {
-  @transient private var counter: Counter = _
-
-  override def open(parameters: Configuration): Unit = {
-    counter = getRuntimeContext()
-      .getMetricGroup()
-      .counter("myCounter")
-  }
-
-  override def map(value: String): String = {
-    counter.inc()
-    value
-  }
-}
-
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 
@@ -132,26 +112,6 @@ public class MyMapper extends RichMapFunction<String, String> {
 
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-class MyMapper extends RichMapFunction[String,String] {
-  @transient private var counter: Counter = _
-
-  override def open(parameters: Configuration): Unit = {
-    counter = getRuntimeContext()
-      .getMetricGroup()
-      .counter("myCustomCounter", new CustomCounter())
-  }
-
-  override def map(value: String): String = {
-    counter.inc()
-    value
-  }
-}
-
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 Still not supported in Python API.
@@ -188,26 +148,6 @@ public class MyMapper extends RichMapFunction<String, String> {
   public String map(String value) throws Exception {
     valueToExpose++;
     return value;
-  }
-}
-
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-new class MyMapper extends RichMapFunction[String,String] {
-  @transient private var valueToExpose = 0
-
-  override def open(parameters: Configuration): Unit = {
-    getRuntimeContext()
-      .getMetricGroup()
-      .gauge[Int, ScalaGauge[Int]]("MyGauge", ScalaGauge[Int]( () => valueToExpose ) )
-  }
-
-  override def map(value: String): String = {
-    valueToExpose += 1
-    value
   }
 }
 
@@ -261,26 +201,6 @@ public class MyMapper extends RichMapFunction<Long, Long> {
 }
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-class MyMapper extends RichMapFunction[Long,Long] {
-  @transient private var histogram: Histogram = _
-
-  override def open(parameters: Configuration): Unit = {
-    histogram = getRuntimeContext()
-      .getMetricGroup()
-      .histogram("myHistogram", new MyHistogram())
-  }
-
-  override def map(value: Long): Long = {
-    histogram.update(value)
-    value
-  }
-}
-
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 Still not supported in Python API.
@@ -324,29 +244,6 @@ public class MyMapper extends RichMapFunction<Long, Long> {
 }
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-class MyMapper extends RichMapFunction[Long, Long] {
-  @transient private var histogram: Histogram = _
-
-  override def open(config: Configuration): Unit = {
-    val dropwizardHistogram =
-      new com.codahale.metrics.Histogram(new SlidingWindowReservoir(500))
-        
-    histogram = getRuntimeContext()
-      .getMetricGroup()
-      .histogram("myHistogram", new DropwizardHistogramWrapper(dropwizardHistogram))
-  }
-  
-  override def map(value: Long): Long = {
-    histogram.update(value)
-    value
-  }
-}
-
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 Still not supported in Python API.
@@ -378,26 +275,6 @@ public class MyMapper extends RichMapFunction<Long, Long> {
     return value;
   }
 }
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-class MyMapper extends RichMapFunction[Long,Long] {
-  @transient private var meter: Meter = _
-
-  override def open(config: Configuration): Unit = {
-    meter = getRuntimeContext()
-      .getMetricGroup()
-      .meter("myMeter", new MyMeter())
-  }
-
-  override def map(value: Long): Long = {
-    meter.markEvent()
-    value
-  }
-}
-
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -456,28 +333,6 @@ public class MyMapper extends RichMapFunction<Long, Long> {
 }
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-class MyMapper extends RichMapFunction[Long,Long] {
-  @transient private var meter: Meter = _
-
-  override def open(config: Configuration): Unit = {
-    val dropwizardMeter: com.codahale.metrics.Meter = new com.codahale.metrics.Meter()
-  
-    meter = getRuntimeContext()
-      .getMetricGroup()
-      .meter("myMeter", new DropwizardMeterWrapper(dropwizardMeter))
-  }
-
-  override def map(value: Long): Long = {
-    meter.markEvent()
-    value
-  }
-}
-
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 Still not supported in Python API.
@@ -512,21 +367,6 @@ counter = getRuntimeContext()
   .getMetricGroup()
   .addGroup("MyMetricsKey", "MyMetricsValue")
   .counter("myCounter");
-
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-counter = getRuntimeContext()
-  .getMetricGroup()
-  .addGroup("MyMetrics")
-  .counter("myCounter")
-
-counter = getRuntimeContext()
-  .getMetricGroup()
-  .addGroup("MyMetricsKey", "MyMetricsValue")
-  .counter("myCounter")
 
 ```
 {{< /tab >}}
@@ -612,16 +452,6 @@ counter = getRuntimeContext()
   .getMetricGroup()
   .addGroup("MyMetricsKey", "MyMetricsValue")
   .counter("myCounter");
-
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-counter = getRuntimeContext()
-  .getMetricGroup()
-  .addGroup("MyMetricsKey", "MyMetricsValue")
-  .counter("myCounter")
 
 ```
 {{< /tab >}}
