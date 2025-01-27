@@ -148,7 +148,7 @@ public class StreamExecLocalGroupAggregate extends StreamExecAggregateBase {
                         true);
         generator.needAccumulate().needMerge(0, true, null);
         if (needRetraction) {
-            generator.needRetract();
+            generator.needRetract(aggCallNeedRetractions);
         }
 
         final AggregateInfoList aggInfoList =
