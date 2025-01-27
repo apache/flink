@@ -1535,31 +1535,33 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left" style="width: 18%">Scope</th>
-      <th class="text-left" style="width: 26%">Metrics</th>
-      <th class="text-left" style="width: 48%">Description</th>
-      <th class="text-left" style="width: 8%">Type</th>
+      <th class="text-left" style="width: 15%">Scope</th>
+      <th class="text-left" style="width: 15%">Infix</th>
+      <th class="text-left" style="width: 15%">Metrics</th>
+      <th class="text-left" style="width: 50%">Description</th>
+      <th class="text-left" style="width: 5%">Type</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <th rowspan="4"><strong>Task/Operator</strong></th>
-      <td>forst.fileCache.hit</td>
+      <td rowspan="4">forst.fileCache</td>
+      <td>hit</td>
       <td>The hit count of ForSt state backend cache.</td>
       <td>Counter</td>
     </tr>
     <tr>
-      <td>forst.fileCache.miss</td>
+      <td>miss</td>
       <td>The miss count of ForSt state backend cache.</td>
       <td>Counter</td>
     </tr>
     <tr>
-      <td>forst.fileCache.usedBytes</td>
+      <td>usedBytes</td>
       <td>The bytes cached in ForSt state backend cache.</td>
       <td>Gauge</td>
     </tr>
     <tr>
-      <td>forst.fileCache.remainingBytes</td>
+      <td>remainingBytes</td>
       <td>The remaining space in the volume for the configured cache. Only available when 'state.backend.forst.cache.reserve-size' is set above 0. </td>
       <td>Gauge</td>
     </tr>
@@ -2226,6 +2228,44 @@ Metrics below can be used to measure the effectiveness of speculative execution.
       <td>Number of effective speculative execution attempts, i.e. speculative execution attempts which
       finish earlier than their corresponding original attempts.</td>
       <td>Counter</td>
+    </tr>
+  </tbody>
+</table>
+
+### Async State Processing
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 15%">Scope</th>
+      <th class="text-left" style="width: 10%">Infix</th>
+      <th class="text-left" style="width: 20%">Metrics</th>
+      <th class="text-left" style="width: 50%">Description</th>
+      <th class="text-left" style="width: 5%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="4"><strong>Operator</strong></th>
+      <td rowspan="4">asyncStateProcessing</td>
+      <td>numInFlightRecords</td>
+      <td>The number of in-flight records in the async execution controller's buffers.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>activeBufferSize</td>
+      <td>The number of records which are pending to be processed.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>blockingBufferSize</td>
+      <td>The number of records which are blocked by the ongoing records.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>numBlockingKeys</td>
+      <td>The number of different keys are blocked in async execution controller.</td>
+      <td>Gauge</td>
     </tr>
   </tbody>
 </table>

@@ -76,6 +76,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMiniBatch
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMultipleInput;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecOverAggregate;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecProcessTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCorrelate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonGroupAggregate;
@@ -124,7 +125,7 @@ public final class ExecNodeMetadataUtil {
     }
 
     private static final Set<Class<? extends ExecNode<?>>> EXEC_NODES =
-            new HashSet<Class<? extends ExecNode<?>>>() {
+            new HashSet<>() {
                 {
                     add(StreamExecCalc.class);
                     add(StreamExecChangelogNormalize.class);
@@ -164,6 +165,7 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecWindowTableFunction.class);
                     add(StreamExecPythonCalc.class);
                     add(StreamExecAsyncCalc.class);
+                    add(StreamExecProcessTableFunction.class);
                     add(StreamExecPythonCorrelate.class);
                     add(StreamExecPythonGroupAggregate.class);
                     add(StreamExecPythonGroupWindowAggregate.class);

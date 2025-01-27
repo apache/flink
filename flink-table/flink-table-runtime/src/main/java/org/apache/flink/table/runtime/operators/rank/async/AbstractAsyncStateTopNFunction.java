@@ -22,9 +22,9 @@ import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.state.v2.ValueState;
+import org.apache.flink.api.common.state.v2.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.core.state.StateFutureUtils;
-import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
@@ -34,10 +34,15 @@ import org.apache.flink.table.runtime.operators.rank.RankRange;
 import org.apache.flink.table.runtime.operators.rank.RankType;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Objects;
 
 /** Base class for TopN Function with async state api. */
 public abstract class AbstractAsyncStateTopNFunction extends AbstractTopNFunction {
+
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractAsyncStateTopNFunction.class);
 
     private ValueState<Long> rankEndState;
 
@@ -64,6 +69,8 @@ public abstract class AbstractAsyncStateTopNFunction extends AbstractTopNFunctio
     @Override
     public void open(OpenContext openContext) throws Exception {
         super.open(openContext);
+
+        LOG.info("Top-N is using async state");
 
         if (!isConstantRankEnd) {
             ValueStateDescriptor<Long> rankStateDesc =

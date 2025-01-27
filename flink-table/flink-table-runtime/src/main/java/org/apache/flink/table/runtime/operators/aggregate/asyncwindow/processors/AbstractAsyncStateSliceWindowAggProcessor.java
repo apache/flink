@@ -32,6 +32,9 @@ import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceSharedAssigner;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowTimerServiceImpl;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
@@ -45,6 +48,9 @@ import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
 public abstract class AbstractAsyncStateSliceWindowAggProcessor
         extends AbstractAsyncStateWindowAggProcessor<Long>
         implements AsyncStateSlicingWindowProcessor<Long> {
+
+    private static final Logger LOG =
+            LoggerFactory.getLogger(AbstractAsyncStateSliceWindowAggProcessor.class);
 
     protected final AsyncStateWindowBuffer.Factory windowBufferFactory;
     protected final SliceAssigner sliceAssigner;
@@ -80,6 +86,9 @@ public abstract class AbstractAsyncStateSliceWindowAggProcessor
     @Override
     public void open(AsyncStateContext<Long> context) throws Exception {
         super.open(context);
+
+        LOG.info("Slice window agg is using async state");
+
         this.windowBuffer =
                 windowBufferFactory.create(
                         ctx.getOperatorOwner(),

@@ -86,6 +86,7 @@ public class AbstractKeyedStateTestBase {
                         1,
                         1000,
                         1,
+                        null,
                         null);
         exception = new AtomicReference<>(null);
     }

@@ -56,6 +56,7 @@ public class AbstractStateIteratorTest {
                         100,
                         1000,
                         1,
+                        null,
                         null);
         stateExecutor.bindAec(aec);
         RecordContext<String> recordContext = aec.buildContext("1", "key1");
@@ -95,6 +96,7 @@ public class AbstractStateIteratorTest {
                         100,
                         1000,
                         1,
+                        null,
                         null);
         stateExecutor.bindAec(aec);
         RecordContext<String> recordContext = aec.buildContext("1", "key1");
@@ -141,6 +143,7 @@ public class AbstractStateIteratorTest {
                         100,
                         1000,
                         1,
+                        null,
                         null);
         stateExecutor.bindAec(aec);
         RecordContext<String> recordContext = aec.buildContext("1", "key1");

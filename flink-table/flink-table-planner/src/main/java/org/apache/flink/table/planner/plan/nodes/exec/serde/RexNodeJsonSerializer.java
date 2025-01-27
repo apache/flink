@@ -33,6 +33,7 @@ import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.planner.calcite.RexTableArgCall;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.functions.sql.BuiltInSqlOperator;
@@ -81,10 +82,10 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
     static final String FIELD_NAME_VALUE = "value";
     static final String FIELD_NAME_TYPE = "type";
     static final String FIELD_NAME_NAME = "name";
+    static final String FIELD_NAME_INPUT_INDEX = "inputIndex";
 
     // INPUT_REF
     static final String KIND_INPUT_REF = "INPUT_REF";
-    static final String FIELD_NAME_INPUT_INDEX = "inputIndex";
 
     // LITERAL
     static final String KIND_LITERAL = "LITERAL";
@@ -122,6 +123,11 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
     static final String FIELD_NAME_SQL_KIND = "sqlKind";
     static final String FIELD_NAME_CLASS = "class";
 
+    // TABLE_ARG_CALL
+    static final String KIND_TABLE_ARG_CALL = "TABLE_ARG_CALL";
+    static final String FIELD_NAME_PARTITION_KEYS = "partitionKeys";
+    static final String FIELD_NAME_ORDER_KEYS = "orderKeys";
+
     RexNodeJsonSerializer() {
         super(RexNode.class);
     }
@@ -154,7 +160,10 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
                         (RexPatternFieldRef) rexNode, jsonGenerator, serializerProvider);
                 break;
             default:
-                if (rexNode instanceof RexCall) {
+                if (rexNode instanceof RexTableArgCall) {
+                    serializeTableArgCall(
+                            (RexTableArgCall) rexNode, jsonGenerator, serializerProvider);
+                } else if (rexNode instanceof RexCall) {
                     serializeCall(
                             (RexCall) rexNode,
                             jsonGenerator,
@@ -320,6 +329,20 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
         gen.writeStringField(FIELD_NAME_KIND, KIND_CORREL_VARIABLE);
         gen.writeStringField(FIELD_NAME_CORREL, variable.getName());
         serializerProvider.defaultSerializeField(FIELD_NAME_TYPE, variable.getType(), gen);
+        gen.writeEndObject();
+    }
+
+    private static void serializeTableArgCall(
+            RexTableArgCall tableArgCall, JsonGenerator gen, SerializerProvider serializerProvider)
+            throws IOException {
+        gen.writeStartObject();
+        gen.writeStringField(FIELD_NAME_KIND, KIND_TABLE_ARG_CALL);
+        gen.writeNumberField(FIELD_NAME_INPUT_INDEX, tableArgCall.getInputIndex());
+        gen.writeFieldName(FIELD_NAME_PARTITION_KEYS);
+        gen.writeArray(tableArgCall.getPartitionKeys(), 0, tableArgCall.getPartitionKeys().length);
+        gen.writeFieldName(FIELD_NAME_ORDER_KEYS);
+        gen.writeArray(tableArgCall.getOrderKeys(), 0, tableArgCall.getOrderKeys().length);
+        serializerProvider.defaultSerializeField(FIELD_NAME_TYPE, tableArgCall.getType(), gen);
         gen.writeEndObject();
     }
 

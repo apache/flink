@@ -145,7 +145,8 @@ class CatalogBaseTableResolutionTest {
                             "primary_constraint", Collections.singletonList("id")));
 
     private static final ContinuousRefreshHandler CONTINUOUS_REFRESH_HANDLER =
-            new ContinuousRefreshHandler("remote", JobID.generate().toHexString());
+            new ContinuousRefreshHandler(
+                    "remote", "StandaloneClusterId", JobID.generate().toHexString());
 
     private static final String DEFINITION_QUERY =
             String.format(

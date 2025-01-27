@@ -219,6 +219,15 @@ public class StateRequestBuffer<K> implements Closeable {
     }
 
     /**
+     * Get the number of different keys in blocking queue.
+     *
+     * @return the number of different keys in blocking queue.
+     */
+    int blockingKeyNum() {
+        return blockingQueue.size();
+    }
+
+    /**
      * Get the number of state requests of active queue in constant-time.
      *
      * @return the number of state requests of active queue.

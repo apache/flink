@@ -53,6 +53,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.lit;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for resolving types of computed columns (including time attributes) of tables from catalog.
@@ -200,6 +201,28 @@ class JavaCatalogTableTest extends TableTestBase {
                         + "FROM `cat`.`default`.`t` AS `o`\n"
                         + "CROSS JOIN UNNEST(`o`.`product_ids`) AS `pids` (`product_id`)");
         testUtil.verifyExecPlan("SELECT * FROM `cat`.`default`.v");
+    }
+
+    @TestTemplate
+    void testShowCreateViewUsesCorrectColumnNames() {
+        TableTestUtil testUtil = getTestUtil();
+        TableEnvironment tableEnvironment = testUtil.getTableEnv();
+        tableEnvironment.registerCatalog("cat", new CustomCatalog("cat"));
+        tableEnvironment.executeSql(
+                "CREATE VIEW `cat`.`default`.v (`customer_id`, `product_id`) AS " + "SELECT 1, 1");
+        String result =
+                tableEnvironment
+                        .executeSql("SHOW CREATE VIEW `cat`.`default`.v")
+                        .collect()
+                        .next()
+                        .getFieldAs(0);
+        assertThat(result)
+                .isEqualTo(
+                        "CREATE VIEW `cat`.`default`.`v` (\n"
+                                + "  `customer_id`,\n"
+                                + "  `product_id`\n"
+                                + ")\n"
+                                + "AS SELECT 1, 1\n");
     }
 
     private static class CustomCatalog extends GenericInMemoryCatalog {

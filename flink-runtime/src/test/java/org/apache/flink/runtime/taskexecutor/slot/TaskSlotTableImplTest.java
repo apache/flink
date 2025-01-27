@@ -27,6 +27,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAda
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
+import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.function.TriFunctionWithException;
@@ -49,6 +50,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link TaskSlotTable}. */
 class TaskSlotTableImplTest {
@@ -59,7 +62,7 @@ class TaskSlotTableImplTest {
 
     private static final Duration SLOT_TIMEOUT = Duration.ofSeconds(100L);
 
-    /** Tests that one can can mark allocated slots as active. */
+    /** Tests that one can mark allocated slots as active. */
     @Test
     void testTryMarkSlotActive() throws Exception {
         final TaskSlotTableImpl<?> taskSlotTable = createTaskSlotTableAndStart(3);
@@ -127,9 +130,17 @@ class TaskSlotTableImplTest {
             final AllocationID allocationId1 = new AllocationID();
             final AllocationID allocationId2 = new AllocationID();
 
-            assertThat(taskSlotTable.allocateSlot(0, jobId, allocationId1, SLOT_TIMEOUT)).isTrue();
-            assertThat(taskSlotTable.allocateSlot(1, jobId, allocationId1, SLOT_TIMEOUT)).isFalse();
-            assertThat(taskSlotTable.allocateSlot(0, jobId, allocationId2, SLOT_TIMEOUT)).isFalse();
+            assertThatNoException()
+                    .isThrownBy(
+                            () ->
+                                    taskSlotTable.allocateSlot(
+                                            0, jobId, allocationId1, SLOT_TIMEOUT));
+            assertThatThrownBy(
+                            () -> taskSlotTable.allocateSlot(1, jobId, allocationId1, SLOT_TIMEOUT))
+                    .isInstanceOf(SlotAllocationException.class);
+            assertThatThrownBy(
+                            () -> taskSlotTable.allocateSlot(0, jobId, allocationId2, SLOT_TIMEOUT))
+                    .isInstanceOf(SlotAllocationException.class);
 
             assertThat(taskSlotTable.isAllocated(0, jobId, allocationId1)).isTrue();
             assertThat(taskSlotTable.isSlotFree(1)).isTrue();
@@ -152,9 +163,16 @@ class TaskSlotTableImplTest {
             final JobID jobId2 = new JobID();
             final AllocationID allocationId = new AllocationID();
 
-            assertThat(taskSlotTable.allocateSlot(-1, jobId1, allocationId, SLOT_TIMEOUT)).isTrue();
-            assertThat(taskSlotTable.allocateSlot(-1, jobId2, allocationId, SLOT_TIMEOUT))
-                    .isFalse();
+            assertThatNoException()
+                    .isThrownBy(
+                            () ->
+                                    taskSlotTable.allocateSlot(
+                                            -1, jobId1, allocationId, SLOT_TIMEOUT));
+            assertThatThrownBy(
+                            () ->
+                                    taskSlotTable.allocateSlot(
+                                            -1, jobId2, allocationId, SLOT_TIMEOUT))
+                    .isInstanceOf(SlotAllocationException.class);
 
             assertThat(taskSlotTable.isAllocated(1, jobId1, allocationId)).isTrue();
 
@@ -171,14 +189,24 @@ class TaskSlotTableImplTest {
             final JobID jobId = new JobID();
             final AllocationID allocationId = new AllocationID();
 
-            assertThat(
-                            taskSlotTable.allocateSlot(
-                                    0, jobId, allocationId, ResourceProfile.UNKNOWN, SLOT_TIMEOUT))
-                    .isTrue();
-            assertThat(
-                            taskSlotTable.allocateSlot(
-                                    0, jobId, allocationId, ResourceProfile.UNKNOWN, SLOT_TIMEOUT))
-                    .isTrue();
+            assertThatNoException()
+                    .isThrownBy(
+                            () ->
+                                    taskSlotTable.allocateSlot(
+                                            0,
+                                            jobId,
+                                            allocationId,
+                                            ResourceProfile.UNKNOWN,
+                                            SLOT_TIMEOUT));
+            assertThatNoException()
+                    .isThrownBy(
+                            () ->
+                                    taskSlotTable.allocateSlot(
+                                            0,
+                                            jobId,
+                                            allocationId,
+                                            ResourceProfile.UNKNOWN,
+                                            SLOT_TIMEOUT));
 
             assertThat(taskSlotTable.isAllocated(0, jobId, allocationId)).isTrue();
             assertThat(taskSlotTable.isSlotFree(1)).isTrue();
@@ -196,12 +224,20 @@ class TaskSlotTableImplTest {
             final JobID jobId = new JobID();
             final AllocationID allocationId = new AllocationID();
 
-            assertThat(taskSlotTable.allocateSlot(-1, jobId, allocationId, SLOT_TIMEOUT)).isTrue();
+            assertThatNoException()
+                    .isThrownBy(
+                            () ->
+                                    taskSlotTable.allocateSlot(
+                                            -1, jobId, allocationId, SLOT_TIMEOUT));
             Iterator<TaskSlot<TaskSlotPayload>> allocatedSlots =
                     taskSlotTable.getAllocatedSlots(jobId);
             TaskSlot<TaskSlotPayload> taskSlot1 = allocatedSlots.next();
 
-            assertThat(taskSlotTable.allocateSlot(-1, jobId, allocationId, SLOT_TIMEOUT)).isTrue();
+            assertThatNoException()
+                    .isThrownBy(
+                            () ->
+                                    taskSlotTable.allocateSlot(
+                                            -1, jobId, allocationId, SLOT_TIMEOUT));
             allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
             TaskSlot<TaskSlotPayload> taskSlot2 = allocatedSlots.next();
 
@@ -218,8 +254,16 @@ class TaskSlotTableImplTest {
             final AllocationID allocationId1 = new AllocationID();
             final AllocationID allocationId2 = new AllocationID();
 
-            assertThat(taskSlotTable.allocateSlot(0, jobId, allocationId1, SLOT_TIMEOUT)).isTrue();
-            assertThat(taskSlotTable.allocateSlot(1, jobId, allocationId2, SLOT_TIMEOUT)).isTrue();
+            assertThatNoException()
+                    .isThrownBy(
+                            () ->
+                                    taskSlotTable.allocateSlot(
+                                            0, jobId, allocationId1, SLOT_TIMEOUT));
+            assertThatNoException()
+                    .isThrownBy(
+                            () ->
+                                    taskSlotTable.allocateSlot(
+                                            1, jobId, allocationId2, SLOT_TIMEOUT));
 
             assertThat(taskSlotTable.freeSlot(allocationId2)).isOne();
 
@@ -239,7 +283,11 @@ class TaskSlotTableImplTest {
             final JobID jobId = new JobID();
             final AllocationID allocationId = new AllocationID();
 
-            assertThat(taskSlotTable.allocateSlot(-1, jobId, allocationId, SLOT_TIMEOUT)).isTrue();
+            assertThatNoException()
+                    .isThrownBy(
+                            () ->
+                                    taskSlotTable.allocateSlot(
+                                            -1, jobId, allocationId, SLOT_TIMEOUT));
 
             Iterator<TaskSlot<TaskSlotPayload>> allocatedSlots =
                     taskSlotTable.getAllocatedSlots(jobId);
@@ -258,10 +306,15 @@ class TaskSlotTableImplTest {
                     TaskSlotUtils.DEFAULT_RESOURCE_PROFILE.merge(
                             ResourceProfile.newBuilder().setCpuCores(0.1).build());
 
-            assertThat(
-                            taskSlotTable.allocateSlot(
-                                    -1, jobId, allocationId, resourceProfile, SLOT_TIMEOUT))
-                    .isTrue();
+            assertThatNoException()
+                    .isThrownBy(
+                            () ->
+                                    taskSlotTable.allocateSlot(
+                                            -1,
+                                            jobId,
+                                            allocationId,
+                                            resourceProfile,
+                                            SLOT_TIMEOUT));
 
             Iterator<TaskSlot<TaskSlotPayload>> allocatedSlots =
                     taskSlotTable.getAllocatedSlots(jobId);
@@ -279,10 +332,15 @@ class TaskSlotTableImplTest {
             final JobID jobId = new JobID();
             final AllocationID allocationId = new AllocationID();
 
-            assertThat(
-                            taskSlotTable.allocateSlot(
-                                    -1, jobId, allocationId, ResourceProfile.UNKNOWN, SLOT_TIMEOUT))
-                    .isTrue();
+            assertThatNoException()
+                    .isThrownBy(
+                            () ->
+                                    taskSlotTable.allocateSlot(
+                                            -1,
+                                            jobId,
+                                            allocationId,
+                                            ResourceProfile.UNKNOWN,
+                                            SLOT_TIMEOUT));
 
             Iterator<TaskSlot<TaskSlotPayload>> allocatedSlots =
                     taskSlotTable.getAllocatedSlots(jobId);
@@ -302,10 +360,17 @@ class TaskSlotTableImplTest {
             ResourceProfile resourceProfile = TaskSlotUtils.DEFAULT_RESOURCE_PROFILE;
             resourceProfile = resourceProfile.merge(resourceProfile).merge(resourceProfile);
 
-            assertThat(
-                            taskSlotTable.allocateSlot(
-                                    -1, jobId, allocationId, resourceProfile, SLOT_TIMEOUT))
-                    .isFalse();
+            final ResourceProfile mergedResourceProfile = resourceProfile;
+
+            assertThatThrownBy(
+                            () ->
+                                    taskSlotTable.allocateSlot(
+                                            -1,
+                                            jobId,
+                                            allocationId,
+                                            mergedResourceProfile,
+                                            SLOT_TIMEOUT))
+                    .isInstanceOf(SlotAllocationException.class);
 
             Iterator<TaskSlot<TaskSlotPayload>> allocatedSlots =
                     taskSlotTable.getAllocatedSlots(jobId);
@@ -321,12 +386,30 @@ class TaskSlotTableImplTest {
             final AllocationID allocationId2 = new AllocationID();
             final AllocationID allocationId3 = new AllocationID();
 
-            assertThat(taskSlotTable.allocateSlot(0, jobId, allocationId1, SLOT_TIMEOUT))
-                    .isTrue(); // index 0
-            assertThat(taskSlotTable.allocateSlot(-1, jobId, allocationId2, SLOT_TIMEOUT))
-                    .isTrue(); // index 3
-            assertThat(taskSlotTable.allocateSlot(-1, jobId, allocationId3, SLOT_TIMEOUT))
-                    .isTrue(); // index 4
+            assertThatNoException()
+                    .as(
+                            "Slot with allocation ID %s should have been allocated successfully.",
+                            allocationId1)
+                    .isThrownBy(
+                            () ->
+                                    taskSlotTable.allocateSlot(
+                                            0, jobId, allocationId1, SLOT_TIMEOUT));
+            assertThatNoException()
+                    .as(
+                            "Slot with allocation ID %s should have been allocated successfully.",
+                            allocationId2)
+                    .isThrownBy(
+                            () ->
+                                    taskSlotTable.allocateSlot(
+                                            -1, jobId, allocationId2, SLOT_TIMEOUT)); // index 3
+            assertThatNoException()
+                    .as(
+                            "Slot with allocation ID %s should have been allocated successfully.",
+                            allocationId3)
+                    .isThrownBy(
+                            () ->
+                                    taskSlotTable.allocateSlot(
+                                            -1, jobId, allocationId3, SLOT_TIMEOUT));
 
             assertThat(taskSlotTable.freeSlot(allocationId2)).isEqualTo(3);
 
@@ -453,10 +536,11 @@ class TaskSlotTableImplTest {
         try (final TaskSlotTableImpl<TaskSlotPayload> taskSlotTable =
                 createTaskSlotTableAndStart(1, testingSlotActions)) {
             final AllocationID allocationId = new AllocationID();
-            assertThat(
-                            taskSlotTable.allocateSlot(
-                                    0, new JobID(), allocationId, Duration.ofMillis(1L)))
-                    .isTrue();
+            assertThatNoException()
+                    .isThrownBy(
+                            () ->
+                                    taskSlotTable.allocateSlot(
+                                            0, new JobID(), allocationId, Duration.ofMillis(1L)));
             assertThatFuture(timeoutFuture).eventuallySucceeds().isEqualTo(allocationId);
         }
     }
@@ -493,10 +577,11 @@ class TaskSlotTableImplTest {
             final AllocationID allocationId = new AllocationID();
             final long timeout = 50L;
             final JobID jobId = new JobID();
-            assertThat(
-                            taskSlotTable.allocateSlot(
-                                    0, jobId, allocationId, Duration.ofMillis(timeout)))
-                    .isTrue();
+            assertThatNoException()
+                    .isThrownBy(
+                            () ->
+                                    taskSlotTable.allocateSlot(
+                                            0, jobId, allocationId, Duration.ofMillis(timeout)));
             assertThat(taskSlotTableAction.apply(taskSlotTable, jobId, allocationId)).isTrue();
 
             timeoutCancellationFuture.get();
@@ -523,7 +608,8 @@ class TaskSlotTableImplTest {
             final JobID jobId, final AllocationID allocationId, final SlotActions slotActions) {
         final TaskSlotTable<TaskSlotPayload> taskSlotTable =
                 createTaskSlotTableAndStart(1, slotActions);
-        assertThat(taskSlotTable.allocateSlot(0, jobId, allocationId, SLOT_TIMEOUT)).isTrue();
+        assertThatNoException()
+                .isThrownBy(() -> taskSlotTable.allocateSlot(0, jobId, allocationId, SLOT_TIMEOUT));
         return taskSlotTable;
     }
 

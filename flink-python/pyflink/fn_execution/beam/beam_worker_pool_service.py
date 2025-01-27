@@ -156,7 +156,7 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
                 control_address=control_service_descriptor.url,
                 status_address=status_service_descriptor.url,
                 worker_id=_worker_id,
-                state_cache_size=sdk_worker_main._get_state_cache_size(experiments),
+                state_cache_size=sdk_worker_main._get_state_cache_size_bytes(sdk_pipeline_options),
                 data_buffer_time_limit_ms=sdk_worker_main._get_data_buffer_time_limit_ms(
                     experiments),
                 profiler_factory=profiler.Profile.factory_from_options(

@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.operators.aggregate.async;
 
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.v2.ValueState;
-import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
+import org.apache.flink.api.common.state.v2.ValueStateDescriptor;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
@@ -31,10 +31,15 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /** Aggregate Function used for the groupby (without window) aggregate with async state api. */
 public class AsyncStateGroupAggFunction extends GroupAggFunctionBase {
 
     private static final long serialVersionUID = 1L;
+
+    private static final Logger LOG = LoggerFactory.getLogger(AsyncStateGroupAggFunction.class);
 
     // stores the accumulators
     private transient ValueState<RowData> accState = null;
@@ -72,6 +77,8 @@ public class AsyncStateGroupAggFunction extends GroupAggFunctionBase {
     @Override
     public void open(OpenContext openContext) throws Exception {
         super.open(openContext);
+
+        LOG.info("Group agg is using async state");
 
         InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
         ValueStateDescriptor<RowData> accDesc = new ValueStateDescriptor<>("accState", accTypeInfo);

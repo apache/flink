@@ -35,6 +35,7 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
+import org.apache.flink.table.planner.calcite.RexTableArgCall;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils;
@@ -684,7 +685,17 @@ public class RexNodeJsonSerdeTest {
                         FlinkSqlOperatorTable.HASH_CODE,
                         rexBuilder.makeInputRef(FACTORY.createSqlType(SqlTypeName.INTEGER), 1)),
                 rexBuilder.makePatternFieldRef(
-                        "test", FACTORY.createSqlType(SqlTypeName.INTEGER), 0));
+                        "test", FACTORY.createSqlType(SqlTypeName.INTEGER), 0),
+                new RexTableArgCall(
+                        FACTORY.createStructType(
+                                StructKind.PEEK_FIELDS_NO_EXPAND,
+                                Arrays.asList(
+                                        FACTORY.createSqlType(SqlTypeName.VARCHAR),
+                                        FACTORY.createSqlType(SqlTypeName.INTEGER)),
+                                Arrays.asList("f1", "f2")),
+                        0,
+                        new int[] {1},
+                        new int[] {0}));
     }
 
     // --------------------------------------------------------------------------------------------

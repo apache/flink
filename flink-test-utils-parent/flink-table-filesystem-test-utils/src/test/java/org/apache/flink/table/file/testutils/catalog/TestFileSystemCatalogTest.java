@@ -175,7 +175,7 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
         expectedOptions.put(
                 PATH.key(),
                 String.format(
-                        "%s/%s/%s/%s",
+                        "file:%s/%s/%s/%s",
                         tempFile.getAbsolutePath(),
                         tablePath.getDatabaseName(),
                         tablePath.getObjectName(),
@@ -214,7 +214,7 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
         expectedOptions.put(
                 PATH.key(),
                 String.format(
-                        "%s/%s/%s/%s",
+                        "file:%s/%s/%s/%s",
                         tempFile.getAbsolutePath(),
                         tablePath.getDatabaseName(),
                         tablePath.getObjectName(),
@@ -350,7 +350,7 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
         expectedOptions.put(
                 PATH.key(),
                 String.format(
-                        "%s/%s/%s/%s",
+                        "file:%s/%s/%s/%s",
                         tempFile.getAbsolutePath(),
                         tablePath.getDatabaseName(),
                         tablePath.getObjectName(),

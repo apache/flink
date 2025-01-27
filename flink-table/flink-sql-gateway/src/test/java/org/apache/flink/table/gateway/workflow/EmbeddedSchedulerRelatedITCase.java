@@ -323,6 +323,21 @@ public class EmbeddedSchedulerRelatedITCase extends RestAPIITCaseBase {
                 new DeleteRefreshWorkflow<>(nonExistsHandler));
     }
 
+    @Test
+    void testCloseSchedulerWithoutOpen() throws Exception {
+        Configuration configuration = new Configuration();
+        configuration.set(WORKFLOW_SCHEDULER_TYPE, "embedded");
+        configuration.setString("sql-gateway.endpoint.rest.address", targetAddress);
+        configuration.setString("sql-gateway.endpoint.rest.port", String.valueOf(port));
+        EmbeddedWorkflowScheduler embeddedWorkflowScheduler =
+                (EmbeddedWorkflowScheduler)
+                        WorkflowSchedulerFactoryUtil.createWorkflowScheduler(
+                                configuration,
+                                EmbeddedSchedulerRelatedITCase.class.getClassLoader());
+
+        embeddedWorkflowScheduler.close();
+    }
+
     /** Just used for test. */
     private static class UnsupportedCreateRefreshWorkflow implements CreateRefreshWorkflow {}
 

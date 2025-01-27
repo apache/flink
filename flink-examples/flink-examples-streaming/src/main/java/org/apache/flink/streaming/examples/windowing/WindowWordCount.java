@@ -20,11 +20,14 @@ package org.apache.flink.streaming.examples.windowing;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.examples.wordcount.WordCount;
@@ -32,6 +35,8 @@ import org.apache.flink.streaming.examples.wordcount.util.CLI;
 import org.apache.flink.streaming.examples.wordcount.util.WordCountData;
 
 import java.time.Duration;
+
+import static org.apache.flink.runtime.state.StateBackendLoader.FORST_STATE_BACKEND_NAME;
 
 /**
  * Implements a windowed version of the streaming "WordCount" program.
@@ -88,6 +93,14 @@ public class WindowWordCount {
         // available in the Flink UI.
         env.getConfig().setGlobalJobParameters(params);
 
+        if (params.isAsyncState()) {
+            Configuration config = Configuration.fromMap(env.getConfiguration().toMap());
+            if (!config.containsKey(StateBackendOptions.STATE_BACKEND.key())) {
+                config.set(StateBackendOptions.STATE_BACKEND, FORST_STATE_BACKEND_NAME);
+                env.configure(config);
+            }
+        }
+
         DataStream<String> text;
         if (params.getInputs().isPresent()) {
             // Create a new file source that will read files from a given set of directories.
@@ -108,7 +121,7 @@ public class WindowWordCount {
         int windowSize = params.getInt("window").orElse(250);
         int slideSize = params.getInt("slide").orElse(150);
 
-        DataStream<Tuple2<String, Integer>> counts =
+        KeyedStream<Tuple2<String, Integer>, String> keyedStream =
                 // The text lines read from the source are split into words
                 // using a user-defined function. The tokenizer, implemented below,
                 // will output each words as a (2-tuple) containing (word, 1)
@@ -118,7 +131,14 @@ public class WindowWordCount {
                         // Using a keyBy allows performing aggregations and other
                         // stateful transformations over data on a per-key basis.
                         // This is similar to a GROUP BY clause in a SQL query.
-                        .keyBy(value -> value.f0)
+                        .keyBy(value -> value.f0);
+
+        if (params.isAsyncState()) {
+            keyedStream.enableAsyncState();
+        }
+
+        DataStream<Tuple2<String, Integer>> counts =
+                keyedStream
                         // create windows of windowSize records slided every slideSize records
                         .countWindow(windowSize, slideSize)
                         // For each key, we perform a simple sum of the "1" field, the count.

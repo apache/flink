@@ -57,13 +57,13 @@ public class AbstractReducingState<K, N, V> extends AbstractKeyedState<K, N, V>
     @Override
     public StateFuture<Void> asyncAdd(V value) {
         return asyncGetInternal()
-                .thenAccept(
+                .thenCompose(
                         oldValue -> {
                             V newValue =
                                     oldValue == null
                                             ? value
                                             : reduceFunction.reduce((V) oldValue, value);
-                            asyncUpdateInternal(newValue);
+                            return asyncUpdateInternal(newValue);
                         });
     }
 

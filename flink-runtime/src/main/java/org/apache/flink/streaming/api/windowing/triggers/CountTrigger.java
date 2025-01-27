@@ -86,6 +86,10 @@ public class CountTrigger<W extends Window> extends Trigger<Object, W> {
         return "CountTrigger(" + maxCount + ")";
     }
 
+    public long getMaxCount() {
+        return maxCount;
+    }
+
     /**
      * Creates a trigger that fires once the number of elements in a pane reaches the given count.
      *

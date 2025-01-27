@@ -22,7 +22,13 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.datastream.api.extension.join.JoinFunction;
 import org.apache.flink.datastream.api.extension.join.JoinType;
+import org.apache.flink.datastream.api.extension.window.function.OneInputWindowStreamProcessFunction;
+import org.apache.flink.datastream.api.extension.window.function.TwoInputNonBroadcastWindowStreamProcessFunction;
+import org.apache.flink.datastream.api.extension.window.function.TwoOutputWindowStreamProcessFunction;
+import org.apache.flink.datastream.api.extension.window.strategy.WindowStrategy;
+import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
 import org.apache.flink.datastream.api.function.TwoInputNonBroadcastStreamProcessFunction;
+import org.apache.flink.datastream.api.function.TwoOutputStreamProcessFunction;
 import org.apache.flink.datastream.api.stream.KeyedPartitionStream;
 import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream;
 
@@ -120,5 +126,90 @@ public class BuiltinFuncs {
                 rightStream.keyBy(rightKeySelector),
                 joinFunction,
                 joinType);
+    }
+
+    // =================== Window ===========================
+
+    static final Class<?> WINDOW_FUNCS_INSTANCE;
+
+    static {
+        try {
+            WINDOW_FUNCS_INSTANCE =
+                    Class.forName("org.apache.flink.datastream.impl.builtin.BuiltinWindowFuncs");
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException("Please ensure that flink-datastream in your class path");
+        }
+    }
+
+    /**
+     * Wrap the WindowStrategy and OneInputWindowStreamProcessFunction within a
+     * OneInputStreamProcessFunction to perform the window operation.
+     *
+     * @param windowStrategy the window strategy
+     * @param windowProcessFunction the window process function
+     * @return the wrapped process function
+     */
+    public static <IN, OUT> OneInputStreamProcessFunction<IN, OUT> window(
+            WindowStrategy windowStrategy,
+            OneInputWindowStreamProcessFunction<IN, OUT> windowProcessFunction) {
+        try {
+            return (OneInputStreamProcessFunction<IN, OUT>)
+                    WINDOW_FUNCS_INSTANCE
+                            .getMethod(
+                                    "window",
+                                    WindowStrategy.class,
+                                    OneInputWindowStreamProcessFunction.class)
+                            .invoke(null, windowStrategy, windowProcessFunction);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Wrap the WindowStrategy and TwoInputNonBroadcastWindowStreamProcessFunction within a
+     * TwoInputNonBroadcastStreamProcessFunction to perform the window operation.
+     *
+     * @param windowStrategy the window strategy
+     * @param windowProcessFunction the window process function
+     * @return the wrapped process function
+     */
+    public static <IN1, IN2, OUT> TwoInputNonBroadcastStreamProcessFunction<IN1, IN2, OUT> window(
+            WindowStrategy windowStrategy,
+            TwoInputNonBroadcastWindowStreamProcessFunction<IN1, IN2, OUT> windowProcessFunction) {
+        try {
+            return (TwoInputNonBroadcastStreamProcessFunction<IN1, IN2, OUT>)
+                    WINDOW_FUNCS_INSTANCE
+                            .getMethod(
+                                    "window",
+                                    WindowStrategy.class,
+                                    TwoInputNonBroadcastWindowStreamProcessFunction.class)
+                            .invoke(null, windowStrategy, windowProcessFunction);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Wrap the WindowStrategy and TwoOutputWindowStreamProcessFunction within a
+     * TwoOutputStreamProcessFunction to perform the window operation.
+     *
+     * @param windowStrategy the window strategy
+     * @param windowProcessFunction the window process function
+     * @return the wrapped process function
+     */
+    public static <IN, OUT1, OUT2> TwoOutputStreamProcessFunction<IN, OUT1, OUT2> window(
+            WindowStrategy windowStrategy,
+            TwoOutputWindowStreamProcessFunction<IN, OUT1, OUT2> windowProcessFunction) {
+        try {
+            return (TwoOutputStreamProcessFunction<IN, OUT1, OUT2>)
+                    WINDOW_FUNCS_INSTANCE
+                            .getMethod(
+                                    "window",
+                                    WindowStrategy.class,
+                                    TwoOutputWindowStreamProcessFunction.class)
+                            .invoke(null, windowStrategy, windowProcessFunction);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

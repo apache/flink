@@ -21,11 +21,14 @@ package org.apache.flink.table.runtime.operators.deduplicate.asyncprocessing;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.v2.ValueState;
+import org.apache.flink.api.common.state.v2.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionBase;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.apache.flink.table.runtime.util.StateConfigUtil.createTtlConfig;
 
@@ -42,6 +45,9 @@ abstract class AsyncStateDeduplicateFunctionBase<T, K, IN, OUT>
 
     private static final long serialVersionUID = 1L;
 
+    private static final Logger LOG =
+            LoggerFactory.getLogger(AsyncStateDeduplicateFunctionBase.class);
+
     // state stores previous message under the key.
     protected ValueState<T> state;
 
@@ -53,6 +59,8 @@ abstract class AsyncStateDeduplicateFunctionBase<T, K, IN, OUT>
     @Override
     public void open(OpenContext openContext) throws Exception {
         super.open(openContext);
+
+        LOG.info("Deduplicate is using async state");
 
         ValueStateDescriptor<T> stateDesc =
                 new ValueStateDescriptor<>("deduplicate-state", typeInfo);
