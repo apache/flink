@@ -28,10 +28,6 @@ under the License.
 
 物化表是 Flink SQL 引入的一种新的表类型，旨在简化批处理和流处理数据管道，提供一致的开发体验。在创建物化表时，通过指定数据新鲜度和查询，Flink 引擎会自动推导出物化表的 Schema ，并创建相应的数据刷新管道，以达到指定的新鲜度。
 
-{{< hint warning >}}
-**注意**：该功能目前是一个 MVP（最小可行产品）功能，仅在 [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}})中可用，并且只支持部署作业到 Flink [Standalone]({{< ref "docs/deployment/resource-providers/standalone/overview" >}})集群。
-{{< /hint >}}
-
 # 核心概念
 
 物化表包含以下核心概念：数据新鲜度、刷新模式、查询定义和 `Schema` 。
