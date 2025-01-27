@@ -24,7 +24,7 @@
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.19-SNAPSHOT</version>
+		<version>1.19.2</version>
 	</parent>
 
 	<artifactId>flink-tests-java17</artifactId>
