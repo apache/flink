@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.types.DataType;
@@ -136,6 +137,7 @@ public abstract class Column {
     public abstract Column copy(DataType newType);
 
     /** Returns a copy of the column with a replaced name. */
+    @Internal
     public abstract Column rename(String newName);
 
     @Override
