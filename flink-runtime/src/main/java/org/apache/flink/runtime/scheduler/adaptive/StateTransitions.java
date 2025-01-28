@@ -23,6 +23,7 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 
 import javax.annotation.Nullable;
@@ -128,9 +129,11 @@ public interface StateTransitions {
          *     Restarting} state
          * @param backoffTime backoffTime to wait before transitioning to the {@link Restarting}
          *     state
-         * @param forcedRestart if the {@link WaitingForResources} state should be omitted and the
-         *     {@link CreatingExecutionGraph} state should be entered directly from the {@link
-         *     Restarting} state
+         * @param restartWithParallelism the {@link VertexParallelism} that triggered the
+         *     restarting. The {@code AdaptiveScheduler} should transition directly to {@link
+         *     CreatingExecutionGraph} if the available parallelism hasn't changed while cancelling
+         *     the job. If {@code null} is passed or the parallelism changed, {@link
+         *     WaitingForResources} state should be the subsequent state.
          * @param failureCollection collection of failures that are propagated
          */
         void goToRestarting(
@@ -138,7 +141,7 @@ public interface StateTransitions {
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
                 Duration backoffTime,
-                boolean forcedRestart,
+                @Nullable VertexParallelism restartWithParallelism,
                 List<ExceptionHistoryEntry> failureCollection);
     }
 
