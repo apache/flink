@@ -2825,7 +2825,7 @@ public final class BuiltInFunctionDefinitions {
                     .kind(SCALAR)
                     .inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
-                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.JsonFunction")
+                    .runtimeProvided()
                     .build();
 
     // --------------------------------------------------------------------------------------------
