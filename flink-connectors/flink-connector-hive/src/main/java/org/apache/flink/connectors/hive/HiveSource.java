@@ -35,6 +35,8 @@ import org.apache.flink.connector.file.table.LimitableBulkFormat;
 import org.apache.flink.connectors.hive.read.HiveSourceSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.streaming.api.lineage.LineageVertex;
+import org.apache.flink.streaming.api.lineage.LineageVertexProvider;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.connector.source.DynamicFilteringEvent;
 import org.apache.flink.table.data.RowData;
@@ -60,7 +62,7 @@ import java.util.List;
  */
 @PublicEvolving
 public class HiveSource<T> extends AbstractFileSource<T, HiveSourceSplit>
-        implements DynamicParallelismInference {
+        implements DynamicParallelismInference, LineageVertexProvider {
 
     private static final long serialVersionUID = 1L;
 
@@ -73,6 +75,7 @@ public class HiveSource<T> extends AbstractFileSource<T, HiveSourceSplit>
     private final ContinuousPartitionFetcher<Partition, ?> fetcher;
     private final HiveTableSource.HiveContinuousPartitionFetcherContext<?> fetcherContext;
     private final ObjectPath tablePath;
+    private transient LineageVertex lineageVertex;
     private Long limit = null;
 
     HiveSource(
@@ -238,5 +241,14 @@ public class HiveSource<T> extends AbstractFileSource<T, HiveSourceSplit>
                                                 0, partitions, jobConfWrapper.conf(), true)
                                         .size())
                 .limit(limit);
+    }
+
+    void setLineageVertex(LineageVertex lineageVertex) {
+        this.lineageVertex = lineageVertex;
+    }
+
+    @Override
+    public LineageVertex getLineageVertex() {
+        return lineageVertex;
     }
 }

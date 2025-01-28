@@ -21,8 +21,12 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.connector.file.table.PartitionFetcher;
 import org.apache.flink.connector.file.table.PartitionReader;
+import org.apache.flink.streaming.api.lineage.DefaultSourceLineageVertex;
+import org.apache.flink.streaming.api.lineage.LineageVertex;
+import org.apache.flink.streaming.api.lineage.LineageVertexProvider;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.FunctionContext;
@@ -47,7 +51,8 @@ import java.util.Map;
  * <p>The hive connector and filesystem connector share read/write files code. Currently, this
  * function only used in hive connector.
  */
-public class FileSystemLookupFunction<P> extends TableFunction<RowData> {
+public class FileSystemLookupFunction<P> extends TableFunction<RowData>
+        implements LineageVertexProvider {
 
     private static final Logger LOG = LoggerFactory.getLogger(FileSystemLookupFunction.class);
 
@@ -64,6 +69,7 @@ public class FileSystemLookupFunction<P> extends TableFunction<RowData> {
     private final Duration reloadInterval;
     private final TypeSerializer<RowData> serializer;
     private final RowType rowType;
+    private transient LineageVertex lineageVertex;
 
     // cache for lookup data
     private transient Map<RowData, List<RowData>> cache;
@@ -88,6 +94,7 @@ public class FileSystemLookupFunction<P> extends TableFunction<RowData> {
         }
         this.reloadInterval = reloadInterval;
         this.serializer = InternalSerializers.create(rowType);
+        this.lineageVertex = new DefaultSourceLineageVertex(Boundedness.BOUNDED);
     }
 
     @Override
@@ -199,5 +206,14 @@ public class FileSystemLookupFunction<P> extends TableFunction<RowData> {
     @VisibleForTesting
     public PartitionReader<P, RowData> getPartitionReader() {
         return partitionReader;
+    }
+
+    @Override
+    public LineageVertex getLineageVertex() {
+        return lineageVertex;
+    }
+
+    void setLineageVertex(LineageVertex lineageVertex) {
+        this.lineageVertex = lineageVertex;
     }
 }

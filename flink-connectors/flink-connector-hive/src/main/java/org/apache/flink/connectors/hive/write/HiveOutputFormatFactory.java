@@ -20,14 +20,22 @@ package org.apache.flink.connectors.hive.write;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.table.OutputFormatFactory;
+import org.apache.flink.connectors.hive.util.HiveConfUtils;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
+import org.apache.flink.streaming.api.lineage.DefaultLineageDataset;
+import org.apache.flink.streaming.api.lineage.DefaultLineageVertex;
+import org.apache.flink.streaming.api.lineage.LineageDataset;
+import org.apache.flink.streaming.api.lineage.LineageVertex;
+import org.apache.flink.streaming.api.lineage.LineageVertexProvider;
 import org.apache.flink.types.Row;
 
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator.RecordWriter;
 import org.apache.hadoop.io.Writable;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.function.Function;
 
 /** Hive {@link OutputFormatFactory}, use {@link RecordWriter} to write record. */
@@ -43,19 +51,28 @@ public class HiveOutputFormatFactory implements OutputFormatFactory<Row> {
 
     @Override
     public HiveOutputFormat createOutputFormat(Path path) {
-        return new HiveOutputFormat(
-                factory.createRecordWriter(HadoopFileSystem.toHadoopPath(path)),
-                factory.createRowConverter());
+        HiveConf hiveConf = HiveConfUtils.create(factory.getJobConf());
+        final String thriftURL = hiveConf.get(HiveConf.ConfVars.METASTOREURIS.varname);
+        HiveOutputFormat outputFormat =
+                new HiveOutputFormat(
+                        factory.createRecordWriter(HadoopFileSystem.toHadoopPath(path)),
+                        factory.createRowConverter());
+        outputFormat.addLineageDataset(
+                new DefaultLineageDataset(path.toUri().toString(), thriftURL, new HashMap<>()));
+        return outputFormat;
     }
 
-    private class HiveOutputFormat implements org.apache.flink.api.common.io.OutputFormat<Row> {
+    public class HiveOutputFormat
+            implements org.apache.flink.api.common.io.OutputFormat<Row>, LineageVertexProvider {
 
         private final RecordWriter recordWriter;
         private final Function<Row, Writable> rowConverter;
+        private transient DefaultLineageVertex lineageVertex;
 
         private HiveOutputFormat(RecordWriter recordWriter, Function<Row, Writable> rowConverter) {
             this.recordWriter = recordWriter;
             this.rowConverter = rowConverter;
+            this.lineageVertex = new DefaultLineageVertex();
         }
 
         @Override
@@ -72,6 +89,15 @@ public class HiveOutputFormatFactory implements OutputFormatFactory<Row> {
         @Override
         public void close() throws IOException {
             recordWriter.close(false);
+        }
+
+        void addLineageDataset(LineageDataset lineageDataset) {
+            this.lineageVertex.addLineageDataset(lineageDataset);
+        }
+
+        @Override
+        public LineageVertex getLineageVertex() {
+            return lineageVertex;
         }
     }
 }
