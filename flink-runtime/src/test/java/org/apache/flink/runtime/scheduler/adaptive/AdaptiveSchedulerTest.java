@@ -102,6 +102,7 @@ import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.TestingSlot;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.TestingSlotAllocator;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -728,7 +729,8 @@ public class AdaptiveSchedulerTest {
                                     executionGraphHandler,
                                     operatorCoordinatorHandler,
                                     Duration.ZERO,
-                                    true,
+                                    new VertexParallelism(
+                                            Collections.singletonMap(JOB_VERTEX.getID(), 1)),
                                     failureCollection));
         }
 
