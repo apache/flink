@@ -23,5 +23,6 @@ import org.apache.flink.annotation.Experimental;
 /** Enum for controlling whether REACTIVE mode is enabled or not. */
 @Experimental
 public enum SchedulerExecutionMode {
+    DEFAULT,
     REACTIVE
 }
