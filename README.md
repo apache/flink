@@ -145,6 +145,8 @@ Flink will be installed in `build-target`.
 * The -DskipTests flag skips running tests to speed up the build process
 * Each Java version requires its corresponding profile (-Pjava<version>-target) and JDK flag (-Djdk<version>)
 
+More details about building Apache Flink are described in this article [Building Flink from Source](https://nightlies.apache.org/flink/flink-docs-master/docs/flinkdev/building/).
+
 ## Developing Flink
 
 The Flink committers use IntelliJ IDEA to develop the Flink codebase.
