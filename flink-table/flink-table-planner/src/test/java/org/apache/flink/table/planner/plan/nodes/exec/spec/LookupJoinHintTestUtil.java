@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.hint.JoinStrategy;
 
 import org.apache.calcite.rel.hint.RelHint;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /** Test util for lookup hint. */
@@ -46,7 +46,7 @@ public class LookupJoinHintTestUtil {
 
     public static Map<String, String> getLookupJoinHintOptions(
             String table, boolean withAsync, boolean withRetry) {
-        Map<String, String> kvOptions = new HashMap<>();
+        Map<String, String> kvOptions = new LinkedHashMap<>();
         kvOptions.put(LookupJoinHintOptions.LOOKUP_TABLE.key(), table);
         if (withAsync) {
             addAsyncOptions(kvOptions);
@@ -59,15 +59,15 @@ public class LookupJoinHintTestUtil {
 
     public static void addAsyncOptions(Map<String, String> kvOptions) {
         kvOptions.put(LookupJoinHintOptions.ASYNC_LOOKUP.key(), "true");
-        kvOptions.put(LookupJoinHintOptions.ASYNC_CAPACITY.key(), "1000");
         kvOptions.put(LookupJoinHintOptions.ASYNC_OUTPUT_MODE.key(), "allow_unordered");
         kvOptions.put(LookupJoinHintOptions.ASYNC_TIMEOUT.key(), "300 s");
+        kvOptions.put(LookupJoinHintOptions.ASYNC_CAPACITY.key(), "1000");
     }
 
     public static void addRetryOptions(Map<String, String> kvOptions) {
-        kvOptions.put(LookupJoinHintOptions.RETRY_PREDICATE.key(), "lookup_miss");
         kvOptions.put(LookupJoinHintOptions.RETRY_STRATEGY.key(), "fixed_delay");
-        kvOptions.put(LookupJoinHintOptions.FIXED_DELAY.key(), "155 ms");
         kvOptions.put(LookupJoinHintOptions.MAX_ATTEMPTS.key(), "10");
+        kvOptions.put(LookupJoinHintOptions.FIXED_DELAY.key(), "155 ms");
+        kvOptions.put(LookupJoinHintOptions.RETRY_PREDICATE.key(), "lookup_miss");
     }
 }
