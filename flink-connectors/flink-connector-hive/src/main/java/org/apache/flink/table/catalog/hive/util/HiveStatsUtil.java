@@ -252,7 +252,7 @@ public class HiveStatsUtil {
                     return new CatalogColumnStatisticsDataDouble(min, max, 1L, nullCount);
                 }
             case DATE:
-            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
                 {
                     Date min = null;
                     Date max = null;
