@@ -60,6 +60,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.lang.String.format;
+import static org.apache.flink.formats.avro.AvroFormatOptions.AVRO_TIMESTAMP_LEGACY_MAPPING;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BASIC_AUTH_CREDENTIALS_SOURCE;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BASIC_AUTH_USER_INFO;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BEARER_AUTH_CREDENTIALS_SOURCE;
@@ -91,6 +92,7 @@ public class RegistryAvroFormatFactory
         String schemaRegistryURL = formatOptions.get(URL);
         Optional<String> schemaString = formatOptions.getOptional(SCHEMA);
         Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
+        boolean legacyTimestampMapping = formatOptions.get(AVRO_TIMESTAMP_LEGACY_MAPPING);
 
         return new ProjectableDecodingFormat<DeserializationSchema<RowData>>() {
             @Override
@@ -102,14 +104,14 @@ public class RegistryAvroFormatFactory
                 final RowType rowType = (RowType) producedDataType.getLogicalType();
                 final Schema schema =
                         schemaString
-                                .map(s -> getAvroSchema(s, rowType))
-                                .orElse(AvroSchemaConverter.convertToSchema(rowType));
+                                .map(s -> getAvroSchema(s, rowType, legacyTimestampMapping))
+                                .orElse(AvroSchemaConverter.convertToSchema(rowType, legacyTimestampMapping));
                 final TypeInformation<RowData> rowDataTypeInfo =
                         context.createTypeInformation(producedDataType);
                 return new AvroRowDataDeserializationSchema(
                         ConfluentRegistryAvroDeserializationSchema.forGeneric(
                                 schema, schemaRegistryURL, optionalPropertiesMap),
-                        AvroToRowDataConverters.createRowConverter(rowType),
+                        AvroToRowDataConverters.createRowConverter(rowType, legacyTimestampMapping),
                         rowDataTypeInfo);
             }
 
@@ -129,6 +131,7 @@ public class RegistryAvroFormatFactory
         Optional<String> subject = formatOptions.getOptional(SUBJECT);
         Optional<String> schemaString = formatOptions.getOptional(SCHEMA);
         Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
+        boolean legacyTimestampMapping = formatOptions.get(AVRO_TIMESTAMP_LEGACY_MAPPING);
 
         if (!subject.isPresent()) {
             throw new ValidationException(
@@ -144,13 +147,13 @@ public class RegistryAvroFormatFactory
                 final RowType rowType = (RowType) consumedDataType.getLogicalType();
                 final Schema schema =
                         schemaString
-                                .map(s -> getAvroSchema(s, rowType))
-                                .orElse(AvroSchemaConverter.convertToSchema(rowType));
+                                .map(s -> getAvroSchema(s, rowType, legacyTimestampMapping))
+                                .orElse(AvroSchemaConverter.convertToSchema(rowType, legacyTimestampMapping));
                 return new AvroRowDataSerializationSchema(
                         rowType,
                         ConfluentRegistryAvroSerializationSchema.forGeneric(
                                 subject.get(), schema, schemaRegistryURL, optionalPropertiesMap),
-                        RowDataToAvroConverters.createConverter(rowType));
+                        RowDataToAvroConverters.createConverter(rowType, legacyTimestampMapping));
             }
 
             @Override
@@ -186,6 +189,7 @@ public class RegistryAvroFormatFactory
         options.add(BASIC_AUTH_USER_INFO);
         options.add(BEARER_AUTH_CREDENTIALS_SOURCE);
         options.add(BEARER_AUTH_TOKEN);
+        options.add(AVRO_TIMESTAMP_LEGACY_MAPPING);
         return options;
     }
 
@@ -207,9 +211,9 @@ public class RegistryAvroFormatFactory
                 .collect(Collectors.toSet());
     }
 
-    public static @Nullable Map<String, String> buildOptionalPropertiesMap(
+    public static @Nullable Map<String, Object> buildOptionalPropertiesMap(
             ReadableConfig formatOptions) {
-        final Map<String, String> properties = new HashMap<>();
+        final Map<String, Object> properties = new HashMap<>();
 
         formatOptions.getOptional(PROPERTIES).ifPresent(properties::putAll);
 
@@ -237,6 +241,9 @@ public class RegistryAvroFormatFactory
         formatOptions
                 .getOptional(BEARER_AUTH_TOKEN)
                 .ifPresent(v -> properties.put("bearer.auth.token", v));
+        formatOptions
+                .getOptional(AVRO_TIMESTAMP_LEGACY_MAPPING)
+                .ifPresent(v -> properties.put("timestamp_mapping.legacy", v));
 
         if (properties.isEmpty()) {
             return null;
@@ -244,9 +251,10 @@ public class RegistryAvroFormatFactory
         return properties;
     }
 
-    private static Schema getAvroSchema(String schemaString, RowType rowType) {
+    private static Schema getAvroSchema(String schemaString, RowType rowType,
+            boolean legacyTimestampMapping) {
         LogicalType convertedDataType =
-                AvroSchemaConverter.convertToDataType(schemaString).getLogicalType();
+                AvroSchemaConverter.convertToDataType(schemaString, legacyTimestampMapping).getLogicalType();
 
         if (convertedDataType.isNullable()) {
             convertedDataType = convertedDataType.copy(false);
