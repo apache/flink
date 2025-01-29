@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.codegen.CodeGenUtils.{className, newName, 
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallIfArgsNotNull
 import org.apache.flink.table.runtime.functions.SqlLikeChainChecker
 import org.apache.flink.table.types.logical.{BooleanType, LogicalType}
+import org.apache.flink.table.utils.EncodingUtils
 
 import java.util.regex.Pattern
 
@@ -51,7 +52,7 @@ class LikeCallGen extends CallGenerator {
     ) {
       generateCallIfArgsNotNull(ctx, returnType, operands) {
         terms =>
-          val pattern = operands(1).literalValue.get.toString
+          val pattern = EncodingUtils.escapeJava(operands(1).literalValue.get.toString)
           var newPattern: String = pattern
           val allowQuick = if (operands.length == 2) {
             !pattern.contains("_")
