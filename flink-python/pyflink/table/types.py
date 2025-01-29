@@ -2471,7 +2471,7 @@ class DataTypes(object):
     @staticmethod
     def INT(nullable: bool = True) -> IntType:
         """
-        Data type of a 2-byte signed integer with values from -2,147,483,648
+        Data type of a 4-byte signed integer with values from -2,147,483,648
         to 2,147,483,647.
 
         :param nullable: boolean, whether the type can be null (None) or not.
