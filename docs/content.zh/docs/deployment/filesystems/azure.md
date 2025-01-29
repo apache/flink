@@ -112,5 +112,14 @@ Azure blob 存储密钥可以通过以下方式在 [Flink 配置文件]({{< ref 
 ```yaml
 fs.azure.account.key.<account_name>.dfs.core.windows.net: <azure_storage_key>
 ```
+##### 通过 Azure  托管标识访问 ABFS
+Azure blob 存储托管标识可以通过以下方式在 `flink-conf.yaml` 中配置:
 
+```yaml
+fs.azure.account.auth.type.<storage_account_name>.dfs.core.windows.net: OAuth
+fs.azure.account.oauth.provider.type.<storage_account_name>.dfs.core.windows.net: org.apache.flink.fs.shaded.hadoop3.org.apache.hadoop.fs.azurebfs.oauth2.MsiTokenProvider
+fs.azure.account.oauth2.msi.tenant.<storage_account_name>.dfs.core.windows.net: <azure_tenant_id>
+fs.azure.account.oauth2.client.id.<storage_account_name>.dfs.core.windows.net: <managed_service_identity_client_id>
+fs.azure.account.oauth2.client.endpoint.<storage_account_name>.dfs.core.windows.net: https://login.microsoftonline.com/<azure_tenant_id>/oauth2/token
+```
 {{< top >}}
