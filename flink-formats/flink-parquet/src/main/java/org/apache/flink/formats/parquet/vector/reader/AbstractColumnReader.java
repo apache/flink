@@ -152,6 +152,9 @@ public abstract class AbstractColumnReader<VECTOR extends WritableColumnVector>
             int leftInPage = (int) (endOfPageValueCount - valuesRead);
             if (leftInPage == 0) {
                 DataPage page = pageReader.readPage();
+                if (page == null) {
+                    return;
+                }
                 if (page instanceof DataPageV1) {
                     readPageV1((DataPageV1) page);
                 } else if (page instanceof DataPageV2) {
