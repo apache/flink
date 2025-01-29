@@ -327,15 +327,15 @@ Connector Options
     <tr>
       <td><h5>fields.#.start</h5></td>
       <td>optional</td>
-      <td style="word-wrap: break-word;">(none)</td>
-      <td>(Type of field)</td>
+      <td style="word-wrap: break-word;">0</td>
+      <td>Long</td>
       <td>Start value of sequence generator.</td>
     </tr>
     <tr>
       <td><h5>fields.#.end</h5></td>
       <td>optional</td>
-      <td style="word-wrap: break-word;">(none)</td>
-      <td>(Type of field)</td>
+      <td style="word-wrap: break-word;">1048576</td>
+      <td>Long</td>
       <td>End value of sequence generator.</td>
     </tr>
     <tr>
