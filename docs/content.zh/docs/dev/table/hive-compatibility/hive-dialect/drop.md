@@ -27,7 +27,7 @@ With Hive dialect, the following DROP statements are supported for now:
 - DROP DATABASE
 - DROP TABLE
 - DROP VIEW
-- DROP MARCO
+- DROP MACRO
 - DROP FUNCTION
 
 ## DROP DATABASE
@@ -102,10 +102,10 @@ is set to true.
 DROP VIEW IF EXISTS v1;
 ```
 
-## DROP MARCO
+## DROP MACRO
 
-`DROP MARCO` statement is used to drop the existing `MARCO`.
-Please refer to [CREATE MARCO]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/create" >}}#create-marco) for how to create `MARCO`.
+`DROP MACRO` statement is used to drop the existing `MACRO`.
+Please refer to [CREATE MACRO]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/create" >}}#create-macro) for how to create `MACRO`.
 
 ### Syntax
 

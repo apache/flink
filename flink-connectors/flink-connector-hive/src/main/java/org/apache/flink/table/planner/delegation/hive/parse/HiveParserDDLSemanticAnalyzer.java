@@ -618,7 +618,7 @@ public class HiveParserDDLSemanticAnalyzer {
         FunctionDefinition macroDefinition =
                 new HiveGenericUDF(
                         new HiveFunctionWrapper<>(GenericUDFMacro.class, macro), hiveShim);
-        // hive's marco is more like flink's temp system function
+        // hive's macro is more like flink's temp system function
         return new CreateTempSystemFunctionOperation(macroName, false, macroDefinition);
     }
 
