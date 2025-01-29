@@ -19,13 +19,23 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.OperatorIDPair;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.OperatorState;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.util.LambdaUtil;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava32.com.google.common.base.Joiner;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
 
@@ -157,5 +167,64 @@ public class StateUtil {
                         + ". "
                         + "This can mostly happen when a different StateBackend from the one "
                         + "that was used for taking a checkpoint/savepoint is used when restoring.");
+    }
+
+    public static boolean hasKeyedState(OperatorState operatorState) {
+        Preconditions.checkState(operatorState != null);
+
+        for (OperatorSubtaskState subtaskState : operatorState.getStates()) {
+            if (subtaskState.getManagedKeyedState().hasState()
+                    || subtaskState.getRawKeyedState().hasState()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static OperatorState generatorNewOperatorStateWithNewMaxParallelism(
+            OperatorState operatorState, int maxParallelism) {
+        OperatorState newOperatorState =
+                new OperatorState(
+                        operatorState.getOperatorID(),
+                        operatorState.getParallelism(),
+                        maxParallelism);
+
+        for (Map.Entry<Integer, OperatorSubtaskState> operatorSubtaskState :
+                operatorState.getSubtaskStates().entrySet()) {
+            newOperatorState.putState(
+                    operatorSubtaskState.getKey(), operatorSubtaskState.getValue());
+        }
+
+        newOperatorState.setCoordinatorState(operatorState.getCoordinatorState());
+        return newOperatorState;
+    }
+
+    public static void updateCheckpointMaxParallelismIfNeed(
+            CompletedCheckpoint savepoint, Map<JobVertexID, ExecutionJobVertex> tasks) {
+        Map<OperatorID, Integer> operator2Parallelism = new HashMap<>();
+        for (ExecutionJobVertex task : tasks.values()) {
+            for (OperatorIDPair operatorIDPair : task.getOperatorIDs()) {
+                operator2Parallelism.put(
+                        operatorIDPair.getGeneratedOperatorID(), task.getParallelism());
+                operatorIDPair
+                        .getUserDefinedOperatorID()
+                        .ifPresent(id -> operator2Parallelism.put(id, task.getParallelism()));
+            }
+        }
+
+        for (Map.Entry<OperatorID, OperatorState> operatorIDOperatorState :
+                savepoint.getOperatorStates().entrySet()) {
+            int executionParallelism = operator2Parallelism.get(operatorIDOperatorState.getKey());
+            if (!StateUtil.hasKeyedState(operatorIDOperatorState.getValue())
+                    && operatorIDOperatorState.getValue().getMaxParallelism()
+                            < executionParallelism) {
+                operatorIDOperatorState.setValue(
+                        StateUtil.generatorNewOperatorStateWithNewMaxParallelism(
+                                operatorIDOperatorState.getValue(),
+                                KeyGroupRangeAssignment.computeDefaultMaxParallelism(
+                                        executionParallelism)));
+            }
+        }
     }
 }
