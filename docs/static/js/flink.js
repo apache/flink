@@ -26,8 +26,10 @@
  * 
  * See layouts/shortcodes/tabs.html
  */
-function onSwitch(tabId) {
+function onSwitch(tabId, group, index) {
     var selectorForId = "[data-tab-group='flink-tabs'][data-tab-item='" + tabId + "']";
+    var clickedTab = document.getElementById(group + "-" + index);
+    var clickedTabClientOffsetY = clickedTab.getBoundingClientRect().y;
 
     Array
         // find all tab group elements on the page
@@ -48,6 +50,11 @@ function onSwitch(tabId) {
                 input.removeAttribute("checked")
             }
         });
+
+    window.scrollTo({
+        top: clickedTab.offsetTop - clickedTabClientOffsetY + 84,
+        behavior: "instant"
+    });
 }
 
 /**
