@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.State;
@@ -410,13 +411,17 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     }
 
     @Override
-    public void notifyCheckpointComplete(long checkpointId) {
-        // Nothing to do
+    public void notifyCheckpointComplete(long checkpointId) throws Exception {
+        if (checkpointStrategy instanceof CheckpointListener) {
+            ((CheckpointListener) checkpointStrategy).notifyCheckpointComplete(checkpointId);
+        }
     }
 
     @Override
-    public void notifyCheckpointAborted(long checkpointId) {
-        // nothing to do
+    public void notifyCheckpointAborted(long checkpointId) throws Exception {
+        if (checkpointStrategy instanceof CheckpointListener) {
+            ((CheckpointListener) checkpointStrategy).notifyCheckpointAborted(checkpointId);
+        }
     }
 
     @Override
