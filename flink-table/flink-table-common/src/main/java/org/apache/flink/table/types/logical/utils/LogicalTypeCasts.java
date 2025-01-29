@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.logical.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -285,6 +286,7 @@ public final class LogicalTypeCasts {
      * LogicalTypeFamily#CHARACTER_STRING} family.
      */
     public static boolean supportsExplicitCast(LogicalType sourceType, LogicalType targetType) {
+        validate(sourceType, targetType);
         return supportsCasting(sourceType, targetType, true);
     }
 
@@ -618,6 +620,37 @@ public final class LogicalTypeCasts {
             } else {
                 // handles all types of CONSTRUCTED family as well as distinct types
                 return supportsAvoidingCast(sourceChildren, targetChildren);
+            }
+        }
+    }
+
+    /**
+     * Check if the source/target pair is not allowed and throw a {@link ValidationException} with a
+     * useful error message.
+     */
+    public static void validate(LogicalType sourceType, LogicalType targetType) {
+        if (sourceType.is(LogicalTypeFamily.NUMERIC)) {
+            if (targetType.is(LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)) {
+                throw new ValidationException(
+                        "The cast from NUMERIC type to TIMESTAMP type "
+                                + "is not allowed. It's recommended to use "
+                                + "TO_TIMESTAMP(FROM_UNIXTIME(numeric_col)) "
+                                + "instead, note the numeric is in seconds.");
+            } else if (targetType.is(LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE)) {
+                throw new ValidationException(
+                        "The cast from NUMERIC type"
+                                + " to TIMESTAMP_LTZ type is not allowed. It's recommended to use"
+                                + " TO_TIMESTAMP_LTZ(numeric_col, precision) instead.");
+            }
+        } else if (targetType.is(LogicalTypeFamily.NUMERIC)) {
+            if (sourceType.is(LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)) {
+                throw new ValidationException(
+                        "The cast from TIMESTAMP type to NUMERIC type"
+                                + " is not allowed. It's recommended to use"
+                                + " UNIX_TIMESTAMP(CAST(timestamp_col AS STRING)) instead.");
+            } else if (sourceType.is(LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE)) {
+                throw new ValidationException(
+                        "The cast from" + " TIMESTAMP_LTZ type to NUMERIC type is not allowed.");
             }
         }
     }
