@@ -64,9 +64,9 @@ class PendingSplitsCheckpointSerializerTest {
                 PendingSplitsCheckpoint.fromCollectionSnapshot(
                         Arrays.asList(testSplit1(), testSplit2(), testSplit3()),
                         Arrays.asList(
-                                new Path("file:/some/path"),
-                                new Path("s3://bucket/key/and/path"),
-                                new Path("hdfs://namenode:12345/path")));
+                                "file:/some/path",
+                                "s3://bucket/key/and/path",
+                                "hdfs://namenode:12345/path"));
 
         final PendingSplitsCheckpoint<FileSourceSplit> deSerialized =
                 serializeAndDeserialize(checkpoint);
@@ -148,8 +148,8 @@ class PendingSplitsCheckpointSerializerTest {
                 actual.getSplits(),
                 FileSourceSplitSerializerTest::assertSplitsEqual);
 
-        assertThat(actual.getAlreadyProcessedPaths())
-                .containsExactlyElementsOf(expected.getAlreadyProcessedPaths());
+        assertThat(actual.getAlreadyProcessedSplits())
+                .containsExactlyElementsOf(expected.getAlreadyProcessedSplits());
     }
 
     private static <E> void assertOrderedCollectionEquals(

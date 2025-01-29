@@ -19,7 +19,6 @@
 package org.apache.flink.connector.file.src;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.IOException;
@@ -67,13 +66,14 @@ public final class PendingSplitsCheckpointSerializer<T extends FileSourceSplit>
 
         final SimpleVersionedSerializer<T> splitSerializer = this.splitSerializer; // stack cache
         final Collection<T> splits = checkpoint.getSplits();
-        final Collection<Path> processedPaths = checkpoint.getAlreadyProcessedPaths();
+        final Collection<String> processedSplits = checkpoint.getAlreadyProcessedSplits();
 
         final ArrayList<byte[]> serializedSplits = new ArrayList<>(splits.size());
-        final ArrayList<byte[]> serializedPaths = new ArrayList<>(processedPaths.size());
+        final ArrayList<byte[]> serializedProcessedSplits = new ArrayList<>(processedSplits.size());
 
         int totalLen =
-                16; // four ints: magic, version of split serializer, count splits, count paths
+                16; // four ints: magic, version of split serializer, count splits, count processed
+        // splits
 
         for (T split : splits) {
             final byte[] serSplit = splitSerializer.serialize(split);
@@ -81,10 +81,10 @@ public final class PendingSplitsCheckpointSerializer<T extends FileSourceSplit>
             totalLen += serSplit.length + 4; // 4 bytes for the length field
         }
 
-        for (Path path : processedPaths) {
-            final byte[] serPath = path.toString().getBytes(StandardCharsets.UTF_8);
-            serializedPaths.add(serPath);
-            totalLen += serPath.length + 4; // 4 bytes for the length field
+        for (String split : processedSplits) {
+            final byte[] serSplit = split.getBytes(StandardCharsets.UTF_8);
+            serializedProcessedSplits.add(serSplit);
+            totalLen += serSplit.length + 4; // 4 bytes for the length field
         }
 
         final byte[] result = new byte[totalLen];
@@ -92,16 +92,16 @@ public final class PendingSplitsCheckpointSerializer<T extends FileSourceSplit>
         byteBuffer.putInt(VERSION_1_MAGIC_NUMBER);
         byteBuffer.putInt(splitSerializer.getVersion());
         byteBuffer.putInt(serializedSplits.size());
-        byteBuffer.putInt(serializedPaths.size());
+        byteBuffer.putInt(serializedProcessedSplits.size());
 
         for (byte[] splitBytes : serializedSplits) {
             byteBuffer.putInt(splitBytes.length);
             byteBuffer.put(splitBytes);
         }
 
-        for (byte[] pathBytes : serializedPaths) {
-            byteBuffer.putInt(pathBytes.length);
-            byteBuffer.put(pathBytes);
+        for (byte[] splitBytes : serializedProcessedSplits) {
+            byteBuffer.putInt(splitBytes.length);
+            byteBuffer.put(splitBytes);
         }
 
         assert byteBuffer.remaining() == 0;
@@ -136,11 +136,11 @@ public final class PendingSplitsCheckpointSerializer<T extends FileSourceSplit>
 
         final int splitSerializerVersion = bb.getInt();
         final int numSplits = bb.getInt();
-        final int numPaths = bb.getInt();
+        final int numProcessedSplits = bb.getInt();
 
         final SimpleVersionedSerializer<T> splitSerializer = this.splitSerializer; // stack cache
         final ArrayList<T> splits = new ArrayList<>(numSplits);
-        final ArrayList<Path> paths = new ArrayList<>(numPaths);
+        final ArrayList<String> processedSplits = new ArrayList<>(numProcessedSplits);
 
         for (int remaining = numSplits; remaining > 0; remaining--) {
             final byte[] bytes = new byte[bb.getInt()];
@@ -149,13 +149,13 @@ public final class PendingSplitsCheckpointSerializer<T extends FileSourceSplit>
             splits.add(split);
         }
 
-        for (int remaining = numPaths; remaining > 0; remaining--) {
+        for (int remaining = numProcessedSplits; remaining > 0; remaining--) {
             final byte[] bytes = new byte[bb.getInt()];
             bb.get(bytes);
-            final Path path = new Path(new String(bytes, StandardCharsets.UTF_8));
-            paths.add(path);
+            final String split = new String(bytes, StandardCharsets.UTF_8);
+            processedSplits.add(split);
         }
 
-        return PendingSplitsCheckpoint.reusingCollection(splits, paths);
+        return PendingSplitsCheckpoint.reusingCollection(splits, processedSplits);
     }
 }
