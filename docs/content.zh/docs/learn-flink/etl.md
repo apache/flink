@@ -156,21 +156,18 @@ keyBy(ride -> GeoUtils.mapToGridCell(ride.startLon, ride.startLat))
 
 ### Keyed Stream 的聚合
 
-以下代码为每个行程结束事件创建了一个新的包含 `startCell` 和时长（分钟）的元组流：
+以下代码为每个行程结束事件创建了一个新的包含 `startCell` 和距离的元组流：
 
 ```java
-import org.joda.time.Interval;
-
-DataStream<Tuple2<Integer, Minutes>> minutesByStartCell = enrichedNYCRides
-    .flatMap(new FlatMapFunction<EnrichedRide, Tuple2<Integer, Minutes>>() {
+DataStream<Tuple2<Integer, Double>> distanceByStartCell = enrichedNYCRides
+    .flatMap(new FlatMapFunction<EnrichedRide, Tuple2<Integer, Double>>() {
 
         @Override
         public void flatMap(EnrichedRide ride,
-                            Collector<Tuple2<Integer, Minutes>> out) throws Exception {
+                            Collector<Tuple2<Integer, Double>> out) throws Exception {
             if (!ride.isStart) {
-                Interval rideInterval = new Interval(ride.startTime, ride.endTime);
-                Minutes duration = rideInterval.toDuration().toStandardMinutes();
-                out.collect(new Tuple2<>(ride.startCell, duration));
+                double distance = ride.getEuclideanDistance(ride.startLon, ride.startLat);
+                out.collect(new Tuple2<>(ride.startCell, distance));
             }
         }
     });
@@ -181,31 +178,29 @@ DataStream<Tuple2<Integer, Minutes>> minutesByStartCell = enrichedNYCRides
 有很多种方法表示使用哪个字段作为键。前面使用 `EnrichedRide` POJO 的例子，用字段名来指定键。而这个使用 `Tuple2` 对象的例子中，用字段在元组中的序号（从0开始）来指定键。
 
 ```java
-minutesByStartCell
+distanceByStartCell
   .keyBy(value -> value.f0) // .keyBy(value -> value.startCell)
-  .maxBy(1) // duration
+  .maxBy(1) // distance
   .print();
 ```
 
-现在每次行程时长达到新的最大值，都会输出一条新记录，例如下面这个对应 50797 网格单元的数据：
+现在每次行程距离达到新的最大值，都会输出一条新记录，例如下面这个对应 24945 网格单元的数据：
 
     ...
-    4> (64549,5M)
-    4> (46298,18M)
-    1> (51549,14M)
-    1> (53043,13M)
-    1> (56031,22M)
-    1> (50797,6M)
+    4> (24446,1.5720709985537484)
+    3> (57852,20.306915063537083)
+    1> (24945,10.709252956381052)
     ...
-    1> (50797,8M)
+    1> (24945,11.03568798130402)
     ...
-    1> (50797,11M)
+    1> (24945,12.240783384549426)
     ...
-    1> (50797,12M)
+    1> (24945,14.852935179317036)
+    ...
 
 ### （隐式的）状态
 
-这是培训中第一个涉及到有状态流的例子。尽管状态的处理是透明的，Flink 必须跟踪每个不同的键的最大时长。
+这是培训中第一个涉及到有状态流的例子。尽管状态的处理是透明的，Flink 必须跟踪每个不同的键的最大距离。
 
 只要应用中有状态，你就应该考虑状态的大小。如果键值的数量是无限的，那 Flink 的状态需要的空间也同样是无限的。
 

@@ -179,22 +179,19 @@ keyBy(ride -> GeoUtils.mapToGridCell(ride.startLon, ride.startLat));
 
 ### Aggregations on Keyed Streams
 
-This bit of code creates a new stream of tuples containing the `startCell` and duration (in minutes)
+This bit of code creates a new stream of tuples containing the `startCell` and distance
 for each end-of-ride event:
 
 ```java
-import org.joda.time.Interval;
-
-DataStream<Tuple2<Integer, Minutes>> minutesByStartCell = enrichedNYCRides
-    .flatMap(new FlatMapFunction<EnrichedRide, Tuple2<Integer, Minutes>>() {
+DataStream<Tuple2<Integer, Double>> distanceByStartCell = enrichedNYCRides
+    .flatMap(new FlatMapFunction<EnrichedRide, Tuple2<Integer, Double>>() {
 
         @Override
         public void flatMap(EnrichedRide ride,
-                            Collector<Tuple2<Integer, Minutes>> out) throws Exception {
+                            Collector<Tuple2<Integer, Double>> out) throws Exception {
             if (!ride.isStart) {
-                Interval rideInterval = new Interval(ride.startTime, ride.endTime);
-                Minutes duration = rideInterval.toDuration().toStandardMinutes();
-                out.collect(new Tuple2<>(ride.startCell, duration));
+                double distance = ride.getEuclideanDistance(ride.startLon, ride.startLat);
+                out.collect(new Tuple2<>(ride.startCell, distance));
             }
         }
     });
@@ -209,32 +206,30 @@ This case involves `Tuple2` objects, and the index within the tuple (starting fr
 specify the key.
 
 ```java
-minutesByStartCell
+distanceByStartCell
   .keyBy(value -> value.f0) // .keyBy(value -> value.startCell)
-  .maxBy(1) // duration
+  .maxBy(1) // distance
   .print();
 ```
 
-The output stream now contains a record for each key every time the duration reaches a new maximum -- as shown here with cell 50797:
+The output stream now contains a record for each key every time the distance reaches a new maximum -- as shown here with cell 24945:
 
     ...
-    4> (64549,5M)
-    4> (46298,18M)
-    1> (51549,14M)
-    1> (53043,13M)
-    1> (56031,22M)
-    1> (50797,6M)
+    4> (24446,1.5720709985537484)
+    3> (57852,20.306915063537083)
+    1> (24945,10.709252956381052)
     ...
-    1> (50797,8M)
+    1> (24945,11.03568798130402)
     ...
-    1> (50797,11M)
+    1> (24945,12.240783384549426)
     ...
-    1> (50797,12M)
+    1> (24945,14.852935179317036)
+    ...
 
 ### (Implicit) State
 
 This is the first example in this training that involves stateful streaming. Though the state is
-being handled transparently, Flink has to keep track of the maximum duration for each distinct
+being handled transparently, Flink has to keep track of the maximum distance for each distinct
 key.
 
 Whenever state gets involved in your application, you should think about how large the state might
