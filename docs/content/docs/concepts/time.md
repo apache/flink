@@ -199,6 +199,6 @@ overlap), and *session windows* (punctuated by a gap of inactivity).
 {{< img src="/fig/windows.svg" alt="Time- and Count Windows" class="offset" width="80%" >}}
 
 Please check out this [blog post](https://flink.apache.org/news/2015/12/04/Introducing-windows.html) for
-additional examples of windows or take a look a [window documentation]({{< ref "docs/dev/datastream/operators/windows" >}}) of the DataStream API.
+additional examples of windows or take a look at [window documentation]({{< ref "docs/dev/datastream/operators/windows" >}}) of the DataStream API.
 
 {{< top >}}
