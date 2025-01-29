@@ -38,7 +38,10 @@ import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
   styleUrls: ['./job-manager-stdout.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent],
-  standalone: true
+  standalone: true,
+  host: {
+    '[class.full-screen]': 'isFullScreen'
+  }
 })
 export class JobManagerStdoutComponent implements OnInit, OnDestroy {
   public readonly downloadName = `jobmanager_stdout`;
@@ -46,6 +49,7 @@ export class JobManagerStdoutComponent implements OnInit, OnDestroy {
   public editorOptions: EditorOptions;
   public stdout = '';
   public loading = true;
+  public isFullScreen = false;
 
   private readonly destroy$ = new Subject<void>();
 
@@ -82,5 +86,9 @@ export class JobManagerStdoutComponent implements OnInit, OnDestroy {
         this.stdout = data;
         this.cdr.markForCheck();
       });
+  }
+
+  public toggleFullScreen(fullScreen: boolean): void {
+    this.isFullScreen = fullScreen;
   }
 }
