@@ -215,6 +215,14 @@ class SqlClientTest extends SqlClientTestBase {
     }
 
     @Test
+    void testExecuteNexmark() throws Exception {
+        final URL sqlFile = getClass().getClassLoader().getResource("nexmark.sql");
+        String[] args = new String[] {"-f", sqlFile.getPath()};
+        String output = runSqlClient(args);
+        assertThat(output).doesNotContain("java.lang.AssertionError");
+    }
+
+    @Test
     void testDisplayMultiLineSqlInInteractiveMode() throws Exception {
         List<String> statements =
                 Arrays.asList(
