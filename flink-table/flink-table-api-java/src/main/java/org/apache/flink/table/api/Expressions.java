@@ -885,8 +885,9 @@ public final class Expressions {
      * <p>This function can currently only be used within the {@link #jsonObject(JsonOnNull,
      * Object...)} function. It allows passing pre-formatted JSON strings that will be inserted
      * directly into the resulting JSON structure rather than being escaped as a string value. This
-     * allows storing nested JSON structures in a JSON_OBJECT without processing them as strings. If
-     * the value is null or empty, the function returns {@code null}.
+     * allows storing nested JSON structures in a JSON_OBJECT without processing them as strings,
+     * which is often useful when ingesting already formatted json data. If the value is null or
+     * empty, the function returns {@code null}.
      *
      * <p>Examples:
      *
