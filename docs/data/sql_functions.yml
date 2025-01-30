@@ -243,7 +243,7 @@ arithmetic:
     description: |
       Converts hexadecimal string expr to BINARY. If the length of expr is odd, the first character is discarded and the result is left padded with a null byte. 
       
-      E.g., SELECT UNHEX('466C696E6B') or $('466C696E6B').unhex() returns 466C696E6B as BINARY.
+      E.g., SELECT DECODE(UNHEX('466C696E6B') , 'UTF-8' ) or '466C696E6B'.unhex().decode('UTF-8') returns "Flink".
       
       expr <CHAR | VARCHAR>
       
