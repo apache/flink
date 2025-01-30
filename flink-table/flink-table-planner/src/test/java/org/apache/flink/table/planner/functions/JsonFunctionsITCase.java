@@ -693,7 +693,6 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 STRING().notNull()));
     }
 
-    // Test with alias?? using str$1
     private static List<TestSetSpec> jsonSpec() {
         return Arrays.asList(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_OBJECT)
