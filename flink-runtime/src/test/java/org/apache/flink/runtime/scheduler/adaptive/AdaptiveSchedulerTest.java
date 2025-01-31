@@ -141,6 +141,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
+import static org.apache.flink.runtime.jobgraph.JobGraphTestUtils.singleNoOpJobGraph;
 import static org.apache.flink.runtime.jobgraph.JobGraphTestUtils.streamingJobGraph;
 import static org.apache.flink.runtime.jobmaster.slotpool.SlotPoolTestUtils.createSlotOffersForResourceRequirements;
 import static org.apache.flink.runtime.jobmaster.slotpool.SlotPoolTestUtils.offerSlots;
@@ -943,6 +944,19 @@ public class AdaptiveSchedulerTest {
 
         assertThat(completedCheckpointStoreShutdownFuture.get()).isEqualTo(JobStatus.FAILED);
         assertThat(checkpointIdCounterShutdownFuture.get()).isEqualTo(JobStatus.FAILED);
+    }
+
+    @Test
+    void testCloseAsyncReturnsMainThreadFuture() throws Exception {
+        DefaultSchedulerTest.runCloseAsyncCompletesInMainThreadTest(
+                TEST_EXECUTOR_RESOURCE.getExecutor(),
+                (mainThreadExecutor, checkpointsCleaner) ->
+                        new AdaptiveSchedulerBuilder(
+                                        singleNoOpJobGraph(),
+                                        mainThreadExecutor,
+                                        EXECUTOR_RESOURCE.getExecutor())
+                                .setCheckpointCleaner(checkpointsCleaner)
+                                .build());
     }
 
     @Test
