@@ -318,7 +318,7 @@ arithmetic:
     description: |
       返回 expr 的 percentage 百分位值。
       
-      E.g., SELECT PERCENTILE(age, 0.5) FROM (VALUES (0), (50), (100)) AS age or $('age').percentile(0.5) returns 50.0.
+      E.g., SELECT PERCENTILE(age, 0.25) FROM (VALUES  (10), (20), (30), (40)) AS age or $('age').percentile(0.25) returns 17.5
 
       percentage 必须是一个在 `[0.0, 1.0]` 之间的字面数值，或者是一个该范围的数组。
       如果传递了一个可变表达式给这个函数，结果将根据其中的任意一个值进行计算。

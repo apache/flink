@@ -254,9 +254,9 @@ arithmetic:
   - sql: PERCENTILE(expr, percentage[, frequency])
     table: expr.percentile(percentage[, frequency])
     description: |
-      Returns the exact percentile value of expr at the specified percentage in a group.
+      Returns the percentile value of expr at the specified percentage using continuous distribution.
       
-      E.g., SELECT PERCENTILE(age, 0.5) FROM (VALUES (0), (50), (100)) AS age or $('age').percentile(0.5) returns 50.0.
+      E.g., SELECT PERCENTILE(age, 0.25) FROM (VALUES  (10), (20), (30), (40)) AS age or $('age').percentile(0.25) returns 17.5
       
       The percentage must be a literal numeric value between `[0.0, 1.0]` or an array of such values. 
       If a variable expression is passed to this function, the result will be calculated using any one of them.
