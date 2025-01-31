@@ -587,13 +587,41 @@ public class FutureUtils {
      */
     public static CompletableFuture<Void> composeAfterwards(
             CompletableFuture<?> future, Supplier<CompletableFuture<?>> composedAction) {
+        return composeAfterwardsInternal(future, composedAction, CompletableFuture::whenComplete);
+    }
+
+    /**
+     * Run the given asynchronous action after the completion of the given future. The given future
+     * can be completed normally or exceptionally. In case of an exceptional completion, the
+     * asynchronous action's exception will be added to the initial exception.
+     *
+     * @param future to wait for its completion
+     * @param composedAction asynchronous action which is triggered after the future's completion
+     * @return Future which is completed on the passed {@link Executor} after the asynchronous
+     *     action has completed. This future can contain an exception if an error occurred in the
+     *     given future or asynchronous action.
+     */
+    public static CompletableFuture<Void> composeAfterwardsAsync(
+            CompletableFuture<?> future,
+            Supplier<CompletableFuture<?>> composedAction,
+            Executor executor) {
+        return composeAfterwardsInternal(
+                future,
+                composedAction,
+                (composedActionFuture, resultFutureCompletion) ->
+                        composedActionFuture.whenCompleteAsync(resultFutureCompletion, executor));
+    }
+
+    private static CompletableFuture<Void> composeAfterwardsInternal(
+            CompletableFuture<?> future,
+            Supplier<CompletableFuture<?>> composedAction,
+            BiConsumer<CompletableFuture<?>, BiConsumer<Object, Throwable>> forwardAction) {
         final CompletableFuture<Void> resultFuture = new CompletableFuture<>();
 
         future.whenComplete(
                 (Object outerIgnored, Throwable outerThrowable) -> {
-                    final CompletableFuture<?> composedActionFuture = composedAction.get();
-
-                    composedActionFuture.whenComplete(
+                    forwardAction.accept(
+                            composedAction.get(),
                             (Object innerIgnored, Throwable innerThrowable) -> {
                                 if (innerThrowable != null) {
                                     resultFuture.completeExceptionally(

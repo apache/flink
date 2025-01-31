@@ -361,6 +361,7 @@ public class DefaultSchedulerBuilder {
                 futureExecutor,
                 userCodeLoader,
                 checkpointRecoveryFactory,
+                checkpointCleaner,
                 rpcTimeout,
                 blobWriter,
                 jobManagerJobMetricGroup,
