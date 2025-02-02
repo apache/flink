@@ -241,9 +241,9 @@ arithmetic:
   - sql: UNHEX(expr)
     table: expr.unhex()
     description: |
-      Converts hexadecimal string expr to BINARY.
+      Converts hexadecimal string expr to BINARY. If the length of expr is odd, the first character is discarded and the result is left padded with a null byte. 
       
-      If the length of expr is odd, the first character is discarded and the result is left padded with a null byte. 
+      E.g., SELECT DECODE(UNHEX('466C696E6B') , 'UTF-8' ) or '466C696E6B'.unhex().decode('UTF-8') returns "Flink".
       
       expr <CHAR | VARCHAR>
       
@@ -254,9 +254,11 @@ arithmetic:
   - sql: PERCENTILE(expr, percentage[, frequency])
     table: expr.percentile(percentage[, frequency])
     description: |
-      Returns the exact percentile value of expr at the specified percentage in a group.
+      Returns the percentile value of expr at the specified percentage using continuous distribution.
       
-      percentage must be a literal numeric value between `[0.0, 1.0]` or an array of such values. 
+      E.g., SELECT PERCENTILE(age, 0.25) FROM (VALUES  (10), (20), (30), (40)) AS age or $('age').percentile(0.25) returns 17.5
+      
+      The percentage must be a literal numeric value between `[0.0, 1.0]` or an array of such values. 
       If a variable expression is passed to this function, the result will be calculated using any one of them.
       frequency describes how many times expr should be counted, the default value is 1.
       
@@ -334,6 +336,8 @@ string:
     table: str.btrim([trimStr])
     description: |
       Removes any leading and trailing characters within trimStr from str. trimStr is set to whitespace by default.
+      
+      E.g., BTRIM('  www.apache.org  ') or '  www.apache.org  '.btrim() returns "www.apache.org", BTRIM('/www.apache.org/', '/') or '  www.apache.org  '.btrim() returns "www.apache.org".
       
       str <CHAR | VARCHAR>, trimStr <CHAR | VARCHAR>
       
@@ -431,10 +435,10 @@ string:
   - sql: TRANSLATE(expr, fromStr, toStr)
     table: expr.translate(fromStr, toStr)
     description: |
-      Translate an expr where all characters in fromStr have been replaced with those in toStr.
+      Translate an expr where all characters in fromStr have been replaced with those in toStr. If toStr has a shorter length than fromStr, unmatched characters are removed.
 
-      If toStr has a shorter length than fromStr, unmatched characters are removed.
-
+      E.g., SELECT TRANSLATE3('www.apache.org', 'wapcheorg', ' APCHEcom') or 'www.apache.org'.translate('wapcheorg', ' APCHEcom') returns "   .APACHE.com".
+      
       `expr <CHAR | VARCHAR>, fromStr <CHAR | VARCHAR>, toStr <CHAR | VARCHAR>`
 
       Returns a `STRING` of translated expr.
@@ -530,6 +534,8 @@ string:
     table: index.elt(expr, exprs...)
     description: |
       Returns the index-th expression. index must be an integer between 1 and the number of expressions.
+      
+      E.g., SELECT ELT(2, 'scala-1', 'java-2', 'go-3') or 2.elt('scala-1', 'java-2', 'go-3') returns "java-2".
       
       index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <CHAR | VARCHAR>, exprs <CHAR | VARCHAR>
       
