@@ -60,11 +60,11 @@ from pyflink.common.job_id import JobID
 from pyflink.common.job_status import JobStatus
 from pyflink.common.restart_strategy import RestartStrategies, RestartStrategyConfiguration
 from pyflink.common.serialization import SerializationSchema, DeserializationSchema, \
-    SimpleStringSchema, SimpleByteSchema, Encoder
+    SimpleStringSchema, ByteArraySchema, Encoder
 from pyflink.common.serializer import TypeSerializer
+from pyflink.common.time import Duration, Instant, Time
 from pyflink.common.typeinfo import Types, TypeInformation
 from pyflink.common.types import Row, RowKind
-from pyflink.common.time import Duration, Instant, Time
 from pyflink.common.watermark_strategy import WatermarkStrategy, \
     AssignerWithPeriodicWatermarksWrapper
 
@@ -79,7 +79,7 @@ __all__ = [
     'SerializationSchema',
     'DeserializationSchema',
     'SimpleStringSchema',
-    'SimpleByteSchema',
+    'ByteArraySchema',
     'Encoder',
     'CompletableFuture',
     'InputDependencyConstraint',
