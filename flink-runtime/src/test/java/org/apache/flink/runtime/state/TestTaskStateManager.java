@@ -252,7 +252,7 @@ public class TestTaskStateManager implements TaskStateManager {
         return stateChangelogStorage;
     }
 
-    @org.jetbrains.annotations.Nullable
+    @Nullable
     @Override
     public StateChangelogStorageView<?> getStateChangelogStorageView(
             Configuration configuration, ChangelogStateHandle changelogStateHandle) {
