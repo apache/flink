@@ -24,8 +24,7 @@ import java.io.IOException;
 
 /** Simple serialization schema for bytes. */
 @PublicEvolving
-public class SimpleByteSchema
-        implements DeserializationSchema<byte[]>, SerializationSchema<byte[]> {
+public class ByteArraySchema implements DeserializationSchema<byte[]>, SerializationSchema<byte[]> {
 
     private static final long serialVersionUID = 1L;
 
