@@ -22,7 +22,9 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -68,6 +70,11 @@ class HadoopFSDelegationTokenProviderITCase {
         public long renew(Configuration conf) {
             return newExpiration;
         }
+    }
+
+    @BeforeEach
+    public void setup() {
+        UserGroupInformation.reset();
     }
 
     @Test
@@ -176,5 +183,21 @@ class HadoopFSDelegationTokenProviderITCase {
         HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
         provider.init(new org.apache.flink.configuration.Configuration());
         assertNotNull(provider.obtainDelegationTokens());
+    }
+
+    @Test
+    public void refreshTokensAcquiredByCurrentUser() throws Exception {
+        Clock constantClock = Clock.fixed(ofEpochMilli(NOW), ZoneId.systemDefault());
+        TestHadoopDelegationTokenIdentifier tokenIdentifier1 =
+                new TestHadoopDelegationTokenIdentifier(NOW);
+        UserGroupInformation.getCurrentUser()
+                .addToken(
+                        tokenService1,
+                        new TestDelegationToken(tokenService1, tokenIdentifier1, NOW + 1));
+
+        HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
+        assertEquals(
+                Optional.of(1L),
+                provider.getTokenRenewalInterval(constantClock, Collections.emptySet()));
     }
 }
