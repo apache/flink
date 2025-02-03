@@ -70,8 +70,11 @@ public class UpdateJobResourceRequirementsITCase {
         // speed the test suite up
         // - lower refresh interval -> controls how fast we invalidate ExecutionGraphCache
         // - lower slot idle timeout -> controls how fast we return idle slots to TM
+        // - disable cooldown after rescaling -> controls how fast we can rescale
         configuration.set(WebOptions.REFRESH_INTERVAL, Duration.ofMillis(50L));
         configuration.set(JobManagerOptions.SLOT_IDLE_TIMEOUT, Duration.ofMillis(50L));
+        configuration.set(
+                JobManagerOptions.SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING, Duration.ZERO);
         return configuration;
     }
 
