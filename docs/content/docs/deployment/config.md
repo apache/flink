@@ -545,7 +545,7 @@ With the introduction of `state.backend.rocksdb.memory.managed` and `state.backe
 
 **Blob Server**
 
-The Blob Server is a component in the JobManager. It is used for distribution of objects that are too large to be attached to a RPC message and that benefit from caching (like Jar files or large serialized code objects).
+The Blob Server is a component in the JobManager and the TaskManager. It is used for distribution of objects that are too large to be attached to an RPC message and that benefit from caching (like Jar files or large serialized code objects).
 
 {{< generated/blob_server_configuration >}}
 
