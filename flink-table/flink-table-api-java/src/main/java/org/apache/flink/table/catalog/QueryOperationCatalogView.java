@@ -116,4 +116,9 @@ public final class QueryOperationCatalogView implements CatalogView {
     public boolean supportsShowCreateView() {
         return originalView != null;
     }
+
+    @Internal
+    public Optional<CatalogView> getOriginalView() {
+        return Optional.ofNullable(originalView);
+    }
 }
