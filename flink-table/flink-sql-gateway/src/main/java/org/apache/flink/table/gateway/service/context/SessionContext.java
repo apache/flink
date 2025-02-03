@@ -30,7 +30,6 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogStoreHolder;
 import org.apache.flink.table.catalog.FunctionCatalog;
-import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.factories.CatalogStoreFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TableFactoryUtil;
@@ -446,7 +445,7 @@ public class SessionContext {
                                                     catalogStore.config(),
                                                     catalogStore.classLoader()))
                             .orElse(
-                                    new GenericInMemoryCatalog(
+                                    new EnvironmentReusableInMemoryCatalog(
                                             defaultCatalogName, settings.getBuiltInDatabaseName()));
         }
         defaultCatalog.open();
