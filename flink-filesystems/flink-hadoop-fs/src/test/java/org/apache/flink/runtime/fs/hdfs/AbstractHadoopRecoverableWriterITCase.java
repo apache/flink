@@ -100,6 +100,10 @@ public abstract class AbstractHadoopRecoverableWriterITCase {
 
     private void cleanupLocalDir() throws Exception {
         final String defaultTmpDir = getLocalTmpDir();
+        if (defaultTmpDir == null) {
+            // The suite did not use local storage. No cleanup needed.
+            return;
+        }
         final java.nio.file.Path defaultTmpPath = Paths.get(defaultTmpDir);
 
         if (Files.exists(defaultTmpPath)) {
@@ -121,6 +125,10 @@ public abstract class AbstractHadoopRecoverableWriterITCase {
     @AfterEach
     void cleanupAndCheckTmpCleanup() throws Exception {
         final String defaultTmpDir = getLocalTmpDir();
+        if (defaultTmpDir == null) {
+            // The suite did not use local storage. No cleanup needed.
+            return;
+        }
         final java.nio.file.Path localTmpDir = Paths.get(defaultTmpDir);
 
         // delete local tmp dir.
@@ -129,8 +137,10 @@ public abstract class AbstractHadoopRecoverableWriterITCase {
             assertThat(files).isEmpty();
         }
         Files.delete(localTmpDir);
+    }
 
-        // delete also object store dir.
+    @AfterEach
+    void cleanupObjectStore() throws Exception {
         getFileSystem().delete(basePathForTest, true);
     }
 
@@ -181,7 +191,7 @@ public abstract class AbstractHadoopRecoverableWriterITCase {
     }
 
     @Test
-    void testCleanupRecoverableState() throws Exception {
+    public void testCleanupRecoverableState() throws Exception {
         final RecoverableWriter writer = getRecoverableWriter();
         final Path path = new Path(basePathForTest, "part-0");
 
@@ -220,7 +230,7 @@ public abstract class AbstractHadoopRecoverableWriterITCase {
     }
 
     @Test
-    void testCallingDeleteObjectTwiceDoesNotThroughException() throws Exception {
+    public void testCallingDeleteObjectTwiceDoesNotThroughException() throws Exception {
         final RecoverableWriter writer = getRecoverableWriter();
         final Path path = new Path(basePathForTest, "part-0");
 
