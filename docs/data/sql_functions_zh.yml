@@ -1192,9 +1192,9 @@ json:
       - sql: JSON(value)
       table: json(value)  
         description: |
-          需要一个原始的、预先格式化的 JSON 字符串，并按原样返回其值，而不将其作为字符串转义。
+          需要的参数是一个原始的、预先格式化的 JSON 字符串，返回值是这个字符串对应的JSON值，而不将其作为字符串转义。
           该函数目前只能在“JSON_OBJECT”函数中使用。它允许通过预格式化的 JSON 字符串将直接插入到生成的 JSON 结构中，而不是作为字符串值转义。
-          这允许将嵌套的 JSON 结构存储在JSON_OBJECT 而不将它们作为字符串处理。如果值为 NULL 或空，则该函数返回 NULL。
+          该函数通常用来读取外部的Json字符串，将其转成 JSON 结构存储在JSON_OBJECT。如果值为 NULL 或空，则该函数返回 NULL。
           ```sql
           -- {"K":{"K2":42}}
           JSON_OBJECT('K' VALUE JSON('{"K2": 42}'))
