@@ -218,15 +218,23 @@ class PartitionedFileWriteReadTest {
                         createAndConfigIndexEntryBuffer(),
                         subpartitionOrderRotationIndex);
 
-        Queue<Tuple2<Long, Long>> offsetAndSizesToRead = new ArrayDeque<>();
+        Queue<PartitionedFileReader.BufferPositionDescriptor> offsetAndSizesToRead =
+                new ArrayDeque<>();
         fileReader.updateReadableOffsetAndSize(
                 createAndConfigIndexEntryBuffer(), offsetAndSizesToRead);
 
         if (isBroadcastRegion) {
-            assertThat(offsetAndSizesToRead).hasSize(end - start + 1);
-            for (Tuple2<Long, Long> tuple2 : offsetAndSizesToRead) {
-                assertThat(tuple2.f0).isEqualTo(regionStat[start].get(0).f0);
-                assertThat(tuple2.f1).isEqualTo(regionStat[start].get(0).f1);
+            assertThat(
+                            offsetAndSizesToRead.stream()
+                                    .map(
+                                            PartitionedFileReader.BufferPositionDescriptor
+                                                    ::getRepeatCount)
+                                    .reduce(Integer::sum)
+                                    .get())
+                    .isEqualTo(end - start + 1);
+            for (PartitionedFileReader.BufferPositionDescriptor descriptor : offsetAndSizesToRead) {
+                assertThat(descriptor.getOffset()).isEqualTo(regionStat[start].get(0).f0);
+                assertThat(descriptor.getSize()).isEqualTo(regionStat[start].get(0).f1);
             }
             return;
         }
@@ -234,34 +242,36 @@ class PartitionedFileWriteReadTest {
         if (start >= subpartitionOrderRotationIndex || end <= subpartitionOrderRotationIndex - 1) {
             assertThat(offsetAndSizesToRead).hasSize(1);
 
-            Tuple2<Long, Long> offsetAndSize = offsetAndSizesToRead.poll();
-            assertThat(offsetAndSize.f0).isEqualTo(regionStat[start].get(0).f0);
+            PartitionedFileReader.BufferPositionDescriptor descriptor = offsetAndSizesToRead.poll();
+            assertThat(descriptor.getOffset()).isEqualTo(regionStat[start].get(0).f0);
 
             long expectedSize = 0L;
             for (int i = start; i <= end; i++) {
                 expectedSize += regionStat[i].get(0).f1;
             }
-            assertThat(offsetAndSize.f1).isEqualTo(expectedSize);
+            assertThat(descriptor.getSize()).isEqualTo(expectedSize);
         } else {
             assertThat(offsetAndSizesToRead).hasSize(2);
 
-            Tuple2<Long, Long> offsetAndSize1 = offsetAndSizesToRead.poll();
-            Tuple2<Long, Long> offsetAndSize2 = offsetAndSizesToRead.poll();
-            assertThat(offsetAndSize1.f0)
+            PartitionedFileReader.BufferPositionDescriptor descriptor1 =
+                    offsetAndSizesToRead.poll();
+            PartitionedFileReader.BufferPositionDescriptor descriptor2 =
+                    offsetAndSizesToRead.poll();
+            assertThat(descriptor1.getOffset())
                     .isEqualTo(regionStat[subpartitionOrderRotationIndex].get(0).f0);
-            assertThat(offsetAndSize2.f0).isEqualTo(regionStat[start].get(0).f0);
+            assertThat(descriptor2.getOffset()).isEqualTo(regionStat[start].get(0).f0);
 
             long expectedSize = 0L;
             for (int i = subpartitionOrderRotationIndex; i <= end; i++) {
                 expectedSize += regionStat[i].get(0).f1;
             }
-            assertThat(offsetAndSize1.f1).isEqualTo(expectedSize);
+            assertThat(descriptor1.getSize()).isEqualTo(expectedSize);
 
             expectedSize = 0L;
             for (int i = start; i < subpartitionOrderRotationIndex; i++) {
                 expectedSize += regionStat[i].get(0).f1;
             }
-            assertThat(offsetAndSize2.f1).isEqualTo(expectedSize);
+            assertThat(descriptor2.getSize()).isEqualTo(expectedSize);
         }
     }
 

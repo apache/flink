@@ -25,7 +25,7 @@ import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedOneInputStreamOperatorTestHarness;
 
 import org.junit.jupiter.api.Test;
 
@@ -51,8 +51,8 @@ class KeyedProcessOperatorTest {
                             }
                         });
 
-        try (KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
-                new KeyedOneInputStreamOperatorTestHarness<>(
+        try (AsyncKeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
+                AsyncKeyedOneInputStreamOperatorTestHarness.create(
                         processOperator,
                         (KeySelector<Integer, Integer>) value -> value,
                         Types.INT)) {
@@ -98,8 +98,8 @@ class KeyedProcessOperatorTest {
                             }
                         });
 
-        try (KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
-                new KeyedOneInputStreamOperatorTestHarness<>(
+        try (AsyncKeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
+                AsyncKeyedOneInputStreamOperatorTestHarness.create(
                         processOperator,
                         (KeySelector<Integer, Integer>) value -> value,
                         Types.INT)) {
@@ -133,8 +133,8 @@ class KeyedProcessOperatorTest {
                         // -1 is an invalid key in this suite.
                         (ignore) -> -1);
 
-        try (KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
-                new KeyedOneInputStreamOperatorTestHarness<>(
+        try (AsyncKeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
+                AsyncKeyedOneInputStreamOperatorTestHarness.create(
                         processOperator,
                         (KeySelector<Integer, Integer>) value -> value,
                         Types.INT)) {

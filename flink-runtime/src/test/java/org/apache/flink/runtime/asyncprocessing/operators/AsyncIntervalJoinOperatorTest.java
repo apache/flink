@@ -412,7 +412,7 @@ class AsyncIntervalJoinOperatorTest {
                         });
 
         try (TestHarness testHarness =
-                TestHarness.create(
+                TestHarness.createOne(
                         op,
                         (elem) -> elem.key,
                         (elem) -> elem.key,
@@ -454,7 +454,7 @@ class AsyncIntervalJoinOperatorTest {
                         });
 
         try (TestHarness testHarness =
-                TestHarness.create(
+                TestHarness.createOne(
                         op,
                         (elem) -> elem.key,
                         (elem) -> elem.key,
@@ -493,7 +493,7 @@ class AsyncIntervalJoinOperatorTest {
                         });
 
         try (TestHarness testHarness =
-                TestHarness.create(
+                TestHarness.createOne(
                         op,
                         (elem) -> elem.key,
                         (elem) -> elem.key,
@@ -661,7 +661,7 @@ class AsyncIntervalJoinOperatorTest {
                         TestElem.serializer(),
                         new PassthroughFunction());
 
-        return TestHarness.create(
+        return TestHarness.createOne(
                 operator,
                 (elem) -> elem.key, // key
                 (elem) -> elem.key, // key
@@ -690,7 +690,7 @@ class AsyncIntervalJoinOperatorTest {
                         new PassthroughFunction());
 
         TestHarness t =
-                TestHarness.create(
+                TestHarness.createOne(
                         operator,
                         (elem) -> elem.key, // key
                         (elem) -> elem.key, // key
@@ -966,7 +966,7 @@ class AsyncIntervalJoinOperatorTest {
             super(executor, operator, keySelector1, keySelector2, keyType, 1, 1, 0);
         }
 
-        public static TestHarness create(
+        public static TestHarness createOne(
                 TwoInputStreamOperator<TestElem, TestElem, Tuple2<TestElem, TestElem>> operator,
                 KeySelector<TestElem, String> keySelector1,
                 KeySelector<TestElem, String> keySelector2,

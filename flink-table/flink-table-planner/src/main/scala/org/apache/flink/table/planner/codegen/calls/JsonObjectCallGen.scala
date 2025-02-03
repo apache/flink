@@ -21,7 +21,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.{Nul
 import org.apache.flink.table.api.JsonOnNull
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
-import org.apache.flink.table.planner.codegen.JsonGenerateUtils.{createNodeTerm, getOnNullBehavior}
+import org.apache.flink.table.planner.codegen.JsonGenerateUtils.{createNodeTerm, getOnNullBehavior, isJsonFunctionOperand, isJsonObjectOrArrayOperand}
 import org.apache.flink.table.runtime.functions.SqlJsonUtils
 import org.apache.flink.table.types.logical.LogicalType
 
@@ -80,8 +80,9 @@ class JsonObjectCallGen(call: RexCall) extends CallGenerator {
 
     val resultTerm = newName(ctx, "result")
     val resultTermType = primitiveTypeTermForType(returnType)
+    val operandsCode = operands.map(_.code).mkString
     val resultCode = s"""
-                        |${operands.map(_.code).mkString}
+                        |$operandsCode
                         |
                         |$nodeTerm.removeAll();
                         |$populateNodeCode

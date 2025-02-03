@@ -299,9 +299,9 @@ arithmetic:
   - sql: UNHEX(expr)
     table: expr.unhex()
     description: |
-      将十六进制字符串 expr 转换为 BINARY。
+      将十六进制字符串 expr 转换为 BINARY。如果 expr 的长度为奇数，则会舍弃第一个字符，并在结果开头补充一个空字节。
       
-      如果 expr 的长度为奇数，则会舍弃第一个字符，并在结果开头补充一个空字节。
+      E.g., SELECT DECODE(UNHEX('466C696E6B') , 'UTF-8' ) or '466C696E6B'.unhex().decode('UTF-8') returns "Flink".
       
       expr <CHAR | VARCHAR>
       
@@ -317,6 +317,8 @@ arithmetic:
     table: expr.percentile(percentage[, frequency])
     description: |
       返回 expr 的 percentage 百分位值。
+      
+      E.g., SELECT PERCENTILE(age, 0.25) FROM (VALUES  (10), (20), (30), (40)) AS age or $('age').percentile(0.25) returns 17.5
 
       percentage 必须是一个在 `[0.0, 1.0]` 之间的字面数值，或者是一个该范围的数组。
       如果传递了一个可变表达式给这个函数，结果将根据其中的任意一个值进行计算。
@@ -396,6 +398,8 @@ string:
     table: str.btrim([trimStr])
     description: |
       从 str 的开头和结尾删除 trimStr 中的字符。trimStr 默认设置为空格。      
+      
+      E.g., BTRIM('  www.apache.org  ') or '  www.apache.org  '.btrim() returns "www.apache.org", BTRIM('/www.apache.org/', '/') or '  www.apache.org  '.btrim() returns "www.apache.org".
       
       str <CHAR | VARCHAR>, trimStr <CHAR | VARCHAR>
       
@@ -498,10 +502,10 @@ string:
   - sql: TRANSLATE(expr, fromStr, toStr)
     table: expr.translate(fromStr, toStr)
     description: |
-      将 expr 中所有出现在 fromStr 之中的字符替换为 toStr 中的相应字符。
+      将 expr 中所有出现在 fromStr 之中的字符替换为 toStr 中的相应字符。如果 toStr 的长度短于 fromStr，则未匹配的字符将被移除。
 
-      如果 toStr 的长度短于 fromStr，则未匹配的字符将被移除。
-
+      E.g., SELECT TRANSLATE3('www.apache.org', 'wapcheorg', ' APCHEcom') or 'www.apache.org'.translate('wapcheorg', ' APCHEcom') returns "   .APACHE.com".
+      
       `expr <CHAR | VARCHAR>, fromStr <CHAR | VARCHAR>, toStr <CHAR | VARCHAR>`
 
       返回 `STRING` 格式的转换结果。
@@ -627,6 +631,8 @@ string:
     table: index.elt(expr, exprs...)
     description: |
       返回第 index 个表达式。index 必须是介于 1 和 表达式数量之间的整数。
+      
+      E.g., SELECT ELT(2, 'scala-1', 'java-2', 'go-3') or 2.elt('scala-1', 'java-2', 'go-3') returns "java-2".
       
       index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <CHAR | VARCHAR>, exprs <CHAR | VARCHAR>
       

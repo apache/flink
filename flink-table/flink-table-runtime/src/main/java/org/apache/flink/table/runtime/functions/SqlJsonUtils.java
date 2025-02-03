@@ -342,6 +342,24 @@ public class SqlJsonUtils {
         }
     }
 
+    public static Object json(String input) {
+        try {
+            String trimmed = input.trim();
+            if (trimmed.isEmpty()) {
+                return null;
+            }
+            String jsonStr = jsonize(dejsonize(trimmed));
+
+            return jsonStr;
+        } catch (Exception e) {
+            throw new TableRuntimeException(
+                    String.format(
+                            "Invalid JSON string in JSON(value) function: \"%s\". Error: %s",
+                            input, e.getMessage()),
+                    e);
+        }
+    }
+
     public static boolean isJsonValue(String input) {
         try {
             dejsonize(input);

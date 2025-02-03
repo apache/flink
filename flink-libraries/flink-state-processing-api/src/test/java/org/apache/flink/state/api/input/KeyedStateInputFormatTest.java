@@ -43,6 +43,7 @@ import org.apache.flink.streaming.api.operators.StreamFlatMap;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
+import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
@@ -74,7 +75,8 @@ class KeyedStateInputFormatTest {
     void testCreatePartitionedInputSplits(boolean asyncState) throws Exception {
         OperatorID operatorID = OperatorIDGenerator.fromUid("uid");
 
-        OperatorSubtaskState state = createOperatorSubtaskState(createFlatMap(asyncState));
+        OperatorSubtaskState state =
+                createOperatorSubtaskState(createFlatMap(asyncState), asyncState);
         OperatorState operatorState = new OperatorState(null, null, operatorID, 1, 128);
         operatorState.putState(0, state);
 
@@ -95,7 +97,8 @@ class KeyedStateInputFormatTest {
     void testMaxParallelismRespected(boolean asyncState) throws Exception {
         OperatorID operatorID = OperatorIDGenerator.fromUid("uid");
 
-        OperatorSubtaskState state = createOperatorSubtaskState(createFlatMap(asyncState));
+        OperatorSubtaskState state =
+                createOperatorSubtaskState(createFlatMap(asyncState), asyncState);
         OperatorState operatorState = new OperatorState(null, null, operatorID, 1, 128);
         operatorState.putState(0, state);
 
@@ -118,7 +121,8 @@ class KeyedStateInputFormatTest {
     void testReadState(boolean asyncState) throws Exception {
         OperatorID operatorID = OperatorIDGenerator.fromUid("uid");
 
-        OperatorSubtaskState state = createOperatorSubtaskState(createFlatMap(asyncState));
+        OperatorSubtaskState state =
+                createOperatorSubtaskState(createFlatMap(asyncState), asyncState);
         OperatorState operatorState = new OperatorState(null, null, operatorID, 1, 128);
         operatorState.putState(0, state);
 
@@ -143,7 +147,8 @@ class KeyedStateInputFormatTest {
     void testReadMultipleOutputPerKey(boolean asyncState) throws Exception {
         OperatorID operatorID = OperatorIDGenerator.fromUid("uid");
 
-        OperatorSubtaskState state = createOperatorSubtaskState(createFlatMap(asyncState));
+        OperatorSubtaskState state =
+                createOperatorSubtaskState(createFlatMap(asyncState), asyncState);
         OperatorState operatorState = new OperatorState(null, null, operatorID, 1, 128);
         operatorState.putState(0, state);
 
@@ -169,7 +174,8 @@ class KeyedStateInputFormatTest {
     void testInvalidProcessReaderFunctionFails(boolean asyncState) throws Exception {
         OperatorID operatorID = OperatorIDGenerator.fromUid("uid");
 
-        OperatorSubtaskState state = createOperatorSubtaskState(createFlatMap(asyncState));
+        OperatorSubtaskState state =
+                createOperatorSubtaskState(createFlatMap(asyncState), asyncState);
         OperatorState operatorState = new OperatorState(null, null, operatorID, 1, 128);
         operatorState.putState(0, state);
 
@@ -194,7 +200,7 @@ class KeyedStateInputFormatTest {
 
         OperatorSubtaskState state =
                 createOperatorSubtaskState(
-                        new KeyedProcessOperator<>(new StatefulFunctionWithTime()));
+                        new KeyedProcessOperator<>(new StatefulFunctionWithTime()), false);
         OperatorState operatorState = new OperatorState(null, null, operatorID, 1, 128);
         operatorState.putState(0, state);
 
@@ -252,10 +258,13 @@ class KeyedStateInputFormatTest {
     }
 
     private OperatorSubtaskState createOperatorSubtaskState(
-            OneInputStreamOperator<Integer, Void> operator) throws Exception {
+            OneInputStreamOperator<Integer, Void> operator, boolean async) throws Exception {
         try (KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Void> testHarness =
-                new KeyedOneInputStreamOperatorTestHarness<>(
-                        operator, id -> id, Types.INT, 128, 1, 0)) {
+                async
+                        ? AsyncKeyedOneInputStreamOperatorTestHarness.create(
+                                operator, id -> id, Types.INT, 128, 1, 0)
+                        : new KeyedOneInputStreamOperatorTestHarness<>(
+                                operator, id -> id, Types.INT, 128, 1, 0)) {
 
             testHarness.setup(VoidSerializer.INSTANCE);
             testHarness.open();

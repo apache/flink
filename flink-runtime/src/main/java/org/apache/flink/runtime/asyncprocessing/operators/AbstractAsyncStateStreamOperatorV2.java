@@ -39,6 +39,7 @@ import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.InternalTimerServiceAsyncImpl;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.Triggerable;
+import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeServiceWithAsyncState;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessing;
 import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessingOperator;
@@ -163,17 +164,43 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
         // in Fig.5, each state request itself is also protected by a paired reference count.
         currentProcessingContext.retain();
         asyncExecutionController.setCurrentContext(currentProcessingContext);
+        newKeySelected(currentProcessingContext.getKey());
+    }
+
+    /**
+     * A hook that will be invoked after a new key is selected. It is not recommended to perform
+     * async state here. Only some synchronous logic is suggested.
+     *
+     * @param newKey the new key selected.
+     */
+    public void newKeySelected(Object newKey) {
+        // By default, do nothing.
+        // Subclass could override this method to do some operations when a new key is selected.
+    }
+
+    @Override
+    protected <T> void internalSetKeyContextElement(
+            StreamRecord<T> record, KeySelector<T, ?> selector) throws Exception {
+        // This method is invoked only when isAsyncStateProcessingEnabled() is false.
+        super.internalSetKeyContextElement(record, selector);
+        if (selector != null) {
+            newKeySelected(getCurrentKey());
+        }
     }
 
     @Override
     public Object getCurrentKey() {
-        RecordContext currentContext = asyncExecutionController.getCurrentContext();
-        if (currentContext == null) {
-            throw new UnsupportedOperationException(
-                    "Have not set the current key yet, this may because the operator has not "
-                            + "started to run, or you are invoking this under a non-keyed context.");
+        if (isAsyncStateProcessingEnabled()) {
+            RecordContext currentContext = asyncExecutionController.getCurrentContext();
+            if (currentContext == null) {
+                throw new UnsupportedOperationException(
+                        "Have not set the current key yet, this may because the operator has not "
+                                + "started to run, or you are invoking this under a non-keyed context.");
+            }
+            return currentContext.getKey();
+        } else {
+            return super.getCurrentKey();
         }
-        return currentContext.getKey();
     }
 
     @Override
@@ -260,7 +287,12 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
         InternalTimerService<N> service =
                 keyedTimeServiceHandler.getInternalTimerService(
                         name, keySerializer, namespaceSerializer, triggerable);
-        ((InternalTimerServiceAsyncImpl<K, N>) service).setup(asyncExecutionController);
+        if (service instanceof InternalTimerServiceAsyncImpl) {
+            ((InternalTimerServiceAsyncImpl<K, N>) service).setup(asyncExecutionController);
+        } else if (service instanceof BatchExecutionInternalTimeServiceWithAsyncState) {
+            ((BatchExecutionInternalTimeServiceWithAsyncState<K, N>) service)
+                    .setup(asyncExecutionController);
+        }
         return service;
     }
 

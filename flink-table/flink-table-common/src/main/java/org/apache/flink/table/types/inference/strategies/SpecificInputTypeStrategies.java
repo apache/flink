@@ -81,10 +81,10 @@ public final class SpecificInputTypeStrategies {
                     logical(LogicalTypeFamily.BINARY_STRING),
                     logical(LogicalTypeFamily.TIMESTAMP),
                     logical(LogicalTypeFamily.CONSTRUCTED),
+                    logical(LogicalTypeFamily.NUMERIC),
                     logical(LogicalTypeRoot.STRUCTURED_TYPE),
                     logical(LogicalTypeRoot.DISTINCT_TYPE),
-                    logical(LogicalTypeRoot.BOOLEAN),
-                    logical(LogicalTypeFamily.NUMERIC));
+                    logical(LogicalTypeRoot.BOOLEAN));
 
     /** See {@link JsonQueryOnErrorEmptyArgumentTypeStrategy}. */
     public static final ArgumentTypeStrategy JSON_QUERY_ON_EMPTY_ERROR_BEHAVIOUR =

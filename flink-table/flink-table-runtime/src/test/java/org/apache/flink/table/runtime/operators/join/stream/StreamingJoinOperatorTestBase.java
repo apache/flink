@@ -19,7 +19,9 @@
 package org.apache.flink.table.runtime.operators.join.stream;
 
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessingOperator;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
@@ -102,12 +104,13 @@ public abstract class StreamingJoinOperatorTestBase {
 
     @BeforeEach
     void beforeEach(TestInfo testInfo) throws Exception {
+        TwoInputStreamOperator<RowData, RowData, RowData> operator = createJoinOperator(testInfo);
         testHarness =
-                new KeyedTwoInputStreamOperatorTestHarness<>(
-                        createJoinOperator(testInfo),
-                        leftKeySelector,
-                        rightKeySelector,
-                        joinKeyTypeInfo);
+                operator instanceof AsyncStateProcessingOperator
+                        ? AsyncKeyedTwoInputStreamOperatorTestHarness.create(
+                                operator, leftKeySelector, rightKeySelector, joinKeyTypeInfo)
+                        : new KeyedTwoInputStreamOperatorTestHarness<>(
+                                operator, leftKeySelector, rightKeySelector, joinKeyTypeInfo);
         testHarness.open();
         // extend for mini-batch join test
         assertor =

@@ -93,6 +93,16 @@ public class AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
                     TwoInputStreamOperator<IN1, IN2, OUT> operator,
                     KeySelector<IN1, K> keySelector1,
                     KeySelector<IN2, K> keySelector2,
+                    TypeInformation<K> keyType)
+                    throws Exception {
+        return create(operator, keySelector1, keySelector2, keyType, 1, 1, 0);
+    }
+
+    public static <K, IN1, IN2, OUT>
+            AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT> create(
+                    TwoInputStreamOperator<IN1, IN2, OUT> operator,
+                    KeySelector<IN1, K> keySelector1,
+                    KeySelector<IN2, K> keySelector2,
                     TypeInformation<K> keyType,
                     int maxParallelism,
                     int numSubtasks,

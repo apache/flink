@@ -30,10 +30,10 @@ __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'UNBOU
            'current_watermark', 'local_time', 'local_timestamp',
            'temporal_overlaps', 'date_format', 'timestamp_diff', 'array', 'row', 'map_',
            'row_interval', 'pi', 'e', 'rand', 'rand_integer', 'atan2', 'negative', 'concat',
-           'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'json_string',
-           'json_object', 'json_object_agg', 'json_array', 'json_array_agg', 'call', 'call_sql',
-           'source_watermark', 'to_timestamp_ltz', 'from_unixtime', 'to_date', 'to_timestamp',
-           'convert_tz', 'unix_timestamp']
+           'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'json',
+           'json_string', 'json_object', 'json_object_agg', 'json_array', 'json_array_agg',
+           'call', 'call_sql', 'source_watermark', 'to_timestamp_ltz', 'from_unixtime', 'to_date',
+           'to_timestamp', 'convert_tz', 'unix_timestamp']
 
 
 def _leaf_op(op_name: str) -> Expression:
@@ -768,6 +768,33 @@ def without_columns(head, *tails) -> Expression:
     gateway = get_gateway()
     tails = to_jarray(gateway.jvm.Object, [_get_java_expression(t) for t in tails])
     return _binary_op("withoutColumns", head, tails)
+
+
+def json(value) -> Expression:
+    """
+    Expects a raw, pre-formatted JSON string and returns its values as-is without escaping
+    it as a string.
+
+    This function can currently only be used within the `JSON_OBJECT` function. It allows passing
+    pre-formatted JSON strings that will be inserted directly into the resulting JSON structure
+    rather than being escaped as a string value. This allows storing nested JSON structures in a
+    JSON_OBJECT without processing them as strings, which is often useful when ingesting already
+    formatted json data. If the value is NULL or empty, the function
+    returns NULL.
+
+    Examples:
+    ::
+
+        >>> # {"nested":{"value":42}}
+        >>> json_object(JsonOnNull.NULL, "nested", json('{"value": 42}'))
+
+        >>> # {"K": null}
+        >>> json_object(JsonOnNull.NULL, "K", json(''))
+
+        >>> # Invalid - JSON function can only be used within JSON_OBJECT
+        >>> json('{"value": 42}')
+    """
+    return _unary_op("json", value)
 
 
 def json_string(value) -> Expression:

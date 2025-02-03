@@ -86,6 +86,7 @@ import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
 import org.apache.flink.runtime.taskexecutor.TaskSubmissionTestEnvironment.Builder;
 import org.apache.flink.runtime.taskexecutor.exceptions.RegistrationTimeoutException;
+import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.taskexecutor.exceptions.TaskManagerException;
 import org.apache.flink.runtime.taskexecutor.exceptions.TaskSubmissionException;
 import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
@@ -2939,26 +2940,29 @@ class TaskExecutorTest {
         }
 
         @Override
-        public boolean allocateSlot(
-                int index, JobID jobId, AllocationID allocationId, Duration slotTimeout) {
-            final boolean result = super.allocateSlot(index, jobId, allocationId, slotTimeout);
-            allocateSlotLatch.trigger();
-
-            return result;
+        public void allocateSlot(
+                int index, JobID jobId, AllocationID allocationId, Duration slotTimeout)
+                throws SlotAllocationException {
+            try {
+                super.allocateSlot(index, jobId, allocationId, slotTimeout);
+            } finally {
+                allocateSlotLatch.trigger();
+            }
         }
 
         @Override
-        public boolean allocateSlot(
+        public void allocateSlot(
                 int index,
                 JobID jobId,
                 AllocationID allocationId,
                 ResourceProfile resourceProfile,
-                Duration slotTimeout) {
-            final boolean result =
-                    super.allocateSlot(index, jobId, allocationId, resourceProfile, slotTimeout);
-            allocateSlotLatch.trigger();
-
-            return result;
+                Duration slotTimeout)
+                throws SlotAllocationException {
+            try {
+                super.allocateSlot(index, jobId, allocationId, resourceProfile, slotTimeout);
+            } finally {
+                allocateSlotLatch.trigger();
+            }
         }
     }
 
