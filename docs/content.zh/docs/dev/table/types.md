@@ -973,7 +973,7 @@ The type must be parameterized to one of the following resolutions with up to na
 - interval of minutes to seconds,
 - or interval of seconds.
 
-An interval of day-time consists of `+days hours:months:seconds.fractional` with values ranging from
+An interval of day-time consists of `+days hours:minutes:seconds.fractional` with values ranging from
 `-999999 23:59:59.999999999` to `+999999 23:59:59.999999999`. The value representation is the same
 for all types of resolutions. For example, an interval of seconds of 70 is always represented in
 an interval-of-days-to-seconds format (with default precisions): `+00 00:01:10.000000`.
