@@ -1,6 +1,6 @@
 ---
 title: "Working with State"
-weight: 2
+weight: 1
 type: docs
 aliases:
   - /zh/dev/stream/state/state.html
