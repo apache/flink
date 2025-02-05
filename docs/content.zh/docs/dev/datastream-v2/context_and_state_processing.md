@@ -281,4 +281,11 @@ The specific rules are shown in the following table:
 
 flink will check the legality of state declaration in advance. If an illegal state is declared in `usesStates` method, exception will be thrown at job compile time.
 
+### State Access Methods
+
+Note that the datastream v2 is using the state v2 APIs. For more detail about the state access
+methods, please refer to the
+[Using Keyed State V2]({{< ref "docs/dev/datastream/fault-tolerance/state_v2#using-keyed-state-v2" >}}).
+
+
 {{< top >}}
