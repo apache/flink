@@ -39,6 +39,7 @@ import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.InternalTimerServiceAsyncImpl;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.Triggerable;
+import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeServiceWithAsyncState;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessing;
 import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessingOperator;
@@ -286,7 +287,12 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
         InternalTimerService<N> service =
                 keyedTimeServiceHandler.getInternalTimerService(
                         name, keySerializer, namespaceSerializer, triggerable);
-        ((InternalTimerServiceAsyncImpl<K, N>) service).setup(asyncExecutionController);
+        if (service instanceof InternalTimerServiceAsyncImpl) {
+            ((InternalTimerServiceAsyncImpl<K, N>) service).setup(asyncExecutionController);
+        } else if (service instanceof BatchExecutionInternalTimeServiceWithAsyncState) {
+            ((BatchExecutionInternalTimeServiceWithAsyncState<K, N>) service)
+                    .setup(asyncExecutionController);
+        }
         return service;
     }
 
