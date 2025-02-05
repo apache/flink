@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.over;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
@@ -28,6 +29,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
@@ -81,15 +83,36 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
     // state to hold the Long ID counter
     private transient ValueState<Long> idState;
 
-    // state to hold a sorted list each containing a tuple of sort key with an artificial id
-    // The artificial id acts as the key in the valueMapState
+    // state to hold a sorted list each containing a tuple of sort key and list of IDs
     private transient ValueState<List<Tuple2<RowData, List<Long>>>> sortedListState;
-    // state to hold rows until state ttl expires
+
+    @VisibleForTesting
+    protected transient ValueStateDescriptor<List<Tuple2<RowData, List<Long>>>>
+            sortedListStateDescriptor;
+    // state to hold ID and its associated input row until state ttl expires
     private transient MapState<Long, RowData> valueMapState;
+    @VisibleForTesting protected transient MapStateDescriptor<Long, RowData> valueStateDescriptor;
     // state to hold sortKey and its associated accumulator
     private transient MapState<RowData, RowData> accMapState;
+    @VisibleForTesting protected transient MapStateDescriptor<RowData, RowData> accStateDescriptor;
 
-    protected transient AggsHandleFunction currFunction;
+    protected transient AggsHandleFunction aggFuncs;
+
+    // Metrics
+    private static final String IDS_NOT_FOUND_METRIC_NAME = "numOfIdsNotFound";
+    private transient Counter numOfIdsNotFound;
+    private static final String SORT_KEYS_NOT_FOUND_METRIC_NAME = "numOfSortKeysNotFound";
+    private transient Counter numOfSortKeysNotFound;
+
+    @VisibleForTesting
+    protected Counter getNumOfIdsNotFound() {
+        return numOfIdsNotFound;
+    }
+
+    @VisibleForTesting
+    protected Counter getNumOfSortKeysNotFound() {
+        return numOfSortKeysNotFound;
+    }
 
     public NonTimeRangeUnboundedPrecedingFunction(
             long minRetentionTime,
@@ -116,9 +139,8 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
     @Override
     public void open(OpenContext openContext) throws Exception {
         // Initialize agg functions
-        currFunction =
-                generatedAggsHandler.newInstance(getRuntimeContext().getUserCodeClassLoader());
-        currFunction.open(new PerKeyStateDataViewStore(getRuntimeContext()));
+        aggFuncs = generatedAggsHandler.newInstance(getRuntimeContext().getUserCodeClassLoader());
+        aggFuncs.open(new PerKeyStateDataViewStore(getRuntimeContext()));
 
         // Initialize output record
         output = new JoinedRowData();
@@ -148,34 +170,39 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
         ListTypeInfo<Long> idListTypeInfo = new ListTypeInfo<Long>(Types.LONG);
         ListTypeInfo<Tuple2<RowData, List<Long>>> listTypeInfo =
                 new ListTypeInfo<>(new TupleTypeInfo<>(sortKeyRowTypeInfo, idListTypeInfo));
-        ValueStateDescriptor<List<Tuple2<RowData, List<Long>>>> sortedListStateDescriptor =
+        sortedListStateDescriptor =
                 new ValueStateDescriptor<List<Tuple2<RowData, List<Long>>>>(
                         "sortedListState", listTypeInfo);
         sortedListState = getRuntimeContext().getState(sortedListStateDescriptor);
 
         // Initialize state which maintains the actual row
-        MapStateDescriptor<Long, RowData> valueStateDescriptor =
+        valueStateDescriptor =
                 new MapStateDescriptor<Long, RowData>(
                         "valueMapState", Types.LONG, inputRowTypeInfo);
         valueMapState = getRuntimeContext().getMapState(valueStateDescriptor);
 
         // Initialize accumulator state per row
         InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
-        MapStateDescriptor<RowData, RowData> accStateDescriptor =
+        accStateDescriptor =
                 new MapStateDescriptor<RowData, RowData>(
                         "accMapState", sortKeyRowTypeInfo, accTypeInfo);
         accMapState = getRuntimeContext().getMapState(accStateDescriptor);
 
         initCleanupTimeState("NonTimeUnboundedPrecedingFunctionCleanupTime");
+
+        // metrics
+        this.numOfIdsNotFound =
+                getRuntimeContext().getMetricGroup().counter(IDS_NOT_FOUND_METRIC_NAME);
+        this.numOfSortKeysNotFound =
+                getRuntimeContext().getMetricGroup().counter(SORT_KEYS_NOT_FOUND_METRIC_NAME);
     }
 
     /**
-     * Puts an element from the input stream into state. Emits the aggregated value for the newly
-     * inserted element. For append stream emits updates(UB, UA) for all elements which are present
-     * after the newly inserted element. For retract stream emits a DELETE for the element and
-     * thereafter emits updates(UB, UA) for all elements which are present after the retracted
-     * element. Emits the same aggregated value for all elements with the same sortKey to comply
-     * with the sql RANGE syntax.
+     * Puts an element from the input stream into state or removes it from state if the input is a
+     * retraction. Emits the aggregated value for the newly inserted element and updates all results
+     * that are affected by the added or removed row.
+     * Emits the same aggregated value for all elements with the same sortKey to comply with the
+     * sql RANGE syntax.
      *
      * @param input The input value.
      * @param ctx A {@link Context} that allows querying the timestamp of the element and getting
@@ -190,7 +217,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
             KeyedProcessFunction<K, RowData, RowData>.Context ctx,
             Collector<RowData> out)
             throws Exception {
-        // register state-cleanup timer
+        // register state-cleanup timer for the current key
         registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime());
 
         RowKind rowKind = input.getRowKind();
@@ -208,78 +235,68 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
         }
 
         // Reset acc state since we can have out of order inserts into the ordered list
-        currFunction.resetAccumulators();
-        currFunction.cleanup();
+        aggFuncs.resetAccumulators();
+        aggFuncs.cleanup();
     }
 
     /**
-     * Adds a new element(input) to a sortedList. The sortedList contains a list of Tuple<SortKey,
-     * List<Long Ids>> Extracts the inputSortKey from the input and compares it with every element
-     * in the sortedList If an sortKey already exists in the sortedList for the input, add the id to
-     * the list of ids and update the sortedList Otherwise find the right position in the sortedList
-     * and add a new entry in the middle. If no matching sortKey is found, add a new entry in the
-     * end of the sortedList. After and element is inserted, an INSERT/UPDATE_AFTER event is emitted
-     * for the newly inserted element, and for all subsequent elements an UPDATE_BEFORE and
-     * UPDATE_AFTER event is emitted based on the previous and newly aggregated values. Updates are
-     * skipped if the previously accumulated value is the same as the newly accumulated value to
-     * save on network bandwidth.
+     * Adds a new element(insRow) to a sortedList. The sortedList contains a list of Tuple<SortKey,
+     * List<Long Ids>>. Extracts the inputSortKey from the insRow and compares it with every element
+     * in the sortedList. If a sortKey already exists in the sortedList for the input, add the id to
+     * the list of ids and update the sortedList, otherwise find the right position in the
+     * sortedList and add a new entry in the sortedList.
+     * After the insRow is successfully inserted, an INSERT/UPDATE_AFTER
+     * event is emitted for the newly inserted element, and for all subsequent elements an
+     * UPDATE_BEFORE and UPDATE_AFTER event is emitted based on the previous and newly aggregated
+     * values. Some updates are skipped if the previously accumulated value is the same as the newly
+     * accumulated value to save on network bandwidth.
      *
-     * @param input The input value.
+     * @param insRow The input value.
      * @param out The collector for returning result values.
      * @throws Exception
      */
-    private void insertIntoSortedList(RowData input, Collector<RowData> out) throws Exception {
+    private void insertIntoSortedList(RowData insRow, Collector<RowData> out) throws Exception {
         Long id = getNextId();
         List<Tuple2<RowData, List<Long>>> sortedList = getSortedList();
-        RowKind origRowKind = input.getRowKind();
-        input.setRowKind(RowKind.INSERT);
-        RowData inputSortKey = sortKeySelector.getKey(input);
-        int i;
-        boolean isInserted = false;
-        for (i = 0; i < sortedList.size(); i++) {
-            RowData curSortKey = sortedList.get(i).f0;
-            List<Long> ids = new ArrayList<>(sortedList.get(i).f1);
-            if (sortKeyComparator.compare(curSortKey, inputSortKey) == 0) {
-                // Insert at the (i)th location by adding the new id to the list of ids
-                ids.add(id);
-                sortedList.set(i, new Tuple2<>(curSortKey, ids));
-                setAccumulatorOfPrevRow(sortedList, i - 1);
-                reAccumulateIdsAfterInsert(ids, input);
-                emitUpdatesForIds(
-                        ids,
-                        ids.size() - 1,
-                        accMapState.get(curSortKey),
-                        currFunction.getValue(),
-                        origRowKind,
-                        input,
-                        out);
-                isInserted = true;
-                i++;
-                break;
-            } else if (sortKeyComparator.compare(curSortKey, inputSortKey) > 0) {
-                // Insert in the middle
-                sortedList.add(i, new Tuple2<>(inputSortKey, List.of(id)));
-                setAccumulatorOfPrevRow(sortedList, i - 1);
-                currFunction.accumulate(input);
-                collectInsertOrUpdateAfter(out, input, origRowKind);
-                isInserted = true;
-                i++;
-                break;
+        RowKind origRowKind = insRow.getRowKind();
+        insRow.setRowKind(RowKind.INSERT);
+        RowData inputSortKey = sortKeySelector.getKey(insRow);
+        Tuple2<Integer, Boolean> indexForInsertOrUpdate =
+                findIndexForInsertOrUpdate(sortedList, inputSortKey);
+        boolean isInsert = indexForInsertOrUpdate.f1;
+        int index = indexForInsertOrUpdate.f0;
+        if (isInsert) {
+            if (index == -1) {
+                // Insert at the end of the sortedList
+                sortedList.add(new Tuple2<>(inputSortKey, List.of(id)));
+                index = sortedList.size() - 1;
+            } else {
+                // Insert at position i of the sortedList
+                sortedList.add(index, new Tuple2<>(inputSortKey, List.of(id)));
             }
+            setAccumulatorOfPrevRow(sortedList, index - 1);
+            aggFuncs.accumulate(insRow);
+            collectInsertOrUpdateAfter(out, insRow, origRowKind, aggFuncs.getValue());
+        } else {
+            // Update at position i
+            List<Long> ids = new ArrayList<>(sortedList.get(index).f1);
+            ids.add(id);
+            sortedList.set(index, new Tuple2<>(inputSortKey, ids));
+            setAccumulatorOfPrevRow(sortedList, index - 1);
+            reAccumulateIdsAfterInsert(aggFuncs.getAccumulators(), ids, insRow);
+            emitUpdatesForIds(
+                    ids,
+                    ids.size() - 1,
+                    accMapState.get(inputSortKey), // prevAcc
+                    aggFuncs.getAccumulators(), // currAcc
+                    origRowKind,
+                    insRow,
+                    out);
         }
 
-        if (!isInserted) {
-            // Insert at the end
-            sortedList.add(new Tuple2<>(inputSortKey, List.of(id)));
-            setAccumulatorOfPrevRow(sortedList, sortedList.size() - 2);
-            currFunction.accumulate(input);
-            collectInsertOrUpdateAfter(out, input, origRowKind);
-            i++;
-        }
+        addToState(id, insRow, inputSortKey, aggFuncs.getAccumulators(), sortedList);
 
-        addToState(id, input, inputSortKey, currFunction.getAccumulators(), sortedList);
-
-        processRemainingElements(sortedList, i, out);
+        processRemainingElements(sortedList, index + 1, aggFuncs.getAccumulators(), out);
     }
 
     /**
@@ -289,7 +306,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
     private Long getNextId() throws IOException {
         Long id = idState.value();
         if (id == null) {
-            id = 0L;
+            id = Long.MIN_VALUE;
         }
         return id;
     }
@@ -307,6 +324,31 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
     }
 
     /**
+     * Returns the position of the index where the inputRow must be inserted or updated. If a
+     * suitable position is not found, return -1 to be inserted at the end of the list.
+     *
+     * @param sortedList
+     * @param inputSortKey
+     * @return Tuple2<Integer, Boolean>
+     */
+    private Tuple2<Integer, Boolean> findIndexForInsertOrUpdate(
+            List<Tuple2<RowData, List<Long>>> sortedList, RowData inputSortKey) {
+        // TODO: Optimize by using Binary Search
+        for (int i = 0; i < sortedList.size(); i++) {
+            RowData curSortKey = sortedList.get(i).f0;
+            if (sortKeyComparator.compare(curSortKey, inputSortKey) == 0) {
+                // Found inputSortKey
+                return new Tuple2<>(i, false);
+            } else if (sortKeyComparator.compare(curSortKey, inputSortKey) > 0) {
+                // Found curSortKey which is greater than inputSortKey
+                return new Tuple2<>(i, true);
+            }
+        }
+        // Return not found
+        return new Tuple2<>(-1, true);
+    }
+
+    /**
      * Helper method to set the accumulator based on the prevIndex
      *
      * @param sortedList
@@ -316,14 +358,14 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
     private void setAccumulatorOfPrevRow(
             List<Tuple2<RowData, List<Long>>> sortedList, int prevIndex) throws Exception {
         if (prevIndex < 0) {
-            currFunction.createAccumulators();
+            aggFuncs.createAccumulators();
         } else {
             RowData prevAcc = accMapState.get(sortedList.get(prevIndex).f0);
             if (prevAcc == null) {
                 // TODO: Throw exception since this could due to state cleaning
-                currFunction.createAccumulators();
+                aggFuncs.createAccumulators();
             } else {
-                currFunction.setAccumulators(prevAcc);
+                aggFuncs.setAccumulators(prevAcc);
             }
         }
     }
@@ -332,67 +374,72 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
      * Helper method to re-accumulate the aggregated value for all ids after an id was inserted to
      * the end of the ids list.
      *
+     * @param currAcc
      * @param ids
-     * @param input
+     * @param insRow
      * @throws Exception
      */
-    private void reAccumulateIdsAfterInsert(List<Long> ids, RowData input) throws Exception {
+    private void reAccumulateIdsAfterInsert(RowData currAcc, List<Long> ids, RowData insRow)
+            throws Exception {
+        aggFuncs.setAccumulators(currAcc);
         // Update acc value for all ids
-        for (int j = 0; j < ids.size(); j++) {
-            if (j == ids.size() - 1) {
-                // Update acc for newly inserted value
-                currFunction.accumulate(input);
-            } else {
-                // Get rowValue for id and re-accumulate it
-                RowData value = valueMapState.get(ids.get(j));
-                currFunction.accumulate(value);
-            }
+        for (int j = 0; j < ids.size() - 1; j++) {
+            // Get rowValue for id and re-accumulate it
+            RowData value = valueMapState.get(ids.get(j));
+            aggFuncs.accumulate(value);
         }
+        // Update acc for newly inserted row
+        aggFuncs.accumulate(insRow);
+    }
+
+    private RowData setAccumulatorAndGetValue(RowData accumulator) throws Exception {
+        aggFuncs.setAccumulators(accumulator);
+        return aggFuncs.getValue();
     }
 
     /**
-     * Emits updates for all ids. The id belonging to idx location either emits a DELETE or
-     * INSERT/UPDATE_AFTER, depending on whether the id is being added to ids or removed from ids.
-     * All other ids except the id at position idx emit old and new aggregated values in the form of
-     * UPDATE_BEFORE and UPDATE_AFTER respectively.
+     * Emits updates for all ids. The id belonging to idxOfChangedRow location either emits a DELETE
+     * or INSERT/UPDATE_AFTER, depending on whether the id is being added or removed from ids. All
+     * other ids except the id at position idxOfChangedRow emit old and new aggregated values in the
+     * form of UPDATE_BEFORE and UPDATE_AFTER respectively.
      *
      * @param ids
-     * @param idx
+     * @param idxOfChangedRow
      * @param prevAcc
      * @param currAcc
      * @param rowKind
-     * @param input
+     * @param changedRow
      * @param out
      * @throws Exception
      */
     private void emitUpdatesForIds(
             List<Long> ids,
-            int idx,
+            int idxOfChangedRow,
             RowData prevAcc,
             RowData currAcc,
             RowKind rowKind,
-            RowData input,
+            RowData changedRow,
             Collector<RowData> out)
             throws Exception {
+        RowData prevAggValue = setAccumulatorAndGetValue(prevAcc);
+        RowData currAggValue = setAccumulatorAndGetValue(currAcc);
+
+        if (prevAcc.equals(currAcc)) {
+            // Only send update for changed row i.e. either INSERT or DELETE
+            sendUpdateForChangedRow(out, rowKind, changedRow, prevAggValue, currAggValue);
+            // Previous accumulator is the same as the current accumulator
+            // Skip sending downstream updates in such cases to reduce network traffic
+            LOG.debug("Prev accumulator is same as curr accumulator. Skipping further updates.");
+            return;
+        }
+
         for (int j = 0; j < ids.size(); j++) {
-            if (j == idx) {
-                if (rowKind == RowKind.DELETE) {
-                    // TODO: change to collectDelete
-                    collectUpdateBefore(out, input, prevAcc);
-                } else {
-                    // For insert, emit either Insert or UpdateAfter
-                    collectInsertOrUpdateAfter(out, input, rowKind);
-                }
+            if (j == idxOfChangedRow) {
+                sendUpdateForChangedRow(out, rowKind, changedRow, prevAggValue, currAggValue);
             } else {
-                if (prevAcc.equals(currAcc)) {
-                    // Previous accumulator is the same as the current accumulator
-                    // Skip sending downstream updates in such cases to reduce network traffic
-                    LOG.info("Prev accumulator is same as curr accumulator. Skipping updates.");
-                    continue;
-                }
                 RowData value = valueMapState.get(ids.get(j));
-                collectUpdateBefore(out, value, prevAcc);
-                collectUpdateAfter(out, value, currAcc);
+                collectUpdateBefore(out, value, prevAggValue);
+                collectUpdateAfter(out, value, currAggValue);
             }
         }
     }
@@ -417,118 +464,155 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
      *
      * @param sortedList
      * @param startPos
+     * @param currAcc
      * @param out
      * @throws Exception
      */
     private void processRemainingElements(
-            List<Tuple2<RowData, List<Long>>> sortedList, int startPos, Collector<RowData> out)
+            List<Tuple2<RowData, List<Long>>> sortedList,
+            int startPos,
+            RowData currAcc,
+            Collector<RowData> out)
             throws Exception {
         // Send updates for remaining sort keys after the inserted/removed idx
         for (int i = startPos; i < sortedList.size(); i++) {
             Tuple2<RowData, List<Long>> sortKeyAndIds = sortedList.get(i);
             RowData curSortKey = sortKeyAndIds.f0;
             List<Long> ids = sortKeyAndIds.f1;
-            // Get previous accumulator
-            RowData prevAcc = accMapState.get(curSortKey);
 
+            aggFuncs.setAccumulators(currAcc);
             // Calculate new agg value for all ids with the same sortKey
             for (int j = 0; j < ids.size(); j++) {
                 RowData value = valueMapState.get(ids.get(j));
-                currFunction.accumulate(value);
+                aggFuncs.accumulate(value);
             }
+
+            // Update currAcc with the updated aggFunc
+            currAcc = aggFuncs.getAccumulators();
+            RowData currAggValue = aggFuncs.getValue();
+
+            // Get previous accumulator and previously aggregated value
+            RowData prevAcc = accMapState.get(curSortKey);
+            RowData prevAggValue = setAccumulatorAndGetValue(prevAcc);
+
+            if (prevAcc.equals(currAcc)) {
+                // Previous accumulator is the same as the current accumulator.
+                // This means all the ids will have no change in the accumulated value.
+                // Skip sending downstream updates in such cases to reduce network traffic
+                LOG.debug(
+                        "Prev accumulator is same as curr accumulator. Skipping further updates.");
+                break;
+            }
+
             // Emit old and new agg values for all ids with the same sortKey
             for (int j = 0; j < ids.size(); j++) {
                 RowData value = valueMapState.get(ids.get(j));
-                if (prevAcc.equals(currFunction.getAccumulators())) {
-                    // Previous accumulator is the same as the current accumulator.
-                    // This means all the ids will have no change in the accumulated value.
-                    // Skip sending downstream updates in such cases to reduce network traffic
-                    LOG.info("Prev accumulator is same as curr accumulator. Skipping updates.");
-                    break;
-                }
-                collectUpdateBefore(out, value, prevAcc);
-                collectUpdateAfter(out, value, currFunction.getValue());
+                collectUpdateBefore(out, value, prevAggValue);
+                collectUpdateAfter(out, value, currAggValue);
             }
-            // update accumulated state for sortKey if prevAcc != currAcc
-            if (!prevAcc.equals(currFunction.getAccumulators())) {
-                accMapState.put(curSortKey, currFunction.getAccumulators());
-            }
+
+            // update accumulated state for sortKey
+            accMapState.put(curSortKey, currAcc);
         }
     }
 
-    private void collectInsertOrUpdateAfter(Collector<RowData> out, RowData value, RowKind rowKind)
-            throws Exception {
+    private void sendUpdateForChangedRow(
+            Collector<RowData> out,
+            RowKind rowKind,
+            RowData changedRow,
+            RowData prevAggValue,
+            RowData currAggValue) {
+        if (rowKind == RowKind.DELETE) {
+            // TODO: change to collectDelete
+            collectUpdateBefore(out, changedRow, prevAggValue);
+        } else {
+            // For insert, emit either Insert or UpdateAfter
+            collectInsertOrUpdateAfter(out, changedRow, rowKind, currAggValue);
+        }
+    }
+
+    private void collectInsertOrUpdateAfter(
+            Collector<RowData> out, RowData value, RowKind rowKind, RowData currAggValue) {
         output.setRowKind(rowKind);
-        output.replace(value, currFunction.getValue());
+        output.replace(value, currAggValue);
         out.collect(output);
     }
 
     private void collectUpdateBefore(
-            Collector<RowData> out, RowData rowValue, RowData prevAccValue) {
+            Collector<RowData> out, RowData rowValue, RowData prevAggValue) {
         output.setRowKind(RowKind.UPDATE_BEFORE);
-        output.replace(rowValue, prevAccValue);
+        output.replace(rowValue, prevAggValue);
         out.collect(output);
     }
 
     private void collectUpdateAfter(
-            Collector<RowData> out, RowData rowValue, RowData currAccValue) {
+            Collector<RowData> out, RowData rowValue, RowData currAggValue) {
         output.setRowKind(RowKind.UPDATE_AFTER);
-        output.replace(rowValue, currAccValue);
+        output.replace(rowValue, currAggValue);
         out.collect(output);
     }
 
-    private void collectDelete(Collector<RowData> out, RowData rowValue, RowData prevAccValue) {
+    private void collectDelete(Collector<RowData> out, RowData rowValue, RowData prevAggValue) {
         output.setRowKind(RowKind.DELETE);
-        output.replace(rowValue, prevAccValue);
+        output.replace(rowValue, prevAggValue);
         out.collect(output);
     }
 
     /**
-     * Removes the row matching input from the sortedList. Matching is done based on the sortKeys.
+     * Removes the row matching delRow from the sortedList. Matching is done based on the sortKeys.
      * Once matched, the actual row is compared for all ids belonging to the same sortKey. After the
      * element is removed, a DELETE event is emitted for the removed element, and for all subsequent
      * elements an UPDATE_BEFORE and UPDATE_AFTER event is emitted based on the previous and newly
      * aggregated values. Updates are skipped if the previously accumulated value is the same as the
      * newly accumulated value to save on network bandwidth.
      *
-     * @param input
+     * @param delRow
      * @param out
      * @throws Exception
      */
-    private void removeFromSortedList(RowData input, Collector<RowData> out) throws Exception {
-        int i;
-        input.setRowKind(RowKind.INSERT);
-        RowData inputSortKey = sortKeySelector.getKey(input);
+    private void removeFromSortedList(RowData delRow, Collector<RowData> out) throws Exception {
+        int i = 0;
+        boolean sortKeyFound = false;
+        delRow.setRowKind(RowKind.INSERT);
+        RowData inputSortKey = sortKeySelector.getKey(delRow);
         List<Tuple2<RowData, List<Long>>> sortedList = getSortedList();
 
-        for (i = 0; i < sortedList.size(); i++) {
+        for (; i < sortedList.size(); i++) {
             RowData curSortKey = sortedList.get(i).f0;
             List<Long> ids = new ArrayList<>(sortedList.get(i).f1);
             if (sortKeyEqualiser.equals(curSortKey, inputSortKey)) {
+                sortKeyFound = true;
                 setAccumulatorOfPrevRow(sortedList, i - 1);
                 // Accumulate all ids except id which needs to be removed
-                int removeIndex = reAccumulateIdsAndGetRemoveIndex(ids, input);
+                int removeIndex = reAccumulateIdsAndGetRemoveIndex(ids, delRow);
                 if (removeIndex == -1) {
-                    // TODO: can this ever happen? may be during/after state cleaning?
-                    LOG.info("Could not find id to remove");
+                    LOG.info(
+                            "Could not find matching row to remove. Missing id from sortKey ids list.");
+                    numOfIdsNotFound.inc();
                     return;
                 }
                 emitUpdatesForIds(
                         ids,
                         removeIndex,
-                        accMapState.get(curSortKey),
-                        currFunction.getAccumulators(),
+                        accMapState.get(curSortKey), // prevAcc
+                        aggFuncs.getAccumulators(), // currAcc
                         RowKind.DELETE,
-                        input,
+                        delRow,
                         out);
                 Long deletedId = ids.remove(removeIndex);
                 i = removeIdFromSortedList(sortedList, i, ids, curSortKey);
-                removeFromState(sortedList, deletedId, curSortKey);
+                removeFromState(
+                        sortedList, ids.size(), deletedId, curSortKey, aggFuncs.getAccumulators());
                 break;
             }
         }
 
-        processRemainingElements(sortedList, i, out);
+        if (!sortKeyFound) {
+            LOG.debug("Could not find matching sort key. Skipping delete.");
+            numOfSortKeysNotFound.inc();
+        }
+
+        processRemainingElements(sortedList, i, aggFuncs.getAccumulators(), out);
     }
 
     /**
@@ -536,18 +620,18 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
      * removed.
      *
      * @param ids
-     * @param input
+     * @param delRow
      * @return the index position of the id that should be removed
      * @throws Exception
      */
-    private int reAccumulateIdsAndGetRemoveIndex(List<Long> ids, RowData input) throws Exception {
+    private int reAccumulateIdsAndGetRemoveIndex(List<Long> ids, RowData delRow) throws Exception {
         int removeIndex = -1;
         for (int j = 0; j < ids.size(); j++) {
             RowData curValue = valueMapState.get(ids.get(j));
-            if (valueEqualiser.equals(curValue, input)) {
+            if (valueEqualiser.equals(curValue, delRow)) {
                 removeIndex = j;
             } else {
-                currFunction.accumulate(curValue);
+                aggFuncs.accumulate(curValue);
             }
         }
         return removeIndex;
@@ -572,25 +656,37 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
         if (ids.isEmpty()) {
             sortedList.remove(idx);
         } else {
-            // Update sortedList without the removed id
-            sortedList.set(idx, new Tuple2<RowData, List<Long>>(curSortKey, ids));
-            idx++;
+            if (ids.isEmpty()) {
+                sortedList.remove(idx);
+            } else {
+                // Update sortedList without the removed id
+                sortedList.set(idx, new Tuple2<RowData, List<Long>>(curSortKey, ids));
+                idx++;
+            }
         }
         return idx;
     }
 
     private void removeFromState(
-            List<Tuple2<RowData, List<Long>>> sortedList, Long id, RowData sortKey)
+            List<Tuple2<RowData, List<Long>>> sortedList,
+            int numOfIds,
+            Long id,
+            RowData sortKey,
+            RowData accumulators)
             throws Exception {
         valueMapState.remove(id);
-        accMapState.put(sortKey, currFunction.getAccumulators());
+        if (numOfIds == 0) {
+            accMapState.remove(sortKey);
+        } else {
+            accMapState.put(sortKey, accumulators);
+        }
         sortedListState.update(sortedList);
     }
 
     @Override
     public void close() throws Exception {
-        if (null != currFunction) {
-            currFunction.close();
+        if (null != aggFuncs) {
+            aggFuncs.close();
         }
     }
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.over;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -42,6 +43,7 @@ import org.apache.flink.types.RowKind;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
@@ -1739,6 +1741,161 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends RowTimeOverWindo
         List<RowData> actualRows = testHarness.extractOutputValues();
 
         validateRows(actualRows, expectedRows);
+    }
+
+    @Test
+    public void testInsertAndRetractAllWithStateValidation() throws Exception {
+        NonTimeRangeUnboundedPrecedingFunction<RowData> function =
+                new NonTimeRangeUnboundedPrecedingFunction<RowData>(
+                        0,
+                        2000,
+                        aggsHandleFunction,
+                        GENERATED_ROW_VALUE_EQUALISER,
+                        GENERATED_SORT_KEY_EQUALISER,
+                        GENERATED_SORT_KEY_COMPARATOR_ASC,
+                        accTypes,
+                        inputFieldTypes,
+                        SORT_KEY_TYPES,
+                        SORT_KEY_SELECTOR) {};
+        KeyedProcessOperator<RowData, RowData, RowData> operator =
+                new KeyedProcessOperator<>(function);
+
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(operator);
+
+        testHarness.open();
+
+        // put some records
+        GenericRowData firstRecord = GenericRowData.of("key1", 1L, 100L);
+        testHarness.processElement(insertRecord("key1", 1L, 100L));
+        validateState(function, firstRecord, 0, 1, 0, 1, 0, 1, true);
+
+        GenericRowData secondRecord = GenericRowData.of("key1", 2L, 200L);
+        testHarness.processElement(insertRecord("key1", 2L, 200L));
+        validateState(function, secondRecord, 1, 2, 0, 1, 1, 2, true);
+
+        GenericRowData thirdRecord = GenericRowData.of("key1", 2L, 201L);
+        testHarness.processElement(insertRecord("key1", 2L, 201L));
+        validateState(function, thirdRecord, 1, 2, 1, 2, 2, 3, true);
+
+        GenericRowData fourthRecord = GenericRowData.of("key1", 5L, 500L);
+        testHarness.processElement(insertRecord("key1", 5L, 500L));
+        validateState(function, fourthRecord, 2, 3, 0, 1, 3, 4, true);
+
+        GenericRowData fifthRecord = GenericRowData.of("key1", 5L, 502L);
+        testHarness.processElement(insertRecord("key1", 5L, 502L));
+        validateState(function, fifthRecord, 2, 3, 1, 2, 4, 5, true);
+
+        GenericRowData sixthRecord = GenericRowData.of("key1", 5L, 501L);
+        testHarness.processElement(insertRecord("key1", 5L, 501L));
+        validateState(function, sixthRecord, 2, 3, 2, 3, 5, 6, true);
+
+        GenericRowData seventhRecord = GenericRowData.of("key1", 6L, 600L);
+        testHarness.processElement(insertRecord("key1", 6L, 600L));
+        validateState(function, seventhRecord, 3, 4, 0, 1, 6, 7, true);
+
+        testHarness.processElement(updateBeforeRecord("key1", 5L, 502L));
+        validateState(function, fifthRecord, 2, 4, 1, 2, 4, 6, false);
+
+        testHarness.processElement(updateBeforeRecord("key1", 6L, 600L));
+        validateState(function, seventhRecord, 3, 3, 0, 0, 6, 5, false);
+
+        testHarness.processElement(updateBeforeRecord("key1", 2L, 201L));
+        validateState(function, thirdRecord, 1, 3, 1, 1, 2, 4, false);
+
+        testHarness.processElement(updateBeforeRecord("key1", 2L, 200L));
+        validateState(function, secondRecord, 1, 2, -1, 0, 1, 3, false);
+
+        testHarness.processElement(updateBeforeRecord("key1", 5L, 500L));
+        validateState(function, fourthRecord, 1, 2, 0, 1, 3, 2, false);
+
+        testHarness.processElement(updateBeforeRecord("key1", 5L, 501L));
+        validateState(function, sixthRecord, 1, 1, -1, 0, 5, 1, false);
+
+        testHarness.processElement(updateBeforeRecord("key1", 1L, 100L));
+        validateState(function, firstRecord, 0, 0, -1, 0, 0, 0, false);
+
+        List<RowData> actualRows = testHarness.extractOutputValues();
+        assertThat(actualRows.size()).isEqualTo(40);
+    }
+
+    private void validateState(
+            NonTimeRangeUnboundedPrecedingFunction<RowData> function,
+            RowData record,
+            int listPos,
+            int expectedSortedListSize,
+            int idPos,
+            int expectedNumOfIds,
+            int idOffset,
+            int totalRows,
+            boolean isInsertion)
+            throws Exception {
+        List<Tuple2<RowData, List<Long>>> sortedList =
+                function.getRuntimeContext().getState(function.sortedListStateDescriptor).value();
+        // Validate sortedList size
+        assertThat(sortedList.size()).isEqualTo(expectedSortedListSize);
+        if (isInsertion) {
+            // Validate number of ids
+            assertThat(sortedList.get(listPos).f1.size()).isEqualTo(expectedNumOfIds);
+            // Validate if id was inserted in the correct position
+            assertThat(sortedList.get(listPos).f1.get(idPos)).isEqualTo(Long.MIN_VALUE + idOffset);
+        } else {
+            if (listPos < sortedList.size()) {
+                Tuple2<RowData, List<Long>> rowDataListTuple = sortedList.get(listPos);
+                if (rowDataListTuple != null) {
+                    // Validate if ids does not contain the removed id
+                    assertThat(rowDataListTuple.f1).doesNotContain(Long.MIN_VALUE + idOffset);
+                }
+            } else {
+                assertThat(
+                                function.getRuntimeContext()
+                                        .getMapState(function.accStateDescriptor)
+                                        .get(SORT_KEY_SELECTOR.getKey(record)))
+                        .isNull();
+            }
+        }
+
+        // Validate total number of rows in the valueMapState
+        assertThat(
+                        ((Collection<?>)
+                                        function.getRuntimeContext()
+                                                .getMapState(function.valueStateDescriptor)
+                                                .keys())
+                                .size())
+                .isEqualTo(totalRows);
+        if (isInsertion) {
+            // Validate if record was successfully inserted in the valueMapState
+            assertThat(
+                            function.getRuntimeContext()
+                                    .getMapState(function.valueStateDescriptor)
+                                    .get(Long.MIN_VALUE + idOffset)
+                                    .toString())
+                    .isEqualTo(record.toString());
+        } else {
+            // Validate if record was successfully removed from the valueMapState
+            assertThat(
+                            function.getRuntimeContext()
+                                    .getMapState(function.valueStateDescriptor)
+                                    .get(Long.MIN_VALUE + idOffset))
+                    .isNull();
+        }
+
+        // Validate number of entries in the accMap state
+        assertThat(
+                        ((Collection<?>)
+                                        function.getRuntimeContext()
+                                                .getMapState(function.accStateDescriptor)
+                                                .keys())
+                                .size())
+                .isEqualTo(expectedSortedListSize);
+        if (isInsertion) {
+            // Validate if an entry exists for the sortKey
+            assertThat(
+                            function.getRuntimeContext()
+                                    .getMapState(function.accStateDescriptor)
+                                    .get(SORT_KEY_SELECTOR.getKey(record)))
+                    .isNotNull();
+        }
     }
 
     private void validateRows(List<RowData> actualRows, List<RowData> expectedRows) {
