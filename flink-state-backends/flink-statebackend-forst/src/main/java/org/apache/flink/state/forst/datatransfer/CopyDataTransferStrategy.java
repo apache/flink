@@ -31,10 +31,8 @@ import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
-import org.apache.flink.state.forst.fs.filemapping.FileBackedMappingEntrySource;
-import org.apache.flink.state.forst.fs.filemapping.HandleBackedMappingEntrySource;
+import org.apache.flink.state.forst.fs.filemapping.FileOwnership;
 import org.apache.flink.state.forst.fs.filemapping.MappingEntry;
-import org.apache.flink.state.forst.fs.filemapping.MappingEntrySource;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -78,7 +76,6 @@ public class CopyDataTransferStrategy extends DataTransferStrategy {
         }
 
         return copyFileToCheckpoint(
-                dbFileSystem,
                 dbFilePath,
                 maxTransferBytes,
                 checkpointStreamFactory,
@@ -92,7 +89,7 @@ public class CopyDataTransferStrategy extends DataTransferStrategy {
             StreamStateHandle sourceHandle, Path targetPath, CloseableRegistry closeableRegistry)
             throws IOException {
         LOG.trace("Copy file from checkpoint: {}, {}, {}", sourceHandle, targetPath, dbFileSystem);
-        copyFileFromCheckpoint(dbFileSystem, sourceHandle, targetPath, closeableRegistry);
+        copyFileFromCheckpoint(sourceHandle, targetPath, closeableRegistry);
     }
 
     @Override
@@ -100,89 +97,86 @@ public class CopyDataTransferStrategy extends DataTransferStrategy {
         return "CopyDataTransferStrategy{" + ", dbFileSystem=" + dbFileSystem + '}';
     }
 
-    private static HandleAndLocalPath copyFileToCheckpoint(
-            FileSystem dbFileSystem,
-            Path filePath,
+    private HandleAndLocalPath copyFileToCheckpoint(
+            Path dbFilePath,
             long maxTransferBytes,
             CheckpointStreamFactory checkpointStreamFactory,
             CheckpointedStateScope stateScope,
             CloseableRegistry closeableRegistry,
             CloseableRegistry tmpResourcesRegistry)
             throws IOException {
-        StreamStateHandle handleByDuplicating =
-                duplicateFileToCheckpoint(
-                        dbFileSystem, filePath, checkpointStreamFactory, stateScope);
-        if (handleByDuplicating != null) {
-            LOG.trace("Duplicate file to checkpoint: {} {}", filePath, handleByDuplicating);
-            return HandleAndLocalPath.of(handleByDuplicating, filePath.getName());
+
+        // Get State handle for the DB file
+        StreamStateHandle sourceStateHandle;
+        if (dbFileSystem instanceof ForStFlinkFileSystem) {
+            // Obtain the state handle stored in MappingEntry
+            // or Construct a FileStateHandle base on the source file
+            MappingEntry mappingEntry =
+                    ((ForStFlinkFileSystem) dbFileSystem).getMappingEntry(dbFilePath);
+            Preconditions.checkNotNull(mappingEntry, "dbFile not found: " + dbFilePath);
+            sourceStateHandle = mappingEntry.getSource().toStateHandle();
+            if (mappingEntry.getFileOwnership() == FileOwnership.NOT_OWNED) {
+                // The file is already owned by JM, simply return the state handle
+                return HandleAndLocalPath.of(sourceStateHandle, dbFilePath.getName());
+            }
+        } else {
+            // Construct a FileStateHandle base on the DB file
+            FileSystem sourceFileSystem = dbFilePath.getFileSystem();
+            long fileLength = sourceFileSystem.getFileStatus(dbFilePath).getLen();
+            sourceStateHandle = new FileStateHandle(dbFilePath, fileLength);
         }
 
-        HandleAndLocalPath handleAndLocalPath =
-                HandleAndLocalPath.of(
-                        writeFileToCheckpoint(
-                                dbFileSystem,
-                                filePath,
-                                maxTransferBytes,
-                                checkpointStreamFactory,
-                                stateScope,
-                                closeableRegistry,
-                                tmpResourcesRegistry),
-                        filePath.getName());
-        LOG.trace("Write file to checkpoint: {}, {}", filePath, handleAndLocalPath.getHandle());
-        return handleAndLocalPath;
+        // Try path-copying first. If failed, fallback to bytes-copying
+        StreamStateHandle targetStateHandle =
+                tryPathCopyingToCheckpoint(sourceStateHandle, checkpointStreamFactory, stateScope);
+        if (targetStateHandle != null) {
+            LOG.trace("Path-copy file to checkpoint: {} {}", dbFilePath, targetStateHandle);
+        } else {
+            targetStateHandle =
+                    bytesCopyingToCheckpoint(
+                            dbFilePath,
+                            maxTransferBytes,
+                            checkpointStreamFactory,
+                            stateScope,
+                            closeableRegistry,
+                            tmpResourcesRegistry);
+            LOG.trace("Bytes-copy file to checkpoint: {}, {}", dbFilePath, targetStateHandle);
+        }
+
+        return HandleAndLocalPath.of(targetStateHandle, dbFilePath.getName());
     }
 
     /**
      * Duplicate file to checkpoint storage by calling {@link CheckpointStreamFactory#duplicate} if
      * possible.
+     *
+     * @param sourceHandle The source state handle
+     * @param checkpointStreamFactory The checkpoint stream factory
+     * @param stateScope The state scope
+     * @return The target state handle if path-copying is successful, otherwise null
      */
-    private static @Nullable StreamStateHandle duplicateFileToCheckpoint(
-            FileSystem dbFileSystem,
-            Path filePath,
+    private @Nullable StreamStateHandle tryPathCopyingToCheckpoint(
+            @Nonnull StreamStateHandle sourceHandle,
             CheckpointStreamFactory checkpointStreamFactory,
-            CheckpointedStateScope stateScope)
-            throws IOException {
+            CheckpointedStateScope stateScope) {
 
-        StreamStateHandle stateHandle = getStateHandle(dbFileSystem, filePath);
-
-        if (!checkpointStreamFactory.canFastDuplicate(stateHandle, stateScope)) {
-            return null;
-        }
-
-        List<StreamStateHandle> result =
-                checkpointStreamFactory.duplicate(
-                        Collections.singletonList(stateHandle), stateScope);
-        return result.get(0);
-    }
-
-    private static StreamStateHandle getStateHandle(FileSystem dbFileSystem, Path filePath)
-            throws IOException {
-        Path sourceFilePath = filePath;
-        if (dbFileSystem instanceof ForStFlinkFileSystem) {
-            MappingEntry mappingEntry =
-                    ((ForStFlinkFileSystem) dbFileSystem).getMappingEntry(filePath);
-            Preconditions.checkNotNull(
-                    mappingEntry, "File mapping entry not found for %s", filePath);
-
-            MappingEntrySource source = mappingEntry.getSource();
-            if (source instanceof HandleBackedMappingEntrySource) {
-                // return the state handle stored in MappingEntry
-                return ((HandleBackedMappingEntrySource) source).getStateHandle();
-            } else {
-                // use file path stored in MappingEntry
-                sourceFilePath = ((FileBackedMappingEntrySource) source).getFilePath();
+        try {
+            if (!checkpointStreamFactory.canFastDuplicate(sourceHandle, stateScope)) {
+                return null;
             }
-        }
 
-        // construct a FileStateHandle base on source file
-        FileSystem sourceFileSystem = sourceFilePath.getFileSystem();
-        long fileLength = sourceFileSystem.getFileStatus(sourceFilePath).getLen();
-        return new FileStateHandle(sourceFilePath, fileLength);
+            List<StreamStateHandle> result =
+                    checkpointStreamFactory.duplicate(
+                            Collections.singletonList(sourceHandle), stateScope);
+            return result.get(0);
+        } catch (Exception e) {
+            LOG.warn("Failed to duplicate file to checkpoint: {} {}", sourceHandle, stateScope, e);
+        }
+        return null;
     }
 
     /** Write file to checkpoint storage through {@link CheckpointStateOutputStream}. */
-    private static @Nullable StreamStateHandle writeFileToCheckpoint(
-            FileSystem dbFileSystem,
+    private @Nullable StreamStateHandle bytesCopyingToCheckpoint(
             Path filePath,
             long maxTransferBytes,
             CheckpointStreamFactory checkpointStreamFactory,
@@ -236,11 +230,8 @@ public class CopyDataTransferStrategy extends DataTransferStrategy {
         }
     }
 
-    private static void copyFileFromCheckpoint(
-            FileSystem dbFileSystem,
-            StreamStateHandle sourceHandle,
-            Path targetPath,
-            CloseableRegistry closeableRegistry)
+    private void copyFileFromCheckpoint(
+            StreamStateHandle sourceHandle, Path targetPath, CloseableRegistry closeableRegistry)
             throws IOException {
 
         if (closeableRegistry.isClosed()) {

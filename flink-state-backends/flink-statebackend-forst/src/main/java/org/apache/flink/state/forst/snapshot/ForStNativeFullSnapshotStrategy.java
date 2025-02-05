@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
@@ -228,20 +229,27 @@ public class ForStNativeFullSnapshotStrategy<K>
         if (syncPartResource.stateMetaInfoSnapshots.isEmpty()) {
             return registry -> SnapshotResult.empty();
         }
-        return new ForStNativeFullSnapshotOperation(checkpointId, streamFactory, syncPartResource);
+        return new ForStNativeFullSnapshotOperation(
+                checkpointOptions.getCheckpointType().getSharingFilesStrategy(),
+                checkpointId,
+                streamFactory,
+                syncPartResource);
     }
 
     /** Encapsulates the process to perform a full snapshot of a ForStKeyedStateBackend. */
     private final class ForStNativeFullSnapshotOperation extends ForStSnapshotOperation {
 
         @Nonnull private final ForStNativeSnapshotResources snapshotResources;
+        @Nonnull private final SnapshotType.SharingFilesStrategy sharingFilesStrategy;
 
         private ForStNativeFullSnapshotOperation(
+                SnapshotType.SharingFilesStrategy sharingFilesStrategy,
                 long checkpointId,
                 @Nonnull CheckpointStreamFactory checkpointStreamFactory,
                 @Nonnull ForStNativeSnapshotResources snapshotResources) {
             super(checkpointId, checkpointStreamFactory);
             this.snapshotResources = snapshotResources;
+            this.sharingFilesStrategy = sharingFilesStrategy;
         }
 
         @Override
@@ -301,6 +309,7 @@ public class ForStNativeFullSnapshotStrategy<K>
             if (snapshotResources.liveFiles.size() > 0) {
                 List<IncrementalKeyedStateHandle.HandleAndLocalPath> uploadedFiles =
                         stateTransfer.transferFilesToCheckpointFs(
+                                sharingFilesStrategy,
                                 snapshotResources.liveFiles.stream()
                                         .filter(
                                                 file ->
@@ -318,6 +327,7 @@ public class ForStNativeFullSnapshotStrategy<K>
 
                 IncrementalKeyedStateHandle.HandleAndLocalPath manifestFileTransferResult =
                         stateTransfer.transferFileToCheckpointFs(
+                                SnapshotType.SharingFilesStrategy.NO_SHARING,
                                 snapshotResources.manifestFilePath,
                                 snapshotResources.manifestFileSize,
                                 checkpointStreamFactory,

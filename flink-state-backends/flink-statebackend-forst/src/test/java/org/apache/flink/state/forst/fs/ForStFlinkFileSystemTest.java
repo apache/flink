@@ -86,7 +86,6 @@ public class ForStFlinkFileSystemTest {
                 ForStFlinkFileSystem.get(
                         new URI(tempDir.toString()),
                         new org.apache.flink.core.fs.Path(tempDir.toString()),
-                        null,
                         null);
         testReadAndWriteWithByteBuffer(fileSystem);
     }
@@ -98,7 +97,6 @@ public class ForStFlinkFileSystemTest {
                         new ByteBufferReadableLocalFileSystem(),
                         tempDir.toString(),
                         tempDir.toString(),
-                        null,
                         fileBasedCache);
         testReadAndWriteWithByteBuffer(fileSystem);
     }
@@ -178,7 +176,6 @@ public class ForStFlinkFileSystemTest {
                         new ByteBufferReadableLocalFileSystem(),
                         tempDir.toString(),
                         tempDir.toString(),
-                        null,
                         fileBasedCache);
 
         org.apache.flink.core.fs.Path testFilePath =
@@ -205,7 +202,6 @@ public class ForStFlinkFileSystemTest {
                         new ByteBufferReadableLocalFileSystem(),
                         remotePath.toString(),
                         localPath.toString(),
-                        null,
                         fileBasedCache);
         fileSystem.mkdirs(remotePath);
         fileSystem.mkdirs(localPath);
@@ -265,7 +261,6 @@ public class ForStFlinkFileSystemTest {
                         new ByteBufferReadableLocalFileSystem(),
                         remotePath.toString(),
                         localPath.toString(),
-                        null,
                         cache);
         fileSystem.mkdirs(remotePath);
         fileSystem.mkdirs(localPath);

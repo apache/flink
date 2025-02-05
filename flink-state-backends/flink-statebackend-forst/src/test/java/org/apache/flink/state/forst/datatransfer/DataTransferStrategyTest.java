@@ -26,12 +26,16 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
+import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
+import org.apache.flink.state.forst.StateHandleTransferSpec;
 import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
 import org.apache.flink.state.forst.fs.filemapping.FileOwnershipDecider;
 import org.apache.flink.state.forst.fs.filemapping.HandleBackedMappingEntrySource;
@@ -44,18 +48,23 @@ import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+
+import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -102,9 +111,7 @@ public class DataTransferStrategyTest {
 
         FileOwnershipDecider fileOwnershipDecider;
 
-        DBFilesContainer(
-                Path dbLocalBase, Path dbRemoteBase, FileOwnershipDecider fileOwnershipDecider)
-                throws IOException {
+        DBFilesContainer(Path dbLocalBase, Path dbRemoteBase) throws IOException {
             realFileSystem = LocalFileSystem.getLocalFileSystem();
 
             // prepare db paths
@@ -358,11 +365,7 @@ public class DataTransferStrategyTest {
     private static final long MAX_TRANSFER_BYTES = Long.MAX_VALUE;
 
     private DBFilesContainer createDb(
-            JobID jobID,
-            int subtaskIndex,
-            int subtaskParallelism,
-            boolean dbDirUnderCpDir,
-            FileOwnershipDecider fileOwnershipDecider)
+            JobID jobID, int subtaskIndex, int subtaskParallelism, boolean dbDirUnderCpDir)
             throws IOException {
         String dbIdentifier = String.format("%s-db-%d-%d", jobID, subtaskIndex, subtaskParallelism);
         Path dbLocalBase = new Path(tempDir.toString(), String.format("local/%s", dbIdentifier));
@@ -372,16 +375,17 @@ public class DataTransferStrategyTest {
                         dbDirUnderCpDir
                                 ? String.format("checkpoint/%s", dbIdentifier)
                                 : String.format("remote/%s", dbIdentifier));
-        DBFilesContainer db = new DBFilesContainer(dbLocalBase, dbRemoteBase, fileOwnershipDecider);
+        DBFilesContainer db = new DBFilesContainer(dbLocalBase, dbRemoteBase);
         db.clear();
 
         return db;
     }
 
-    private DataTransferStrategy createDataTransferStrategy(
-            DBFilesContainer db, RecoveryClaimMode claimMode) {
+    private DataTransferStrategy createDataTransferStrategy(DBFilesContainer db) {
         return DataTransferStrategyBuilder.buildForSnapshot(
-                db.dbDelegateFileSystem, dbDirUnderCpDir);
+                SnapshotType.SharingFilesStrategy.FORWARD_BACKWARD,
+                db.dbDelegateFileSystem,
+                dbDirUnderCpDir);
     }
 
     private Tuple2<DBFilesContainer, DataTransferStrategy> createOrRestoreDb(
@@ -391,14 +395,8 @@ public class DataTransferStrategyTest {
             boolean dbDirUnderCpDir,
             RecoveryClaimMode claimMode)
             throws IOException {
-        DBFilesContainer db =
-                createDb(
-                        jobID,
-                        subtaskIndex,
-                        subtaskParallelism,
-                        dbDirUnderCpDir,
-                        new FileOwnershipDecider(claimMode));
-        DataTransferStrategy strategy = createDataTransferStrategy(db, claimMode);
+        DBFilesContainer db = createDb(jobID, subtaskIndex, subtaskParallelism, dbDirUnderCpDir);
+        DataTransferStrategy strategy = createDataTransferStrategy(db);
         return new Tuple2<>(db, strategy);
     }
 
@@ -406,6 +404,87 @@ public class DataTransferStrategyTest {
     void cleanTmpDir() throws IOException {
         // delete everything in temp dir
         FileUtils.cleanDirectory(tempDir.toFile());
+    }
+
+    void testSnapshotStrategyAsExpected(
+            SnapshotType.SharingFilesStrategy sharingFilesStrategy,
+            @Nullable ForStFlinkFileSystem forStFlinkFileSystem,
+            boolean isDbPathUnderCheckpointPathForSnapshot,
+            Class<?> expected) {
+        assertThat(
+                        DataTransferStrategyBuilder.buildForSnapshot(
+                                        sharingFilesStrategy,
+                                        forStFlinkFileSystem,
+                                        isDbPathUnderCheckpointPathForSnapshot)
+                                .getClass())
+                .isEqualTo(expected);
+    }
+
+    void testRestoreStrategyAsExpected(
+            @Nullable ForStFlinkFileSystem forStFlinkFileSystem,
+            RecoveryClaimMode recoveryClaimMode,
+            Class<?> expected) {
+        List<HandleAndLocalPath> sharedStateHandleList = new ArrayList<>();
+        sharedStateHandleList.add(
+                HandleAndLocalPath.of(new FileStateHandle(new Path("1.sst"), 0), "1.sst"));
+        IncrementalRemoteKeyedStateHandle stateHandle =
+                new IncrementalRemoteKeyedStateHandle(
+                        UUID.randomUUID(),
+                        KeyGroupRange.of(0, 0),
+                        0L,
+                        sharedStateHandleList,
+                        Collections.emptyList(),
+                        new FileStateHandle(new Path("meta"), 0));
+        assertThat(
+                        DataTransferStrategyBuilder.buildForRestore(
+                                        forStFlinkFileSystem,
+                                        Collections.singletonList(
+                                                new StateHandleTransferSpec(
+                                                        stateHandle, new Path("dst"))),
+                                        recoveryClaimMode)
+                                .getClass())
+                .isEqualTo(expected);
+    }
+
+    @Test
+    void testBuildingStrategyAsExpected() throws IOException {
+        ForStFlinkFileSystem forStFlinkFileSystem = ForStFlinkFileSystem.get(tempDir.toUri());
+
+        testSnapshotStrategyAsExpected(
+                SnapshotType.SharingFilesStrategy.NO_SHARING,
+                forStFlinkFileSystem,
+                true,
+                CopyDataTransferStrategy.class);
+
+        testSnapshotStrategyAsExpected(
+                SnapshotType.SharingFilesStrategy.FORWARD_BACKWARD,
+                forStFlinkFileSystem,
+                true,
+                ReusableDataTransferStrategy.class);
+
+        testSnapshotStrategyAsExpected(
+                SnapshotType.SharingFilesStrategy.FORWARD_BACKWARD,
+                forStFlinkFileSystem,
+                false,
+                CopyDataTransferStrategy.class);
+
+        testSnapshotStrategyAsExpected(
+                SnapshotType.SharingFilesStrategy.FORWARD_BACKWARD,
+                null,
+                false,
+                CopyDataTransferStrategy.class);
+
+        testRestoreStrategyAsExpected(
+                forStFlinkFileSystem, RecoveryClaimMode.CLAIM, ReusableDataTransferStrategy.class);
+
+        testRestoreStrategyAsExpected(
+                forStFlinkFileSystem, RecoveryClaimMode.NO_CLAIM, CopyDataTransferStrategy.class);
+
+        testRestoreStrategyAsExpected(
+                null, RecoveryClaimMode.CLAIM, CopyDataTransferStrategy.class);
+
+        testRestoreStrategyAsExpected(
+                null, RecoveryClaimMode.NO_CLAIM, CopyDataTransferStrategy.class);
     }
 
     @TestTemplate

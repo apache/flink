@@ -347,7 +347,7 @@ public class ForStResourceContainerTest {
         DBOptions dbOptions2 =
                 new DBOptions().setCreateIfMissing(true).setAvoidFlushDuringShutdown(true);
         ForStFlinkFileSystem fileSystem =
-                ForStFlinkFileSystem.get(remoteBasePath.toUri(), localBasePath, null, null);
+                ForStFlinkFileSystem.get(remoteBasePath.toUri(), localBasePath, null);
         dbOptions2.setEnv(
                 new FlinkEnv(
                         remoteBasePath.toString(), new StringifiedForStFileSystem(fileSystem)));
