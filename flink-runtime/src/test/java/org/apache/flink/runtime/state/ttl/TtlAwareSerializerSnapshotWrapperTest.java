@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.state.ttl;
 
-import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
@@ -41,42 +40,27 @@ public class TtlAwareSerializerSnapshotWrapperTest {
         TypeSerializerSnapshot<Integer> intSerializerSnapshot =
                 IntSerializer.INSTANCE.snapshotConfiguration();
         TypeSerializerSnapshot<Integer> serializerSnapshot =
-                (new TtlAwareSerializerSnapshotWrapper<>(
-                                StateDescriptor.Type.VALUE, intSerializerSnapshot))
+                new TtlAwareSerializerSnapshotWrapper<>(intSerializerSnapshot)
                         .getTtlAwareSerializerSnapshot();
         assertThat(serializerSnapshot).isInstanceOf(TtlAwareSerializerSnapshot.class);
         assertThat(
-                        ((TtlAwareSerializer<Integer>) serializerSnapshot.restoreSerializer())
+                        ((TtlAwareSerializer<Integer, IntSerializer>)
+                                        serializerSnapshot.restoreSerializer())
                                 .getOriginalTypeSerializer())
                 .isInstanceOf(IntSerializer.class);
     }
 
     @Test
-    public void testReducingStateTtlAwareSerializerSnapshot() {
+    public void testRestoreValueSerializer() {
         TypeSerializerSnapshot<Integer> intSerializerSnapshot =
                 IntSerializer.INSTANCE.snapshotConfiguration();
         TypeSerializerSnapshot<Integer> serializerSnapshot =
-                (new TtlAwareSerializerSnapshotWrapper<>(
-                                StateDescriptor.Type.REDUCING, intSerializerSnapshot))
+                (new TtlAwareSerializerSnapshotWrapper<>(intSerializerSnapshot))
                         .getTtlAwareSerializerSnapshot();
-        assertThat(serializerSnapshot).isInstanceOf(TtlAwareSerializerSnapshot.class);
+        assertThat(serializerSnapshot.restoreSerializer()).isInstanceOf(TtlAwareSerializer.class);
         assertThat(
-                        ((TtlAwareSerializer<Integer>) serializerSnapshot.restoreSerializer())
-                                .getOriginalTypeSerializer())
-                .isInstanceOf(IntSerializer.class);
-    }
-
-    @Test
-    public void testAggregatingStateTtlAwareSerializerSnapshot() {
-        TypeSerializerSnapshot<Integer> intSerializerSnapshot =
-                IntSerializer.INSTANCE.snapshotConfiguration();
-        TypeSerializerSnapshot<Integer> serializerSnapshot =
-                (new TtlAwareSerializerSnapshotWrapper<>(
-                                StateDescriptor.Type.AGGREGATING, intSerializerSnapshot))
-                        .getTtlAwareSerializerSnapshot();
-        assertThat(serializerSnapshot).isInstanceOf(TtlAwareSerializerSnapshot.class);
-        assertThat(
-                        ((TtlAwareSerializer<Integer>) serializerSnapshot.restoreSerializer())
+                        ((TtlAwareSerializer<Integer, IntSerializer>)
+                                        serializerSnapshot.restoreSerializer())
                                 .getOriginalTypeSerializer())
                 .isInstanceOf(IntSerializer.class);
     }
@@ -87,8 +71,7 @@ public class TtlAwareSerializerSnapshotWrapperTest {
         TypeSerializerSnapshot<List<Integer>> listTypeSerializerSnapshot =
                 listSerializer.snapshotConfiguration();
         TypeSerializerSnapshot<List<Integer>> serializerSnapshot =
-                (new TtlAwareSerializerSnapshotWrapper<>(
-                                StateDescriptor.Type.LIST, listTypeSerializerSnapshot))
+                (new TtlAwareSerializerSnapshotWrapper<>(listTypeSerializerSnapshot))
                         .getTtlAwareSerializerSnapshot();
 
         assertThat(serializerSnapshot).isInstanceOf(ListSerializerSnapshot.class);
@@ -99,14 +82,34 @@ public class TtlAwareSerializerSnapshotWrapperTest {
     }
 
     @Test
+    @SuppressWarnings("rawtypes")
+    public void testRestoreListSerializer() {
+        ListSerializer<Integer> listSerializer = new ListSerializer<>(IntSerializer.INSTANCE);
+        TypeSerializerSnapshot<List<Integer>> listTypeSerializerSnapshot =
+                listSerializer.snapshotConfiguration();
+        TypeSerializerSnapshot<List<Integer>> serializerSnapshot =
+                (new TtlAwareSerializerSnapshotWrapper<>(listTypeSerializerSnapshot))
+                        .getTtlAwareSerializerSnapshot();
+
+        assertThat(serializerSnapshot.restoreSerializer()).isInstanceOf(ListSerializer.class);
+        assertThat(((ListSerializer) serializerSnapshot.restoreSerializer()).getElementSerializer())
+                .isInstanceOf(TtlAwareSerializer.class);
+        assertThat(
+                        ((TtlAwareSerializer)
+                                        ((ListSerializer) serializerSnapshot.restoreSerializer())
+                                                .getElementSerializer())
+                                .getOriginalTypeSerializer())
+                .isInstanceOf(IntSerializer.class);
+    }
+
+    @Test
     public void testMapStateTtlAwareSerializerSnapshot() {
         MapSerializer<String, String> mapSerializer =
                 new MapSerializer<>(StringSerializer.INSTANCE, StringSerializer.INSTANCE);
         TypeSerializerSnapshot<Map<String, String>> mapSerializerSnapshot =
                 mapSerializer.snapshotConfiguration();
         TypeSerializerSnapshot<Map<String, String>> serializerSnapshot =
-                (new TtlAwareSerializerSnapshotWrapper<>(
-                                StateDescriptor.Type.MAP, mapSerializerSnapshot))
+                (new TtlAwareSerializerSnapshotWrapper<>(mapSerializerSnapshot))
                         .getTtlAwareSerializerSnapshot();
 
         assertThat(serializerSnapshot).isInstanceOf(MapSerializerSnapshot.class);
@@ -114,5 +117,27 @@ public class TtlAwareSerializerSnapshotWrapperTest {
                         ((MapSerializerSnapshot<String, String>) serializerSnapshot)
                                 .getValueSerializerSnapshot())
                 .isInstanceOf(TtlAwareSerializerSnapshot.class);
+    }
+
+    @Test
+    @SuppressWarnings("rawtypes")
+    public void testRestoreMapSerializer() {
+        MapSerializer<String, String> mapSerializer =
+                new MapSerializer<>(StringSerializer.INSTANCE, StringSerializer.INSTANCE);
+        TypeSerializerSnapshot<Map<String, String>> mapSerializerSnapshot =
+                mapSerializer.snapshotConfiguration();
+        TypeSerializerSnapshot<Map<String, String>> serializerSnapshot =
+                (new TtlAwareSerializerSnapshotWrapper<>(mapSerializerSnapshot))
+                        .getTtlAwareSerializerSnapshot();
+
+        assertThat(serializerSnapshot.restoreSerializer()).isInstanceOf(MapSerializer.class);
+        assertThat(((MapSerializer) serializerSnapshot.restoreSerializer()).getValueSerializer())
+                .isInstanceOf(TtlAwareSerializer.class);
+        assertThat(
+                        ((TtlAwareSerializer)
+                                        ((MapSerializer) serializerSnapshot.restoreSerializer())
+                                                .getValueSerializer())
+                                .getOriginalTypeSerializer())
+                .isInstanceOf(StringSerializer.class);
     }
 }
