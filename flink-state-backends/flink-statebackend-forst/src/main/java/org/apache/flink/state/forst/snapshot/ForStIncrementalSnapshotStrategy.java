@@ -136,14 +136,16 @@ public class ForStIncrementalSnapshotStrategy<K> extends ForStNativeFullSnapshot
             case FORWARD_BACKWARD:
                 // incremental checkpoint, use origin PreviousSnapshot
                 break;
-            case FORWARD:
             case NO_SHARING:
-                // full checkpoint, use empty PreviousSnapshot
+                // savepoint, use empty PreviousSnapshot
                 snapshotResources.setPreviousSnapshot(EMPTY_PREVIOUS_SNAPSHOT);
                 break;
+            case FORWARD: // full checkpoint for IncrementalSnapshotStrategy is not supported
             default:
                 throw new IllegalArgumentException(
-                        "Unsupported sharing files strategy: " + sharingFilesStrategy);
+                        String.format(
+                                "Unsupported sharing files strategy for %s : %s",
+                                this.getClass().getName(), sharingFilesStrategy));
         }
 
         return new ForStIncrementalSnapshotOperation(
@@ -331,6 +333,7 @@ public class ForStIncrementalSnapshotStrategy<K> extends ForStNativeFullSnapshot
 
             List<HandleAndLocalPath> sstFilesTransferResult =
                     stateTransfer.transferFilesToCheckpointFs(
+                            sharingFilesStrategy,
                             classifiedFiles.f1,
                             checkpointStreamFactory,
                             stateScope,
@@ -345,6 +348,7 @@ public class ForStIncrementalSnapshotStrategy<K> extends ForStNativeFullSnapshot
 
             List<HandleAndLocalPath> miscFilesTransferResult =
                     stateTransfer.transferFilesToCheckpointFs(
+                            sharingFilesStrategy,
                             classifiedFiles.f2,
                             checkpointStreamFactory,
                             stateScope,
@@ -358,6 +362,7 @@ public class ForStIncrementalSnapshotStrategy<K> extends ForStNativeFullSnapshot
 
             HandleAndLocalPath manifestFileTransferResult =
                     stateTransfer.transferFileToCheckpointFs(
+                            sharingFilesStrategy,
                             classifiedFiles.f3,
                             snapshotResources.manifestFileSize,
                             checkpointStreamFactory,
