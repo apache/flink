@@ -33,6 +33,7 @@ import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
@@ -95,6 +96,8 @@ public class SideOutputExample {
                     text.assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create());
         }
 
+        final boolean asyncState = params.has("async-state");
+
         SingleOutputStreamOperator<Tuple2<String, Integer>> tokenized =
                 textWithTimestampAndWatermark.process(new Tokenizer());
 
@@ -103,9 +106,15 @@ public class SideOutputExample {
                         .getSideOutput(rejectedWordsTag)
                         .map(value -> "rejected: " + value, Types.STRING);
 
+        KeyedStream<Tuple2<String, Integer>, String> keyedTokenized =
+                tokenized.keyBy(value -> value.f0);
+
+        if (asyncState) {
+            keyedTokenized.enableAsyncState();
+        }
+
         DataStream<Tuple2<String, Integer>> counts =
-                tokenized
-                        .keyBy(value -> value.f0)
+                keyedTokenized
                         .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
                         // group by the tuple field "0" and sum up tuple field "1"
                         .sum(1);
