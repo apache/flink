@@ -19,14 +19,21 @@
 package org.apache.flink.table.planner.plan.stream.sql;
 
 import org.apache.flink.table.annotation.ArgumentHint;
-import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.ProcessTableFunction;
-import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyArgFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarArgsFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsRowFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsRowPassThroughFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetPassThroughFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedTableAsRowFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedTableAsSetFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.User;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.table.types.inference.StaticArgument;
@@ -70,7 +77,10 @@ public class ProcessTableFunctionTest extends TableTestBase {
                 .executeSql("CREATE VIEW t_updating AS SELECT name, COUNT(*) FROM t GROUP BY name");
         util.tableEnv()
                 .executeSql(
-                        "CREATE TABLE t_sink (name STRING, data STRING) WITH ('connector' = 'blackhole')");
+                        "CREATE TABLE t_sink (`out` STRING, `count` INT) WITH ('connector' = 'blackhole')");
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE t_keyed_sink (`name` STRING, `out` STRING, `count` INT) WITH ('connector' = 'blackhole')");
     }
 
     @Test
@@ -94,18 +104,6 @@ public class ProcessTableFunctionTest extends TableTestBase {
     }
 
     @Test
-    void testTableAsRow() {
-        util.addTemporarySystemFunction("f", TableAsRowFunction.class);
-        util.verifyRelPlan("SELECT * FROM f(r => TABLE t, i => 1)");
-    }
-
-    @Test
-    void testTypedTableAsRow() {
-        util.addTemporarySystemFunction("f", TypedTableAsRowFunction.class);
-        util.verifyRelPlan("SELECT * FROM f(u => TABLE t, i => 1)");
-    }
-
-    @Test
     void testTypedTableAsRowIgnoringColumnNames() {
         util.addTemporarySystemFunction("f", TypedTableAsRowFunction.class);
         // function expects <STRING name, INT score>
@@ -114,35 +112,15 @@ public class ProcessTableFunctionTest extends TableTestBase {
     }
 
     @Test
-    void testTableAsSet() {
+    void testDifferentPartitionKey() {
         util.addTemporarySystemFunction("f", TableAsSetFunction.class);
-        util.verifyRelPlan("SELECT * FROM f(r => TABLE t PARTITION BY name, i => 1)");
-    }
-
-    @Test
-    void testTableAsSetOptionalPartitionBy() {
-        util.addTemporarySystemFunction("f", TableAsSetOptionalPartitionFunction.class);
-        util.verifyRelPlan("SELECT * FROM f(r => TABLE t, i => 1)");
-    }
-
-    @Test
-    void testTypedTableAsSet() {
-        util.addTemporarySystemFunction("f", TypedTableAsSetFunction.class);
-        util.verifyRelPlan("SELECT * FROM f(u => TABLE t PARTITION BY name, i => 1)");
+        util.verifyRelPlan("SELECT * FROM f(r => TABLE t PARTITION BY score, i => 1)");
     }
 
     @Test
     void testEmptyArgs() {
         util.addTemporarySystemFunction("f", EmptyArgFunction.class);
         util.verifyRelPlan("SELECT * FROM f(uid => 'my-ptf')");
-    }
-
-    @Test
-    void testPojoArgs() {
-        util.addTemporarySystemFunction("f", PojoArgsFunction.class);
-        util.addTemporarySystemFunction("pojoCreator", PojoCreatingFunction.class);
-        util.verifyRelPlan(
-                "SELECT * FROM f(input => TABLE t, scalar => pojoCreator('Bob', 12), uid => 'my-ptf')");
     }
 
     @Test
@@ -158,16 +136,13 @@ public class ProcessTableFunctionTest extends TableTestBase {
     }
 
     @Test
-    void testUpdatingInput() {
-        util.addTemporarySystemFunction("f", UpdatingArgFunction.class);
-        util.verifyRelPlan("SELECT * FROM f(r => TABLE t_updating PARTITION BY name, i => 1)");
-    }
-
-    @Test
     void testMissingUid() {
         // Function name contains special characters and can thus not be used as UID
-        util.addTemporarySystemFunction("f*", ScalarArgsFunction.class);
-        assertThatThrownBy(() -> util.verifyRelPlan("SELECT * FROM `f*`(42, true)"))
+        util.addTemporarySystemFunction("f*", TableAsSetFunction.class);
+        assertThatThrownBy(
+                        () ->
+                                util.verifyRelPlan(
+                                        "SELECT * FROM `f*`(r => TABLE t PARTITION BY name, i => 1)"))
                 .satisfies(
                         anyCauseMatches(
                                 "Could not derive a unique identifier for process table function 'f*'. "
@@ -183,9 +158,9 @@ public class ProcessTableFunctionTest extends TableTestBase {
                 util.tableEnv()
                         .createStatementSet()
                         .addInsertSql(
-                                "INSERT INTO t_sink SELECT * FROM f(r => TABLE t PARTITION BY name, i => 1, uid => 'a')")
+                                "INSERT INTO t_keyed_sink SELECT * FROM f(r => TABLE t PARTITION BY name, i => 1, uid => 'a')")
                         .addInsertSql(
-                                "INSERT INTO t_sink SELECT * FROM f(r => TABLE t PARTITION BY name, i => 1, uid => 'b')"));
+                                "INSERT INTO t_keyed_sink SELECT * FROM f(r => TABLE t PARTITION BY name, i => 1, uid => 'b')"));
     }
 
     @Test
@@ -195,9 +170,9 @@ public class ProcessTableFunctionTest extends TableTestBase {
                 util.tableEnv()
                         .createStatementSet()
                         .addInsertSql(
-                                "INSERT INTO t_sink SELECT * FROM f(r => TABLE t PARTITION BY name, i => 1, uid => 'same')")
+                                "INSERT INTO t_keyed_sink SELECT * FROM f(r => TABLE t PARTITION BY name, i => 1, uid => 'same')")
                         .addInsertSql(
-                                "INSERT INTO t_sink SELECT * FROM f(r => TABLE t PARTITION BY name, i => 1, uid => 'same')"));
+                                "INSERT INTO t_keyed_sink SELECT * FROM f(r => TABLE t PARTITION BY name, i => 1, uid => 'same')"));
     }
 
     @Test
@@ -208,9 +183,20 @@ public class ProcessTableFunctionTest extends TableTestBase {
                 util.tableEnv()
                         .createStatementSet()
                         .addInsertSql(
-                                "INSERT INTO t_sink SELECT * FROM f(r => TABLE t PARTITION BY name, i => 1, uid => 'same') WHERE name = 'Bob'")
+                                "INSERT INTO t_keyed_sink SELECT * FROM f(r => TABLE t PARTITION BY name, i => 1, uid => 'same') WHERE name = 'Bob'")
                         .addInsertSql(
-                                "INSERT INTO t_sink SELECT * FROM f(r => TABLE t PARTITION BY name, i => 1, uid => 'same') WHERE name = 'Alice'"));
+                                "INSERT INTO t_keyed_sink SELECT * FROM f(r => TABLE t PARTITION BY name, i => 1, uid => 'same') WHERE name = 'Alice'"));
+    }
+
+    @Test
+    void testTableAsRowOptionalUid() {
+        util.addTemporarySystemFunction("f", TableAsRowFunction.class);
+
+        util.verifyExecPlan(
+                util.tableEnv()
+                        .createStatementSet()
+                        .addInsertSql("INSERT INTO t_sink SELECT * FROM f(r => TABLE t, i => 1)")
+                        .addInsertSql("INSERT INTO t_sink SELECT * FROM f(r => TABLE t, i => 42)"));
     }
 
     @ParameterizedTest
@@ -302,37 +288,12 @@ public class ProcessTableFunctionTest extends TableTestBase {
                         "SELECT * FROM f(r => TABLE t PARTITION BY name, i => 42, uid => 'same') "
                                 + "UNION ALL SELECT * FROM f(r => TABLE t PARTITION BY name, i => 999, uid => 'same')",
                         "Duplicate unique identifier 'same' detected among process table functions. "
-                                + "Make sure that all PTF calls have an identifier defined that is globally unique."));
-    }
-
-    /** Testing function. */
-    public static class ScalarArgsFunction extends ProcessTableFunction<String> {
-        @SuppressWarnings("unused")
-        public void eval(Integer i, Boolean b) {}
-    }
-
-    /** Testing function. */
-    public static class TableAsRowFunction extends ProcessTableFunction<String> {
-        @SuppressWarnings("unused")
-        public void eval(@ArgumentHint(ArgumentTrait.TABLE_AS_ROW) Row r, Integer i) {}
-    }
-
-    /** Testing function. */
-    public static class TypedTableAsRowFunction extends ProcessTableFunction<String> {
-        @SuppressWarnings("unused")
-        public void eval(@ArgumentHint(ArgumentTrait.TABLE_AS_ROW) User u, Integer i) {}
-    }
-
-    /** Testing function. */
-    public static class TableAsSetFunction extends ProcessTableFunction<String> {
-        @SuppressWarnings("unused")
-        public void eval(@ArgumentHint(TABLE_AS_SET) Row r, Integer i) {}
-    }
-
-    /** Testing function. */
-    public static class UpdatingArgFunction extends ProcessTableFunction<String> {
-        @SuppressWarnings("unused")
-        public void eval(@ArgumentHint({TABLE_AS_SET, SUPPORT_UPDATES}) Row r, Integer i) {}
+                                + "Make sure that all PTF calls have an identifier defined that is globally unique."),
+                ErrorSpec.of(
+                        "no updates and pass through",
+                        UpdatingPassThrough.class,
+                        "SELECT * FROM f(r => TABLE t PARTITION BY name)",
+                        "Signatures with updating inputs must not pass columns through."));
     }
 
     /** Testing function. */
@@ -347,30 +308,6 @@ public class ProcessTableFunctionTest extends TableTestBase {
         public void eval(
                 @ArgumentHint({TABLE_AS_SET, OPTIONAL_PARTITION_BY}) Row r1,
                 @ArgumentHint({TABLE_AS_SET, OPTIONAL_PARTITION_BY}) Row r2) {}
-    }
-
-    /** Testing function. */
-    public static class TypedTableAsSetFunction extends ProcessTableFunction<String> {
-        @SuppressWarnings("unused")
-        public void eval(@ArgumentHint(TABLE_AS_SET) User u, Integer i) {}
-    }
-
-    /** Testing function. */
-    public static class TableAsSetOptionalPartitionFunction extends ProcessTableFunction<String> {
-        @SuppressWarnings("unused")
-        public void eval(@ArgumentHint({TABLE_AS_SET, OPTIONAL_PARTITION_BY}) Row r, Integer i) {}
-    }
-
-    /** Testing function. */
-    public static class TableAsRowPassThroughFunction extends ProcessTableFunction<String> {
-        @SuppressWarnings("unused")
-        public void eval(@ArgumentHint({TABLE_AS_ROW, PASS_COLUMNS_THROUGH}) Row r, Integer i) {}
-    }
-
-    /** Testing function. */
-    public static class TableAsSetPassThroughFunction extends ProcessTableFunction<String> {
-        @SuppressWarnings("unused")
-        public void eval(@ArgumentHint({TABLE_AS_SET, PASS_COLUMNS_THROUGH}) Row r, Integer i) {}
     }
 
     /** Testing function. */
@@ -400,32 +337,10 @@ public class ProcessTableFunctionTest extends TableTestBase {
     }
 
     /** Testing function. */
-    public static class EmptyArgFunction extends ProcessTableFunction<String> {
+    public static class UpdatingPassThrough extends ProcessTableFunction<String> {
         @SuppressWarnings("unused")
-        public void eval() {}
-    }
-
-    /** Testing function. */
-    public static class PojoArgsFunction extends ProcessTableFunction<String> {
-        @SuppressWarnings("unused")
-        public void eval(@ArgumentHint(TABLE_AS_ROW) User input, User scalar) {}
-    }
-
-    public static class PojoCreatingFunction extends ScalarFunction {
-        public User eval(String s, Integer i) {
-            return new User(s, i);
-        }
-    }
-
-    /** POJO for typed tables. */
-    public static class User {
-        public String s;
-        public Integer i;
-
-        public User(String s, Integer i) {
-            this.s = s;
-            this.i = i;
-        }
+        public void eval(
+                @ArgumentHint({TABLE_AS_SET, SUPPORT_UPDATES, PASS_COLUMNS_THROUGH}) Row r) {}
     }
 
     private static class ErrorSpec {

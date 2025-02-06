@@ -178,6 +178,14 @@ public class TableTestProgram {
     }
 
     /** Convenience method to avoid casting. It assumes that the order of steps is not important. */
+    public List<SqlTestStep> getSetupSqlTestSteps() {
+        return setupSteps.stream()
+                .filter(s -> s.getKind() == TestKind.SQL)
+                .map(SqlTestStep.class::cast)
+                .collect(Collectors.toList());
+    }
+
+    /** Convenience method to avoid casting. It assumes that the order of steps is not important. */
     public List<TemporalFunctionTestStep> getSetupTemporalFunctionTestSteps() {
         return setupSteps.stream()
                 .filter(s -> s.getKind() == TestKind.TEMPORAL_FUNCTION)

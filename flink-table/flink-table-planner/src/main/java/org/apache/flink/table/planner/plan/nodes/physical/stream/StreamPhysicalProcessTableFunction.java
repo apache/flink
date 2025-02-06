@@ -69,7 +69,7 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
         implements StreamPhysicalRel {
 
     private final FlinkLogicalTableFunctionScan scan;
-    private final String uid;
+    private final @Nullable String uid;
 
     private List<RelNode> inputs;
 
@@ -93,6 +93,10 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
             FlinkLogicalTableFunctionScan scan,
             RelDataType rowType) {
         this(cluster, traitSet, List.of(input), scan, rowType);
+    }
+
+    public RexCall getCall() {
+        return (RexCall) scan.getCall();
     }
 
     @Override
@@ -163,40 +167,31 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
         return rowType;
     }
 
-    public List<StaticArgument> getProvidedInputArgs() {
-        final RexCall call = (RexCall) scan.getCall();
-        final List<RexNode> operands = call.getOperands();
-        final BridgingSqlFunction.WithTableFunction function =
-                (BridgingSqlFunction.WithTableFunction) call.getOperator();
-        final List<StaticArgument> declaredArgs =
-                function.getTypeInference()
-                        .getStaticArguments()
-                        .orElseThrow(IllegalStateException::new);
-        // This logic filters out optional tables for which an input is missing. It returns tables
-        // in the same order as provided inputs of this RelNode.
-        return Ord.zip(declaredArgs).stream()
-                .filter(arg -> arg.e.is(StaticArgumentTrait.TABLE))
-                .filter(arg -> operands.get(arg.i) instanceof RexTableArgCall)
-                .map(arg -> arg.e)
-                .collect(Collectors.toList());
-    }
-
     /**
-     * An important part of {@link ProcessTableFunction} is the mandatory unique identifier. Even if
-     * the PTF has no state entries, state or timers might be added later. So a PTF should serve as
-     * an identifiable black box for the optimizer. UIDs ensure that.
+     * An important part of {@link ProcessTableFunction} is the mandatory unique identifier for PTFs
+     * with set semantics. Even if the PTF has no state entries, state or timers might be added
+     * later. So a PTF should serve as an identifiable black box for the optimizer. UIDs ensure
+     * that.
      *
      * @see SystemTypeInference
      */
-    private static String deriveUniqueIdentifier(FlinkLogicalTableFunctionScan scan) {
+    private static @Nullable String deriveUniqueIdentifier(FlinkLogicalTableFunctionScan scan) {
         final RexCall rexCall = (RexCall) scan.getCall();
         final BridgingSqlFunction.WithTableFunction function =
                 (BridgingSqlFunction.WithTableFunction) rexCall.getOperator();
+        final List<StaticArgument> staticArgs =
+                function.getTypeInference()
+                        .getStaticArguments()
+                        .orElseThrow(IllegalStateException::new);
         final ContextResolvedFunction resolvedFunction = function.getResolvedFunction();
         final List<RexNode> operands = rexCall.getOperands();
         // Type inference ensures that uid is always added at the end
         final RexNode uidRexNode = operands.get(operands.size() - 1);
         if (uidRexNode.getKind() == SqlKind.DEFAULT) {
+            // Optional for constant or row semantics functions
+            if (staticArgs.stream().noneMatch(arg -> arg.is(StaticArgumentTrait.TABLE_AS_SET))) {
+                return null;
+            }
             final String uid =
                     resolvedFunction
                             .getIdentifier()
@@ -215,5 +210,25 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
         }
         // Otherwise UID should be correct as it has been checked by SystemTypeInference.
         return RexLiteral.stringValue(uidRexNode);
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Shared utilities
+    // --------------------------------------------------------------------------------------------
+
+    public static List<Ord<StaticArgument>> getProvidedInputArgs(RexCall call) {
+        final List<RexNode> operands = call.getOperands();
+        final BridgingSqlFunction.WithTableFunction function =
+                (BridgingSqlFunction.WithTableFunction) call.getOperator();
+        final List<StaticArgument> declaredArgs =
+                function.getTypeInference()
+                        .getStaticArguments()
+                        .orElseThrow(IllegalStateException::new);
+        // This logic filters out optional tables for which an input is missing. It returns tables
+        // in the same order as provided inputs of this RelNode.
+        return Ord.zip(declaredArgs).stream()
+                .filter(arg -> arg.e.is(StaticArgumentTrait.TABLE))
+                .filter(arg -> operands.get(arg.i) instanceof RexTableArgCall)
+                .collect(Collectors.toList());
     }
 }

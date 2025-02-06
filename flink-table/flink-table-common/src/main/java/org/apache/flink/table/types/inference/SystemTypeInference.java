@@ -35,7 +35,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -57,10 +56,15 @@ import java.util.stream.Stream;
 @Internal
 public class SystemTypeInference {
 
-    private static final List<StaticArgument> PROCESS_TABLE_FUNCTION_SYSTEM_ARGS =
+    public static final List<StaticArgument> PROCESS_TABLE_FUNCTION_SYSTEM_ARGS =
             List.of(StaticArgument.scalar("uid", DataTypes.STRING(), true));
 
-    /** Format of unique identifiers for {@link ProcessTableFunction}. */
+    /**
+     * Format of unique identifiers for {@link ProcessTableFunction}.
+     *
+     * <p>Leading digits are not allowed. This also prevents that a custom PTF uid can infer with
+     * {@code ExecutionConfigOptions#TABLE_EXEC_UID_FORMAT}.
+     */
     private static final Predicate<String> UID_FORMAT =
             Pattern.compile("^[a-zA-Z_][a-zA-Z-_0-9]*$").asPredicate();
 
@@ -81,6 +85,7 @@ public class SystemTypeInference {
         return builder.build();
     }
 
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     public static boolean isValidUidForProcessTableFunction(String uid) {
         return UID_FORMAT.test(uid);
     }
@@ -114,6 +119,8 @@ public class SystemTypeInference {
         }
 
         checkReservedArgs(declaredArgs);
+        checkMultipleTableArgs(declaredArgs);
+        checkUpdatingPassThroughColumns(declaredArgs);
 
         final List<StaticArgument> newStaticArgs = new ArrayList<>(declaredArgs);
         newStaticArgs.addAll(PROCESS_TABLE_FUNCTION_SYSTEM_ARGS);
@@ -132,6 +139,25 @@ public class SystemTypeInference {
                     "Function signature must not declare system arguments. "
                             + "Reserved argument names are: "
                             + reservedArgs);
+        }
+    }
+
+    private static void checkMultipleTableArgs(List<StaticArgument> staticArgs) {
+        if (staticArgs.stream().filter(arg -> arg.is(StaticArgumentTrait.TABLE)).count() > 1) {
+            throw new ValidationException(
+                    "Currently, only signatures with at most one table argument are supported.");
+        }
+    }
+
+    private static void checkUpdatingPassThroughColumns(List<StaticArgument> staticArgs) {
+        final Set<StaticArgumentTrait> traits =
+                staticArgs.stream()
+                        .flatMap(arg -> arg.getTraits().stream())
+                        .collect(Collectors.toSet());
+        if (traits.contains(StaticArgumentTrait.SUPPORT_UPDATES)
+                && traits.contains(StaticArgumentTrait.PASS_COLUMNS_THROUGH)) {
+            throw new ValidationException(
+                    "Signatures with updating inputs must not pass columns through.");
         }
     }
 
@@ -288,7 +314,6 @@ public class SystemTypeInference {
             }
 
             checkUidArg(callContext);
-            checkMultipleTableArgs(callContext);
             checkTableArgTraits(staticArgs, callContext);
 
             return Optional.of(inferredDataTypes);
@@ -315,19 +340,6 @@ public class SystemTypeInference {
                                     + "But found: "
                                     + uid);
                 }
-            }
-        }
-
-        private static void checkMultipleTableArgs(CallContext callContext) {
-            final List<DataType> args = callContext.getArgumentDataTypes();
-
-            final List<TableSemantics> tableSemantics =
-                    IntStream.range(0, args.size())
-                            .mapToObj(pos -> callContext.getTableSemantics(pos).orElse(null))
-                            .collect(Collectors.toList());
-            if (tableSemantics.stream().filter(Objects::nonNull).count() > 1) {
-                throw new ValidationException(
-                        "Currently, only signatures with at most one table argument are supported.");
             }
         }
 

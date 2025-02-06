@@ -127,8 +127,7 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
             return Optional.empty();
         }
         return Optional.of(
-                CallBindingTableSemantics.create(
-                        argumentDataTypes.get(pos), staticArguments.get(pos), sqlNode));
+                SqlBindingTableSemantics.create(argumentDataTypes.get(pos), staticArg, sqlNode));
     }
 
     @Override
@@ -145,15 +144,15 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
     // TableSemantics
     // --------------------------------------------------------------------------------------------
 
-    private static class CallBindingTableSemantics implements TableSemantics {
+    private static class SqlBindingTableSemantics implements TableSemantics {
 
         private final DataType dataType;
         private final int[] partitionByColumns;
 
-        public static CallBindingTableSemantics create(
+        public static SqlBindingTableSemantics create(
                 DataType tableDataType, StaticArgument staticArg, SqlNode sqlNode) {
             checkNoOrderBy(sqlNode);
-            return new CallBindingTableSemantics(
+            return new SqlBindingTableSemantics(
                     createDataType(tableDataType, staticArg),
                     createPartitionByColumns(tableDataType, sqlNode));
         }
@@ -211,7 +210,7 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
                     .toArray();
         }
 
-        private CallBindingTableSemantics(DataType dataType, int[] partitionByColumns) {
+        private SqlBindingTableSemantics(DataType dataType, int[] partitionByColumns) {
             this.dataType = dataType;
             this.partitionByColumns = partitionByColumns;
         }

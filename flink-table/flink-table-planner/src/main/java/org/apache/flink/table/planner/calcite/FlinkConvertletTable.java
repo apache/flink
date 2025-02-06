@@ -23,11 +23,11 @@ import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlDataTypeSpec;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
@@ -157,54 +157,44 @@ public class FlinkConvertletTable implements SqlRexConvertletTable {
                 call.getOperator() instanceof SqlTableFunction,
                 "Only table functions can have set semantics arguments.");
         final SqlOperator operator = call.getOperator();
-        final RelDataType returnType = cx.getValidator().getValidatedNodeType(call);
 
         final List<RexNode> rewrittenOperands = new ArrayList<>();
         int tableInputCount = 0;
         for (int pos = 0; pos < call.getOperandList().size(); pos++) {
             final SqlNode operand = call.operand(pos);
             if (operand.getKind() == SqlKind.SET_SEMANTICS_TABLE) {
+                final RelDataType tableType = cx.getValidator().getValidatedNodeType(operand);
                 final SqlBasicCall setSemanticsCall = (SqlBasicCall) operand;
                 final SqlNodeList partitionKeys = setSemanticsCall.operand(1);
                 final SqlNodeList orderKeys = setSemanticsCall.operand(2);
                 checkArgument(
                         orderKeys.isEmpty(), "Table functions do not support order keys yet.");
+                final int[] keys = getPartitionKeyIndices(tableType, partitionKeys);
+
                 rewrittenOperands.add(
-                        new RexTableArgCall(
-                                cx.getValidator().getValidatedNodeType(operand),
-                                tableInputCount++,
-                                getPartitionKeyIndices(cx, partitionKeys),
-                                new int[0]));
+                        new RexTableArgCall(tableType, tableInputCount++, keys, new int[0]));
             } else if (operand.isA(SqlKind.QUERY)) {
+                final RelDataType tableType = cx.getValidator().getValidatedNodeType(operand);
                 rewrittenOperands.add(
-                        new RexTableArgCall(
-                                cx.getValidator().getValidatedNodeType(operand),
-                                tableInputCount++,
-                                new int[0],
-                                new int[0]));
+                        new RexTableArgCall(tableType, tableInputCount++, new int[0], new int[0]));
             } else {
                 rewrittenOperands.add(cx.convertExpression(operand));
             }
         }
 
+        final RelDataType returnType = cx.getValidator().getValidatedNodeType(call);
         return cx.getRexBuilder().makeCall(returnType, operator, rewrittenOperands);
     }
 
-    private static int[] getPartitionKeyIndices(SqlRexContext cx, SqlNodeList partitions) {
+    private static int[] getPartitionKeyIndices(RelDataType tableType, SqlNodeList partitions) {
+        // Due to incorrect scoping of SET_SEMANTIC_TABLE, we have to resolve identifiers manually
+        // See FLINK-37211
+        final List<String> tableColumns = tableType.getFieldNames();
         final int[] result = new int[partitions.size()];
         for (int i = 0; i < partitions.getList().size(); i++) {
-            final RexNode expr = cx.convertExpression(partitions.get(i));
-            result[i] = parseFieldIdx(expr);
+            final SqlIdentifier column = (SqlIdentifier) partitions.get(i);
+            result[i] = tableColumns.indexOf(column.getSimple());
         }
         return result;
-    }
-
-    private static int parseFieldIdx(RexNode e) {
-        if (SqlKind.INPUT_REF == e.getKind()) {
-            final RexInputRef ref = (RexInputRef) e;
-            return ref.getIndex();
-        }
-        // should not happen
-        throw new IllegalStateException("Unsupported partition key with type: " + e.getKind());
     }
 }
