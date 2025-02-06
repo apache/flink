@@ -35,6 +35,7 @@ import static org.apache.flink.state.forst.ForStStateBackend.REMOTE_SHORTCUT_CHE
 public class ForStOptions {
 
     /** The local directory (on the TaskManager) where ForSt puts some meta files. */
+    @Documentation.Section(Documentation.Sections.EXPERT_FORST)
     public static final ConfigOption<String> LOCAL_DIRECTORIES =
             ConfigOptions.key("state.backend.forst.local-dir")
                     .stringType()
@@ -42,7 +43,7 @@ public class ForStOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "The local directory (on the TaskManager) where ForSt puts some meta files. Per default, it will be <WORKING_DIR>/tmp. See %s for more details.",
+                                            "The local directory (on the TaskManager) where ForSt puts some metadata files. By default, it will be <WORKING_DIR>/tmp. See %s for more details.",
                                             TextElement.code(
                                                     ClusterOptions
                                                             .TASK_MANAGER_PROCESS_WORKING_DIR_BASE
@@ -50,6 +51,7 @@ public class ForStOptions {
                                     .build());
 
     /** The remote directory where ForSt puts its SST files. */
+    @Documentation.Section(Documentation.Sections.STATE_BACKEND_FORST)
     public static final ConfigOption<String> REMOTE_DIRECTORY =
             ConfigOptions.key("state.backend.forst.remote-dir")
                     .stringType()
@@ -60,6 +62,7 @@ public class ForStOptions {
                                             + " Recognized shortcut name is '%s', which means that forst shares the directory with checkpoint.",
                                     LOCAL_DIRECTORIES.key(), REMOTE_SHORTCUT_CHECKPOINT));
 
+    @Documentation.Section(Documentation.Sections.STATE_BACKEND_FORST)
     public static final ConfigOption<String> CACHE_DIRECTORY =
             ConfigOptions.key("state.backend.forst.cache.dir")
                     .stringType()
@@ -69,24 +72,29 @@ public class ForStOptions {
                                     "The directory where ForSt caches its SST files, fallback to %s/cache if not configured.",
                                     LOCAL_DIRECTORIES.key()));
 
+    @Documentation.Section(Documentation.Sections.STATE_BACKEND_FORST)
     public static final ConfigOption<Long> CACHE_SIZE_BASE_LIMIT =
             ConfigOptions.key("state.backend.forst.cache.size-based-limit")
                     .longType()
                     .defaultValue(-1L)
                     .withDescription(
-                            "The size-based capacity limit of cache, a non-positive number indicates that there is no limit.");
+                            "The size-based capacity limit of cache, a non-positive number indicates that there is no limit. "
+                                    + "The default value is '-1', which means that the cache size is not limited by size.");
 
+    @Documentation.Section(Documentation.Sections.STATE_BACKEND_FORST)
     public static final ConfigOption<Long> CACHE_RESERVED_SIZE =
             ConfigOptions.key("state.backend.forst.cache.reserve-size")
                     .longType()
                     .defaultValue(-1L)
                     .withDescription(
-                            "The reserved size of cache, when set to a positive number, dynamic space checking will be leveraged. "
-                                    + "This option and the "
+                            "The reserved size of cache, when set to a positive number. Meaning that "
+                                    + "the cache will reserve the specified size of disk space. "
+                                    + "This option and the '"
                                     + CACHE_SIZE_BASE_LIMIT.key()
-                                    + "option can be set simultaneously, the smaller cache limit will be used as the upper limit.");
+                                    + "' option can be set simultaneously, the smaller cache limit will be used as the upper limit.");
 
     /** The options factory class for ForSt to create DBOptions and ColumnFamilyOptions. */
+    @Documentation.Section(Documentation.Sections.EXPERT_FORST)
     public static final ConfigOption<String> OPTIONS_FACTORY =
             ConfigOptions.key("state.backend.forst.options-factory")
                     .stringType()
@@ -96,37 +104,40 @@ public class ForStOptions {
                                     + "If set, the ForSt state backend will load the class and apply configs to DBOptions and ColumnFamilyOptions "
                                     + "after loading ones from 'ForStConfigurableOptions' and pre-defined options.");
 
+    @Documentation.Section(Documentation.Sections.EXPERT_FORST)
     public static final ConfigOption<Boolean> USE_MANAGED_MEMORY =
             ConfigOptions.key("state.backend.forst.memory.managed")
                     .booleanType()
                     .defaultValue(true)
                     .withDescription(
-                            "If set, the ForSt state backend will automatically configure itself to use the "
+                            "If set true, the ForSt state backend will automatically configure itself to use the "
                                     + "managed memory budget of the task slot, and divide the memory over write buffers, indexes, "
-                                    + "block caches, etc. That way, the three major uses of memory of ForSt will be capped.");
+                                    + "block caches, etc.");
 
+    @Documentation.Section(Documentation.Sections.EXPERT_FORST)
     public static final ConfigOption<MemorySize> FIX_PER_SLOT_MEMORY_SIZE =
             ConfigOptions.key("state.backend.forst.memory.fixed-per-slot")
                     .memoryType()
                     .noDefaultValue()
                     .withDescription(
                             String.format(
-                                    "The fixed total amount of memory, shared among all ForSt instances per slot. "
-                                            + "This option overrides the '%s' option when configured.",
+                                    "The fixed total amount of memory per slot, shared among all ForSt instances."
+                                            + "This option overrides the '%s' option.",
                                     USE_MANAGED_MEMORY.key()));
 
+    @Documentation.Section(Documentation.Sections.EXPERT_FORST)
     public static final ConfigOption<MemorySize> FIX_PER_TM_MEMORY_SIZE =
             ConfigOptions.key("state.backend.forst.memory.fixed-per-tm")
                     .memoryType()
                     .noDefaultValue()
                     .withDescription(
                             String.format(
-                                    "The fixed total amount of memory, shared among all ForSt instances per Task Manager (cluster-level option). "
-                                            + "This option only takes effect if neither '%s' nor '%s' are not configured. If none is configured "
+                                    "The fixed total amount of memory per Task Manager, shared among all ForSt instances. This is a cluster-level option. "
+                                            + "This option only takes effect if '%s' is set to false and '%s' is not configured. If so, "
                                             + "then each ForSt column family state has its own memory caches (as controlled by the column "
                                             + "family options). "
-                                            + "The relevant options for the shared resources (e.g. write-buffer-ratio) can be set on the same level (config.yaml)."
-                                            + "Note, that this feature breaks resource isolation between the slots",
+                                            + "The relevant options for the shared resources (e.g. write-buffer-ratio) can be set on the same level (config.yaml). "
+                                            + "Note that this feature breaks resource isolation between the slots.",
                                     USE_MANAGED_MEMORY.key(), FIX_PER_SLOT_MEMORY_SIZE.key()));
 
     public static final ConfigOption<Double> WRITE_BUFFER_RATIO =
@@ -149,10 +160,11 @@ public class ForStOptions {
                                             + "compression dictionary blocks. This option only has an effect when '%s' or '%s' are configured.",
                                     USE_MANAGED_MEMORY.key(), FIX_PER_SLOT_MEMORY_SIZE.key()));
 
+    @Documentation.Section(Documentation.Sections.STATE_BACKEND_FORST)
     public static final ConfigOption<Boolean> USE_PARTITIONED_INDEX_FILTERS =
             ConfigOptions.key("state.backend.forst.memory.partitioned-index-filters")
                     .booleanType()
-                    .defaultValue(false)
+                    .defaultValue(true)
                     .withDescription(
                             String.format(
                                     "With partitioning, the index/filter block of an SST file is partitioned into smaller blocks with "
@@ -163,7 +175,7 @@ public class ForStOptions {
                                     USE_MANAGED_MEMORY.key(), FIX_PER_SLOT_MEMORY_SIZE.key()));
 
     /** Choice of timer service implementation. */
-    @Documentation.Section(Documentation.Sections.STATE_BACKEND_ROCKSDB)
+    @Documentation.Section(Documentation.Sections.STATE_BACKEND_FORST)
     public static final ConfigOption<ForStStateBackend.PriorityQueueStateType>
             TIMER_SERVICE_FACTORY =
                     ConfigOptions.key("state.backend.forst.timer-service.factory")
@@ -172,33 +184,42 @@ public class ForStOptions {
                             .withDescription(
                                     "This determines the factory for timer service state implementation.");
 
-    /** The cache size per key-group for ROCKSDB timer service factory implementation. */
-    @Documentation.Section(Documentation.Sections.STATE_BACKEND_ROCKSDB)
+    /** The cache size per key-group for ForSt timer service factory implementation. */
+    @Documentation.Section(Documentation.Sections.STATE_BACKEND_FORST)
     public static final ConfigOption<Integer> FORST_TIMER_SERVICE_FACTORY_CACHE_SIZE =
             ConfigOptions.key("state.backend.forst.timer-service.cache-size")
                     .intType()
                     .defaultValue(128)
                     .withDescription(
                             String.format(
-                                    "The cache size per keyGroup of rocksdb timer service factory. This option only has an effect "
+                                    "The cache size per keyGroup of ForSt timer service factory. This option only has an effect "
                                             + "when '%s' is configured to '%s'. Increasing this value can improve the performance "
-                                            + "of rocksdb timer service, but consumes more heap memory at the same time.",
+                                            + "of ForSt timer service, but consumes more heap memory at the same time.",
                                     TIMER_SERVICE_FACTORY.key(), ForStDB.name()));
 
+    @Documentation.Section(Documentation.Sections.EXPERT_FORST)
     public static final ConfigOption<Boolean> EXECUTOR_COORDINATOR_INLINE =
             ConfigOptions.key("state.backend.forst.executor.inline-coordinator")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Whether to let the task thread be the coordinator thread responsible for distributing requests.");
+                            "Whether to let the task thread be the coordinator thread responsible for distributing requests. "
+                                    + "If set to 'true', the task thread will be responsible for distributing requests, "
+                                    + "otherwise, a dedicated coordinator thread will be used. "
+                                    + "The default value is 'false'.");
 
+    @Documentation.Section(Documentation.Sections.EXPERT_FORST)
     public static final ConfigOption<Boolean> EXECUTOR_WRITE_IO_INLINE =
             ConfigOptions.key("state.backend.forst.executor.inline-write")
                     .booleanType()
                     .defaultValue(true)
                     .withDescription(
-                            "Whether to let write requests executed within the coordinator thread.");
+                            "Whether to let write requests be executed within the coordinator thread. "
+                                    + "If set to 'true', write requests will be executed within the coordinator thread, "
+                                    + "otherwise, a dedicated write thread will be used. "
+                                    + "The default value is 'true'.");
 
+    @Documentation.Section(Documentation.Sections.STATE_BACKEND_FORST)
     public static final ConfigOption<Integer> EXECUTOR_READ_IO_PARALLELISM =
             ConfigOptions.key("state.backend.forst.executor.read-io-parallelism")
                     .intType()
@@ -206,6 +227,7 @@ public class ForStOptions {
                     .withDescription(
                             "The number of threads used for read IO operations in the executor.");
 
+    @Documentation.Section(Documentation.Sections.STATE_BACKEND_FORST)
     public static final ConfigOption<Integer> EXECUTOR_WRITE_IO_PARALLELISM =
             ConfigOptions.key("state.backend.forst.executor.write-io-parallelism")
                     .intType()
