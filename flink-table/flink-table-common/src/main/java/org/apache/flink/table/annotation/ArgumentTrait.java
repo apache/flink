@@ -125,6 +125,11 @@ public enum ArgumentTrait {
      * in a way that it can encode changes. In other words: choose a row type that exposes the
      * {@link RowKind} change flag.
      *
+     * <p>This trait is intended for advanced use cases. Please note that inputs are always
+     * insert-only in batch mode. Thus, if the PTF should produce the same results in both batch and
+     * streaming mode, results should be emitted based on watermarks and event-time. The trait
+     * {@link #PASS_COLUMNS_THROUGH} is not supported if this trait is declared.
+     *
      * <p>Note: This trait is valid for {@link #TABLE_AS_ROW} and {@link #TABLE_AS_SET} arguments.
      */
     SUPPORT_UPDATES(false, StaticArgumentTrait.SUPPORT_UPDATES);

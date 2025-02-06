@@ -135,7 +135,7 @@ public class TableTestProgram {
         return new Builder(id, description);
     }
 
-    /** Convenience method to avoid casting. It assumes that the order of steps is not important. */
+    /** A helper method to avoid casting. It assumes that the order of steps is not important. */
     public List<SourceTestStep> getSetupSourceTestSteps() {
         final EnumSet<TestKind> sourceKinds =
                 EnumSet.of(
@@ -148,7 +148,7 @@ public class TableTestProgram {
                 .collect(Collectors.toList());
     }
 
-    /** Convenience method to avoid casting. It assumes that the order of steps is not important. */
+    /** A helper method to avoid casting. It assumes that the order of steps is not important. */
     public List<SinkTestStep> getSetupSinkTestSteps() {
         final EnumSet<TestKind> sinkKinds =
                 EnumSet.of(
@@ -161,7 +161,7 @@ public class TableTestProgram {
                 .collect(Collectors.toList());
     }
 
-    /** Convenience method to avoid casting. It assumes that the order of steps is not important. */
+    /** A helper method to avoid casting. It assumes that the order of steps is not important. */
     public List<ConfigOptionTestStep<?>> getSetupConfigOptionTestSteps() {
         return setupSteps.stream()
                 .filter(s -> s.getKind() == TestKind.CONFIG)
@@ -169,7 +169,7 @@ public class TableTestProgram {
                 .collect(Collectors.toList());
     }
 
-    /** Convenience method to avoid casting. It assumes that the order of steps is not important. */
+    /** A helper method to avoid casting. It assumes that the order of steps is not important. */
     public List<FunctionTestStep> getSetupFunctionTestSteps() {
         return setupSteps.stream()
                 .filter(s -> s.getKind() == TestKind.FUNCTION)
@@ -177,7 +177,15 @@ public class TableTestProgram {
                 .collect(Collectors.toList());
     }
 
-    /** Convenience method to avoid casting. It assumes that the order of steps is not important. */
+    /** A helper method to avoid casting. It assumes that the order of steps is not important. */
+    public List<SqlTestStep> getSetupSqlTestSteps() {
+        return setupSteps.stream()
+                .filter(s -> s.getKind() == TestKind.SQL)
+                .map(SqlTestStep.class::cast)
+                .collect(Collectors.toList());
+    }
+
+    /** A helper method to avoid casting. It assumes that the order of steps is not important. */
     public List<TemporalFunctionTestStep> getSetupTemporalFunctionTestSteps() {
         return setupSteps.stream()
                 .filter(s -> s.getKind() == TestKind.TEMPORAL_FUNCTION)
@@ -186,7 +194,7 @@ public class TableTestProgram {
     }
 
     /**
-     * Convenience method to avoid boilerplate code. It assumes that only a single SQL statement is
+     * A helper method to avoid boilerplate code. It assumes that only a single SQL statement is
      * tested.
      */
     public SqlTestStep getRunSqlTestStep() {
@@ -198,9 +206,7 @@ public class TableTestProgram {
         return (SqlTestStep) sqlSteps.get(0);
     }
 
-    /**
-     * Convenience method to avoid boilerplate code. It assumes only one statement set is tested.
-     */
+    /** A helper method to avoid boilerplate code. It assumes only one statement set is tested. */
     public StatementSetTestStep getRunStatementSetTestStep() {
         List<TestStep> statementSetSteps =
                 runSteps.stream()

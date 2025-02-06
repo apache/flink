@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.configuration.ReadableConfig
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.ExpressionUtils.extractValue
@@ -590,9 +590,14 @@ object AggregateUtil extends Enumeration {
     val enrichedArgumentDataTypes = toScala(adaptedCallContext.getArgumentDataTypes)
 
     // derive accumulator type with conversion class
-    val enrichedAccumulatorDataType = TypeInferenceUtil.inferOutputType(
-      adaptedCallContext,
-      inference.getAccumulatorTypeStrategy.orElse(inference.getOutputTypeStrategy))
+    val stateStrategies = inference.getStateTypeStrategies
+    if (stateStrategies.size() != 1) {
+      throw new ValidationException(
+        "Aggregating functions must provide exactly one state type strategy.")
+    }
+    val accumulatorStrategy = stateStrategies.values().head
+    val enrichedAccumulatorDataType =
+      TypeInferenceUtil.inferOutputType(adaptedCallContext, accumulatorStrategy)
 
     // enrich output types with conversion class
     val enrichedOutputDataType =
