@@ -1531,7 +1531,12 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
 ### RocksDB
 Certain RocksDB native metrics are available but disabled by default, you can find full documentation [here]({{< ref "docs/deployment/config" >}}#rocksdb-native-metrics)
 
-### ForStDB
+### ForSt
+
+Certain ForSt native metrics are available but disabled by default, you can find full documentation [here]({{< ref "docs/deployment/config" >}}#forst-native-metrics)
+
+Besides that, we support the following metrics:
+
 <table class="table table-bordered">
   <thead>
     <tr>
