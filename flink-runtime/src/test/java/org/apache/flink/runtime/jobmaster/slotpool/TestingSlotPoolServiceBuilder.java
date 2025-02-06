@@ -92,6 +92,11 @@ public class TestingSlotPoolServiceBuilder implements SlotPoolServiceFactory {
         return this;
     }
 
+    public TestingSlotPoolServiceBuilder setCloseRunnable(Runnable closeRunnable) {
+        this.closeRunnable = closeRunnable;
+        return this;
+    }
+
     public static TestingSlotPoolServiceBuilder newBuilder() {
         return new TestingSlotPoolServiceBuilder();
     }
