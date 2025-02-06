@@ -145,6 +145,79 @@ abstract class UnnestTestBase(withExecPlan: Boolean) extends TableTestBase {
     verifyPlan(sqlQuery)
   }
 
+  @Test
+  def testUnnestWithOrdinalityArray(): Unit = {
+    util.addTableSource[(Int, Array[Int])]("MyTable", 'a, 'b)
+    verifyPlan(
+      "SELECT a, number, ordinality FROM MyTable CROSS JOIN UNNEST(b) WITH ORDINALITY AS t(number, ordinality)")
+  }
+
+  @Test
+  def testUnnestWithOrdinalityAndValues(): Unit = {
+    verifyPlan("SELECT val, pos FROM UNNEST(ARRAY[1,2,3]) WITH ORDINALITY AS t(val, pos)")
+  }
+
+  @Test
+  def testUnnestWithOrdinalityArrayOfArray(): Unit = {
+    util.addTableSource[(Int, Array[Array[Int]])]("MyTable", 'id, 'nested_array)
+    val sqlQuery =
+      """
+        |SELECT id, array_val, array_pos, elem, element_pos
+        |FROM MyTable
+        |CROSS JOIN UNNEST(nested_array) WITH ORDINALITY AS A(array_val, array_pos)
+        |CROSS JOIN UNNEST(array_val) WITH ORDINALITY AS B(elem, element_pos)
+        |""".stripMargin
+    verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testUnnestWithOrdinalityMultiset(): Unit = {
+    util.addDataStream[(Int, String, String)]("MyTable", 'a, 'b, 'c)
+    val sqlQuery =
+      """
+        |WITH T AS (SELECT a, COLLECT(c) as words FROM MyTable GROUP BY a)
+        |SELECT a, word, pos
+        |FROM T CROSS JOIN UNNEST(words) WITH ORDINALITY AS A(word, pos)
+        |""".stripMargin
+    verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testUnnestWithOrdinalityMap(): Unit = {
+    util.addTableSource(
+      "MyTable",
+      Array[AbstractDataType[_]](
+        DataTypes.INT(),
+        DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
+      Array("id", "map_data"))
+    verifyPlan(
+      "SELECT id, k, v, pos FROM MyTable CROSS JOIN UNNEST(map_data) WITH ORDINALITY AS f(k, v, pos)")
+  }
+
+  @Test
+  def testUnnestWithOrdinalityWithFilter(): Unit = {
+    util.addTableSource[(Int, Array[Int])]("MyTable", 'a, 'b)
+    verifyPlan("""
+                 |SELECT a, number, ordinality 
+                 |FROM MyTable 
+                 |CROSS JOIN UNNEST(b) WITH ORDINALITY AS t(number, ordinality)
+                 |WHERE number > 10 AND ordinality < 3
+                 |""".stripMargin)
+  }
+
+  @Test
+  def testUnnestWithOrdinalityInSubquery(): Unit = {
+    util.addTableSource[(Int, Array[Int])]("MyTable", 'a, 'b)
+    verifyPlan("""
+                 |SELECT * FROM (
+                 |  SELECT a, number, ordinality 
+                 |  FROM MyTable 
+                 |  CROSS JOIN UNNEST(b) WITH ORDINALITY AS t(number, ordinality)
+                 |) subquery 
+                 |WHERE ordinality = 1
+                 |""".stripMargin)
+  }
+
   def verifyPlan(sql: String): Unit = {
     if (withExecPlan) {
       util.verifyExecPlan(sql)

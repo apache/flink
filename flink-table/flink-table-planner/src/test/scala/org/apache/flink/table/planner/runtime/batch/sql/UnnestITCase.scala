@@ -315,4 +315,84 @@ class UnnestITCase extends BatchTestBase {
       Seq(row('a', 1), row('a', 2), row('a', 3)))
   }
 
+  @Test
+  def testUnnestPrimitiveArrayFromTableWithOrdinality(): Unit = {
+    val data = List(
+      row(1, Array(12, 45), Array(Array(12, 45))),
+      row(2, Array(41, 5), Array(Array(18), Array(87))),
+      row(3, Array(18, 42), Array(Array(1), Array(45)))
+    )
+    registerCollection(
+      "T",
+      data,
+      new RowTypeInfo(
+        Types.INT,
+        Types.PRIMITIVE_ARRAY(Types.INT),
+        Types.OBJECT_ARRAY(Types.PRIMITIVE_ARRAY(Types.INT))),
+      "a, b, c")
+
+    checkResult(
+      "SELECT a, b, s, o FROM T, UNNEST(T.b) WITH ORDINALITY AS A (s, o)",
+      Seq(
+        row(1, Array(12, 45), 12, 1),
+        row(1, Array(12, 45), 45, 2),
+        row(2, Array(41, 5), 41, 1),
+        row(2, Array(41, 5), 5, 2),
+        row(3, Array(18, 42), 18, 1),
+        row(3, Array(18, 42), 42, 2))
+    )
+  }
+
+  @Test
+  def testUnnestArrayOfArrayFromTableWithOrdinality(): Unit = {
+    val data = List(
+      row(1, Array(12, 45), Array(Array(12, 45))),
+      row(2, Array(41, 5), Array(Array(18), Array(87))),
+      row(3, Array(18, 42), Array(Array(1), Array(45)))
+    )
+    registerCollection(
+      "T",
+      data,
+      new RowTypeInfo(
+        Types.INT,
+        Types.PRIMITIVE_ARRAY(Types.INT),
+        Types.OBJECT_ARRAY(Types.PRIMITIVE_ARRAY(Types.INT))),
+      "a, b, c")
+
+    checkResult(
+      "SELECT a, s, o FROM T, UNNEST(T.c) WITH ORDINALITY AS A (s, o)",
+      Seq(
+        row(1, Array(12, 45), 1),
+        row(2, Array(18), 1),
+        row(2, Array(87), 2),
+        row(3, Array(1), 1),
+        row(3, Array(45), 2))
+    )
+  }
+
+  @Test
+  def testCrossWithUnnestForMapWithOrdinality(): Unit = {
+    val data = List(
+      row(1, 11L, Map("a" -> "10", "b" -> "11").asJava),
+      row(2, 22L, Map("c" -> "20").asJava),
+      row(3, 33L, Map("d" -> "30", "e" -> "31").asJava)
+    )
+
+    registerCollection(
+      "T",
+      data,
+      new RowTypeInfo(Types.INT, Types.LONG, Types.MAP(Types.STRING, Types.STRING)),
+      "a, b, c")
+
+    checkResult(
+      "SELECT a, b, v, o FROM T CROSS JOIN UNNEST(c) WITH ORDINALITY as f (k, v, o)",
+      Seq(
+        row(1, 11L, "10", 1),
+        row(1, 11L, "11", 2),
+        row(2, 22L, "20", 1),
+        row(3, 33L, "30", 1),
+        row(3, 33L, "31", 2))
+    )
+  }
+
 }

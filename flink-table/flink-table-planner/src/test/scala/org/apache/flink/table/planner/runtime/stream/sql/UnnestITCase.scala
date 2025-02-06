@@ -379,4 +379,306 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
     val expected = List("a,1", "a,2", "a,3")
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
+
+  @TestTemplate
+  def testUnnestWithOrdinalityWithValuesStream(): Unit = {
+    val sqlQuery = "SELECT * FROM (VALUES('a')) CROSS JOIN UNNEST(ARRAY[1, 2, 3]) WITH ORDINALITY"
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List("a,1,1", "a,2,2", "a,3,3")
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testUnnestArrayWithOrdinality(): Unit = {
+    val data = List(
+      (1, Array(12, 45)),
+      (2, Array(41, 5)),
+      (3, Array(18, 42))
+    )
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b)
+    tEnv.createTemporaryView("T", t)
+
+    val sqlQuery = """
+                     |SELECT a, number, ordinality 
+                     |FROM T CROSS JOIN UNNEST(b) WITH ORDINALITY AS t(number, ordinality)
+                     |""".stripMargin
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List("1,12,1", "1,45,2", "2,41,1", "2,5,2", "3,18,1", "3,42,2")
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testUnnestArrayOfArrayWithOrdinality(): Unit = {
+    val data = List(
+      (1, Array(Array(1, 2), Array(3))),
+      (2, Array(Array(4, 5), Array(6, 7))),
+      (3, Array(Array(8)))
+    )
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'id, 'nested_array)
+    tEnv.createTemporaryView("T", t)
+
+    val sqlQuery =
+      """
+        |SELECT id, array_val, array_pos, `element`, element_pos
+        |FROM T
+        |CROSS JOIN UNNEST(nested_array) WITH ORDINALITY AS A(array_val, array_pos)
+        |CROSS JOIN UNNEST(array_val) WITH ORDINALITY AS B(`element`, element_pos)
+        |""".stripMargin
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "1,[1, 2],1,1,1",
+      "1,[1, 2],1,2,2",
+      "1,[3],2,3,1",
+      "2,[4, 5],1,4,1",
+      "2,[4, 5],1,5,2",
+      "2,[6, 7],2,6,1",
+      "2,[6, 7],2,7,2",
+      "3,[8],1,8,1")
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testUnnestMultisetWithOrdinality(): Unit = {
+    val data = List(
+      (1, 1, "Hi"),
+      (1, 2, "Hello"),
+      (2, 2, "World"),
+      (3, 3, "Hello world")
+    )
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.createTemporaryView("T", t)
+
+    val sqlQuery =
+      """
+        |WITH T1 AS (SELECT a, COLLECT(c) as words FROM T GROUP BY a)
+        |SELECT a, word, pos
+        |FROM T1 CROSS JOIN UNNEST(words) WITH ORDINALITY AS A(word, pos)
+        |""".stripMargin
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    val sink = new TestingRetractSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "1,Hi,1",
+      "1,Hello,2",
+      "2,World,1",
+      "3,Hello world,1"
+    )
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testUnnestMapWithOrdinality(): Unit = {
+    val data = List(
+      Row.of(
+        Int.box(1), {
+          val map = new java.util.HashMap[String, String]()
+          map.put("a", "10")
+          map.put("b", "11")
+          map
+        }),
+      Row.of(
+        Int.box(2), {
+          val map = new java.util.HashMap[String, String]()
+          map.put("c", "20")
+          map.put("d", "21")
+          map
+        })
+    )
+
+    implicit val typeInfo = Types.ROW(
+      Array("id", "map_data"),
+      Array[TypeInformation[_]](Types.INT, Types.MAP(Types.STRING, Types.STRING))
+    )
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'id, 'map_data)
+    tEnv.createTemporaryView("T", t)
+
+    val sqlQuery = """
+                     |SELECT id, k, v, pos
+                     |FROM T CROSS JOIN UNNEST(map_data) WITH ORDINALITY AS f(k, v, pos)
+                     |""".stripMargin
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
+
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val resultsWithoutordinality = assertAndRemoveOrdinality(sink.getAppendResults, 2)
+    val expected = List("1,a,10", "1,b,11", "2,c,20", "2,d,21")
+
+    assertThat(resultsWithoutordinality.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testUnnestWithOrdinalityForChainOfArraysAndMaps(): Unit = {
+    val data = List(
+      Row.of(
+        Int.box(1),
+        Array("a", "b"), {
+          val map = new java.util.HashMap[String, String]()
+          map.put("x", "10")
+          map.put("y", "20")
+          map
+        }),
+      Row.of(
+        Int.box(2),
+        Array("c", "d"), {
+          val map = new java.util.HashMap[String, String]()
+          map.put("z", "30")
+          map.put("w", "40")
+          map
+        })
+    )
+
+    implicit val typeInfo = Types.ROW(
+      Array("id", "array_data", "map_data"),
+      Array[TypeInformation[_]](
+        Types.INT,
+        Types.OBJECT_ARRAY(Types.STRING),
+        Types.MAP(Types.STRING, Types.STRING))
+    )
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'id, 'array_data, 'map_data)
+    tEnv.createTemporaryView("T", t)
+
+    val sqlQuery =
+      """
+        |SELECT id, array_val, array_pos, map_key, map_val, map_pos
+        |FROM T
+        |CROSS JOIN UNNEST(array_data) WITH ORDINALITY AS A(array_val, array_pos)
+        |CROSS JOIN UNNEST(map_data) WITH ORDINALITY AS B(map_key, map_val, map_pos)
+        |""".stripMargin
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
+
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val resultsWithoutOrdinality = assertAndRemoveOrdinality(sink.getAppendResults, 2)
+    val expected = List(
+      "1,a,1,x,10",
+      "1,a,1,y,20",
+      "1,b,2,x,10",
+      "1,b,2,y,20",
+      "2,c,1,z,30",
+      "2,c,1,w,40",
+      "2,d,2,z,30",
+      "2,d,2,w,40"
+    )
+
+    assertThat(resultsWithoutOrdinality.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testUnnestWithOrdinalityForEmptyArray(): Unit = {
+    val data = List(
+      (1, Array[Int]())
+    )
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b)
+    tEnv.createTemporaryView("T", t)
+
+    val sqlQuery = """
+                     |SELECT a, number, ordinality
+                     |FROM T CROSS JOIN UNNEST(b) WITH ORDINALITY AS t(number, ordinality)
+                     |""".stripMargin
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List()
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected)
+  }
+
+  @TestTemplate
+  def testUnnestWithOrdinalityForMapWithNullValues(): Unit = {
+    val data = List(
+      Row.of(
+        Int.box(1), {
+          val map = new java.util.HashMap[String, String]()
+          map.put("a", "10")
+          map.put("b", null)
+          map
+        }),
+      Row.of(
+        Int.box(2), {
+          val map = new java.util.HashMap[String, String]()
+          map.put("c", "20")
+          map.put("d", null)
+          map
+        })
+    )
+
+    implicit val typeInfo = Types.ROW(
+      Array("id", "map_data"),
+      Array[TypeInformation[_]](Types.INT, Types.MAP(Types.STRING, Types.STRING))
+    )
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'id, 'map_data)
+    tEnv.createTemporaryView("T", t)
+
+    val sqlQuery =
+      """
+        |SELECT id, k, v, pos
+        |FROM T CROSS JOIN UNNEST(map_data) WITH ORDINALITY AS f(k, v, pos)
+        |""".stripMargin
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
+
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val resultsWithoutordinality = assertAndRemoveOrdinality(sink.getAppendResults, 2)
+    val expected = List("1,a,10", "1,b,null", "2,c,20", "2,d,null")
+    assertThat(resultsWithoutordinality.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testUnnestArrayWithMixedTypesAndOrdinality(): Unit = {
+    val data = List(
+      (1, Array(10, "20")),
+      (2, Array(30, "40"))
+    )
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b)
+    tEnv.createTemporaryView("T", t)
+
+    val sqlQuery =
+      """
+        |SELECT a, number, ordinality
+        |FROM T CROSS JOIN UNNEST(b) WITH ORDINALITY AS m(number, ordinality)
+        |""".stripMargin
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List("1,10,1", "1,20,2", "2,30,1", "2,40,2")
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  /* Utility for maps to assert that ordinality is within range and remove it from output.
+   * Necessary since maps are not ordered */
+  def assertAndRemoveOrdinality(results: List[String], maxOrdinality: Int): List[String] = {
+    results.foreach {
+      result =>
+        val columns = result.split(",")
+        val ordinality = columns.last.toInt
+        assert(
+          ordinality >= 1 && ordinality <= maxOrdinality,
+          s"Ordinality $ordinality out of range")
+    }
+
+    results.map(_.split(",").dropRight(1).mkString(","))
+  }
 }
