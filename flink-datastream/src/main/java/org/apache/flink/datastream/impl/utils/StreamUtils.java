@@ -441,9 +441,7 @@ public final class StreamUtils {
             KeySelector<IN, K> keySelector,
             TypeInformation<K> keyType) {
         WindowAssigner<IN, W> assigner = internalWindowFunction.getAssigner();
-        ListStateDescriptor<IN> stateDesc =
-                new ListStateDescriptor<>(
-                        "window-state", TypeExtractor.createTypeInfo(inputType.getTypeClass()));
+        ListStateDescriptor<IN> stateDesc = new ListStateDescriptor<>("window-state", inputType);
 
         OneInputWindowProcessOperator<K, IN, OUT, W> windowProcessOperator =
                 new OneInputWindowProcessOperator<>(
@@ -474,14 +472,10 @@ public final class StreamUtils {
                     TypeInformation<K> keyType2) {
         WindowAssigner<TaggedUnion<IN1, IN2>, W> assigner = internalWindowFunction.getAssigner();
         ListStateDescriptor<IN1> leftStateDesc =
-                new ListStateDescriptor<>(
-                        "two-input-window-left-state",
-                        TypeExtractor.createTypeInfo(inputType1.getTypeClass()));
+                new ListStateDescriptor<>("two-input-window-left-state", inputType1);
 
         ListStateDescriptor<IN2> rightStateDesc =
-                new ListStateDescriptor<>(
-                        "two-input-window-right-state",
-                        TypeExtractor.createTypeInfo(inputType2.getTypeClass()));
+                new ListStateDescriptor<>("two-input-window-right-state", inputType2);
 
         TwoInputNonBroadcastWindowProcessOperator<K, IN1, IN2, OUT, W> windowProcessOperator =
                 new TwoInputNonBroadcastWindowProcessOperator<>(
@@ -519,9 +513,7 @@ public final class StreamUtils {
                     TypeInformation<K> keyType) {
         WindowAssigner<IN, W> assigner = internalWindowFunction.getAssigner();
         ListStateDescriptor<IN> stateDesc =
-                new ListStateDescriptor<>(
-                        "two-output-window-state",
-                        TypeExtractor.createTypeInfo(inputType.getTypeClass()));
+                new ListStateDescriptor<>("two-output-window-state", inputType);
 
         TwoOutputWindowProcessOperator<K, IN, OUT1, OUT2, W> windowProcessOperator =
                 new TwoOutputWindowProcessOperator<>(
