@@ -109,7 +109,7 @@ public abstract class TtlStateTestBase {
         return (TtlMergingStateTestContext<?, UV, ?>) ctx;
     }
 
-    private void initTest() throws Exception {
+    protected void initTest() throws Exception {
         initTest(
                 StateTtlConfig.UpdateType.OnCreateAndWrite,
                 StateTtlConfig.StateVisibility.NeverReturnExpired);
@@ -496,7 +496,7 @@ public abstract class TtlStateTestBase {
     }
 
     @TestTemplate
-    void testRestoreTtlAndRegisterNonTtlStateCompatFailure() throws Exception {
+    protected void testRestoreTtlAndRegisterNonTtlStateCompatFailure() throws Exception {
         assumeThat(this).isNotInstanceOf(MockTtlStateTest.class);
 
         initTest();
