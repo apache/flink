@@ -48,14 +48,14 @@ public class ProcessTableFunctionTestPrograms {
                     + "GROUP BY name";
 
     /** Corresponds to {@link TestProcessTableFunctionBase}. */
-    private static final String BASE_SINK_SCHEMA = "`out` STRING, `count` INT";
+    private static final String BASE_SINK_SCHEMA = "`out` STRING";
 
     /** Corresponds to {@link TestProcessTableFunctionBase}. */
-    private static final String KEYED_BASE_SINK_SCHEMA = "`name` STRING, `out` STRING, `count` INT";
+    private static final String KEYED_BASE_SINK_SCHEMA = "`name` STRING, `out` STRING";
 
     /** Corresponds to {@link TestProcessTableFunctionBase}. */
     private static final String PASS_THROUGH_BASE_SINK_SCHEMA =
-            "`name` STRING, `score` INT, `out` STRING, `count` INT";
+            "`name` STRING, `score` INT, `out` STRING";
 
     public static final TableTestProgram PROCESS_SCALAR_ARGS =
             TableTestProgram.of("process-scalar-args", "no table as input")
@@ -63,7 +63,7 @@ public class ProcessTableFunctionTestPrograms {
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
                                     .addSchema(BASE_SINK_SCHEMA)
-                                    .consumedValues("+I[{42, true}, 1]", "+I[{42, true}, 2]")
+                                    .consumedValues("+I[{42, true}]")
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT * FROM f(i => 42, b => CAST('TRUE' AS BOOLEAN))")
@@ -77,10 +77,7 @@ public class ProcessTableFunctionTestPrograms {
                             SinkTestStep.newBuilder("sink")
                                     .addSchema(BASE_SINK_SCHEMA)
                                     .consumedValues(
-                                            "+I[{+I[Bob, 12], 1}, 1]",
-                                            "+I[{+I[Bob, 12], 1}, 2]",
-                                            "+I[{+I[Alice, 42], 1}, 1]",
-                                            "+I[{+I[Alice, 42], 1}, 2]")
+                                            "+I[{+I[Bob, 12], 1}]", "+I[{+I[Alice, 42], 1}]")
                                     .build())
                     .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t, i => 1)")
                     .build();
@@ -93,10 +90,8 @@ public class ProcessTableFunctionTestPrograms {
                             SinkTestStep.newBuilder("sink")
                                     .addSchema(BASE_SINK_SCHEMA)
                                     .consumedValues(
-                                            "+I[{User(s='Bob', i=12), 1}, 1]",
-                                            "+I[{User(s='Bob', i=12), 1}, 2]",
-                                            "+I[{User(s='Alice', i=42), 1}, 1]",
-                                            "+I[{User(s='Alice', i=42), 1}, 2]")
+                                            "+I[{User(s='Bob', i=12), 1}]",
+                                            "+I[{User(s='Alice', i=42), 1}]")
                                     .build())
                     .runSql("INSERT INTO sink SELECT * FROM f(u => TABLE t, i => 1)")
                     .build();
@@ -109,10 +104,8 @@ public class ProcessTableFunctionTestPrograms {
                             SinkTestStep.newBuilder("sink")
                                     .addSchema(KEYED_BASE_SINK_SCHEMA)
                                     .consumedValues(
-                                            "+I[Bob, {+I[Bob, 12], 1}, 1]",
-                                            "+I[Bob, {+I[Bob, 12], 1}, 2]",
-                                            "+I[Alice, {+I[Alice, 42], 1}, 1]",
-                                            "+I[Alice, {+I[Alice, 42], 1}, 2]")
+                                            "+I[Bob, {+I[Bob, 12], 1}]",
+                                            "+I[Alice, {+I[Alice, 42], 1}]")
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name, i => 1)")
@@ -126,10 +119,8 @@ public class ProcessTableFunctionTestPrograms {
                             SinkTestStep.newBuilder("sink")
                                     .addSchema(KEYED_BASE_SINK_SCHEMA)
                                     .consumedValues(
-                                            "+I[Bob, {User(s='Bob', i=12), 1}, 1]",
-                                            "+I[Bob, {User(s='Bob', i=12), 1}, 2]",
-                                            "+I[Alice, {User(s='Alice', i=42), 1}, 1]",
-                                            "+I[Alice, {User(s='Alice', i=42), 1}, 2]")
+                                            "+I[Bob, {User(s='Bob', i=12), 1}]",
+                                            "+I[Alice, {User(s='Alice', i=42), 1}]")
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT * FROM f(u => TABLE t PARTITION BY name, i => 1)")
@@ -144,10 +135,8 @@ public class ProcessTableFunctionTestPrograms {
                             SinkTestStep.newBuilder("sink")
                                     .addSchema(BASE_SINK_SCHEMA)
                                     .consumedValues(
-                                            "+I[{User(s='Bob', i=12), User(s='Bob', i=12)}, 1]",
-                                            "+I[{User(s='Bob', i=12), User(s='Bob', i=12)}, 2]",
-                                            "+I[{User(s='Alice', i=42), User(s='Bob', i=12)}, 1]",
-                                            "+I[{User(s='Alice', i=42), User(s='Bob', i=12)}, 2]")
+                                            "+I[{User(s='Bob', i=12), User(s='Bob', i=12)}]",
+                                            "+I[{User(s='Alice', i=42), User(s='Bob', i=12)}]")
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT * FROM "
@@ -161,7 +150,7 @@ public class ProcessTableFunctionTestPrograms {
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
                                     .addSchema(BASE_SINK_SCHEMA)
-                                    .consumedValues("+I[{empty}, 1]", "+I[{empty}, 2]")
+                                    .consumedValues("+I[{empty}]")
                                     .build())
                     .runSql("INSERT INTO sink SELECT * FROM f()")
                     .build();
@@ -174,10 +163,8 @@ public class ProcessTableFunctionTestPrograms {
                             SinkTestStep.newBuilder("sink")
                                     .addSchema(PASS_THROUGH_BASE_SINK_SCHEMA)
                                     .consumedValues(
-                                            "+I[Bob, 12, {+I[Bob, 12], 1}, 1]",
-                                            "+I[Bob, 12, {+I[Bob, 12], 1}, 2]",
-                                            "+I[Alice, 42, {+I[Alice, 42], 1}, 1]",
-                                            "+I[Alice, 42, {+I[Alice, 42], 1}, 2]")
+                                            "+I[Bob, 12, {+I[Bob, 12], 1}]",
+                                            "+I[Alice, 42, {+I[Alice, 42], 1}]")
                                     .build())
                     .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t, i => 1)")
                     .build();
@@ -190,10 +177,8 @@ public class ProcessTableFunctionTestPrograms {
                             SinkTestStep.newBuilder("sink")
                                     .addSchema(PASS_THROUGH_BASE_SINK_SCHEMA)
                                     .consumedValues(
-                                            "+I[Bob, 12, {+I[Bob, 12], 1}, 1]",
-                                            "+I[Bob, 12, {+I[Bob, 12], 1}, 2]",
-                                            "+I[Alice, 42, {+I[Alice, 42], 1}, 1]",
-                                            "+I[Alice, 42, {+I[Alice, 42], 1}, 2]")
+                                            "+I[Bob, 12, {+I[Bob, 12], 1}]",
+                                            "+I[Alice, 42, {+I[Alice, 42], 1}]")
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name, i => 1)")
@@ -207,14 +192,10 @@ public class ProcessTableFunctionTestPrograms {
                             SinkTestStep.newBuilder("sink")
                                     .addSchema(BASE_SINK_SCHEMA)
                                     .consumedValues(
-                                            "+I[{+I[Bob, 1]}, 1]",
-                                            "+I[{+I[Bob, 1]}, 2]",
-                                            "+I[{+I[Alice, 1]}, 1]",
-                                            "+I[{+I[Alice, 1]}, 2]",
-                                            "+I[{-U[Bob, 1]}, 1]",
-                                            "+I[{-U[Bob, 1]}, 2]",
-                                            "+I[{+U[Bob, 2]}, 1]",
-                                            "+I[{+U[Bob, 2]}, 2]")
+                                            "+I[{+I[Bob, 1]}]",
+                                            "+I[{+I[Alice, 1]}]",
+                                            "+I[{-U[Bob, 1]}]",
+                                            "+I[{+U[Bob, 2]}]")
                                     .build())
                     .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t)")
                     .build();
@@ -227,10 +208,7 @@ public class ProcessTableFunctionTestPrograms {
                             SinkTestStep.newBuilder("sink")
                                     .addSchema(BASE_SINK_SCHEMA)
                                     .consumedValues(
-                                            "+I[{+I[Bob, 12], 1}, 1]",
-                                            "+I[{+I[Bob, 12], 1}, 2]",
-                                            "+I[{+I[Alice, 42], 1}, 1]",
-                                            "+I[{+I[Alice, 42], 1}, 2]")
+                                            "+I[{+I[Bob, 12], 1}]", "+I[{+I[Alice, 42], 1}]")
                                     .build())
                     .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t, i => 1)")
                     .build();
@@ -255,10 +233,8 @@ public class ProcessTableFunctionTestPrograms {
                             SinkTestStep.newBuilder("sink")
                                     .addSchema(KEYED_BASE_SINK_SCHEMA)
                                     .consumedValues(
-                                            "+I[Bob, {+I[Bob, 12], param, [0], [INSERT], ROW<`name` VARCHAR(5) NOT NULL, `score` INT NOT NULL>}, 1]",
-                                            "+I[Bob, {+I[Bob, 12], param, [0], [INSERT], ROW<`name` VARCHAR(5) NOT NULL, `score` INT NOT NULL>}, 2]",
-                                            "+I[Alice, {+I[Alice, 42], param, [0], [INSERT], ROW<`name` VARCHAR(5) NOT NULL, `score` INT NOT NULL>}, 1]",
-                                            "+I[Alice, {+I[Alice, 42], param, [0], [INSERT], ROW<`name` VARCHAR(5) NOT NULL, `score` INT NOT NULL>}, 2]")
+                                            "+I[Bob, {+I[Bob, 12], param, [0], [INSERT], ROW<`name` VARCHAR(5) NOT NULL, `score` INT NOT NULL>}]",
+                                            "+I[Alice, {+I[Alice, 42], param, [0], [INSERT], ROW<`name` VARCHAR(5) NOT NULL, `score` INT NOT NULL>}]")
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name, s => 'param')")

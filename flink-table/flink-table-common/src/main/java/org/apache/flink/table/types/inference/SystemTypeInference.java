@@ -62,8 +62,8 @@ public class SystemTypeInference {
     /**
      * Format of unique identifiers for {@link ProcessTableFunction}.
      *
-     * <p>Leading digits are not allowed. This also prevents that a custom PTF uid can infer with
-     * {@code ExecutionConfigOptions#TABLE_EXEC_UID_FORMAT}.
+     * <p>Leading digits are not allowed. This also prevents that a custom PTF uid can interfere
+     * with {@code ExecutionConfigOptions#TABLE_EXEC_UID_FORMAT}.
      */
     private static final Predicate<String> UID_FORMAT =
             Pattern.compile("^[a-zA-Z_][a-zA-Z-_0-9]*$").asPredicate();
@@ -85,9 +85,8 @@ public class SystemTypeInference {
         return builder.build();
     }
 
-    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
-    public static boolean isValidUidForProcessTableFunction(String uid) {
-        return UID_FORMAT.test(uid);
+    public static boolean isInvalidUidForProcessTableFunction(String uid) {
+        return !UID_FORMAT.test(uid);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -333,7 +332,7 @@ public class SystemTypeInference {
             int uidPos = args.size() - 1;
             if (!callContext.isArgumentNull(uidPos)) {
                 final String uid = callContext.getArgumentValue(uidPos, String.class).orElse("");
-                if (!isValidUidForProcessTableFunction(uid)) {
+                if (isInvalidUidForProcessTableFunction(uid)) {
                     throw new ValidationException(
                             "Invalid unique identifier for process table function. The `uid` argument "
                                     + "must be a string literal that follows the pattern [a-zA-Z_][a-zA-Z-_0-9]*. "

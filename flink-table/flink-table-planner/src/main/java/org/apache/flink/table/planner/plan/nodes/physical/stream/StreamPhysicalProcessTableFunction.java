@@ -197,7 +197,7 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
                             .getIdentifier()
                             .map(FunctionIdentifier::getFunctionName)
                             .orElse("");
-            if (!SystemTypeInference.isValidUidForProcessTableFunction(uid)) {
+            if (SystemTypeInference.isInvalidUidForProcessTableFunction(uid)) {
                 throw new ValidationException(
                         String.format(
                                 "Could not derive a unique identifier for process table function '%s'. "

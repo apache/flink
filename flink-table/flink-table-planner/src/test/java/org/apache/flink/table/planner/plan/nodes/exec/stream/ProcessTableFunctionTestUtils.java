@@ -42,14 +42,14 @@ public class ProcessTableFunctionTestUtils {
         }
     }
 
-    @DataTypeHint("ROW<`out` STRING, `count` INT>")
+    @DataTypeHint("ROW<`out` STRING>")
     public abstract static class TestProcessTableFunctionBase extends ProcessTableFunction<Row> {
-        // Every output is emitted two times to test reuse behavior
         public void collectObjects(Object... objects) {
+            // Row.toString is useful because it can handle all common objects,
+            // but we use '{}' to indicate that this is a custom string output.
             final String asString = Row.of(objects).toString();
             final String objectsAsString = asString.substring(3, asString.length() - 1);
-            collect(Row.of("{" + objectsAsString + "}", 1));
-            collect(Row.of("{" + objectsAsString + "}", 2));
+            collect(Row.of("{" + objectsAsString + "}"));
         }
     }
 

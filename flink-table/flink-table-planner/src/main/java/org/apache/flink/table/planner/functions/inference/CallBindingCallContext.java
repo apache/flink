@@ -98,6 +98,9 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
 
     @Override
     public boolean isArgumentNull(int pos) {
+        // Default values are passed as NULL into functions.
+        // We can introduce a dedicated CallContext.isDefault() method in the future if fine-grained
+        // information is required.
         return SqlUtil.isNullLiteral(adaptedArguments.get(pos), false)
                 || adaptedArguments.get(pos).getKind() == SqlKind.DEFAULT;
     }
@@ -127,7 +130,7 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
             return Optional.empty();
         }
         return Optional.of(
-                SqlBindingTableSemantics.create(argumentDataTypes.get(pos), staticArg, sqlNode));
+                CallBindingTableSemantics.create(argumentDataTypes.get(pos), staticArg, sqlNode));
     }
 
     @Override
@@ -144,15 +147,15 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
     // TableSemantics
     // --------------------------------------------------------------------------------------------
 
-    private static class SqlBindingTableSemantics implements TableSemantics {
+    private static class CallBindingTableSemantics implements TableSemantics {
 
         private final DataType dataType;
         private final int[] partitionByColumns;
 
-        public static SqlBindingTableSemantics create(
+        public static CallBindingTableSemantics create(
                 DataType tableDataType, StaticArgument staticArg, SqlNode sqlNode) {
             checkNoOrderBy(sqlNode);
-            return new SqlBindingTableSemantics(
+            return new CallBindingTableSemantics(
                     createDataType(tableDataType, staticArg),
                     createPartitionByColumns(tableDataType, sqlNode));
         }
@@ -210,7 +213,7 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
                     .toArray();
         }
 
-        private SqlBindingTableSemantics(DataType dataType, int[] partitionByColumns) {
+        private CallBindingTableSemantics(DataType dataType, int[] partitionByColumns) {
             this.dataType = dataType;
             this.partitionByColumns = partitionByColumns;
         }

@@ -107,6 +107,9 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
 
     @Override
     public boolean isArgumentNull(int pos) {
+        // Default values are passed as NULL into functions.
+        // We can introduce a dedicated CallContext.isDefault() method in the future if fine-grained
+        // information is required.
         return binding.isOperandNull(pos, false) || isDefault(pos);
     }
 
@@ -145,7 +148,7 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
                         .map(m -> m.get(tableArgCall.getInputIndex()))
                         .orElse(null);
         return Optional.of(
-                RexBindingTableSemantics.create(
+                OperatorBindingTableSemantics.create(
                         argumentDataTypes.get(pos), staticArg, tableArgCall, changelogMode));
     }
 
@@ -193,25 +196,25 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
     // TableSemantics
     // --------------------------------------------------------------------------------------------
 
-    private static class RexBindingTableSemantics implements TableSemantics {
+    private static class OperatorBindingTableSemantics implements TableSemantics {
 
         private final DataType dataType;
         private final int[] partitionByColumns;
         private final @Nullable ChangelogMode changelogMode;
 
-        public static RexBindingTableSemantics create(
+        public static OperatorBindingTableSemantics create(
                 DataType tableDataType,
                 StaticArgument staticArg,
                 RexTableArgCall tableArgCall,
                 @Nullable ChangelogMode changelogMode) {
             checkNoOrderBy(tableArgCall);
-            return new RexBindingTableSemantics(
+            return new OperatorBindingTableSemantics(
                     createDataType(tableDataType, staticArg),
                     tableArgCall.getPartitionKeys(),
                     changelogMode);
         }
 
-        private RexBindingTableSemantics(
+        private OperatorBindingTableSemantics(
                 DataType dataType,
                 int[] partitionByColumns,
                 @Nullable ChangelogMode changelogMode) {
