@@ -38,15 +38,27 @@ import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.util.Arrays;
+import java.util.Collection;
 
 import static org.apache.flink.test.util.TestBaseUtils.checkLinesAgainstRegexp;
 import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
 
 /** Integration test for streaming programs in Java examples. */
+@RunWith(Parameterized.class)
 public class StreamingExamplesITCase extends AbstractTestBaseJUnit4 {
+
+    @Parameterized.Parameter public boolean asyncState;
+
+    @Parameterized.Parameters
+    public static Collection<Boolean> setup() {
+        return Arrays.asList(false, true);
+    }
 
     @Test
     public void testWindowJoin() throws Exception {
@@ -103,6 +115,9 @@ public class StreamingExamplesITCase extends AbstractTestBaseJUnit4 {
         final String resultPath = getTempDirPath("result");
         org.apache.flink.streaming.examples.windowing.SessionWindowing.main(
                 new String[] {"--output", resultPath});
+
+        // Async WindowOperator not support merging window (e.g. session window) yet, only test sync
+        // state here.
     }
 
     @Test
@@ -112,35 +127,25 @@ public class StreamingExamplesITCase extends AbstractTestBaseJUnit4 {
         final String textPath = createTempFile("text.txt", WordCountData.TEXT);
         final String resultPath = getTempDirPath("result");
 
-        org.apache.flink.streaming.examples.windowing.WindowWordCount.main(
-                new String[] {
-                    "--input", textPath,
-                    "--output", resultPath,
-                    "--window", windowSize,
-                    "--slide", slideSize
-                });
+        if (asyncState) {
+            org.apache.flink.streaming.examples.windowing.WindowWordCount.main(
+                    new String[] {
+                        "--input", textPath,
+                        "--output", resultPath,
+                        "--window", windowSize,
+                        "--slide", slideSize,
+                        "--async-state"
+                    });
+        } else {
 
-        // since the parallel tokenizers might have different speed
-        // the exact output can not be checked just whether it is well-formed
-        // checks that the result lines look like e.g. (faust, 2)
-        checkLinesAgainstRegexp(resultPath, "^\\([a-z]+,(\\d)+\\)");
-    }
-
-    @Test
-    public void testAsyncWindowWordCount() throws Exception {
-        final String windowSize = "25";
-        final String slideSize = "15";
-        final String textPath = createTempFile("text.txt", WordCountData.TEXT);
-        final String resultPath = getTempDirPath("result");
-
-        org.apache.flink.streaming.examples.windowing.WindowWordCount.main(
-                new String[] {
-                    "--input", textPath,
-                    "--output", resultPath,
-                    "--window", windowSize,
-                    "--slide", slideSize,
-                    "--async-state"
-                });
+            org.apache.flink.streaming.examples.windowing.WindowWordCount.main(
+                    new String[] {
+                        "--input", textPath,
+                        "--output", resultPath,
+                        "--window", windowSize,
+                        "--slide", slideSize
+                    });
+        }
 
         // since the parallel tokenizers might have different speed
         // the exact output can not be checked just whether it is well-formed
@@ -153,33 +158,27 @@ public class StreamingExamplesITCase extends AbstractTestBaseJUnit4 {
         final String textPath = createTempFile("text.txt", WordCountData.TEXT);
         final String resultPath = getTempDirPath("result");
 
-        org.apache.flink.streaming.examples.wordcount.WordCount.main(
-                new String[] {
-                    "--input", textPath,
-                    "--output", resultPath,
-                    "--execution-mode", "automatic"
-                });
+        if (asyncState) {
+            org.apache.flink.streaming.examples.wordcount.WordCount.main(
+                    new String[] {
+                        "--input",
+                        textPath,
+                        "--output",
+                        resultPath,
+                        "--execution-mode",
+                        "automatic",
+                        "--async-state"
+                    });
+        } else {
+            org.apache.flink.streaming.examples.wordcount.WordCount.main(
+                    new String[] {
+                        "--input", textPath,
+                        "--output", resultPath,
+                        "--execution-mode", "automatic"
+                    });
+        }
 
         compareResultsByLinesInMemory(WordCountData.COUNTS_AS_TUPLES, resultPath);
-    }
-
-    @Test
-    public void testWordCountWithAsyncState() throws Exception {
-        final String textPath = createTempFile("text.txt", WordCountData.TEXT);
-        final String resultPath = getTempDirPath("result");
-
-        org.apache.flink.streaming.examples.wordcount.WordCount.main(
-                new String[] {
-                    "--input",
-                    textPath,
-                    "--output",
-                    resultPath,
-                    "--execution-mode",
-                    "streaming",
-                    "--async-state"
-                });
-
-        compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES, resultPath);
     }
 
     /**
