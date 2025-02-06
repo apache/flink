@@ -19,7 +19,7 @@ import re
 import sys
 
 # force to register the operations to SDK Harness
-from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import DebugOptions, PipelineOptions
 
 import pyflink.fn_execution.beam.beam_operations # noqa # pylint: disable=unused-import
 
@@ -42,7 +42,11 @@ def get_state_cache_size(options):
     """
     Return the maximum size of state cache in count.
     """
-    experiments = options.view_as(DebugOptions).experiments or []
+    if isinstance(options, PipelineOptions):
+        experiments = options.view_as(DebugOptions).experiments or []
+    else:
+        experiments = options
+
     for experiment in experiments:
         # There should only be 1 match so returning from the loop
         if re.match(r'state_cache_size=', experiment):
