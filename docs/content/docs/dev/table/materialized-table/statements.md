@@ -342,16 +342,16 @@ The modification process depends on the refresh mode of the materialized table:
 
 1. Update the `schema` and `query definition` of the materialized table.
 2. The table is refreshed using the new query definition when the next refresh job is triggered:
-- If it is a partitioned table and [partition.fields.#.date-formatter]({{< ref "docs/dev/table/config" >}}#partition-fields-date-formatter) is correctly set, only the latest partition will be refreshed.
-- Otherwise, the table will be overwritten entirely.
+   - If it is a partitioned table and [partition.fields.#.date-formatter]({{< ref "docs/dev/table/config" >}}#partition-fields-date-formatter) is correctly set, only the latest partition will be refreshed.
+   - Otherwise, the table will be overwritten entirely.
 
 **Continuous mode:**
 
 1. Pause the current running refresh job.
 2. Update the `schema` and `query definition` of the materialized table.
 3. Start a new refresh job to refresh the materialized table:
-- The new refresh job starts from the beginning and does not restore from the previous state.
-- The starting offset of the data source is determined by the connector’s default implementation or the `option hint` specified in the query.
+   - The new refresh job starts from the beginning and does not restore from the previous state.
+   - The starting offset of the data source is determined by the connector’s default implementation or the [dynamic hint]({{< ref "docs/dev/table/sql/queries/hints" >}}#dynamic-table-options) specified in the query.
 
 **Example:**
 
