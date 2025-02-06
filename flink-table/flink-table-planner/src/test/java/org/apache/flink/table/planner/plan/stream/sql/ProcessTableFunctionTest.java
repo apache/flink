@@ -76,11 +76,10 @@ public class ProcessTableFunctionTest extends TableTestBase {
         util.tableEnv()
                 .executeSql("CREATE VIEW t_updating AS SELECT name, COUNT(*) FROM t GROUP BY name");
         util.tableEnv()
-                .executeSql(
-                        "CREATE TABLE t_sink (`out` STRING, `count` INT) WITH ('connector' = 'blackhole')");
+                .executeSql("CREATE TABLE t_sink (`out` STRING) WITH ('connector' = 'blackhole')");
         util.tableEnv()
                 .executeSql(
-                        "CREATE TABLE t_keyed_sink (`name` STRING, `out` STRING, `count` INT) WITH ('connector' = 'blackhole')");
+                        "CREATE TABLE t_keyed_sink (`name` STRING, `out` STRING) WITH ('connector' = 'blackhole')");
     }
 
     @Test
