@@ -160,7 +160,7 @@ These values are configured as memory sizes, for example *1536m* or *2g*.
 
 You can configure checkpointing directly in code within your Flink job or application. Putting these values here in the configuration defines them as defaults in case the application does not configure anything.
 
-  - `state.backend.type`: The state backend to use. This defines the data structure mechanism for taking snapshots. Common values are `hashmap` or `rocksdb`.
+  - `state.backend.type`: The state backend to use. This defines the data structure mechanism for taking snapshots. Common values are `hashmap`, `rocksdb` or `forst`.
   - `execution.checkpointing.dir`: The directory to write checkpoints to. This takes a path URI like *s3://mybucket/flink-app/checkpoints* or *hdfs://namenode:port/flink/checkpoints*.
   - `execution.checkpointing.savepoint-dir`: The default directory for savepoints. Takes a path URI, similar to `execution.checkpointing.dir`.
   - `execution.checkpointing.interval`: The base interval setting. To enable checkpointing, you need to set this value larger than 0.
@@ -352,6 +352,12 @@ These are the options commonly needed to configure the RocksDB state backend. Se
 
 {{< generated/state_backend_rocksdb_section >}}
 
+### ForSt State Backend
+
+These are the options commonly needed to configure the ForSt state backend. See the [Advanced ForSt Backend Section](#advanced-forst-state-backends-options) for options necessary for advanced low level configurations and trouble-shooting.
+
+{{< generated/state_backend_forst_section >}}
+
 ----
 ----
 
@@ -373,6 +379,16 @@ Enabling RocksDB's native metrics may cause degraded performance and should be s
 {{< /hint >}}
 
 {{< generated/rocksdb_native_metric_configuration >}}
+
+### ForSt Native Metrics
+
+ForSt has similar native metric mechanism to RocksDB.
+
+{{< hint warning >}}
+Enabling ForSt's native metrics may cause degraded performance and should be set carefully.
+{{< /hint >}}
+
+{{< generated/forst_native_metric_configuration >}}
 
 ----
 ----
@@ -474,6 +490,12 @@ Advanced options to tune RocksDB and RocksDB checkpoints.
 
 {{< generated/expert_rocksdb_section >}}
 
+### Advanced ForSt State Backends Options
+
+Advanced options to tune ForSt and ForSt checkpoints.
+
+{{< generated/expert_forst_section >}}
+
 ### State Changelog Options
 
 Please refer to [State Backends]({{< ref "docs/ops/state/state_backends#enabling-changelog" >}}) for information on
@@ -484,12 +506,16 @@ using State Changelog. {{< generated/state_changelog_section >}}
 These settings take effect when the `state.changelog.storage`  is set to `filesystem` (see [above](#state-changelog-storage)).
 {{< generated/fs_state_changelog_configuration >}}
 
-**RocksDB Configurable Options**
+### RocksDB Configurable Options
 
 These options give fine-grained control over the behavior and resources of ColumnFamilies.
 With the introduction of `state.backend.rocksdb.memory.managed` and `state.backend.rocksdb.memory.fixed-per-slot` (Apache Flink 1.10), it should be only necessary to use the options here for advanced performance tuning. These options here can also be specified in the application program via `RocksDBStateBackend.setRocksDBOptions(RocksDBOptionsFactory)`.
 
 {{< generated/rocksdb_configurable_configuration >}}
+
+### ForSt State Backend Configurable Options
+
+{{< generated/forst_configurable_configuration >}}
 
 ### Advanced Fault Tolerance Options
 
