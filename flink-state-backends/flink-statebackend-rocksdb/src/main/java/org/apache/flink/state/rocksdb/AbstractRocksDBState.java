@@ -26,6 +26,8 @@ import org.apache.flink.queryablestate.client.state.serialization.KvStateSeriali
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.runtime.state.ttl.TtlAwareSerializer;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
@@ -35,6 +37,8 @@ import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
 
 import java.io.IOException;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Base class for {@link State} implementations that store state in a RocksDB database.
@@ -184,12 +188,21 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
             DataInputDeserializer serializedOldValueInput,
             DataOutputSerializer serializedMigratedValueOutput,
             TypeSerializer<V> priorSerializer,
-            TypeSerializer<V> newSerializer)
+            TypeSerializer<V> newSerializer,
+            TtlTimeProvider ttlTimeProvider)
             throws StateMigrationException {
+        checkArgument(priorSerializer instanceof TtlAwareSerializer);
+        checkArgument(newSerializer instanceof TtlAwareSerializer);
+        TtlAwareSerializer<V, ?> ttlAwarePriorSerializer =
+                (TtlAwareSerializer<V, ?>) priorSerializer;
+        TtlAwareSerializer<V, ?> ttlAwareNewSerializer = (TtlAwareSerializer<V, ?>) newSerializer;
 
         try {
-            V value = priorSerializer.deserialize(serializedOldValueInput);
-            newSerializer.serialize(value, serializedMigratedValueOutput);
+            ttlAwareNewSerializer.migrateValueFromPriorSerializer(
+                    ttlAwarePriorSerializer,
+                    () -> ttlAwarePriorSerializer.deserialize(serializedOldValueInput),
+                    serializedMigratedValueOutput,
+                    ttlTimeProvider);
         } catch (Exception e) {
             throw new StateMigrationException("Error while trying to migrate RocksDB state.", e);
         }
@@ -230,6 +243,11 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
 
     protected AbstractRocksDBState<K, N, V> setDefaultValue(V defaultValue) {
         this.defaultValue = defaultValue;
+        return this;
+    }
+
+    protected AbstractRocksDBState<K, N, V> setColumnFamily(ColumnFamilyHandle columnFamily) {
+        this.columnFamily = columnFamily;
         return this;
     }
 
