@@ -159,11 +159,11 @@ public abstract class UnnestRowsFunctionBase extends BuiltInSpecializedFunction 
             final int size = mapData.size();
             final ArrayData keyArray = mapData.keyArray();
             final ArrayData valueArray = mapData.valueArray();
-            for (int i = 0; i < size; i++) {
+            for (int pos = 0; pos < size; pos++) {
                 collector.collect(
-                        keyGetter.getElementOrNull(keyArray, i),
-                        valueGetter.getElementOrNull(valueArray, i),
-                        i + 1);
+                        keyGetter.getElementOrNull(keyArray, pos),
+                        valueGetter.getElementOrNull(valueArray, pos),
+                        pos + 1);
             }
         }
 

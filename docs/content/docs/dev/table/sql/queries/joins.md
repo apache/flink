@@ -326,15 +326,54 @@ FROM Orders AS o
 
 In the example above, the Orders table is enriched with data from the Customers table which resides in a MySQL database. The `FOR SYSTEM_TIME AS OF` clause with the subsequent processing time attribute ensures that each row of the `Orders` table is joined with those Customers rows that match the join predicate at the point in time when the `Orders` row is processed by the join operator. It also prevents that the join result is updated when a joined `Customer` row is updated in the future. The lookup join also requires a mandatory equality join predicate, in the example above `o.customer_id = c.id`.
 
-Array Expansion
+Array, Multiset and Map Expansion
 --------------
 
-Returns a new row for each element in the given array. Unnesting `WITH ORDINALITY` is not yet supported.
+Unnest returns a new row for each element in the given array, multiset or map. Supports both `CROSS JOIN` and `LEFT JOIN`.
+```sql
+-- Returns a new row for each element in a constant array
+SELECT * FROM (VALUES('order_1')), UNNEST(ARRAY["shirt", "pants", "hat"])
+
+id       product_name
+=======  ============
+order_1  shirt
+order_1  pants
+order_1  hat
+
+-- Returns a new row for each element in the array
+-- assuming a Orders table with an array column `product_names`
+SELECT order_id, product_name
+FROM Orders 
+    CROSS JOIN UNNEST(product_names) AS t(product_name)
+```
+
+Unnesting `WITH ORDINALITY` is also supported.
+
 
 ```sql
-SELECT order_id, tag
-FROM Orders CROSS JOIN UNNEST(tags) AS t (tag)
+-- Returns a new row for each element in a constant array and its position in the array
+SELECT * 
+FROM (VALUES('order_1'))
+    CROSS JOIN UNNEST(ARRAY["shirt", "pants", "hat"]) 
+        WITH ORDINALITY AS t(product_name, index)
+
+id       product_name  index
+=======  ============  =====
+order_1  shirt             1
+order_1  pants             2
+order_1  hat               3
+
+-- Returns a new row for each element and its position in the array
+-- assuming a Orders table with an array column `product_names`
+SELECT order_id, product_name, product_index
+FROM Orders 
+    CROSS JOIN UNNEST(product_names) 
+        WITH ORDINALITY AS t(product_name, product_index)
 ```
+
+A unnest with ordinality will return each element and the position of the element in the data structure, 1-indexed. 
+The order of the elements for arrays is guaranteed. Since maps and multisets are unordered, the order of the elements is not guaranteed.
+Currently, WITH ORDINALITY only supports cross joins but not left joins.
 
 Table Function
 --------------
