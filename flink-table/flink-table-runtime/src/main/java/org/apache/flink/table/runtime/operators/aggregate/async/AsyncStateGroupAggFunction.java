@@ -21,7 +21,6 @@ package org.apache.flink.table.runtime.operators.aggregate.async;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.v2.ValueState;
 import org.apache.flink.api.common.state.v2.ValueStateDescriptor;
-import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
@@ -86,7 +85,7 @@ public class AsyncStateGroupAggFunction extends GroupAggFunctionBase {
             accDesc.enableTimeToLive(ttlConfig);
         }
 
-        accState = ((StreamingRuntimeContext) getRuntimeContext()).getValueState(accDesc);
+        accState = getRuntimeContext().getState(accDesc);
         aggHelper = new AsyncStateGroupAggHelper();
     }
 

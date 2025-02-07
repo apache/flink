@@ -30,7 +30,6 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
-import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessingOperator;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
@@ -98,8 +97,7 @@ public class AsyncStateFastTop1Function extends AbstractAsyncStateTopNFunction
         if (ttlConfig.isEnabled()) {
             valueStateDescriptor.enableTimeToLive(ttlConfig);
         }
-        dataState =
-                ((StreamingRuntimeContext) getRuntimeContext()).getValueState(valueStateDescriptor);
+        dataState = getRuntimeContext().getState(valueStateDescriptor);
 
         helper = new AsyncStateFastTop1Helper();
 

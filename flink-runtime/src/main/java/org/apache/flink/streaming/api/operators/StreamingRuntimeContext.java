@@ -247,6 +247,12 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
         return keyedStateStore;
     }
 
+    @Override
+    public <T> org.apache.flink.api.common.state.v2.ValueState<T> getState(
+            org.apache.flink.api.common.state.v2.ValueStateDescriptor<T> stateProperties) {
+        return getValueState(stateProperties);
+    }
+
     // TODO: Reconstruct this after StateManager is ready in FLIP-410.
     public <T> org.apache.flink.api.common.state.v2.ValueState<T> getValueState(
             org.apache.flink.api.common.state.v2.ValueStateDescriptor<T> stateProperties) {
@@ -255,6 +261,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
         return keyedStateStore.getValueState(stateProperties);
     }
 
+    @Override
     public <T> org.apache.flink.api.common.state.v2.ListState<T> getListState(
             org.apache.flink.api.common.state.v2.ListStateDescriptor<T> stateProperties) {
         KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
@@ -262,6 +269,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
         return keyedStateStore.getListState(stateProperties);
     }
 
+    @Override
     public <UK, UV> org.apache.flink.api.common.state.v2.MapState<UK, UV> getMapState(
             org.apache.flink.api.common.state.v2.MapStateDescriptor<UK, UV> stateProperties) {
         KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
@@ -269,6 +277,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
         return keyedStateStore.getMapState(stateProperties);
     }
 
+    @Override
     public <T> org.apache.flink.api.common.state.v2.ReducingState<T> getReducingState(
             org.apache.flink.api.common.state.v2.ReducingStateDescriptor<T> stateProperties) {
         KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
@@ -276,6 +285,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
         return keyedStateStore.getReducingState(stateProperties);
     }
 
+    @Override
     public <IN, ACC, OUT>
             org.apache.flink.api.common.state.v2.AggregatingState<IN, OUT> getAggregatingState(
                     org.apache.flink.api.common.state.v2.AggregatingStateDescriptor<IN, ACC, OUT>
