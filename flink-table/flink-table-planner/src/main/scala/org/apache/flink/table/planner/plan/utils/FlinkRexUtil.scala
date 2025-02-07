@@ -76,6 +76,9 @@ object FlinkRexUtil {
     val noMiniBatchRequired = {
       (node: RelNode) =>
         node match {
+          case project: Project =>
+            // TODO: to avoid FLINK-37280, require mini batch if ROW_NUMBER is used
+            !project.getProjects.exists(ex => ex.getKind.equals(SqlKind.ROW_NUMBER))
           case _: Filter | _: Project | _: TableScan | _: Calc | _: Values | _: Sink |
               _: LegacySink =>
             true
