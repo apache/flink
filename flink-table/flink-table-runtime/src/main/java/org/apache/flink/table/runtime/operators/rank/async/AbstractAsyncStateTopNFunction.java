@@ -25,7 +25,6 @@ import org.apache.flink.api.common.state.v2.ValueState;
 import org.apache.flink.api.common.state.v2.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.core.state.StateFutureUtils;
-import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
@@ -78,8 +77,7 @@ public abstract class AbstractAsyncStateTopNFunction extends AbstractTopNFunctio
             if (ttlConfig.isEnabled()) {
                 rankStateDesc.enableTimeToLive(ttlConfig);
             }
-            rankEndState =
-                    ((StreamingRuntimeContext) getRuntimeContext()).getValueState(rankStateDesc);
+            rankEndState = getRuntimeContext().getState(rankStateDesc);
         }
     }
 

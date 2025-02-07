@@ -24,7 +24,6 @@ import org.apache.flink.api.common.state.v2.ValueState;
 import org.apache.flink.api.common.state.v2.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionBase;
 
 import org.slf4j.Logger;
@@ -68,6 +67,6 @@ abstract class AsyncStateDeduplicateFunctionBase<T, K, IN, OUT>
         if (ttlConfig.isEnabled()) {
             stateDesc.enableTimeToLive(ttlConfig);
         }
-        state = ((StreamingRuntimeContext) getRuntimeContext()).getValueState(stateDesc);
+        state = getRuntimeContext().getState(stateDesc);
     }
 }
