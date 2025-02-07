@@ -168,7 +168,7 @@ class TableEnvironmentTest(PyFlinkUTTestCase):
             get_gateway().jvm.org.apache.flink.table.module.CoreModule.INSTANCE))
         table_result = t_env.execute_sql("select concat('unload', 'load') as test_module")
         self.assertEqual(table_result.get_result_kind(), ResultKind.SUCCESS_WITH_CONTENT)
-        self.assert_equals(table_result.get_table_schema().get_field_names(), ['test_module'])
+        self.assert_equals(table_result.get_resolved_schema().get_column_names(), ['test_module'])
 
     def test_create_and_drop_java_function(self):
         t_env = self.t_env

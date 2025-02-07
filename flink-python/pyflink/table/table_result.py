@@ -23,8 +23,8 @@ from pyflink.common.types import RowKind
 from pyflink.common import Row
 from pyflink.common.job_client import JobClient
 from pyflink.java_gateway import get_gateway
+from pyflink.table.resolved_schema import ResolvedSchema
 from pyflink.table.result_kind import ResultKind
-from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import _from_java_data_type
 from pyflink.table.utils import pickled_bytes_to_python_converter
 
@@ -75,9 +75,9 @@ class TableResult(object):
         else:
             get_method(self._j_table_result, "await")()
 
-    def get_table_schema(self) -> TableSchema:
+    def get_resolved_schema(self) -> ResolvedSchema:
         """
-        Get the schema of result.
+        Get the resolved schema of result.
 
         The schema of DDL, USE, EXPLAIN:
         ::
@@ -101,29 +101,30 @@ class TableResult(object):
             the column name of `SHOW TABLES` is "table name",
             the column name of `SHOW VIEWS` is "view name",
             the column name of `SHOW FUNCTIONS` is "function name".
+            the column name of `SHOW MODULES` is "module name".
 
         The schema of DESCRIBE:
         ::
 
-            +------------------+-------------+-------------------------------------------------+
-            | column name      | column type |                 comments                        |
-            +------------------+-------------+-------------------------------------------------+
-            | name             | STRING      | field name                                      |
-            +------------------+-------------+-------------------------------------------------+
-            | type             | STRING      | field type expressed as a String                |
-            +------------------+-------------+-------------------------------------------------+
-            | null             | BOOLEAN     | field nullability: true if a field is nullable, |
-            |                  |             | else false                                      |
-            +------------------+-------------+-------------------------------------------------+
-            | key              | BOOLEAN     | key constraint: 'PRI' for primary keys,         |
-            |                  |             | 'UNQ' for unique keys, else null                |
-            +------------------+-------------+-------------------------------------------------+
-            | computed column  | STRING      | computed column: string expression              |
-            |                  |             | if a field is computed column, else null        |
-            +------------------+-------------+-------------------------------------------------+
-            | watermark        | STRING      | watermark: string expression if a field is      |
-            |                  |             | watermark, else null                            |
-            +------------------+-------------+-------------------------------------------------+
+            +-------------+-------------+-------------------------------------------------+
+            | column name | column type |                 comments                        |
+            +-------------+-------------+-------------------------------------------------+
+            | name        | STRING      | field name                                      |
+            +-------------+-------------+-------------------------------------------------+
+            | type        | STRING      | field type expressed as a String                |
+            +-------------+-------------+-------------------------------------------------+
+            | null        | BOOLEAN     | field nullability: true if a field is nullable, |
+            |             |             | else false                                      |
+            +-------------+-------------+-------------------------------------------------+
+            | key         | BOOLEAN     | key constraint: 'PRI' for primary keys,         |
+            |             |             | 'UNQ' for unique keys, else null                |
+            +-------------+-------------+-------------------------------------------------+
+            | extras      | STRING      | extras such as computed or metadata column      |
+            |             |             | information, else null                          |
+            +-------------+-------------+-------------------------------------------------+
+            | watermark   | STRING      | watermark: string expression if a field is      |
+            |             |             | watermark, else null                            |
+            +-------------+-------------+-------------------------------------------------+
 
         The schema of INSERT: (one column per one sink)
         ::
@@ -136,12 +137,12 @@ class TableResult(object):
 
         The schema of SELECT is the selected field names and types.
 
-        :return: The schema of result.
-        :rtype: pyflink.table.TableSchema
+        :return: The resolved schema of result.
+        :rtype: pyflink.table.ResolvedSchema
 
-        .. versionadded:: 1.11.0
+        .. versionadded:: 2.1.0
         """
-        return TableSchema(j_table_schema=self._get_java_table_schema())
+        return ResolvedSchema(j_resolved_schema=self._j_table_result.getResolvedSchema())
 
     def get_result_kind(self) -> ResultKind:
         """
