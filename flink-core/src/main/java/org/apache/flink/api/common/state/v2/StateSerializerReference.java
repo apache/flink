@@ -23,6 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.SerializerFactory;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,6 +59,22 @@ class StateSerializerReference<T> extends AtomicReference<TypeSerializer<T>> {
     public StateSerializerReference(TypeSerializer<T> typeSerializer) {
         super(checkNotNull(typeSerializer, "type serializer must not be null"));
         this.typeInfo = null;
+    }
+
+    public StateSerializerReference(Class<T> clazz) {
+        try {
+            this.typeInfo = TypeExtractor.createTypeInfo(clazz);
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Could not create the type information for '"
+                            + clazz.getName()
+                            + "'. "
+                            + "The most common reason is failure to infer the generic type information, due to Java's type erasure. "
+                            + "In that case, please pass a 'TypeHint' instead of a class to describe the type. "
+                            + "For example, to describe 'Tuple2<String, String>' as a generic type, use "
+                            + "'new PravegaDeserializationSchema<>(new TypeHint<Tuple2<String, String>>(){}, serializer);'",
+                    e);
+        }
     }
 
     public TypeInformation<T> getTypeInformation() {
