@@ -43,7 +43,7 @@ public class AggregatingStateDescriptor<IN, ACC, OUT> extends StateDescriptor<AC
     private final AggregateFunction<IN, ACC, OUT> aggregateFunction;
 
     /**
-     * Create a new state descriptor with the given name, function, and type.
+     * Create a new {@code AggregatingStateDescriptor} with the given name, function, and type.
      *
      * @param stateId The (unique) name for the state.
      * @param aggregateFunction The {@code AggregateFunction} used to aggregate the state.
@@ -58,7 +58,7 @@ public class AggregatingStateDescriptor<IN, ACC, OUT> extends StateDescriptor<AC
     }
 
     /**
-     * Create a new {@code ReducingStateDescriptor} with the given stateId and the given type
+     * Create a new {@code AggregatingStateDescriptor} with the given stateId and the given type
      * serializer.
      *
      * @param stateId The (unique) stateId for the state.
@@ -70,6 +70,23 @@ public class AggregatingStateDescriptor<IN, ACC, OUT> extends StateDescriptor<AC
             @Nonnull TypeSerializer<ACC> serializer) {
         super(stateId, serializer);
         this.aggregateFunction = checkNotNull(aggregateFunction);
+    }
+
+    /**
+     * Creates a new {@code AggregatingStateDescriptor} with the given name, function, and type.
+     *
+     * <p>If this constructor fails (because it is not possible to describe the type via a class),
+     * consider using the {@link #AggregatingStateDescriptor(String, AggregateFunction,
+     * TypeInformation)} constructor.
+     *
+     * @param name The (unique) name for the state.
+     * @param aggFunction The {@code AggregateFunction} used to aggregate the state.
+     * @param stateType The type of the accumulator. The accumulator is stored in the state.
+     */
+    public AggregatingStateDescriptor(
+            String name, AggregateFunction<IN, ACC, OUT> aggFunction, Class<ACC> stateType) {
+        super(name, stateType);
+        this.aggregateFunction = checkNotNull(aggFunction);
     }
 
     /** Returns the Aggregate function for this state. */
