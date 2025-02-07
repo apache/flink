@@ -146,6 +146,11 @@ abstract class UnnestTestBase(withExecPlan: Boolean) extends TableTestBase {
   }
 
   @Test
+  def testUnnestWithOrdinalityAndValues(): Unit = {
+    verifyPlan("SELECT val, pos FROM UNNEST(ARRAY[1,2,3]) WITH ORDINALITY AS t(val, pos)")
+  }
+
+  @Test
   def testUnnestWithOrdinalityArray(): Unit = {
     util.addTableSource[(Int, Array[Int])]("MyTable", 'a, 'b)
     verifyPlan(
@@ -153,8 +158,17 @@ abstract class UnnestTestBase(withExecPlan: Boolean) extends TableTestBase {
   }
 
   @Test
-  def testUnnestWithOrdinalityAndValues(): Unit = {
-    verifyPlan("SELECT val, pos FROM UNNEST(ARRAY[1,2,3]) WITH ORDINALITY AS t(val, pos)")
+  def testUnnestWithOrdinalityArrayOfRowsWithoutAlias(): Unit = {
+    util.addTableSource[(Int, Array[(Int, String)])]("MyTable", 'a, 'b)
+    verifyPlan(
+      "SELECT a, b, A._1, A._2, A.`ORDINALITY` FROM MyTable, UNNEST(MyTable.b) WITH ORDINALITY AS A where A._1 > 1")
+  }
+
+  @Test
+  def testUnnestWithOrdinalityArrayOfRowsFromTableWithFilter(): Unit = {
+    util.addTableSource[(Int, Array[(Int, String)])]("MyTable", 'a, 'b)
+    verifyPlan(
+      "SELECT a, b, s, t, o FROM MyTable, UNNEST(MyTable.b) WITH ORDINALITY AS A (s, t, o) WHERE s > 13")
   }
 
   @Test

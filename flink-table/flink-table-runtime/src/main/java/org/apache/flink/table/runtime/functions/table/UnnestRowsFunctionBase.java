@@ -81,38 +81,51 @@ public abstract class UnnestRowsFunctionBase extends BuiltInSpecializedFunction 
             ArrayData.ElementGetter valueGetter);
 
     public static LogicalType getUnnestedType(LogicalType logicalType, boolean withOrdinality) {
-        LogicalType baseType;
+        LogicalType elementType;
         switch (logicalType.getTypeRoot()) {
             case ARRAY:
-                baseType = ((ArrayType) logicalType).getElementType();
+                elementType = ((ArrayType) logicalType).getElementType();
                 break;
             case MULTISET:
-                baseType = ((MultisetType) logicalType).getElementType();
+                elementType = ((MultisetType) logicalType).getElementType();
                 break;
             case MAP:
                 MapType mapType = (MapType) logicalType;
-                if (withOrdinality) {
-                    return RowType.of(
-                            false,
-                            new LogicalType[] {
-                                mapType.getKeyType(),
-                                mapType.getValueType(),
-                                DataTypes.INT().notNull().getLogicalType()
-                            },
-                            new String[] {"f0", "f1", "ordinality"});
-                }
-                return RowType.of(false, mapType.getKeyType(), mapType.getValueType());
+                elementType = RowType.of(false, mapType.getKeyType(), mapType.getValueType());
+                break;
             default:
                 throw new UnsupportedOperationException("Unsupported UNNEST type: " + logicalType);
         }
 
         if (withOrdinality) {
+            return wrapWithOrdinality(elementType);
+        }
+        return elementType;
+    }
+
+    public static LogicalType wrapWithOrdinality(LogicalType baseType) {
+        // If baseType is already a ROW, extract its fields and add an ordinality field
+        if (baseType instanceof RowType) {
+            RowType rowType = (RowType) baseType;
+            int fieldCount = rowType.getFieldCount();
+            LogicalType[] types = new LogicalType[fieldCount + 1];
+            String[] names = new String[types.length];
+
+            for (int i = 0; i < fieldCount; i++) {
+                types[i] = rowType.getTypeAt(i);
+                names[i] = "f" + i;
+            }
+
+            types[fieldCount] = DataTypes.INT().notNull().getLogicalType();
+            names[fieldCount] = "ordinality";
+            return RowType.of(false, types, names);
+        } else {
+            // For non-row types, wrap in a row with f0 and ordinality
             return RowType.of(
                     false,
                     new LogicalType[] {baseType, DataTypes.INT().notNull().getLogicalType()},
                     new String[] {"f0", "ordinality"});
         }
-        return baseType;
     }
 
     // --------------------------------------------------------------------------------------------

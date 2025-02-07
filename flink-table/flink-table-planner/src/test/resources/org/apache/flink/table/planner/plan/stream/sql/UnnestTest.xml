@@ -444,6 +444,51 @@ Calc(select=[id, f0 AS array_val, ordinality AS array_pos, f00 AS elem, ordinali
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testUnnestWithOrdinalityArrayOfRowsFromTableWithFilter">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, s, t, o FROM MyTable, UNNEST(MyTable.b) WITH ORDINALITY AS A (s, t, o) WHERE s > 13]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], s=[$2], t=[$3], o=[$4])
++- LogicalFilter(condition=[>($2, 13)])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(s=[$0], t=[$1], o=[$2])
+         +- Uncollect(withOrdinality=[true])
+            +- LogicalProject(b=[$cor0.b])
+               +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b))], select=[a,b,f0,f1,ordinality], rowType=[RecordType(INTEGER a, RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2) ARRAY b, INTEGER f0, VARCHAR(2147483647) f1, INTEGER ordinality)], joinType=[INNER], condition=[>($0, 13)])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnnestWithOrdinalityArrayOfRowsWithoutAlias">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, A._1, A._2, A.`ORDINALITY` FROM MyTable, UNNEST(MyTable.b) WITH ORDINALITY AS A where A._1 > 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], _1=[$2], _2=[$3], ORDINALITY=[$4])
++- LogicalFilter(condition=[>($2, 1)])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- Uncollect(withOrdinality=[true])
+         +- LogicalProject(b=[$cor0.b])
+            +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b))], select=[a,b,f0,f1,ordinality], rowType=[RecordType(INTEGER a, RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2) ARRAY b, INTEGER f0, VARCHAR(2147483647) f1, INTEGER ordinality)], joinType=[INNER], condition=[>($0, 1)])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testUnnestWithOrdinalityMap">
     <Resource name="sql">
       <![CDATA[SELECT id, k, v, pos FROM MyTable CROSS JOIN UNNEST(map_data) WITH ORDINALITY AS f(k, v, pos)]]>
