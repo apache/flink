@@ -28,6 +28,7 @@ from pyflink.table.table_descriptor import TableDescriptor
 from pyflink.table.table_pipeline import TablePipeline
 from pyflink.table.table_result import TableResult
 from pyflink.table.table_schema import TableSchema
+from pyflink.table.resolved_schema import ResolvedSchema
 from pyflink.table.types import create_arrow_schema
 from pyflink.table.udf import UserDefinedScalarFunctionWrapper, \
     UserDefinedAggregateFunctionWrapper, UserDefinedTableFunctionWrapper
@@ -965,6 +966,14 @@ class Table(object):
         :return: The schema of this table.
         """
         return TableSchema(j_table_schema=self._j_table.getSchema())
+
+    def get_resolved_schema(self) -> ResolvedSchema:
+        """
+        Returns the :class:`~pyflink.table.ResolvedSchema` of this table.
+
+        :return: the resolved schema of this table.
+        """
+        return ResolvedSchema(j_resolved_schema=self._j_table.getResolvedSchema())
 
     def print_schema(self):
         """

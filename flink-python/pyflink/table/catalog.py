@@ -15,17 +15,24 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from py4j.java_gateway import java_import
+from enum import Enum
+
+from py4j.java_gateway import java_import, get_java_class
 
 from pyflink.common.configuration import Configuration
 from pyflink.java_gateway import get_gateway
+from pyflink.table.resolved_expression import ResolvedExpression
 from pyflink.table.schema import Schema
 from pyflink.table.table_schema import TableSchema
+from pyflink.table.types import DataType, _to_java_data_type, _from_java_data_type
 from typing import Dict, List, Optional
+from abc import ABCMeta, abstractmethod
 
 __all__ = ['Catalog', 'CatalogDatabase', 'CatalogBaseTable', 'CatalogPartition', 'CatalogFunction',
            'Procedure', 'ObjectPath', 'CatalogPartitionSpec', 'CatalogTableStatistics',
-           'CatalogColumnStatistics', 'HiveCatalog', 'CatalogDescriptor', 'ObjectIdentifier']
+           'CatalogColumnStatistics', 'HiveCatalog', 'CatalogDescriptor', 'ObjectIdentifier',
+            'Column', 'PhysicalColumn', 'ComputedColumn', 'MetaDataColumn', 'WatermarkSpec',
+           'Constraint', 'UniqueConstraint']
 
 
 class Catalog(object):
@@ -1473,3 +1480,422 @@ class ObjectIdentifier(object):
         Returns a string that summarizes this instance for printing to a console or log.
         """
         return self._j_object_identifier.asSummaryString()
+
+
+class Column(metaclass=ABCMeta):
+    """
+    Representation of a column in a :class:`~pyflink.table.ResolvedSchema`.
+
+    A table column describes either a :class:`PhysicalColumn`, :class:`ComputedColumn`, or
+    :class:`MetadataColumn`.
+
+    Every column is fully resolved. The enclosed :class:`~pyflink.table.types.DataType`
+    indicates whether the column is a time attribute and thus might differ from the original
+    data type.
+    """
+
+    def __init__(self, j_column):
+        self._j_column = j_column
+
+    def __eq__(self, other):
+        return self.__class__ == other.__class__ and self._j_column.equals(other._j_column)
+
+    def __hash__(self):
+        return self._j_column.hashCode()
+
+    def __str__(self):
+        return self._j_column.toString()
+
+    @staticmethod
+    def _from_j_column(j_column) -> Optional["Column"]:
+        """
+        Returns a non-abstract column, either a :class:`PhysicalColumn`, a :class:`ComputedColumn`,
+        or a :class:`MetadataColumn` from an org.apache.flink.table.catalog.Column.
+        """
+        if j_column is None:
+            return None
+        gateway = get_gateway()
+        JColumn = gateway.jvm.org.apache.flink.table.catalog.Column
+        JPhysicalColumn = gateway.jvm.org.apache.flink.table.catalog.Column.PhysicalColumn
+        JComputedColumn = gateway.jvm.org.apache.flink.table.catalog.Column.ComputedColumn
+        JMetadataColumn = gateway.jvm.org.apache.flink.table.catalog.Column.MetadataColumn
+        j_clz = j_column.getClass()
+
+        if not get_java_class(JColumn).isAssignableFrom(j_clz):
+            raise TypeError("The input %s is not an instance of Column." % j_column)
+
+        if get_java_class(JPhysicalColumn).isAssignableFrom(j_column.getClass()):
+            return PhysicalColumn(j_physical_column=j_column.getClass())
+        elif get_java_class(JComputedColumn).isAssignableFrom(j_column.getClass()):
+            return MetaDataColumn(j_metadata_column=j_column.getClass())
+        elif get_java_class(JMetadataColumn).isAssignableFrom(j_column.getClass()):
+            return MetaDataColumn(j_metadata_column=j_column.getClass())
+        else:
+            return None
+
+    @staticmethod
+    def physical(name: str, data_type: DataType) -> "PhysicalColumn":
+        """
+        Creates a regular table column that represents physical data.
+        """
+        gateway = get_gateway()
+        j_data_type = _to_java_data_type(data_type)
+        j_physical_column = gateway.jvm.org.apache.flink.table.catalog.Column.physical(
+            name, j_data_type
+        )
+        return PhysicalColumn(j_physical_column)
+
+    @staticmethod
+    def computed(name: str, resolved_expression: ResolvedExpression) -> "ComputedColumn":
+        """
+        Creates a computed column that is computed from the given
+        :class:`~pyflink.table.ResolvedExpression`.
+        """
+        gateway = get_gateway()
+        j_resolved_expression = resolved_expression
+        j_computed_column = gateway.jvm.org.apache.flink.table.catalog.Column.computed(
+            name, j_resolved_expression
+        )
+        return ComputedColumn(j_computed_column)
+
+    @staticmethod
+    def metadata(
+        name: str, data_type: DataType, metadata_key: Optional[str], is_virtual: bool
+    ) -> "MetaDataColumn":
+        """
+        Creates a metadata column from metadata of the given column name or from metadata of the
+        given key (if not null).
+
+        Allows to specify whether the column is virtual or not.
+        """
+        gateway = get_gateway()
+        j_data_type = _to_java_data_type(data_type)
+        j_metadata_column = gateway.jvm.org.apache.flink.table.catalog.Column.metadata(
+            name, j_data_type, metadata_key, is_virtual
+        )
+        return MetaDataColumn(j_metadata_column)
+
+    @abstractmethod
+    def with_comment(self, comment: Optional[str]):
+        """
+        Add the comment to the column and return the new object.
+        """
+        pass
+
+    @abstractmethod
+    def is_physical(self) -> bool:
+        """
+        Returns whether the given column is a physical column of a table; neither computed nor
+        metadata.
+        """
+        pass
+
+    @abstractmethod
+    def is_persisted(self) -> bool:
+        """
+        Returns whether the given column is persisted in a sink operation.
+        """
+        pass
+
+    def get_data_type(self) -> DataType:
+        """
+        Returns the data type of this column.
+        """
+        j_data_type = self._j_column.getDataType()
+        return DataType(_from_java_data_type(j_data_type))
+
+    def get_name(self):
+        """
+        Returns the name of this column.
+        """
+        return self._j_column.getName()
+
+    def get_comment(self) -> Optional[str]:
+        """
+        Returns the comment of this column.
+        """
+        optional_result = self._j_column.getComment()
+        return optional_result.get() if optional_result.isPresent() else None
+
+    def as_summary_string(self) -> str:
+        """
+        Returns a string that summarizes this column for printing to a console.
+        """
+        return self._j_column.asSummaryString()
+
+    @abstractmethod
+    def explain_extras(self) -> Optional[str]:
+        """
+        Returns an explanation of specific column extras next to name and type.
+        """
+        pass
+
+    @abstractmethod
+    def copy(self, new_type: DataType) -> "Column":
+        """
+        Returns a copy of the column with a replaced :class:`~pyflink.table.types.DataType`.
+        """
+        pass
+
+    @abstractmethod
+    def rename(self, new_name: str) -> "Column":
+        """
+        Returns a copy of the column with a replaced name.
+        """
+        pass
+
+
+class PhysicalColumn(Column):
+    """
+    Representation of a physical columns.
+    """
+
+    def __init__(self, j_physical_column):
+        super().__init__(j_physical_column)
+        self._j_physical_column = j_physical_column
+
+    def with_comment(self, comment: str) -> "PhysicalColumn":
+        return self._j_physical_column.withComment(comment)
+
+    def is_physical(self) -> bool:
+        return True
+
+    def is_persisted(self) -> bool:
+        return True
+
+    def explain_extras(self) -> Optional[str]:
+        return None
+
+    def copy(self, new_data_type: DataType) -> Column:
+        return self._j_physical_column.copy(new_data_type)
+
+    def rename(self, new_name: str) -> Column:
+        return self._j_physical_column.rename(new_name)
+
+
+class ComputedColumn(Column):
+    """
+    Representation of a computed column.
+    """
+
+    def __init__(self, j_computed_column):
+        super().__init__(j_computed_column)
+        self._j_computed_column = j_computed_column
+
+    def __eq__(self, other):
+        return self.__class__ == other.__class__ and self._j_computed_column.equals(
+            other._j_computed_column
+        )
+
+    def __hash__(self):
+        return self._j_computed_column.hashCode()
+
+    def with_comment(self, comment: str) -> "PhysicalColumn":
+        return self._j_computed_column.withComment(comment)
+
+    def is_physical(self) -> bool:
+        return False
+
+    def is_persisted(self) -> bool:
+        return False
+
+    def get_expression(self) -> None:
+        return self._j_computed_column.getExpression()
+
+    def explain_extras(self) -> Optional[str]:
+        optional_result = self._j_computed_column.explainExtras()
+        return optional_result.get() if optional_result.isPresent() else None
+
+    def copy(self, new_data_type: DataType) -> Column:
+        return self._j_computed_column.copy(new_data_type)
+
+    def rename(self, new_name: str) -> Column:
+        return self._j_computed_column.rename(new_name)
+
+
+class MetaDataColumn(Column):
+    """
+    Representation of a metadata column.
+    """
+
+    def __init__(self, j_metadata_column):
+        super().__init__(j_metadata_column)
+        self._j_metadata_column = j_metadata_column
+
+    def __eq__(self, other):
+        return self.__class__ == other.__class__ and self._j_metadata_column.equals(
+            other._j_metadata_column
+        )
+
+    def __hash__(self):
+        return self._j_metadata_column.hashCode()
+
+    def is_virtual(self) -> bool:
+        return self._j_metadata_column.isVirtual()
+
+    def get_metadata_key(self) -> Optional[str]:
+        optional_result = self._j_metadata_column.getMetadataKey()
+        return optional_result.get() if optional_result.isPresent() else None
+
+    def with_comment(self, comment: str) -> "MetaDataColumn":
+        return self._j_metadata_column.withComment(comment)
+
+    def is_physical(self) -> bool:
+        return False
+
+    def is_persisted(self) -> bool:
+        return self._j_metadata_column.isPersisted()
+
+    def explain_extras(self) -> Optional[str]:
+        optional_result = self._j_metadata_column.explainExtras()
+        return optional_result.get() if optional_result.isPresent() else None
+
+    def copy(self, new_data_type: DataType) -> Column:
+        return self._j_metadata_column.copy(new_data_type)
+
+    def rename(self, new_name: str) -> Column:
+        return self._j_metadata_column.rename(new_name)
+
+
+class WatermarkSpec:
+    """
+    Representation of a watermark specification in :class:`~pyflink.table.ResolvedSchema`.
+
+    It defines the rowtime attribute and a :class:`~pyflink.table.ResolvedExpression`
+    for watermark generation.
+    """
+
+    def __init__(self, j_watermark_spec):
+        self._j_watermark_spec = j_watermark_spec
+
+    def __str__(self):
+        return self._j_watermark_spec.toString()
+
+    def __eq__(self, other):
+        return self.__class__ == other.__class__ and self._j_watermark_spec.equals(
+            other._j_watermark_spec
+        )
+
+    def __hash__(self):
+        return self._j_watermark_spec.hashCode()
+
+    @staticmethod
+    def of(rowtime_attribute: str, watermark_expression: ResolvedExpression):
+        """
+        Creates a :class:`WatermarkSpec` from a given rowtime attribute and a watermark
+        expression.
+        """
+        gateway = get_gateway()
+        j_watermark_spec = gateway.jvm.org.apache.flink.table.catalog.WatermarkSpec.of(
+            rowtime_attribute, watermark_expression._j_resolved_expr
+        )
+        return WatermarkSpec(j_watermark_spec)
+
+    def get_rowtime_attribute(self) -> str:
+        """
+        Returns the name of a rowtime attribute.
+
+        The referenced attribute must be present in the :class:`~pyflink.table.ResolvedSchema`
+        and must be of :class:`~pyflink.table.types.TimestampType`
+        """
+        return self._j_watermark_spec.getRowtimeAttribute()
+
+    def get_watermark_expression(self) -> ResolvedExpression:
+        """
+        Returns the :class:`~pyflink.table.ResolvedExpression` for watermark generation.
+        """
+        j_watermark_expression = self._j_watermark_spec.getWatermarkExpression()
+        return ResolvedExpression(j_watermark_expression)
+
+    def as_summary_string(self) -> str:
+        """
+        Prints the watermark spec in a readable way.
+        """
+        return self._j_watermark_spec.asSummaryString()
+
+
+class Constraint(metaclass=ABCMeta):
+    """
+    Integrity constraints, generally referred to simply as constraints, define the valid states of
+    SQL-data by constraining the values in the base tables.
+    """
+
+    def __init__(self, j_constraint):
+        self._j_constraint = j_constraint
+
+    def get_name(self) -> str:
+        """
+        Returns the name of the constraint.
+        """
+        return self._j_constraint.getName()
+
+    def is_enforced(self) -> bool:
+        """
+        Constraints can either be enforced or non-enforced. If a constraint is enforced it will be
+        checked whenever any SQL statement is executed that results in data or schema changes. If
+        the constraint is not enforced the owner of the data is responsible for ensuring data
+        integrity.
+        Flink will rely on the information as valid and might use it for query optimisations.
+        """
+        return self._j_constraint.isEnforced()
+
+    def get_type(self) -> "ConstraintType":
+        """
+        Returns the type of the constraint, which could be `PRIMARY_KEY` or `UNIQUE_KEY`.
+        """
+        j_constraint_type = self._j_constraint.getType().name()
+        return self.ConstraintType[j_constraint_type]
+
+    def as_summary_string(self) -> str:
+        """
+        Prints the constraint in a readable way.
+        """
+        return self._j_constraint.asSummaryString()
+
+    class ConstraintType(Enum):
+        """
+        Type of the constraint.
+
+        Unique constraints:
+
+        - UNIQUE - is satisfied if and only if there do not exist two rows that have same
+         non-null values in the unique columns
+        - PRIMARY KEY - additionally to UNIQUE constraint, it requires none of the values in
+          specified columns be a null value. Moreover there can be only a single PRIMARY KEY
+          defined for a Table.
+        """
+
+        PRIMARY_KEY = 0
+        UNIQUE_KEY = 1
+
+
+class UniqueConstraint(Constraint):
+    """
+    A unique key constraint. It can be declared also as a PRIMARY KEY.
+    """
+
+    def __init__(self, name: str = None, columns: List[str] = None, j_unique_constraint=None):
+        """
+        Creates a non enforced PRIMARY_KEY constraint.
+        """
+        if j_unique_constraint is None:
+            gateway = get_gateway()
+            self._j_unique_constraint = gateway.jvm.org.apache.flink.table.catalog.UniqueConstraint(
+                name, columns
+            )
+            super().__init__(self._j_unique_constraint)
+        else:
+            self._j_unique_constraint = j_unique_constraint
+            super().__init__(j_unique_constraint)
+
+    def get_columns(self) -> List[str]:
+        """
+        List of column names for which the primary key was defined.
+        """
+        return self._j_unique_constraint.getColumns()
+
+    def get_type_string(self) -> str:
+        """
+        Returns a string representation of the underlying constraint type.
+        """
+        return self._j_unique_constraint.getTypeString()

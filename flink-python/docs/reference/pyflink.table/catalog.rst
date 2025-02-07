@@ -252,6 +252,7 @@ A CatalogDescriptor is a template for creating a catalog instance. It closely re
     CatalogDescriptor.of
 
 
+
 ObjectIdentifier
 ----------------
 
@@ -281,3 +282,84 @@ catalog) have not been added, deleted or modified.
     ObjectIdentifier.to_list
     ObjectIdentifier.as_serializable_string
     ObjectIdentifier.as_summary_string
+
+
+Column
+------
+
+Representation of a column in a :class:`~pyflink.table.ResolvedSchema`.
+
+A table column describes either a :class:`pyflink.table.catalog.PhysicalColumn`,
+:class:`pyflink.table.catalog.ComputedColumn`, or :class:`pyflink.table.catalog.MetadataColumn`.
+
+Every column is fully resolved. The enclosed :class:`~pyflink.table.types.DataType`
+indicates whether the column is a time attribute and thus might differ from the original
+data type.
+
+.. currentmodule:: pyflink.table.catalog
+
+.. autosummary::
+    :toctree: api/
+
+    Column.physical
+    Column.computed
+    Column.metadata
+    Column.with_comment
+    Column.is_physical
+    Column.is_persisted
+    Column.get_data_type
+    Column.get_name
+    Column.get_comment
+    Column.as_summary_string
+    Column.explain_extras
+    Column.copy
+    Column.rename
+
+
+WatermarkSpec
+-------------
+
+Representation of a watermark specification in :class:`~pyflink.table.ResolvedSchema`.
+
+It defines the rowtime attribute and a :class:`~pyflink.table.ResolvedExpression`
+for watermark generation.
+
+.. currentmodule:: pyflink.table.catalog
+
+.. autosummary::
+    :toctree: api/
+
+    WatermarkSpec.of
+    WatermarkSpec.get_rowtime_attribute
+    WatermarkSpec.get_watermark_expression
+    WatermarkSpec.as_summary_string
+
+
+Constraint
+----------
+
+Integrity constraints, generally referred to simply as constraints, define the valid states of
+SQL-data by constraining the values in the base tables.
+
+.. currentmodule:: pyflink.table.catalog
+
+.. autosummary::
+    :toctree: api/
+
+    Constraint.get_name
+    Constraint.is_enforced
+    Constraint.get_type
+    Constraint.as_summary_string
+
+UniqueConstraint
+................
+
+A unique key constraint. It can be declared also as a PRIMARY KEY.
+
+.. currentmodule:: pyflink.table.catalog
+
+.. autosummary::
+    :toctree: api/
+
+    UniqueConstraint.get_columns
+    UniqueConstraint.get_type_string

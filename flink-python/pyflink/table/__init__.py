@@ -119,6 +119,7 @@ from pyflink.table.explain_detail import ExplainDetail
 from pyflink.table.expression import Expression
 from pyflink.table.module import Module, ModuleEntry
 from pyflink.table.result_kind import ResultKind
+from pyflink.table.resolved_schema import ResolvedSchema
 from pyflink.table.schema import Schema
 from pyflink.table.sql_dialect import SqlDialect
 from pyflink.table.statement_set import StatementSet
@@ -167,5 +168,6 @@ __all__ = [
     'RowKind',
     'ChangelogMode',
     'ExplainDetail',
-    'ResultKind'
+    'ResultKind',
+    'ResolvedSchema',
 ]
