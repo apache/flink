@@ -54,6 +54,19 @@ public class ValueStateDescriptor<T> extends StateDescriptor<T> {
         super(stateId, serializer);
     }
 
+    /**
+     * Creates a new {@code ValueStateDescriptor} with the given name and type
+     *
+     * <p>If this constructor fails (because it is not possible to describe the type via a class),
+     * consider using the {@link #ValueStateDescriptor(String, TypeInformation)} constructor.
+     *
+     * @param stateId The (unique) name for the state.
+     * @param typeClass The type of the values in the state.
+     */
+    public ValueStateDescriptor(@Nonnull String stateId, @Nonnull Class<T> typeClass) {
+        super(stateId, typeClass);
+    }
+
     @Override
     public Type getType() {
         return Type.VALUE;
