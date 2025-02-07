@@ -82,13 +82,13 @@ class JsonSerdeTestUtil {
     }
 
     static String toJson(SerdeContext serdeContext, Object object) throws IOException {
-        final ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeContext);
+        final ObjectWriter objectWriter = JsonSmileSerdeUtil.createJsonObjectWriter(serdeContext);
         return objectWriter.writeValueAsString(object);
     }
 
     static <T> T toObject(SerdeContext serdeContext, String json, Class<T> clazz)
             throws IOException {
-        final ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeContext);
+        final ObjectReader objectReader = JsonSmileSerdeUtil.createJsonObjectReader(serdeContext);
         return objectReader.readValue(json, clazz);
     }
 

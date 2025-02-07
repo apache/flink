@@ -36,8 +36,8 @@ class RexWindowBoundSerdeTest {
     @Test
     void testSerde() throws IOException {
         SerdeContext serdeCtx = JsonSerdeTestUtil.configuredSerdeContext();
-        ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeCtx);
-        ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);
+        ObjectReader objectReader = JsonSmileSerdeUtil.createJsonObjectReader(serdeCtx);
+        ObjectWriter objectWriter = JsonSmileSerdeUtil.createJsonObjectWriter(serdeCtx);
 
         assertThat(
                         objectReader.readValue(

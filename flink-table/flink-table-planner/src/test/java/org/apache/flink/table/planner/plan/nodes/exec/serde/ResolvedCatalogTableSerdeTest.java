@@ -57,7 +57,7 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTest
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.assertThatJsonDoesNotContain;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.configuredSerdeContext;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.testJsonRoundTrip;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.createObjectReader;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSmileSerdeUtil.createJsonObjectReader;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
@@ -151,11 +151,11 @@ class ResolvedCatalogTableSerdeTest {
         SerdeContext serdeCtx = configuredSerdeContext();
 
         byte[] actualSerialized =
-                JsonSerdeUtil.createObjectWriter(serdeCtx)
+                JsonSmileSerdeUtil.createJsonObjectWriter(serdeCtx)
                         .withAttribute(ResolvedCatalogTableJsonSerializer.SERIALIZE_OPTIONS, false)
                         .writeValueAsBytes(FULL_RESOLVED_CATALOG_TABLE);
 
-        final ObjectReader objectReader = createObjectReader(serdeCtx);
+        final ObjectReader objectReader = createJsonObjectReader(serdeCtx);
         JsonNode actualJson = objectReader.readTree(actualSerialized);
         assertThatJsonContains(actualJson, ResolvedCatalogTableJsonSerializer.RESOLVED_SCHEMA);
         assertThatJsonContains(actualJson, ResolvedCatalogTableJsonSerializer.PARTITION_KEYS);
@@ -187,7 +187,7 @@ class ResolvedCatalogTableSerdeTest {
     @Test
     void testDontSerializeExternalInlineTable() {
         SerdeContext serdeCtx = configuredSerdeContext();
-        ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);
+        ObjectWriter objectWriter = JsonSmileSerdeUtil.createJsonObjectWriter(serdeCtx);
 
         assertThatThrownBy(
                         () ->

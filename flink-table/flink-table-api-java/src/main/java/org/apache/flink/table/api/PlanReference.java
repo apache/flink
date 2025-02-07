@@ -23,6 +23,7 @@ import org.apache.flink.annotation.Experimental;
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Objects;
 
 /**
@@ -68,6 +69,12 @@ public abstract class PlanReference {
     public static PlanReference fromJsonString(String jsonString) {
         Objects.requireNonNull(jsonString, "Json string cannot be null");
         return new ContentPlanReference(jsonString);
+    }
+
+    /** Create a reference starting from a Smile binary representation. */
+    public static PlanReference fromSmileBytes(byte[] smileBytes) {
+        Objects.requireNonNull(smileBytes, "Smile bytes cannot be null");
+        return new ByteContentPlanReference(smileBytes);
     }
 
     /**
@@ -157,6 +164,43 @@ public abstract class PlanReference {
         @Override
         public String toString() {
             return "Plan:\n" + content;
+        }
+    }
+
+    /** Plan reference to a string containing the serialized persisted plan in Smile. */
+    @Experimental
+    public static class ByteContentPlanReference extends PlanReference {
+
+        private final byte[] content;
+
+        private ByteContentPlanReference(byte[] content) {
+            this.content = content;
+        }
+
+        public byte[] getContent() {
+            return content;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            ByteContentPlanReference that = (ByteContentPlanReference) o;
+            return Arrays.equals(content, that.content);
+        }
+
+        @Override
+        public int hashCode() {
+            return Arrays.hashCode(content);
+        }
+
+        @Override
+        public String toString() {
+            return "Plan:\n" + Arrays.toString(content);
         }
     }
 
