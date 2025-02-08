@@ -12,7 +12,7 @@
             <td><h5>state.backend.forst.cache.dir</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The directory where ForSt caches its SST files, fallback to state.backend.forst.local-dir/cache if not configured.</td>
+            <td>The directory where ForSt caches its SST files, fallback to the subdirectory of '/cache' under the value of 'state.backend.forst.local-dir' if not configured.</td>
         </tr>
         <tr>
             <td><h5>state.backend.forst.cache.reserve-size</h5></td>
@@ -45,10 +45,10 @@
             <td>With partitioning, the index/filter block of an SST file is partitioned into smaller blocks with an additional top-level index on them. When reading an index/filter, only top-level index is loaded into memory. The partitioned index/filter then uses the top-level index to load on demand into the block cache the partitions that are required to perform the index/filter query. This option only has an effect when 'state.backend.forst.memory.managed' or 'state.backend.forst.memory.fixed-per-slot' are configured.</td>
         </tr>
         <tr>
-            <td><h5>state.backend.forst.remote-dir</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
+            <td><h5>state.backend.forst.primary-dir</h5></td>
+            <td style="word-wrap: break-word;">"checkpoint-dir"</td>
             <td>String</td>
-            <td>The remote directory where ForSt puts its SST files, fallback to state.backend.forst.local-dir if not configured. Recognized shortcut name is 'checkpoint-dir', which means that forst shares the directory with checkpoint.</td>
+            <td>The primary directory where ForSt puts its SST files. By default, it will be the same as the checkpoint directory. Recognized shortcut name is 'checkpoint-dir', which means that ForSt shares the directory with checkpoint, and 'local-dir', which means that ForSt will use the local directory of TaskManager.</td>
         </tr>
         <tr>
             <td><h5>state.backend.forst.timer-service.cache-size</h5></td>
