@@ -181,9 +181,13 @@ public class AdaptiveGraphManagerTest extends JobGraphGeneratorTestBase {
                                 });
 
         result.sinkTo(new DiscardingSink<>());
-        StreamGraph streamGraph = env.getStreamGraph();
-        JobGraph jobGraph1 = generateJobGraphInLazilyMode(streamGraph);
-        JobGraph jobGraph2 = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+        StreamGraph streamGraph1 = env.getStreamGraph(false);
+        JobGraph jobGraph1 = generateJobGraphInLazilyMode(streamGraph1);
+
+        // we could not reuse the streamGraph1 because the streamGraph1 could have been modified in
+        // the adaptive graph manager.
+        StreamGraph streamGraph2 = env.getStreamGraph(false);
+        JobGraph jobGraph2 = StreamingJobGraphGenerator.createJobGraph(streamGraph2);
         assertThat(isJobGraphEquivalent(jobGraph1, jobGraph2)).isEqualTo(true);
     }
 
