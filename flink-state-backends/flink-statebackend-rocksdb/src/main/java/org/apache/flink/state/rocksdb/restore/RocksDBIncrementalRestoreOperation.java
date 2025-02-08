@@ -240,13 +240,13 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         final List<IncrementalLocalKeyedStateHandle> localKeyedStateHandles =
                 new ArrayList<>(restoreStateHandles.size());
 
-        final Path absolutInstanceBasePath = instanceBasePath.getAbsoluteFile().toPath();
+        final Path absoluteInstanceBasePath = instanceBasePath.getAbsoluteFile().toPath();
 
         try {
             runAndReportDuration(
                     () ->
                             makeAllStateHandlesLocal(
-                                    absolutInstanceBasePath,
+                                    absoluteInstanceBasePath,
                                     localKeyedStateHandles,
                                     allDownloadSpecs),
                     DOWNLOAD_STATE_DURATION);
@@ -333,14 +333,14 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
      * Downloads and converts all {@link IncrementalRemoteKeyedStateHandle}s to {@link
      * IncrementalLocalKeyedStateHandle}s.
      *
-     * @param absolutInstanceBasePath the base path of the restoring DB instance as absolute path.
+     * @param absoluteInstanceBasePath the base path of the restoring DB instance as absolute path.
      * @param localKeyedStateHandlesOut the output parameter for the created {@link
      *     IncrementalLocalKeyedStateHandle}s.
      * @param allDownloadSpecsOut output parameter for the created download specs.
      * @throws Exception if an unexpected state handle type is passed as argument.
      */
     private void makeAllStateHandlesLocal(
-            Path absolutInstanceBasePath,
+            Path absoluteInstanceBasePath,
             List<IncrementalLocalKeyedStateHandle> localKeyedStateHandlesOut,
             List<StateHandleDownloadSpec> allDownloadSpecsOut)
             throws Exception {
@@ -350,7 +350,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                 StateHandleDownloadSpec downloadRequest =
                         new StateHandleDownloadSpec(
                                 (IncrementalRemoteKeyedStateHandle) stateHandle,
-                                absolutInstanceBasePath.resolve(UUID.randomUUID().toString()));
+                                absoluteInstanceBasePath.resolve(UUID.randomUUID().toString()));
                 allDownloadSpecsOut.add(downloadRequest);
             } else if (stateHandle instanceof IncrementalLocalKeyedStateHandle) {
                 localKeyedStateHandlesOut.add((IncrementalLocalKeyedStateHandle) stateHandle);
@@ -472,8 +472,8 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
             byte[] stopKeyGroupPrefixBytes)
             throws Exception {
 
-        final Path absolutInstanceBasePath = instanceBasePath.getAbsoluteFile().toPath();
-        final Path exportCfBasePath = absolutInstanceBasePath.resolve("export-cfs");
+        final Path absoluteInstanceBasePath = instanceBasePath.getAbsoluteFile().toPath();
+        final Path exportCfBasePath = absoluteInstanceBasePath.resolve("export-cfs");
         Files.createDirectories(exportCfBasePath);
 
         final Map<RegisteredStateMetaInfoBase.Key, List<ExportImportFilesMetaData>>
@@ -492,7 +492,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                             notImportableHandles);
 
             if (exportedColumnFamilyMetaData.isEmpty()) {
-                // Nothing coule be exported, so we fall back to
+                // Nothing could be exported, so we fall back to
                 // #mergeStateHandlesWithCopyFromTemporaryInstance
                 mergeStateHandlesWithCopyFromTemporaryInstance(
                         notImportableHandles, startKeyGroupPrefixBytes, stopKeyGroupPrefixBytes);

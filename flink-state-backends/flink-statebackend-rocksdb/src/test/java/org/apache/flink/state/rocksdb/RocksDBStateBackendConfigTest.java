@@ -908,7 +908,7 @@ public class RocksDBStateBackendConfigTest {
     }
 
     @Test
-    public void testConfigureUseFilesInRange() {
+    public void testConfigureUseDeleteFilesInRange() {
         EmbeddedRocksDBStateBackend rocksDBStateBackend = new EmbeddedRocksDBStateBackend(true);
         Configuration configuration = new Configuration();
         configuration.set(
@@ -924,7 +924,7 @@ public class RocksDBStateBackendConfigTest {
     }
 
     @Test
-    public void testDefaultIncrementalRestoreInstanceBufferSize() {
+    public void testDefaultAysncCompactAfterRescale() {
         EmbeddedRocksDBStateBackend rocksDBStateBackend = new EmbeddedRocksDBStateBackend(true);
         assertEquals(
                 RocksDBConfigurableOptions.INCREMENTAL_RESTORE_ASYNC_COMPACT_AFTER_RESCALE
@@ -933,7 +933,7 @@ public class RocksDBStateBackendConfigTest {
     }
 
     @Test
-    public void testConfigureIncrementalRestoreInstanceBufferSize() {
+    public void testConfigureAysncCompactAfterRescale() {
         EmbeddedRocksDBStateBackend rocksDBStateBackend = new EmbeddedRocksDBStateBackend(true);
         Configuration configuration = new Configuration();
         boolean notDefault =
