@@ -397,7 +397,11 @@ public final class ForStResourceContainer implements AutoCloseable {
                             localForStPath,
                             fileOwnershipDecider,
                             ForStFlinkFileSystem.getFileBasedCache(
-                                    cacheBasePath, cacheCapacity, cacheReservedSize, metricGroup));
+                                    cacheBasePath,
+                                    remoteForStPath,
+                                    cacheCapacity,
+                                    cacheReservedSize,
+                                    metricGroup));
         } else {
             forStFileSystem = null;
         }
