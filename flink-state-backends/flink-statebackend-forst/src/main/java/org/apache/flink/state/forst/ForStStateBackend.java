@@ -95,7 +95,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class ForStStateBackend extends AbstractManagedMemoryStateBackend
         implements ConfigurableStateBackend {
 
-    public static final String REMOTE_SHORTCUT_CHECKPOINT = "checkpoint-dir";
+    public static final String CHECKPOINT_DIR_AS_PRIMARY_SHORTCUT = "checkpoint-dir";
+    public static final String LOCAL_DIR_AS_PRIMARY_SHORTCUT = "local-dir";
 
     private static final long serialVersionUID = 1L;
 
@@ -216,12 +217,15 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
         if (original.remoteForStDirectory != null) {
             this.remoteForStDirectory = original.remoteForStDirectory;
         } else {
-            String remoteDirStr = config.get(ForStOptions.REMOTE_DIRECTORY);
-            if (REMOTE_SHORTCUT_CHECKPOINT.equals(remoteDirStr)) {
+            String remoteDirStr = config.get(ForStOptions.PRIMARY_DIRECTORY);
+            if (CHECKPOINT_DIR_AS_PRIMARY_SHORTCUT.equals(remoteDirStr)) {
                 this.remoteForStDirectory = null;
                 this.remoteShareWithCheckpoint = true;
             } else {
-                this.remoteForStDirectory = remoteDirStr == null ? null : new Path(remoteDirStr);
+                this.remoteForStDirectory =
+                        remoteDirStr == null || LOCAL_DIR_AS_PRIMARY_SHORTCUT.equals(remoteDirStr)
+                                ? null
+                                : new Path(remoteDirStr);
             }
         }
 

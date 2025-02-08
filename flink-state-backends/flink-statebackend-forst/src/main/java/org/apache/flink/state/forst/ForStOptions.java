@@ -27,8 +27,9 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
+import static org.apache.flink.state.forst.ForStStateBackend.CHECKPOINT_DIR_AS_PRIMARY_SHORTCUT;
+import static org.apache.flink.state.forst.ForStStateBackend.LOCAL_DIR_AS_PRIMARY_SHORTCUT;
 import static org.apache.flink.state.forst.ForStStateBackend.PriorityQueueStateType.ForStDB;
-import static org.apache.flink.state.forst.ForStStateBackend.REMOTE_SHORTCUT_CHECKPOINT;
 
 /** Configuration options for the ForStStateBackend. */
 @Experimental
@@ -52,15 +53,17 @@ public class ForStOptions {
 
     /** The remote directory where ForSt puts its SST files. */
     @Documentation.Section(Documentation.Sections.STATE_BACKEND_FORST)
-    public static final ConfigOption<String> REMOTE_DIRECTORY =
-            ConfigOptions.key("state.backend.forst.remote-dir")
+    public static final ConfigOption<String> PRIMARY_DIRECTORY =
+            ConfigOptions.key("state.backend.forst.primary-dir")
                     .stringType()
-                    .noDefaultValue()
+                    .defaultValue(CHECKPOINT_DIR_AS_PRIMARY_SHORTCUT)
                     .withDescription(
                             String.format(
-                                    "The remote directory where ForSt puts its SST files, fallback to %s if not configured."
-                                            + " Recognized shortcut name is '%s', which means that forst shares the directory with checkpoint.",
-                                    LOCAL_DIRECTORIES.key(), REMOTE_SHORTCUT_CHECKPOINT));
+                                    "The primary directory where ForSt puts its SST files. By default, it will be the same as the checkpoint directory. "
+                                            + "Recognized shortcut name is '%s', which means that ForSt shares the directory with checkpoint, "
+                                            + "and '%s', which means that ForSt will use the local directory of TaskManager.",
+                                    CHECKPOINT_DIR_AS_PRIMARY_SHORTCUT,
+                                    LOCAL_DIR_AS_PRIMARY_SHORTCUT));
 
     @Documentation.Section(Documentation.Sections.STATE_BACKEND_FORST)
     public static final ConfigOption<String> CACHE_DIRECTORY =
@@ -69,7 +72,8 @@ public class ForStOptions {
                     .noDefaultValue()
                     .withDescription(
                             String.format(
-                                    "The directory where ForSt caches its SST files, fallback to %s/cache if not configured.",
+                                    "The directory where ForSt caches its SST files, fallback to the "
+                                            + "subdirectory of '/cache' under the value of '%s' if not configured.",
                                     LOCAL_DIRECTORIES.key()));
 
     @Documentation.Section(Documentation.Sections.STATE_BACKEND_FORST)
