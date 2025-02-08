@@ -71,7 +71,7 @@ public class StreamEdge implements Serializable {
     /** The name of the operator in the target vertex. */
     private final String targetOperatorName;
 
-    private final StreamExchangeMode exchangeMode;
+    private StreamExchangeMode exchangeMode;
 
     private long bufferTimeout;
 
@@ -193,6 +193,10 @@ public class StreamEdge implements Serializable {
 
     public StreamExchangeMode getExchangeMode() {
         return exchangeMode;
+    }
+
+    void setExchangeMode(StreamExchangeMode exchangeMode) {
+        this.exchangeMode = exchangeMode;
     }
 
     public void setPartitioner(StreamPartitioner<?> partitioner) {
