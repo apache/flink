@@ -619,15 +619,15 @@ You can configure environment variables to be set on the JobManager and TaskMana
 These options relate to parts of Flink that are not actively developed any more.
 These options may be removed in a future release.
 
-**DataSet API Optimizer**
+**Optimizer**
 
 {{< generated/optimizer_configuration >}}
 
-**DataSet API Runtime Algorithms**
+**Runtime Algorithms**
 
 {{< generated/algorithm_configuration >}}
 
-**DataSet File Sinks**
+**File Sinks**
 
 {{< generated/deprecated_file_sinks_section >}}
 
