@@ -348,8 +348,8 @@ ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name AS <select_statemen
 
 1. 暂停当前的流式刷新作业。
 2. 更新物化表的 `schema` 和查询定义。
-3. 启动新的流式任务以刷新物化表：
-   - 新的流式任务会从头开始，而不会从之前的流式任务状态恢复。
+3. 启动新的流式作业以刷新物化表：
+   - 新的流式作业会从头开始，而不会从之前的流式作业状态恢复。
    - 数据源的起始位点会由到连接器的默认实现或查询中设置的 [dynamic hint]({{< ref "docs/dev/table/sql/queries/hints" >}}#dynamic-table-options) 决定。
 
 **示例：**
@@ -387,7 +387,7 @@ GROUP BY
 
 <span class="label label-danger">注意</span>
 - Schema 演进当前仅支持在原表 schema 尾部追加`可空列`。
-- 在持续模式下，新的流式任务不会从原来的流式任务的状态恢复。这可能会导致短暂的数据重复或丢失。
+- 在持续模式下，新的流式作业不会从原来的流式作业的状态恢复。这可能会导致短暂的数据重复或丢失。
 
 # DROP MATERIALIZED TABLE
 
