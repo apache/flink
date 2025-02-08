@@ -445,6 +445,50 @@ class UnnestITCase extends BatchTestBase {
   }
 
   @Test
+  def testUnnestForMapOfRowsWithOrdinality(): Unit = {
+    val data = List(
+      row(
+        1, {
+          val map = new java.util.HashMap[Row, Row]()
+          map.put(Row.of("a", "a"), Row.of(10: Integer))
+          map.put(Row.of("b", "b"), Row.of(11: Integer))
+          map
+        }),
+      row(
+        2, {
+          val map = new java.util.HashMap[Row, Row]()
+          map.put(Row.of("c", "c"), Row.of(20: Integer))
+          map
+        }),
+      row(
+        3, {
+          val map = new java.util.HashMap[Row, Row]()
+          map.put(Row.of("d", "d"), Row.of(30: Integer))
+          map.put(Row.of("e", "e"), Row.of(31: Integer))
+          map
+        })
+    )
+
+    registerCollection(
+      "T",
+      data,
+      new RowTypeInfo(
+        Types.INT,
+        Types.MAP(Types.ROW(Types.STRING, Types.STRING), Types.ROW(Types.INT()))),
+      "a, b")
+
+    checkResult(
+      "SELECT a, k, v, o FROM T CROSS JOIN UNNEST(b) WITH ORDINALITY as f (k, v, o)",
+      Seq(
+        row(1, row("a", "a"), row(10), 1),
+        row(1, row("b", "b"), row(11), 2),
+        row(2, row("c", "c"), row(20), 1),
+        row(3, row("d", "d"), row(30), 1),
+        row(3, row("e", "e"), row(31), 2))
+    )
+  }
+
+  @Test
   def testUnnestWithOrdinalityForChainOfArraysAndMaps(): Unit = {
     val data = List(
       row(1, Array("a", "b"), Map("x" -> "10", "y" -> "20").asJava),
@@ -546,5 +590,4 @@ class UnnestITCase extends BatchTestBase {
       Seq(row(1, 12, "45.6", 1), row(2, 13, "41.6", 1))
     )
   }
-
 }

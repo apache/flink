@@ -78,7 +78,9 @@ public class LogicalUnnestRule extends RelRule<LogicalUnnestRule.LogicalUnnestRu
             LogicalProject logicalProject = (LogicalProject) right;
             RelNode relNode = getRel(logicalProject.getInput());
             return relNode instanceof Uncollect;
-        } else return right instanceof Uncollect;
+        } else {
+            return right instanceof Uncollect;
+        }
         return false;
     }
 

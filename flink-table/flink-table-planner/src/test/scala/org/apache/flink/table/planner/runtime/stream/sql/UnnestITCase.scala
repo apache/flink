@@ -544,6 +544,62 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
     assertThat(resultsWithoutordinality.sorted).isEqualTo(expected.sorted)
   }
 
+  def testUnnestForMapOfRowsWitOrdinality(): Unit = {
+    val data = List(
+      Row.of(
+        Int.box(1), {
+          val map = new java.util.HashMap[Row, Row]()
+          map.put(Row.of("a", "a"), Row.of(10: Integer))
+          map.put(Row.of("b", "b"), Row.of(11: Integer))
+          map
+        }),
+      Row.of(
+        Int.box(2), {
+          val map = new java.util.HashMap[Row, Row]()
+          map.put(Row.of("c", "c"), Row.of(20: Integer))
+          map
+        }),
+      Row.of(
+        Int.box(3), {
+          val map = new java.util.HashMap[Row, Row]()
+          map.put(Row.of("d", "d"), Row.of(30: Integer))
+          map.put(Row.of("e", "e"), Row.of(31: Integer))
+          map
+        })
+    )
+
+    implicit val typeInfo = Types.ROW(
+      Array("a", "b"),
+      Array[TypeInformation[_]](
+        Types.INT,
+        Types.MAP(Types.ROW(Types.STRING, Types.STRING), Types.ROW(Types.INT())))
+    )
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b)
+    tEnv.createTemporaryView("T", t)
+
+    val sqlQuery = "SELECT a, k, v, o FROM T CROSS JOIN UNNEST(b) WITH ORDINALITY as f (k, v, o)"
+    val result = tEnv.sqlQuery(sqlQuery)
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink",
+      List("a", "k", "v", "o"),
+      List(
+        DataTypes.INT,
+        DataTypes.ROW(DataTypes.STRING(), DataTypes.STRING()),
+        DataTypes.ROW(DataTypes.INT()),
+        DataTypes.INT.notNull()),
+      ChangelogMode.all()
+    )
+    result.executeInsert("MySink").await()
+
+    val expected =
+      List("1,a,a,10", "1,b,b,11", "2,c,c,20", "3,d,d,30", "3,e,e,31")
+    val resultWithoutOrd = assertAndRemoveOrdinality(
+      TestValuesTableFactory.getResultsAsStrings("MySink").sorted.toList,
+      2)
+    assertThat(resultWithoutOrd).isEqualTo(expected.sorted)
+  }
+
   @TestTemplate
   def testUnnestWithOrdinalityForChainOfArraysAndMaps(): Unit = {
     val data = List(
@@ -721,21 +777,21 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
   }
 
   @TestTemplate
-  def testUnnestMultiSetFromCollectResultWithOrdinality(): Unit = {
+  def testUnnestMultiSetOfRowsFromCollectResultWithOrdinality(): Unit = {
     val data = List(
-      (1, 1, (12, "45.6")),
-      (2, 2, (12, "45.612")),
-      (3, 2, (13, "41.6")),
-      (4, 3, (14, "45.2136")),
-      (5, 3, (18, "42.6")))
-    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b, 'c)
+      (1, (12, "45.6")),
+      (2, (12, "45.612")),
+      (2, (13, "41.6")),
+      (3, (14, "45.2136")),
+      (3, (18, "42.6")))
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b)
     tEnv.createTemporaryView("T", t)
 
     val sqlQuery =
       """
-        |WITH T1 AS (SELECT b, COLLECT(c) as `set` FROM T GROUP BY b)
-        |SELECT b, id, point, o FROM T1
-        |CROSS JOIN UNNEST(T1.`set`) WITH ORDINALITY AS A(id, point, o) WHERE b < 3
+        |WITH T1 AS (SELECT a, COLLECT(b) as `set` FROM T GROUP BY a)
+        |SELECT a, id, point, o FROM T1
+        |CROSS JOIN UNNEST(T1.`set`) WITH ORDINALITY AS A(id, point, o) WHERE a < 3
       """.stripMargin
     val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
     val sink = new TestingRetractSink
@@ -775,21 +831,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  /* Utility for maps to assert that ordinality is within range and remove it from output.
-   * Necessary since maps are not ordered */
-  def assertAndRemoveOrdinality(results: List[String], maxOrdinality: Int): List[String] = {
-    results.foreach {
-      result =>
-        val columns = result.split(",")
-        val ordinality = columns.last.toInt
-        assert(
-          ordinality >= 1 && ordinality <= maxOrdinality,
-          s"Ordinality $ordinality out of range")
-    }
-
-    results.map(_.split(",").dropRight(1).mkString(","))
-  }
-
   @TestTemplate
   def testUnnestWithOrdinalityAliasColumnNames(): Unit = {
     val sqlQuery =
@@ -804,6 +845,21 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
 
     val expectedFieldNames = List("x", "y", "ord")
     assertThat(fieldNames).isEqualTo(expectedFieldNames)
+  }
+
+  /* Utility for maps to assert that ordinality is within range and remove it from output.
+   * Necessary since maps are not ordered */
+  def assertAndRemoveOrdinality(results: List[String], maxOrdinality: Int): List[String] = {
+    results.foreach {
+      result =>
+        val columns = result.split(",")
+        val ordinality = columns.last.toInt
+        assert(
+          ordinality >= 1 && ordinality <= maxOrdinality,
+          s"Ordinality $ordinality out of range")
+    }
+
+    results.map(_.split(",").dropRight(1).mkString(","))
   }
 
 }

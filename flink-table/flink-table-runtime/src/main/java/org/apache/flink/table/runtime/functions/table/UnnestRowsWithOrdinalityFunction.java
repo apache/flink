@@ -80,6 +80,10 @@ public class UnnestRowsWithOrdinalityFunction extends UnnestRowsFunctionBase {
             this.elementGetter = elementGetter;
 
             if (elementType instanceof RowType) {
+                /* When unnesting a collection, according to Calcite's implementation,
+                row(a,b) unnests to a row(a, b, ordinality) and not to (row(a,b), ordinality).
+                That means, if we are unnesting a row, we need field getters
+                to be able to extract all field values */
                 RowType rowType = (RowType) elementType;
                 this.fieldGetters = createFieldGetters(rowType);
                 this.outputDataType = createRowTypeOutputDataType(rowType);
