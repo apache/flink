@@ -26,7 +26,7 @@ under the License.
 
 # Introduction
 
-物化表的执行涉及多个组件的协同工作，相比普通的 Flink 作业，需要额外的配置以确保其正常运行。本文将从架构解析、环境准备、部署流程到操作实践，系统地说明物化表的完整部署方案。
+物化表的创建及运维涉及多个组件的协同工作。本文将从架构解析、环境准备、部署流程到操作实践，系统地说明物化表的完整部署方案。
 
 # 架构介绍
 
@@ -64,9 +64,9 @@ table:
 ```
 更多详情配置可参考 [Catalog Store]({{<ref "docs/dev/table/catalogs">}}#catalog-store)。
 
-### 配置调度插件
+### 配置工作流调度器插件
 
-在 `config.yaml` 增加配置调度器配置，用于定时调度刷新任务。 当前我们仅支持 `embedded` 调度器
+在 `config.yaml` 增加配置调度器配置，用于定时调度刷新作业。 当前我们仅支持 `embedded` 调度器
 
 ```yaml
 workflow-scheduler:
@@ -80,29 +80,8 @@ workflow-scheduler:
 ./sql-gateway.sh start
 ```
 
-### 创建 Catalog
-
-尽管可以在创建物化表时创建 Catalog，但我们建议预先创建 Catalog 以实现：
-* 1. 将 Catalog 配置持久化到 Catalog Store
-* 2. 确保所有 SQL Gateway session 自动加载 Catalog
-
-**步骤：**
-1. 连接到 SQL Gateway ：
-```shell
-./sql-client gateway --endpoint {gateway_endpoint}:{gateway_port}
-```
-
-2. 创建 Catalog
-
-```sql
-Flink SQL > CREATE CATALOG paimon_catalog with (
-  'type' = 'paimon',
-  'warehouse' = 'oss://{paimon_warehouse}'  -- 替换为实际的路径
-);
-[INFO] Execute statement succeeded.
-```
 <span class="label label-danger">注意</span>
-创建的 Catalog 必须支持 Flink 物化表类型。目前，只有 [Paimon catalog](https://paimon.apache.org/docs/master/concepts/table-types/#materialized-table) 支持创建 Flink 物化表。
+Catalog 必须支持创建物化表，目前只有 [Paimon Catalog](https://paimon.apache.org/docs/master/concepts/table-types/#materialized-table) 支持。
 
 # 操作指南
 
@@ -116,7 +95,7 @@ Flink SQL > CREATE CATALOG paimon_catalog with (
 
 ## 创建物化表
 
-### 在 Standalone 集群运行刷新任务
+### 在 Standalone 集群运行刷新作业
 
 ```sql
 Flink SQL> SET 'execution.mode' = 'remote';
@@ -127,9 +106,9 @@ FLINK SQL> CREATE MATERIALIZED TABLE my_materialized_table
 [INFO] Execute statement succeeded.
 ```
 
-### 在 session 模式下运行刷新任务
+### 在 session 模式下运行刷新作业
 
-在 session 模式下执行时，需要提前创建 session ，具体可以参考文档 [yarn-session]({{< ref "docs/deployment/resource-providers/yarn" >}}#starting-a-flink-session-on-yarn) 和 [kubernetes-session]({{<ref "docs/deployment/resource-providers/native_kubernetes" >}}#starting-a-flink-session-on-kubernetes)
+在 session 模式下执行时，需要提前创建 session 集群，具体可以参考文档 [yarn-session]({{< ref "docs/deployment/resource-providers/yarn" >}}#starting-a-flink-session-on-yarn) 和 [kubernetes-session]({{<ref "docs/deployment/resource-providers/native_kubernetes" >}}#starting-a-flink-session-on-kubernetes)
 
 **Kubernetes session 模式：**
 
@@ -162,7 +141,7 @@ FLINK SQL> CREATE MATERIALIZED TABLE my_materialized_table
 ```
 设置 `execution.mode` 为 `yarn-session` 并设置参数 `yarn.application.id` 指向一个已经存在的 YARN session 集群。
 
-### 在 application 模式下运行刷新任务
+### 在 application 模式下运行刷新作业
 
 **Kubernetes application 模式：**
 
@@ -195,16 +174,16 @@ FLINK SQL> CREATE MATERIALIZED TABLE my_materialized_table
 
 集群信息（如 `execution.mode` 或 `kubernetes.cluster-id`）已持久化在 Catalog 中，暂停或恢复物化表刷新作业时无需重复设置。
 
-### 暂停刷新任务
+### 暂停刷新作业
 ```sql
--- 暂停物化表刷新任务
+-- 暂停物化表刷新作业
 Flink SQL> ALTER MATERIALIZED TABLE my_materialized_table SUSPEND
 [INFO] Execute statement succeeded.
 ```
 
-### 恢复刷新任务
+### 恢复刷新作业
 ```sql
--- 恢复物化表刷新任务
+-- 恢复物化表刷新作业
 Flink SQL> ALTER MATERIALIZED TABLE my_materialized_table RESUME
 [INFO] Execute statement succeeded.
 ```
@@ -215,6 +194,5 @@ Flink SQL> ALTER MATERIALIZED TABLE my_materialized_table RESUME
 Flink SQL> ALTER MATERIALIZED TABLE my_materialized_table
 > AS 
 > ...
-
 [INFO] Execute statement succeeded.
 ```

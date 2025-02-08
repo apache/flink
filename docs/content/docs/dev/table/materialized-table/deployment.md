@@ -26,8 +26,7 @@ under the License.
 
 # Introduction
 
-The operation of Materialized Tables involves collaboration between multiple components. Compared to regular Flink jobs, additional configurations are required to ensure proper functioning of Materialized Tables. This article systematically explains the complete deployment solution for Materialized Tables, covering architectural overview, environment preparation, deployment procedures, and operational practices.
-
+The creation and operation of materialized tables involves the collaborative work of multiple components. This article systematically explains the complete deployment solution for Materialized Tables, covering architectural overview, environment preparation, deployment procedures, and operational practices.
 
 # Architecture Introduction
 
@@ -65,7 +64,7 @@ table:
 ```
 Refer to [Catalog Store]({{<ref "docs/dev/table/catalogs">}}#catalog-store) for details.
 
-### Configure Scheduler Plugin
+### Configure Workflow Scheduler Plugin
 
 Add scheduler configurations in `config.yaml` for periodic refresh job scheduling. Currently, only the `embedded` scheduler is supported:
 
@@ -82,30 +81,8 @@ Start the SQL Gateway using:
 ./sql-gateway.sh start
 ```
 
-### Create Catalog
-
-While catalogs can be created at Materialized Table creation time, we recommend pre-creating them to:
-* 1. Persist catalog properties in Catalog Store
-* 2. Ensure automatic loading by all SQL Gateway sessions
-
-**Steps:**
-1. Connect to SQL Gateway:
-
-```shell
-./sql-client gateway --endpoint {gateway_endpoint}:{gateway_port}
-```
-
-2. Create Catalog:
-
-```sql
-Flink SQL> CREATE CATALOG paimon_catalog with (
-  'type' = 'paimon',
-  'warehouse' = 'oss://{paimon_warehouse}'  -- Replace with the actual path
-);
-[INFO] Execute statement succeeded.
-```
 <span class="label label-danger">Note</span>
-The created catalog must support the Flink Materialized Table type. Currently, only [Paimon catalog](https://paimon.apache.org/docs/master/concepts/table-types/#materialized-table) support creating Flink Materialized Table.
+The Catalog must support the creation of materialized tables. Currently, only [Paimon Catalog](https://paimon.apache.org/docs/master/concepts/table-types/#materialized-table) supports it.
 
 # Operation Guide
 
@@ -132,7 +109,7 @@ FLINK SQL> CREATE MATERIALIZED TABLE my_materialized_table
 
 ### Refresh Jobs Running in Session Mode
 
-For session modes, pre-create sessions as documented in  [yarn-session]({{< ref "docs/deployment/resource-providers/yarn" >}}#starting-a-flink-session-on-yarn) or [kubernetes-session]({{<ref "docs/deployment/resource-providers/native_kubernetes" >}}#starting-a-flink-session-on-kubernetes)
+For session modes, pre-create session cluster as documented in  [yarn-session]({{< ref "docs/deployment/resource-providers/yarn" >}}#starting-a-flink-session-on-yarn) or [kubernetes-session]({{<ref "docs/deployment/resource-providers/native_kubernetes" >}}#starting-a-flink-session-on-kubernetes)
 
 **Kubernetes session mode:**
 
@@ -220,6 +197,5 @@ Flink SQL> ALTER MATERIALIZED TABLE my_materialized_table RESUME;
 Flink SQL> ALTER MATERIALIZED TABLE my_materialized_table
 > AS SELECT
 > ... ;
-
 [INFO] Execute statement succeeded.
 ```
