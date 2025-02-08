@@ -108,9 +108,19 @@ public class ForStFlinkFileSystem extends FileSystem {
     }
 
     public static FileBasedCache getFileBasedCache(
-            Path cacheBase, long cacheCapacity, long cacheReservedSize, MetricGroup metricGroup)
+            Path cacheBase,
+            Path remoteForStPath,
+            long cacheCapacity,
+            long cacheReservedSize,
+            MetricGroup metricGroup)
             throws IOException {
         if (cacheBase == null || cacheCapacity <= 0 && cacheReservedSize <= 0) {
+            return null;
+        }
+        if (cacheBase.getFileSystem().equals(remoteForStPath.getFileSystem())) {
+            LOG.info(
+                    "Skip creating ForSt cache "
+                            + "since the cache and primary path are on the same file system.");
             return null;
         }
         CacheLimitPolicy cacheLimitPolicy = null;
