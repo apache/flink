@@ -40,10 +40,6 @@ under the License.
 ## 使用方法
 本章节描述了如何使用预测执行，包含如何启用，调优，以及开发/改进自定义 source 来支持预测执行。
 
-{{< hint warning >}}
-注意：Flink 不支持 DataSet 作业的预测执行，因为 DataSet API 在不久的将来会被废弃。现在推荐使用 DataStream API 来开发 Flink 批处理作业。
-{{< /hint >}}
-
 ### 启用预测执行
 你可以通过以下配置项启用预测执行：
 - `execution.batch.speculative.enabled: true`
