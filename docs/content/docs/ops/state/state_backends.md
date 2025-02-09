@@ -99,7 +99,7 @@ The total memory amount of RocksDB instance(s) per slot can also be bounded, ple
 
 The *ForStStateBackend* is a state backend that is based on [ForSt project](https://github.com/ververica/ForSt),
 which is also a LSM-tree structured key-value store and built on top of the RocksDB.
-It is designed to provide a more efficient way to store and access state in Flink applications.
+It is designed for disaggregated state management, for more details, see [here]({{< ref "docs/ops/state/disaggregated_state" >}}).
 Most importantly, it can hold its sst files on remote file systems that Flink supports, such as HDFS, S3, etc.
 This allows Flink to scale the state size beyond the local disk capacity of the TaskManager.
 Moreover, by putting the sst files on remote file systems, it can also provide a more lightweight
