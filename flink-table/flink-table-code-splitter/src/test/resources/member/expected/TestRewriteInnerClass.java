@@ -2,8 +2,12 @@ public class TestRewriteInnerClass {
 int[] rewrite$0 = new int[3];
 
 {
-rewrite$0[1] = 1;
+    init$0();
 }
+void init$0() {
+    rewrite$0[1] = 1;
+}
+
 
     
     

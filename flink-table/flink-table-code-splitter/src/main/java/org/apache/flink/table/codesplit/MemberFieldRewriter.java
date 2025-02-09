@@ -58,6 +58,9 @@ import java.util.Stack;
  *     int[] rewrite$0 = new int[2];
  *     long[] rewrite$1 = new long[2];
  *     {
+ *         init$0();
+ *     }
+ *     void init$0() {
  *         rewrite$0[1] = 1;
  *         rewrite$1[1] = 2;
  *     }
@@ -71,13 +74,15 @@ import java.util.Stack;
 public class MemberFieldRewriter implements CodeRewriter {
 
     private final int maxFieldCount;
+    private final int fieldsPerInitMethod;
 
     private String code;
     private TokenStreamRewriter rewriter;
 
-    public MemberFieldRewriter(String code, int maxFieldCount) {
+    public MemberFieldRewriter(String code, int maxFieldCount, int fieldsPerInitMethod) {
         this.code = code;
         this.maxFieldCount = maxFieldCount;
+        this.fieldsPerInitMethod = fieldsPerInitMethod;
     }
 
     public String rewrite() {
@@ -197,6 +202,10 @@ public class MemberFieldRewriter implements CodeRewriter {
         private void rewriteClassDeclaration(JavaParser.ClassDeclarationContext ctx) {
             Map<String, String> typeFieldNames = new HashMap<>();
             StringBuilder newDeclaration = new StringBuilder("\n");
+            StringBuilder initBlock = new StringBuilder("\n{\n");
+            List<StringBuilder> initMethods = new ArrayList<>();
+            int currentMethodIndex = 0;
+            int fieldInMethodCount = 0;
 
             for (Map.Entry<String, Integer> typeCount : classStack.peek().typeCounts.entrySet()) {
                 String type = typeCount.getKey();
@@ -226,22 +235,45 @@ public class MemberFieldRewriter implements CodeRewriter {
                 newDeclaration.append(newField);
             }
 
-            boolean hasInit = false;
             for (MemberField field : classStack.peek().fields) {
                 String newName = typeFieldNames.get(field.type) + "[" + field.id + "]";
                 replaceMap.put(field.oldName, newName);
-                if (field.init.length() == 0) {
-                    continue;
-                }
+                if (field.init.length() > 0) {
+                    if (fieldInMethodCount == 0) {
+                        initMethods.add(
+                                new StringBuilder("void init$" + currentMethodIndex + "() {\n"));
+                    }
 
-                if (!hasInit) {
-                    newDeclaration.append("\n{\n");
-                    hasInit = true;
+                    initMethods
+                            .get(currentMethodIndex)
+                            .append("    ")
+                            .append(newName)
+                            .append(" = ")
+                            .append(field.init)
+                            .append(";\n");
+
+                    fieldInMethodCount++;
+
+                    if (fieldInMethodCount == fieldsPerInitMethod) {
+                        initMethods.get(currentMethodIndex).append("}\n\n");
+                        currentMethodIndex++;
+                        fieldInMethodCount = 0;
+                    }
                 }
-                newDeclaration.append(newName).append(" = ").append(field.init).append(";\n");
             }
-            if (hasInit) {
-                newDeclaration.append("}\n");
+
+            if (fieldInMethodCount > 0) {
+                initMethods.get(currentMethodIndex).append("}\n\n");
+            }
+
+            for (int i = 0; i < initMethods.size(); i++) {
+                initBlock.append("    init$").append(i).append("();\n");
+            }
+            initBlock.append("}\n");
+
+            newDeclaration.append(initBlock);
+            for (StringBuilder initMethod : initMethods) {
+                newDeclaration.append(initMethod);
             }
 
             rewriter.insertAfter(ctx.classBody().start, newDeclaration.toString());

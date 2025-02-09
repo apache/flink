@@ -3,10 +3,22 @@ java.util.List<Integer>[] rewrite$0 = new java.util.List[1];
 java.util.List<String>[] rewrite$1 = new java.util.List[2];
 
 {
-rewrite$1[0] = new java.util.ArrayList<>();
-rewrite$0[0] = new java.util.ArrayList<>();
-rewrite$1[1] = new java.util.ArrayList<>();
+    init$0();
+    init$1();
+    init$2();
 }
+void init$0() {
+    rewrite$1[0] = new java.util.ArrayList<>();
+}
+
+void init$1() {
+    rewrite$0[0] = new java.util.ArrayList<>();
+}
+
+void init$2() {
+    rewrite$1[1] = new java.util.ArrayList<>();
+}
+
 
     
     

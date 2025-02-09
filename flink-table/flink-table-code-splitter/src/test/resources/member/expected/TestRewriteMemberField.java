@@ -4,9 +4,17 @@ int[] rewrite$1 = new int[3];
 long[] rewrite$2 = new long[2];
 
 {
-rewrite$1[1] = 1;
-rewrite$0[1] = "GGGGG";
+    init$0();
+    init$1();
 }
+void init$0() {
+    rewrite$1[1] = 1;
+}
+
+void init$1() {
+    rewrite$0[1] = "GGGGG";
+}
+
 
     
     

@@ -233,6 +233,19 @@ public class TableConfigOptions {
                     .withDescription(
                             "Specifies a threshold where class members of generated code will be grouped into arrays by types.");
 
+    @Documentation.ExcludeFromDocumentation(
+            "This option is rarely used. The default value is good enough for almost all cases.")
+    public static final ConfigOption<Integer> FIELDS_PER_INIT_METHOD =
+            key("table.generated-code.fields-per-init-method")
+                    .intType()
+                    .defaultValue(1000)
+                    .withDescription(
+                            "Specifies the maximum number of fields to initialize within a single initialization method. "
+                                    + "This option is used to split the initialization of class members in generated code "
+                                    + "into multiple methods with an 'init$' prefix. By doing so, it helps reduce the size "
+                                    + "of the class <init> method and avoids the 64KB method size limit in Java. "
+                                    + "This is achieved by replacing multiple 'putfield' instructions with fewer 'invokespecial' calls.");
+
     // ------------------------------------------------------------------------------------------
     // Enum option types
     // ------------------------------------------------------------------------------------------

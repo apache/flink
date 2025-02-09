@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test;
 class MemberFieldRewriterTest extends CodeRewriterTestBase<MemberFieldRewriter> {
 
     public MemberFieldRewriterTest() {
-        super("member", code -> new MemberFieldRewriter(code, 3));
+        super("member", code -> new MemberFieldRewriter(code, 3, 1));
     }
 
     @Test

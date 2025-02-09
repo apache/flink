@@ -58,7 +58,8 @@ public abstract class GeneratedClass<T> implements Serializable {
                         : JavaCodeSplitter.split(
                                 code,
                                 config.get(TableConfigOptions.MAX_LENGTH_GENERATED_CODE),
-                                config.get(TableConfigOptions.MAX_MEMBERS_GENERATED_CODE));
+                                config.get(TableConfigOptions.MAX_MEMBERS_GENERATED_CODE),
+                                config.get(TableConfigOptions.FIELDS_PER_INIT_METHOD));
         this.references = references;
     }
 
