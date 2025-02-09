@@ -385,6 +385,7 @@ public class SavepointReader {
      * @param keyTypeInfo The type information of the key in state.
      * @param outTypeInfo The type information of the output of the transform reader function.
      * @param <K> The type of the key in state.
+     * @param skipDeduplication skipDeduplication to improve read performance, but will return deuplicate keys in DataStream
      * @param <OUT> The output type of the transform function.
      * @return A {@code DataStream} of objects read from keyed state.
      * @throws IOException If the savepoint does not contain operator state with the given uid.
@@ -393,7 +394,8 @@ public class SavepointReader {
             OperatorIdentifier identifier,
             KeyedStateReaderFunction<K, OUT> function,
             TypeInformation<K> keyTypeInfo,
-            TypeInformation<OUT> outTypeInfo)
+            TypeInformation<OUT> outTypeInfo,
+            Boolean skipDeduplication)
             throws IOException {
 
         OperatorState operatorState = metadata.getOperatorState(identifier);
@@ -403,7 +405,8 @@ public class SavepointReader {
                         stateBackend,
                         MutableConfig.of(env.getConfiguration()),
                         new KeyedStateReaderOperator<>(function, keyTypeInfo),
-                        env.getConfig());
+                        env.getConfig(),
+                        skipDeduplication);
 
         return SourceBuilder.fromFormat(env, inputFormat, outTypeInfo);
     }

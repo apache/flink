@@ -77,6 +77,8 @@ public class KeyedStateInputFormat<K, N, OUT>
 
     private final Configuration configuration;
 
+    private final Boolean skipDeduplication;
+
     private final StateReaderOperator<?, K, N, OUT> operator;
 
     private final SerializedValue<ExecutionConfig> serializedExecutionConfig;
@@ -93,13 +95,15 @@ public class KeyedStateInputFormat<K, N, OUT>
      * @param operatorState The state to be queried.
      * @param stateBackend The state backed used to snapshot the operator.
      * @param configuration The underlying Flink configuration used to configure the state backend.
+     * @param skipDeduplication skips deduplication to improve read performance, but can potentially return duplicate keys.
      */
     public KeyedStateInputFormat(
             OperatorState operatorState,
             @Nullable StateBackend stateBackend,
             Configuration configuration,
             StateReaderOperator<?, K, N, OUT> operator,
-            ExecutionConfig executionConfig)
+            ExecutionConfig executionConfig,
+            Boolean skipDeduplication)
             throws IOException {
         Preconditions.checkNotNull(operatorState, "The operator state cannot be null");
         Preconditions.checkNotNull(configuration, "The configuration cannot be null");
@@ -114,6 +118,17 @@ public class KeyedStateInputFormat<K, N, OUT>
         this.configuration = new Configuration(configuration);
         this.operator = operator;
         this.serializedExecutionConfig = new SerializedValue<>(executionConfig);
+        this.skipDeduplication = skipDeduplication;
+    }
+
+    public KeyedStateInputFormat(
+            OperatorState operatorState,
+            @Nullable StateBackend stateBackend,
+            Configuration configuration,
+            StateReaderOperator<?, K, N, OUT> operator,
+            ExecutionConfig executionConfig)
+            throws IOException {
+        this(operatorState, stateBackend, configuration, operator, executionConfig,false);
     }
 
     @Override
@@ -226,7 +241,9 @@ public class KeyedStateInputFormat<K, N, OUT>
                     "User defined function KeyedStateReaderFunction#readKey threw an exception", e);
         }
 
-        keysAndNamespaces.remove();
+        if(!skipDeduplication) {
+            keysAndNamespaces.remove();
+        }
 
         return out.next();
     }
