@@ -99,9 +99,9 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
             ((DefaultKeyedStateStore) stateStore).setSupportKeyedStateApiSetV2();
         }
 
-        final int inFlightRecordsLimit = getExecutionConfig().getAsyncInflightRecordsLimit();
-        final int asyncBufferSize = getExecutionConfig().getAsyncStateBufferSize();
-        final long asyncBufferTimeout = getExecutionConfig().getAsyncStateBufferTimeout();
+        final int inFlightRecordsLimit = getExecutionConfig().getAsyncStateTotalBufferSize();
+        final int asyncBufferSize = getExecutionConfig().getAsyncStateActiveBufferSize();
+        final long asyncBufferTimeout = getExecutionConfig().getAsyncStateActiveBufferTimeout();
         int maxParallelism = getExecutionConfig().getMaxParallelism();
 
         this.declarationManager = new DeclarationManager();
