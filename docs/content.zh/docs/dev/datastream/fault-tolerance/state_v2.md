@@ -35,7 +35,9 @@ to learn about the concepts behind stateful stream processing.
 The new state API is designed to be more flexible than the previous API. User can perform
 asynchronous state operations, thus making it more powerful and more efficient.
 The asynchronous state access is essential for the state backend to be able to handle
-large state sizes and to be able to spill to remote file systems when necessary. 
+large state sizes and to be able to spill to remote file systems when necessary.
+This is called the 'disaggregated state management'. For more information about this,
+please see [Disaggregated State Management]({{< ref "docs/ops/state/disaggregated_state" >}}).
 
 ## Keyed DataStream
 
