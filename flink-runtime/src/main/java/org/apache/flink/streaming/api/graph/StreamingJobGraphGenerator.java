@@ -1194,9 +1194,10 @@ public class StreamingJobGraphGenerator {
 
             Preconditions.checkState(
                     inputIndex < inputSerializers.length,
-                    "Input type serializer of vertex '%s' was null or undefined for inputIndex %s",
-                    vertex,
-                    inputIndex);
+                    "Invalid inputIndex %s for vertex '%s': Expected inputIndex to be less than %s (number of input serializers).",
+                    inputIndex,
+                    inputSerializers.length,
+                    vertex);
 
             if (chainedSource != null) {
                 // chained source is the input
