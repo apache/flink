@@ -87,7 +87,7 @@ public class EventTimeWrappedTwoOutputStreamProcessFunction<IN, OUT1, OUT2>
     }
 
     @Override
-    public void endInput(TwoOutputNonPartitionedContext<OUT1, OUT2> ctx) {
+    public void endInput(TwoOutputNonPartitionedContext<OUT1, OUT2> ctx) throws Exception {
         wrappedUserFunction.endInput(ctx);
     }
 
@@ -96,7 +96,8 @@ public class EventTimeWrappedTwoOutputStreamProcessFunction<IN, OUT1, OUT2>
             long timestamp,
             Collector<OUT1> output1,
             Collector<OUT2> output2,
-            TwoOutputPartitionedContext<OUT1, OUT2> ctx) {
+            TwoOutputPartitionedContext<OUT1, OUT2> ctx)
+            throws Exception {
         wrappedUserFunction.onProcessingTimer(timestamp, output1, output2, ctx);
     }
 
@@ -105,7 +106,8 @@ public class EventTimeWrappedTwoOutputStreamProcessFunction<IN, OUT1, OUT2>
             Watermark watermark,
             Collector<OUT1> output1,
             Collector<OUT2> output2,
-            TwoOutputNonPartitionedContext<OUT1, OUT2> ctx) {
+            TwoOutputNonPartitionedContext<OUT1, OUT2> ctx)
+            throws Exception {
         if (EventTimeExtensionImpl.isEventTimeExtensionWatermark(watermark)) {
             // If the watermark is from the event time extension, process it and call {@code
             // userFunction#onEventTimeWatermark} when the event time is updated; otherwise, forward
@@ -131,7 +133,8 @@ public class EventTimeWrappedTwoOutputStreamProcessFunction<IN, OUT1, OUT2>
             long timestamp,
             Collector<OUT1> output1,
             Collector<OUT2> output2,
-            TwoOutputPartitionedContext<OUT1, OUT2> ctx) {
+            TwoOutputPartitionedContext<OUT1, OUT2> ctx)
+            throws Exception {
         wrappedUserFunction.onEventTimer(timestamp, output1, output2, ctx);
     }
 
