@@ -56,7 +56,7 @@ public interface OneInputStreamProcessFunction<IN, OUT> extends ProcessFunction 
      *
      * @param ctx the context in which this function is executed.
      */
-    default void endInput(NonPartitionedContext<OUT> ctx) {}
+    default void endInput(NonPartitionedContext<OUT> ctx) throws Exception {}
 
     /**
      * Callback for processing timer.
@@ -66,11 +66,12 @@ public interface OneInputStreamProcessFunction<IN, OUT> extends ProcessFunction 
      * @param ctx runtime context in which this function is executed.
      */
     default void onProcessingTimer(
-            long timestamp, Collector<OUT> output, PartitionedContext<OUT> ctx) {}
+            long timestamp, Collector<OUT> output, PartitionedContext<OUT> ctx) throws Exception {}
 
     /** Callback function when receive watermark. */
     default WatermarkHandlingResult onWatermark(
-            Watermark watermark, Collector<OUT> output, NonPartitionedContext<OUT> ctx) {
+            Watermark watermark, Collector<OUT> output, NonPartitionedContext<OUT> ctx)
+            throws Exception {
         return WatermarkHandlingResult.PEEK;
     }
 }
