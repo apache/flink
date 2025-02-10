@@ -82,7 +82,7 @@ Start the SQL Gateway using:
 ```
 
 <span class="label label-danger">Note</span>
-The Catalog must support the creation of materialized tables. Currently, only [Paimon Catalog](https://paimon.apache.org/docs/master/concepts/table-types/#materialized-table) supports it.
+The Catalog must support creating materialized tables, which is currently only supported by [Paimon Catalog](https://paimon.apache.org/docs/master/concepts/table-types/#materialized-table).
 
 # Operation Guide
 
