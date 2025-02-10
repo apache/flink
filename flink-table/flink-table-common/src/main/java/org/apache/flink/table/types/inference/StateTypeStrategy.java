@@ -20,13 +20,29 @@ package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import javax.annotation.Nullable;
+
+import java.time.Duration;
+import java.util.Optional;
+
 /** Strategy for inferring a function call's intermediate result data type (i.e. state entry). */
 @PublicEvolving
 public interface StateTypeStrategy extends TypeStrategy {
 
     static StateTypeStrategy of(TypeStrategy typeStrategy) {
-        return new DefaultStateTypeStrategy(typeStrategy);
+        return new DefaultStateTypeStrategy(typeStrategy, null);
     }
 
-    // marker interface which will be filled with additional contracts in the future
+    static StateTypeStrategy of(TypeStrategy typeStrategy, @Nullable Duration timeToLive) {
+        return new DefaultStateTypeStrategy(typeStrategy, timeToLive);
+    }
+
+    /**
+     * The time-to-live (TTL) duration that automatically cleans up the state entry.
+     *
+     * <p>Returning {@code Optional.empty()} will fall back to default behavior. Returning a value
+     * equal or greater than 0 means setting a custom TTL for this state entry and ignoring the
+     * global defaults.
+     */
+    Optional<Duration> getTimeToLive(CallContext callContext);
 }

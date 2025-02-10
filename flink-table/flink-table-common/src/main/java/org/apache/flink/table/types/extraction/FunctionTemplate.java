@@ -27,9 +27,11 @@ import org.apache.flink.table.annotation.ProcedureHint;
 import org.apache.flink.table.annotation.StateHint;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.extraction.FunctionResultTemplate.FunctionOutputTemplate;
 import org.apache.flink.table.types.extraction.FunctionResultTemplate.FunctionStateTemplate;
+import org.apache.flink.table.types.extraction.FunctionResultTemplate.FunctionStateTemplate.StateInfoTemplate;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.types.Row;
 
@@ -143,9 +145,13 @@ final class FunctionTemplate {
                     "State hints and accumulator cannot be declared in the same function hint. "
                             + "Use either one or the other.");
         }
-        final LinkedHashMap<String, DataType> state = new LinkedHashMap<>();
+        final LinkedHashMap<String, StateInfoTemplate> state = new LinkedHashMap<>();
         if (accumulatorHint != null) {
-            state.put("acc", createStateDataType(typeFactory, accumulatorHint, "accumulator"));
+            state.put(
+                    UserDefinedFunctionHelper.DEFAULT_ACCUMULATOR_NAME,
+                    StateInfoTemplate.of(
+                            createStateDataType(typeFactory, accumulatorHint, "accumulator"),
+                            null));
             return FunctionResultTemplate.ofState(state);
         }
         IntStream.range(0, stateHints.length)
@@ -154,7 +160,10 @@ final class FunctionTemplate {
                             final StateHint hint = stateHints[pos];
                             state.put(
                                     hint.name(),
-                                    createStateDataType(typeFactory, hint.type(), "state entry"));
+                                    StateInfoTemplate.of(
+                                            createStateDataType(
+                                                    typeFactory, hint.type(), "state entry"),
+                                            hint));
                         });
         return FunctionResultTemplate.ofState(state);
     }

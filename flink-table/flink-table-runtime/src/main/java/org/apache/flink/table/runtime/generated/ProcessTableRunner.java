@@ -33,5 +33,21 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
     public Collector<RowData> runnerCollector;
     public ProcessTableFunction.Context runnerContext;
 
-    public abstract void processElement(int inputIndex, RowData row) throws Exception;
+    /**
+     * @param stateToFunction state entries to be converted into external data structure; null if
+     *     state is empty
+     * @param stateCleared reference to whether the state has been cleared within the function; if
+     *     yes, a conversion from external to internal data structure is not necessary anymore
+     * @param stateFromFunction state ready for persistence; null if {@param stateCleared} was true
+     *     during conversion
+     * @param inputIndex index of the currently processed input table
+     * @param row data of the currently processed input table
+     */
+    public abstract void processElement(
+            RowData[] stateToFunction,
+            boolean[] stateCleared,
+            RowData[] stateFromFunction,
+            int inputIndex,
+            RowData row)
+            throws Exception;
 }

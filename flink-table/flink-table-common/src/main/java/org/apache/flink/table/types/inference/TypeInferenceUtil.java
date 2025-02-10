@@ -23,8 +23,8 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.TableSemantics;
+import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.utils.AdaptedCallContext;
 import org.apache.flink.table.types.inference.utils.UnknownCallContext;
@@ -32,7 +32,10 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -162,6 +165,26 @@ public final class TypeInferenceUtil {
                     "Could not infer an output type for the given arguments. Untyped NULL received.");
         }
         return outputType;
+    }
+
+    /**
+     * Infers {@link StateInfo}s using the given {@link StateTypeStrategy}s. It assumes that input
+     * arguments have been adapted before if necessary.
+     */
+    public static LinkedHashMap<String, StateInfo> inferStateInfos(
+            CallContext callContext, LinkedHashMap<String, StateTypeStrategy> stateTypeStrategies) {
+        return stateTypeStrategies.entrySet().stream()
+                .map(
+                        e ->
+                                Map.entry(
+                                        e.getKey(),
+                                        inferStateInfo(callContext, e.getKey(), e.getValue())))
+                .collect(
+                        Collectors.toMap(
+                                Map.Entry::getKey,
+                                Map.Entry::getValue,
+                                (x, y) -> y,
+                                LinkedHashMap::new));
     }
 
     /** Generates a signature of the given {@link FunctionDefinition}. */
@@ -320,16 +343,16 @@ public final class TypeInferenceUtil {
 
         private final List<DataType> expectedArgumentTypes;
 
-        private final @Nullable DataType accumulatorDataType;
+        private final LinkedHashMap<String, StateInfo> stateInfos;
 
         private final DataType outputDataType;
 
         public Result(
                 List<DataType> expectedArgumentTypes,
-                @Nullable DataType accumulatorDataType,
+                LinkedHashMap<String, StateInfo> stateInfos,
                 DataType outputDataType) {
             this.expectedArgumentTypes = expectedArgumentTypes;
-            this.accumulatorDataType = accumulatorDataType;
+            this.stateInfos = stateInfos;
             this.outputDataType = outputDataType;
         }
 
@@ -337,12 +360,32 @@ public final class TypeInferenceUtil {
             return expectedArgumentTypes;
         }
 
-        public Optional<DataType> getAccumulatorDataType() {
-            return Optional.ofNullable(accumulatorDataType);
+        public LinkedHashMap<String, StateInfo> getStateInfos() {
+            return stateInfos;
         }
 
         public DataType getOutputDataType() {
             return outputDataType;
+        }
+    }
+
+    /** Result of running {@link StateTypeStrategy}. */
+    public static final class StateInfo {
+
+        private final DataType dataType;
+        private final @Nullable Duration timeToLive;
+
+        private StateInfo(DataType dataType, @Nullable Duration timeToLive) {
+            this.dataType = dataType;
+            this.timeToLive = timeToLive;
+        }
+
+        public DataType getDataType() {
+            return dataType;
+        }
+
+        public Optional<Duration> getTimeToLive() {
+            return Optional.ofNullable(timeToLive);
         }
     }
 
@@ -380,17 +423,14 @@ public final class TypeInferenceUtil {
         }
 
         // infer output type first for better error message
-        // (logically an accumulator type should be inferred first)
+        // (logically state types should be inferred first)
         final DataType outputType =
                 inferOutputType(adaptedCallContext, typeInference.getOutputTypeStrategy());
 
-        final DataType accumulatorType =
-                inferAccumulatorType(
-                        adaptedCallContext,
-                        outputType,
-                        typeInference.getAccumulatorTypeStrategy().orElse(null));
+        final LinkedHashMap<String, StateInfo> stateInfos =
+                inferStateInfos(adaptedCallContext, typeInference.getStateTypeStrategies());
 
-        return new Result(adaptedCallContext.getArgumentDataTypes(), accumulatorType, outputType);
+        return new Result(adaptedCallContext.getArgumentDataTypes(), stateInfos, outputType);
     }
 
     private static String formatStaticArguments(String name, List<StaticArgument> staticArguments) {
@@ -474,34 +514,23 @@ public final class TypeInferenceUtil {
         return adaptedCallContext;
     }
 
-    private static @Nullable DataType inferAccumulatorType(
-            CallContext callContext,
-            DataType outputType,
-            @Nullable TypeStrategy accumulatorTypeStrategy) {
-        if (callContext.getFunctionDefinition().getKind() != FunctionKind.TABLE_AGGREGATE
-                && callContext.getFunctionDefinition().getKind() != FunctionKind.AGGREGATE) {
-            return null;
+    private static StateInfo inferStateInfo(
+            CallContext callContext, String name, StateTypeStrategy stateTypeStrategy) {
+        final DataType stateType = stateTypeStrategy.inferType(callContext).orElse(null);
+        if (stateType == null || isUnknown(stateType)) {
+            final String errorMessage;
+            if (name.equals(UserDefinedFunctionHelper.DEFAULT_ACCUMULATOR_NAME)) {
+                errorMessage = "Could not infer an accumulator type for the given arguments.";
+            } else {
+                errorMessage =
+                        String.format("Could not infer a data type for state entry '%s'.", name);
+            }
+            throw new ValidationException(errorMessage);
         }
 
-        // an accumulator might be an internal feature of the planner, therefore it is not
-        // mandatory here; we assume the output type to be the accumulator type in this case
-        if (accumulatorTypeStrategy == null) {
-            return outputType;
-        }
-        final Optional<DataType> potentialAccumulatorType =
-                accumulatorTypeStrategy.inferType(callContext);
-        if (potentialAccumulatorType.isEmpty()) {
-            throw new ValidationException(
-                    "Could not infer an accumulator type for the given arguments.");
-        }
-        final DataType accumulatorType = potentialAccumulatorType.get();
+        final Duration ttl = stateTypeStrategy.getTimeToLive(callContext).orElse(null);
 
-        if (isUnknown(accumulatorType)) {
-            throw new ValidationException(
-                    "Could not infer an accumulator type for the given arguments. Untyped NULL received.");
-        }
-
-        return accumulatorType;
+        return new StateInfo(stateType, ttl);
     }
 
     private static boolean isUnknown(DataType dataType) {

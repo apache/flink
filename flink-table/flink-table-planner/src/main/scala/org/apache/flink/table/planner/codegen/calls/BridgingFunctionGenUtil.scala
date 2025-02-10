@@ -126,7 +126,7 @@ object BridgingFunctionGenUtil {
     (call, enrichedOutputDataType)
   }
 
-  def generateFunctionAwareCall(
+  private def generateFunctionAwareCall(
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
       argumentDataTypes: Seq[DataType],
@@ -165,7 +165,7 @@ object BridgingFunctionGenUtil {
     }
   }
 
-  private def generateTableFunctionCall(
+  def generateTableFunctionCall(
       ctx: CodeGeneratorContext,
       functionTerm: String,
       externalOperands: Seq[GeneratedExpression],

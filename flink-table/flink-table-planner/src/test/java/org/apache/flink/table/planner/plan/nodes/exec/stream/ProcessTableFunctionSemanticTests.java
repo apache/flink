@@ -41,6 +41,11 @@ public class ProcessTableFunctionSemanticTests extends SemanticTestBase {
                 ProcessTableFunctionTestPrograms.PROCESS_UPDATING_INPUT,
                 ProcessTableFunctionTestPrograms.PROCESS_OPTIONAL_PARTITION_BY,
                 ProcessTableFunctionTestPrograms.PROCESS_ATOMIC_WRAPPING,
-                ProcessTableFunctionTestPrograms.PROCESS_CONTEXT);
+                ProcessTableFunctionTestPrograms.PROCESS_CONTEXT,
+                ProcessTableFunctionTestPrograms.PROCESS_POJO_STATE,
+                ProcessTableFunctionTestPrograms.PROCESS_DEFAULT_POJO_STATE,
+                ProcessTableFunctionTestPrograms.PROCESS_MULTI_STATE,
+                ProcessTableFunctionTestPrograms.PROCESS_CLEARING_STATE,
+                ProcessTableFunctionTestPrograms.PROCESS_STATE_TTL);
     }
 }
