@@ -555,6 +555,16 @@ public class ExecutionConfigOptions {
                                             + "not enabled.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Integer> UNBOUNDED_OVER_VERSION =
+            ConfigOptions.key("table.exec.unbounded-over.version")
+                    .intType()
+                    .defaultValue(2)
+                    .withDescription(
+                            "Which version of the unbounded over aggregation to use: "
+                                    + " 1 - legacy version"
+                                    + " 2 - version with improved performance");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<UidGeneration> TABLE_EXEC_UID_GENERATION =
             key("table.exec.uid.generation")
                     .enumType(UidGeneration.class)

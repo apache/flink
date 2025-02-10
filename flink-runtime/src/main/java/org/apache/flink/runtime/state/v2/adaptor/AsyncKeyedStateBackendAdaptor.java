@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.state.v2.adaptor;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.InternalCheckpointListener;
 import org.apache.flink.api.common.state.v2.State;
@@ -199,7 +198,6 @@ public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend<
         return keyedStateBackend.isSafeToReuseKVState();
     }
 
-    @VisibleForTesting
     public CheckpointableKeyedStateBackend<K> getKeyedStateBackend() {
         return keyedStateBackend;
     }

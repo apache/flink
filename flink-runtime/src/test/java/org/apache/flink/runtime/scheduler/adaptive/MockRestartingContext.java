@@ -22,6 +22,7 @@ import org.apache.flink.core.testutils.CompletedScheduledFuture;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 
@@ -29,6 +30,7 @@ import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
 import java.util.function.Consumer;
 
@@ -47,6 +49,8 @@ class MockRestartingContext extends MockStateWithExecutionGraphContext
     private final StateValidator<ExecutionGraph> creatingExecutionGraphStateValidator =
             new StateValidator<>("CreatingExecutionGraph");
 
+    @Nullable private VertexParallelism availableVertexParallelism;
+
     public void setExpectCancelling(Consumer<ExecutingTest.CancellingArguments> asserter) {
         cancellingStateValidator.expectInput(asserter);
     }
@@ -57,6 +61,11 @@ class MockRestartingContext extends MockStateWithExecutionGraphContext
 
     public void setExpectCreatingExecutionGraph() {
         creatingExecutionGraphStateValidator.expectInput(assertNonNull());
+    }
+
+    public void setAvailableVertexParallelism(
+            @Nullable VertexParallelism availableVertexParallelism) {
+        this.availableVertexParallelism = availableVertexParallelism;
     }
 
     @Override
@@ -92,6 +101,11 @@ class MockRestartingContext extends MockStateWithExecutionGraphContext
             action.run();
         }
         return CompletedScheduledFuture.create(null);
+    }
+
+    @Override
+    public Optional<VertexParallelism> getAvailableVertexParallelism() {
+        return Optional.ofNullable(availableVertexParallelism);
     }
 
     @Override

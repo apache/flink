@@ -154,7 +154,11 @@ class Executing extends StateWithExecutionGraph
                 getExecutionGraphHandler(),
                 getOperatorCoordinatorHandler(),
                 Duration.ofMillis(0L),
-                true,
+                context.getAvailableVertexParallelism()
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "Resources must be available when rescaling.")),
                 getFailures());
     }
 

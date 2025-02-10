@@ -18,7 +18,6 @@
 
 package org.apache.flink.state.forst.fs;
 
-import org.apache.flink.annotation.Experimental;
 import org.apache.flink.core.fs.BlockLocation;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
@@ -60,7 +59,6 @@ import java.util.List;
  * <p>All methods in this class maybe used by ForSt, please start a discussion firstly if it has to
  * be modified.
  */
-@Experimental
 public class ForStFlinkFileSystem extends FileSystem {
 
     private static final Logger LOG = LoggerFactory.getLogger(ForStFlinkFileSystem.class);
@@ -80,14 +78,12 @@ public class ForStFlinkFileSystem extends FileSystem {
             FileSystem delegateFS,
             String remoteBase,
             String localBase,
-            @Nullable FileOwnershipDecider fileOwnershipDecider,
             @Nullable FileBasedCache fileBasedCache) {
         this.localFS = FileSystem.getLocalFileSystem();
         this.delegateFS = delegateFS;
         this.remoteBase = remoteBase;
         this.fileBasedCache = fileBasedCache;
-        this.fileMappingManager =
-                new FileMappingManager(delegateFS, fileOwnershipDecider, remoteBase, localBase);
+        this.fileMappingManager = new FileMappingManager(delegateFS, remoteBase, localBase);
     }
 
     /**
@@ -101,26 +97,14 @@ public class ForStFlinkFileSystem extends FileSystem {
      */
     public static ForStFlinkFileSystem get(URI uri) throws IOException {
         return new ForStFlinkFileSystem(
-                FileSystem.get(uri),
-                uri.toString(),
-                System.getProperty("java.io.tmpdir"),
-                null,
-                null);
+                FileSystem.get(uri), uri.toString(), System.getProperty("java.io.tmpdir"), null);
     }
 
-    public static ForStFlinkFileSystem get(
-            URI uri,
-            Path localBase,
-            FileOwnershipDecider fileOwnershipDecider,
-            FileBasedCache fileBasedCache)
+    public static ForStFlinkFileSystem get(URI uri, Path localBase, FileBasedCache fileBasedCache)
             throws IOException {
         Preconditions.checkNotNull(localBase, "localBase is null, remote uri: %s.", uri);
         return new ForStFlinkFileSystem(
-                FileSystem.get(uri),
-                uri.toString(),
-                localBase.toString(),
-                fileOwnershipDecider,
-                fileBasedCache);
+                FileSystem.get(uri), uri.toString(), localBase.toString(), fileBasedCache);
     }
 
     public static FileBasedCache getFileBasedCache(
@@ -193,7 +177,7 @@ public class ForStFlinkFileSystem extends FileSystem {
         CachedDataOutputStream cachedDataOutputStream =
                 createCachedDataOutputStream(dbFilePath, sourceRealPath, outputStream);
 
-        LOG.info(
+        LOG.trace(
                 "Create file: dbFilePath: {}, sourceRealPath: {}, cachedDataOutputStream: {}",
                 dbFilePath,
                 sourceRealPath,
@@ -352,11 +336,6 @@ public class ForStFlinkFileSystem extends FileSystem {
     public synchronized void registerReusedRestoredFile(
             String key, StreamStateHandle stateHandle, Path dbFilePath) {
         fileMappingManager.registerReusedRestoredFile(key, stateHandle, dbFilePath);
-    }
-
-    public synchronized @Nullable Path srcPath(Path path) {
-        MappingEntry mappingEntry = fileMappingManager.mappingEntry(path.toString());
-        return mappingEntry == null ? null : mappingEntry.getSourcePath();
     }
 
     public synchronized @Nullable MappingEntry getMappingEntry(Path path) {

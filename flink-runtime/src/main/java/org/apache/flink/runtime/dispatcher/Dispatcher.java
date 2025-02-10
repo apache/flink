@@ -878,8 +878,19 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
                     completedJobDetails.forEach(job -> deduplicatedJobs.put(job.getJobId(), job));
                     runningJobDetails.forEach(job -> deduplicatedJobs.put(job.getJobId(), job));
+                    Collection<JobDetails> orderedDeduplicatedJobs =
+                            deduplicatedJobs.values().stream()
+                                    .sorted(
+                                            (jd1, jd2) ->
+                                                    jd1.getStartTime() == jd2.getStartTime()
+                                                            ? jd1.getJobId()
+                                                                    .compareTo(jd2.getJobId())
+                                                            : Long.compare(
+                                                                    jd2.getStartTime(),
+                                                                    jd1.getStartTime()))
+                                    .collect(Collectors.toList());
 
-                    return new MultipleJobsDetails(new HashSet<>(deduplicatedJobs.values()));
+                    return new MultipleJobsDetails(orderedDeduplicatedJobs);
                 });
     }
 

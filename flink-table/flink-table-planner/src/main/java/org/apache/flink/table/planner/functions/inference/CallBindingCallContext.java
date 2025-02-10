@@ -98,6 +98,9 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
 
     @Override
     public boolean isArgumentNull(int pos) {
+        // Default values are passed as NULL into functions.
+        // We can introduce a dedicated CallContext.isDefault() method in the future if fine-grained
+        // information is required.
         return SqlUtil.isNullLiteral(adaptedArguments.get(pos), false)
                 || adaptedArguments.get(pos).getKind() == SqlKind.DEFAULT;
     }
@@ -127,8 +130,7 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
             return Optional.empty();
         }
         return Optional.of(
-                CallBindingTableSemantics.create(
-                        argumentDataTypes.get(pos), staticArguments.get(pos), sqlNode));
+                CallBindingTableSemantics.create(argumentDataTypes.get(pos), staticArg, sqlNode));
     }
 
     @Override

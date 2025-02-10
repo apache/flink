@@ -353,7 +353,7 @@ class ExecutingTest {
             ctx.setExpectRestarting(
                     restartingArguments -> {
                         assertThat(restartingArguments.getBackoffTime()).isEqualTo(duration);
-                        assertThat(restartingArguments.isForcedRestart()).isFalse();
+                        assertThat(restartingArguments.getRestartWithParallelism()).isEmpty();
                     });
             ctx.setHowToHandleFailure(f -> FailureResult.canRestart(f, duration));
             exec.handleGlobalFailure(
@@ -439,7 +439,7 @@ class ExecutingTest {
             ctx.setExpectRestarting(
                     restartingArguments -> {
                         assertThat(restartingArguments).isNotNull();
-                        assertThat(restartingArguments.isForcedRestart()).isFalse();
+                        assertThat(restartingArguments.getRestartWithParallelism()).isEmpty();
                     });
 
             Exception exception = new RuntimeException();
@@ -616,9 +616,14 @@ class ExecutingTest {
     public void testOmitsWaitingForResourcesStateWhenRestarting() throws Exception {
         try (MockExecutingContext ctx = new MockExecutingContext()) {
             final Executing testInstance = new ExecutingStateBuilder().build(ctx);
+            final VertexParallelism vertexParallelism =
+                    new VertexParallelism(Collections.singletonMap(new JobVertexID(), 2));
+            ctx.setVertexParallelism(vertexParallelism);
             ctx.setExpectRestarting(
                     restartingArguments ->
-                            assertThat(restartingArguments.isForcedRestart()).isTrue());
+                            assertThat(restartingArguments.getRestartWithParallelism())
+                                    .hasValue(vertexParallelism));
+
             testInstance.transitionToSubsequentState();
         }
     }
@@ -824,7 +829,7 @@ class ExecutingTest {
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
                 Duration backoffTime,
-                boolean forcedRestart,
+                @Nullable VertexParallelism restartWithParallelism,
                 List<ExceptionHistoryEntry> failureCollection) {
             restartingStateValidator.validateInput(
                     new RestartingArguments(
@@ -832,7 +837,7 @@ class ExecutingTest {
                             executionGraphHandler,
                             operatorCoordinatorHandler,
                             backoffTime,
-                            forcedRestart));
+                            restartWithParallelism));
             hadStateTransition = true;
         }
 
@@ -948,25 +953,25 @@ class ExecutingTest {
 
     static class RestartingArguments extends CancellingArguments {
         private final Duration backoffTime;
-        private final boolean forcedRestart;
+        private final @Nullable VertexParallelism restartWithParallelism;
 
         public RestartingArguments(
                 ExecutionGraph executionGraph,
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
                 Duration backoffTime,
-                boolean forcedRestart) {
+                @Nullable VertexParallelism restartWithParallelism) {
             super(executionGraph, executionGraphHandler, operatorCoordinatorHandler);
             this.backoffTime = backoffTime;
-            this.forcedRestart = forcedRestart;
+            this.restartWithParallelism = restartWithParallelism;
         }
 
         public Duration getBackoffTime() {
             return backoffTime;
         }
 
-        public boolean isForcedRestart() {
-            return forcedRestart;
+        public Optional<VertexParallelism> getRestartWithParallelism() {
+            return Optional.ofNullable(restartWithParallelism);
         }
     }
 

@@ -18,6 +18,9 @@
 
 package org.apache.flink.kubernetes.utils;
 
+import java.util.Arrays;
+import java.util.List;
+
 /** Constants for kubernetes. */
 public class Constants {
 
@@ -30,6 +33,17 @@ public class Constants {
 
     public static final String CONFIG_FILE_LOGBACK_NAME = "logback-console.xml";
     public static final String CONFIG_FILE_LOG4J_NAME = "log4j-console.properties";
+
+    public static final List<String> CONFIG_FILE_NAME_LIST =
+            Arrays.asList(
+                    "logback.xml",
+                    "log4j.properties",
+                    "logback-console.xml",
+                    "log4j-console.properties",
+                    "logback-session.xml",
+                    "log4j-session.properties",
+                    "log4j-cli.properties");
+
     public static final String ENV_FLINK_LOG_DIR = "FLINK_LOG_DIR";
 
     public static final String MAIN_CONTAINER_NAME = "flink-main-container";

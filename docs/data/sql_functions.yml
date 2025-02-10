@@ -241,9 +241,9 @@ arithmetic:
   - sql: UNHEX(expr)
     table: expr.unhex()
     description: |
-      Converts hexadecimal string expr to BINARY.
+      Converts hexadecimal string expr to BINARY. If the length of expr is odd, the first character is discarded and the result is left padded with a null byte. 
       
-      If the length of expr is odd, the first character is discarded and the result is left padded with a null byte. 
+      E.g., SELECT DECODE(UNHEX('466C696E6B') , 'UTF-8' ) or '466C696E6B'.unhex().decode('UTF-8') returns "Flink".
       
       expr <CHAR | VARCHAR>
       
@@ -254,9 +254,11 @@ arithmetic:
   - sql: PERCENTILE(expr, percentage[, frequency])
     table: expr.percentile(percentage[, frequency])
     description: |
-      Returns the exact percentile value of expr at the specified percentage in a group.
+      Returns the percentile value of expr at the specified percentage using continuous distribution.
       
-      percentage must be a literal numeric value between `[0.0, 1.0]` or an array of such values. 
+      E.g., SELECT PERCENTILE(age, 0.25) FROM (VALUES  (10), (20), (30), (40)) AS age or $('age').percentile(0.25) returns 17.5
+      
+      The percentage must be a literal numeric value between `[0.0, 1.0]` or an array of such values. 
       If a variable expression is passed to this function, the result will be calculated using any one of them.
       frequency describes how many times expr should be counted, the default value is 1.
       
@@ -334,6 +336,8 @@ string:
     table: str.btrim([trimStr])
     description: |
       Removes any leading and trailing characters within trimStr from str. trimStr is set to whitespace by default.
+      
+      E.g., BTRIM('  www.apache.org  ') or '  www.apache.org  '.btrim() returns "www.apache.org", BTRIM('/www.apache.org/', '/') or '  www.apache.org  '.btrim() returns "www.apache.org".
       
       str <CHAR | VARCHAR>, trimStr <CHAR | VARCHAR>
       
@@ -431,10 +435,10 @@ string:
   - sql: TRANSLATE(expr, fromStr, toStr)
     table: expr.translate(fromStr, toStr)
     description: |
-      Translate an expr where all characters in fromStr have been replaced with those in toStr.
+      Translate an expr where all characters in fromStr have been replaced with those in toStr. If toStr has a shorter length than fromStr, unmatched characters are removed.
 
-      If toStr has a shorter length than fromStr, unmatched characters are removed.
-
+      E.g., SELECT TRANSLATE3('www.apache.org', 'wapcheorg', ' APCHEcom') or 'www.apache.org'.translate('wapcheorg', ' APCHEcom') returns "   .APACHE.com".
+      
       `expr <CHAR | VARCHAR>, fromStr <CHAR | VARCHAR>, toStr <CHAR | VARCHAR>`
 
       Returns a `STRING` of translated expr.
@@ -530,6 +534,8 @@ string:
     table: index.elt(expr, exprs...)
     description: |
       Returns the index-th expression. index must be an integer between 1 and the number of expressions.
+      
+      E.g., SELECT ELT(2, 'scala-1', 'java-2', 'go-3') or 2.elt('scala-1', 'java-2', 'go-3') returns "java-2".
       
       index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <CHAR | VARCHAR>, exprs <CHAR | VARCHAR>
       
@@ -787,7 +793,7 @@ collection:
   - sql: CARDINALITY(map)
     table: MAP.cardinality()
     description: Returns the number of entries in map.
-  - sql: map ‘[’ value ‘]’
+  - sql: map '[' value ']'
     table: MAP.at(ANY)
     description: Returns the value specified by key value in map.
   - sql: ARRAY_APPEND(array, element)
@@ -1060,6 +1066,9 @@ json:
       JSON_OBJECT(KEY 'K1' VALUE CAST(NULL AS STRING) NULL ON NULL)   -- '{"K1":null}'
       JSON_OBJECT(KEY 'K1' VALUE CAST(NULL AS STRING) ABSENT ON NULL) -- '{}'
 
+      -- '{"K1":{"K2":{"value":42}}}'
+      JSON_OBJECT('K1' VALUE JSON('{"K2": {"value": 42}}'))
+      
       -- '{"K1":{"K2":"V"}}'
       JSON_OBJECT(
         KEY 'K1'
@@ -1068,6 +1077,30 @@ json:
           VALUE 'V'
         )
       )
+      ```
+  - sql: JSON(value)
+    table: json(value)  
+    description: |
+      Expects a raw, pre-formatted JSON string and returns its values as-is without escaping it as a string.
+
+      This function can currently only be used within the `JSON_OBJECT` function. It allows passing 
+      pre-formatted JSON strings that will be inserted directly into the resulting JSON structure 
+      rather than being escaped as a string value. This allows storing nested JSON structures in a 
+      JSON_OBJECT without processing them as strings, which is often useful when ingesting already 
+      formatted json data. If the value is NULL or empty, the function returns NULL.
+
+      ```sql
+      -- {"K":{"K2":42}}
+      JSON_OBJECT('K' VALUE JSON('{"K2": 42}'))
+
+      -- {"K":{"K2":{"K3":42}}}
+      JSON_OBJECT('K' VALUE JSON('{"K2":{"K3":42}}'))
+
+      -- {"K": null}
+      JSON_OBJECT('K' VALUE JSON(''))
+
+      -- Invalid - JSON function can only be used within JSON_OBJECT
+      JSON('{"value": 42}')
       ```
   - sql: JSON_ARRAY([value]* [ { NULL | ABSENT } ON NULL ])
     table: jsonArray(JsonOnNull, values...)
@@ -1113,10 +1146,10 @@ valueconstruction:
       Returns a row created from a list of values (value1, value2,...).
 
       The implicit row constructor requires at least two fields. The explicit row constructor can deal with an arbitrary number of fields. Both of them support arbitrary expressions as fields.
-  - sql: ARRAY ‘[’ value1 [, value2 ]* ‘]’
+  - sql: ARRAY '[' value1 [, value2 ]* ']'
     table: array(ANY1, ANY2, ...)
     description: Returns an array created from a list of values (value1, value2, ...).
-  - sql: MAP ‘[’ value1, value2 [, value3, value4 ]* ‘]’
+  - sql: MAP '[' value1, value2 [, value3, value4 ]* ']'
     table: map(ANY1, ANY2, ANY3, ANY4, ...)
     description: Returns a map created from a list of key-value pairs ((value1, value2), (value3, value4), ...).
   - table: NUMERIC.rows

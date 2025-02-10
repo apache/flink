@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.table.functions.{FunctionDefinition, ScalarFunction, TableFunction, UserDefinedFunctionHelper}
+import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.{generateFunctionAwareCall, DefaultExpressionEvaluatorFactory}
 import org.apache.flink.table.planner.delegation.PlannerBase
@@ -44,8 +44,8 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
       operands: Seq[GeneratedExpression],
       returnType: LogicalType): GeneratedExpression = {
 
-    val function: BridgingSqlFunction = call.getOperator.asInstanceOf[BridgingSqlFunction]
-    val definition: FunctionDefinition = function.getDefinition
+    val function = call.getOperator.asInstanceOf[BridgingSqlFunction]
+    val definition = function.getDefinition
     val dataTypeFactory = function.getDataTypeFactory
     val rexFactory = function.getRexFactory
 

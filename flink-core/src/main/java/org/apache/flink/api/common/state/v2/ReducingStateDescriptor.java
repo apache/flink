@@ -67,6 +67,23 @@ public class ReducingStateDescriptor<T> extends StateDescriptor<T> {
         this.reduceFunction = checkNotNull(reduceFunction);
     }
 
+    /**
+     * Creates a new {@code ReducingStateDescriptor} with the given name, type, and default value.
+     *
+     * <p>If this constructor fails (because it is not possible to describe the type via a class),
+     * consider using the {@link #ReducingStateDescriptor(String, ReduceFunction, TypeInformation)}
+     * constructor.
+     *
+     * @param name The (unique) name for the state.
+     * @param reduceFunction The {@code ReduceFunction} used to aggregate the state.
+     * @param typeClass The type of the values in the state.
+     */
+    public ReducingStateDescriptor(
+            String name, ReduceFunction<T> reduceFunction, Class<T> typeClass) {
+        super(name, typeClass);
+        this.reduceFunction = checkNotNull(reduceFunction);
+    }
+
     /** Returns the reduce function to be used for the reducing state. */
     public ReduceFunction<T> getReduceFunction() {
         return reduceFunction;

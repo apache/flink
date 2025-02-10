@@ -483,15 +483,11 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
             TwoInputNonBroadcastStreamProcessFunction<V, T_OTHER, OUT> processFunction,
             TypeInformation<OUT> outTypeInfo) {
         ListStateDescriptor<V> leftStateDesc =
-                new ListStateDescriptor<>(
-                        "join-left-state", TypeExtractor.createTypeInfo(getType().getTypeClass()));
+                new ListStateDescriptor<>("join-left-state", getType());
         ListStateDescriptor<T_OTHER> rightStateDesc =
                 new ListStateDescriptor<>(
                         "join-right-state",
-                        TypeExtractor.createTypeInfo(
-                                ((KeyedPartitionStreamImpl<Object, T_OTHER>) other)
-                                        .getType()
-                                        .getTypeClass()));
+                        ((KeyedPartitionStreamImpl<Object, T_OTHER>) other).getType());
         TwoInputNonBroadcastJoinProcessOperator<K, V, T_OTHER, OUT> joinProcessOperator =
                 new TwoInputNonBroadcastJoinProcessOperator<>(
                         processFunction, leftStateDesc, rightStateDesc);

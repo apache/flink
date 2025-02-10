@@ -23,18 +23,21 @@ import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterOverviewWithVersion;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.junit5.InjectClusterClient;
+import org.apache.flink.test.junit5.InjectMiniCluster;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.TestLoggerExtension;
 
@@ -44,6 +47,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
 
 /** Tests for the manual rescaling of Flink jobs using the REST API. */
 @ExtendWith(TestLoggerExtension.class)
@@ -66,17 +70,23 @@ public class UpdateJobResourceRequirementsITCase {
         // speed the test suite up
         // - lower refresh interval -> controls how fast we invalidate ExecutionGraphCache
         // - lower slot idle timeout -> controls how fast we return idle slots to TM
+        // - disable cooldown after rescaling -> controls how fast we can rescale
         configuration.set(WebOptions.REFRESH_INTERVAL, Duration.ofMillis(50L));
         configuration.set(JobManagerOptions.SLOT_IDLE_TIMEOUT, Duration.ofMillis(50L));
-
+        configuration.set(
+                JobManagerOptions.SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING, Duration.ZERO);
         return configuration;
     }
 
     private RestClusterClient<?> restClusterClient;
+    private MiniCluster miniCluster;
 
     @BeforeEach
-    void beforeEach(@InjectClusterClient RestClusterClient<?> restClusterClient) {
+    void beforeEach(
+            @InjectClusterClient RestClusterClient<?> restClusterClient,
+            @InjectMiniCluster MiniCluster miniCluster) {
         this.restClusterClient = restClusterClient;
+        this.miniCluster = miniCluster;
     }
 
     @Test
@@ -182,6 +192,47 @@ public class UpdateJobResourceRequirementsITCase {
                 NUMBER_OF_SLOTS - runningTasksAfterRescale);
     }
 
+    @Test
+    void testResourcesUnavailableAfterRescale() throws Exception {
+        final int initialRunningTasks = 3;
+        final int runningTasksAfterRescale = 2;
+
+        final JobVertex jobVertex = new JobVertex("Operator");
+        jobVertex.setParallelism(initialRunningTasks);
+        jobVertex.setInvokableClass(BlockingCancelNoOpInvokable.class);
+        BlockingCancelNoOpInvokable.reset();
+
+        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(jobVertex);
+
+        try {
+            restClusterClient.submitJob(jobGraph).join();
+
+            final JobID jobId = jobGraph.getJobID();
+            waitForRunningTasks(restClusterClient, jobId, initialRunningTasks);
+
+            final JobResourceRequirements jobResourceRequirements =
+                    JobResourceRequirements.newBuilder()
+                            .setParallelismForJobVertex(
+                                    jobVertex.getID(), 1, runningTasksAfterRescale)
+                            .build();
+
+            // wait for the job to be cancelled before rescaling
+            restClusterClient.updateJobResourceRequirements(jobId, jobResourceRequirements).join();
+            BlockingCancelNoOpInvokable.cancelWasCalled.await();
+
+            // terminate a task manager to make resources unavailable
+            miniCluster.terminateTaskManager(0);
+            BlockingCancelNoOpInvokable.cancelBlocking.countDown();
+
+            // add a new task manager to make resources available again and verify that the job
+            // becomes running
+            miniCluster.startTaskManager();
+            waitForRunningTasks(restClusterClient, jobId, runningTasksAfterRescale);
+        } finally {
+            restClusterClient.cancel(jobGraph.getJobID()).join();
+        }
+    }
+
     private void runRescalingTest(
             JobGraph jobGraph,
             JobResourceRequirements newJobVertexParallelism,
@@ -233,5 +284,27 @@ public class UpdateJobResourceRequirementsITCase {
                             restClusterClient.getClusterOverview().join();
                     return clusterOverview.getNumSlotsAvailable() == desiredNumberOfAvailableSlots;
                 });
+    }
+
+    public static class BlockingCancelNoOpInvokable extends BlockingNoOpInvokable {
+
+        private static CountDownLatch cancelWasCalled;
+        private static CountDownLatch cancelBlocking;
+
+        public BlockingCancelNoOpInvokable(Environment environment) {
+            super(environment);
+        }
+
+        @Override
+        public void cancel() throws Exception {
+            cancelWasCalled.countDown();
+            cancelBlocking.await();
+            super.cancel();
+        }
+
+        public static void reset() {
+            cancelWasCalled = new CountDownLatch(1);
+            cancelBlocking = new CountDownLatch(1);
+        }
     }
 }
