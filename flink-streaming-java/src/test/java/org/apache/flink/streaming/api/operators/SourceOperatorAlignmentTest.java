@@ -196,6 +196,39 @@ public class SourceOperatorAlignmentTest {
         }
     }
 
+    @Test        
+    void testWatermarkAlignmentWithoutSplit() throws Exception {
+        operator.initializeState(context.createStateContext());
+        operator.open();
+
+        CollectingDataOutput<Integer> actualOutput = new CollectingDataOutput<>();
+        assertThat(operator.emitNext(actualOutput)).isEqualTo(DataInputStatus.NOTHING_AVAILABLE);
+
+        // Don't report any ReportedWatermarkEvent
+        context.getTimeService().advance(1);
+        assertNoReportedWatermarkEvent(context);
+
+        context.getTimeService().advance(1);
+        assertNoReportedWatermarkEvent(context);
+
+        assertThat(operator.emitNext(actualOutput)).isEqualTo(DataInputStatus.NOTHING_AVAILABLE);
+
+        MockSourceSplit newSplit = new MockSourceSplit(2);
+        int record = 10;
+        newSplit.addRecord(record);
+        operator.handleOperatorEvent(
+                new AddSplitEvent<>(
+                        Collections.singletonList(newSplit), new MockSourceSplitSerializer()));
+
+        List<Integer> expectedOutput = new ArrayList<>();
+        assertThat(operator.emitNext(actualOutput)).isEqualTo(DataInputStatus.MORE_AVAILABLE);
+        expectedOutput.add(record);
+
+        context.getTimeService().advance(1);
+        assertLatestReportedWatermarkEvent(record);
+        assertOutput(actualOutput, expectedOutput);
+    }
+
     @Test
     public void testStopWhileWaitingForWatermarkAlignment() throws Exception {
         testWatermarkAlignment();
@@ -261,6 +294,14 @@ public class SourceOperatorAlignmentTest {
 
         assertFalse(events.isEmpty());
         assertEquals(new ReportedWatermarkEvent(expectedWatermark), events.get(events.size() - 1));
+    }
+
+    private void assertNoReportedWatermarkEvent(SourceOperatorTestContext context) {
+        List<OperatorEvent> events =
+                context.getGateway().getEventsSent().stream()
+                        .filter(event -> event instanceof ReportedWatermarkEvent)
+                        .collect(Collectors.toList());
+        assertThat(events).isEmpty();
     }
 
     private static class PunctuatedGenerator implements WatermarkGenerator<Integer> {
