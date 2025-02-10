@@ -85,8 +85,8 @@ public class PbCodegenRowDeserializer implements PbCodegenDeserializer {
                 }
 
                 if (!readDefaultValues) {
-                    // works for both syntax=proto2/proto3 and readDefaultValues=false for non-primitive
-                    // types
+                    // works for both syntax=proto2/proto3 and readDefaultValues=false for
+                    // non-primitive types
                     // readDefaultValues must be true in pb3 mode for primitive types
                     String isMessageElementNonEmptyCode =
                             isMessageElementNonEmptyCode(
@@ -127,13 +127,7 @@ public class PbCodegenRowDeserializer implements PbCodegenDeserializer {
                 index += 1;
             }
             if (!splitAppender.code().isEmpty()) {
-                String splitMethod =
-                        formatContext.splitDeserializerRowTypeMethod(
-                                flinkRowDataVar,
-                                pbMessageTypeStr,
-                                pbMessageVar,
-                                splitAppender.code());
-                appender.appendSegment(splitMethod);
+                appender.appendSegment(splitAppender.code());
             }
             appender.appendLine(resultVar + " = " + flinkRowDataVar);
             return appender.code();
@@ -164,8 +158,8 @@ public class PbCodegenRowDeserializer implements PbCodegenDeserializer {
             }
 
             if (!readDefaultValues) {
-                // works for both syntax=proto2/proto3 and readDefaultValues=false for non-primitive
-                // types
+                // works for both syntax=proto2/proto3 and readDefaultValues=false for
+                // non-primitive types
                 // readDefaultValues must be true in pb3 mode for primitive types
                 String isMessageElementNonEmptyCode =
                         isMessageElementNonEmptyCode(

@@ -83,9 +83,16 @@ public class PbCodegenTopRowDeserializer implements PbCodegenDeserializer {
             PbCodegenDeserializer codegen =
                     PbCodegenDeserializeFactory.getPbCodegenDes(elementFd, subType, formatContext);
             splitAppender.appendLine("Object " + flinkRowEleVar + " = null");
-            if (!formatContext.getPbFormatConfig().isReadDefaultValues()) {
-                // only works in syntax=proto2 and readDefaultValues=false
-                // readDefaultValues must be true in pb3 mode
+
+            boolean readDefaultValues = formatContext.getPbFormatConfig().isReadDefaultValues();
+            if (PbFormatUtils.isSimpleType(subType)) {
+                readDefaultValues = formatContext.getReadDefaultValuesForPrimitiveTypes();
+            }
+
+            if (!readDefaultValues) {
+                // works for both syntax=proto2/proto3 and readDefaultValues=false for
+                // non-primitive types
+                // readDefaultValues must be true in pb3 mode for primitive types
                 String isMessageElementNonEmptyCode =
                         isMessageElementNonEmptyCode(
                                 pbMessageVar,
@@ -107,7 +114,7 @@ public class PbCodegenTopRowDeserializer implements PbCodegenDeserializer {
                             topProjectField,
                             1);
             splitAppender.appendSegment(code);
-            if (!formatContext.getPbFormatConfig().isReadDefaultValues()) {
+            if (!readDefaultValues) {
                 splitAppender.end("}");
             }
             splitAppender.appendLine(
