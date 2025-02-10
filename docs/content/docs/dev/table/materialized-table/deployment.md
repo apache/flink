@@ -26,7 +26,7 @@ under the License.
 
 # Introduction
 
-The creation and operation of materialized tables involves the collaborative work of multiple components. This article systematically explains the complete deployment solution for Materialized Tables, covering architectural overview, environment preparation, deployment procedures, and operational practices.
+Creating and operating materialized tables involves multiple components' collaborative work. This document will systematically explain the complete deployment solution for Materialized Tables, covering architectural overview, environment preparation, deployment procedures, and operational practices.
 
 # Architecture Introduction
 
