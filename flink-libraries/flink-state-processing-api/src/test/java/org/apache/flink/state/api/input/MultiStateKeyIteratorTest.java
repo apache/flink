@@ -208,33 +208,6 @@ public class MultiStateKeyIteratorTest {
         Assert.assertEquals("Unexpected keys found", Arrays.asList(1, 2), keys);
     }
 
-    @Test
-    public void testIteratorRemovesFromAllDescriptors() throws Exception {
-        AbstractKeyedStateBackend<Integer> keyedStateBackend = createKeyedStateBackend();
-
-        setKey(keyedStateBackend, descriptors.get(0), 1);
-        setKey(keyedStateBackend, descriptors.get(1), 1);
-
-        MultiStateKeyIterator<Integer> iterator =
-                new MultiStateKeyIterator<>(descriptors, keyedStateBackend);
-
-        int key = iterator.next();
-        Assert.assertEquals("Unexpected keys pulled from state backend", 1, key);
-
-        iterator.remove();
-        Assert.assertFalse(
-                "Failed to drop key from all descriptors in state backend", iterator.hasNext());
-
-        for (StateDescriptor<?, ?> descriptor : descriptors) {
-            Assert.assertEquals(
-                    "Failed to drop key for state descriptor",
-                    0,
-                    keyedStateBackend
-                            .getKeys(descriptor.getName(), VoidNamespace.INSTANCE)
-                            .count());
-        }
-    }
-
     /** Test for lazy enumeration of inner iterators. */
     @Test
     public void testIteratorPullsSingleKeyFromAllDescriptors() throws AssertionError {
@@ -282,6 +255,13 @@ public class MultiStateKeyIteratorTest {
                     keyContext);
             this.numberOfKeysGenerated = numberOfKeysGenerated;
             numberOfKeysEnumerated = 0;
+        }
+
+        @Override
+        public <N> Stream<Integer> getKeys(List<String> states, N namespace) {
+            return IntStream.range(0, this.numberOfKeysGenerated)
+                    .boxed()
+                    .peek(i -> numberOfKeysEnumerated++);
         }
 
         @Override

@@ -48,6 +48,7 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.RunnableFuture;
 import java.util.stream.Stream;
 
@@ -225,6 +226,11 @@ public class ChangelogMigrationRestoreTarget<K> implements ChangelogRestoreTarge
             @Override
             public <N> Stream<K> getKeys(String state, N namespace) {
                 return keyedStateBackend.getKeys(state, namespace);
+            }
+
+            @Override
+            public <N> Stream<K> getKeys(List<String> states, N namespace) {
+                return keyedStateBackend.getKeys(states, namespace);
             }
 
             @Override
