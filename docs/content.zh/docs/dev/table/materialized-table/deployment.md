@@ -66,7 +66,7 @@ table:
 
 ### 配置工作流调度器插件
 
-在 `config.yaml` 增加配置调度器配置，用于定时调度刷新作业。 当前我们仅支持 `embedded` 调度器
+在 `config.yaml` 增加配置工作流调度器配置，用于定时调度刷新作业。 当前我们仅支持 `embedded` 调度器：
 
 ```yaml
 workflow-scheduler:

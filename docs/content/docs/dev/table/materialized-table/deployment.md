@@ -66,7 +66,7 @@ Refer to [Catalog Store]({{<ref "docs/dev/table/catalogs">}}#catalog-store) for 
 
 ### Configure Workflow Scheduler Plugin
 
-Add scheduler configurations in `config.yaml` for periodic refresh job scheduling. Currently, only the `embedded` scheduler is supported:
+Add workflow scheduler configurations in `config.yaml` for periodic refresh job scheduling. Currently, only the `embedded` scheduler is supported:
 
 ```yaml
 workflow-scheduler:
