@@ -16,11 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.operations;
+package org.apache.flink.table.planner.operations.converters;
 
-import org.apache.flink.sql.parser.ddl.SqlAlterModel;
-import org.apache.flink.sql.parser.ddl.SqlAlterModelRename;
-import org.apache.flink.sql.parser.ddl.SqlAlterModelReset;
 import org.apache.flink.sql.parser.ddl.SqlAlterModelSet;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -31,10 +28,7 @@ import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.AlterModelChangeOperation;
-import org.apache.flink.table.operations.ddl.AlterModelRenameOperation;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
-
-import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 
 import javax.annotation.Nullable;
 
@@ -43,26 +37,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
-/** Helper class for converting {@link SqlAlterModel} to {@link AlterModelChangeOperation}. */
-public class SqlAlterModelConverter {
-    private final CatalogManager catalogManager;
+/** A converter for {@link org.apache.flink.sql.parser.ddl.SqlAlterModelSet}. */
+public class SqlAlterModelSetConverter implements SqlNodeConverter<SqlAlterModelSet> {
 
-    SqlAlterModelConverter(CatalogManager catalogManager) {
-        this.catalogManager = catalogManager;
-    }
-
-    public Operation convertAlterModel(SqlAlterModel sqlAlterModel) {
+    @Override
+    public Operation convertSqlNode(SqlAlterModelSet sqlAlterModelSet, ConvertContext context) {
+        final CatalogManager catalogManager = context.getCatalogManager();
         UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(sqlAlterModel.fullModelName());
+                UnresolvedIdentifier.of(sqlAlterModelSet.fullModelName());
         ObjectIdentifier modelIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
         Optional<ContextResolvedModel> optionalCatalogModel =
                 catalogManager.getModel(modelIdentifier);
         if (optionalCatalogModel.isEmpty() || optionalCatalogModel.get().isTemporary()) {
             if (optionalCatalogModel.isEmpty()) {
-                if (!sqlAlterModel.ifModelExists()) {
+                if (!sqlAlterModelSet.ifModelExists()) {
                     throw new ValidationException(
                             String.format("Model %s doesn't exist.", modelIdentifier));
                 }
@@ -74,30 +64,7 @@ public class SqlAlterModelConverter {
         ResolvedCatalogModel existingModel =
                 optionalCatalogModel.map(ContextResolvedModel::getResolvedModel).orElse(null);
 
-        if (sqlAlterModel instanceof SqlAlterModelRename) {
-            SqlAlterModelRename sqlAlterModelRename = (SqlAlterModelRename) sqlAlterModel;
-            // Rename model
-            UnresolvedIdentifier newUnresolvedIdentifier =
-                    UnresolvedIdentifier.of(sqlAlterModelRename.fullNewModelName());
-            ObjectIdentifier newModelIdentifier =
-                    catalogManager.qualifyIdentifier(newUnresolvedIdentifier);
-            return new AlterModelRenameOperation(
-                    existingModel,
-                    modelIdentifier,
-                    newModelIdentifier,
-                    sqlAlterModel.ifModelExists());
-        } else if (sqlAlterModel instanceof SqlAlterModelSet) {
-            return convertAlterModelSet(
-                    modelIdentifier, (SqlAlterModelSet) sqlAlterModel, existingModel);
-        } else if (sqlAlterModel instanceof SqlAlterModelReset) {
-            return convertAlterModelReset(
-                    modelIdentifier, (SqlAlterModelReset) sqlAlterModel, existingModel);
-        } else {
-            throw new ValidationException(
-                    String.format(
-                            "[%s] needs to implement",
-                            sqlAlterModel.toSqlString(CalciteSqlDialect.DEFAULT)));
-        }
+        return convertAlterModelSet(modelIdentifier, sqlAlterModelSet, existingModel);
     }
 
     private static AlterModelChangeOperation convertAlterModelSet(
@@ -134,38 +101,5 @@ public class SqlAlterModelConverter {
                 modelChanges,
                 existingModel.copy(newOptions),
                 sqlAlterModelSet.ifModelExists());
-    }
-
-    private Operation convertAlterModelReset(
-            ObjectIdentifier modelIdentifier,
-            SqlAlterModelReset sqlAlterModelReset,
-            @Nullable ResolvedCatalogModel oldModel) {
-        Set<String> lowercaseResetKeys =
-                sqlAlterModelReset.getResetKeys().stream()
-                        .map(String::toLowerCase)
-                        .collect(Collectors.toSet());
-        if (lowercaseResetKeys.isEmpty()) {
-            throw new ValidationException("ALTER MODEL RESET does not support empty key");
-        }
-        List<ModelChange> modelChanges =
-                lowercaseResetKeys.stream().map(ModelChange::reset).collect(Collectors.toList());
-
-        if (oldModel == null) {
-            return new AlterModelChangeOperation(
-                    modelIdentifier, modelChanges, null, sqlAlterModelReset.ifModelExists());
-        }
-
-        Map<String, String> newOptions =
-                oldModel.getOptions().entrySet().stream()
-                        .collect(
-                                Collectors.toMap(
-                                        entry -> entry.getKey().toLowerCase(), Entry::getValue));
-        // reset table option keys
-        lowercaseResetKeys.forEach(newOptions::remove);
-        return new AlterModelChangeOperation(
-                modelIdentifier,
-                modelChanges,
-                oldModel.copy(newOptions),
-                sqlAlterModelReset.ifModelExists());
     }
 }

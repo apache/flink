@@ -41,7 +41,7 @@ import java.util.Optional;
 import static org.apache.flink.table.api.internal.TableResultUtils.buildTableResult;
 
 /**
- * Operation to describe a DESCRIBE MODEL [EXTENDED] [[catalogName.] dataBasesName].sqlIdentifier
+ * Operation to describe a DESCRIBE MODEL [EXTENDED] [[catalogName.] dataBasesName.]sqlIdentifier
  * statement.
  */
 @Internal
