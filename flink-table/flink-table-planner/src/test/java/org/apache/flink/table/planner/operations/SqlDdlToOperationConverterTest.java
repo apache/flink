@@ -82,8 +82,6 @@ import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.table.types.DataType;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableMap;
-
 import org.apache.calcite.sql.SqlNode;
 import org.assertj.core.api.HamcrestCondition;
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -281,7 +279,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         CatalogModel catalogModel = op.getCatalogModel();
         assertThat(catalogModel.getOptions())
                 .isEqualTo(
-                        ImmutableMap.of(
+                        Map.of(
                                 "PROVIDER",
                                 "openai",
                                 "OPENAI.ENDPOINT",
@@ -312,20 +310,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         }
         catalogManager.createDatabase(
                 "cat1", "db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
-
-        Schema inputSchema =
-                Schema.newBuilder()
-                        .column("a", DataTypes.INT())
-                        .column("b", DataTypes.STRING())
-                        .build();
-        Schema outputSchema = Schema.newBuilder().column("label", DataTypes.STRING()).build();
-        HashMap<String, String> properties = new HashMap<>();
-        properties.put("K1", "v1");
-        CatalogModel catalogModel = CatalogModel.of(inputSchema, outputSchema, properties, null);
-        catalogManager.setCurrentCatalog("cat1");
-        catalogManager.setCurrentDatabase("db1");
-        ObjectIdentifier modelIdentifier = ObjectIdentifier.of("cat1", "db1", "m1");
-        catalogManager.createModel(catalogModel, modelIdentifier, true);
+        prepareModel();
 
         String[] dropModelSqls =
                 new String[] {
@@ -401,6 +386,22 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                         "SHOW MODELS FROM builtin.db1 NOT LIKE '%abc%'"));
     }
 
+    private void prepareModel() {
+        Schema inputSchema =
+                Schema.newBuilder()
+                        .column("a", DataTypes.INT())
+                        .column("b", DataTypes.STRING())
+                        .build();
+        Schema outputSchema = Schema.newBuilder().column("label", DataTypes.STRING()).build();
+        Map<String, String> properties = new HashMap<>();
+        properties.put("K1", "v1");
+        CatalogModel catalogModel = CatalogModel.of(inputSchema, outputSchema, properties, null);
+        catalogManager.setCurrentCatalog("cat1");
+        catalogManager.setCurrentDatabase("db1");
+        ObjectIdentifier modelIdentifier = ObjectIdentifier.of("cat1", "db1", "m1");
+        catalogManager.createModel(catalogModel, modelIdentifier, true);
+    }
+
     @Test
     public void testAlterModel() throws Exception {
         Catalog catalog = new GenericInMemoryCatalog("default", "default");
@@ -409,20 +410,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         }
         catalogManager.createDatabase(
                 "cat1", "db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
-
-        Schema inputSchema =
-                Schema.newBuilder()
-                        .column("a", DataTypes.INT())
-                        .column("b", DataTypes.STRING())
-                        .build();
-        Schema outputSchema = Schema.newBuilder().column("label", DataTypes.STRING()).build();
-        HashMap<String, String> properties = new HashMap<>();
-        properties.put("K1", "v1");
-        CatalogModel catalogModel = CatalogModel.of(inputSchema, outputSchema, properties, null);
-        catalogManager.setCurrentCatalog("cat1");
-        catalogManager.setCurrentDatabase("db1");
-        ObjectIdentifier modelIdentifier = ObjectIdentifier.of("cat1", "db1", "m1");
-        catalogManager.createModel(catalogModel, modelIdentifier, true);
+        prepareModel();
 
         final String[] renameModelSqls =
                 new String[] {

@@ -16,20 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.operations;
+package org.apache.flink.table.planner.operations.converters;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateModel;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.Schema.UnresolvedColumn;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogModel;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateModelOperation;
-import org.apache.flink.table.planner.calcite.FlinkCalciteSqlValidator;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
 import org.apache.flink.table.types.DataType;
@@ -39,6 +38,7 @@ import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.validate.SqlValidator;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -48,38 +48,32 @@ import java.util.Objects;
 
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
-/** Helper class for converting {@link SqlCreateModel} to {@link CreateModelOperation}. */
-public class SqlCreateModelConverter {
-    private final CatalogManager catalogManager;
-    private final FlinkCalciteSqlValidator sqlValidator;
+/** A converter for {@link org.apache.flink.sql.parser.ddl.SqlCreateModel}. */
+public class SqlCreateModelConverter implements SqlNodeConverter<SqlCreateModel> {
 
-    SqlCreateModelConverter(FlinkCalciteSqlValidator sqlValidator, CatalogManager catalogManager) {
-        this.sqlValidator = sqlValidator;
-        this.catalogManager = catalogManager;
-    }
-
-    /** Convert the {@link SqlCreateModel} node. */
-    public Operation convertCreateModel(SqlCreateModel sqlCreateModel) {
+    @Override
+    public Operation convertSqlNode(SqlCreateModel sqlCreateModel, ConvertContext context) {
         UnresolvedIdentifier unresolvedIdentifier =
                 UnresolvedIdentifier.of(sqlCreateModel.fullModelName());
-        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+        ObjectIdentifier identifier =
+                context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
         Map<String, String> modelOptions = getModelOptions(sqlCreateModel);
         CatalogModel catalogModel =
                 CatalogModel.of(
-                        getSchema(sqlCreateModel.getInputColumnList()),
-                        getSchema(sqlCreateModel.getOutputColumnList()),
+                        getSchema(sqlCreateModel.getInputColumnList(), context.getSqlValidator()),
+                        getSchema(sqlCreateModel.getOutputColumnList(), context.getSqlValidator()),
                         modelOptions,
                         sqlCreateModel.getComment().map(SqlLiteral::toValue).orElse(null));
 
         return new CreateModelOperation(
                 identifier,
-                catalogManager.resolveCatalogModel(catalogModel),
+                context.getCatalogManager().resolveCatalogModel(catalogModel),
                 sqlCreateModel.isIfNotExists(),
                 sqlCreateModel.isTemporary());
     }
 
-    private Schema getSchema(SqlNodeList nodeList) {
-        final List<Schema.UnresolvedColumn> columnList = new ArrayList<>();
+    private Schema getSchema(SqlNodeList nodeList, SqlValidator sqlValidator) {
+        final List<UnresolvedColumn> columnList = new ArrayList<>();
         for (SqlNode column : nodeList) {
             if (column instanceof SqlRegularColumn) {
                 SqlRegularColumn regularColumn = (SqlRegularColumn) column;
