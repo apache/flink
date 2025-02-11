@@ -44,7 +44,7 @@ class FlinkAvroBufferWrapper(object):
         return self._stream.read(n)
 
     def write(self, data):
-        return self._stream.write(data)
+        return self._stream.write(bytes(data))
 
 
 class FlinkAvroDecoder(BinaryDecoder):
