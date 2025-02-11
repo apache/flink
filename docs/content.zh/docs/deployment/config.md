@@ -39,15 +39,11 @@ On session clusters, the provided configuration will only be used for configurin
 
 # Flink 配置文件
 
-自 Flink-1.19 版本起，Flink 正式引入了对标准 YAML 1.2 语法的完整支持。与之前版本中仅支持简单键值对的配置方式相比，这一更新为用户提供了更加灵活和强大的配置能力。为了利用这一新特性，用户需使用新引入的配置文件 `config.yaml`。原有的 `flink-conf.yaml` 配置文件不再推荐使用，并在即将到来的 Flink-2.0 版本中不再支持。为了确保平滑迁移，建议用户尽早将现有作业配置迁移到新的配置方式。
+自 Flink-2.0 版本起，Flink 仅支持使用支持标准 YAML 1.2 语法的配置文件 `config.yaml`，原有的 `flink-conf.yaml` 配置文件将不再支持。与之前版本中仅支持简单键值对的配置方式相比，这一更新为用户提供了更加灵活和强大的配置能力。
 
 本节将帮助用户理解如何通过 `config.yaml` 配置文件对 Flink 集群和作业进行配置，以及如何将老配置迁移至新的配置文件中。
 
 ### 用法
-
-从 Flink-1.19 版本开始，默认的配置文件已更改为 `config.yaml`，并置于 `conf/` 目录下。用户在进行配置时应直接修改此文件。
-
-如果用户希望继续使用 Flink-1.19 之前的配置文件 `flink-conf.yaml`，只需将该文件拷贝到 `conf/` 目录下。一旦检测到 `flink-conf.yaml` 文件，Flink 会优先使用其作为配置文件。
 
 `config.yaml` 的配置方式如下：
 
@@ -118,8 +114,6 @@ restart-strategy.failure-rate.max-failures-per-interval: 1
 bin/migrate-config-file.sh
 ````
 运行上述指令后，该迁移脚本会自动读取 `conf/` 目录下的旧配置文件 `flink-conf.yaml`，并将迁移后的结果输出到 `conf/` 目录下的新配置文件 `config.yaml` 中。需要注意的是，因为老配置项解析器的限制，`flink-conf.yaml` 中所有的 value 会被识别为 `String` 类型，所以生成的 `config.yaml` 文件中的 value 也都为 `String` 类型，即部分 value 会被引号引起来。不过 Flink 会在后续的配置解析时将其转换为使用 `ConfigOption` 定义的实际类型。
-
-此外，用户需要在迁移完成后删除 `conf/` 目录下的 `flink-conf.yaml` 文件来使 `config.yaml` 文件生效。
 
 # Basic Setup
 

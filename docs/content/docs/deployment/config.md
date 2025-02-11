@@ -39,15 +39,11 @@ On session clusters, the provided configuration will only be used for configurin
 
 # Flink Configuration File
 
-Starting with version 1.19, Flink has officially introduced full support for the standard YAML 1.2 syntax. Compared to the previous versions which only supported simple key-value pairs, this update provides users with more flexible and powerful configuration capabilities. To take advantage of this new feature, users need to use the newly introduced `config.yaml` configuration file. The existing `flink-conf.yaml` configuration file is deprecated and will no longer work in the upcoming version 2.0. To ensure a smooth transition, users are advised to migrate their existing Flink configuration to the new configuration file as soon as possible.
+Starting with Flink version 2.0, Flink only supports the configuration file `config.yaml`, which adheres to the standard YAML 1.2 syntax. The previous `flink-conf.yaml` configuration file is no longer supported. Compared to the previous versions which only supported simple key-value pairs, this update provides users with more flexible and powerful configuration capabilities.
 
 This section will help users understand how to configure the Flink cluster and jobs through the `config.yaml` configuration file, as well as how to migrate old configuration to the new configuration file.
 
 ### Usage
-
-Starting from Flink-1.19, the default configuration file has been changed to `config.yaml` and placed in the `conf/` directory. Users should directly modify this file to configure Flink.
-
-To continue using the legacy configuration file `flink-conf.yaml`, users just need to copy this file into the `conf/` directory. Once the legacy configuration file `flink-conf.yaml` is detected, Flink will prioritize using it as the configuration file.
 
 The usage for `config.yaml` is as follows:
 
@@ -118,8 +114,6 @@ To facilitate user migration, Flink provides a configuration file migration scri
 bin/migrate-config-file.sh
 ````
 After running the command above, the migration script will automatically read the old configuration file `flink-conf.yaml` from the `conf/` directory and output the migrated results to the new configuration file `config.yaml` in the `conf/` directory. Note that due to the limitation of the legacy configuration parser, all values in flink-conf.yaml will be recognized as String type, so the values in the generated config.yaml file will also be of String type, which means some values will be enclosed in quotes. However, Flink will convert them to the actual types defined using `ConfigOption` during subsequent configuration parsing.
-
-Additionally, users need to delete the `flink-conf.yaml` file in the `conf/` directory after migration to make the `config.yaml` file take effect.
 
 # Basic Setup
 
