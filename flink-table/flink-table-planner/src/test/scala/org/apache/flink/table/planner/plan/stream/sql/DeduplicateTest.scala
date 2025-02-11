@@ -53,7 +53,7 @@ class DeduplicateTest extends TableTestBase {
       """.stripMargin
 
     // the rank condition is not 1, so it will not be translate to LastRow, but Rank
-    util.verifyExecPlan(sql)
+    util.verifyExplain(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -68,7 +68,7 @@ class DeduplicateTest extends TableTestBase {
       """.stripMargin
 
     // the rank condition is not 1, so it will not be translate to LastRow, but Rank
-    util.verifyExecPlan(sql)
+    util.verifyExplain(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -94,7 +94,7 @@ class DeduplicateTest extends TableTestBase {
       """.stripMargin
 
     // the input is not append-only, it will not be translate to LastRow, but Rank
-    util.verifyExecPlan(sql)
+    util.verifyExplain(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -134,7 +134,7 @@ class DeduplicateTest extends TableTestBase {
          |GROUP BY b, TUMBLE(ts, INTERVAL '0.004' SECOND)
       """.stripMargin
 
-    util.verifyExplain(windowSql)
+    util.verifyExplain(windowSql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -185,7 +185,7 @@ class DeduplicateTest extends TableTestBase {
         |)
       """.stripMargin
 
-    util.verifyExecPlan(sql)
+    util.verifyExplain(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -203,7 +203,7 @@ class DeduplicateTest extends TableTestBase {
         |GROUP BY b
       """.stripMargin
 
-    util.verifyExecPlan(sql)
+    util.verifyExplain(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -237,7 +237,7 @@ class DeduplicateTest extends TableTestBase {
         |)
       """.stripMargin
 
-    util.verifyExecPlan(sql)
+    util.verifyExplain(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -255,7 +255,7 @@ class DeduplicateTest extends TableTestBase {
         |GROUP BY b
       """.stripMargin
 
-    util.verifyExecPlan(sql)
+    util.verifyExplain(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -271,7 +271,7 @@ class DeduplicateTest extends TableTestBase {
         |WHERE rowNum = 1
       """.stripMargin
 
-    util.verifyExecPlan(sqlQuery)
+    util.verifyExplain(sqlQuery, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -304,7 +304,7 @@ class DeduplicateTest extends TableTestBase {
         |WHERE rowNum = 1
       """.stripMargin
 
-    util.verifyExecPlan(sqlQuery)
+    util.verifyExplain(sqlQuery, ExplainDetail.CHANGELOG_MODE)
   }
 
 }
