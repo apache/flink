@@ -25,6 +25,9 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
+import java.util.Objects;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * A {@link TypeSerializerSnapshot} for TtlAwareSerializer. This class wraps a {@link
@@ -52,11 +55,19 @@ public class TtlAwareSerializerSnapshot<T> implements TypeSerializerSnapshot<T> 
 
     public TtlAwareSerializerSnapshot(
             TypeSerializerSnapshot<T> typeSerializerSnapshot, boolean isTtlEnabled) {
+        checkArgument(
+                !(typeSerializerSnapshot instanceof TtlAwareSerializerSnapshot),
+                typeSerializerSnapshot
+                        + " is already instance of TtlAwareSerializerSnapshot, should not be wrapped repeatedly.");
         this.typeSerializerSnapshot = typeSerializerSnapshot;
         this.isTtlEnabled = isTtlEnabled;
     }
 
     public TtlAwareSerializerSnapshot(TypeSerializerSnapshot<T> typeSerializerSnapshot) {
+        checkArgument(
+                !(typeSerializerSnapshot instanceof TtlAwareSerializerSnapshot),
+                typeSerializerSnapshot
+                        + " is already instance of TtlAwareSerializerSnapshot, should not be wrapped repeatedly.");
         this.typeSerializerSnapshot = typeSerializerSnapshot;
         this.isTtlEnabled = typeSerializerSnapshot instanceof TtlStateFactory.TtlSerializerSnapshot;
     }
@@ -144,5 +155,23 @@ public class TtlAwareSerializerSnapshot<T> implements TypeSerializerSnapshot<T> 
         } else {
             return TypeSerializerSchemaCompatibility.incompatible();
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        TtlAwareSerializerSnapshot<?> that = (TtlAwareSerializerSnapshot<?>) o;
+        return isTtlEnabled == that.isTtlEnabled
+                && Objects.equals(typeSerializerSnapshot, that.typeSerializerSnapshot);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(isTtlEnabled, typeSerializerSnapshot);
     }
 }

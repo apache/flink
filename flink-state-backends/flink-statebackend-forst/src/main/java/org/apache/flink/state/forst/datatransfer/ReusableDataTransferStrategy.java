@@ -24,8 +24,6 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.filemerging.SegmentFileStateHandle;
-import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
 import org.apache.flink.state.forst.fs.filemapping.FileOwnership;
@@ -33,9 +31,6 @@ import org.apache.flink.state.forst.fs.filemapping.FileOwnershipDecider;
 import org.apache.flink.state.forst.fs.filemapping.MappingEntry;
 import org.apache.flink.state.forst.fs.filemapping.MappingEntrySource;
 import org.apache.flink.util.Preconditions;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -46,10 +41,7 @@ import java.util.Objects;
  */
 public class ReusableDataTransferStrategy extends CopyDataTransferStrategy {
 
-    private final FileOwnershipDecider fileOwnershipDecider;
-
-    ReusableDataTransferStrategy(
-            @Nonnull FileOwnershipDecider fileOwnershipDecider, FileSystem dbFileSystem) {
+    ReusableDataTransferStrategy(FileSystem dbFileSystem) {
         super(dbFileSystem);
 
         Preconditions.checkArgument(
@@ -58,8 +50,6 @@ public class ReusableDataTransferStrategy extends CopyDataTransferStrategy {
                         + dbFileSystem.getClass()
                         + ", expected: "
                         + ForStFlinkFileSystem.class);
-
-        this.fileOwnershipDecider = fileOwnershipDecider;
     }
 
     private ForStFlinkFileSystem getForStFlinkFileSystem() {
@@ -67,19 +57,15 @@ public class ReusableDataTransferStrategy extends CopyDataTransferStrategy {
         return (ForStFlinkFileSystem) dbFileSystem;
     }
 
-    private @Nullable HandleAndLocalPath reuseFileToCheckpoint(
-            Path dbFilePath, ForStFlinkFileSystem forStFs) throws IOException {
+    private HandleAndLocalPath reuseFileToCheckpoint(Path dbFilePath, ForStFlinkFileSystem forStFs)
+            throws IOException {
         LOG.trace("Reuse file to checkpoint: {}", dbFilePath);
 
         // Find the real path of the file
-        Path sourcePath = forStFs.srcPath(dbFilePath);
-        if (sourcePath != null) {
-            dbFilePath = sourcePath;
-        }
+        MappingEntry mappingEntry = Objects.requireNonNull(forStFs.getMappingEntry(dbFilePath));
+        MappingEntrySource source = mappingEntry.getSource();
 
         // Create a StateHandle with the real path or the restored handle
-        MappingEntrySource source =
-                Objects.requireNonNull(forStFs.getMappingEntry(dbFilePath)).getSource();
         StreamStateHandle stateHandle = source.toStateHandle();
 
         // Give file ownership to JM, i.e. DB will not delete it from now on
@@ -134,7 +120,7 @@ public class ReusableDataTransferStrategy extends CopyDataTransferStrategy {
             return;
         }
 
-        FileOwnership fileOwnership = fileOwnershipDecider.decideForRestoredFile(targetPath);
+        FileOwnership fileOwnership = FileOwnershipDecider.decideForRestoredFile(targetPath);
         if (fileOwnership == FileOwnership.PRIVATE_OWNED_BY_DB) {
             LOG.trace(
                     "Not reusing file from checkpoint because the file is privately owned by DB: {}",
@@ -143,16 +129,6 @@ public class ReusableDataTransferStrategy extends CopyDataTransferStrategy {
             return;
         }
         reuseFileFromCheckpoint(sourceHandle, targetPath);
-    }
-
-    private @Nullable Path prepareSourcePathFromStateHandle(StreamStateHandle sourceHandle) {
-        Path sourcePath = null;
-        if (sourceHandle instanceof FileStateHandle) {
-            sourcePath = ((FileStateHandle) sourceHandle).getFilePath();
-        } else if (sourceHandle instanceof SegmentFileStateHandle) {
-            sourcePath = ((SegmentFileStateHandle) sourceHandle).getFilePath();
-        }
-        return sourcePath;
     }
 
     private void reuseFileFromCheckpoint(StreamStateHandle sourceHandle, Path targetPath)
@@ -168,11 +144,6 @@ public class ReusableDataTransferStrategy extends CopyDataTransferStrategy {
 
     @Override
     public String toString() {
-        return "ReusableDataTransferStrategy{"
-                + "dbFileSystem="
-                + dbFileSystem
-                + ", fileOwnershipDecider="
-                + fileOwnershipDecider
-                + '}';
+        return "ReusableDataTransferStrategy{" + "dbFileSystem=" + dbFileSystem + '}';
     }
 }

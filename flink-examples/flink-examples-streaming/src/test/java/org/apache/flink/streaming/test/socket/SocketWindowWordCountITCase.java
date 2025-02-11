@@ -24,6 +24,8 @@ import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.NetUtils;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -33,11 +35,21 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Arrays;
+import java.util.Collection;
 
 import static org.junit.Assert.fail;
 
 /** Tests for {@link SocketWindowWordCount}. */
+@RunWith(Parameterized.class)
 public class SocketWindowWordCountITCase extends AbstractTestBaseJUnit4 {
+
+    @Parameterized.Parameter public boolean asyncState;
+
+    @Parameterized.Parameters
+    public static Collection<Boolean> setup() {
+        return Arrays.asList(false, true);
+    }
 
     @Test
     public void testJavaProgram() throws Exception {
@@ -60,8 +72,14 @@ public class SocketWindowWordCountITCase extends AbstractTestBaseJUnit4 {
                 serverThread.start();
 
                 final int serverPort = server.getLocalPort();
+                System.out.println("Server listening on port " + serverPort);
 
-                SocketWindowWordCount.main(new String[] {"--port", String.valueOf(serverPort)});
+                if (asyncState) {
+                    SocketWindowWordCount.main(
+                            new String[] {"--port", String.valueOf(serverPort), "--async-state"});
+                } else {
+                    SocketWindowWordCount.main(new String[] {"--port", String.valueOf(serverPort)});
+                }
 
                 if (errorMessages.size() != 0) {
                     fail(

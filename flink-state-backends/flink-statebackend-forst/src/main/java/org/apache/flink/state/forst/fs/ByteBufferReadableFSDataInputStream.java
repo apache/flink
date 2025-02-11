@@ -18,7 +18,6 @@
 
 package org.apache.flink.state.forst.fs;
 
-import org.apache.flink.annotation.Experimental;
 import org.apache.flink.core.fs.ByteBufferReadable;
 import org.apache.flink.core.fs.FSDataInputStream;
 
@@ -35,7 +34,6 @@ import java.util.concurrent.LinkedBlockingQueue;
  * <p>All methods in this class maybe used by ForSt, please start a discussion firstly if it has to
  * be modified.
  */
-@Experimental
 public class ByteBufferReadableFSDataInputStream extends FSDataInputStream {
 
     private final FSDataInputStream originalInputStream;

@@ -94,6 +94,9 @@ public class ExecNodeGraphGenerator {
             return;
         }
         final String uid = ((StreamExecProcessTableFunction) execNode).getUid();
+        if (uid == null) {
+            return;
+        }
         if (visitedProcessTableFunctionUids.contains(uid)) {
             throw new ValidationException(
                     String.format(

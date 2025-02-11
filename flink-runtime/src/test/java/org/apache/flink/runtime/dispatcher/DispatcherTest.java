@@ -127,6 +127,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.UUID;
@@ -140,6 +142,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -1159,6 +1163,49 @@ public class DispatcherTest extends AbstractDispatcherTest {
     }
 
     @Test
+    public void testRequestMultipleJobDetails_returnsJobsOfSameStateOrderedByStartTimeInDecOrder()
+            throws Exception {
+        final JobID secondJobID = new JobID();
+        JobGraph secondJobGraph = JobGraphTestUtils.streamingJobGraph();
+        secondJobGraph.setJobID(secondJobID);
+        final JobManagerRunnerFactory blockingJobMaster =
+                new QueuedJobManagerRunnerFactory(
+                        runningJobManagerRunnerWithJobStatus(
+                                JobStatus.RUNNING, jobId, 0L, 100L, 110L),
+                        runningJobManagerRunnerWithJobStatus(
+                                JobStatus.RUNNING, secondJobID, 10L, 11L, 12L));
+
+        DispatcherGateway dispatcherGateway =
+                createDispatcherAndStartJobs(
+                        blockingJobMaster, Arrays.asList(jobGraph, secondJobGraph));
+
+        assertOnlyContainsRunningJobsWithOrder(
+                dispatcherGateway.requestMultipleJobDetails(TIMEOUT).get(),
+                Arrays.asList(secondJobID, jobId));
+    }
+
+    @Test
+    public void
+            testRequestMultipleJobDetails_returnsJobsOfSameStateOrderedByJobIdWhenSameStartTime()
+                    throws Exception {
+        final JobID secondJobID = new JobID();
+        JobGraph secondJobGraph = JobGraphTestUtils.streamingJobGraph();
+        secondJobGraph.setJobID(secondJobID);
+        final JobManagerRunnerFactory blockingJobMaster =
+                new QueuedJobManagerRunnerFactory(
+                        runningJobManagerRunnerWithJobStatus(JobStatus.RUNNING, jobId, 10L),
+                        runningJobManagerRunnerWithJobStatus(JobStatus.RUNNING, secondJobID, 10L));
+
+        DispatcherGateway dispatcherGateway =
+                createDispatcherAndStartJobs(
+                        blockingJobMaster, Arrays.asList(jobGraph, secondJobGraph));
+
+        assertOnlyContainsRunningJobsWithOrder(
+                dispatcherGateway.requestMultipleJobDetails(TIMEOUT).get(),
+                Stream.of(jobId, secondJobID).sorted().collect(Collectors.toList()));
+    }
+
+    @Test
     public void testRequestMultipleJobDetails_isSerializable() throws Exception {
         final JobManagerRunnerFactory blockingJobMaster =
                 new QueuedJobManagerRunnerFactory(
@@ -1225,7 +1272,26 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
     private JobManagerRunner runningJobManagerRunnerWithJobStatus(
             final JobStatus currentJobStatus) {
+        return runningJobManagerRunnerWithJobStatus(currentJobStatus, jobId, 0L);
+    }
+
+    private JobManagerRunner runningJobManagerRunnerWithJobStatus(
+            final JobStatus currentJobStatus, final JobID jobId, long startTime) {
+        return runningJobManagerRunnerWithJobStatus(
+                currentJobStatus, jobId, startTime, startTime, startTime);
+    }
+
+    private JobManagerRunner runningJobManagerRunnerWithJobStatus(
+            final JobStatus currentJobStatus,
+            final JobID jobId,
+            long startTime,
+            long transitionToCreatedTimestamp,
+            long transitionToRunningTimestamp) {
         Preconditions.checkArgument(!currentJobStatus.isTerminalState());
+        long[] stateTimeStampsForRunningJob = new long[JobStatus.values().length];
+        stateTimeStampsForRunningJob[JobStatus.INITIALIZING.ordinal()] = startTime;
+        stateTimeStampsForRunningJob[JobStatus.CREATED.ordinal()] = transitionToCreatedTimestamp;
+        stateTimeStampsForRunningJob[JobStatus.RUNNING.ordinal()] = transitionToRunningTimestamp;
 
         return TestingJobManagerRunner.newBuilder()
                 .setJobId(jobId)
@@ -1235,6 +1301,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                         new ArchivedExecutionGraphBuilder()
                                                 .setJobID(jobId)
                                                 .setState(currentJobStatus)
+                                                .setStateTimestamps(stateTimeStampsForRunningJob)
                                                 .build()))
                 .build();
     }
@@ -1256,11 +1323,39 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 .build();
     }
 
+    private DispatcherGateway createDispatcherAndStartJobs(
+            final JobManagerRunnerFactory jobManagerRunnerFactory, final List<JobGraph> jobGraphs)
+            throws Exception {
+        dispatcher =
+                createAndStartDispatcher(heartbeatServices, haServices, jobManagerRunnerFactory);
+        DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+        jobMasterLeaderElection.isLeader(UUID.randomUUID());
+        for (JobGraph jobGraph : jobGraphs) {
+            dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+        }
+
+        return dispatcherGateway;
+    }
+
     private static void assertOnlyContainsSingleJobWithState(
             final JobStatus expectedJobStatus, final MultipleJobsDetails multipleJobsDetails) {
         final Collection<JobDetails> finishedJobDetails = multipleJobsDetails.getJobs();
         assertThat(finishedJobDetails).hasSize(1);
         assertThat(finishedJobDetails.iterator().next().getStatus()).isEqualTo(expectedJobStatus);
+    }
+
+    private static void assertOnlyContainsRunningJobsWithOrder(
+            final MultipleJobsDetails multipleJobsDetails,
+            final List<JobID> expectedOrderedJobIDs) {
+        final Collection<JobDetails> finishedJobDetails = multipleJobsDetails.getJobs();
+        assertThat(finishedJobDetails).isInstanceOf(List.class);
+        assertThat(finishedJobDetails).hasSize(expectedOrderedJobIDs.size());
+        Iterator<JobDetails> jobDetailsIterator = finishedJobDetails.iterator();
+        for (final JobID nextExpectedJobId : expectedOrderedJobIDs) {
+            final JobDetails jobDetails = jobDetailsIterator.next();
+            assertThat(jobDetails.getStatus()).isEqualTo(JobStatus.RUNNING);
+            assertThat(jobDetails.getJobId()).isEqualTo(nextExpectedJobId);
+        }
     }
 
     @Test

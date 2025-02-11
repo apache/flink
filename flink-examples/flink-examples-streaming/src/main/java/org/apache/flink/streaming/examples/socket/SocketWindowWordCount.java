@@ -21,6 +21,7 @@ package org.apache.flink.streaming.examples.socket;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.util.ParameterTool;
@@ -46,14 +47,16 @@ public class SocketWindowWordCount {
         // the host and the port to connect to
         final String hostname;
         final int port;
+        final boolean asyncState;
         try {
             final ParameterTool params = ParameterTool.fromArgs(args);
             hostname = params.has("hostname") ? params.get("hostname") : "localhost";
             port = params.getInt("port");
+            asyncState = params.has("async-state");
         } catch (Exception e) {
             System.err.println(
                     "No port specified. Please run 'SocketWindowWordCount "
-                            + "--hostname <hostname> --port <port>', where hostname (localhost by default) "
+                            + "--hostname <hostname> --port <port> [--asyncState]', where hostname (localhost by default) "
                             + "and port is the address of the text server");
             System.err.println(
                     "To start a simple text server, run 'netcat -l <port>' and "
@@ -68,7 +71,7 @@ public class SocketWindowWordCount {
         DataStream<String> text = env.socketTextStream(hostname, port, "\n");
 
         // parse the data, group it, window it, and aggregate the counts
-        DataStream<WordWithCount> windowCounts =
+        KeyedStream<WordWithCount, String> keyedStream =
                 text.flatMap(
                                 (FlatMapFunction<String, WordWithCount>)
                                         (value, out) -> {
@@ -77,7 +80,12 @@ public class SocketWindowWordCount {
                                             }
                                         },
                                 Types.POJO(WordWithCount.class))
-                        .keyBy(value -> value.word)
+                        .keyBy(value -> value.word);
+        if (asyncState) {
+            keyedStream = keyedStream.enableAsyncState();
+        }
+        DataStream<WordWithCount> windowCounts =
+                keyedStream
                         .window(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5)))
                         .reduce((a, b) -> new WordWithCount(a.word, a.count + b.count))
                         .returns(WordWithCount.class);

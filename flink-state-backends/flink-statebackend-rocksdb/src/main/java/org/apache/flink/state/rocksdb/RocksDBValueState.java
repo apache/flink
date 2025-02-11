@@ -134,6 +134,7 @@ class RocksDBValueState<K, N, V> extends AbstractRocksDBState<K, N, V>
                 ((RocksDBValueState<K, N, SV>) existingState)
                         .setNamespaceSerializer(registerResult.f1.getNamespaceSerializer())
                         .setValueSerializer(registerResult.f1.getStateSerializer())
-                        .setDefaultValue(stateDesc.getDefaultValue());
+                        .setDefaultValue(stateDesc.getDefaultValue())
+                        .setColumnFamily(registerResult.f0);
     }
 }

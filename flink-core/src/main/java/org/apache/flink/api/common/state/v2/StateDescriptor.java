@@ -87,6 +87,21 @@ public abstract class StateDescriptor<T> implements Serializable {
         this.typeSerializer = new StateSerializerReference<>(serializer);
     }
 
+    /**
+     * Create a new {@code StateDescriptor} with the given name and the given type information.
+     *
+     * <p>If this constructor fails (because it is not possible to describe the type via a class),
+     * consider using the {@link #StateDescriptor(String, TypeInformation)} constructor.
+     *
+     * @param name The name of the {@code StateDescriptor}.
+     * @param type The class of the type of values in the state.
+     */
+    protected StateDescriptor(String name, Class<T> type) {
+        this.stateId = checkNotNull(name, "name must not be null");
+        checkNotNull(type, "type class must not be null");
+        this.typeSerializer = new StateSerializerReference<>(type);
+    }
+
     // ------------------------------------------------------------------------
 
     /**

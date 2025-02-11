@@ -17,14 +17,13 @@
 ################################################################################
 import struct
 
+from avro.errors import AvroTypeException, SchemaResolutionException
 from avro.io import (
-    AvroTypeException,
     BinaryDecoder,
     BinaryEncoder,
     DatumReader,
     DatumWriter,
-    SchemaResolutionException,
-    Validate,
+    validate,
 )
 
 STRUCT_FLOAT = struct.Struct('>f')  # big-endian float
@@ -45,7 +44,7 @@ class FlinkAvroBufferWrapper(object):
         return self._stream.read(n)
 
     def write(self, data):
-        return self._stream.write(data)
+        return self._stream.write(bytes(data))
 
 
 class FlinkAvroDecoder(BinaryDecoder):
@@ -203,7 +202,7 @@ class FlinkAvroEncoder(BinaryEncoder):
 class FlinkAvroDatumWriter(DatumWriter):
 
     def __init__(self, writer_schema=None):
-        super().__init__(writer_schema=writer_schema)
+        super().__init__(writers_schema=writer_schema)
 
     def write_array(self, writer_schema, datum, encoder):
         if len(datum) > 0:
@@ -224,7 +223,7 @@ class FlinkAvroDatumWriter(DatumWriter):
         # resolve union
         index_of_schema = -1
         for i, candidate_schema in enumerate(writer_schema.schemas):
-            if Validate(candidate_schema, datum):
+            if validate(candidate_schema, datum):
                 index_of_schema = i
         if index_of_schema < 0:
             raise AvroTypeException(writer_schema, datum)

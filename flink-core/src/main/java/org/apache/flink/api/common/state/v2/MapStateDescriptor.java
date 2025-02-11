@@ -71,6 +71,22 @@ public class MapStateDescriptor<UK, UV> extends StateDescriptor<UV> {
         this.userKeySerializer = new StateSerializerReference<>(userKeySerializer);
     }
 
+    /**
+     * Create a new {@code MapStateDescriptor} with the given name and the given type information.
+     *
+     * <p>If this constructor fails (because it is not possible to describe the type via a class),
+     * consider using the {@link #MapStateDescriptor(String, TypeInformation, TypeInformation)}
+     * constructor.
+     *
+     * @param name The name of the {@code MapStateDescriptor}.
+     * @param keyClass The class of the type of keys in the state.
+     * @param valueClass The class of the type of values in the state.
+     */
+    public MapStateDescriptor(String name, Class<UK> keyClass, Class<UV> valueClass) {
+        super(name, valueClass);
+        this.userKeySerializer = new StateSerializerReference<>(keyClass);
+    }
+
     @Nonnull
     public TypeSerializer<UK> getUserKeySerializer() {
         TypeSerializer<UK> serializer = userKeySerializer.get();

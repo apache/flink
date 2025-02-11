@@ -23,6 +23,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
+import org.apache.flink.runtime.state.ttl.TtlAwareSerializer;
+import org.apache.flink.runtime.state.ttl.TtlAwareSerializerSnapshotWrapper;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -294,7 +296,7 @@ public abstract class StateSerializerProvider<T> {
 
         @Nonnull
         @Override
-        @SuppressWarnings("ConstantConditions")
+        @SuppressWarnings({"ConstantConditions", "unchecked", "rawtypes"})
         public TypeSerializerSchemaCompatibility<T> registerNewSerializerForRestoredState(
                 TypeSerializer<T> newSerializer) {
             checkNotNull(newSerializer);
@@ -303,10 +305,14 @@ public abstract class StateSerializerProvider<T> {
                         "A serializer has already been registered for the state; re-registration is not allowed.");
             }
 
+            // Use wrapped ttl serializer for compatibility check
             TypeSerializerSchemaCompatibility<T> result =
-                    newSerializer
+                    TtlAwareSerializer.wrapTtlAwareSerializer(newSerializer)
                             .snapshotConfiguration()
-                            .resolveSchemaCompatibility(previousSerializerSnapshot);
+                            .resolveSchemaCompatibility(
+                                    new TtlAwareSerializerSnapshotWrapper(
+                                                    previousSerializerSnapshot)
+                                            .getTtlAwareSerializerSnapshot());
             if (result.isIncompatible()) {
                 invalidateCurrentSchemaSerializerAccess();
             }
@@ -349,6 +355,7 @@ public abstract class StateSerializerProvider<T> {
 
         @Nonnull
         @Override
+        @SuppressWarnings({"unchecked", "rawtypes"})
         public TypeSerializerSchemaCompatibility<T> setPreviousSerializerSnapshotForRestoredState(
                 TypeSerializerSnapshot<T> previousSerializerSnapshot) {
             checkNotNull(previousSerializerSnapshot);
@@ -359,10 +366,15 @@ public abstract class StateSerializerProvider<T> {
 
             this.previousSerializerSnapshot = previousSerializerSnapshot;
 
+            // Use wrapped ttl serializer for compatibility check
             TypeSerializerSchemaCompatibility<T> result =
-                    Preconditions.checkNotNull(registeredSerializer)
+                    TtlAwareSerializer.wrapTtlAwareSerializer(
+                                    Preconditions.checkNotNull(registeredSerializer))
                             .snapshotConfiguration()
-                            .resolveSchemaCompatibility(previousSerializerSnapshot);
+                            .resolveSchemaCompatibility(
+                                    new TtlAwareSerializerSnapshotWrapper(
+                                                    previousSerializerSnapshot)
+                                            .getTtlAwareSerializerSnapshot());
             if (result.isIncompatible()) {
                 invalidateCurrentSchemaSerializerAccess();
             }

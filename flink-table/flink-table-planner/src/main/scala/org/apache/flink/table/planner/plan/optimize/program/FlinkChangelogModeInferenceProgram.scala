@@ -332,7 +332,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
       case process: StreamPhysicalProcessTableFunction =>
         // Accepted changes depend on input argument declaration
-        val requiredChildrenTraits = process.getProvidedInputArgs
+        val requiredChildrenTraits = StreamPhysicalProcessTableFunction
+          .getProvidedInputArgs(process.getCall)
+          .map(arg => arg.e)
           .map(
             arg =>
               if (arg.is(StaticArgumentTrait.SUPPORT_UPDATES)) {
