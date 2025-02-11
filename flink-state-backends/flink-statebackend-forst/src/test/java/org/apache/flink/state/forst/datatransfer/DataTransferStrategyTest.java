@@ -109,8 +109,6 @@ public class DataTransferStrategyTest {
 
         Map<String, Path> dbFilePaths = new HashMap<>();
 
-        FileOwnershipDecider fileOwnershipDecider;
-
         DBFilesContainer(Path dbLocalBase, Path dbRemoteBase) throws IOException {
             realFileSystem = LocalFileSystem.getLocalFileSystem();
 
@@ -133,8 +131,6 @@ public class DataTransferStrategyTest {
                             4096);
             tmpResourcesRegistry = new CloseableRegistry();
             closeableRegistry = new CloseableRegistry();
-
-            this.fileOwnershipDecider = fileOwnershipDecider;
         }
 
         private void createDbFiles(List<String> fileNames) throws IOException {
@@ -479,6 +475,9 @@ public class DataTransferStrategyTest {
 
         testRestoreStrategyAsExpected(
                 forStFlinkFileSystem, RecoveryClaimMode.NO_CLAIM, CopyDataTransferStrategy.class);
+
+        testRestoreStrategyAsExpected(
+                forStFlinkFileSystem, RecoveryClaimMode.LEGACY, ReusableDataTransferStrategy.class);
 
         testRestoreStrategyAsExpected(
                 null, RecoveryClaimMode.CLAIM, CopyDataTransferStrategy.class);
