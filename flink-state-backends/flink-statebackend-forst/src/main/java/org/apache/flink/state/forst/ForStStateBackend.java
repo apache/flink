@@ -29,6 +29,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.core.execution.RecoveryClaimMode;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
@@ -636,9 +637,16 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
         return optionsFactory;
     }
 
-    /** Both ForStSyncKeyedStateBackend and ForStKeyedStateBackend support no claim mode. */
+    @Override
     public boolean supportsNoClaimRestoreMode() {
+        // Both ForStSyncKeyedStateBackend and ForStKeyedStateBackend support no claim mode.
         return true;
+    }
+
+    @Override
+    public boolean supportsSavepointFormat(SavepointFormatType formatType) {
+        // We only support native format for now.
+        return formatType == SavepointFormatType.NATIVE;
     }
 
     // ------------------------------------------------------------------------
