@@ -314,6 +314,7 @@ public class SavepointDynamicTableSourceFactory implements DynamicTableSourceFac
             case RAW:
             case SYMBOL:
             case UNRESOLVED:
+            case DESCRIPTOR:
             default:
                 throw new UnsupportedOperationException(
                         String.format(

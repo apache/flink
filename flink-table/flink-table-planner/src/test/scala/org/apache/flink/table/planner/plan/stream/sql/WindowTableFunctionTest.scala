@@ -306,9 +306,6 @@ class WindowTableFunctionTest extends TableTestBase {
 
   @Test
   def testWindowTVFWithNamedParamsOrderChange(): Unit = {
-    // the DATA param must be the first in FLIP-145
-    // change the order about GAP and TIMECOL
-    // TODO fix it in FLINK-34338
     val sql =
       """
         |SELECT *
@@ -318,11 +315,7 @@ class WindowTableFunctionTest extends TableTestBase {
         |         GAP => INTERVAL '15' MINUTE,
         |         TIMECOL => DESCRIPTOR(rowtime)))
         |""".stripMargin
-
-    assertThatThrownBy(() => util.verifyRelPlan(sql))
-      .hasMessage("fieldList must not be null, type = INTERVAL MINUTE")
-      .isInstanceOf[AssertionError]
-
+    util.verifyRelPlan(sql)
   }
 
   @Test

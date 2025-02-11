@@ -161,7 +161,7 @@ GROUP BY window_start, window_end]]>
 LogicalProject(EXPR$0=[$2], window_start=[$0])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[SUM($2)])
    +- LogicalProject(window_start=[$2], window_end=[$3], i=[$0])
-      +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR($1), 600000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER i, TIMESTAMP_LTZ(3) *ROWTIME* ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP_LTZ(3) *ROWTIME* window_time)])
+      +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'ts'), 600000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER i, TIMESTAMP_LTZ(3) *ROWTIME* ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP_LTZ(3) *ROWTIME* window_time)])
          +- LogicalProject(i=[$0], ts=[$1])
             +- LogicalProject(i=[$0], ts=[$1])
                +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$1])

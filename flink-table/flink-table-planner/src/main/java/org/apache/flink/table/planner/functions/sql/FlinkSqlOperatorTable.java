@@ -1335,8 +1335,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     // WINDOW TABLE FUNCTIONS
     // use the definitions in Flink, because we have different return types
     // and special check on the time attribute.
-    // SESSION is not supported yet, because Calcite doesn't support PARTITION BY clause in TVF
-    public static final SqlOperator DESCRIPTOR = new SqlDescriptorOperator();
+    public static final SqlOperator DESCRIPTOR = SqlStdOperatorTable.DESCRIPTOR;
     public static final SqlFunction TUMBLE = new SqlTumbleTableFunction();
     public static final SqlFunction HOP = new SqlHopTableFunction();
     public static final SqlFunction CUMULATE = new SqlCumulateTableFunction();

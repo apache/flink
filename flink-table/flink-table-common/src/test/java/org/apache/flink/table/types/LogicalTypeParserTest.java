@@ -35,6 +35,7 @@ import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.DescriptorType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
@@ -149,6 +150,7 @@ public class LogicalTypeParserTest {
                                         3)),
                 TestSpec.forString("INTERVAL MINUTE")
                         .expectType(new DayTimeIntervalType(DayTimeResolution.MINUTE)),
+                TestSpec.forString("DESCRIPTOR").expectType(new DescriptorType()),
                 TestSpec.forString("ARRAY<TIMESTAMP(3) WITH LOCAL TIME ZONE>")
                         .expectType(new ArrayType(new LocalZonedTimestampType(3))),
                 TestSpec.forString("ARRAY<INT NOT NULL>")
@@ -255,7 +257,7 @@ public class LogicalTypeParserTest {
                         .expectErrorMessage("Unable to restore the RAW type"));
     }
 
-    @ParameterizedTest(name = "{index}: [From: {0}, To: {1}]")
+    @ParameterizedTest(name = "{index}: {0}")
     @MethodSource("testData")
     void testParsing(TestSpec testSpec) {
         if (testSpec.expectedType != null) {
@@ -267,7 +269,7 @@ public class LogicalTypeParserTest {
         }
     }
 
-    @ParameterizedTest(name = "{index}: [From: {0}, To: {1}]")
+    @ParameterizedTest(name = "{index}: {0}")
     @MethodSource("testData")
     void testSerializableParsing(TestSpec testSpec) {
         if (testSpec.expectedType != null) {
@@ -283,7 +285,7 @@ public class LogicalTypeParserTest {
         }
     }
 
-    @ParameterizedTest(name = "{index}: [From: {0}, To: {1}]")
+    @ParameterizedTest(name = "{index}: {0}")
     @MethodSource("testData")
     void testErrorMessage(TestSpec testSpec) {
         if (testSpec.expectedErrorMessage != null) {
@@ -323,6 +325,11 @@ public class LogicalTypeParserTest {
         TestSpec expectErrorMessage(String expectedErrorMessage) {
             this.expectedErrorMessage = expectedErrorMessage;
             return this;
+        }
+
+        @Override
+        public String toString() {
+            return typeString;
         }
     }
 
