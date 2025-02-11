@@ -260,6 +260,8 @@ public class ConfigOptionsDocGenerator {
 
     @VisibleForTesting
     static String toSnakeCase(String name) {
+        // We prefer lower case 'forst' for 'ForSt' instead of 'for_st'
+        name = name.replaceAll("(ForSt)([A-Z]|$)", "forst$2");
         return name.replaceAll("(.)([A-Z][a-z])", "$1_$2").toLowerCase();
     }
 

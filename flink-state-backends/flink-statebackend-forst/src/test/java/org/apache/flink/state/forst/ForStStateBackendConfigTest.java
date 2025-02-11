@@ -69,6 +69,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
+import static org.apache.flink.state.forst.ForStStateBackend.LOCAL_DIR_AS_PRIMARY_SHORTCUT;
 import static org.apache.flink.state.forst.ForStTestUtils.createKeyedStateBackend;
 import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -283,6 +284,7 @@ public class ForStStateBackendConfigTest {
         conf.set(ForStConfigurableOptions.LOG_LEVEL, InfoLogLevel.DEBUG_LEVEL);
         conf.set(ForStConfigurableOptions.LOG_FILE_NUM, 4);
         conf.set(ForStConfigurableOptions.LOG_MAX_FILE_SIZE, MemorySize.parse("1kb"));
+        conf.set(ForStOptions.PRIMARY_DIRECTORY, LOCAL_DIR_AS_PRIMARY_SHORTCUT);
         final ForStStateBackend forStBackend =
                 new ForStStateBackend().configure(conf, getClass().getClassLoader());
         final String dbStoragePath = new Path(folder.toURI().toString()).toString();
@@ -742,10 +744,11 @@ public class ForStStateBackendConfigTest {
     }
 
     @Test
-    public void testRemoteDirectory() throws Exception {
+    public void testPrimaryDirectory() throws Exception {
         FileSystem.initialize(new Configuration(), null);
         Configuration configuration = new Configuration();
-        configuration.set(ForStOptions.REMOTE_DIRECTORY, tempFolder.newFolder().toURI().toString());
+        configuration.set(
+                ForStOptions.PRIMARY_DIRECTORY, tempFolder.newFolder().toURI().toString());
         ForStStateBackend forStStateBackend =
                 new ForStStateBackend().configure(configuration, null);
         ForStKeyedStateBackend<Integer> keyedBackend = null;
@@ -759,7 +762,7 @@ public class ForStStateBackendConfigTest {
                     keyedBackend
                             .getRemoteBasePath()
                             .toString()
-                            .startsWith(configuration.get(ForStOptions.REMOTE_DIRECTORY)));
+                            .startsWith(configuration.get(ForStOptions.PRIMARY_DIRECTORY)));
         } finally {
             if (keyedBackend != null) {
                 keyedBackend.dispose();

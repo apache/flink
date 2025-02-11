@@ -43,8 +43,8 @@ import java.util.Set;
  * <p>Statistics based metrics would report at the database level, it can return ticker or histogram
  * kind results.
  *
- * <p>Properties and doc comments are taken from RocksDB documentation. See <a
- * href="https://github.com/facebook/rocksdb/blob/64324e329eb0a9b4e77241a425a1615ff524c7f1/include/rocksdb/db.h#L429">
+ * <p>Properties and doc comments are taken from ForSt documentation. See <a
+ * href="https://github.com/ververica/ForSt/blob/64324e329eb0a9b4e77241a425a1615ff524c7f1/include/rocksdb/db.h#L429">
  * db.h</a> for more information.
  */
 @Experimental
@@ -52,36 +52,36 @@ public class ForStNativeMetricOptions implements Serializable {
     private static final long serialVersionUID = 1L;
 
     // --------------------------------------------------------------------------------------------
-    //  RocksDB property based metrics, report at column family level
+    //  ForSt property based metrics, report at column family level
     // --------------------------------------------------------------------------------------------
 
     public static final String METRICS_COLUMN_FAMILY_AS_VARIABLE_KEY =
-            "state.backend.rocksdb.metrics" + ".column-family-as-variable";
+            "state.backend.forst.metrics" + ".column-family-as-variable";
 
     public static final ConfigOption<Boolean> MONITOR_NUM_IMMUTABLE_MEM_TABLES =
             ConfigOptions.key(ForStProperty.NumImmutableMemTable.getConfigKey())
                     .booleanType()
                     .defaultValue(false)
-                    .withDescription("Monitor the number of immutable memtables in RocksDB.");
+                    .withDescription("Monitor the number of immutable memtables in ForSt.");
 
     public static final ConfigOption<Boolean> MONITOR_MEM_TABLE_FLUSH_PENDING =
             ConfigOptions.key(ForStProperty.MemTableFlushPending.getConfigKey())
                     .booleanType()
                     .defaultValue(false)
-                    .withDescription("Monitor the number of pending memtable flushes in RocksDB.");
+                    .withDescription("Monitor the number of pending memtable flushes in ForSt.");
 
     public static final ConfigOption<Boolean> TRACK_COMPACTION_PENDING =
             ConfigOptions.key(ForStProperty.CompactionPending.getConfigKey())
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Track pending compactions in RocksDB. Returns 1 if a compaction is pending, 0 otherwise.");
+                            "Track pending compactions in ForSt. Returns 1 if a compaction is pending, 0 otherwise.");
 
     public static final ConfigOption<Boolean> MONITOR_BACKGROUND_ERRORS =
             ConfigOptions.key(ForStProperty.BackgroundErrors.getConfigKey())
                     .booleanType()
                     .defaultValue(false)
-                    .withDescription("Monitor the number of background errors in RocksDB.");
+                    .withDescription("Monitor the number of background errors in ForSt.");
 
     public static final ConfigOption<Boolean> MONITOR_CUR_SIZE_ACTIVE_MEM_TABLE =
             ConfigOptions.key(ForStProperty.CurSizeActiveMemTable.getConfigKey())
@@ -137,7 +137,7 @@ public class ForStNativeMetricOptions implements Serializable {
             ConfigOptions.key(ForStProperty.EstimateNumKeys.getConfigKey())
                     .booleanType()
                     .defaultValue(false)
-                    .withDescription("Estimate the number of keys in RocksDB.");
+                    .withDescription("Estimate the number of keys in ForSt.");
 
     public static final ConfigOption<Boolean> ESTIMATE_TABLE_READERS_MEM =
             ConfigOptions.key(ForStProperty.EstimateTableReadersMem.getConfigKey())
@@ -145,13 +145,13 @@ public class ForStNativeMetricOptions implements Serializable {
                     .defaultValue(false)
                     .withDescription(
                             "Estimate the memory used for reading SST tables, excluding memory"
-                                    + " used in block cache (e.g.,filter and index blocks) in bytes.");
+                                    + " used in block cache (e.g. filter and index blocks) in bytes.");
 
     public static final ConfigOption<Boolean> MONITOR_NUM_SNAPSHOTS =
             ConfigOptions.key(ForStProperty.NumSnapshots.getConfigKey())
                     .booleanType()
                     .defaultValue(false)
-                    .withDescription("Monitor the number of unreleased snapshots of the database.");
+                    .withDescription("Monitor the number of unfinished snapshots of the ForSt.");
 
     public static final ConfigOption<Boolean> MONITOR_NUM_LIVE_VERSIONS =
             ConfigOptions.key(ForStProperty.NumLiveVersions.getConfigKey())
@@ -159,7 +159,7 @@ public class ForStNativeMetricOptions implements Serializable {
                     .defaultValue(false)
                     .withDescription(
                             "Monitor number of live versions. Version is an internal data structure. "
-                                    + "See RocksDB file version_set.h for details. More live versions often mean more SST files are held "
+                                    + "See ForSt file version_set.h for details. More live versions often mean more SST files are held "
                                     + "from being deleted, by iterators or unfinished compactions.");
 
     public static final ConfigOption<Boolean> ESTIMATE_LIVE_DATA_SIZE =
@@ -174,7 +174,7 @@ public class ForStNativeMetricOptions implements Serializable {
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Monitor the total size (bytes) of all SST files of all versions."
+                            "Monitor the total size (bytes) of all SST files of all versions. "
                                     + "WARNING: may slow down online queries if there are too many files.");
 
     public static final ConfigOption<Boolean> MONITOR_LIVE_SST_FILES_SIZE =
@@ -182,7 +182,7 @@ public class ForStNativeMetricOptions implements Serializable {
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Monitor the total size (bytes) of all SST files belonging to the latest version."
+                            "Monitor the total size (bytes) of all SST files belonging to the latest version. "
                                     + "WARNING: may slow down online queries if there are too many files.");
 
     public static final ConfigOption<Boolean> ESTIMATE_PENDING_COMPACTION_BYTES =
@@ -190,7 +190,7 @@ public class ForStNativeMetricOptions implements Serializable {
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Estimated total number of bytes compaction needs to rewrite to get all levels "
+                            "Estimated total number of bytes compaction needed to rewrite to get all levels "
                                     + "down to under target size. Not valid for other compactions than level-based.");
 
     public static final ConfigOption<Boolean> MONITOR_NUM_RUNNING_COMPACTIONS =
@@ -217,7 +217,7 @@ public class ForStNativeMetricOptions implements Serializable {
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Track whether write has been stopped in RocksDB. Returns 1 if write has been stopped, 0 otherwise.");
+                            "Track whether write has been stopped in ForSt. The metric will return 1 if write has been stopped, 0 otherwise.");
 
     public static final ConfigOption<Boolean> BLOCK_CACHE_CAPACITY =
             ConfigOptions.key(ForStProperty.BlockCacheCapacity.getConfigKey())
@@ -244,91 +244,91 @@ public class ForStNativeMetricOptions implements Serializable {
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Whether to expose the column family as a variable for RocksDB property based metrics.");
+                            "Whether to expose the column family as a variable for ForSt property based metrics.");
 
     public static final ConfigOption<Boolean> MONITOR_NUM_FILES_AT_LEVEL =
-            ConfigOptions.key("state.backend.rocksdb.metrics.num-files-at-level")
+            ConfigOptions.key("state.backend.forst.metrics.num-files-at-level")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription("Monitor the number of files at each level.");
 
     // --------------------------------------------------------------------------------------------
-    //  RocksDB statistics based metrics, report at database level
+    //  ForSt statistics based metrics, report at database level
     // --------------------------------------------------------------------------------------------
 
     public static final ConfigOption<Boolean> MONITOR_BLOCK_CACHE_HIT =
-            ConfigOptions.key("state.backend.rocksdb.metrics.block-cache-hit")
+            ConfigOptions.key("state.backend.forst.metrics.block-cache-hit")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Monitor the total count of block cache hit in RocksDB (BLOCK_CACHE_HIT == BLOCK_CACHE_INDEX_HIT + BLOCK_CACHE_FILTER_HIT + BLOCK_CACHE_DATA_HIT).");
+                            "Monitor the total count of block cache hit in ForSt (BLOCK_CACHE_HIT == BLOCK_CACHE_INDEX_HIT + BLOCK_CACHE_FILTER_HIT + BLOCK_CACHE_DATA_HIT).");
 
     public static final ConfigOption<Boolean> MONITOR_BLOCK_CACHE_MISS =
-            ConfigOptions.key("state.backend.rocksdb.metrics.block-cache-miss")
+            ConfigOptions.key("state.backend.forst.metrics.block-cache-miss")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Monitor the total count of block cache misses in RocksDB (BLOCK_CACHE_MISS == BLOCK_CACHE_INDEX_MISS + BLOCK_CACHE_FILTER_MISS + BLOCK_CACHE_DATA_MISS).");
+                            "Monitor the total count of block cache misses in ForSt (BLOCK_CACHE_MISS == BLOCK_CACHE_INDEX_MISS + BLOCK_CACHE_FILTER_MISS + BLOCK_CACHE_DATA_MISS).");
 
     public static final ConfigOption<Boolean> MONITOR_BLOOM_FILTER_USEFUL =
-            ConfigOptions.key("state.backend.rocksdb.metrics.bloom-filter-useful")
+            ConfigOptions.key("state.backend.forst.metrics.bloom-filter-useful")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription("Monitor the total count of reads avoided by bloom filter.");
 
     public static final ConfigOption<Boolean> MONITOR_BLOOM_FILTER_FULL_POSITIVE =
-            ConfigOptions.key("state.backend.rocksdb.metrics.bloom-filter-full-positive")
+            ConfigOptions.key("state.backend.forst.metrics.bloom-filter-full-positive")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Monitor the total count of reads not avoided by bloom full filter.");
 
     public static final ConfigOption<Boolean> MONITOR_BLOOM_FILTER_FULL_TRUE_POSITIVE =
-            ConfigOptions.key("state.backend.rocksdb.metrics.bloom-filter-full-true-positive")
+            ConfigOptions.key("state.backend.forst.metrics.bloom-filter-full-true-positive")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Monitor the total count of reads not avoided by bloom full filter and the data actually exists in RocksDB.");
+                            "Monitor the total count of reads not avoided by bloom full filter and the data actually exists in ForSt.");
 
     public static final ConfigOption<Boolean> MONITOR_BYTES_READ =
-            ConfigOptions.key("state.backend.rocksdb.metrics.bytes-read")
+            ConfigOptions.key("state.backend.forst.metrics.bytes-read")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Monitor the number of uncompressed bytes read (from memtables/cache/sst) from Get() operation in RocksDB.");
+                            "Monitor the number of uncompressed bytes read (from memtables/cache/sst) from Get() operation in ForSt.");
 
     public static final ConfigOption<Boolean> MONITOR_ITER_BYTES_READ =
-            ConfigOptions.key("state.backend.rocksdb.metrics.iter-bytes-read")
+            ConfigOptions.key("state.backend.forst.metrics.iter-bytes-read")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Monitor the number of uncompressed bytes read (from memtables/cache/sst) from an iterator operation in RocksDB.");
+                            "Monitor the number of uncompressed bytes read (from memtables/cache/sst) from an iterator operation in ForSt.");
 
     public static final ConfigOption<Boolean> MONITOR_BYTES_WRITTEN =
-            ConfigOptions.key("state.backend.rocksdb.metrics.bytes-written")
+            ConfigOptions.key("state.backend.forst.metrics.bytes-written")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Monitor the number of uncompressed bytes written by DB::{Put(), Delete(), Merge(), Write()} operations, which does not include the compaction written bytes, in RocksDB.");
+                            "Monitor the number of uncompressed bytes written by DB::{Put(), Delete(), Merge(), Write()} operations, which does not include the compaction written bytes, in ForSt.");
 
     public static final ConfigOption<Boolean> MONITOR_COMPACTION_READ_BYTES =
-            ConfigOptions.key("state.backend.rocksdb.metrics.compaction-read-bytes")
+            ConfigOptions.key("state.backend.forst.metrics.compaction-read-bytes")
                     .booleanType()
                     .defaultValue(false)
-                    .withDescription("Monitor the bytes read during compaction in RocksDB.");
+                    .withDescription("Monitor the bytes read during compaction in ForSt.");
 
     public static final ConfigOption<Boolean> MONITOR_COMPACTION_WRITE_BYTES =
-            ConfigOptions.key("state.backend.rocksdb.metrics.compaction-write-bytes")
+            ConfigOptions.key("state.backend.forst.metrics.compaction-write-bytes")
                     .booleanType()
                     .defaultValue(false)
-                    .withDescription("Monitor the bytes written during compaction in RocksDB.");
+                    .withDescription("Monitor the bytes written during compaction in ForSt.");
 
     public static final ConfigOption<Boolean> MONITOR_STALL_MICROS =
-            ConfigOptions.key("state.backend.rocksdb.metrics.stall-micros")
+            ConfigOptions.key("state.backend.forst.metrics.stall-micros")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Monitor the duration of writer requiring to wait for compaction or flush to finish in RocksDB.");
+                            "Monitor the writer wait duration for compaction or flush to finish in ForSt.");
 
     /** Creates a {@link ForStNativeMetricOptions} based on an external configuration. */
     public static ForStNativeMetricOptions fromConfig(ReadableConfig config) {
@@ -666,14 +666,14 @@ public class ForStNativeMetricOptions implements Serializable {
     }
 
     /**
-     * @return the enabled RocksDB property-based metrics
+     * @return the enabled ForSt property-based metrics
      */
     public Collection<ForStProperty> getProperties() {
         return Collections.unmodifiableCollection(properties);
     }
 
     /**
-     * @return the enabled RocksDB statistics metrics.
+     * @return the enabled ForSt statistics metrics.
      */
     public Collection<TickerType> getMonitorTickerTypes() {
         return Collections.unmodifiableCollection(monitorTickerTypes);
@@ -689,7 +689,7 @@ public class ForStNativeMetricOptions implements Serializable {
     }
 
     /**
-     * @return true if RocksDB statistics metrics are enabled, false otherwise.
+     * @return true if ForSt statistics metrics are enabled, false otherwise.
      */
     public boolean isStatisticsEnabled() {
         return !monitorTickerTypes.isEmpty();

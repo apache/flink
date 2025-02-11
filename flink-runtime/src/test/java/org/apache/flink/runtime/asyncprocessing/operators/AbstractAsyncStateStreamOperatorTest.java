@@ -198,7 +198,7 @@ public class AbstractAsyncStateStreamOperatorTest {
     void testManyAsyncProcessWithKey() throws Exception {
         // This test is for verifying AsyncExecutionController could avoid deadlock for derived
         // processing requests.
-        int requests = ExecutionOptions.ASYNC_INFLIGHT_RECORDS_LIMIT.defaultValue() + 1;
+        int requests = ExecutionOptions.ASYNC_STATE_TOTAL_BUFFER_SIZE.defaultValue() + 1;
         TestOperatorWithMultipleDirectAsyncProcess testOperator =
                 new TestOperatorWithMultipleDirectAsyncProcess(ElementOrder.RECORD_ORDER, requests);
         AsyncKeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>

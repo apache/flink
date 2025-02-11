@@ -61,7 +61,7 @@ public class ForStStateTestBase {
     public void setup(@TempDir File temporaryFolder) throws IOException {
         FileSystem.initialize(new Configuration(), null);
         Configuration configuration = new Configuration();
-        configuration.set(ForStOptions.REMOTE_DIRECTORY, temporaryFolder.toURI().toString());
+        configuration.set(ForStOptions.PRIMARY_DIRECTORY, temporaryFolder.toURI().toString());
         ForStStateBackend forStStateBackend =
                 new ForStStateBackend().configure(configuration, null);
 
