@@ -32,11 +32,11 @@ import org.apache.flink.runtime.metrics.util.InterceptingOperatorMetricGroup;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
-import org.apache.flink.runtime.state.InputChannelStateHandle;
+import org.apache.flink.runtime.state.InputStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
+import org.apache.flink.runtime.state.OutputStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -77,9 +77,9 @@ class StreamOperatorStateHandlerTest {
                     new CancelableFuture<>();
             RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateRawFuture =
                     new CancelableFuture<>();
-            RunnableFuture<SnapshotResult<StateObjectCollection<InputChannelStateHandle>>>
+            RunnableFuture<SnapshotResult<StateObjectCollection<InputStateHandle>>>
                     inputChannelStateFuture = new CancelableFuture<>();
-            RunnableFuture<SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>>>
+            RunnableFuture<SnapshotResult<StateObjectCollection<OutputStateHandle>>>
                     resultSubpartitionStateFuture = new CancelableFuture<>();
 
             OperatorSnapshotFutures operatorSnapshotResult =

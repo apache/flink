@@ -28,7 +28,8 @@ import java.util.List;
  * org.apache.flink.runtime.io.network.partition.consumer.InputChannel InputChannel} state.
  */
 @Internal
-public class InputChannelStateHandle extends AbstractChannelStateHandle<InputChannelInfo> {
+public class InputChannelStateHandle extends AbstractChannelStateHandle<InputChannelInfo>
+        implements InputStateHandle {
 
     private static final long serialVersionUID = 1L;
 
