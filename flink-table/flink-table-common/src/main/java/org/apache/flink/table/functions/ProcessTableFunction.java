@@ -23,6 +23,7 @@ import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
+import org.apache.flink.table.annotation.StateHint;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.extraction.TypeInferenceExtractor;
 import org.apache.flink.table.types.inference.TypeInference;
@@ -144,7 +145,7 @@ import org.apache.flink.util.Collector;
  * <pre>{@code
  * // Function with explicit table argument type of row
  * class MyPTF extends ProcessTableFunction<String> {
- *   public void eval(Context ctx, @ArgumentHint(value = ArgumentTrait.TABLE_AS_SET, type = "ROW < s STRING >") Row t) {
+ *   public void eval(Context ctx, @ArgumentHint(value = ArgumentTrait.TABLE_AS_SET, type = @DataTypeHint("ROW < s STRING >")) Row t) {
  *     TableSemantics semantics = ctx.tableSemanticsFor("t");
  *     // Always returns "ROW < s STRING >"
  *     semantics.dataType();
@@ -190,6 +191,96 @@ import org.apache.flink.util.Collector;
  *       .mapToObj(inputTable::getField)
  *       .map(Object::toString)
  *       .collect(Collectors.joining(", "));
+ *   }
+ * }
+ * }</pre>
+ *
+ * <h1>State</h1>
+ *
+ * <p>A PTF that takes set semantic tables can be stateful. Intermediate results can be buffered,
+ * cached, aggregated, or simply stored for repeated access. A function can have one or more state
+ * entries which are managed by the framework. Flink takes care of storing and restoring those
+ * during failures or restarts (i.e. Flink managed state).
+ *
+ * <p>A state entry is partitioned by a key and cannot be accessed globally. The partitioning (or a
+ * single partition in case of no partitioning) is defined by the corresponding function call. In
+ * other words: Similar to how a virtual processor has access only to a portion of the entire table,
+ * a PTF has access only to a portion of the entire state defined by the PARTITION BY clause. In
+ * Flink, this concept is also known as keyed state.
+ *
+ * <p>State entries can be added as a mutable parameter to the eval() method. In order to
+ * distinguish them from call arguments, they must be declared before any other argument, but after
+ * an optional {@link Context} parameter. Furthermore, they must be annotated either via {@link
+ * StateHint} or declared as part of {@link FunctionHint#state()}.
+ *
+ * <p>For read and write access, only row or structured types (i.e. POJOs with default constructor)
+ * qualify as a data type. If no state is present, all fields are set to null (in case of a row
+ * type) or fields are set to their default value (in case of a structured type). For state
+ * efficiency, it is recommended to keep all fields nullable.
+ *
+ * <pre>{@code
+ * // a function that counts and stores its intermediate result in the CountState object
+ * // which will be persisted by Flink
+ * class CountingFunction extends ProcessTableFunction<String> {
+ *   public static class CountState {
+ *     public long count = 0L;
+ *   }
+ *
+ *   public void eval(@StateHint CountState memory, @ArgumentHint(TABLE_AS_SET) Row input) {
+ *     memory.count++;
+ *     collect("Seen rows: " + memory.count);
+ *   }
+ * }
+ *
+ * // a function that waits for a second event coming in
+ * class CountingFunction extends ProcessTableFunction<String> {
+ *   public static class SeenState {
+ *     public String first;
+ *   }
+ *
+ *   public void eval(@StateHint SeenState memory, @ArgumentHint(TABLE_AS_SET) Row input) {
+ *     if (memory.first == null) {
+ *       memory.first = input.toString();
+ *     } else {
+ *       collect("Event 1: " + memory.first + " and Event 2: " + input.toString());
+ *     }
+ *   }
+ * }
+ *
+ * // a function that uses Row for state
+ * class CountingFunction extends ProcessTableFunction<String> {
+ *   public void eval(@StateHint(type = @DataTypeHint("ROW < count BIGINT >")) Row memory, @ArgumentHint(TABLE_AS_SET) Row input) {
+ *     Long newCount = 1L;
+ *     if (memory.getField("count") != null) {
+ *       newCount += memory.getFieldAs("count");
+ *     }
+ *     memory.setField("count", newCount);
+ *     collect("Seen rows: " + newCount);
+ *   }
+ * }
+ * }</pre>
+ *
+ * <h2>Efficiency and Design Principles</h2>
+ *
+ * <p>A stateful function also means that data layout and data retention should be well thought
+ * through. An ever-growing state can happen by an unlimited number of partitions (i.e. an open
+ * keyspace) or even within a partition. Consider setting a {@link StateHint#ttl()} or call {@link
+ * Context#clearAllState()} eventually:
+ *
+ * <pre>{@code
+ * // a function that waits for a second event coming in BUT with better state efficiency
+ * class CountingFunction extends ProcessTableFunction<String> {
+ *   public static class SeenState {
+ *     public String first;
+ *   }
+ *
+ *   public void eval(Context ctx, @StateHint(ttl = "1 day") SeenState memory, @ArgumentHint(TABLE_AS_SET) Row input) {
+ *     if (memory.first == null) {
+ *       memory.first = input.toString();
+ *     } else {
+ *       collect("Event 1: " + memory.first + " and Event 2: " + input.toString());
+ *       ctx.clearAllState();
+ *     }
  *   }
  * }
  * }</pre>
@@ -241,8 +332,28 @@ public abstract class ProcessTableFunction<T> extends UserDefinedFunction {
         /**
          * Returns additional information about the semantics of a table argument.
          *
-         * @param argName name of the table argument
+         * @param argName name of the table argument; either reflectively extracted or manually
+         *     defined via {@link ArgumentHint#name()}.
          */
         TableSemantics tableSemanticsFor(String argName);
+
+        /**
+         * Clears the given state entry within the virtual partition once the eval() method returns.
+         *
+         * <p>Semantically this is equal to setting all fields of the state entry to null shortly
+         * before the eval() method returns.
+         *
+         * @param stateName name of the state entry; either reflectively extracted or manually
+         *     defined via {@link StateHint#name()}.
+         */
+        void clearState(String stateName);
+
+        /**
+         * Clears all state entries within the virtual partition once the eval() method returns.
+         *
+         * <p>Semantically this is equal to calling {@link #clearState(String)} on all state
+         * entries.
+         */
+        void clearAllState();
     }
 }

@@ -20,6 +20,7 @@ package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
@@ -233,7 +234,9 @@ public final class TypeInference {
         public Builder accumulatorTypeStrategy(TypeStrategy accumulatorTypeStrategy) {
             Preconditions.checkNotNull(
                     accumulatorTypeStrategy, "Accumulator type strategy must not be null.");
-            this.stateTypeStrategies.put("acc", StateTypeStrategy.of(accumulatorTypeStrategy));
+            this.stateTypeStrategies.put(
+                    UserDefinedFunctionHelper.DEFAULT_ACCUMULATOR_NAME,
+                    StateTypeStrategy.of(accumulatorTypeStrategy));
             return this;
         }
 
