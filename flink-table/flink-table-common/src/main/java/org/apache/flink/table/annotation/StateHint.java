@@ -89,6 +89,8 @@ public @interface StateHint {
      * "60 s"). If no unit is specified, the value is interpreted as milliseconds. The TTL setting
      * on a state entry has higher precedence than the global state TTL configuration for the entire
      * pipeline.
+     *
+     * @see org.apache.flink.util.TimeUtils#parseDuration(String)
      */
     String ttl() default "";
 }

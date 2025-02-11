@@ -370,6 +370,7 @@ public final class TypeInferenceUtil {
     }
 
     /** Result of running {@link StateTypeStrategy}. */
+    @Internal
     public static final class StateInfo {
 
         private final DataType dataType;
