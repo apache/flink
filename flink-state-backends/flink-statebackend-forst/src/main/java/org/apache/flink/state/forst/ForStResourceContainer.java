@@ -189,8 +189,8 @@ public final class ForStResourceContainer implements AutoCloseable {
         this.enableStatistics = enableStatistics;
         this.handlesToClose = new ArrayList<>();
         this.cacheBasePath = configuration.getOptional(CACHE_DIRECTORY).map(Path::new).orElse(null);
-        this.cacheCapacity = configuration.get(CACHE_SIZE_BASE_LIMIT);
-        this.cacheReservedSize = configuration.get(CACHE_RESERVED_SIZE);
+        this.cacheCapacity = configuration.get(CACHE_SIZE_BASE_LIMIT).getBytes();
+        this.cacheReservedSize = configuration.get(CACHE_RESERVED_SIZE).getBytes();
         this.metricGroup = metricGroup;
     }
 

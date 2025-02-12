@@ -27,6 +27,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
+import static org.apache.flink.configuration.description.TextElement.text;
 import static org.apache.flink.state.forst.ForStStateBackend.CHECKPOINT_DIR_AS_PRIMARY_SHORTCUT;
 import static org.apache.flink.state.forst.ForStStateBackend.LOCAL_DIR_AS_PRIMARY_SHORTCUT;
 import static org.apache.flink.state.forst.ForStStateBackend.PriorityQueueStateType.ForStDB;
@@ -77,25 +78,34 @@ public class ForStOptions {
                                     LOCAL_DIRECTORIES.key()));
 
     @Documentation.Section(Documentation.Sections.STATE_BACKEND_FORST)
-    public static final ConfigOption<Long> CACHE_SIZE_BASE_LIMIT =
+    public static final ConfigOption<MemorySize> CACHE_SIZE_BASE_LIMIT =
             ConfigOptions.key("state.backend.forst.cache.size-based-limit")
-                    .longType()
-                    .defaultValue(-1L)
+                    .memoryType()
+                    .defaultValue(MemorySize.ZERO)
                     .withDescription(
-                            "The size-based capacity limit of cache, a non-positive number indicates that there is no limit. "
-                                    + "The default value is '-1', which means that the cache size is not limited by size.");
+                            Description.builder()
+                                    .text(
+                                            "The size-based capacity limit of cache."
+                                                    + "The default value is '%s', which means that the cache size is not limited by size.",
+                                            text(MemorySize.ZERO.toString()))
+                                    .build());
 
     @Documentation.Section(Documentation.Sections.STATE_BACKEND_FORST)
-    public static final ConfigOption<Long> CACHE_RESERVED_SIZE =
+    public static final ConfigOption<MemorySize> CACHE_RESERVED_SIZE =
             ConfigOptions.key("state.backend.forst.cache.reserve-size")
-                    .longType()
-                    .defaultValue(-1L)
+                    .memoryType()
+                    .defaultValue(MemorySize.ZERO)
                     .withDescription(
-                            "The reserved size of cache, when set to a positive number. Meaning that "
-                                    + "the cache will reserve the specified size of disk space. "
-                                    + "This option and the '"
-                                    + CACHE_SIZE_BASE_LIMIT.key()
-                                    + "' option can be set simultaneously, the smaller cache limit will be used as the upper limit.");
+                            Description.builder()
+                                    .text(
+                                            "The reserved size of cache, when set to a positive number. Meaning that "
+                                                    + "the cache will reserve the specified size of disk space. "
+                                                    + "This option and the '%s' option can be set simultaneously, the "
+                                                    + "smaller cache limit will be used as the upper limit. "
+                                                    + "The default value is '%s', meaning the cache will not reserve any disk space.",
+                                            text(CACHE_SIZE_BASE_LIMIT.key()),
+                                            text(MemorySize.ZERO.toString()))
+                                    .build());
 
     /** The options factory class for ForSt to create DBOptions and ColumnFamilyOptions. */
     @Documentation.Section(Documentation.Sections.EXPERT_FORST)
