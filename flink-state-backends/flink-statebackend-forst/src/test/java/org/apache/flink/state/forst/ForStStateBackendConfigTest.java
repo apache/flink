@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -769,6 +770,13 @@ public class ForStStateBackendConfigTest {
                 keyedBackend.close();
             }
         }
+    }
+
+    @Test
+    public void testSupportSavepoint() {
+        ForStStateBackend forStStateBackend = new ForStStateBackend();
+        assertFalse(forStStateBackend.supportsSavepointFormat(SavepointFormatType.CANONICAL));
+        assertTrue(forStStateBackend.supportsSavepointFormat(SavepointFormatType.NATIVE));
     }
 
     private void verifySetParameter(Runnable setter) {
