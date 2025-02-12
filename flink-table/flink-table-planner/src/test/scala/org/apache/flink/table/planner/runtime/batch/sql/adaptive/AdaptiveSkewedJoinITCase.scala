@@ -87,6 +87,13 @@ class AdaptiveSkewedJoinITCase extends AdaptiveJoinITCase {
     checkResult(sql)
   }
 
+  @Test
+  def testJoinWithHashOutput(): Unit = {
+    val sql =
+      "SELECT * FROM (SELECT * FROM T1, T2 WHERE T1.a1 = T2.a2) as T4 LEFT JOIN T3 ON T3.b3 = T4.b1"
+    checkResult(sql)
+  }
+
   override def checkResult(sql: String): Unit = {
     tEnv.getConfig
       .set(
