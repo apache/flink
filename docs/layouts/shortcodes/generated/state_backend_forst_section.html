@@ -16,15 +16,15 @@
         </tr>
         <tr>
             <td><h5>state.backend.forst.cache.reserve-size</h5></td>
-            <td style="word-wrap: break-word;">-1</td>
-            <td>Long</td>
-            <td>The reserved size of cache, when set to a positive number. Meaning that the cache will reserve the specified size of disk space. This option and the 'state.backend.forst.cache.size-based-limit' option can be set simultaneously, the smaller cache limit will be used as the upper limit.</td>
+            <td style="word-wrap: break-word;">0 bytes</td>
+            <td>MemorySize</td>
+            <td>The reserved size of cache, when set to a positive number. Meaning that the cache will reserve the specified size of disk space. This option and the 'state.backend.forst.cache.size-based-limit' option can be set simultaneously, the smaller cache limit will be used as the upper limit. The default value is '0 bytes', meaning the cache will not reserve any disk space.</td>
         </tr>
         <tr>
             <td><h5>state.backend.forst.cache.size-based-limit</h5></td>
-            <td style="word-wrap: break-word;">-1</td>
-            <td>Long</td>
-            <td>The size-based capacity limit of cache, a non-positive number indicates that there is no limit. The default value is '-1', which means that the cache size is not limited by size.</td>
+            <td style="word-wrap: break-word;">0 bytes</td>
+            <td>MemorySize</td>
+            <td>The size-based capacity limit of cache.The default value is '0 bytes', which means that the cache size is not limited by size.</td>
         </tr>
         <tr>
             <td><h5>state.backend.forst.executor.read-io-parallelism</h5></td>
