@@ -74,6 +74,7 @@ DataStream<WordCount> words = // [...]
 KeyedStream<WordCount> keyed = words
   .keyBy(WordCount::getWord).enableAsyncState();
 ```
+{{< /tab >}}
 {{< /tabs >}}
 
 {{< top >}}
