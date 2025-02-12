@@ -140,3 +140,18 @@ The set of changes contained in a changelog.
     ChangelogMode.insert_only
     ChangelogMode.upsert
     ChangelogMode.all
+
+
+TablePipeline
+-------------
+
+Describes a complete pipeline from one or more source tables to a sink table.
+
+.. currentmodule:: pyflink.table.table_pipeline
+
+.. autosummary::
+    :toctree: api/
+
+    TablePipeline.execute
+    TablePipeline.explain
+    TablePipeline.get_sink_identifier
