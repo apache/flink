@@ -91,8 +91,8 @@ class StreamPhysicalTemporalJoin(
     val (leftTimeAttributeInputRef, rightRowTimeAttributeInputRef: Optional[Integer]) =
       if (TemporalJoinUtil.isRowTimeJoin(joinSpec)) {
         checkState(
-          temporalJoinConditionExtractor.leftTimeAttribute.isDefined &&
-            temporalJoinConditionExtractor.rightPrimaryKey.isDefined,
+          temporalJoinConditionExtractor.leftTimeAttribute.isPresent &&
+            temporalJoinConditionExtractor.rightPrimaryKey.isPresent,
           "Missing %s in Event-Time temporal join condition",
           TEMPORAL_JOIN_CONDITION
         )
@@ -142,11 +142,11 @@ class StreamPhysicalTemporalJoin(
       isTemporalFunctionJoin: Boolean)
     extends RexShuttle {
 
-    var leftTimeAttribute: Option[RexNode] = None
+    var leftTimeAttribute: Optional[RexNode] = Optional.empty()
 
-    var rightTimeAttribute: Option[RexNode] = None
+    var rightTimeAttribute: Optional[RexNode] = Optional.empty()
 
-    var rightPrimaryKey: Option[Array[RexNode]] = None
+    var rightPrimaryKey: Optional[Array[RexNode]] = Optional.empty()
 
     override def visitCall(call: RexCall): RexNode = {
       if (call.getOperator != TEMPORAL_JOIN_CONDITION) {
@@ -156,9 +156,9 @@ class StreamPhysicalTemporalJoin(
       // at most one temporal function in a temporal join node
       if (isTemporalFunctionJoin) {
         checkState(
-          leftTimeAttribute.isEmpty
-            && rightPrimaryKey.isEmpty
-            && rightTimeAttribute.isEmpty,
+          !leftTimeAttribute.isPresent
+            && !rightPrimaryKey.isPresent
+            && !rightTimeAttribute.isPresent,
           "Multiple %s temporal functions in [%s]",
           TEMPORAL_JOIN_CONDITION,
           textualRepresentation
@@ -169,12 +169,12 @@ class StreamPhysicalTemporalJoin(
         TemporalTableJoinUtil.isRowTimeTemporalTableJoinCondition(call) ||
         TemporalJoinUtil.isRowTimeTemporalFunctionJoinCon(call)
       ) {
-        leftTimeAttribute = Some(call.getOperands.get(0))
-        rightTimeAttribute = Some(call.getOperands.get(1))
-        rightPrimaryKey = Some(extractPrimaryKeyArray(call.getOperands.get(2)))
+        leftTimeAttribute = Optional.of(call.getOperands.get(0))
+        rightTimeAttribute = Optional.of(call.getOperands.get(1))
+        rightPrimaryKey = Optional.of(extractPrimaryKeyArray(call.getOperands.get(2)))
       } else {
-        leftTimeAttribute = Some(call.getOperands.get(0))
-        rightPrimaryKey = Some(extractPrimaryKeyArray(call.getOperands.get(1)))
+        leftTimeAttribute = Optional.of(call.getOperands.get(0))
+        rightPrimaryKey = Optional.of(extractPrimaryKeyArray(call.getOperands.get(1)))
       }
 
       // the condition of temporal function comes from WHERE clause,
