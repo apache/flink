@@ -125,7 +125,7 @@ public class DataTransferStrategyBuilder {
         if (forStFlinkFileSystem == null
                 || cpSharedFs == null
                 || !forStFlinkFileSystem.getUri().equals(cpSharedFs.getUri())
-                || recoveryClaimMode != RecoveryClaimMode.CLAIM) {
+                || recoveryClaimMode == RecoveryClaimMode.NO_CLAIM) {
             strategy =
                     forStFlinkFileSystem == null
                             ? new CopyDataTransferStrategy()
