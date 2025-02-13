@@ -351,7 +351,7 @@ class WindowTableFunctionTest extends TableTestBase {
 
   @ParameterizedTest(name = "{index}: {0}")
   @ValueSource(ints = Array[Int](-1, 0))
-  def testTumbleWindowWithWrongInterval(interval: Int): Unit = {
+  def testTumbleWindowWithNonPositiveInterval(interval: Int): Unit = {
     val sql =
       s"""
          |SELECT *
@@ -366,7 +366,7 @@ class WindowTableFunctionTest extends TableTestBase {
 
   @ParameterizedTest(name = "{index}: {0}, {1}")
   @CsvSource(Array[String]("-1, 1", "0, 2", "3, 0", "4, -3"))
-  def testCumulateWindowWithWrongStepAndSize(step: Int, size: Int): Unit = {
+  def testCumulateWindowWithNonPositiveStepAndSize(step: Int, size: Int): Unit = {
     val sql =
       s"""
          |SELECT *
@@ -381,8 +381,23 @@ class WindowTableFunctionTest extends TableTestBase {
   }
 
   @ParameterizedTest(name = "{index}: {0}, {1}")
+  @CsvSource(Array[String]("2, 3", "4, 7"))
+  def testCumulateWindowWithWrongStepAndSize(step: Int, size: Int): Unit = {
+    val sql =
+      s"""
+         |SELECT *
+         |FROM TABLE(
+         | CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '$step' SECOND, INTERVAL '$size' SECOND))
+         |""".stripMargin
+
+    assertThatThrownBy(() => util.verifyRelPlan(sql))
+      .hasCause(
+        new TableException("CUMULATE window requires size being an integral multiple of step."))
+  }
+
+  @ParameterizedTest(name = "{index}: {0}, {1}")
   @CsvSource(Array[String]("-1, 1", "0, 2", "3, 0", "4, -3"))
-  def testHopWindowWithWrongSlideAndSize(slide: Int, size: Int): Unit = {
+  def testHopWindowWithNonPositiveSlideAndSize(slide: Int, size: Int): Unit = {
     val sql =
       s"""
          |SELECT *
@@ -398,7 +413,7 @@ class WindowTableFunctionTest extends TableTestBase {
 
   @ParameterizedTest(name = "{index}: {0}")
   @ValueSource(ints = Array[Int](-1, 0))
-  def testSessionWindowWithWrongGap(gap: Int): Unit = {
+  def testSessionWindowWithNonPositiveGap(gap: Int): Unit = {
     val sql =
       s"""
          |SELECT *

@@ -249,6 +249,10 @@ object WindowUtil {
           throw new TableException(
             "Only positive step and size constant for CUMULATE window descriptors are supported.")
         }
+        if (maxSize % step != 0) {
+          throw new TableException(
+            "CUMULATE window requires size being an integral multiple of step.")
+        }
         new CumulativeWindowSpec(Duration.ofMillis(maxSize), Duration.ofMillis(step), offset)
       case FlinkSqlOperatorTable.SESSION =>
         val tableArgCall = windowCall.operands(0).asInstanceOf[RexTableArgCall]
