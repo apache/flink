@@ -170,7 +170,7 @@ class StatefulDataStreamV2ITCase {
                 Long record, Collector<String> output, PartitionedContext<String> ctx)
                 throws Exception {
             Optional<AggregatingState<Long, Long>> maybeState =
-                    ctx.getStateManager().getState(stateDeclaration);
+                    ctx.getStateManager().getStateOptional(stateDeclaration);
             if (!maybeState.isPresent()) {
                 throw new FlinkRuntimeException("State not found: " + stateDeclaration);
             }
@@ -196,7 +196,7 @@ class StatefulDataStreamV2ITCase {
                 Long record, Collector<String> output, PartitionedContext<String> ctx)
                 throws Exception {
             Optional<ReducingState<Long>> maybeState =
-                    ctx.getStateManager().getState(stateDeclaration);
+                    ctx.getStateManager().getStateOptional(stateDeclaration);
             if (!maybeState.isPresent()) {
                 throw new FlinkRuntimeException("State not found: " + stateDeclaration);
             }
@@ -225,7 +225,7 @@ class StatefulDataStreamV2ITCase {
                 Long record, Collector<String> output, PartitionedContext<String> ctx)
                 throws Exception {
             Optional<MapState<Long, Long>> maybeState =
-                    ctx.getStateManager().getState(stateDeclaration);
+                    ctx.getStateManager().getStateOptional(stateDeclaration);
             if (!maybeState.isPresent()) {
                 throw new FlinkRuntimeException("State not found: " + stateDeclaration);
             }
@@ -253,7 +253,8 @@ class StatefulDataStreamV2ITCase {
         public void processRecord(
                 Long record, Collector<String> output, PartitionedContext<String> ctx)
                 throws Exception {
-            Optional<ListState<Long>> maybeState = ctx.getStateManager().getState(stateDeclaration);
+            Optional<ListState<Long>> maybeState =
+                    ctx.getStateManager().getStateOptional(stateDeclaration);
             if (!maybeState.isPresent()) {
                 throw new FlinkRuntimeException("State not found: " + stateDeclaration);
             }
@@ -287,7 +288,7 @@ class StatefulDataStreamV2ITCase {
                 Long record, Collector<String> output, PartitionedContext<String> ctx)
                 throws Exception {
             Optional<ValueState<Long>> maybeState =
-                    ctx.getStateManager().getState(stateDeclaration);
+                    ctx.getStateManager().getStateOptional(stateDeclaration);
             if (!maybeState.isPresent()) {
                 throw new FlinkRuntimeException("State not found: " + stateDeclaration);
             }
