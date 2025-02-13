@@ -1194,10 +1194,8 @@ public class StreamingJobGraphGenerator {
 
             Preconditions.checkState(
                     inputIndex < inputSerializers.length,
-                    "Invalid inputIndex %s for vertex '%s': Expected inputIndex to be less than %s (number of input serializers).",
-                    inputIndex,
-                    inputSerializers.length,
-                    vertex);
+                    "Could not find valid input serializers when creating job graph for edge: %s",
+                    inEdge);
 
             if (chainedSource != null) {
                 // chained source is the input
