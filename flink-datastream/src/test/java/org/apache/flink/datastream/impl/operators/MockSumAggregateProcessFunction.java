@@ -73,7 +73,7 @@ public class MockSumAggregateProcessFunction
             Integer record, Collector<Integer> output, PartitionedContext<Integer> ctx)
             throws Exception {
         Optional<AggregatingState<Integer, Integer>> stateOptional =
-                ctx.getStateManager().getState(aggregatingStateDeclaration);
+                ctx.getStateManager().getStateOptional(aggregatingStateDeclaration);
         if (!stateOptional.isPresent()) {
             throw new RuntimeException("State is not available");
         }
