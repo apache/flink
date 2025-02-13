@@ -17,12 +17,14 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql
 
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.{CsvSource, ValueSource, ValueSources}
 
 import java.time.Duration
 
@@ -345,6 +347,68 @@ class WindowTableFunctionTest extends TableTestBase {
         |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
         |""".stripMargin
     util.verifyRelPlan(sql)
+  }
+
+  @ParameterizedTest(name = "{index}: {0}")
+  @ValueSource(ints = Array[Int](-1, 0))
+  def testTumbleWindowWithWrongInterval(interval: Int): Unit = {
+    val sql =
+      s"""
+         |SELECT *
+         |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '$interval' MINUTE))
+         |""".stripMargin
+
+    assertThatThrownBy(() => util.verifyRelPlan(sql))
+      .hasCause(
+        new TableException(
+          "Only positive interval constant for TUMBLE window descriptors is supported."))
+  }
+
+  @ParameterizedTest(name = "{index}: {0}, {1}")
+  @CsvSource(Array[String]("-1, 1", "0, 2", "3, 0", "4, -3"))
+  def testCumulateWindowWithWrongStepAndSize(step: Int, size: Int): Unit = {
+    val sql =
+      s"""
+         |SELECT *
+         |FROM TABLE(
+         | CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '$step' MINUTE, INTERVAL '$size' HOUR))
+         |""".stripMargin
+
+    assertThatThrownBy(() => util.verifyRelPlan(sql))
+      .hasCause(
+        new TableException(
+          "Only positive step and size constant for CUMULATE window descriptors are supported."))
+  }
+
+  @ParameterizedTest(name = "{index}: {0}, {1}")
+  @CsvSource(Array[String]("-1, 1", "0, 2", "3, 0", "4, -3"))
+  def testHopWindowWithWrongSlideAndSize(slide: Int, size: Int): Unit = {
+    val sql =
+      s"""
+         |SELECT *
+         |FROM TABLE(
+         | HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '$slide' MINUTE, INTERVAL '$size' MINUTE))
+         |""".stripMargin
+
+    assertThatThrownBy(() => util.verifyRelPlan(sql))
+      .hasCause(
+        new TableException(
+          "Only positive slide and size constant for HOP window descriptors are supported."))
+  }
+
+  @ParameterizedTest(name = "{index}: {0}")
+  @ValueSource(ints = Array[Int](-1, 0))
+  def testSessionWindowWithWrongGap(gap: Int): Unit = {
+    val sql =
+      s"""
+         |SELECT *
+         |FROM TABLE(SESSION(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '$gap' MINUTE))
+         |""".stripMargin
+
+    assertThatThrownBy(() => util.verifyRelPlan(sql))
+      .hasCause(
+        new TableException(
+          "Only positive gap constant for SESSION window descriptors is supported."))
   }
 
   private def enableMiniBatch(): Unit = {
