@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -34,7 +35,6 @@ import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
-import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
@@ -54,13 +54,17 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+import static org.apache.flink.table.runtime.util.StateConfigUtil.createTtlConfig;
+
 /** A basic implementation to support non-time range unbounded over aggregate with retract mode. */
 public class NonTimeRangeUnboundedPrecedingFunction<K>
-        extends KeyedProcessFunctionWithCleanupState<K, RowData, RowData> {
+        extends KeyedProcessFunction<K, RowData, RowData> {
     private static final long serialVersionUID = 1L;
 
     private static final Logger LOG =
             LoggerFactory.getLogger(NonTimeRangeUnboundedPrecedingFunction.class);
+
+    private final long stateRetentionTime;
 
     private final GeneratedAggsHandleFunction generatedAggsHandler;
     private final GeneratedRecordEqualiser generatedRecordEqualiser;
@@ -82,6 +86,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
 
     // state to hold the Long ID counter
     private transient ValueState<Long> idState;
+    @VisibleForTesting protected transient ValueStateDescriptor<Long> idStateDescriptor;
 
     // state to hold a sorted list each containing a tuple of sort key and list of IDs
     private transient ValueState<List<Tuple2<RowData, List<Long>>>> sortedListState;
@@ -89,6 +94,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
     @VisibleForTesting
     protected transient ValueStateDescriptor<List<Tuple2<RowData, List<Long>>>>
             sortedListStateDescriptor;
+
     // state to hold ID and its associated input row until state ttl expires
     private transient MapState<Long, RowData> valueMapState;
     @VisibleForTesting protected transient MapStateDescriptor<Long, RowData> valueStateDescriptor;
@@ -115,8 +121,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
     }
 
     public NonTimeRangeUnboundedPrecedingFunction(
-            long minRetentionTime,
-            long maxRetentionTime,
+            long stateRetentionTime,
             GeneratedAggsHandleFunction genAggsHandler,
             GeneratedRecordEqualiser genRecordEqualiser,
             GeneratedRecordEqualiser genSortKeyEqualiser,
@@ -125,7 +130,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
             LogicalType[] inputFieldTypes,
             LogicalType[] sortKeyTypes,
             RowDataKeySelector sortKeySelector) {
-        super(minRetentionTime, maxRetentionTime);
+        this.stateRetentionTime = stateRetentionTime;
         this.generatedAggsHandler = genAggsHandler;
         this.generatedRecordEqualiser = genRecordEqualiser;
         this.generatedSortKeyEqualiser = genSortKeyEqualiser;
@@ -157,9 +162,13 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
         sortKeyComparator =
                 generatedRecordComparator.newInstance(getRuntimeContext().getUserCodeClassLoader());
 
+        StateTtlConfig ttlConfig = createTtlConfig(stateRetentionTime);
+
         // Initialize state to maintain id counter
-        ValueStateDescriptor<Long> idStateDescriptor =
-                new ValueStateDescriptor<Long>("idState", Long.class);
+        idStateDescriptor = new ValueStateDescriptor<Long>("idState", Long.class);
+        if (ttlConfig.isEnabled()) {
+            idStateDescriptor.enableTimeToLive(ttlConfig);
+        }
         idState = getRuntimeContext().getState(idStateDescriptor);
 
         // Input elements are all binary rows as they came from network
@@ -173,12 +182,18 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
         sortedListStateDescriptor =
                 new ValueStateDescriptor<List<Tuple2<RowData, List<Long>>>>(
                         "sortedListState", listTypeInfo);
+        if (ttlConfig.isEnabled()) {
+            sortedListStateDescriptor.enableTimeToLive(ttlConfig);
+        }
         sortedListState = getRuntimeContext().getState(sortedListStateDescriptor);
 
         // Initialize state which maintains the actual row
         valueStateDescriptor =
                 new MapStateDescriptor<Long, RowData>(
                         "valueMapState", Types.LONG, inputRowTypeInfo);
+        if (ttlConfig.isEnabled()) {
+            valueStateDescriptor.enableTimeToLive(ttlConfig);
+        }
         valueMapState = getRuntimeContext().getMapState(valueStateDescriptor);
 
         // Initialize accumulator state per row
@@ -186,9 +201,10 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
         accStateDescriptor =
                 new MapStateDescriptor<RowData, RowData>(
                         "accMapState", sortKeyRowTypeInfo, accTypeInfo);
+        if (ttlConfig.isEnabled()) {
+            accStateDescriptor.enableTimeToLive(ttlConfig);
+        }
         accMapState = getRuntimeContext().getMapState(accStateDescriptor);
-
-        initCleanupTimeState("NonTimeUnboundedPrecedingFunctionCleanupTime");
 
         // metrics
         this.numOfIdsNotFound =
@@ -216,9 +232,6 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
             KeyedProcessFunction<K, RowData, RowData>.Context ctx,
             Collector<RowData> out)
             throws Exception {
-        // register state-cleanup timer for the current key
-        registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime());
-
         RowKind rowKind = input.getRowKind();
 
         switch (rowKind) {
@@ -239,10 +252,10 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
     }
 
     /**
-     * Adds a new element(insRow) to a sortedList. The sortedList contains a list of Tuple<SortKey,
-     * List<Long Ids>>. Extracts the inputSortKey from the insRow and compares it with every element
-     * in the sortedList. If a sortKey already exists in the sortedList for the input, add the id to
-     * the list of ids and update the sortedList, otherwise find the right position in the
+     * Adds a new element(insRow) to a sortedList. The sortedList contains a list of Tuple(SortKey,
+     * List[Long Ids]>). Extracts the inputSortKey from the insRow and compares it with every
+     * element in the sortedList. If a sortKey already exists in the sortedList for the input, add
+     * the id to the list of ids and update the sortedList, otherwise find the right position in the
      * sortedList and add a new entry in the sortedList. After the insRow is successfully inserted,
      * an INSERT/UPDATE_AFTER event is emitted for the newly inserted element, and for all
      * subsequent elements an UPDATE_BEFORE and UPDATE_AFTER event is emitted based on the previous
@@ -328,14 +341,14 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
 
     /**
      * Returns the position of the index where the inputRow must be inserted, updated or deleted.
-     * For insertion, if a suitable position is not found, return -1 to be inserted at the end
-     * of the list. For deletion, if the matching sortKey is not found, return -1 to indicate the
+     * For insertion, if a suitable position is not found, return -1 to be inserted at the end of
+     * the list. For deletion, if the matching sortKey is not found, return -1 to indicate the
      * sortKey was not found in the list.
      *
      * @param sortedList
      * @param inputSortKey
      * @param isEquals
-     * @return Tuple2<Integer, Boolean>
+     * @return Tuple2(Integer, Boolean)
      */
     private Tuple2<Integer, Boolean> findIndexOfSortKey(
             List<Tuple2<RowData, List<Long>>> sortedList, RowData inputSortKey, boolean isEquals) {
@@ -360,7 +373,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
     }
 
     /**
-     * Helper method to set the accumulator based on the prevIndex
+     * Helper method to set the accumulator based on the prevIndex.
      *
      * @param sortedList
      * @param prevIndex
@@ -660,13 +673,9 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
         if (ids.isEmpty()) {
             sortedList.remove(idx);
         } else {
-            if (ids.isEmpty()) {
-                sortedList.remove(idx);
-            } else {
-                // Update sortedList without the removed id
-                sortedList.set(idx, new Tuple2<RowData, List<Long>>(curSortKey, ids));
-                idx++;
-            }
+            // Update sortedList without the removed id
+            sortedList.set(idx, new Tuple2<RowData, List<Long>>(curSortKey, ids));
+            idx++;
         }
         return idx;
     }

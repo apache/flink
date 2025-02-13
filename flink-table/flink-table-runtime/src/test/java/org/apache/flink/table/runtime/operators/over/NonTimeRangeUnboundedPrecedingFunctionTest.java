@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.over;
 
+import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -42,9 +43,10 @@ import org.apache.flink.types.RowKind;
 
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
@@ -56,12 +58,12 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends RowTimeOverWindo
 
     private static final int SORT_KEY_IDX = 1;
 
-    protected LogicalType[] SORT_KEY_TYPES = new LogicalType[] {new BigIntType()};
+    private static final LogicalType[] SORT_KEY_TYPES = new LogicalType[] {new BigIntType()};
 
     private static final InternalTypeInfo<RowData> INPUT_ROW_TYPE =
             InternalTypeInfo.ofFields(VarCharType.STRING_TYPE, new BigIntType(), new IntType());
 
-    private RowDataKeySelector SORT_KEY_SELECTOR =
+    private static final RowDataKeySelector SORT_KEY_SELECTOR =
             HandwrittenSelectorUtil.getRowDataSelector(
                     new int[] {SORT_KEY_IDX}, INPUT_ROW_TYPE.toRowFieldTypes());
 
@@ -184,7 +186,6 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends RowTimeOverWindo
         NonTimeRangeUnboundedPrecedingFunction<RowData> function =
                 new NonTimeRangeUnboundedPrecedingFunction<RowData>(
                         0,
-                        2000,
                         aggsHandleFunction,
                         GENERATED_ROW_VALUE_EQUALISER,
                         GENERATED_SORT_KEY_EQUALISER,
@@ -287,7 +288,6 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends RowTimeOverWindo
         NonTimeRangeUnboundedPrecedingFunction<RowData> function =
                 new NonTimeRangeUnboundedPrecedingFunction<RowData>(
                         0,
-                        2000,
                         aggsHandleFunction,
                         GENERATED_ROW_VALUE_EQUALISER,
                         GENERATED_SORT_KEY_EQUALISER,
@@ -648,7 +648,6 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends RowTimeOverWindo
         NonTimeRangeUnboundedPrecedingFunction<RowData> function =
                 new NonTimeRangeUnboundedPrecedingFunction<RowData>(
                         0,
-                        2000,
                         aggsHandleFunction,
                         GENERATED_ROW_VALUE_EQUALISER,
                         GENERATED_SORT_KEY_EQUALISER,
@@ -873,7 +872,6 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends RowTimeOverWindo
         NonTimeRangeUnboundedPrecedingFunction<RowData> function =
                 new NonTimeRangeUnboundedPrecedingFunction<RowData>(
                         0,
-                        2000,
                         aggsHandleFunction,
                         GENERATED_ROW_VALUE_EQUALISER,
                         GENERATED_SORT_KEY_EQUALISER,
@@ -1055,7 +1053,6 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends RowTimeOverWindo
         NonTimeRangeUnboundedPrecedingFunction<RowData> function =
                 new NonTimeRangeUnboundedPrecedingFunction<RowData>(
                         0,
-                        2000,
                         aggsHandleFunction,
                         GENERATED_ROW_VALUE_EQUALISER,
                         GENERATED_SORT_KEY_EQUALISER,
@@ -1237,7 +1234,6 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends RowTimeOverWindo
         NonTimeRangeUnboundedPrecedingFunction<RowData> function =
                 new NonTimeRangeUnboundedPrecedingFunction<RowData>(
                         0,
-                        2000,
                         aggsHandleFunction,
                         GENERATED_ROW_VALUE_EQUALISER,
                         GENERATED_SORT_KEY_EQUALISER,
@@ -1419,7 +1415,6 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends RowTimeOverWindo
         NonTimeRangeUnboundedPrecedingFunction<RowData> function =
                 new NonTimeRangeUnboundedPrecedingFunction<RowData>(
                         0,
-                        2000,
                         aggsHandleFunction,
                         GENERATED_ROW_VALUE_EQUALISER,
                         GENERATED_SORT_KEY_EQUALISER,
@@ -1602,7 +1597,6 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends RowTimeOverWindo
         NonTimeRangeUnboundedPrecedingFunction<RowData> function =
                 new NonTimeRangeUnboundedPrecedingFunction<RowData>(
                         0,
-                        2000,
                         aggsHandleFunction,
                         GENERATED_ROW_VALUE_EQUALISER,
                         GENERATED_SORT_KEY_EQUALISER,
@@ -1748,7 +1742,6 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends RowTimeOverWindo
         NonTimeRangeUnboundedPrecedingFunction<RowData> function =
                 new NonTimeRangeUnboundedPrecedingFunction<RowData>(
                         0,
-                        2000,
                         aggsHandleFunction,
                         GENERATED_ROW_VALUE_EQUALISER,
                         GENERATED_SORT_KEY_EQUALISER,
@@ -1817,6 +1810,125 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends RowTimeOverWindo
 
         List<RowData> actualRows = testHarness.extractOutputValues();
         assertThat(actualRows.size()).isEqualTo(40);
+        assertThat(function.getNumOfSortKeysNotFound().getCount()).isEqualTo(0L);
+        assertThat(function.getNumOfIdsNotFound().getCount()).isEqualTo(0L);
+    }
+
+    @Test
+    public void testInsertWithStateTTLExpiration() throws Exception {
+        Duration stateTtlTime = Duration.ofMillis(10);
+        NonTimeRangeUnboundedPrecedingFunction<RowData> function =
+                new NonTimeRangeUnboundedPrecedingFunction<RowData>(
+                        stateTtlTime.toMillis(),
+                        aggsHandleFunction,
+                        GENERATED_ROW_VALUE_EQUALISER,
+                        GENERATED_SORT_KEY_EQUALISER,
+                        GENERATED_SORT_KEY_COMPARATOR_ASC,
+                        accTypes,
+                        inputFieldTypes,
+                        SORT_KEY_TYPES,
+                        SORT_KEY_SELECTOR) {};
+        KeyedProcessOperator<RowData, RowData, RowData> operator =
+                new KeyedProcessOperator<>(function);
+
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(operator);
+
+        testHarness.open();
+
+        // put some records
+        GenericRowData firstRecord = GenericRowData.of("key1", 1L, 100L);
+        testHarness.processElement(insertRecord("key1", 1L, 100L));
+        validateState(function, firstRecord, 0, 1, 0, 1, 0, 1, true);
+
+        GenericRowData secondRecord = GenericRowData.of("key1", 2L, 200L);
+        testHarness.processElement(insertRecord("key1", 2L, 200L));
+        validateState(function, secondRecord, 1, 2, 0, 1, 1, 2, true);
+
+        GenericRowData thirdRecord = GenericRowData.of("key1", 2L, 201L);
+        testHarness.processElement(insertRecord("key1", 2L, 201L));
+        validateState(function, thirdRecord, 1, 2, 1, 2, 2, 3, true);
+
+        // expire the state
+        testHarness.setStateTtlProcessingTime(stateTtlTime.toMillis() + 1);
+
+        // After insertion of the following record, there should be only 1 record in state
+        // After insertion of the following record, there should be only 1 record in state
+        GenericRowData fourthRecord = GenericRowData.of("key1", 5L, 500L);
+        testHarness.processElement(insertRecord("key1", 5L, 500L));
+        validateState(function, fourthRecord, 0, 1, 0, 1, 0, 1, true);
+
+        List<RowData> actualRows = testHarness.extractOutputValues();
+        assertThat(actualRows.size()).isEqualTo(6);
+
+        assertThat(function.getNumOfSortKeysNotFound().getCount()).isEqualTo(0L);
+        assertThat(function.getNumOfIdsNotFound().getCount()).isEqualTo(0L);
+    }
+
+    @Test
+    public void testInsertAndRetractWithStateTTLExpiration() throws Exception {
+        Duration stateTtlTime = Duration.ofMillis(10);
+        NonTimeRangeUnboundedPrecedingFunction<RowData> function =
+                new NonTimeRangeUnboundedPrecedingFunction<RowData>(
+                        stateTtlTime.toMillis(),
+                        aggsHandleFunction,
+                        GENERATED_ROW_VALUE_EQUALISER,
+                        GENERATED_SORT_KEY_EQUALISER,
+                        GENERATED_SORT_KEY_COMPARATOR_ASC,
+                        accTypes,
+                        inputFieldTypes,
+                        SORT_KEY_TYPES,
+                        SORT_KEY_SELECTOR) {};
+        KeyedProcessOperator<RowData, RowData, RowData> operator =
+                new KeyedProcessOperator<>(function);
+
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(operator);
+
+        testHarness.open();
+
+        // put some records
+        GenericRowData firstRecord = GenericRowData.of("key1", 1L, 100L);
+        testHarness.processElement(insertRecord("key1", 1L, 100L));
+        validateState(function, firstRecord, 0, 1, 0, 1, 0, 1, true);
+
+        GenericRowData secondRecord = GenericRowData.of("key1", 2L, 200L);
+        testHarness.processElement(insertRecord("key1", 2L, 200L));
+        validateState(function, secondRecord, 1, 2, 0, 1, 1, 2, true);
+
+        GenericRowData thirdRecord = GenericRowData.of("key1", 2L, 201L);
+        testHarness.processElement(insertRecord("key1", 2L, 201L));
+        validateState(function, thirdRecord, 1, 2, 1, 2, 2, 3, true);
+
+        GenericRowData fourthRecord = GenericRowData.of("key1", 5L, 500L);
+        testHarness.processElement(insertRecord("key1", 5L, 500L));
+        validateState(function, fourthRecord, 2, 3, 0, 1, 3, 4, true);
+
+        GenericRowData fifthRecord = GenericRowData.of("key1", 5L, 502L);
+        testHarness.processElement(insertRecord("key1", 5L, 502L));
+        validateState(function, fifthRecord, 2, 3, 1, 2, 4, 5, true);
+
+        // expire the state
+        testHarness.setStateTtlProcessingTime(stateTtlTime.toMillis() + 1);
+
+        // Retract a non-existent record due to state ttl expiration
+        testHarness.processElement(updateBeforeRecord("key1", 5L, 502L));
+
+        // Ensure state is null/empty
+        List<Tuple2<RowData, List<Long>>> sortedList =
+                function.getRuntimeContext().getState(function.sortedListStateDescriptor).value();
+        assertThat(sortedList).isNull();
+        MapState<RowData, RowData> mapState =
+                function.getRuntimeContext().getMapState(function.accStateDescriptor);
+        assertThat(mapState.isEmpty()).isTrue();
+        Long idValue = function.getRuntimeContext().getState(function.idStateDescriptor).value();
+        assertThat(idValue).isNull();
+
+        List<RowData> actualRows = testHarness.extractOutputValues();
+        assertThat(actualRows.size()).isEqualTo(9);
+
+        assertThat(function.getNumOfSortKeysNotFound().getCount()).isEqualTo(1L);
+        assertThat(function.getNumOfIdsNotFound().getCount()).isEqualTo(0L);
     }
 
     private void validateState(
@@ -1856,13 +1968,13 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends RowTimeOverWindo
         }
 
         // Validate total number of rows in the valueMapState
-        assertThat(
-                        ((Collection<?>)
-                                        function.getRuntimeContext()
-                                                .getMapState(function.valueStateDescriptor)
-                                                .keys())
-                                .size())
-                .isEqualTo(totalRows);
+        AtomicInteger numRows = new AtomicInteger();
+        function.getRuntimeContext()
+                .getMapState(function.valueStateDescriptor)
+                .keys()
+                .forEach(row -> numRows.getAndIncrement());
+        assertThat(numRows.get()).isEqualTo(totalRows);
+
         if (isInsertion) {
             // Validate if record was successfully inserted in the valueMapState
             assertThat(
@@ -1881,13 +1993,14 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends RowTimeOverWindo
         }
 
         // Validate number of entries in the accMap state
-        assertThat(
-                        ((Collection<?>)
-                                        function.getRuntimeContext()
-                                                .getMapState(function.accStateDescriptor)
-                                                .keys())
-                                .size())
-                .isEqualTo(expectedSortedListSize);
+        AtomicInteger numAccRows = new AtomicInteger();
+        function.getRuntimeContext()
+                .getMapState(function.accStateDescriptor)
+                .keys()
+                .forEach(row -> numAccRows.getAndIncrement());
+
+        assertThat(numAccRows.get()).isEqualTo(expectedSortedListSize);
+
         if (isInsertion) {
             // Validate if an entry exists for the sortKey
             assertThat(

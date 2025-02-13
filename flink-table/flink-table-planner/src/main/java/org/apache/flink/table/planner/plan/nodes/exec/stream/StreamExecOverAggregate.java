@@ -448,7 +448,6 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                 // Non-Time Range Unbounded Preceding Function
                 return new NonTimeRangeUnboundedPrecedingFunction<>(
                         config.getStateRetentionTime(),
-                        TableConfigUtils.getMaxIdleStateRetentionTime(config),
                         genAggsHandler,
                         generatedRecordEqualiser,
                         generatedSortKeyEqualiser,
