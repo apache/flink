@@ -219,7 +219,8 @@ object WindowUtil {
         val interval = getOperandAsLong(windowCall.operands(2))
         if (interval <= 0) {
           throw new TableException(
-            "Only positive interval constant for TUMBLE window descriptors is supported.")
+            s"TUMBLE table function based aggregate requires size being positive," +
+              s" but got $interval ms.")
         }
         new TumblingWindowSpec(Duration.ofMillis(interval), offset)
 
@@ -233,7 +234,8 @@ object WindowUtil {
         val size = getOperandAsLong(windowCall.operands(3))
         if (slide <= 0 || size <= 0) {
           throw new TableException(
-            "Only positive slide and size constant for HOP window descriptors are supported.")
+            s"HOP table function based aggregate requires slide and size being positive," +
+              s" but got slide $slide ms and size $size ms.")
         }
         new HoppingWindowSpec(Duration.ofMillis(size), Duration.ofMillis(slide), offset)
 
@@ -247,11 +249,12 @@ object WindowUtil {
         val maxSize = getOperandAsLong(windowCall.operands(3))
         if (step <= 0 || maxSize <= 0) {
           throw new TableException(
-            "Only positive step and size constant for CUMULATE window descriptors are supported.")
+            s"CUMULATE table function based aggregate requires maxSize and step being positive," +
+              s" but got maxSize $maxSize ms and step $step ms.")
         }
         if (maxSize % step != 0) {
-          throw new TableException(
-            "CUMULATE window requires size being an integral multiple of step.")
+          throw new TableException("CUMULATE table function based aggregate requires maxSize " +
+            s"must be an integral multiple of step, but got maxSize $maxSize ms and step $step ms.")
         }
         new CumulativeWindowSpec(Duration.ofMillis(maxSize), Duration.ofMillis(step), offset)
       case FlinkSqlOperatorTable.SESSION =>
@@ -262,7 +265,8 @@ object WindowUtil {
         val gap = getOperandAsLong(windowCall.operands(2))
         if (gap <= 0) {
           throw new TableException(
-            "Only positive gap constant for SESSION window descriptors is supported.")
+            s"SESSION table function based aggregate requires gap being positive," +
+              s" but got gap $gap ms.")
         }
         new SessionWindowSpec(Duration.ofMillis(gap), tableArgCall.getPartitionKeys)
     }

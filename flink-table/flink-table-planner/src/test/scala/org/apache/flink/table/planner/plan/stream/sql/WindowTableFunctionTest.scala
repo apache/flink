@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.utils.TableTestBase
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.{CsvSource, ValueSource, ValueSources}
+import org.junit.jupiter.params.provider.{CsvSource, ValueSource}
 
 import java.time.Duration
 
@@ -361,7 +361,8 @@ class WindowTableFunctionTest extends TableTestBase {
     assertThatThrownBy(() => util.verifyRelPlan(sql))
       .hasCause(
         new TableException(
-          "Only positive interval constant for TUMBLE window descriptors is supported."))
+          s"TUMBLE table function based aggregate requires size being positive," +
+            s" but got ${interval * 1000 * 60} ms."))
   }
 
   @ParameterizedTest(name = "{index}: {0}, {1}")
@@ -377,7 +378,8 @@ class WindowTableFunctionTest extends TableTestBase {
     assertThatThrownBy(() => util.verifyRelPlan(sql))
       .hasCause(
         new TableException(
-          "Only positive step and size constant for CUMULATE window descriptors are supported."))
+          "CUMULATE table function based aggregate requires maxSize and step being positive," +
+            s" but got maxSize ${size * 1000 * 60 * 60} ms and step ${step * 1000 * 60} ms."))
   }
 
   @ParameterizedTest(name = "{index}: {0}, {1}")
@@ -391,8 +393,8 @@ class WindowTableFunctionTest extends TableTestBase {
          |""".stripMargin
 
     assertThatThrownBy(() => util.verifyRelPlan(sql))
-      .hasCause(
-        new TableException("CUMULATE window requires size being an integral multiple of step."))
+      .hasCause(new TableException("CUMULATE table function based aggregate requires maxSize must " +
+        s"be an integral multiple of step, but got maxSize ${size * 1000} ms and step ${step * 1000} ms."))
   }
 
   @ParameterizedTest(name = "{index}: {0}, {1}")
@@ -408,7 +410,8 @@ class WindowTableFunctionTest extends TableTestBase {
     assertThatThrownBy(() => util.verifyRelPlan(sql))
       .hasCause(
         new TableException(
-          "Only positive slide and size constant for HOP window descriptors are supported."))
+          "HOP table function based aggregate requires slide and size being positive," +
+            s" but got slide ${slide * 1000 * 60} ms and size ${size * 1000 * 60} ms."))
   }
 
   @ParameterizedTest(name = "{index}: {0}")
@@ -423,7 +426,8 @@ class WindowTableFunctionTest extends TableTestBase {
     assertThatThrownBy(() => util.verifyRelPlan(sql))
       .hasCause(
         new TableException(
-          "Only positive gap constant for SESSION window descriptors is supported."))
+          s"SESSION table function based aggregate requires gap being positive," +
+            s" but got gap ${gap * 1000 * 60} ms."))
   }
 
   private def enableMiniBatch(): Unit = {
