@@ -1488,10 +1488,6 @@ class Column(metaclass=ABCMeta):
 
     A table column describes either a :class:`PhysicalColumn`, :class:`ComputedColumn`, or
     :class:`MetadataColumn`.
-
-    Every column is fully resolved. The enclosed :class:`~pyflink.table.types.DataType`
-    indicates whether the column is a time attribute and thus might differ from the original
-    data type.
     """
 
     def __init__(self, j_column):

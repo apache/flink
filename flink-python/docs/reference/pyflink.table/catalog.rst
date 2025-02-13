@@ -292,10 +292,6 @@ Representation of a column in a :class:`~pyflink.table.ResolvedSchema`.
 A table column describes either a :class:`pyflink.table.catalog.PhysicalColumn`,
 :class:`pyflink.table.catalog.ComputedColumn`, or :class:`pyflink.table.catalog.MetadataColumn`.
 
-Every column is fully resolved. The enclosed :class:`~pyflink.table.types.DataType`
-indicates whether the column is a time attribute and thus might differ from the original
-data type.
-
 .. currentmodule:: pyflink.table.catalog
 
 .. autosummary::
