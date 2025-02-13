@@ -18,11 +18,16 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.AtomicTypeWrappingFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ClearStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ContextFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyArgFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MultiStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PojoArgsFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PojoCreatingFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PojoStateFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PojoWithDefaultStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarArgsFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsRowFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsRowPassThroughFunction;
@@ -31,16 +36,24 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetPassThroughFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetUpdatingArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TestProcessTableFunctionBase;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TimeToLiveStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedTableAsRowFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedTableAsSetFunction;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 
+import java.time.Duration;
+
 /** {@link TableTestProgram} definitions for testing {@link StreamExecProcessTableFunction}. */
 public class ProcessTableFunctionTestPrograms {
 
     private static final String BASIC_VALUES =
-            "CREATE VIEW t AS SELECT * FROM (VALUES ('Bob', 12), ('Alice', 42)) AS T(name, score)";
+            "CREATE VIEW t AS SELECT * FROM "
+                    + "(VALUES ('Bob', 12), ('Alice', 42)) AS T(name, score)";
+
+    private static final String MULTI_VALUES =
+            "CREATE VIEW t AS SELECT * FROM "
+                    + "(VALUES ('Bob', 12), ('Alice', 42), ('Bob', 99), ('Bob', 100), ('Alice', 400)) AS T(name, score)";
 
     private static final String UPDATING_VALUES =
             "CREATE VIEW t AS SELECT name, COUNT(*) FROM "
@@ -238,5 +251,96 @@ public class ProcessTableFunctionTestPrograms {
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name, s => 'param')")
+                    .build();
+
+    public static final TableTestProgram PROCESS_POJO_STATE =
+            TableTestProgram.of("process-pojo-state", "single POJO state entry")
+                    .setupTemporarySystemFunction("f", PojoStateFunction.class)
+                    .setupSql(MULTI_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {Score(s='null', i=null), +I[Bob, 12]}]",
+                                            "+I[Alice, {Score(s='null', i=null), +I[Alice, 42]}]",
+                                            "+I[Bob, {Score(s='Bob', i=0), +I[Bob, 99]}]",
+                                            "+I[Bob, {Score(s='Bob', i=1), +I[Bob, 100]}]",
+                                            "+I[Alice, {Score(s='null', i=0), +I[Alice, 400]}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_DEFAULT_POJO_STATE =
+            TableTestProgram.of(
+                            "process-default-pojo-state",
+                            "single POJO state entry that is initialized with values")
+                    .setupTemporarySystemFunction("f", PojoWithDefaultStateFunction.class)
+                    .setupSql(MULTI_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {ScoreWithDefaults(s='null', i=99), +I[Bob, 12]}]",
+                                            "+I[Alice, {ScoreWithDefaults(s='null', i=99), +I[Alice, 42]}]",
+                                            "+I[Bob, {ScoreWithDefaults(s='Bob', i=0), +I[Bob, 99]}]",
+                                            "+I[Bob, {ScoreWithDefaults(s='Bob', i=1), +I[Bob, 100]}]",
+                                            "+I[Alice, {ScoreWithDefaults(s='null', i=0), +I[Alice, 400]}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_MULTI_STATE =
+            TableTestProgram.of("process-multi-state", "multiple state entries")
+                    .setupTemporarySystemFunction("f", MultiStateFunction.class)
+                    .setupSql(MULTI_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {+I[null], +I[null], +I[Bob, 12]}]",
+                                            "+I[Alice, {+I[null], +I[null], +I[Alice, 42]}]",
+                                            "+I[Bob, {+I[1], +I[0], +I[Bob, 99]}]",
+                                            "+I[Bob, {+I[2], +I[1], +I[Bob, 100]}]",
+                                            "+I[Alice, {+I[1], +I[0], +I[Alice, 400]}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_CLEARING_STATE =
+            TableTestProgram.of(
+                            "process-clearing-state", "state for Bob is cleared after second row")
+                    .setupTemporarySystemFunction("f", ClearStateFunction.class)
+                    .setupSql(MULTI_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {ScoreWithDefaults(s='null', i=99), +I[Bob, 12]}]",
+                                            "+I[Alice, {ScoreWithDefaults(s='null', i=99), +I[Alice, 42]}]",
+                                            "+I[Bob, {ScoreWithDefaults(s='null', i=100), +I[Bob, 99]}]",
+                                            "+I[Bob, {ScoreWithDefaults(s='null', i=99), +I[Bob, 100]}]",
+                                            "+I[Alice, {ScoreWithDefaults(s='null', i=100), +I[Alice, 400]}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_STATE_TTL =
+            TableTestProgram.of(
+                            "process-state-ttl",
+                            "state TTL with custom, disabled, and global retention")
+                    .setupTemporarySystemFunction("f", TimeToLiveStateFunction.class)
+                    .setupSql(MULTI_VALUES)
+                    .setupConfig(ExecutionConfigOptions.IDLE_STATE_RETENTION, Duration.ofHours(5))
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("ttl STRING")
+                                    .consumedValues(
+                                            "+I["
+                                                    + "s1=StateTtlConfig{updateType=OnCreateAndWrite, stateVisibility=NeverReturnExpired, ttlTimeCharacteristic=ProcessingTime, ttl=PT120H}, "
+                                                    + "s2=StateTtlConfig{updateType=Disabled, stateVisibility=NeverReturnExpired, ttlTimeCharacteristic=ProcessingTime, ttl=PT2562047788015H12M55.807S}, "
+                                                    + "s3=StateTtlConfig{updateType=OnCreateAndWrite, stateVisibility=NeverReturnExpired, ttlTimeCharacteristic=ProcessingTime, ttl=PT5H}"
+                                                    + "]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t)")
                     .build();
 }

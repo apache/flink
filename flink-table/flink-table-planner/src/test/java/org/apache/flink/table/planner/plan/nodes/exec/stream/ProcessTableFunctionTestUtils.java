@@ -21,9 +21,11 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.StateHint;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableSemantics;
+import org.apache.flink.table.runtime.operators.process.ProcessTableOperator;
 import org.apache.flink.types.Row;
 
 import static org.apache.flink.table.annotation.ArgumentTrait.OPTIONAL_PARTITION_BY;
@@ -144,6 +146,89 @@ public class ProcessTableFunctionTestUtils {
         }
     }
 
+    /** Testing function. */
+    public static class PojoStateFunction extends TestProcessTableFunctionBase {
+        public void eval(@StateHint Score s, @ArgumentHint(TABLE_AS_SET) Row r) {
+            collectObjects(s, r);
+            if (r.getFieldAs("name").equals("Bob")) {
+                s.s = r.getFieldAs("name");
+            }
+            if (s.i == null) {
+                s.i = 0;
+            } else {
+                s.i++;
+            }
+        }
+    }
+
+    /** Testing function. */
+    public static class PojoWithDefaultStateFunction extends TestProcessTableFunctionBase {
+        public void eval(@StateHint ScoreWithDefaults s, @ArgumentHint(TABLE_AS_SET) Row r) {
+            collectObjects(s, r);
+            if (r.getFieldAs("name").equals("Bob")) {
+                s.s = r.getFieldAs("name");
+            }
+            if (s.i == 99) {
+                s.i = 0;
+            } else {
+                s.i++;
+            }
+        }
+    }
+
+    /** Testing function. */
+    public static class MultiStateFunction extends TestProcessTableFunctionBase {
+        public void eval(
+                @StateHint(type = @DataTypeHint("ROW<i INT>")) Row s1,
+                @StateHint(type = @DataTypeHint("ROW<s STRING>")) Row s2,
+                @ArgumentHint(TABLE_AS_SET) Row r) {
+            collectObjects(s1, s2, r);
+            Integer i = s1.<Integer>getFieldAs("i");
+            if (i == null) {
+                i = 0;
+            }
+            s2.setField("s", i.toString());
+            s1.setField("i", i + 1);
+        }
+    }
+
+    /** Testing function. */
+    public static class ClearStateFunction extends TestProcessTableFunctionBase {
+        public void eval(
+                Context ctx, @StateHint ScoreWithDefaults s, @ArgumentHint(TABLE_AS_SET) Row r) {
+            collectObjects(s, r);
+            if (r.getFieldAs("name").equals("Bob") && s.i == 100) {
+                ctx.clearState("s");
+            } else {
+                s.i++;
+            }
+        }
+    }
+
+    /** Testing function. */
+    public static class TimeToLiveStateFunction extends ProcessTableFunction<String> {
+        @SuppressWarnings("unused")
+        public void eval(
+                Context ctx,
+                @StateHint(type = @DataTypeHint("ROW<emitted BOOLEAN>")) Row s0,
+                @StateHint(ttl = "5 days") Score s1,
+                @StateHint(ttl = "0") Score s2,
+                @StateHint Score s3,
+                @ArgumentHint({TABLE_AS_SET, OPTIONAL_PARTITION_BY}) Row r) {
+            final ProcessTableOperator.ProcessFunctionContext internalContext =
+                    (ProcessTableOperator.ProcessFunctionContext) ctx;
+            if (s0.getFieldAs("emitted") == null) {
+                collect(
+                        String.format(
+                                "s1=%s, s2=%s, s3=%s",
+                                internalContext.getValueStateDescriptor("s1").getTtlConfig(),
+                                internalContext.getValueStateDescriptor("s2").getTtlConfig(),
+                                internalContext.getValueStateDescriptor("s3").getTtlConfig()));
+                s0.setField("emitted", true);
+            }
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
     // Helpers
     // --------------------------------------------------------------------------------------------
@@ -167,6 +252,28 @@ public class ProcessTableFunctionTestUtils {
     public static class PojoCreatingFunction extends ScalarFunction {
         public User eval(String s, Integer i) {
             return new User(s, i);
+        }
+    }
+
+    /** POJO for state. All fields nullable. */
+    public static class Score {
+        public String s;
+        public Integer i;
+
+        @Override
+        public String toString() {
+            return String.format("Score(s='%s', i=%s)", s, i);
+        }
+    }
+
+    /** POJO for state. One field is not nullable and pre-initialized. */
+    public static class ScoreWithDefaults {
+        public String s;
+        public int i = 99;
+
+        @Override
+        public String toString() {
+            return String.format("ScoreWithDefaults(s='%s', i=%s)", s, i);
         }
     }
 }

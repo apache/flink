@@ -22,6 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
+import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -30,10 +33,12 @@ import java.util.Optional;
 class DefaultStateTypeStrategy implements StateTypeStrategy {
 
     private final TypeStrategy typeStrategy;
+    private final @Nullable Duration timeToLive;
 
-    DefaultStateTypeStrategy(TypeStrategy typeStrategy) {
+    DefaultStateTypeStrategy(TypeStrategy typeStrategy, @Nullable Duration timeToLive) {
         this.typeStrategy =
                 Preconditions.checkNotNull(typeStrategy, "Type strategy must not be null.");
+        this.timeToLive = timeToLive;
     }
 
     @Override
@@ -42,21 +47,25 @@ class DefaultStateTypeStrategy implements StateTypeStrategy {
     }
 
     @Override
+    public Optional<Duration> getTimeToLive(CallContext callContext) {
+        return Optional.ofNullable(timeToLive);
+    }
+
+    @Override
     public boolean equals(Object o) {
         if (this == o) {
             return true;
         }
-        if (o instanceof DefaultStateTypeStrategy) {
-            return Objects.equals(typeStrategy, ((DefaultStateTypeStrategy) o).typeStrategy);
+        if (o == null || getClass() != o.getClass()) {
+            return false;
         }
-        if (o instanceof TypeStrategy) {
-            return Objects.equals(typeStrategy, o);
-        }
-        return false;
+        final DefaultStateTypeStrategy that = (DefaultStateTypeStrategy) o;
+        return Objects.equals(typeStrategy, that.typeStrategy)
+                && Objects.equals(timeToLive, that.timeToLive);
     }
 
     @Override
     public int hashCode() {
-        return typeStrategy.hashCode();
+        return Objects.hash(typeStrategy, timeToLive);
     }
 }

@@ -463,8 +463,8 @@ RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN pip3 install apache-flink=={{< version >}}
 {{< /stable >}}
 {{< unstable >}}
-COPY apache-flink*.tar.gz /
-RUN pip3 install /apache-flink-libraries*.tar.gz && pip3 install /apache-flink*.tar.gz
+COPY apache_flink*.tar.gz /
+RUN pip3 install /apache_flink_libraries*.tar.gz && pip3 install /apache_flink*.tar.gz
 {{< /unstable >}}
 ```
 

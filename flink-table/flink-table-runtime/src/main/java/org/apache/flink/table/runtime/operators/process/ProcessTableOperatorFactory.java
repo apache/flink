@@ -23,10 +23,17 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.generated.GeneratedHashFunction;
 import org.apache.flink.table.runtime.generated.GeneratedProcessTableRunner;
+import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
+import org.apache.flink.table.runtime.generated.HashFunction;
 import org.apache.flink.table.runtime.generated.ProcessTableRunner;
+import org.apache.flink.table.runtime.generated.RecordEqualiser;
 
 import javax.annotation.Nullable;
+
+import java.util.Arrays;
+import java.util.List;
 
 /** The factory of {@link ProcessTableOperator}. */
 public class ProcessTableOperatorFactory extends AbstractStreamOperatorFactory<RowData>
@@ -35,22 +42,39 @@ public class ProcessTableOperatorFactory extends AbstractStreamOperatorFactory<R
     private static final long serialVersionUID = 1L;
 
     private final @Nullable RuntimeTableSemantics tableSemantics;
+    private final List<RuntimeStateInfo> stateInfos;
     private final GeneratedProcessTableRunner generatedProcessTableRunner;
+    private final GeneratedHashFunction[] generatedStateHashCode;
+    private final GeneratedRecordEqualiser[] generatedStateEquals;
 
     public ProcessTableOperatorFactory(
             @Nullable RuntimeTableSemantics tableSemantics,
-            GeneratedProcessTableRunner generatedProcessTableRunner) {
+            List<RuntimeStateInfo> stateInfos,
+            GeneratedProcessTableRunner generatedProcessTableRunner,
+            GeneratedHashFunction[] generatedStateHashCode,
+            GeneratedRecordEqualiser[] generatedStateEquals) {
         this.tableSemantics = tableSemantics;
+        this.stateInfos = stateInfos;
         this.generatedProcessTableRunner = generatedProcessTableRunner;
+        this.generatedStateHashCode = generatedStateHashCode;
+        this.generatedStateEquals = generatedStateEquals;
     }
 
     @Override
     @SuppressWarnings({"rawtypes", "unchecked"})
     public StreamOperator createStreamOperator(StreamOperatorParameters parameters) {
-        final ProcessTableRunner runner =
-                generatedProcessTableRunner.newInstance(
-                        parameters.getContainingTask().getUserCodeClassLoader());
-        return new ProcessTableOperator(parameters, tableSemantics, runner);
+        final ClassLoader classLoader = parameters.getContainingTask().getUserCodeClassLoader();
+        final ProcessTableRunner runner = generatedProcessTableRunner.newInstance(classLoader);
+        final HashFunction[] stateHashCode =
+                Arrays.stream(generatedStateHashCode)
+                        .map(g -> g.newInstance(classLoader))
+                        .toArray(HashFunction[]::new);
+        final RecordEqualiser[] stateEquals =
+                Arrays.stream(generatedStateEquals)
+                        .map(g -> g.newInstance(classLoader))
+                        .toArray(RecordEqualiser[]::new);
+        return new ProcessTableOperator(
+                parameters, tableSemantics, stateInfos, runner, stateHashCode, stateEquals);
     }
 
     @Override
