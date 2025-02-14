@@ -139,6 +139,7 @@ public class DebeziumAvroFormatFactory
         String schemaRegistryURL = formatOptions.get(URL);
         Optional<String> subject = formatOptions.getOptional(SUBJECT);
         String schema = formatOptions.getOptional(SCHEMA).orElse(null);
+        Boolean enableUpsertMode = formatOptions.get(ENABLE_UPSERT_MODE);
         Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
 
         if (!subject.isPresent()) {
@@ -151,6 +152,13 @@ public class DebeziumAvroFormatFactory
         return new EncodingFormat<SerializationSchema<RowData>>() {
             @Override
             public ChangelogMode getChangelogMode() {
+                if (enableUpsertMode) {
+                    return ChangelogMode.newBuilder()
+                            .addContainedKind(RowKind.INSERT)
+                            .addContainedKind(RowKind.UPDATE_AFTER)
+                            .addContainedKind(RowKind.DELETE)
+                            .build();
+                }
                 return ChangelogMode.newBuilder()
                         .addContainedKind(RowKind.INSERT)
                         .addContainedKind(RowKind.UPDATE_BEFORE)

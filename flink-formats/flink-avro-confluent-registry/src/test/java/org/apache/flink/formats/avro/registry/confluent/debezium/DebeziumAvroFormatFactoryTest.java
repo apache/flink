@@ -177,6 +177,21 @@ class DebeziumAvroFormatFactoryTest {
                             assertThat(changelogMode.contains(RowKind.DELETE)).isTrue();
                             assertThat(changelogMode.contains(RowKind.UPDATE_BEFORE)).isFalse();
                         });
+
+        // Test that the encoder's changelog mode is correct for upsert mode
+        final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
+        assertThat(actualSink).isInstanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class);
+        TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+                (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
+
+        assertThat(sinkMock.valueFormat.getChangelogMode())
+                .satisfies(
+                        changelogMode -> {
+                            assertThat(changelogMode.contains(RowKind.INSERT)).isTrue();
+                            assertThat(changelogMode.contains(RowKind.UPDATE_AFTER)).isTrue();
+                            assertThat(changelogMode.contains(RowKind.DELETE)).isTrue();
+                            assertThat(changelogMode.contains(RowKind.UPDATE_BEFORE)).isFalse();
+                        });
     }
 
     @Test
@@ -191,6 +206,21 @@ class DebeziumAvroFormatFactoryTest {
                 (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
 
         assertThat(scanSourceMock.valueFormat.getChangelogMode())
+                .satisfies(
+                        changelogMode -> {
+                            assertThat(changelogMode.contains(RowKind.INSERT)).isTrue();
+                            assertThat(changelogMode.contains(RowKind.UPDATE_AFTER)).isTrue();
+                            assertThat(changelogMode.contains(RowKind.UPDATE_BEFORE)).isTrue();
+                            assertThat(changelogMode.contains(RowKind.DELETE)).isTrue();
+                        });
+
+        // Test that the encoder's changelog mode is correct for non-upsert mode
+        final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
+        assertThat(actualSink).isInstanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class);
+        TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+                (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
+
+        assertThat(sinkMock.valueFormat.getChangelogMode())
                 .satisfies(
                         changelogMode -> {
                             assertThat(changelogMode.contains(RowKind.INSERT)).isTrue();
