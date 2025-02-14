@@ -160,7 +160,8 @@ class DebeziumAvroSerDeSchemaTest {
         return testDeserialization(dataPath, false);
     }
 
-    public List<String> testDeserialization(String dataPath, boolean enableUpsertMode) throws Exception {
+    public List<String> testDeserialization(String dataPath, boolean enableUpsertMode)
+            throws Exception {
         RowType rowTypeDe =
                 DebeziumAvroDeserializationSchema.createDebeziumAvroRowType(
                         fromLogicalToDataType(rowType));

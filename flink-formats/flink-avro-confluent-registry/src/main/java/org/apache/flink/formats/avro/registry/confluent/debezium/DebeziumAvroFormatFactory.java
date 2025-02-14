@@ -195,6 +195,7 @@ public class DebeziumAvroFormatFactory
         options.add(BASIC_AUTH_USER_INFO);
         options.add(BEARER_AUTH_CREDENTIALS_SOURCE);
         options.add(BEARER_AUTH_TOKEN);
+        options.add(ENABLE_UPSERT_MODE);
         return options;
     }
 

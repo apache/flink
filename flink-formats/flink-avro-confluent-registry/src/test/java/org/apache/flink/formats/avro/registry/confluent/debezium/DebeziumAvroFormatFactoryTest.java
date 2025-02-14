@@ -31,6 +31,7 @@ import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.types.RowKind;
 
 import org.junit.jupiter.api.Test;
 
@@ -133,7 +134,8 @@ class DebeziumAvroFormatFactoryTest {
                         InternalTypeInfo.of(ROW_TYPE),
                         REGISTRY_URL,
                         null,
-                        registryConfigs);
+                        registryConfigs,
+                        false);
         DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
         assertEquals(expectedDeser, actualDeser);
 
@@ -142,6 +144,60 @@ class DebeziumAvroFormatFactoryTest {
                         ROW_TYPE, REGISTRY_URL, SUBJECT, null, registryConfigs);
         SerializationSchema<RowData> actualSer = createSerializationSchema(options);
         assertEquals(expectedSer, actualSer);
+    }
+
+    @Test
+    void testSeDeSchemaWithUpsertMode() {
+        final Map<String, String> options = getAllOptions();
+        options.put("debezium-avro-confluent.enable-upsert-mode", "true");
+        final Map<String, String> registryConfigs = getRegistryConfigs();
+
+        DebeziumAvroDeserializationSchema expectedDeser =
+                new DebeziumAvroDeserializationSchema(
+                        ROW_TYPE,
+                        InternalTypeInfo.of(ROW_TYPE),
+                        REGISTRY_URL,
+                        null,
+                        registryConfigs,
+                        true);
+        DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
+        assertEquals(expectedDeser, actualDeser);
+
+        // Test that the changelog mode is correct for upsert mode
+        final DynamicTableSource actualSource = createTableSource(SCHEMA, options);
+        assertThat(actualSource).isInstanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class);
+        TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
+                (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
+
+        assertThat(scanSourceMock.valueFormat.getChangelogMode())
+                .satisfies(
+                        changelogMode -> {
+                            assertThat(changelogMode.contains(RowKind.INSERT)).isTrue();
+                            assertThat(changelogMode.contains(RowKind.UPDATE_AFTER)).isTrue();
+                            assertThat(changelogMode.contains(RowKind.DELETE)).isTrue();
+                            assertThat(changelogMode.contains(RowKind.UPDATE_BEFORE)).isFalse();
+                        });
+    }
+
+    @Test
+    void testChangelogModeWithoutUpsertMode() {
+        final Map<String, String> options = getAllOptions();
+        options.put("debezium-avro-confluent.enable-upsert-mode", "false");
+
+        // Test that the changelog mode is correct for non-upsert mode
+        final DynamicTableSource actualSource = createTableSource(SCHEMA, options);
+        assertThat(actualSource).isInstanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class);
+        TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
+                (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
+
+        assertThat(scanSourceMock.valueFormat.getChangelogMode())
+                .satisfies(
+                        changelogMode -> {
+                            assertThat(changelogMode.contains(RowKind.INSERT)).isTrue();
+                            assertThat(changelogMode.contains(RowKind.UPDATE_AFTER)).isTrue();
+                            assertThat(changelogMode.contains(RowKind.UPDATE_BEFORE)).isTrue();
+                            assertThat(changelogMode.contains(RowKind.DELETE)).isTrue();
+                        });
     }
 
     @Test
@@ -157,7 +213,8 @@ class DebeziumAvroFormatFactoryTest {
                         InternalTypeInfo.of(ROW_TYPE),
                         REGISTRY_URL,
                         AVRO_SCHEMA,
-                        registryConfigs);
+                        registryConfigs,
+                        false);
         DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
         assertThat(actualDeser).isEqualTo(expectedDeser);
 
