@@ -46,6 +46,7 @@ import org.apache.flink.runtime.state.SnapshotExecutionType;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
+import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.StateSnapshotRestore;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.StateSnapshotTransformers;
@@ -60,12 +61,15 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Spliterators;
 import java.util.concurrent.RunnableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * A {@link AbstractKeyedStateBackend} that keeps state on the Java Heap and will serialize state to
@@ -290,6 +294,46 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         final StateSnapshotRestore stateSnapshotRestore = registeredKVStates.get(state);
         StateTable<K, N, ?> table = (StateTable<K, N, ?>) stateSnapshotRestore;
         return table.getKeys(namespace);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public <N> Stream<K> getKeys(List<String> states, N namespace) {
+        final List<StateTable<K, N, ?>> tables =
+                states.stream()
+                        .filter(registeredKVStates::containsKey)
+                        .map(s -> (StateTable<K, N, ?>) registeredKVStates.get(s))
+                        .collect(Collectors.toList());
+        final List<Stream<K>> keyStreams = new ArrayList<>();
+        for (int i = 0; i < tables.size(); i++) {
+            int finalI = i;
+            Stream<K> keyStream =
+                    StreamSupport.stream(
+                                    Spliterators.spliteratorUnknownSize(
+                                            tables.get(i).iterator(), 0),
+                                    false)
+                            .filter(
+                                    entry -> {
+                                        if (!entry.getNamespace().equals(namespace)) {
+                                            return false;
+                                        }
+                                        // This ensures key deduplication across all table entry
+                                        // keys
+                                        for (int j = 0; j < finalI; ++j) {
+                                            if (tables.get(j)
+                                                            .get(
+                                                                    entry.getKey(),
+                                                                    entry.getNamespace())
+                                                    != null) {
+                                                return false;
+                                            }
+                                        }
+                                        return true;
+                                    })
+                            .map(StateEntry::getKey);
+            keyStreams.add(keyStream);
+        }
+        return keyStreams.stream().reduce(Stream.empty(), Stream::concat);
     }
 
     @SuppressWarnings("unchecked")

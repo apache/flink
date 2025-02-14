@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializerSnapshot;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.contrib.streaming.state.iterator.RocksMultiStateKeysIterator;
 import org.apache.flink.contrib.streaming.state.iterator.RocksStateKeysAndNamespaceIterator;
 import org.apache.flink.contrib.streaming.state.iterator.RocksStateKeysIterator;
 import org.apache.flink.contrib.streaming.state.snapshot.RocksDBFullSnapshotResources;
@@ -86,6 +87,7 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -388,6 +390,73 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                         keyGroupPrefixBytes,
                         ambiguousKeyPossible,
                         nameSpaceBytes);
+
+        Stream<K> targetStream =
+                StreamSupport.stream(
+                        Spliterators.spliteratorUnknownSize(iteratorWrapper, Spliterator.ORDERED),
+                        false);
+        return targetStream.onClose(iteratorWrapper::close);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public <N> Stream<K> getKeys(List<String> states, N namespace) {
+        final List<Boolean> ambiguousKeyPossibles = new ArrayList<>();
+        final List<RocksIteratorWrapper> iterators = new ArrayList<>();
+        byte[] namespaceBytes = null;
+
+        for (String state : states) {
+            RocksDbKvStateInfo columnInfo = kvStateInformation.get(state);
+            if (columnInfo == null
+                    || !(columnInfo.metaInfo instanceof RegisteredKeyValueStateBackendMetaInfo)) {
+                continue;
+            }
+
+            RegisteredKeyValueStateBackendMetaInfo<N, ?> registeredKeyValueStateBackendMetaInfo =
+                    (RegisteredKeyValueStateBackendMetaInfo<N, ?>) columnInfo.metaInfo;
+
+            final TypeSerializer<N> namespaceSerializer =
+                    registeredKeyValueStateBackendMetaInfo.getNamespaceSerializer();
+            final DataOutputSerializer namespaceOutputView = new DataOutputSerializer(8);
+            boolean ambiguousKeyPossible =
+                    CompositeKeySerializationUtils.isAmbiguousKeyPossible(
+                            getKeySerializer(), namespaceSerializer);
+            ambiguousKeyPossibles.add(ambiguousKeyPossible);
+            try {
+                CompositeKeySerializationUtils.writeNameSpace(
+                        namespace, namespaceSerializer, namespaceOutputView, ambiguousKeyPossible);
+                final byte[] stateNamespaceBytes = namespaceOutputView.getCopyOfBuffer();
+                if (namespaceBytes == null) {
+                    namespaceBytes = stateNamespaceBytes;
+                } else {
+                    if (!Arrays.equals(namespaceBytes, stateNamespaceBytes)) {
+                        throw new FlinkRuntimeException(
+                                "Key namespaces are different for states ["
+                                        + String.join(",", states)
+                                        + "]");
+                    }
+                }
+            } catch (IOException ex) {
+                throw new FlinkRuntimeException(
+                        "Failed to get keys from RocksDB state backend.", ex);
+            }
+
+            RocksIteratorWrapper iterator =
+                    RocksDBOperationUtils.getRocksIterator(
+                            db, columnInfo.columnFamilyHandle, readOptions);
+            iterator.seekToFirst();
+            iterators.add(iterator);
+        }
+
+        Preconditions.checkNotNull(namespaceBytes, "Namespace must exist");
+        final RocksMultiStateKeysIterator<K> iteratorWrapper =
+                new RocksMultiStateKeysIterator<>(
+                        iterators,
+                        states,
+                        getKeySerializer(),
+                        keyGroupPrefixBytes,
+                        ambiguousKeyPossibles,
+                        namespaceBytes);
 
         Stream<K> targetStream =
                 StreamSupport.stream(

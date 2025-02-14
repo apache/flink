@@ -55,6 +55,7 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 import java.util.stream.Stream;
@@ -158,6 +159,11 @@ public class TestStateBackend extends AbstractStateBackend {
 
         @Override
         public <N> Stream<K> getKeys(String state, N namespace) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <N> Stream<K> getKeys(List<String> states, N namespace) {
             throw new UnsupportedOperationException();
         }
 

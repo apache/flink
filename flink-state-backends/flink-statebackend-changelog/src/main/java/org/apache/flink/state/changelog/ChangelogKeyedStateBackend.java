@@ -309,6 +309,11 @@ public class ChangelogKeyedStateBackend<K>
     }
 
     @Override
+    public <N> Stream<K> getKeys(List<String> states, N namespace) {
+        return keyedStateBackend.getKeys(states, namespace);
+    }
+
+    @Override
     public <N> Stream<Tuple2<K, N>> getKeysAndNamespaces(String state) {
         return keyedStateBackend.getKeysAndNamespaces(state);
     }
