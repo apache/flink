@@ -18,18 +18,13 @@
 
 package org.apache.flink.formats.protobuf;
 
-import org.apache.flink.formats.protobuf.testproto.TimestampTestOuterNomultiProto;
 import org.apache.flink.formats.protobuf.testproto.VeryBigPbClass;
-
-import org.apache.flink.formats.protobuf.util.PbToRowTypeUtil;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.junit.Test;
 
-import static org.apache.flink.table.api.DataTypes.BIGINT;
-import static org.apache.flink.table.api.DataTypes.BOOLEAN;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.ROW;
@@ -50,46 +45,43 @@ public class VeryBigPbProtoToRowITCase {
         // test generated code can be compiled
         DataType dataType =
                 ROW(
-                        FIELD("nested_field1_nested_field1_nested_field1_nested_field1"
-                                + "_nested_field1_nested_field1_nested_field1_nested_field1_"
-                                + "nested_field1_nested_field1_nested_field1_nested_field1_"
-                                + "nested_field1_nested_field1_nested_field1", INT())
-                );
+                        FIELD(
+                                "nested_field1_nested_field1_nested_field1_nested_field1"
+                                        + "_nested_field1_nested_field1_nested_field1_nested_field1_"
+                                        + "nested_field1_nested_field1_nested_field1_nested_field1_"
+                                        + "nested_field1_nested_field1_nested_field1",
+                                INT()));
 
         RowType schema = (RowType) dataType.getLogicalType();
 
         String[][] projectedField =
                 new String[][] {
-                        new String[] {
-                                "nested_field1",
-                                "nested_field1",
-                                "nested_field1",
-                                "nested_field1",
-                                "nested_field1",
-                                "nested_field1",
-                                "nested_field1",
-                                "nested_field1",
-                                "nested_field1",
-                                "nested_field1",
-                                "nested_field1",
-                                "nested_field1",
-                                "nested_field1",
-                                "nested_field1",
-                                "nested_field1"
-                        }
-        };
+                    new String[] {
+                        "nested_field1",
+                        "nested_field1",
+                        "nested_field1",
+                        "nested_field1",
+                        "nested_field1",
+                        "nested_field1",
+                        "nested_field1",
+                        "nested_field1",
+                        "nested_field1",
+                        "nested_field1",
+                        "nested_field1",
+                        "nested_field1",
+                        "nested_field1",
+                        "nested_field1",
+                        "nested_field1"
+                    }
+                };
 
-        RowData rowData = ProtobufTestProjectHelper.pbBytesToRowProjected(
-                schema,
-                veryBigPbMessage.toByteArray(),
-                new PbFormatConfig(
-                        VeryBigPbClass.VeryBigPbMessage.class
-                                .getName(),
-                        false,
-                        false,
-                        ""),
-                projectedField
-        );
+        RowData rowData =
+                ProtobufTestProjectHelper.pbBytesToRowProjected(
+                        schema,
+                        veryBigPbMessage.toByteArray(),
+                        new PbFormatConfig(
+                                VeryBigPbClass.VeryBigPbMessage.class.getName(), false, false, ""),
+                        projectedField);
 
         System.out.println(rowData);
     }
