@@ -83,13 +83,26 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
     /** TypeInformation of the produced {@link RowData}. */
     private final TypeInformation<RowData> producedTypeInfo;
 
+    private final boolean enableUpsertMode;
+
     public DebeziumAvroDeserializationSchema(
             RowType rowType,
             TypeInformation<RowData> producedTypeInfo,
             String schemaRegistryUrl,
             @Nullable String schemaString,
             @Nullable Map<String, ?> registryConfigs) {
+        this(rowType, producedTypeInfo, schemaRegistryUrl, schemaString, registryConfigs, false);
+    }
+
+    public DebeziumAvroDeserializationSchema(
+            RowType rowType,
+            TypeInformation<RowData> producedTypeInfo,
+            String schemaRegistryUrl,
+            @Nullable String schemaString,
+            @Nullable Map<String, ?> registryConfigs,
+            boolean enableUpsertMode) {
         this.producedTypeInfo = producedTypeInfo;
+        this.enableUpsertMode = enableUpsertMode;
         RowType debeziumAvroRowType = createDebeziumAvroRowType(fromLogicalToDataType(rowType));
 
         validateSchemaString(schemaString, debeziumAvroRowType);
@@ -110,8 +123,17 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
     DebeziumAvroDeserializationSchema(
             TypeInformation<RowData> producedTypeInfo,
             AvroRowDataDeserializationSchema avroDeserializer) {
+        this(producedTypeInfo, avroDeserializer, false);
+    }
+
+    @VisibleForTesting
+    DebeziumAvroDeserializationSchema(
+            TypeInformation<RowData> producedTypeInfo,
+            AvroRowDataDeserializationSchema avroDeserializer,
+            boolean enableUpsertMode) {
         this.producedTypeInfo = producedTypeInfo;
         this.avroDeserializer = avroDeserializer;
+        this.enableUpsertMode = enableUpsertMode;
     }
 
     @Override
@@ -127,7 +149,6 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
 
     @Override
     public void deserialize(byte[] message, Collector<RowData> out) throws IOException {
-
         if (message == null || message.length == 0) {
             // skip tombstone messages
             return;
@@ -146,9 +167,11 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
                     throw new IllegalStateException(
                             String.format(REPLICA_IDENTITY_EXCEPTION, "UPDATE"));
                 }
-                before.setRowKind(RowKind.UPDATE_BEFORE);
                 after.setRowKind(RowKind.UPDATE_AFTER);
-                out.collect(before);
+                if (!enableUpsertMode) {
+                    before.setRowKind(RowKind.UPDATE_BEFORE);
+                    out.collect(before);
+                }
                 out.collect(after);
             } else if (OP_DELETE.equals(op)) {
                 if (before == null) {
@@ -189,12 +212,13 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
         }
         DebeziumAvroDeserializationSchema that = (DebeziumAvroDeserializationSchema) o;
         return Objects.equals(avroDeserializer, that.avroDeserializer)
-                && Objects.equals(producedTypeInfo, that.producedTypeInfo);
+                && Objects.equals(producedTypeInfo, that.producedTypeInfo)
+                && enableUpsertMode == that.enableUpsertMode;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(avroDeserializer, producedTypeInfo);
+        return Objects.hash(avroDeserializer, producedTypeInfo, enableUpsertMode);
     }
 
     public static RowType createDebeziumAvroRowType(DataType databaseSchema) {

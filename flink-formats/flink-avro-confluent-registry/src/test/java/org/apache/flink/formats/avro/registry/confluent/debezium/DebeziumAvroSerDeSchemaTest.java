@@ -127,11 +127,21 @@ class DebeziumAvroSerDeSchemaTest {
 
     @Test
     void testUpdateDataDeserialization() throws Exception {
-        List<String> actual = testDeserialization("debezium-avro-update.avro");
+        List<String> actual = testDeserialization("debezium-avro-update.avro", false);
 
         List<String> expected =
                 Arrays.asList(
                         "-U(1,lisi,test debezium avro data,21.799999237060547)",
+                        "+U(1,zhangsan,test debezium avro data,21.799999237060547)");
+        assertThat(actual).isEqualTo(expected);
+    }
+
+    @Test
+    void testUpdateDataDeserializationWithUpsertMode() throws Exception {
+        List<String> actual = testDeserialization("debezium-avro-update.avro", true);
+
+        List<String> expected =
+                Collections.singletonList(
                         "+U(1,zhangsan,test debezium avro data,21.799999237060547)");
         assertThat(actual).isEqualTo(expected);
     }
@@ -147,6 +157,10 @@ class DebeziumAvroSerDeSchemaTest {
     }
 
     public List<String> testDeserialization(String dataPath) throws Exception {
+        return testDeserialization(dataPath, false);
+    }
+
+    public List<String> testDeserialization(String dataPath, boolean enableUpsertMode) throws Exception {
         RowType rowTypeDe =
                 DebeziumAvroDeserializationSchema.createDebeziumAvroRowType(
                         fromLogicalToDataType(rowType));
@@ -155,7 +169,9 @@ class DebeziumAvroSerDeSchemaTest {
 
         DebeziumAvroDeserializationSchema dbzDeserializer =
                 new DebeziumAvroDeserializationSchema(
-                        InternalTypeInfo.of(rowType), getDeserializationSchema(rowTypeDe));
+                        InternalTypeInfo.of(rowType),
+                        getDeserializationSchema(rowTypeDe),
+                        enableUpsertMode);
         dbzDeserializer.open(new MockInitializationContext());
 
         SimpleCollector collector = new SimpleCollector();

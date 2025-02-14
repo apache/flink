@@ -23,6 +23,7 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.table.api.ValidationException;
@@ -75,6 +76,13 @@ public class DebeziumAvroFormatFactory
 
     public static final String IDENTIFIER = "debezium-avro-confluent";
 
+    public static final ConfigOption<Boolean> ENABLE_UPSERT_MODE =
+            ConfigOptions.key("enable-upsert-mode")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Optional flag to specify run in upsert mode. In upsert mode the format will not produce UPDATE_BEFORE Rows from Debezium op='u' change events when deserializing.");
+
     @Override
     public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
@@ -82,6 +90,7 @@ public class DebeziumAvroFormatFactory
         FactoryUtil.validateFactoryOptions(this, formatOptions);
         String schemaRegistryURL = formatOptions.get(URL);
         String schema = formatOptions.getOptional(SCHEMA).orElse(null);
+        Boolean enableUpsertMode = formatOptions.get(ENABLE_UPSERT_MODE);
         Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
 
         return new ProjectableDecodingFormat<DeserializationSchema<RowData>>() {
@@ -99,11 +108,19 @@ public class DebeziumAvroFormatFactory
                         producedTypeInfo,
                         schemaRegistryURL,
                         schema,
-                        optionalPropertiesMap);
+                        optionalPropertiesMap,
+                        enableUpsertMode);
             }
 
             @Override
             public ChangelogMode getChangelogMode() {
+                if (enableUpsertMode) {
+                    return ChangelogMode.newBuilder()
+                            .addContainedKind(RowKind.INSERT)
+                            .addContainedKind(RowKind.UPDATE_AFTER)
+                            .addContainedKind(RowKind.DELETE)
+                            .build();
+                }
                 return ChangelogMode.newBuilder()
                         .addContainedKind(RowKind.INSERT)
                         .addContainedKind(RowKind.UPDATE_BEFORE)
