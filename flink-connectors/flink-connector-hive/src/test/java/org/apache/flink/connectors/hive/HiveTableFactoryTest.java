@@ -143,6 +143,7 @@ class HiveTableFactoryTest {
                                 catalog.getFactory().orElseThrow(IllegalStateException::new),
                         ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
                         new ResolvedCatalogTable(table, schema),
+                        Collections.emptyMap(),
                         new Configuration(),
                         Thread.currentThread().getContextClassLoader(),
                         false);
@@ -154,6 +155,7 @@ class HiveTableFactoryTest {
                                 catalog.getFactory().orElseThrow(IllegalStateException::new),
                         ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
                         new ResolvedCatalogTable(table, schema),
+                        Collections.emptyMap(),
                         new Configuration(),
                         Thread.currentThread().getContextClassLoader(),
                         false);

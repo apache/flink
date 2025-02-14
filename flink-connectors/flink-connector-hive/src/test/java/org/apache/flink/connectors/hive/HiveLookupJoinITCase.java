@@ -49,6 +49,7 @@ import org.junit.Test;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
@@ -436,6 +437,7 @@ public class HiveLookupJoinITCase {
                                 tableEnvInternal
                                         .getCatalogManager()
                                         .resolveCatalogTable(catalogTable),
+                                Collections.emptyMap(),
                                 tableEnv.getConfig(),
                                 Thread.currentThread().getContextClassLoader(),
                                 false);

@@ -38,6 +38,7 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 
+import java.util.Collections;
 import java.util.Set;
 
 import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_ENABLE;
@@ -79,6 +80,7 @@ public class HiveDynamicTableFactory implements DynamicTableSourceFactory, Dynam
                             null,
                             context.getObjectIdentifier(),
                             context.getCatalogTable(),
+                            Collections.emptyMap(),
                             context.getConfiguration(),
                             context.getClassLoader(),
                             context.isTemporary());
@@ -114,6 +116,7 @@ public class HiveDynamicTableFactory implements DynamicTableSourceFactory, Dynam
                             null,
                             context.getObjectIdentifier(),
                             context.getCatalogTable(),
+                            Collections.emptyMap(),
                             context.getConfiguration(),
                             context.getClassLoader(),
                             context.isTemporary());
