@@ -321,6 +321,13 @@ Flink 提供了 `debezium-avro-confluent` 和 `debezium-json` 两种 format 来�
             <td>Bearer auth token for Schema Registry</td>
         </tr>
         <tr>
+            <td><h5>debezium-avro-confluent.enable-upsert-mode</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>In upsert mode the format will not produce UPDATE_BEFORE Rows from Debezium op='u' change events when deserializing.</td>
+        </tr>
+        <tr>
             <td><h5>debezium-avro-confluent.properties</h5></td>
             <td>optional</td>
             <td style="word-wrap: break-word;">(none)</td>

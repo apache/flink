@@ -102,7 +102,7 @@ class DebeziumAvroSerDeSchemaTest {
         client.register(SUBJECT, DEBEZIUM_SCHEMA_COMPATIBLE_TEST);
         DebeziumAvroDeserializationSchema dbzDeserializer =
                 new DebeziumAvroDeserializationSchema(
-                        InternalTypeInfo.of(rowType), getDeserializationSchema(rowTypeDe));
+                        InternalTypeInfo.of(rowType), getDeserializationSchema(rowTypeDe), false);
         dbzDeserializer.open(new MockInitializationContext());
 
         SimpleCollector collector = new SimpleCollector();

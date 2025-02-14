@@ -122,13 +122,6 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
     @VisibleForTesting
     DebeziumAvroDeserializationSchema(
             TypeInformation<RowData> producedTypeInfo,
-            AvroRowDataDeserializationSchema avroDeserializer) {
-        this(producedTypeInfo, avroDeserializer, false);
-    }
-
-    @VisibleForTesting
-    DebeziumAvroDeserializationSchema(
-            TypeInformation<RowData> producedTypeInfo,
             AvroRowDataDeserializationSchema avroDeserializer,
             boolean enableUpsertMode) {
         this.producedTypeInfo = producedTypeInfo;
