@@ -332,7 +332,7 @@ Array, Multiset and Map Expansion
 Unnest returns a new row for each element in the given array, multiset or map. Supports both `CROSS JOIN` and `LEFT JOIN`.
 ```sql
 -- Returns a new row for each element in a constant array
-SELECT * FROM (VALUES('order_1')), UNNEST(ARRAY["shirt", "pants", "hat"])
+SELECT * FROM (VALUES('order_1')), UNNEST(ARRAY['shirt', 'pants', 'hat'])
 
 id       product_name
 =======  ============
@@ -347,14 +347,14 @@ FROM Orders
     CROSS JOIN UNNEST(product_names) AS t(product_name)
 ```
 
-Unnesting `WITH ORDINALITY` is also supported.
+Unnesting `WITH ORDINALITY` is also supported. Currently, `WITH ORDINALITY` only supports `CROSS JOIN` but not `LEFT JOIN`.
 
 
 ```sql
 -- Returns a new row for each element in a constant array and its position in the array
 SELECT * 
-FROM (VALUES('order_1'))
-    CROSS JOIN UNNEST(ARRAY["shirt", "pants", "hat"]) 
+FROM (VALUES ('order_1'), ('order_2'))
+    CROSS JOIN UNNEST(ARRAY['shirt', 'pants', 'hat']) 
         WITH ORDINALITY AS t(product_name, index)
 
 id       product_name  index
@@ -362,6 +362,9 @@ id       product_name  index
 order_1  shirt             1
 order_1  pants             2
 order_1  hat               3
+order_2  shirt             1
+order_2  pants             2
+order_2  hat               3
 
 -- Returns a new row for each element and its position in the array
 -- assuming a Orders table with an array column `product_names`
@@ -371,9 +374,49 @@ FROM Orders
         WITH ORDINALITY AS t(product_name, product_index)
 ```
 
-A unnest with ordinality will return each element and the position of the element in the data structure, 1-indexed. 
+An unnest with ordinality will return each element and the position of the element in the data structure, 1-indexed. 
 The order of the elements for arrays is guaranteed. Since maps and multisets are unordered, the order of the elements is not guaranteed.
-Currently, WITH ORDINALITY only supports cross joins but not left joins.
+
+```sql
+-- Returns a new row each key/value pair in the map.
+SELECT *
+FROM 
+    (VALUES('order_1'))
+        CROSS JOIN UNNEST(MAP['shirt', 2, 'pants', 1, 'hat', 1]) WITH ORDINALITY
+
+id       product_name  amount index
+=======  ============  =====  =====
+order_1  shirt             2      1
+order_1  pants             1      2
+order_1  hat               1      3
+
+-- Returns a new row for each instance of a element in a multiset
+-- If an element has been seen twice (multiplicity is 2), it will be returned twice
+WITH ProductMultiset AS
+    (SELECT COLLECT(product_name) AS product_multiset
+    FROM (
+            VALUES ('shirt'), ('pants'), ('hat'), ('shirt'), ('hat')
+          ) AS t(product_name)) -- produces { 'shirt': 2, 'pants': 1, 'hat': 2 } 
+SELECT id, product_name, ordinality
+FROM 
+    (VALUES ('order_1'), ('order_2')) AS t(id),
+    ProductMultiset
+         CROSS JOIN UNNEST(product_multiset) WITH
+         ORDINALITY AS u(product_name, ordinality);
+
+id       product_name  index
+=======  ============  =====
+order_1  shirt             1
+order_1  shirt             2
+order_1  pants             3
+order_1  hat               4
+order_1  hat               5
+order_2  shirt             1
+order_2  shirt             2
+order_2  pants             3
+order_2  hat               4
+order_1  hat               5
+```
 
 Table Function
 --------------
