@@ -157,6 +157,15 @@ public class BatchExecutionKeyedStateBackend<K> implements CheckpointableKeyedSt
     }
 
     @Override
+    public <N> Stream<K> getKeys(List<String> states, N namespace) {
+        LOG.debug("Returning an empty stream in BATCH execution mode in getKeys().");
+        // We return an empty Stream here. This is correct because the BATCH broadcast operators
+        // process the broadcast side first, meaning we know that the keyed side will always be
+        // empty when this is called
+        return Stream.empty();
+    }
+
+    @Override
     public <N> Stream<Tuple2<K, N>> getKeysAndNamespaces(String state) {
         LOG.debug("Returning an empty stream in BATCH execution mode in getKeysAndNamespaces().");
         // We return an empty Stream here. This is correct because the BATCH broadcast operators

@@ -37,6 +37,7 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.List;
 import java.util.concurrent.RunnableFuture;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -268,6 +269,11 @@ public class StateBackendTestUtils {
                 @Override
                 public <N> Stream<K> getKeys(String state, N namespace) {
                     return delegatedKeyedStateBackend.getKeys(state, namespace);
+                }
+
+                @Override
+                public <N> Stream<K> getKeys(List<String> states, N namespace) {
+                    return delegatedKeyedStateBackend.getKeys(states, namespace);
                 }
 
                 @Override
