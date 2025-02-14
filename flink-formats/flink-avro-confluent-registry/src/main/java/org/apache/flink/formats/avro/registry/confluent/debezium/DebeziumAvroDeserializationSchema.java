@@ -83,7 +83,7 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
     /** TypeInformation of the produced {@link RowData}. */
     private final TypeInformation<RowData> producedTypeInfo;
 
-    private final boolean enableUpsertMode;
+    private final boolean upsertMode;
 
     public DebeziumAvroDeserializationSchema(
             RowType rowType,
@@ -100,9 +100,9 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
             String schemaRegistryUrl,
             @Nullable String schemaString,
             @Nullable Map<String, ?> registryConfigs,
-            boolean enableUpsertMode) {
+            boolean upsertMode) {
         this.producedTypeInfo = producedTypeInfo;
-        this.enableUpsertMode = enableUpsertMode;
+        this.upsertMode = upsertMode;
         RowType debeziumAvroRowType = createDebeziumAvroRowType(fromLogicalToDataType(rowType));
 
         validateSchemaString(schemaString, debeziumAvroRowType);
@@ -123,10 +123,10 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
     DebeziumAvroDeserializationSchema(
             TypeInformation<RowData> producedTypeInfo,
             AvroRowDataDeserializationSchema avroDeserializer,
-            boolean enableUpsertMode) {
+            boolean upsertMode) {
         this.producedTypeInfo = producedTypeInfo;
         this.avroDeserializer = avroDeserializer;
-        this.enableUpsertMode = enableUpsertMode;
+        this.upsertMode = upsertMode;
     }
 
     @Override
@@ -161,7 +161,7 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
                             String.format(REPLICA_IDENTITY_EXCEPTION, "UPDATE"));
                 }
                 after.setRowKind(RowKind.UPDATE_AFTER);
-                if (!enableUpsertMode) {
+                if (!upsertMode) {
                     before.setRowKind(RowKind.UPDATE_BEFORE);
                     out.collect(before);
                 }
@@ -206,12 +206,12 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
         DebeziumAvroDeserializationSchema that = (DebeziumAvroDeserializationSchema) o;
         return Objects.equals(avroDeserializer, that.avroDeserializer)
                 && Objects.equals(producedTypeInfo, that.producedTypeInfo)
-                && enableUpsertMode == that.enableUpsertMode;
+                && upsertMode == that.upsertMode;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(avroDeserializer, producedTypeInfo, enableUpsertMode);
+        return Objects.hash(avroDeserializer, producedTypeInfo, upsertMode);
     }
 
     public static RowType createDebeziumAvroRowType(DataType databaseSchema) {

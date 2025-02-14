@@ -149,7 +149,7 @@ class DebeziumAvroFormatFactoryTest {
     @Test
     void testSeDeSchemaWithUpsertMode() {
         final Map<String, String> options = getAllOptions();
-        options.put("debezium-avro-confluent.enable-upsert-mode", "true");
+        options.put("debezium-avro-confluent.upsert-mode", "true");
         final Map<String, String> registryConfigs = getRegistryConfigs();
 
         DebeziumAvroDeserializationSchema expectedDeser =
@@ -197,7 +197,7 @@ class DebeziumAvroFormatFactoryTest {
     @Test
     void testChangelogModeWithoutUpsertMode() {
         final Map<String, String> options = getAllOptions();
-        options.put("debezium-avro-confluent.enable-upsert-mode", "false");
+        options.put("debezium-avro-confluent.upsert-mode", "false");
 
         // Test that the changelog mode is correct for non-upsert mode
         final DynamicTableSource actualSource = createTableSource(SCHEMA, options);

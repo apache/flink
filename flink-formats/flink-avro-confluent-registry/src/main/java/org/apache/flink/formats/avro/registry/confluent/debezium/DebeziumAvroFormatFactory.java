@@ -76,8 +76,8 @@ public class DebeziumAvroFormatFactory
 
     public static final String IDENTIFIER = "debezium-avro-confluent";
 
-    public static final ConfigOption<Boolean> ENABLE_UPSERT_MODE =
-            ConfigOptions.key("enable-upsert-mode")
+    public static final ConfigOption<Boolean> UPSERT_MODE =
+            ConfigOptions.key("upsert-mode")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
@@ -90,7 +90,7 @@ public class DebeziumAvroFormatFactory
         FactoryUtil.validateFactoryOptions(this, formatOptions);
         String schemaRegistryURL = formatOptions.get(URL);
         String schema = formatOptions.getOptional(SCHEMA).orElse(null);
-        Boolean enableUpsertMode = formatOptions.get(ENABLE_UPSERT_MODE);
+        Boolean upsertMode = formatOptions.get(UPSERT_MODE);
         Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
 
         return new ProjectableDecodingFormat<DeserializationSchema<RowData>>() {
@@ -109,12 +109,12 @@ public class DebeziumAvroFormatFactory
                         schemaRegistryURL,
                         schema,
                         optionalPropertiesMap,
-                        enableUpsertMode);
+                        upsertMode);
             }
 
             @Override
             public ChangelogMode getChangelogMode() {
-                if (enableUpsertMode) {
+                if (upsertMode) {
                     return ChangelogMode.newBuilder()
                             .addContainedKind(RowKind.INSERT)
                             .addContainedKind(RowKind.UPDATE_AFTER)
@@ -139,7 +139,7 @@ public class DebeziumAvroFormatFactory
         String schemaRegistryURL = formatOptions.get(URL);
         Optional<String> subject = formatOptions.getOptional(SUBJECT);
         String schema = formatOptions.getOptional(SCHEMA).orElse(null);
-        Boolean enableUpsertMode = formatOptions.get(ENABLE_UPSERT_MODE);
+        Boolean upsertMode = formatOptions.get(UPSERT_MODE);
         Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
 
         if (!subject.isPresent()) {
@@ -152,7 +152,7 @@ public class DebeziumAvroFormatFactory
         return new EncodingFormat<SerializationSchema<RowData>>() {
             @Override
             public ChangelogMode getChangelogMode() {
-                if (enableUpsertMode) {
+                if (upsertMode) {
                     return ChangelogMode.newBuilder()
                             .addContainedKind(RowKind.INSERT)
                             .addContainedKind(RowKind.UPDATE_AFTER)
@@ -203,7 +203,7 @@ public class DebeziumAvroFormatFactory
         options.add(BASIC_AUTH_USER_INFO);
         options.add(BEARER_AUTH_CREDENTIALS_SOURCE);
         options.add(BEARER_AUTH_TOKEN);
-        options.add(ENABLE_UPSERT_MODE);
+        options.add(UPSERT_MODE);
         return options;
     }
 
