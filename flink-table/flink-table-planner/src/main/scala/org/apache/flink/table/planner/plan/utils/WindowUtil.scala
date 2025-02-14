@@ -219,7 +219,7 @@ object WindowUtil {
         val interval = getOperandAsLong(windowCall.operands(2))
         if (interval <= 0) {
           throw new TableException(
-            s"TUMBLE table function based aggregate requires size being positive," +
+            s"TUMBLE table function based aggregate requires size to be positive," +
               s" but got $interval ms.")
         }
         new TumblingWindowSpec(Duration.ofMillis(interval), offset)
@@ -234,7 +234,7 @@ object WindowUtil {
         val size = getOperandAsLong(windowCall.operands(3))
         if (slide <= 0 || size <= 0) {
           throw new TableException(
-            s"HOP table function based aggregate requires slide and size being positive," +
+            s"HOP table function based aggregate requires slide and size to be positive," +
               s" but got slide $slide ms and size $size ms.")
         }
         new HoppingWindowSpec(Duration.ofMillis(size), Duration.ofMillis(slide), offset)
@@ -249,7 +249,7 @@ object WindowUtil {
         val maxSize = getOperandAsLong(windowCall.operands(3))
         if (step <= 0 || maxSize <= 0) {
           throw new TableException(
-            s"CUMULATE table function based aggregate requires maxSize and step being positive," +
+            s"CUMULATE table function based aggregate requires maxSize and step to be positive," +
               s" but got maxSize $maxSize ms and step $step ms.")
         }
         if (maxSize % step != 0) {
@@ -265,7 +265,7 @@ object WindowUtil {
         val gap = getOperandAsLong(windowCall.operands(2))
         if (gap <= 0) {
           throw new TableException(
-            s"SESSION table function based aggregate requires gap being positive," +
+            s"SESSION table function based aggregate requires gap to be positive," +
               s" but got gap $gap ms.")
         }
         new SessionWindowSpec(Duration.ofMillis(gap), tableArgCall.getPartitionKeys)

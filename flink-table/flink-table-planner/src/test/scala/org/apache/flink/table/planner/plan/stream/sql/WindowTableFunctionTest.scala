@@ -361,7 +361,7 @@ class WindowTableFunctionTest extends TableTestBase {
     assertThatThrownBy(() => util.verifyRelPlan(sql))
       .hasCause(
         new TableException(
-          s"TUMBLE table function based aggregate requires size being positive," +
+          s"TUMBLE table function based aggregate requires size to be positive," +
             s" but got ${interval * 1000 * 60} ms."))
   }
 
@@ -378,7 +378,7 @@ class WindowTableFunctionTest extends TableTestBase {
     assertThatThrownBy(() => util.verifyRelPlan(sql))
       .hasCause(
         new TableException(
-          "CUMULATE table function based aggregate requires maxSize and step being positive," +
+          "CUMULATE table function based aggregate requires maxSize and step to be positive," +
             s" but got maxSize ${size * 1000 * 60 * 60} ms and step ${step * 1000 * 60} ms."))
   }
 
@@ -410,7 +410,7 @@ class WindowTableFunctionTest extends TableTestBase {
     assertThatThrownBy(() => util.verifyRelPlan(sql))
       .hasCause(
         new TableException(
-          "HOP table function based aggregate requires slide and size being positive," +
+          "HOP table function based aggregate requires slide and size to be positive," +
             s" but got slide ${slide * 1000 * 60} ms and size ${size * 1000 * 60} ms."))
   }
 
@@ -426,7 +426,7 @@ class WindowTableFunctionTest extends TableTestBase {
     assertThatThrownBy(() => util.verifyRelPlan(sql))
       .hasCause(
         new TableException(
-          s"SESSION table function based aggregate requires gap being positive," +
+          s"SESSION table function based aggregate requires gap to be positive," +
             s" but got gap ${gap * 1000 * 60} ms."))
   }
 
