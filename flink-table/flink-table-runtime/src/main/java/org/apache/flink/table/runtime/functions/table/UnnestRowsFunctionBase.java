@@ -32,6 +32,9 @@ import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
 
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 /** Base class for flattening ARRAY, MAP, and MULTISET using a table function. */
 @Internal
 public abstract class UnnestRowsFunctionBase extends BuiltInSpecializedFunction {
@@ -110,18 +113,15 @@ public abstract class UnnestRowsFunctionBase extends BuiltInSpecializedFunction 
         // If baseType is already a ROW, extract its fields and add an ordinality field
         if (baseType instanceof RowType) {
             RowType rowType = (RowType) baseType;
-            int fieldCount = rowType.getFieldCount();
-            LogicalType[] types = new LogicalType[fieldCount + 1];
-            String[] names = new String[types.length];
-
-            for (int i = 0; i < fieldCount; i++) {
-                types[i] = rowType.getTypeAt(i);
-                names[i] = "f" + i;
-            }
-
-            types[fieldCount] = DataTypes.INT().notNull().getLogicalType();
-            names[fieldCount] = "ordinality";
-            return RowType.of(false, types, names);
+            return new RowType(
+                    false,
+                    Stream.concat(
+                                    rowType.getFields().stream(),
+                                    Stream.of(
+                                            new RowType.RowField(
+                                                    "ordinality",
+                                                    DataTypes.INT().notNull().getLogicalType())))
+                            .collect(Collectors.toList()));
         } else {
             // For non-row types, wrap in a row with f0 and ordinality
             return RowType.of(
