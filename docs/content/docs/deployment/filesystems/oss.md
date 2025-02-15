@@ -44,10 +44,23 @@ Below shows how to use OSS in a Flink job:
 
 ```java
 // Read from OSS bucket
-env.readTextFile("oss://<your-bucket>/<object-name>");
+FileSource<String> fileSource = FileSource.forRecordStreamFormat(
+        new TextLineInputFormat(),
+        new Path("oss://<your-bucket>/<object-name>")
+    ).build();
+env.fromSource(
+    fileSource,
+    WatermarkStrategy.noWatermarks(),
+    "oss-input"
+);
 
 // Write to OSS bucket
-stream.writeAsText("oss://<your-bucket>/<object-name>");
+stream.sinkTo(
+    FileSink.forRowFormat(
+        new Path("oss://<your-bucket>/<object-name>"), 
+        new SimpleStringEncoder<>()
+    ).build()
+);
 
 // Use OSS as checkpoint storage
 Configuration config = new Configuration();
