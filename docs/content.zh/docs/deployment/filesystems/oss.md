@@ -43,10 +43,23 @@ oss://<your-bucket>/<object-name>
 
 ```java
 // 读取 OSS bucket
-env.readTextFile("oss://<your-bucket>/<object-name>");
+FileSource<String> fileSource = FileSource.forRecordStreamFormat(
+        new TextLineInputFormat(),
+        new Path("oss://<your-bucket>/<object-name>")
+    ).build();
+env.fromSource(
+    fileSource,
+    WatermarkStrategy.noWatermarks(),
+    "oss-input"
+);
 
 // 写入 OSS bucket
-stream.writeAsText("oss://<your-bucket>/<object-name>");
+stream.sinkTo(
+    FileSink.forRowFormat(
+        new Path("oss://<your-bucket>/<object-name>"), 
+        new SimpleStringEncoder<>()
+    ).build()
+);
 
 // 将 OSS 用作 checkpoint storage
 Configuration config = new Configuration();
