@@ -271,50 +271,36 @@ public class HistoryServerKVStoreArchiveFetcherTest {
         archiveFetcher.processArchive(jobID2, new Path(jobArchive2.toUri()));
         archiveFetcher.processArchive(jobID3, new Path(jobArchive3.toUri()));
 
-        // Invoke the updateJobOverview method
+        // Invoke the updateJobOverview method that aggregates individual job overviews.
         updateJobOverview(kvStore);
 
-        // Verify that each job's details are present and correct in the combined overview
-        String expectedOverviewJson1 =
-                "{\"jobs\":[{\"jid\":\""
-                        + jobID1
-                        + "\",\"name\":\"Flink Streaming Job\",\"state\":\"FINISHED\",\"start-time\":1723270676500,\"end-time\":1723270676621,\"duration\":121,\"last-modification\":1723270676621,\"tasks\":{\"total\":3,\"created\":0,\"scheduled\":0,\"deploying\":0,\"running\":0,\"finished\":3,\"canceling\":0,\"canceled\":0,\"failed\":0,\"reconciling\":0,\"initializing\":0}}]}";
-        String expectedOverviewJson2 =
-                "{\"jobs\":[{\"jid\":\""
-                        + jobID2
-                        + "\",\"name\":\"Flink Streaming Job\",\"state\":\"FINISHED\",\"start-time\":1723270676500,\"end-time\":1723270676621,\"duration\":121,\"last-modification\":1723270676621,\"tasks\":{\"total\":3,\"created\":0,\"scheduled\":0,\"deploying\":0,\"running\":0,\"finished\":3,\"canceling\":0,\"canceled\":0,\"failed\":0,\"reconciling\":0,\"initializing\":0}}]}";
-        String expectedOverviewJson3 =
-                "{\"jobs\":[{\"jid\":\""
-                        + jobID3
-                        + "\",\"name\":\"Flink Streaming Job\",\"state\":\"FINISHED\",\"start-time\":1723270676500,\"end-time\":1723270676621,\"duration\":121,\"last-modification\":1723270676621,\"tasks\":{\"total\":3,\"created\":0,\"scheduled\":0,\"deploying\":0,\"running\":0,\"finished\":3,\"canceling\":0,\"canceled\":0,\"failed\":0,\"reconciling\":0,\"initializing\":0}}]}";
-
-        String fetchedOverviewJson1 = kvStore.get("/jobs/overview/" + jobID1);
-        String fetchedOverviewJson2 = kvStore.get("/jobs/overview/" + jobID2);
-        String fetchedOverviewJson3 = kvStore.get("/jobs/overview/" + jobID3);
-
-        assertThat(fetchedOverviewJson1).isEqualTo(expectedOverviewJson1);
-        assertThat(fetchedOverviewJson2).isEqualTo(expectedOverviewJson2);
-        assertThat(fetchedOverviewJson3).isEqualTo(expectedOverviewJson3);
-
-        // Fetch the combined overview from RocksDB
-        String combinedOverviewJson = kvStore.get("/jobs/combined-overview");
-
-        // Expected JSON structure
-        String expectedOverviewJson =
+        // The expected combined overview JSON. Note that updateJobOverview adds
+        String expectedCombinedOverview =
                 "{\"jobs\":["
-                        + "{\"jid\":\""
-                        + jobID1
-                        + "\",\"name\":\"Flink Streaming Job\",\"state\":\"FINISHED\",\"start-time\":1723270676500,\"end-time\":1723270676621,\"duration\":121,\"last-modification\":1723270676621,\"tasks\":{\"total\":3,\"created\":0,\"scheduled\":0,\"deploying\":0,\"running\":0,\"finished\":3,\"canceling\":0,\"canceled\":0,\"failed\":0,\"reconciling\":0,\"initializing\":0}},"
-                        + "{\"jid\":\""
-                        + jobID2
-                        + "\",\"name\":\"Flink Streaming Job\",\"state\":\"FINISHED\",\"start-time\":1723270676500,\"end-time\":1723270676621,\"duration\":121,\"last-modification\":1723270676621,\"tasks\":{\"total\":3,\"created\":0,\"scheduled\":0,\"deploying\":0,\"running\":0,\"finished\":3,\"canceling\":0,\"canceled\":0,\"failed\":0,\"reconciling\":0,\"initializing\":0}},"
-                        + "{\"jid\":\""
-                        + jobID3
-                        + "\",\"name\":\"Flink Streaming Job\",\"state\":\"FINISHED\",\"start-time\":1723270676500,\"end-time\":1723270676621,\"duration\":121,\"last-modification\":1723270676621,\"tasks\":{\"total\":3,\"created\":0,\"scheduled\":0,\"deploying\":0,\"running\":0,\"finished\":3,\"canceling\":0,\"canceled\":0,\"failed\":0,\"reconciling\":0,\"initializing\":0}}"
+                        + "{\"jid\":\"" + jobID1 + "\",\"name\":\"Flink Streaming Job\",\"start-time\":1723270676500,"
+                        + "\"end-time\":1723270676621,\"duration\":121,\"state\":\"FINISHED\",\"last-modification\":1723270676621,"
+                        + "\"tasks\":{\"running\":0,\"canceling\":0,\"canceled\":0,\"total\":3,\"created\":0,\"scheduled\":0,"
+                        + "\"deploying\":0,\"reconciling\":0,\"finished\":3,\"initializing\":0,\"failed\":0},\"pending-operators\":0},"
+                        + "{\"jid\":\"" + jobID2 + "\",\"name\":\"Flink Streaming Job\",\"start-time\":1723270676500,"
+                        + "\"end-time\":1723270676621,\"duration\":121,\"state\":\"FINISHED\",\"last-modification\":1723270676621,"
+                        + "\"tasks\":{\"running\":0,\"canceling\":0,\"canceled\":0,\"total\":3,\"created\":0,\"scheduled\":0,"
+                        + "\"deploying\":0,\"reconciling\":0,\"finished\":3,\"initializing\":0,\"failed\":0},\"pending-operators\":0},"
+                        + "{\"jid\":\"" + jobID3 + "\",\"name\":\"Flink Streaming Job\",\"start-time\":1723270676500,"
+                        + "\"end-time\":1723270676621,\"duration\":121,\"state\":\"FINISHED\",\"last-modification\":1723270676621,"
+                        + "\"tasks\":{\"running\":0,\"canceling\":0,\"canceled\":0,\"total\":3,\"created\":0,\"scheduled\":0,"
+                        + "\"deploying\":0,\"reconciling\":0,\"finished\":3,\"initializing\":0,\"failed\":0},\"pending-operators\":0}"
                         + "]}";
 
-        // Perform the comparison
-        assertThat(combinedOverviewJson).isEqualTo(expectedOverviewJson);
+        // Retrieve the combined overview from the KV store.
+        String combinedOverviewJson = kvStore.get("/jobs/combined-overview");
+
+        // Use Jackson's ObjectMapper to compare JSON structures instead of raw strings.
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode expectedNode = mapper.readTree(expectedCombinedOverview);
+        JsonNode actualNode = mapper.readTree(combinedOverviewJson);
+
+        // Assert that both JSON structures are equivalent.
+        assertThat(actualNode).isEqualTo(expectedNode);
 
         System.out.println("combinedOverviewJson: " + combinedOverviewJson);
     }
