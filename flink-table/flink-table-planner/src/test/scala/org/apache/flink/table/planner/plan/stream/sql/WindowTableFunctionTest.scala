@@ -351,18 +351,34 @@ class WindowTableFunctionTest extends TableTestBase {
 
   @ParameterizedTest(name = "{index}: {0}")
   @ValueSource(ints = Array[Int](-1, 0))
-  def testTumbleWindowWithNonPositiveInterval(interval: Int): Unit = {
+  def testTumbleWindowWithNonPositiveInterval(size: Int): Unit = {
     val sql =
       s"""
          |SELECT *
-         |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '$interval' MINUTE))
+         |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '$size' MINUTE))
          |""".stripMargin
 
     assertThatThrownBy(() => util.verifyRelPlan(sql))
       .hasCause(
-        new TableException(
+        new ValidationException(
           s"TUMBLE table function based aggregate requires size to be positive," +
-            s" but got ${interval * 1000 * 60} ms."))
+            s" but got ${size * 1000 * 60} ms."))
+  }
+
+  @ParameterizedTest(name = "{index}: {0}, {1}")
+  @CsvSource(Array[String]("1, 2", "2, -2"))
+  def testTumbleWindowWithWrongOffset(size: Int, offset: Int): Unit = {
+    val sql =
+      s"""
+         |SELECT *
+         |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '$size' MINUTE, INTERVAL '$offset' MINUTE))
+         |""".stripMargin
+
+    assertThatThrownBy(() => util.verifyRelPlan(sql))
+      .hasCause(
+        new ValidationException(
+          s"TUMBLE table function parameters must satisfy abs(offset) < size, " +
+            s"but got size ${size * 60 * 1000} ms and offset ${offset * 60 * 1000} ms."))
   }
 
   @ParameterizedTest(name = "{index}: {0}, {1}")
@@ -377,7 +393,7 @@ class WindowTableFunctionTest extends TableTestBase {
 
     assertThatThrownBy(() => util.verifyRelPlan(sql))
       .hasCause(
-        new TableException(
+        new ValidationException(
           "CUMULATE table function based aggregate requires maxSize and step to be positive," +
             s" but got maxSize ${size * 1000 * 60 * 60} ms and step ${step * 1000 * 60} ms."))
   }
@@ -393,7 +409,7 @@ class WindowTableFunctionTest extends TableTestBase {
          |""".stripMargin
 
     assertThatThrownBy(() => util.verifyRelPlan(sql))
-      .hasCause(new TableException("CUMULATE table function based aggregate requires maxSize must " +
+      .hasCause(new ValidationException("CUMULATE table function based aggregate requires maxSize must " +
         s"be an integral multiple of step, but got maxSize ${size * 1000} ms and step ${step * 1000} ms."))
   }
 
@@ -409,7 +425,7 @@ class WindowTableFunctionTest extends TableTestBase {
 
     assertThatThrownBy(() => util.verifyRelPlan(sql))
       .hasCause(
-        new TableException(
+        new ValidationException(
           "HOP table function based aggregate requires slide and size to be positive," +
             s" but got slide ${slide * 1000 * 60} ms and size ${size * 1000 * 60} ms."))
   }
@@ -425,7 +441,7 @@ class WindowTableFunctionTest extends TableTestBase {
 
     assertThatThrownBy(() => util.verifyRelPlan(sql))
       .hasCause(
-        new TableException(
+        new ValidationException(
           s"SESSION table function based aggregate requires gap to be positive," +
             s" but got gap ${gap * 1000 * 60} ms."))
   }

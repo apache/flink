@@ -142,7 +142,7 @@ class TumblingSliceAssignerTest extends SliceAssignerTestBase {
                 () ->
                         SliceAssigners.tumbling(0, zoneId, Duration.ofSeconds(10))
                                 .withOffset(Duration.ofSeconds(20)),
-                "Tumbling Window parameters must satisfy abs(offset) < size, bot got size 10000ms and offset 20000ms.");
+                "Tumbling Window parameters must satisfy abs(offset) < size, but got size 10000ms and offset 20000ms.");
 
         // should pass
         SliceAssigners.tumbling(0, zoneId, Duration.ofSeconds(10))
