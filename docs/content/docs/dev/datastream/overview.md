@@ -108,7 +108,14 @@ as a sequence of lines, you can use:
 ```java
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-DataStream<String> text = env.readTextFile("file:///path/to/file");
+FileSource<String> fileSource = FileSource.forRecordStreamFormat(
+        new TextLineInputFormat(), new Path("file:///path/to/file")
+    ).build();
+DataStream<String> text = env.fromSource(
+    fileSource,
+    WatermarkStrategy.noWatermarks(),
+    "file-input"
+);
 ```
 
 This will give you a DataStream on which you can then apply transformations to create new
@@ -136,9 +143,14 @@ an outside system by creating a sink. These are just some example methods for
 creating a sink:
 
 ```java
-writeAsText(String path);
+stream.sinkTo(
+    FileSink.forRowFormat(
+        new Path("outputPath"), 
+        new SimpleStringEncoder<>()
+    ).build()
+);
 
-print();
+stream.print();
 ```
 
 {{< /tab >}}
@@ -257,7 +269,7 @@ There are several predefined stream sources accessible from the `StreamExecution
 
 File-based:
 
-- `readTextFile(path)` - Reads text files, i.e. files that respect the `TextInputFormat` specification, line-by-line and returns them as Strings.
+- `fromSource(FileSource.forRecordStreamFormat(format, paths).build())` - Read record-by-record from files.
 
 - `readFile(fileInputFormat, path)` - Reads (once) files as dictated by the specified file input format.
 
@@ -279,13 +291,10 @@ Socket-based:
 
 Collection-based:
 
-- `fromCollection(Collection)` - Creates a data stream from the Java Java.util.Collection. All elements
+- `fromData(Collection)` - Creates a data stream from the Java Java.util.Collection. All elements
   in the collection must be of the same type.
 
-- `fromCollection(Iterator, Class)` - Creates a data stream from an iterator. The class specifies the
-  data type of the elements returned by the iterator.
-
-- `fromElements(T ...)` - Creates a data stream from the given sequence of objects. All objects must be
+- `fromData(T ...)` - Creates a data stream from the given sequence of objects. All objects must be
   of the same type.
 
 - `fromParallelCollection(SplittableIterator, Class)` - Creates a data stream from an iterator, in
@@ -321,11 +330,8 @@ Data sinks consume DataStreams and forward them to files, sockets, external syst
 Flink comes with a variety of built-in output formats that are encapsulated behind operations on the
 DataStreams:
 
-- `writeAsText()` / `TextOutputFormat` - Writes elements line-wise as Strings. The Strings are
+- `sinkTo(FileSink.forRowFormat(new Path("outputPath"), new SimpleStringEncoder<>()).build())` - Writes elements line-wise as Strings. The Strings are
   obtained by calling the *toString()* method of each element.
-
-- `writeAsCsv(...)` / `CsvOutputFormat` - Writes tuples as comma-separated value files. Row and field
-  delimiters are configurable. The value for each field comes from the *toString()* method of the objects.
 
 - `print()` / `printToErr()`  - Prints the *toString()* value
 of each element on the standard out / standard error stream. Optionally, a prefix (msg) can be provided which is
