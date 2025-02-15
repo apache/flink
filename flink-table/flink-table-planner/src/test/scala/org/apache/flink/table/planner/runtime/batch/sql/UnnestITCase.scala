@@ -448,25 +448,22 @@ class UnnestITCase extends BatchTestBase {
   def testUnnestForMapOfRowsWithOrdinality(): Unit = {
     val data = List(
       row(
-        1, {
-          val map = new java.util.HashMap[Row, Row]()
-          map.put(Row.of("a", "a"), Row.of(10: Integer))
-          map.put(Row.of("b", "b"), Row.of(11: Integer))
-          map
-        }),
+        1,
+        Map(
+          Row.of("a", "a") -> Row.of(10: Integer),
+          Row.of("b", "b") -> Row.of(11: Integer)
+        ).asJava),
       row(
-        2, {
-          val map = new java.util.HashMap[Row, Row]()
-          map.put(Row.of("c", "c"), Row.of(20: Integer))
-          map
-        }),
+        2,
+        Map(
+          Row.of("c", "c") -> Row.of(20: Integer)
+        ).asJava),
       row(
-        3, {
-          val map = new java.util.HashMap[Row, Row]()
-          map.put(Row.of("d", "d"), Row.of(30: Integer))
-          map.put(Row.of("e", "e"), Row.of(31: Integer))
-          map
-        })
+        3,
+        Map(
+          Row.of("d", "d") -> Row.of(30: Integer),
+          Row.of("e", "e") -> Row.of(31: Integer)
+        ).asJava)
     )
 
     registerCollection(
