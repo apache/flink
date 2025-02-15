@@ -103,7 +103,7 @@ public class Example {
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Person> flintstones = env.fromElements(
+        DataStream<Person> flintstones = env.fromData(
                 new Person("Fred", 35),
                 new Person("Wilma", 35),
                 new Person("Pebbles", 2));
@@ -151,17 +151,7 @@ DataStream API 将你的应用构建为一个 job graph，并附加到 `StreamEx
 
 ### 基本的 stream source
 
-上述示例用 `env.fromElements(...)` 方法构造 `DataStream<Person>` 。这样将简单的流放在一起是为了方便用于原型或测试。`StreamExecutionEnvironment` 上还有一个 `fromCollection(Collection)` 方法。因此，你可以这样做：
-
-```java
-List<Person> people = new ArrayList<Person>();
-
-people.add(new Person("Fred", 35));
-people.add(new Person("Wilma", 35));
-people.add(new Person("Pebbles", 2));
-
-DataStream<Person> flintstones = env.fromCollection(people);
-```
+上述示例用 `env.fromData(...)` 方法构造 `DataStream<Person>` 。这样将简单的流放在一起是为了方便用于原型或测试。
 
 另一个获取数据到流中的便捷方法是用 socket
 
@@ -172,7 +162,14 @@ DataStream<String> lines = env.socketTextStream("localhost", 9999)
 或读取文件
 
 ```java
-DataStream<String> lines = env.readTextFile("file:///path");
+FileSource<String> fileSource = FileSource.forRecordStreamFormat(
+        new TextLineInputFormat(), new Path("file:///path")
+).build();
+DataStream<String> lines = env.fromSource(
+        fileSource,
+        WatermarkStrategy.noWatermarks(),
+        "file-input"
+);
 ```
 
 在真实的应用中，最常用的数据源是那些支持低延迟，高吞吐并行读取以及重复（高性能和容错能力为先决条件）的数据源，例如 Apache Kafka，Kinesis 和各种文件系统。REST API 和数据库也经常用于增强流处理的能力（stream enrichment）。

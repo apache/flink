@@ -83,7 +83,14 @@ createRemoteEnvironment(String host, int port, String... jarFiles);
 ```java
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-DataStream<String> text = env.readTextFile("file:///path/to/file");
+FileSource<String> fileSource = FileSource.forRecordStreamFormat(
+        new TextLineInputFormat(), new Path("file:///path/to/file")
+).build();
+DataStream<String> text = env.fromSource(
+    fileSource,
+    WatermarkStrategy.noWatermarks(),
+    "file-input"
+);
 ```
 
 这将生成一个 DataStream，然后你可以在上面应用转换（transformation）来创建新的派生 DataStream。
@@ -106,9 +113,14 @@ DataStream<Integer> parsed = input.map(new MapFunction<String, Integer>() {
 一旦你有了包含最终结果的 DataStream，你就可以通过创建 sink 把它写到外部系统。下面是一些用于创建 sink 的示例方法：
 
 ```java
-writeAsText(String path);
+stream.sinkTo(
+        FileSink.forRowFormat(
+        new Path("outputPath"), 
+        new SimpleStringEncoder<>()
+        ).build()
+);
 
-print();
+stream.print();
 ```
 
 {{< /tab >}}
@@ -207,7 +219,7 @@ Source 是你的程序从中读取其输入的地方。你可以用 `StreamExecu
 
 基于文件：
 
-- `readTextFile(path)` - 读取文本文件，例如遵守 TextInputFormat 规范的文件，逐行读取并将它们作为字符串返回。
+- `fromSource(FileSource.forRecordStreamFormat(format, paths).build())` - 读取文本文件，例如遵守 TextInputFormat 规范的文件，逐行读取并将它们作为字符串返回。
 
 - `readFile(fileInputFormat, path)` - 按照指定的文件输入格式读取（一次）文件。
 
@@ -229,11 +241,9 @@ Source 是你的程序从中读取其输入的地方。你可以用 `StreamExecu
 
 基于集合：
 
-- `fromCollection(Collection)` - 从 Java Java.util.Collection 创建数据流。集合中的所有元素必须属于同一类型。 
+- `fromData(Collection)` - 从 Java Java.util.Collection 创建数据流。集合中的所有元素必须属于同一类型。
   
-- `fromCollection(Iterator, Class)` - 从迭代器创建数据流。class 参数指定迭代器返回元素的数据类型。
-  
-- `fromElements(T ...)` - 从给定的对象序列中创建数据流。所有的对象必须属于同一类型。
+- `fromData(T ...)` - 从给定的对象序列中创建数据流。所有的对象必须属于同一类型。
   
 - `fromParallelCollection(SplittableIterator, Class)` - 从迭代器并行创建数据流。class 参数指定迭代器返回元素的数据类型。
   
@@ -267,9 +277,7 @@ Data Sinks
 
 Data sinks 使用 DataStream 并将它们转发到文件、套接字、外部系统或打印它们。Flink 自带了多种内置的输出格式，这些格式相关的实现封装在 DataStreams 的算子里：
 
-- `writeAsText()` / `TextOutputFormat` - 将元素按行写成字符串。通过调用每个元素的 toString() 方法获得字符串。
-
-- `writeAsCsv(...)` / `CsvOutputFormat` - 将元组写成逗号分隔值文件。行和字段的分隔符是可配置的。每个字段的值来自对象的 *toString()* 方法。
+- `sinkTo(FileSink.forRowFormat(new Path("outputPath"), new SimpleStringEncoder<>()).build())` - 将元素按行写成字符串。通过调用每个元素的 toString() 方法获得字符串。
 
 - `print()` / `printToErr()`  - 在标准输出/标准错误流上打印每个元素的 *toString()* 值。
   可选地，可以提供一个前缀（msg）附加到输出。这有助于区分不同的 *print* 调用。如果并行度大于1，输出结果将附带输出任务标识符的前缀。
@@ -375,11 +383,11 @@ Flink 提供了由 Java 集合支持的特殊 data sources 以简化测试。一
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 
 // 从元素列表创建一个 DataStream
-DataStream<Integer> myInts = env.fromElements(1, 2, 3, 4, 5);
+DataStream<Integer> myInts = env.fromData(1, 2, 3, 4, 5);
 
 // 从任何 Java 集合创建一个 DataStream
 List<Tuple2<String, Integer>> data = ...
-DataStream<Tuple2<String, Integer>> myTuples = env.fromCollection(data);
+DataStream<Tuple2<String, Integer>> myTuples = env.fromData(data);
 
 // 从迭代器创建一个 DataStream
 Iterator<Long> longIt = ...

@@ -92,7 +92,7 @@ Flink 作业由不同的操作组成，这些操作在数据流图中连接在�
 ```java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-DataStreamSource<String> source = env.fromElements(...);
+DataStreamSource<String> source = env.fromData(...);
 
 source.name("source")
 	.map(...).name("map1")
