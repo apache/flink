@@ -36,8 +36,11 @@ import org.apache.flink.table.types.logical.RowType;
 @Internal
 public abstract class UnnestRowsFunctionBase extends BuiltInSpecializedFunction {
 
-    public UnnestRowsFunctionBase() {
-        super(BuiltInFunctionDefinitions.INTERNAL_UNNEST_ROWS);
+    public UnnestRowsFunctionBase(boolean withOrdinality) {
+        super(
+                withOrdinality
+                        ? BuiltInFunctionDefinitions.INTERNAL_UNNEST_ROWS_WITH_ORDINALITY
+                        : BuiltInFunctionDefinitions.INTERNAL_UNNEST_ROWS);
     }
 
     @Override
@@ -136,8 +139,13 @@ public abstract class UnnestRowsFunctionBase extends BuiltInSpecializedFunction 
     protected abstract static class UnnestTableFunctionBase extends BuiltInTableFunction<Object> {
         private final transient DataType outputDataType;
 
-        UnnestTableFunctionBase(SpecializedContext context, LogicalType elementType) {
-            super(BuiltInFunctionDefinitions.INTERNAL_UNNEST_ROWS, context);
+        UnnestTableFunctionBase(
+                SpecializedContext context, LogicalType elementType, boolean withOrdinality) {
+            super(
+                    withOrdinality
+                            ? BuiltInFunctionDefinitions.INTERNAL_UNNEST_ROWS_WITH_ORDINALITY
+                            : BuiltInFunctionDefinitions.INTERNAL_UNNEST_ROWS,
+                    context);
             outputDataType = DataTypes.of(elementType).toInternal();
         }
 

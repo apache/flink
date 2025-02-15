@@ -36,7 +36,7 @@ import org.apache.flink.table.types.logical.RowType;
 public class UnnestRowsWithOrdinalityFunction extends UnnestRowsFunctionBase {
 
     public UnnestRowsWithOrdinalityFunction() {
-        super();
+        super(true);
     }
 
     @Override
@@ -72,7 +72,7 @@ public class UnnestRowsWithOrdinalityFunction extends UnnestRowsFunctionBase {
                 SpecializedContext context,
                 LogicalType elementType,
                 ArrayData.ElementGetter elementGetter) {
-            super(context, elementType);
+            super(context, elementType, true);
             this.elementGetter = elementGetter;
 
             if (elementType instanceof RowType) {
@@ -133,7 +133,7 @@ public class UnnestRowsWithOrdinalityFunction extends UnnestRowsFunctionBase {
                 LogicalType keyValTypes,
                 ArrayData.ElementGetter keyGetter,
                 ArrayData.ElementGetter valueGetter) {
-            super(context, keyValTypes);
+            super(context, keyValTypes, true);
             this.keyGetter = keyGetter;
             this.valueGetter = valueGetter;
         }
