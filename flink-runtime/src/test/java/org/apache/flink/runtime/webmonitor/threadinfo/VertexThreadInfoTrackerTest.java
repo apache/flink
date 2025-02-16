@@ -42,11 +42,11 @@ import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.apache.flink.shaded.guava32.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava32.com.google.common.cache.CacheBuilder;
-import org.apache.flink.shaded.guava32.com.google.common.cache.RemovalListener;
-import org.apache.flink.shaded.guava32.com.google.common.cache.RemovalNotification;
-import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableSet;
+import org.apache.flink.shaded.guava33.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava33.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava33.com.google.common.cache.RemovalListener;
+import org.apache.flink.shaded.guava33.com.google.common.cache.RemovalNotification;
+import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableSet;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

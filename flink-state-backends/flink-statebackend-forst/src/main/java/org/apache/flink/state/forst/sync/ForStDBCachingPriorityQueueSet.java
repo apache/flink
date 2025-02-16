@@ -29,7 +29,7 @@ import org.apache.flink.state.forst.ForStDBWriteBatchWrapper;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import org.apache.flink.shaded.guava32.com.google.common.primitives.UnsignedBytes;
+import org.apache.flink.shaded.guava33.com.google.common.primitives.UnsignedBytes;
 
 import org.forstdb.ColumnFamilyHandle;
 import org.forstdb.ReadOptions;

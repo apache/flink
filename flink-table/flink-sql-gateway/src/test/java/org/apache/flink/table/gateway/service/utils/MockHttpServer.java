@@ -33,7 +33,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URL;
 
-import static org.apache.flink.shaded.guava32.com.google.common.io.Files.copy;
+import static org.apache.flink.shaded.guava33.com.google.common.io.Files.copy;
 
 /** Mock a http server to process http request. */
 public class MockHttpServer implements Closeable {

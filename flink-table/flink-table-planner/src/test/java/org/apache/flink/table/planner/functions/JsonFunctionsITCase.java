@@ -773,17 +773,11 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testSqlRuntimeError(
                                 "JSON_OBJECT(KEY 'K' VALUE JSON('{'))",
                                 TableRuntimeException.class,
-                                "Unexpected end-of-input: expected close marker for Object (start marker at [Source: (String)\"{\"; line: 1, column: 1])")
-                        .testSqlRuntimeError(
-                                "JSON_OBJECT(KEY 'K' VALUE JSON('{'))",
-                                TableRuntimeException.class,
-                                "Invalid JSON string in JSON(value) function: \"{\". Error: org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.io.JsonEOFException: Unexpected end-of-input: expected close marker for Object (start marker at [Source: (String)\"{\"; line: 1, column: 1])\n"
-                                        + " at [Source: (String)\"{\"; line: 1, column: 2]")
+                                "Invalid JSON string in JSON(value) function: \"{\". Error: org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.io.JsonEOFException: Unexpected end-of-input: expected close marker for Object (start marker at [Source: REDACTED (`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION` disabled); line: 1, column: 1])")
                         .testTableApiRuntimeError(
                                 jsonObject(JsonOnNull.NULL, "K", json("{")),
                                 TableRuntimeException.class,
-                                "Invalid JSON string in JSON(value) function: \"{\". Error: org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.io.JsonEOFException: Unexpected end-of-input: expected close marker for Object (start marker at [Source: (String)\"{\"; line: 1, column: 1])\n"
-                                        + " at [Source: (String)\"{\"; line: 1, column: 2]")
+                                "Invalid JSON string in JSON(value) function: \"{\". Error: org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.io.JsonEOFException: Unexpected end-of-input: expected close marker for Object (start marker at [Source: REDACTED (`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION` disabled); line: 1, column: 1])\n")
                         .testTableApiValidationError(
                                 json($("f0")),
                                 "The JSON() function is currently only supported inside a JSON_OBJECT() function.")

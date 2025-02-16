@@ -120,9 +120,9 @@ under the License.
 		<flink.forkCountUnitTest>4</flink.forkCountUnitTest>
 		<flink.reuseForks>true</flink.reuseForks>
 		<flink.surefire.baseArgLine>-XX:+UseG1GC -Xms256m -XX:+IgnoreUnrecognizedVMOptions ${surefire.module.config}</flink.surefire.baseArgLine>
-		<flink.shaded.version>19.0</flink.shaded.version>
-		<flink.shaded.jackson.version>2.15.3</flink.shaded.jackson.version>
-		<flink.shaded.jsonpath.version>2.7.0</flink.shaded.jsonpath.version>
+		<flink.shaded.version>20.0</flink.shaded.version>
+		<flink.shaded.jackson.version>2.18.2</flink.shaded.jackson.version>
+		<flink.shaded.jsonpath.version>2.9.0</flink.shaded.jsonpath.version>
 		<flink.markBundledAsOptional>true</flink.markBundledAsOptional>
 		<source.java.version>11</source.java.version>
 		<target.java.version>17</target.java.version>
@@ -342,7 +342,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-guava</artifactId>
-				<version>32.1.3-jre-${flink.shaded.version}</version>
+				<version>33.4.0-jre-${flink.shaded.version}</version>
 			</dependency>
 
 			<dependency>

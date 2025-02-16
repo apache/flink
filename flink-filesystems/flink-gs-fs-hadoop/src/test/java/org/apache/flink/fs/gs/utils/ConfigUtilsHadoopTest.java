@@ -24,8 +24,8 @@ import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.MapDifference;
-import org.apache.flink.shaded.guava32.com.google.common.collect.Maps;
+import org.apache.flink.shaded.guava33.com.google.common.collect.MapDifference;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Maps;
 
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
