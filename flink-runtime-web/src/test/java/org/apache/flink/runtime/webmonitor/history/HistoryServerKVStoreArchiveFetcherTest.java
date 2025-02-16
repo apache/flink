@@ -277,15 +277,21 @@ public class HistoryServerKVStoreArchiveFetcherTest {
         // The expected combined overview JSON. Note that updateJobOverview adds
         String expectedCombinedOverview =
                 "{\"jobs\":["
-                        + "{\"jid\":\"" + jobID1 + "\",\"name\":\"Flink Streaming Job\",\"start-time\":1723270676500,"
+                        + "{\"jid\":\""
+                        + jobID1
+                        + "\",\"name\":\"Flink Streaming Job\",\"start-time\":1723270676500,"
                         + "\"end-time\":1723270676621,\"duration\":121,\"state\":\"FINISHED\",\"last-modification\":1723270676621,"
                         + "\"tasks\":{\"running\":0,\"canceling\":0,\"canceled\":0,\"total\":3,\"created\":0,\"scheduled\":0,"
                         + "\"deploying\":0,\"reconciling\":0,\"finished\":3,\"initializing\":0,\"failed\":0},\"pending-operators\":0},"
-                        + "{\"jid\":\"" + jobID2 + "\",\"name\":\"Flink Streaming Job\",\"start-time\":1723270676500,"
+                        + "{\"jid\":\""
+                        + jobID2
+                        + "\",\"name\":\"Flink Streaming Job\",\"start-time\":1723270676500,"
                         + "\"end-time\":1723270676621,\"duration\":121,\"state\":\"FINISHED\",\"last-modification\":1723270676621,"
                         + "\"tasks\":{\"running\":0,\"canceling\":0,\"canceled\":0,\"total\":3,\"created\":0,\"scheduled\":0,"
                         + "\"deploying\":0,\"reconciling\":0,\"finished\":3,\"initializing\":0,\"failed\":0},\"pending-operators\":0},"
-                        + "{\"jid\":\"" + jobID3 + "\",\"name\":\"Flink Streaming Job\",\"start-time\":1723270676500,"
+                        + "{\"jid\":\""
+                        + jobID3
+                        + "\",\"name\":\"Flink Streaming Job\",\"start-time\":1723270676500,"
                         + "\"end-time\":1723270676621,\"duration\":121,\"state\":\"FINISHED\",\"last-modification\":1723270676621,"
                         + "\"tasks\":{\"running\":0,\"canceling\":0,\"canceled\":0,\"total\":3,\"created\":0,\"scheduled\":0,"
                         + "\"deploying\":0,\"reconciling\":0,\"finished\":3,\"initializing\":0,\"failed\":0},\"pending-operators\":0}"
