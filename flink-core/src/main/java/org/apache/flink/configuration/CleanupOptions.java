@@ -25,7 +25,7 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableSet;
+import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableSet;
 
 import java.time.Duration;
 import java.util.Set;

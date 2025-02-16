@@ -39,8 +39,8 @@ import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Collector;
 
-import org.apache.flink.shaded.guava32.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava32.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava33.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava33.com.google.common.cache.CacheBuilder;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -102,7 +102,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.LinkedHashMultiset;
+import org.apache.flink.shaded.guava33.com.google.common.collect.LinkedHashMultiset;
 
 import org.apache.arrow.flatbuf.MessageHeader;
 import org.apache.arrow.memory.BufferAllocator;

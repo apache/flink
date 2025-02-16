@@ -21,7 +21,7 @@ package org.apache.flink.table.api.config;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableSet;
+import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableSet;
 
 import java.time.Duration;
 import java.util.HashSet;

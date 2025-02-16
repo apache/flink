@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.calcite;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableList;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;

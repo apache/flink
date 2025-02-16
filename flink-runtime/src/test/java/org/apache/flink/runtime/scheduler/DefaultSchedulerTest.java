@@ -108,7 +108,7 @@ import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.function.BiFunctionWithException;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Iterables;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

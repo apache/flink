@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.schema
 
-import org.apache.flink.shaded.guava32.com.google.common.base.Preconditions
+import org.apache.flink.shaded.guava33.com.google.common.base.Preconditions
 import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
 import org.apache.flink.table.legacy.sources.TableSource
 import org.apache.flink.table.planner.JMap

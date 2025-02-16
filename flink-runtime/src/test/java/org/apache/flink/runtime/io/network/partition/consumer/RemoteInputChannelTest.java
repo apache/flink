@@ -63,7 +63,7 @@ import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.ExceptionUtils;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;

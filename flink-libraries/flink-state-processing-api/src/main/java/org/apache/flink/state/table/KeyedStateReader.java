@@ -42,8 +42,8 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
-import org.apache.flink.shaded.guava32.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava32.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava33.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava33.com.google.common.cache.CacheBuilder;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;

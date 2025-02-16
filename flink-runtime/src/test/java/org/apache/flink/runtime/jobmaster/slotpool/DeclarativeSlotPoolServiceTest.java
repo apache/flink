@@ -39,7 +39,7 @@ import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.clock.SystemClock;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Iterables;
 
 import org.junit.jupiter.api.Test;
 

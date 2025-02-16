@@ -75,8 +75,8 @@ import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedOneInputStreamO
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
-import org.apache.flink.shaded.guava32.com.google.common.base.Joiner;
-import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava33.com.google.common.base.Joiner;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Iterables;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

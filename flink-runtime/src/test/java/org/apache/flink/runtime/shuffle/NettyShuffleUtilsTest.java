@@ -36,7 +36,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBui
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableMap;
 
 import org.junit.jupiter.api.Test;
 
