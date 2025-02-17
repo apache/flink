@@ -18,7 +18,8 @@
 
 from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase, PyFlinkTestCase
 from pyflink.table.catalog import Catalog, CatalogDatabase, CatalogBaseTable, CatalogPartition, \
-    CatalogFunction, CatalogColumnStatistics, CatalogPartitionSpec, ObjectPath
+    CatalogFunction, CatalogColumnStatistics, CatalogPartitionSpec, ObjectPath, Column, \
+    WatermarkSpec, Constraint
 
 
 class CatalogAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
@@ -158,6 +159,51 @@ class CatalogColumnStatisticsAPICompletenessTests(PythonAPICompletenessTestCase,
     @classmethod
     def java_class(cls):
         return "org.apache.flink.table.catalog.stats.CatalogColumnStatistics"
+
+
+class ColumnAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
+    """
+    Tests whether the Python :class:`Column` is consistent with
+    Java `org.apache.flink.table.catalog.Column`.
+    """
+
+    @classmethod
+    def python_class(cls):
+        return Column
+
+    @classmethod
+    def java_class(cls):
+        return "org.apache.flink.table.catalog.Column"
+
+
+class WatermarkSpecAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
+    """
+    Tests whether the Python :class:`WatermarkSpec` is consistent with
+    Java `org.apache.flink.table.catalog.WatermarkSpec`.
+    """
+
+    @classmethod
+    def python_class(cls):
+        return WatermarkSpec
+
+    @classmethod
+    def java_class(cls):
+        return "org.apache.flink.table.catalog.WatermarkSpec"
+
+
+class ConstraintAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
+    """
+    Tests whether the Python :class:`Constraint` is consistent with
+    Java `org.apache.flink.table.catalog.Constraint`.
+    """
+
+    @classmethod
+    def python_class(cls):
+        return Constraint
+
+    @classmethod
+    def java_class(cls):
+        return "org.apache.flink.table.catalog.Constraint"
 
 
 if __name__ == '__main__':
