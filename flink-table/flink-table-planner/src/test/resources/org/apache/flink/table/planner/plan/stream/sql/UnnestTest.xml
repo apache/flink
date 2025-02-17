@@ -462,7 +462,7 @@ LogicalProject(a=[$0], b=[$1], s=[$2], t=[$3], o=[$4])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b))], select=[a,b,f0,f1,ordinality], rowType=[RecordType(INTEGER a, RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2) ARRAY b, INTEGER f0, VARCHAR(2147483647) f1, INTEGER ordinality)], joinType=[INNER], condition=[>($0, 13)])
+Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b))], select=[a,b,_1,_2,ordinality], rowType=[RecordType(INTEGER a, RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2) ARRAY b, INTEGER _1, VARCHAR(2147483647) _2, INTEGER ordinality)], joinType=[INNER], condition=[>($0, 13)])
 +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b])
 ]]>
     </Resource>
@@ -484,7 +484,7 @@ LogicalProject(a=[$0], b=[$1], _1=[$2], _2=[$3], ORDINALITY=[$4])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b))], select=[a,b,f0,f1,ordinality], rowType=[RecordType(INTEGER a, RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2) ARRAY b, INTEGER f0, VARCHAR(2147483647) f1, INTEGER ordinality)], joinType=[INNER], condition=[>($0, 1)])
+Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b))], select=[a,b,_1,_2,ordinality], rowType=[RecordType(INTEGER a, RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2) ARRAY b, INTEGER _1, VARCHAR(2147483647) _2, INTEGER ordinality)], joinType=[INNER], condition=[>($0, 1)])
 +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b])
 ]]>
     </Resource>
