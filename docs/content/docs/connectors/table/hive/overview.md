@@ -316,6 +316,9 @@ Below are the options supported when creating a `HiveCatalog` instance with YAML
     </tbody>
 </table>
 
+**NOTE**: The options used to configure HiveCatalog are derived from the configuration files from `hive-conf-dir` and `hadoop-conf-dir`, if you want to configure HiveCatalog by overwriting some options in these configuration files, you can add the options with prefix `flink.hive.` or `flink.hive.hadoop.` in your Flink table configuration. 
+For example, `flink.hive.hive.metastore.client.socket.timeout: 5` and `flink.hive.hadoop.dfs.client.socket-timeout: 5000` in Flink table configuration, it will be
+converted to options `hive.metastore.client.socket.timeout: 5` and `hadoop.dfs.client.socket-timeout: 5000`, then passing them to configure HiveCatalog.
 
 ## DDL
 
