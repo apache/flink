@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.graph.util.ImmutableStreamEdge;
 import org.apache.flink.streaming.api.graph.util.ImmutableStreamNode;
 import org.apache.flink.streaming.api.graph.util.StreamEdgeUpdateRequestInfo;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
-import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.ForwardForUnspecifiedPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
@@ -208,7 +208,7 @@ public class AdaptiveBroadcastJoinOptimizationStrategy
                         filterEdges(inEdges, leftIsBuild ? 1 : 2), new BroadcastPartitioner<>());
         List<StreamEdgeUpdateRequestInfo> modifiedProbeSideEdges =
                 generateStreamEdgeUpdateRequestInfos(
-                        filterEdges(inEdges, leftIsBuild ? 2 : 1), new ForwardPartitioner<>());
+                        filterEdges(inEdges, leftIsBuild ? 2 : 1), new ForwardForUnspecifiedPartitioner<>());
         modifiedBuildSideEdges.addAll(modifiedProbeSideEdges);
 
         return context.modifyStreamEdge(modifiedBuildSideEdges);
