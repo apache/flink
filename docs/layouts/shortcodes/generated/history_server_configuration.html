@@ -74,5 +74,13 @@
             <td>String</td>
             <td>Local directory that is used by the history server REST API for temporary files.</td>
         </tr>
+        <tr>
+            <td><h5>historyserver.storage.backend</h5></td>
+            <td style="word-wrap: break-word;">file</td>
+            <td>String</td>
+            <td>Defines the storage backend for the History Server where completed job archives are downloaded and cached.
+                The default value is <code>file</code>, which stores archives in the file system.
+                If set to <code>kvstore</code>, archives are stored in a key-value store backend.</td>
+        </tr>
     </tbody>
 </table>
