@@ -71,7 +71,35 @@ historyserver.archive.fs.dir: hdfs:///completed-jobs
 historyserver.archive.fs.refresh-interval: 10000
 ```
 
-The contained archives are downloaded and cached in the local filesystem. The local directory for this is configured via `historyserver.web.tmpdir`.
+The contained archives are downloaded and cached in the local filesystem or a key-value store, depending on the configured storage backend. The local directory for cache storage is configured via `historyserver.web.tmpdir`.
+
+**Storage Backend Configuration**
+
+The History Server supports multiple storage backends for storing completed job archives.
+
+***Available Options***
+- **`file` (default)**: Stores job archives in a file system directory.
+- **`kvstore`**: Stores job archives in a key-value store (e.g., RocksDB), improving retrieval speed.
+
+***Choosing Between `file` and `kvstore`***
+
+| Backend  | Pros  | Cons  |
+|----------|-----------------------------|------------------------------|
+| `file` (default)  | Simple, easy to configure | Slower retrieval for large archives, high inode usage |
+| `kvstore`  | More scalable, lower file system overhead, faster retrieval | Requires a key-value store backend, more complex setup |
+
+***Configuration Example***
+
+To configure the storage backend, update `flink-conf.yaml`:
+
+```yaml
+# Use file-based storage (default)
+historyserver.storage.backend: file
+
+# Use key-value store for storage
+historyserver.storage.backend: kvstore
+
+```
 
 Check out the configuration page for a [complete list of configuration options]({{< ref "docs/deployment/config" >}}#history-server).
 
