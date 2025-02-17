@@ -69,7 +69,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
     private final GeneratedAggsHandleFunction generatedAggsHandler;
     private final GeneratedRecordEqualiser generatedRecordEqualiser;
     private final GeneratedRecordEqualiser generatedSortKeyEqualiser;
-    private final GeneratedRecordComparator generatedRecordComparator;
+    private final GeneratedRecordComparator generatedSortKeyComparator;
 
     // The util to compare two rows based on the sort attribute.
     private transient Comparator<RowData> sortKeyComparator;
@@ -125,7 +125,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
             GeneratedAggsHandleFunction genAggsHandler,
             GeneratedRecordEqualiser genRecordEqualiser,
             GeneratedRecordEqualiser genSortKeyEqualiser,
-            GeneratedRecordComparator genRecordComparator,
+            GeneratedRecordComparator genSortKeyComparator,
             LogicalType[] accTypes,
             LogicalType[] inputFieldTypes,
             LogicalType[] sortKeyTypes,
@@ -134,7 +134,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
         this.generatedAggsHandler = genAggsHandler;
         this.generatedRecordEqualiser = genRecordEqualiser;
         this.generatedSortKeyEqualiser = genSortKeyEqualiser;
-        this.generatedRecordComparator = genRecordComparator;
+        this.generatedSortKeyComparator = genSortKeyComparator;
         this.accTypes = accTypes;
         this.inputFieldTypes = inputFieldTypes;
         this.sortKeyTypes = sortKeyTypes;
@@ -160,7 +160,8 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
 
         // Initialize sort comparator
         sortKeyComparator =
-                generatedRecordComparator.newInstance(getRuntimeContext().getUserCodeClassLoader());
+                generatedSortKeyComparator.newInstance(
+                        getRuntimeContext().getUserCodeClassLoader());
 
         StateTtlConfig ttlConfig = createTtlConfig(stateRetentionTime);
 
@@ -386,7 +387,6 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
         } else {
             RowData prevAcc = accMapState.get(sortedList.get(prevIndex).f0);
             if (prevAcc == null) {
-                // TODO: Throw exception since this could due to state cleaning
                 aggFuncs.createAccumulators();
             } else {
                 aggFuncs.setAccumulators(prevAcc);
@@ -536,8 +536,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
             RowData prevAggValue,
             RowData currAggValue) {
         if (rowKind == RowKind.DELETE) {
-            // TODO: change to collectDelete
-            collectUpdateBefore(out, changedRow, prevAggValue);
+            collectDelete(out, changedRow, prevAggValue);
         } else {
             // For insert, emit either Insert or UpdateAfter
             collectInsertOrUpdateAfter(out, changedRow, rowKind, currAggValue);

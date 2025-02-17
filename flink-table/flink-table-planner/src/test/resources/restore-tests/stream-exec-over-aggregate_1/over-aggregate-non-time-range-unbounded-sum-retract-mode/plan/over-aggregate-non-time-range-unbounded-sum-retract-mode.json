@@ -1,5 +1,5 @@
 {
-  "flinkVersion" : "2.0",
+  "flinkVersion" : "2.1",
   "nodes" : [ {
     "id" : 1,
     "type" : "stream-exec-table-source-scan_1",
@@ -94,7 +94,8 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`key` VARCHAR(2147483647), `val` BIGINT, `ts` BIGINT, `w0$o0` BIGINT NOT NULL, `w0$o1` BIGINT NOT NULL>",
-    "description" : "OverAggregate(partitionBy=[key], orderBy=[val ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[key, val, ts, COUNT(val) AS w0$o0, $SUM0(val) AS w0$o1])"
+    "description" : "OverAggregate(partitionBy=[key], orderBy=[val ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[key, val, ts, COUNT(val) AS w0$o0, $SUM0(val) AS w0$o1])",
+    "unboundedOverVersion" : 2
   }, {
     "id" : 4,
     "type" : "stream-exec-calc_1",

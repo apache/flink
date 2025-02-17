@@ -96,7 +96,7 @@ public class OverWindowTestPrograms {
                                             Row.of("key1", 2L, 200L, 3L),
                                             Row.of("key1", 5L, 500L, 8L),
                                             Row.of("key1", 6L, 600L, 14L),
-                                            Row.ofKind(RowKind.UPDATE_BEFORE, "key1", 2L, 200L, 3L),
+                                            Row.ofKind(RowKind.DELETE, "key1", 2L, 200L, 3L),
                                             Row.ofKind(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 8L),
                                             Row.ofKind(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 6L),
                                             Row.ofKind(
@@ -118,7 +118,7 @@ public class OverWindowTestPrograms {
                                             Row.ofKind(
                                                     RowKind.UPDATE_BEFORE, "key1", 6L, 600L, 15L),
                                             Row.ofKind(RowKind.UPDATE_AFTER, "key1", 6L, 600L, 19L),
-                                            Row.ofKind(RowKind.UPDATE_BEFORE, "key1", 3L, 200L, 4L),
+                                            Row.ofKind(RowKind.DELETE, "key1", 3L, 200L, 4L),
                                             Row.ofKind(RowKind.UPDATE_BEFORE, "key1", 4L, 400L, 8L),
                                             Row.ofKind(RowKind.UPDATE_AFTER, "key1", 4L, 400L, 5L),
                                             Row.ofKind(
@@ -197,11 +197,7 @@ public class OverWindowTestPrograms {
                                                     Row.of("key1", 5L, 500L, 8L),
                                                     Row.of("key1", 6L, 600L, 14L),
                                                     Row.ofKind(
-                                                            RowKind.UPDATE_BEFORE,
-                                                            "key1",
-                                                            2L,
-                                                            200L,
-                                                            3L),
+                                                            RowKind.DELETE, "key1", 2L, 200L, 3L),
                                                     Row.ofKind(
                                                             RowKind.UPDATE_BEFORE,
                                                             "key1",
@@ -286,11 +282,7 @@ public class OverWindowTestPrograms {
                                                             600L,
                                                             19L),
                                                     Row.ofKind(
-                                                            RowKind.UPDATE_BEFORE,
-                                                            "key1",
-                                                            3L,
-                                                            200L,
-                                                            4L),
+                                                            RowKind.DELETE, "key1", 3L, 200L, 4L),
                                                     Row.ofKind(
                                                             RowKind.UPDATE_BEFORE,
                                                             "key1",
@@ -608,11 +600,7 @@ public class OverWindowTestPrograms {
                                             .consumedBeforeRestore(
                                                     Row.of("key1", 1L, 100L, 1L),
                                                     Row.ofKind(
-                                                            RowKind.UPDATE_BEFORE,
-                                                            "key1",
-                                                            1L,
-                                                            100L,
-                                                            1L),
+                                                            RowKind.DELETE, "key1", 1L, 100L, 1L),
                                                     Row.ofKind(
                                                             RowKind.UPDATE_AFTER,
                                                             "key1",
@@ -620,11 +608,7 @@ public class OverWindowTestPrograms {
                                                             200L,
                                                             2L),
                                                     Row.ofKind(
-                                                            RowKind.UPDATE_BEFORE,
-                                                            "key1",
-                                                            2L,
-                                                            200L,
-                                                            2L),
+                                                            RowKind.DELETE, "key1", 2L, 200L, 2L),
                                                     Row.ofKind(
                                                             RowKind.UPDATE_AFTER,
                                                             "key1",
@@ -632,11 +616,7 @@ public class OverWindowTestPrograms {
                                                             500L,
                                                             5L),
                                                     Row.ofKind(
-                                                            RowKind.UPDATE_BEFORE,
-                                                            "key1",
-                                                            5L,
-                                                            500L,
-                                                            5L),
+                                                            RowKind.DELETE, "key1", 5L, 500L, 5L),
                                                     Row.ofKind(
                                                             RowKind.UPDATE_AFTER,
                                                             "key1",
@@ -644,11 +624,7 @@ public class OverWindowTestPrograms {
                                                             600L,
                                                             6L),
                                                     Row.ofKind(
-                                                            RowKind.UPDATE_BEFORE,
-                                                            "key1",
-                                                            6L,
-                                                            600L,
-                                                            6L),
+                                                            RowKind.DELETE, "key1", 6L, 600L, 6L),
                                                     Row.ofKind(
                                                             RowKind.UPDATE_AFTER,
                                                             "key1",
@@ -657,11 +633,7 @@ public class OverWindowTestPrograms {
                                                             3L),
                                                     Row.of("key2", 1L, 100L, 1L),
                                                     Row.ofKind(
-                                                            RowKind.UPDATE_BEFORE,
-                                                            "key2",
-                                                            1L,
-                                                            100L,
-                                                            1L),
+                                                            RowKind.DELETE, "key2", 1L, 100L, 1L),
                                                     Row.ofKind(
                                                             RowKind.UPDATE_AFTER,
                                                             "key2",
@@ -671,11 +643,7 @@ public class OverWindowTestPrograms {
                                             .consumedAfterRestore(
                                                     Row.of("key3", 1L, 100L, 1L),
                                                     Row.ofKind(
-                                                            RowKind.UPDATE_BEFORE,
-                                                            "key1",
-                                                            3L,
-                                                            200L,
-                                                            3L),
+                                                            RowKind.DELETE, "key1", 3L, 200L, 3L),
                                                     Row.ofKind(
                                                             RowKind.UPDATE_AFTER,
                                                             "key1",
@@ -683,11 +651,7 @@ public class OverWindowTestPrograms {
                                                             400L,
                                                             4L),
                                                     Row.ofKind(
-                                                            RowKind.UPDATE_BEFORE,
-                                                            "key1",
-                                                            4L,
-                                                            400L,
-                                                            4L),
+                                                            RowKind.DELETE, "key1", 4L, 400L, 4L),
                                                     Row.ofKind(
                                                             RowKind.UPDATE_AFTER,
                                                             "key1",
