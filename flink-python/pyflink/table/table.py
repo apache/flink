@@ -1100,7 +1100,7 @@ class Table(object):
                 >>> table_pipeline = table.insert_into_table_path("MySinkTable", True)
                 >>> table_result = table_pipeline.execute().wait()
 
-        When ``target_path_or_descriptor`` is a  :ref:`refname`
+        When ``target_path_or_descriptor`` is a  :class:`~pyflink.table.TableDescriptor` :
 
             Declares that the pipeline defined by the given :class:`Table` object should be written
             to a table (backed by a DynamicTableSink) expressed via the given
@@ -1142,7 +1142,9 @@ class Table(object):
         execution, use a :class:`~pyflink.table.StatementSet` (see
         :func:`~pyflink.table.TableEnvironment.create_statement_set()`).
 
-        :param tablePath: The path of the registered table.
+        :param table_path_or_descriptor: The path of the registered
+            :class:`~pyflink.table.TableSink` or the descriptor describing the sink table into which
+            data should be inserted.
         :param overwrite: Indicates whether existing data should be overwritten.
         :return: The complete pipeline from one or more source tables to a sink table.
 
