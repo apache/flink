@@ -1643,7 +1643,7 @@ class Column(metaclass=ABCMeta):
 
 class PhysicalColumn(Column):
     """
-    Representation of a physical columns.
+    Representation of a physical column.
     """
 
     def __init__(self, j_physical_column):
