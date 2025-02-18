@@ -224,6 +224,7 @@ public class KeyedStateReader extends KeyedStateReaderFunction<Object, RowData> 
             case RAW:
             case SYMBOL:
             case UNRESOLVED:
+            case DESCRIPTOR:
             default:
                 throw new UnsupportedOperationException("Unsupported type: " + logicalType);
         }

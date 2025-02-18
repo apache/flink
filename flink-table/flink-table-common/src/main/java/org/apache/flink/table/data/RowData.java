@@ -283,6 +283,7 @@ public interface RowData {
             case NULL:
             case SYMBOL:
             case UNRESOLVED:
+            case DESCRIPTOR:
             default:
                 throw new IllegalArgumentException();
         }

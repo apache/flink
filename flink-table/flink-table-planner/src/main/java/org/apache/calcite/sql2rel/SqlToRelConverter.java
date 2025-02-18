@@ -228,6 +228,7 @@ import static java.util.Objects.requireNonNull;
 import static org.apache.calcite.linq4j.Nullness.castNonNull;
 import static org.apache.calcite.runtime.FlatLists.append;
 import static org.apache.calcite.sql.SqlUtil.stripAs;
+import static org.apache.calcite.util.Static.RESOURCE;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -251,6 +252,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *   <li>Added in FLINK-32474: Lines 3019 ~ 3053
  *   <li>Added in FLINK-34312: Lines 5804 ~ 5813
  *   <li>Added in FLINK-34057, FLINK-34058, FLINK-34312: Lines 6263 ~ 6279
+ * </ol>
+ *
+ * <p>In official extension point (i.e. {@link #convertExtendedExpression(SqlNode, Blackboard)}):
+ *
+ * <ol>
+ *   <li>FLINK-34057
  * </ol>
  */
 @SuppressWarnings("UnstableApiUsage")
@@ -2228,6 +2235,29 @@ public class SqlToRelConverter {
      * @return null to proceed with the usual expression translation process
      */
     protected @Nullable RexNode convertExtendedExpression(SqlNode node, Blackboard bb) {
+        // ----- FLINK MODIFICATION BEGIN -----
+        if (node.getKind() == SqlKind.DESCRIPTOR) {
+            final SqlCall call = (SqlCall) node;
+            // Similar to AS operator, we store string literals.
+            // Storing their data types is future work.
+            return rexBuilder.makeCall(
+                    rexBuilder.getTypeFactory().createSqlType(SqlTypeName.COLUMN_LIST),
+                    call.getOperator(),
+                    call.getOperandList().stream()
+                            .map(
+                                    operand -> {
+                                        if (!(operand instanceof SqlIdentifier)
+                                                || !((SqlIdentifier) operand).isSimple()) {
+                                            throw SqlUtil.newContextException(
+                                                    operand.getParserPosition(),
+                                                    RESOURCE.aliasMustBeSimpleIdentifier());
+                                        }
+                                        return rexBuilder.makeLiteral(
+                                                ((SqlIdentifier) operand).getSimple());
+                                    })
+                            .collect(Collectors.toList()));
+        }
+        // ----- FLINK MODIFICATION END -----
         return null;
     }
 

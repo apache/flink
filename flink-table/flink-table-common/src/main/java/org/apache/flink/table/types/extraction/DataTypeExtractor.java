@@ -335,7 +335,7 @@ public final class DataTypeExtractor {
         // early and helpful exception for common mistakes
         checkForCommonErrors(type);
 
-        // PREDEFINED
+        // PREDEFINED and DESCRIPTOR
         resultDataType = extractPredefinedType(template, type);
         if (resultDataType != null) {
             return resultDataType;

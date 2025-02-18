@@ -150,6 +150,9 @@ class FlinkTypeFactory(
       case LogicalTypeRoot.SYMBOL =>
         createSqlType(SqlTypeName.SYMBOL)
 
+      case LogicalTypeRoot.DESCRIPTOR =>
+        createSqlType(SqlTypeName.COLUMN_LIST)
+
       case _ @t =>
         throw new TableException(s"Type is not supported: $t")
     }
@@ -393,11 +396,6 @@ class FlinkTypeFactory(
       // keep precision/scale in sync with our type system's default value,
       // see DecimalType.USER_DEFAULT.
       createSqlType(typeName, DecimalType.DEFAULT_PRECISION, DecimalType.DEFAULT_SCALE)
-    } else if (typeName == COLUMN_LIST) {
-      // we don't support column lists and translate them into the unknown type,
-      // this makes it possible to ignore them in the validator and fall back to regular row types
-      // see also SqlFunction#deriveType
-      createUnknownType()
     } else {
       super.createSqlType(typeName)
     }
@@ -626,6 +624,9 @@ object FlinkTypeFactory {
 
       case SYMBOL =>
         new SymbolType()
+
+      case COLUMN_LIST =>
+        new DescriptorType()
 
       // extract encapsulated Type
       case ANY if relDataType.isInstanceOf[GenericRelDataType] =>
