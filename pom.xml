@@ -110,7 +110,7 @@ under the License.
 		<!-- XmxMax / forkCountITCase -->
 		<flink.XmxITCase>1536m</flink.XmxITCase>
 		<!-- XmxMax / forkCountUnitTest -->
-		<flink.XmxUnitTest>768m</flink.XmxUnitTest>
+		<flink.XmxUnitTest>1024m</flink.XmxUnitTest>
 		<!-- Need to use a user property here because the surefire
 			 forkCount is not exposed as a property. With this we can set
 			 it on the "mvn" commandline in travis. -->
