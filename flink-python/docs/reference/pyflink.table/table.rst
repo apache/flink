@@ -94,6 +94,7 @@ Example:
     Table.flat_map
     Table.full_outer_join
     Table.get_schema
+    Table.get_resolved_schema
     Table.group_by
     Table.intersect
     Table.intersect_all

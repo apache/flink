@@ -964,6 +964,9 @@ class Table(object):
         Returns the :class:`~pyflink.table.TableSchema` of this table.
 
         :return: The schema of this table.
+
+        .. deprecated:: 2.1.0
+           Use :func:`Table.get_resolved_schema` instead.
         """
         return TableSchema(j_table_schema=self._j_table.getSchema())
 
