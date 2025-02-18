@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table.catalog import Column, WatermarkSpec, UniqueConstraint
@@ -132,22 +132,13 @@ class ResolvedSchema(object):
         j_data_types = self._j_resolved_schema.getColumnDataTypes()
         return [_from_java_data_type(j_data_type) for j_data_type in j_data_types]
 
-    def get_column_by_index(self, column_index: int) -> Optional[Column]:
+    def get_column(self, column_index_or_name: Union[int, str]) -> Optional[Column]:
         """
-        Returns the :class:`~pyflink.table.catalog.Column` instance for the given column index.
+        Returns the :class:`~pyflink.table.catalog.Column` instance for the given column index or name.
 
-        :param column_index: the index of the column
+        :param column_index_or_name: either the index of the column or the name of the column
         """
-        optional_result = self._j_resolved_schema.getColumn(column_index)
-        return Column._from_j_column(optional_result.get()) if optional_result.isPresent() else None
-
-    def get_column_by_name(self, column_name: str) -> Optional[Column]:
-        """
-        Returns the :class:`~pyflink.table.catalog.Column` instance for the given column index.
-
-        :param column_index: the index of the column
-        """
-        optional_result = self._j_resolved_schema.getColumn(column_name)
+        optional_result = self._j_resolved_schema.getColumn(column_index_or_name)
         return Column._from_j_column(optional_result.get()) if optional_result.isPresent() else None
 
     def get_watermark_specs(self) -> List[WatermarkSpec]:
