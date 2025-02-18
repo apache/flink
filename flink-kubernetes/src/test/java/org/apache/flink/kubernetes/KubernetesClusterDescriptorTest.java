@@ -52,6 +52,7 @@ import java.util.concurrent.Executors;
 
 import static org.apache.flink.kubernetes.utils.Constants.ENV_FLINK_POD_IP_ADDRESS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link KubernetesClusterDescriptor}. */
@@ -218,6 +219,14 @@ class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
                                 assertThat(cause)
                                         .isInstanceOf(IllegalArgumentException.class)
                                         .hasMessageContaining("Should only have at most one jar"));
+    }
+
+    @Test
+    void testDeployApplicationClusterWithNoJar() {
+        flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.APPLICATION.getName());
+        assertThatNoException()
+                .isThrownBy(
+                        () -> descriptor.deployApplicationCluster(clusterSpecification, appConfig));
     }
 
     @Test
