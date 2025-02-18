@@ -19,7 +19,7 @@
 from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase, PyFlinkTestCase
 from pyflink.table.catalog import (Catalog, CatalogDatabase, CatalogBaseTable, CatalogPartition, \
     ObjectIdentifier, CatalogFunction, CatalogColumnStatistics, CatalogPartitionSpec, \
-    ObjectPath, Column, WatermarkSpec, Constraint)
+    ObjectPath, Column, WatermarkSpec, Constraint, UniqueConstraint)
 
 
 class CatalogAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
@@ -219,6 +219,21 @@ class ConstraintAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestC
     @classmethod
     def java_class(cls):
         return "org.apache.flink.table.catalog.Constraint"
+
+
+class UniqueConstraintAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
+    """
+    Tests whether the Python :class:`UniqueConstraint` is consistent with
+    Java `org.apache.flink.table.catalog.UniqueConstraint`.
+    """
+
+    @classmethod
+    def python_class(cls):
+        return UniqueConstraint
+
+    @classmethod
+    def java_class(cls):
+        return "org.apache.flink.table.catalog.UniqueConstraint"
 
 
 if __name__ == '__main__':

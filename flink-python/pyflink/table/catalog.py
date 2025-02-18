@@ -1870,19 +1870,20 @@ class UniqueConstraint(Constraint):
     A unique key constraint. It can be declared also as a PRIMARY KEY.
     """
 
-    def __init__(self, name: str = None, columns: List[str] = None, j_unique_constraint=None):
+    def __init__(self, j_unique_constraint=None):
+        self._j_unique_constraint = j_unique_constraint
+        super().__init__(j_unique_constraint)
+
+    @staticmethod
+    def primary_key(name: str, columns: List[str]) -> 'UniqueConstraint':
         """
         Creates a non enforced PRIMARY_KEY constraint.
         """
-        if j_unique_constraint is None:
-            gateway = get_gateway()
-            self._j_unique_constraint = gateway.jvm.org.apache.flink.table.catalog.UniqueConstraint(
-                name, columns
-            )
-            super().__init__(self._j_unique_constraint)
-        else:
-            self._j_unique_constraint = j_unique_constraint
-            super().__init__(j_unique_constraint)
+        gateway = get_gateway()
+        j_unique_constraint = gateway.jvm.org.apache.flink.table.catalog.UniqueConstraint(
+            name, columns
+        )
+        return UniqueConstraint(j_unique_constraint=j_unique_constraint)
 
     def get_columns(self) -> List[str]:
         """
