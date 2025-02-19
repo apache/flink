@@ -23,13 +23,12 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.legacy.api.Types
-import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
+import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
-
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.TestTemplate
 import org.junit.jupiter.api.extension.{ExtendWith, RegisterExtension}
@@ -48,7 +47,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       sqlQuery: String,
       expectedResults: List[String],
       isRetract: Boolean,
-      parallelism: Int,
       fieldNames: Expression*): Unit = {
     val t = StreamingEnvUtil.fromCollection(env, testData)(typeInfo).toTable(tEnv, fieldNames: _*)
     tEnv.createTemporaryView("T", t)
@@ -56,11 +54,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
     val result = tEnv.sqlQuery(sqlQuery)
     if (isRetract) {
       val sink = new TestingRetractSink
-      if (parallelism > 0) {
-        result.toRetractStream[Row].addSink(sink).setParallelism(parallelism)
-      } else {
-        result.toRetractStream[Row].addSink(sink)
-      }
+      result.toRetractStream[Row].addSink(sink)
       env.execute()
       assertThat(sink.getRetractResults.sorted).isEqualTo(expectedResults.sorted)
     } else {
@@ -91,7 +85,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
         "3,[18, 42],18",
         "3,[18, 42],42"),
       isRetract = false,
-      parallelism = -1,
       fieldNames = 'a,
       'b,
       'c
@@ -111,7 +104,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       sqlQuery = "SELECT a, s FROM T, UNNEST(T.c) AS A (s)",
       expectedResults = List("1,[12, 45]", "2,[18]", "2,[87]", "3,[1]", "3,[45]"),
       isRetract = false,
-      parallelism = -1,
       fieldNames = 'a,
       'b,
       'c
@@ -131,7 +123,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       sqlQuery = "SELECT a, b, s, t FROM T, UNNEST(T.b) AS A (s, t) WHERE s > 13",
       expectedResults = List("2,[13,41.6, 14,45.2136],14,45.2136", "3,[18,42.6],18,42.6"),
       isRetract = false,
-      parallelism = -1,
       fieldNames = 'a,
       'b
     )
@@ -167,7 +158,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
         "4,4"
       ),
       isRetract = true,
-      parallelism = -1,
       fieldNames = 'a,
       'b,
       'c
@@ -217,7 +207,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       sqlQuery = "SELECT a, s FROM T, UNNEST(T.c) as A (s)",
       expectedResults = List("1,Hi", "1,w", "2,Hello", "2,k", "3,Hello world", "3,x"),
       isRetract = false,
-      parallelism = -1,
       fieldNames = 'a,
       'b,
       'c
@@ -263,7 +252,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       sqlQuery = "SELECT a, b, v FROM T CROSS JOIN UNNEST(c) as f (k, v)",
       expectedResults = List("1,11,10", "1,11,11", "2,22,20", "3,33,30", "3,33,31"),
       isRetract = false,
-      parallelism = -1,
       fieldNames = 'a,
       'b,
       'c
@@ -293,7 +281,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
         "1,[12,45.6, 2,45.612],2,45.612",
         "2,[13,41.6, 1,45.2136],13,41.6"),
       isRetract = false,
-      parallelism = -1,
       fieldNames = 'a,
       'b
     )
@@ -312,7 +299,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       sqlQuery = "SELECT a, b, A._1, A._2 FROM T, UNNEST(T.b) AS A where A._1 > 13",
       expectedResults = List("2,[13,41.6, 14,45.2136],14,45.2136", "3,[18,42.6],18,42.6"),
       isRetract = false,
-      parallelism = -1,
       fieldNames = 'a,
       'b
     )
@@ -340,7 +326,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
                    |""".stripMargin,
       expectedResults = List("1,12,45.612", "1,12,45.6", "2,13,41.6", "2,14,45.2136"),
       isRetract = false,
-      parallelism = -1,
       fieldNames = 'a,
       'b
     )
@@ -354,7 +339,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       sqlQuery = "SELECT * FROM UNNEST(ARRAY[1,2,3])",
       expectedResults = List("1", "2", "3"),
       isRetract = false,
-      parallelism = -1,
       fieldNames = 'dummy
     )
   }
@@ -367,7 +351,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       sqlQuery = "SELECT * FROM (VALUES('a')) CROSS JOIN UNNEST(ARRAY[1, 2, 3])",
       expectedResults = List("a,1", "a,2", "a,3"),
       isRetract = false,
-      parallelism = -1,
       fieldNames = 'dummy
     )
   }
@@ -380,7 +363,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       sqlQuery = "SELECT * FROM (VALUES('a')) CROSS JOIN UNNEST(ARRAY[1, 2, 3]) WITH ORDINALITY",
       expectedResults = List("a,1,1", "a,2,2", "a,3,3"),
       isRetract = false,
-      parallelism = -1,
       fieldNames = 'dummy
     )
   }
@@ -401,7 +383,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
                    |""".stripMargin,
       expectedResults = List("1,12,1", "1,45,2", "2,41,1", "2,5,2", "3,18,1", "3,42,2"),
       isRetract = false,
-      parallelism = -1,
       fieldNames = 'a,
       'b
     )
@@ -421,7 +402,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       sqlQuery = "SELECT a, s, o FROM T, UNNEST(T.c) WITH ORDINALITY as A (s, o)",
       expectedResults = List("1,Hi,1", "1,w,2", "2,Hello,1", "2,k,2", "3,Hello world,1", "3,x,2"),
       isRetract = false,
-      parallelism = -1,
       fieldNames = 'a,
       'b,
       'c
@@ -454,7 +434,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
         "2,[6, 7],2,7,2",
         "3,[8],1,8,1"),
       isRetract = false,
-      parallelism = -1,
       fieldNames = 'id,
       'nested_array
     )
@@ -483,7 +462,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
         "3,Hello world,1"
       ),
       isRetract = true,
-      parallelism = -1,
       fieldNames = 'a,
       'b,
       'c
@@ -523,7 +501,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
                    |""".stripMargin,
       expectedResults = List("1,a,10,1", "1,b,11,2", "2,c,20,2", "2,d,21,1"),
       isRetract = false,
-      parallelism = 1,
       fieldNames = 'id,
       'map_data
     )
@@ -573,7 +550,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
         "3,e,e,31,2"
       ),
       isRetract = false,
-      parallelism = 1,
       fieldNames = 'a,
       'b
     )
@@ -628,7 +604,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
         "2,d,2,w,40,2"
       ),
       isRetract = false,
-      parallelism = -1,
       fieldNames = 'id,
       'array_data,
       'map_data
@@ -649,7 +624,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
                    |""".stripMargin,
       expectedResults = List(),
       isRetract = false,
-      parallelism = -1,
       fieldNames = 'a,
       'b
     )
@@ -688,7 +662,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
                    |""".stripMargin,
       expectedResults = List("1,a,10,1", "1,b,null,2", "2,c,20,2", "2,d,null,1"),
       isRetract = false,
-      parallelism = 1,
       fieldNames = 'id,
       'map_data
     )
@@ -709,7 +682,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
         "2,[20,41.6, 14,45.2136],14,45.2136,2",
         "3,[18,42.6],18,42.6,1"),
       isRetract = false,
-      parallelism = -1,
       fieldNames = 'a,
       'b
     )
@@ -737,7 +709,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
                    |""".stripMargin,
       expectedResults = List("1,12,45.6,1", "2,13,41.6,1"),
       isRetract = false,
-      parallelism = -1,
       fieldNames = 'a,
       'b
     )
@@ -761,7 +732,6 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
                    |""".stripMargin,
       expectedResults = List("1,12,45.6,1", "2,12,45.612,1", "2,13,41.6,2"),
       isRetract = true,
-      parallelism = -1,
       fieldNames = 'a,
       'b
     )
