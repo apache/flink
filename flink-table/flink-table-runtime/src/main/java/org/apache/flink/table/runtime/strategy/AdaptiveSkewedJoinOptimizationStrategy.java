@@ -99,6 +99,7 @@ public class AdaptiveSkewedJoinOptimizationStrategy
             List<ImmutableStreamEdge> upstreamStreamEdges,
             AdaptiveJoin adaptiveJoin) {
         if (!canPerformOptimization(context, adaptiveJoinNode)) {
+            freeNodeStatistic(adaptiveJoinNode.getId());
             return;
         }
         for (ImmutableStreamEdge edge : upstreamStreamEdges) {
