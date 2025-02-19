@@ -119,7 +119,7 @@ public abstract class UnnestRowsFunctionBase extends BuiltInSpecializedFunction 
                                     rowType.getFields().stream(),
                                     Stream.of(
                                             new RowType.RowField(
-                                                    "ordinality",
+                                                    "ORDINALITY",
                                                     DataTypes.INT().notNull().getLogicalType())))
                             .collect(Collectors.toList()));
         } else {
@@ -127,7 +127,7 @@ public abstract class UnnestRowsFunctionBase extends BuiltInSpecializedFunction 
             return RowType.of(
                     false,
                     new LogicalType[] {baseType, DataTypes.INT().notNull().getLogicalType()},
-                    new String[] {"f0", "ordinality"});
+                    new String[] {"EXPR$0", "ORDINALITY"});
         }
     }
 

@@ -23,12 +23,13 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.legacy.api.Types
+import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
-import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
+
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.TestTemplate
 import org.junit.jupiter.api.extension.{ExtendWith, RegisterExtension}

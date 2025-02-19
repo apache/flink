@@ -370,7 +370,7 @@ LogicalProject(val=[$0], pos=[$1])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1(ARRAY(1, 2, 3))], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1(ARRAY(1, 2, 3)))], select=[f0,ordinality], rowType=[RecordType:peek_no_expand(INTEGER f0, INTEGER ordinality)], joinType=[INNER])
+Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1(ARRAY(1, 2, 3))], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1(ARRAY(1, 2, 3)))], select=[EXPR$0,ORDINALITY], rowType=[RecordType:peek_no_expand(INTEGER EXPR$0, INTEGER ORDINALITY)], joinType=[INNER])
 +- Values(tuples=[[{  }]], values=[])
 ]]>
     </Resource>
@@ -392,8 +392,8 @@ LogicalProject(a=[$0], number=[$2], ordinality=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, f0 AS number, ordinality])
-+- Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b))], select=[a,b,f0,ordinality], rowType=[RecordType(INTEGER a, INTEGER ARRAY b, INTEGER f0, INTEGER ordinality)], joinType=[INNER])
+Calc(select=[a, EXPR$0 AS number, ORDINALITY AS ordinality])
++- Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b))], select=[a,b,EXPR$0,ORDINALITY], rowType=[RecordType(INTEGER a, INTEGER ARRAY b, INTEGER EXPR$0, INTEGER ORDINALITY)], joinType=[INNER])
    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b])
 ]]>
     </Resource>
@@ -425,9 +425,9 @@ LogicalProject(id=[$0], array_val=[$2], array_pos=[$3], elem=[$4], element_pos=[
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[id, f0 AS array_val, ordinality AS array_pos, f00 AS elem, ordinality0 AS element_pos])
-+- Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor1.array_val)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor1.array_val))], select=[id,nested_array,f0,ordinality,f00,ordinality0], rowType=[RecordType(INTEGER id, INTEGER ARRAY ARRAY nested_array, INTEGER ARRAY f0, INTEGER ordinality, INTEGER f00, INTEGER ordinality0)], joinType=[INNER])
-   +- Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.nested_array)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.nested_array))], select=[id,nested_array,f0,ordinality], rowType=[RecordType(INTEGER id, INTEGER ARRAY ARRAY nested_array, INTEGER ARRAY f0, INTEGER ordinality)], joinType=[INNER])
+Calc(select=[id, EXPR$0 AS array_val, ORDINALITY AS array_pos, EXPR$00 AS elem, ORDINALITY0 AS element_pos])
++- Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor1.array_val)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor1.array_val))], select=[id,nested_array,EXPR$0,ORDINALITY,EXPR$00,ORDINALITY0], rowType=[RecordType(INTEGER id, INTEGER ARRAY ARRAY nested_array, INTEGER ARRAY EXPR$0, INTEGER ORDINALITY, INTEGER EXPR$00, INTEGER ORDINALITY0)], joinType=[INNER])
+   +- Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.nested_array)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.nested_array))], select=[id,nested_array,EXPR$0,ORDINALITY], rowType=[RecordType(INTEGER id, INTEGER ARRAY ARRAY nested_array, INTEGER ARRAY EXPR$0, INTEGER ORDINALITY)], joinType=[INNER])
       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[id, nested_array])
 ]]>
     </Resource>
@@ -450,7 +450,7 @@ LogicalProject(a=[$0], b=[$1], s=[$2], t=[$3], o=[$4])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b))], select=[a,b,_1,_2,ordinality], rowType=[RecordType(INTEGER a, RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2) ARRAY b, INTEGER _1, VARCHAR(2147483647) _2, INTEGER ordinality)], joinType=[INNER], condition=[>($0, 13)])
+Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b))], select=[a,b,_1,_2,ORDINALITY], rowType=[RecordType(INTEGER a, RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2) ARRAY b, INTEGER _1, VARCHAR(2147483647) _2, INTEGER ORDINALITY)], joinType=[INNER], condition=[>($0, 13)])
 +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b])
 ]]>
     </Resource>
@@ -472,7 +472,7 @@ LogicalProject(a=[$0], b=[$1], _1=[$2], _2=[$3], ORDINALITY=[$4])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b))], select=[a,b,_1,_2,ordinality], rowType=[RecordType(INTEGER a, RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2) ARRAY b, INTEGER _1, VARCHAR(2147483647) _2, INTEGER ordinality)], joinType=[INNER], condition=[>($0, 1)])
+Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b))], select=[a,b,_1,_2,ORDINALITY], rowType=[RecordType(INTEGER a, RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2) ARRAY b, INTEGER _1, VARCHAR(2147483647) _2, INTEGER ORDINALITY)], joinType=[INNER], condition=[>($0, 1)])
 +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b])
 ]]>
     </Resource>
@@ -494,8 +494,8 @@ LogicalProject(id=[$0], k=[$2], v=[$3], pos=[$4])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[id, f0 AS k, f1 AS v, ordinality AS pos])
-+- Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.map_data)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.map_data))], select=[id,map_data,f0,f1,ordinality], rowType=[RecordType(INTEGER id, (VARCHAR(2147483647), VARCHAR(2147483647)) MAP map_data, VARCHAR(2147483647) f0, VARCHAR(2147483647) f1, INTEGER ordinality)], joinType=[INNER])
+Calc(select=[id, f0 AS k, f1 AS v, ORDINALITY AS pos])
++- Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.map_data)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.map_data))], select=[id,map_data,f0,f1,ORDINALITY], rowType=[RecordType(INTEGER id, (VARCHAR(2147483647), VARCHAR(2147483647)) MAP map_data, VARCHAR(2147483647) f0, VARCHAR(2147483647) f1, INTEGER ORDINALITY)], joinType=[INNER])
    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[id, map_data])
 ]]>
     </Resource>
@@ -523,8 +523,8 @@ LogicalProject(a=[$0], word=[$2], pos=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, f0 AS word, ordinality AS pos])
-+- Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.words)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.words))], select=[a,words,f0,ordinality], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) MULTISET words, VARCHAR(2147483647) f0, INTEGER ordinality)], joinType=[INNER])
+Calc(select=[a, EXPR$0 AS word, ORDINALITY AS pos])
++- Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.words)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.words))], select=[a,words,EXPR$0,ORDINALITY], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) MULTISET words, VARCHAR(2147483647) EXPR$0, INTEGER ORDINALITY)], joinType=[INNER])
    +- SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COLLECT(words) AS words])
       +- Exchange(distribution=[forward])
          +- Sort(orderBy=[a ASC])
@@ -560,8 +560,8 @@ LogicalProject(a=[$0], number=[$2], ordinality=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, f0 AS number, ordinality])
-+- Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b))], select=[a,b,f0,ordinality], rowType=[RecordType(INTEGER a, INTEGER ARRAY b, INTEGER f0, INTEGER ordinality)], joinType=[INNER], condition=[AND(>($0, 10), <($1, 3))])
+Calc(select=[a, EXPR$0 AS number, ORDINALITY AS ordinality])
++- Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b))], select=[a,b,EXPR$0,ORDINALITY], rowType=[RecordType(INTEGER a, INTEGER ARRAY b, INTEGER EXPR$0, INTEGER ORDINALITY)], joinType=[INNER], condition=[AND(>($0, 10), <($1, 3))])
    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b])
 ]]>
     </Resource>
