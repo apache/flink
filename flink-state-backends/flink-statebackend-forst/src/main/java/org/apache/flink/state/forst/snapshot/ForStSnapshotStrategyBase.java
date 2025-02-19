@@ -373,5 +373,9 @@ public abstract class ForStSnapshotStrategyBase<K, R extends SnapshotResources>
                 return Optional.empty();
             }
         }
+
+        protected boolean isEmpty() {
+            return confirmedSstFiles.isEmpty();
+        }
     }
 }

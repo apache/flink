@@ -114,7 +114,8 @@ class ForStStateDataTransferTest extends TestLogger {
                                             checkpointStreamFactory,
                                             CheckpointedStateScope.SHARED,
                                             new CloseableRegistry(),
-                                            new CloseableRegistry()))
+                                            new CloseableRegistry(),
+                                            false))
                     .isEqualTo(expectedException);
         }
     }
@@ -156,7 +157,8 @@ class ForStStateDataTransferTest extends TestLogger {
                     checkpointStreamFactory,
                     CheckpointedStateScope.SHARED,
                     new CloseableRegistry(),
-                    tmpResourcesRegistry);
+                    tmpResourcesRegistry,
+                    false);
 
             assertThatThrownBy(
                             () ->
@@ -169,7 +171,8 @@ class ForStStateDataTransferTest extends TestLogger {
                                                     expectedException),
                                             CheckpointedStateScope.SHARED,
                                             new CloseableRegistry(),
-                                            tmpResourcesRegistry))
+                                            tmpResourcesRegistry,
+                                            false))
                     .isEqualTo(expectedException);
             assertThat(checkpointPrivateFolder.list()).isEmpty();
             assertThat(checkpointSharedFolder.list()).isNotEmpty();
@@ -188,7 +191,8 @@ class ForStStateDataTransferTest extends TestLogger {
                                             checkpointStreamFactory,
                                             CheckpointedStateScope.SHARED,
                                             new CloseableRegistry(),
-                                            tmpResourcesRegistry))
+                                            tmpResourcesRegistry,
+                                            false))
                     .as("Cannot register Closeable, registry is already closed. Closing argument.")
                     .isInstanceOf(IOException.class);
 
@@ -233,7 +237,8 @@ class ForStStateDataTransferTest extends TestLogger {
                             checkpointStreamFactory,
                             CheckpointedStateScope.SHARED,
                             new CloseableRegistry(),
-                            new CloseableRegistry());
+                            new CloseableRegistry(),
+                            false);
 
             assertStateContentEqual(
                     sstFile, headBytes, handleAndLocalPath.getHandle().openInputStream());
@@ -275,7 +280,8 @@ class ForStStateDataTransferTest extends TestLogger {
                             checkpointStreamFactory,
                             CheckpointedStateScope.SHARED,
                             new CloseableRegistry(),
-                            new CloseableRegistry());
+                            new CloseableRegistry(),
+                            false);
 
             for (Path path : sstFilePaths) {
                 assertStateContentEqual(

@@ -321,7 +321,8 @@ public class ForStNativeFullSnapshotStrategy<K>
                                 checkpointStreamFactory,
                                 CheckpointedStateScope.EXCLUSIVE,
                                 snapshotCloseableRegistry,
-                                tmpResourcesRegistry);
+                                tmpResourcesRegistry,
+                                true);
                 uploadedSize += uploadedFiles.stream().mapToLong(e -> e.getStateSize()).sum();
                 privateFiles.addAll(uploadedFiles);
 
@@ -333,7 +334,8 @@ public class ForStNativeFullSnapshotStrategy<K>
                                 checkpointStreamFactory,
                                 CheckpointedStateScope.EXCLUSIVE,
                                 snapshotCloseableRegistry,
-                                tmpResourcesRegistry);
+                                tmpResourcesRegistry,
+                                true);
                 privateFiles.add(manifestFileTransferResult);
                 uploadedSize += manifestFileTransferResult.getStateSize();
 
