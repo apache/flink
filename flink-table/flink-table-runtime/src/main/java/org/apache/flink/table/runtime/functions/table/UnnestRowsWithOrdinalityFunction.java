@@ -23,6 +23,7 @@ import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -66,7 +67,6 @@ public class UnnestRowsWithOrdinalityFunction extends UnnestRowsFunctionBase {
         private static final long serialVersionUID = 1L;
 
         private final ArrayData.ElementGetter elementGetter;
-        private RowData.FieldGetter[] fieldGetters = null;
 
         public CollectionUnnestWithOrdinalityFunction(
                 SpecializedContext context,
@@ -74,15 +74,6 @@ public class UnnestRowsWithOrdinalityFunction extends UnnestRowsFunctionBase {
                 ArrayData.ElementGetter elementGetter) {
             super(context, elementType, true);
             this.elementGetter = elementGetter;
-
-            if (elementType instanceof RowType) {
-                /* When unnesting a collection, according to Calcite's implementation,
-                row(a,b) unnests to a row(a, b, ordinality) and not to (row(a,b), ordinality).
-                That means, if we are unnesting a row, we need field getters
-                to be able to extract all field values */
-                RowType rowType = (RowType) elementType;
-                this.fieldGetters = createFieldGetters(rowType);
-            }
         }
 
         public void eval(ArrayData arrayData) {
@@ -95,28 +86,11 @@ public class UnnestRowsWithOrdinalityFunction extends UnnestRowsFunctionBase {
 
         private void collectWithOrdinality(Object element, int position) {
             if (element instanceof RowData) {
-                RowData innerRow = (RowData) element;
-                int arity = innerRow.getArity();
-                GenericRowData outRow = new GenericRowData(arity + 1);
-
-                for (int i = 0; i < arity; i++) {
-                    outRow.setField(i, fieldGetters[i].getFieldOrNull(innerRow));
-                }
-
-                outRow.setField(arity, position);
-                collect(outRow);
+                RowData row = (RowData) element;
+                collect(new JoinedRowData(row.getRowKind(), row, GenericRowData.of(position)));
             } else {
                 collect(GenericRowData.of(element, position));
             }
-        }
-
-        private RowData.FieldGetter[] createFieldGetters(RowType rowType) {
-            int fieldCount = rowType.getFieldCount();
-            RowData.FieldGetter[] fieldGetters = new RowData.FieldGetter[fieldCount];
-            for (int i = 0; i < fieldCount; i++) {
-                fieldGetters[i] = RowData.createFieldGetter(rowType.getTypeAt(i), i);
-            }
-            return fieldGetters;
         }
     }
 
