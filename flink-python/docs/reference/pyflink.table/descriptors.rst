@@ -154,8 +154,7 @@ where necessary.
     ResolvedSchema.get_columns
     ResolvedSchema.get_column_names
     ResolvedSchema.get_column_data_types
-    ResolvedSchema.get_column_by_index
-    ResolvedSchema.get_column_by_name
+    ResolvedSchema.get_column
     ResolvedSchema.get_watermark_specs
     ResolvedSchema.get_primary_key
     ResolvedSchema.get_primary_key_indexes
