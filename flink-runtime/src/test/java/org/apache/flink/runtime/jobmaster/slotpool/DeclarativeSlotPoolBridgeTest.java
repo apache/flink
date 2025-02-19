@@ -130,7 +130,7 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
         final TestingDeclarativeSlotPoolBuilder builder =
                 TestingDeclarativeSlotPool.builder()
                         .setReserveFreeSlotFunction(
-                                (allocationId, resourceProfile) -> {
+                                (allocationId, resourceProfile, loadingWeight) -> {
                                     assertThat(allocationId).isSameAs(expectedAllocationId);
                                     return allocatedSlot;
                                 })

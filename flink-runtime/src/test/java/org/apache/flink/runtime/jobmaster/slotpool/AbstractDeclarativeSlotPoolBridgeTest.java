@@ -24,6 +24,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
@@ -117,6 +118,7 @@ abstract class AbstractDeclarativeSlotPoolBridgeTest {
                 ResourceProfile.ANY,
                 new RpcTaskManagerGateway(
                         new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway(),
-                        JobMasterId.generate()));
+                        JobMasterId.generate()),
+                DefaultLoadingWeight.EMPTY);
     }
 }

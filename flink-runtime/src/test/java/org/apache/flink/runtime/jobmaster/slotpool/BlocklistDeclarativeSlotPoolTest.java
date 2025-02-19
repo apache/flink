@@ -24,6 +24,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
@@ -274,7 +275,7 @@ class BlocklistDeclarativeSlotPoolTest extends DefaultDeclarativeSlotPoolTestBas
         final PhysicalSlot offeredSlot = getOnlyElement(newSlots);
         final AllocationID allocationID = offeredSlot.getAllocationId();
 
-        slotPool.reserveFreeSlot(allocationID, RESOURCE_PROFILE);
+        slotPool.reserveFreeSlot(allocationID, RESOURCE_PROFILE, DefaultLoadingWeight.EMPTY);
 
         if (isBlocked) {
             // block TM
