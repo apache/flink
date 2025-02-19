@@ -43,10 +43,14 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SupplierWithException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -66,6 +70,8 @@ import java.util.TreeMap;
 @Internal
 public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitInfo>
         implements OneInputStreamOperator<CoordinatorOutput, PartitionCommitInfo>, BoundedOneInput {
+
+    private static final Logger LOG = LoggerFactory.getLogger(CompactOperator.class);
 
     private static final long serialVersionUID = 1L;
 
@@ -99,7 +105,6 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
         super.initializeState(context);
         this.partitions = new HashSet<>();
         this.fileSystem = fsFactory.get();
-
         ListStateDescriptor<Map<Long, List<Path>>> metaDescriptor =
                 new ListStateDescriptor<>(
                         "expired-files",
@@ -114,7 +119,11 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
         this.currentExpiredFiles = new ArrayList<>();
 
         if (context.isRestored()) {
-            this.expiredFiles.putAll(this.expiredFilesState.get().iterator().next());
+            Iterator<Map<Long, List<Path>>> expiredFilesStateIterator =
+                    this.expiredFilesState.get().iterator();
+            while (expiredFilesStateIterator.hasNext()) {
+                this.expiredFiles.putAll(expiredFilesStateIterator.next());
+            }
         }
     }
 
@@ -194,6 +203,7 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
         NavigableMap<Long, List<Path>> outOfDateMetas = expiredFiles.headMap(checkpointId, true);
         for (List<Path> paths : outOfDateMetas.values()) {
             for (Path meta : paths) {
+                LOG.info("Clear expired file {}", meta);
                 fileSystem.delete(meta, true);
             }
         }
