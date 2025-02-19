@@ -549,14 +549,6 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         return result;
     }
 
-    protected void transitionToScheduled(final List<ExecutionVertexID> verticesToDeploy) {
-        verticesToDeploy.forEach(
-                executionVertexId ->
-                        getExecutionVertex(executionVertexId)
-                                .getCurrentExecutionAttempt()
-                                .transitionState(ExecutionState.SCHEDULED));
-    }
-
     protected void setGlobalFailureCause(@Nullable final Throwable cause, long timestamp) {
         if (cause != null) {
             executionGraph.initFailureCause(cause, timestamp);
