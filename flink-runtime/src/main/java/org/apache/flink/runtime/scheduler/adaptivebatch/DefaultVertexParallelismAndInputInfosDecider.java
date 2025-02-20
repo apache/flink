@@ -41,6 +41,7 @@ import java.util.Map;
 import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.calculateDataVolumePerTaskForInputsGroup;
 import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.checkAndGetParallelism;
 import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.getNonBroadcastInputInfos;
+import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.logBalancedDataDistributionOptimizationResult;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -242,6 +243,11 @@ public class DefaultVertexParallelismAndInputInfosDecider
                             parallelism,
                             calculateDataVolumePerTaskForInputsGroup(
                                     dataVolumePerTask, pointwiseInputs, consumedResults)));
+        }
+
+        for (BlockingInputInfo inputInfo : consumedResults) {
+            logBalancedDataDistributionOptimizationResult(
+                    LOG, jobVertexId, inputInfo, vertexInputInfos.get(inputInfo.getResultId()));
         }
 
         return new ParallelismAndInputInfos(
