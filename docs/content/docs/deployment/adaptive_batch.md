@@ -34,7 +34,7 @@ However, in real-world scenarios, these data characteristics cannot be predicted
 Although, if there is rich statistical information about the input data, users and Flink's static execution plan optimizer can combine these statistics with the characteristics of each operator in the execution plan to conduct some moderate inferential optimization. But in actual production environments, the statistical information on input data is often incomplete or inaccurate, making it difficult to estimate the intermediate data in a Flink job.
 
 To address this issue, Flink introduced the **AdaptiveBatchScheduler**, a batch job scheduler that can **automatically adjust execution plan**. 
-This scheduler gradually determines the job execution plan as the job executes and incrementally generates the JobGraph based on the determined execution plan. For the part of undecided execution plans, Flink is allowed to dynamically adjust execution plans at runtime based on specific optimization strategies and the characteristics of intermediate data. 
+This scheduler gradually determines the job execution plan as the job executes and incrementally generates the JobGraph based on the determined execution plan. For parts of undecided execution plans, Flink is allowed to dynamically adjust execution plans at runtime based on specific optimization strategies and the characteristics of intermediate data. 
 Currently, the optimization strategies supported by the scheduler include:
 - [Automatically decide parallelisms for operators](#automatically-decide-parallelisms-for-operators)
 - [Automatic load balancing of data distribution](#automatic-balancing-of-data-distribution)
@@ -112,11 +112,11 @@ Therefore, while broadcast joins can provide significant performance improvement
 | **Join Type** | **Left Input** | **Right Input** |
 |:--------------|:---------------|:----------------|
 | Inner         | ✅              | ✅               |
+| LeftOuter     | ❌              | ✅               |
+| RightOuter    | ✅              | ❌               |
 | FullOuter     | ❌              | ❌               |
 | Semi          | ❌              | ✅               |
 | Anti          | ❌              | ✅               |
-| LeftOuter     | ❌              | ✅               |
-| RightOuter    | ✅              | ❌               |
 
 ### Usage
 
@@ -143,11 +143,11 @@ The scenarios where splitting is possible are as follows:
 | **Join Type** | **Left Input** | **Right Input** |
 |:--------------|:---------------|:----------------|
 | Inner         | ✅              | ✅               |
-| FullOuter     | ✅              | ❌               |
+| LeftOuter     | ✅              | ❌               |
+| RightOuter    | ❌              | ✅               |
+| FullOuter     | ❌              | ❌               |
 | Semi          | ✅              | ❌               |
 | Anti          | ✅              | ❌               |
-| LeftOuter     | ❌              | ✅               |
-| RightOuter    | ❌              | ❌               |
 
 ### Usage
 

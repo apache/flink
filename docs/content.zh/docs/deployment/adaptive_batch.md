@@ -36,12 +36,12 @@ under the License.
 为了解决这个问题，Flink 引入了 **AdaptiveBatchScheduler** 调度器，该调度器是一种可以**自动调整执行计划**的批作业调度器。
 它会随着作业运行逐步确定作业执行计划，并根据确定下来的执行计划来增量式生成 JobGraph。未确定下来的执行计划将允许 Flink 根据具体的优化策略和中间运行结果的特点，来进行运行时的执行计划动态调整。
 目前，该调度器支持的优化策略有：
-- [自动推导算子并行度](#自动推导并发度)
+- [自动推导算子并行度](#自动推导并行度)
 - [自动均衡数据分发](#自动均衡数据分发)
 - [自适应 Broadcast Join](#自适应-broadcast-join)
 - [自适应 Skewed Join Optimization](#自适应-skewed-join-优化)
 
-## 自动推导并发度
+## 自动推导并行度
 
 Adaptive Batch Scheduler 支持自动推导算子并行度，如果算子未设置并行度，调度器将根据其消费的数据量的大小来推导其并行度。这可以带来诸多好处：
 - 批作业用户可以从并行度调优中解脱出来
@@ -94,7 +94,7 @@ Adaptive Batch Scheduler 支持自动均衡数据分发。调度器会尝试将�
 
 ### 局限性
 
-- 目前仅支持对[自动推导算子并行度](#自动推导并发度)的节点进行自动均衡数据分发。因此，用户需要开启[自动推导算子并行度](#自动推导并发度)，并避免手动设置节点的并发度，才能享受到自动均衡数据分发的优化。
+- 目前仅支持对[自动推导算子并行度](#自动推导并行度)的节点进行自动均衡数据分发。因此，用户需要开启[自动推导算子并行度](#自动推导并行度)，并避免手动设置节点的并行度，才能享受到自动均衡数据分发的优化。
 - 目前自动均衡数据分发无法完全解决单 key 数据热点问题。当单个 key 的数据远远多于其他 key 的数据时，仍然会有热点。然而为了数据的正确性，我们并不能拆分这个 key 的数据，将其分配给不同的子任务处理。不过，在一些特定的情况下，单 key 问题是可以被解决的，见 [自适应 Skewed Join Optimization](#自适应-skewed-join-优化)。
 
 ## 自适应 Broadcast Join
@@ -106,16 +106,16 @@ Adaptive Batch Scheduler 支持自动均衡数据分发。调度器会尝试将�
    
 因此，虽然静态 broadcast join 在正确使用时可以带来较大的性能提升，但实际上优应用有限。而自适应 Broadcast Join 则可以让 Flink 在运行时根据实际的数据输入来自适应的将 Join 算子转为 Broadcast Join。
 
-**为保证 Join 的正确性语义**，自适应 Broadcsat Join 会根据 Join 类型来决策输入边是否能够被广播，可广播的情况如下：
+**为保证 Join 的正确性语义**，自适应 Broadcast Join 会根据 Join 类型来决策输入边是否能够被广播，可广播的情况如下：
 
-| **Join 类型**                                   | **Left 输入**                                                                                               | **Right 输入**                                                                                          |
-|:----------------------------------------------|:----------------------------------------------------------------------------------------------------------|:------------------------------------------------------------------------------------------------------|
-| Inner                                         | ✅                                                                                                         | ✅                                                                                                     |
-| FullOuter                                     | ❌                                                                                                         | ❌                                                                                                     |
-| Semi                                          | ❌                                                                                                         | ✅                                                                                                     |
-| Anti                                          | ❌                                                                                                         | ✅                                                                                                     |
-| LeftOuter                                     | ❌                                                                                                         | ✅                                                                                                     |
-| RightOuter                                    | ✅                                                                                                         | ❌                                                                                                     |
+| **Join 类型**                                   | **Left 输入**      | **Right 输入**           |
+|:----------------------------------------------|:-----------------|:-----------------------|
+| Inner                                         | ✅                | ✅                      |
+| LeftOuter                                     | ❌                | ✅                      |
+| RightOuter                                    | ✅                | ❌                      |
+| FullOuter                                     | ❌                | ❌                      |
+| Semi                                          | ❌                | ✅                      |
+| Anti                                          | ❌                | ✅                      |
 
 ### 用法
 
@@ -136,14 +136,14 @@ Adaptive Batch Scheduler 默认**同时启用**编译时静态自适应 Broadcas
 
 **为保证 Join 的正确性语义**，自适应 Skewed Join 优化会根据 Join 类型来决策输入边是否能够被动态拆分，可拆分的情况如下：
 
-| **Join 类型**                                   | **Left 输入**                                                                                               | **Right 输入**                                                                                          |
-|:----------------------------------------------|:----------------------------------------------------------------------------------------------------------|:------------------------------------------------------------------------------------------------------|
-| Inner                                         | ✅                                                                                                         | ✅                                                                                                     |
-| FullOuter                                     | ✅                                                                                                         | ❌                                                                                                     |
-| Semi                                          | ✅                                                                                                         | ❌                                                                                                     |
-| Anti                                          | ✅                                                                                                         | ❌                                                                                                     |
-| LeftOuter                                     | ❌                                                                                                         | ✅                                                                                                     |
-| RightOuter                                    | ❌                                                                                                         | ❌                                                                                                     |
+| **Join 类型**                                    | **Left 输入**      | **Right 输入**           |
+|:-----------------------------------------------|:-----------------|:-----------------------|
+| Inner                                          | ✅                | ✅                      |
+| LeftOuter                                      | ✅                | ❌                      |
+| RightOuter                                     | ❌                | ✅                      |
+| FullOuter                                      | ❌                | ❌                      |
+| Semi                                           | ✅                | ❌                      |
+| Anti                                           | ✅                | ❌                      |
 
 ### 用法
 
@@ -158,7 +158,7 @@ Adaptive Batch Scheduler  默认启用 Skewed Join 优化，你可以通过配�
 
 ### 局限性
 
-- 由于 Adaptive Skewed Join 优化会影响 Join 节点的并行度，所以目前 Adaptive Skewed Join 优化需要启用[自动推导算子并行度](#自动推导并发度)才能生效
+- 由于 Adaptive Skewed Join 优化会影响 Join 节点的并行度，所以目前 Adaptive Skewed Join 优化需要启用[自动推导算子并行度](#自动推导并行度)才能生效
 - 目前 Adaptive Skewed Join 优化不支持对包含在 MultiInput 算子内部的 Join 算子进行优化
 - 目前 Adaptive Skewed Join 优化还不支持和 [Batch Job Recovery Progress]({{< ref "docs/ops/batch/recovery_from_job_master_failure" >}}) 同时启用，因此在启用 [Batch Job Recovery Progress]({{< ref "docs/ops/batch/recovery_from_job_master_failure" >}}) 后，Adaptive Skewed Join 优化将不会生效。
 
@@ -167,6 +167,6 @@ Adaptive Batch Scheduler  默认启用 Skewed Join 优化，你可以通过配�
 - **只支持 AdaptiveBatchScheduler**: 不过由于 Adaptive Batch Scheduler 是 Flink 默认的批作业调度器，无需额外配置。除非用户显式的配置了使用其他调度器，例如 [`jobmanager.scheduler: default`]。
 - **只支持所有数据交换都为 BLOCKING 或 HYBRID 模式的作业**: 目前 Adaptive Batch Scheduler 只支持 [shuffle mode]({{< ref "docs/deployment/config" >}}#execution-batch-shuffle-mode) 为 ALL_EXCHANGES_BLOCKING 或 ALL_EXCHANGES_HYBRID_FULL 或 ALL_EXCHANGES_HYBRID_SELECTIVE 的作业。请注意，使用 DataSet API 的作业无法识别上述 shuffle 模式，需要将 ExecutionMode 设置为 BATCH_FORCED 才能强制启用 BLOCKING shuffle。
 - **不支持 FileInputFormat 类型的 source**: 不支持 FileInputFormat 类型的 source, 包括 `StreamExecutionEnvironment#readFile(...)` 和 `StreamExecutionEnvironment#createInput(FileInputFormat, ...)`。 当使用 Adaptive Batch Scheduler 时，用户应该使用新版的 Source API ([FileSystem DataStream Connector]({{< ref "docs/connectors/datastream/filesystem.md" >}}) 或 [FileSystem SQL Connector]({{< ref "docs/connectors/table/filesystem.md" >}})) 来读取文件.
-- **Web UI 上展示的上游输出的数据量和下游收到的数据量可能不一致**: 在使用 Adaptive Batch Scheduler 自动推导并行度时，对于 broadcast 边，上游发送的数据量是基于下游最大并发度估算的结果，与下游算子实际接收的数据量可能会不相等，这在 Web UI 的显示上可能会困扰用户。细节详见 [FLIP-187](https://cwiki.apache.org/confluence/display/FLINK/FLIP-187%3A+Adaptive+Batch+Job+Scheduler)。
+- **Web UI 上展示的上游输出的数据量和下游收到的数据量可能不一致**: 在使用 Adaptive Batch Scheduler 自动推导并行度时，对于 broadcast 边，上游发送的数据量是基于下游最大并行度估算的结果，与下游算子实际接收的数据量可能会不相等，这在 Web UI 的显示上可能会困扰用户。细节详见 [FLIP-187](https://cwiki.apache.org/confluence/display/FLINK/FLIP-187%3A+Adaptive+Batch+Job+Scheduler)。
 
 {{< top >}}
