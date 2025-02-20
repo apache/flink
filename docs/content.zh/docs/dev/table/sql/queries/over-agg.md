@@ -46,8 +46,8 @@ FROM Orders
 SELECT
   agg_func(agg_col) OVER (
     [PARTITION BY col1[, col2, ...]]
-    ORDER BY time_col
-    range_definition),
+    ORDER BY time_col|non_time_col
+    range_definition|row_definition),
   ...
 FROM ...
 ```
@@ -74,6 +74,11 @@ FROM ...
 
 ```sql
 RANGE BETWEEN INTERVAL '30' MINUTE PRECEDING AND CURRENT ROW
+```
+
+The following RANGE interval defines that all rows with a non-time attribute of unbounded rows preceding the current row are included in the aggregate.
+```sql
+RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
 ```
 
 #### ROW 间隔
