@@ -62,9 +62,9 @@ public class RocksStateKeysIterator<K> extends AbstractRocksStateKeysIterator<K>
 
                 final byte[] keyBytes = iterator.key();
                 final K currentKey = deserializeKey(keyBytes, byteArrayDataInputView);
-                final int namespaceByteStartPos = byteArrayDataInputView.getPosition();
 
-                if (isMatchingNameSpace(keyBytes, namespaceByteStartPos)
+                if (isMatchingNameSpace(
+                                keyBytes, byteArrayDataInputView.getPosition(), namespaceBytes)
                         && !Objects.equals(previousKey, currentKey)) {
                     previousKey = currentKey;
                     nextKey = currentKey;
@@ -86,19 +86,5 @@ public class RocksStateKeysIterator<K> extends AbstractRocksStateKeysIterator<K>
         K tmpKey = nextKey;
         nextKey = null;
         return tmpKey;
-    }
-
-    private boolean isMatchingNameSpace(@Nonnull byte[] key, int beginPos) {
-        final int namespaceBytesLength = namespaceBytes.length;
-        final int basicLength = namespaceBytesLength + beginPos;
-        if (key.length >= basicLength) {
-            for (int i = 0; i < namespaceBytesLength; ++i) {
-                if (key[beginPos + i] != namespaceBytes[i]) {
-                    return false;
-                }
-            }
-            return true;
-        }
-        return false;
     }
 }

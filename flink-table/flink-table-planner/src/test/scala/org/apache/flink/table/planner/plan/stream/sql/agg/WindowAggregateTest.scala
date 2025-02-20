@@ -1120,7 +1120,7 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
         |   b,
         |   count(distinct c) AS uv
         |FROM TABLE(
-        |   CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '25' MINUTE, INTERVAL '1' HOUR))
+        |   CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '20' MINUTE, INTERVAL '1' HOUR))
         |GROUP BY GROUPING SETS ((a), (b)), window_start, window_end
       """.stripMargin
     util.verifyRelPlan(sql)

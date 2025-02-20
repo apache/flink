@@ -385,6 +385,12 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
     }
 
     @Override
+    public <N> Stream<K> getKeys(List<String> states, N namespace) {
+        // TODO
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public <N> Stream<Tuple2<K, N>> getKeysAndNamespaces(String state) {
         ForStOperationUtils.ForStKvStateInfo columnInfo = kvStateInformation.get(state);
         if (columnInfo == null

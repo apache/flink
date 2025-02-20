@@ -40,6 +40,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.regex.Pattern;
@@ -99,6 +100,9 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
 
     /** Pattern of the specific table. */
     private final Pattern tablePattern;
+
+    /** List of data to be processed. */
+    private transient List<GenericRowData> genericRowDataList;
 
     private CanalJsonDeserializationSchema(
             DataType physicalDataType,
@@ -200,6 +204,7 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
 
     @Override
     public void open(InitializationContext context) throws Exception {
+        genericRowDataList = new ArrayList<>();
         jsonDeserializer.open(context);
     }
 
@@ -214,6 +219,7 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
         if (message == null || message.length == 0) {
             return;
         }
+        genericRowDataList.clear();
         try {
             final JsonNode root = jsonDeserializer.deserializeToJsonNode(message);
             if (database != null) {
@@ -238,7 +244,7 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
                 for (int i = 0; i < data.size(); i++) {
                     GenericRowData insert = (GenericRowData) data.getRow(i, fieldCount);
                     insert.setRowKind(RowKind.INSERT);
-                    emitRow(row, insert, out);
+                    genericRowDataList.add(handleRow(row, insert));
                 }
             } else if (OP_UPDATE.equals(type)) {
                 // "data" field is an array of row, contains new rows
@@ -260,8 +266,8 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
                     }
                     before.setRowKind(RowKind.UPDATE_BEFORE);
                     after.setRowKind(RowKind.UPDATE_AFTER);
-                    emitRow(row, before, out);
-                    emitRow(row, after, out);
+                    genericRowDataList.add(handleRow(row, before));
+                    genericRowDataList.add(handleRow(row, after));
                 }
             } else if (OP_DELETE.equals(type)) {
                 // "data" field is an array of row, contains deleted rows
@@ -269,7 +275,7 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
                 for (int i = 0; i < data.size(); i++) {
                     GenericRowData insert = (GenericRowData) data.getRow(i, fieldCount);
                     insert.setRowKind(RowKind.DELETE);
-                    emitRow(row, insert, out);
+                    genericRowDataList.add(handleRow(row, insert));
                 }
             } else if (OP_CREATE.equals(type)) {
                 // "data" field is null and "type" is "CREATE" which means
@@ -290,14 +296,15 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
                         format("Corrupt Canal JSON message '%s'.", new String(message)), t);
             }
         }
+        for (GenericRowData genericRowData : genericRowDataList) {
+            out.collect(genericRowData);
+        }
     }
 
-    private void emitRow(
-            GenericRowData rootRow, GenericRowData physicalRow, Collector<RowData> out) {
+    private GenericRowData handleRow(GenericRowData rootRow, GenericRowData physicalRow) {
         // shortcut in case no output projection is required
         if (!hasMetadata) {
-            out.collect(physicalRow);
-            return;
+            return physicalRow;
         }
         final int physicalArity = physicalRow.getArity();
         final int metadataArity = metadataConverters.length;
@@ -310,7 +317,7 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
             producedRow.setField(
                     physicalArity + metadataPos, metadataConverters[metadataPos].convert(rootRow));
         }
-        out.collect(producedRow);
+        return producedRow;
     }
 
     @Override

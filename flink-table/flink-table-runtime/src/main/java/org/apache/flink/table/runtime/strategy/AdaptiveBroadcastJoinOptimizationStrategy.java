@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.graph.util.ImmutableStreamEdge;
 import org.apache.flink.streaming.api.graph.util.ImmutableStreamNode;
 import org.apache.flink.streaming.api.graph.util.StreamEdgeUpdateRequestInfo;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
-import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.ForwardForUnspecifiedPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
@@ -162,7 +162,22 @@ public class AdaptiveBroadcastJoinOptimizationStrategy
                             broadcastThreshold,
                             leftInputSize,
                             rightInputSize);
+                } else {
+                    LOG.info(
+                            "Modification to stream edges for the join node [{}] failed. Keep the join node as is.",
+                            adaptiveJoinNode.getId());
                 }
+            } else {
+                LOG.debug(
+                        "The size of the specified side of the input data for the join node [{}] "
+                                + "is too large to be converted into a broadcast hash join. "
+                                + "The Join type: {}, Broadcast threshold: {} bytes, Left input size: "
+                                + "{} bytes, Right input size: {} bytes.",
+                        adaptiveJoinNode.getId(),
+                        joinType,
+                        broadcastThreshold,
+                        leftInputSize,
+                        rightInputSize);
             }
             adaptiveJoin.markAsBroadcastJoin(
                     isBroadcast, isBroadcast ? leftIsBuild : leftSmallerThanRight);
@@ -208,7 +223,8 @@ public class AdaptiveBroadcastJoinOptimizationStrategy
                         filterEdges(inEdges, leftIsBuild ? 1 : 2), new BroadcastPartitioner<>());
         List<StreamEdgeUpdateRequestInfo> modifiedProbeSideEdges =
                 generateStreamEdgeUpdateRequestInfos(
-                        filterEdges(inEdges, leftIsBuild ? 2 : 1), new ForwardPartitioner<>());
+                        filterEdges(inEdges, leftIsBuild ? 2 : 1),
+                        new ForwardForUnspecifiedPartitioner<>());
         modifiedBuildSideEdges.addAll(modifiedProbeSideEdges);
 
         return context.modifyStreamEdge(modifiedBuildSideEdges);

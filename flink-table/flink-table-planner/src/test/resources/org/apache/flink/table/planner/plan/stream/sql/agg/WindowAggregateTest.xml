@@ -668,7 +668,7 @@ SELECT
    b,
    count(distinct c) AS uv
 FROM TABLE(
-   CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '25' MINUTE, INTERVAL '1' HOUR))
+   CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '20' MINUTE, INTERVAL '1' HOUR))
 GROUP BY GROUPING SETS ((a), (b)), window_start, window_end
       ]]>
     </Resource>
@@ -677,7 +677,7 @@ GROUP BY GROUPING SETS ((a), (b)), window_start, window_end
 LogicalProject(a=[$0], b=[$1], uv=[$4])
 +- LogicalAggregate(group=[{0, 1, 2, 3}], groups=[[{0, 2, 3}, {1, 2, 3}]], uv=[COUNT(DISTINCT $4)])
    +- LogicalProject(a=[$0], b=[$1], window_start=[$7], window_end=[$8], c=[$2])
-      +- LogicalTableFunctionScan(invocation=[CUMULATE(TABLE(#0), DESCRIPTOR($5), 1500000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+      +- LogicalTableFunctionScan(invocation=[CUMULATE(TABLE(#0), DESCRIPTOR($5), 1200000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
          +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
             +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
                +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
@@ -687,7 +687,7 @@ LogicalProject(a=[$0], b=[$1], uv=[$4])
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, b, uv])
-+- WindowAggregate(groupBy=[a, b, $e], window=[CUMULATE(time_col=[rowtime], max_size=[1 h], step=[25 min])], select=[a, b, $e, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end])
++- WindowAggregate(groupBy=[a, b, $e], window=[CUMULATE(time_col=[rowtime], max_size=[1 h], step=[20 min])], select=[a, b, $e, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end])
    +- Exchange(distribution=[hash[a, b, $e]])
       +- Expand(projects=[{a, null AS b, c, 4 AS $e, rowtime}, {null AS a, b, c, 8 AS $e, rowtime}])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
@@ -703,7 +703,7 @@ SELECT
    b,
    count(distinct c) AS uv
 FROM TABLE(
-   CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '25' MINUTE, INTERVAL '1' HOUR))
+   CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '20' MINUTE, INTERVAL '1' HOUR))
 GROUP BY GROUPING SETS ((a), (b)), window_start, window_end
       ]]>
     </Resource>
@@ -712,7 +712,7 @@ GROUP BY GROUPING SETS ((a), (b)), window_start, window_end
 LogicalProject(a=[$0], b=[$1], uv=[$4])
 +- LogicalAggregate(group=[{0, 1, 2, 3}], groups=[[{0, 2, 3}, {1, 2, 3}]], uv=[COUNT(DISTINCT $4)])
    +- LogicalProject(a=[$0], b=[$1], window_start=[$7], window_end=[$8], c=[$2])
-      +- LogicalTableFunctionScan(invocation=[CUMULATE(TABLE(#0), DESCRIPTOR($5), 1500000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+      +- LogicalTableFunctionScan(invocation=[CUMULATE(TABLE(#0), DESCRIPTOR($5), 1200000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
          +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
             +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
                +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
@@ -722,9 +722,9 @@ LogicalProject(a=[$0], b=[$1], uv=[$4])
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, b, uv])
-+- GlobalWindowAggregate(groupBy=[a, b, $e], window=[CUMULATE(slice_end=[$slice_end], max_size=[1 h], step=[25 min])], select=[a, b, $e, COUNT(distinct$0 count$0) AS uv, start('w$) AS window_start, end('w$) AS window_end])
++- GlobalWindowAggregate(groupBy=[a, b, $e], window=[CUMULATE(slice_end=[$slice_end], max_size=[1 h], step=[20 min])], select=[a, b, $e, COUNT(distinct$0 count$0) AS uv, start('w$) AS window_start, end('w$) AS window_end])
    +- Exchange(distribution=[hash[a, b, $e]])
-      +- LocalWindowAggregate(groupBy=[a, b, $e], window=[CUMULATE(time_col=[rowtime], max_size=[1 h], step=[25 min])], select=[a, b, $e, COUNT(distinct$0 c) AS count$0, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
+      +- LocalWindowAggregate(groupBy=[a, b, $e], window=[CUMULATE(time_col=[rowtime], max_size=[1 h], step=[20 min])], select=[a, b, $e, COUNT(distinct$0 c) AS count$0, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
          +- Expand(projects=[{a, null AS b, c, 4 AS $e, rowtime}, {null AS a, b, c, 8 AS $e, rowtime}])
             +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
                +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c, rowtime], metadata=[]]], fields=[a, b, c, rowtime])

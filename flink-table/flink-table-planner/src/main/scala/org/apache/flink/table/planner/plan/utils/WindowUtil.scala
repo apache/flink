@@ -217,6 +217,16 @@ object WindowUtil {
           null
         }
         val interval = getOperandAsLong(windowCall.operands(2))
+        if (interval <= 0) {
+          throw new ValidationException(
+            s"TUMBLE table function based aggregate requires size to be positive," +
+              s" but got $interval ms.")
+        }
+        if (offset != null && Math.abs(offset.toMillis) >= interval) {
+          throw new ValidationException(
+            s"TUMBLE table function parameters must satisfy abs(offset) < size, " +
+              s"but got size $interval ms and offset ${offset.toMillis} ms.")
+        }
         new TumblingWindowSpec(Duration.ofMillis(interval), offset)
 
       case FlinkSqlOperatorTable.HOP =>
@@ -227,6 +237,11 @@ object WindowUtil {
         }
         val slide = getOperandAsLong(windowCall.operands(2))
         val size = getOperandAsLong(windowCall.operands(3))
+        if (slide <= 0 || size <= 0) {
+          throw new ValidationException(
+            s"HOP table function based aggregate requires slide and size to be positive," +
+              s" but got slide $slide ms and size $size ms.")
+        }
         new HoppingWindowSpec(Duration.ofMillis(size), Duration.ofMillis(slide), offset)
 
       case FlinkSqlOperatorTable.CUMULATE =>
@@ -237,6 +252,15 @@ object WindowUtil {
         }
         val step = getOperandAsLong(windowCall.operands(2))
         val maxSize = getOperandAsLong(windowCall.operands(3))
+        if (step <= 0 || maxSize <= 0) {
+          throw new ValidationException(
+            s"CUMULATE table function based aggregate requires maxSize and step to be positive," +
+              s" but got maxSize $maxSize ms and step $step ms.")
+        }
+        if (maxSize % step != 0) {
+          throw new ValidationException("CUMULATE table function based aggregate requires maxSize " +
+            s"must be an integral multiple of step, but got maxSize $maxSize ms and step $step ms.")
+        }
         new CumulativeWindowSpec(Duration.ofMillis(maxSize), Duration.ofMillis(step), offset)
       case FlinkSqlOperatorTable.SESSION =>
         val tableArgCall = windowCall.operands(0).asInstanceOf[RexTableArgCall]
@@ -244,6 +268,11 @@ object WindowUtil {
           throw new ValidationException("Session window TVF doesn't support order by clause.")
         }
         val gap = getOperandAsLong(windowCall.operands(2))
+        if (gap <= 0) {
+          throw new ValidationException(
+            s"SESSION table function based aggregate requires gap to be positive," +
+              s" but got gap $gap ms.")
+        }
         new SessionWindowSpec(Duration.ofMillis(gap), tableArgCall.getPartitionKeys)
     }
 

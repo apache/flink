@@ -161,7 +161,7 @@ public final class SliceAssigners {
             checkArgument(
                     Math.abs(offset) < size,
                     String.format(
-                            "Tumbling Window parameters must satisfy abs(offset) < size, bot got size %dms and offset %dms.",
+                            "Tumbling Window parameters must satisfy abs(offset) < size, but got size %dms and offset %dms.",
                             size, offset));
             this.size = size;
             this.offset = offset;

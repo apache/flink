@@ -226,8 +226,6 @@ public class KeyedStateInputFormat<K, N, OUT>
                     "User defined function KeyedStateReaderFunction#readKey threw an exception", e);
         }
 
-        keysAndNamespaces.remove();
-
         return out.next();
     }
 

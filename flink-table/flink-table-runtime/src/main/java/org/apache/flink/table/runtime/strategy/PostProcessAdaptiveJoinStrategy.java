@@ -29,6 +29,9 @@ import org.apache.flink.streaming.api.graph.util.StreamNodeUpdateRequestInfo;
 import org.apache.flink.table.runtime.operators.join.adaptive.AdaptiveJoin;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,6 +42,9 @@ import java.util.List;
  * right sides.
  */
 public class PostProcessAdaptiveJoinStrategy extends BaseAdaptiveJoinOperatorOptimizationStrategy {
+
+    private static final Logger LOG =
+            LoggerFactory.getLogger(PostProcessAdaptiveJoinStrategy.class);
 
     @Override
     public boolean onOperatorsFinished(
@@ -68,6 +74,10 @@ public class PostProcessAdaptiveJoinStrategy extends BaseAdaptiveJoinOperatorOpt
                             "Unexpected error occurs while reordering the inputs "
                                     + "of the adaptive join node, potentially leading to data inaccuracies. "
                                     + "Exceptions will be thrown.");
+                } else {
+                    LOG.info(
+                            "Reordered the inputs of the adaptive join node {}.",
+                            adaptiveJoinNode.getId());
                 }
             }
 

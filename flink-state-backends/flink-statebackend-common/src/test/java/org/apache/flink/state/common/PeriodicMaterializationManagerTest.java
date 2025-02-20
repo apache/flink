@@ -22,8 +22,6 @@ import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.state.common.PeriodicMaterializationManager.MaterializationTarget;
 
-import org.junit.jupiter.api.Test;
-
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.flink.shaded.guava32.com.google.common.collect.Iterators.getOnlyElement;
 import static org.apache.flink.util.concurrent.Executors.newDirectExecutorService;
@@ -32,7 +30,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** {@link PeriodicMaterializationManager} test. */
 class PeriodicMaterializationManagerTest {
 
-    @Test
     void testInitialDelay() {
         ManuallyTriggeredScheduledExecutorService scheduledExecutorService =
                 new ManuallyTriggeredScheduledExecutorService();

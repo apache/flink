@@ -17,12 +17,14 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql
 
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.{CsvSource, ValueSource}
 
 import java.time.Duration
 
@@ -345,6 +347,103 @@ class WindowTableFunctionTest extends TableTestBase {
         |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
         |""".stripMargin
     util.verifyRelPlan(sql)
+  }
+
+  @ParameterizedTest(name = "{index}: {0}")
+  @ValueSource(ints = Array[Int](-1, 0))
+  def testTumbleWindowWithNonPositiveInterval(size: Int): Unit = {
+    val sql =
+      s"""
+         |SELECT *
+         |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '$size' MINUTE))
+         |""".stripMargin
+
+    assertThatThrownBy(() => util.verifyRelPlan(sql))
+      .hasCause(
+        new ValidationException(
+          s"TUMBLE table function based aggregate requires size to be positive," +
+            s" but got ${size * 1000 * 60} ms."))
+  }
+
+  @ParameterizedTest(name = "{index}: {0}, {1}")
+  @CsvSource(Array[String]("1, 2", "2, -2"))
+  def testTumbleWindowWithWrongOffset(size: Int, offset: Int): Unit = {
+    val sql =
+      s"""
+         |SELECT *
+         |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '$size' MINUTE, INTERVAL '$offset' MINUTE))
+         |""".stripMargin
+
+    assertThatThrownBy(() => util.verifyRelPlan(sql))
+      .hasCause(
+        new ValidationException(
+          s"TUMBLE table function parameters must satisfy abs(offset) < size, " +
+            s"but got size ${size * 60 * 1000} ms and offset ${offset * 60 * 1000} ms."))
+  }
+
+  @ParameterizedTest(name = "{index}: {0}, {1}")
+  @CsvSource(Array[String]("-1, 1", "0, 2", "3, 0", "4, -3"))
+  def testCumulateWindowWithNonPositiveStepAndSize(step: Int, size: Int): Unit = {
+    val sql =
+      s"""
+         |SELECT *
+         |FROM TABLE(
+         | CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '$step' MINUTE, INTERVAL '$size' HOUR))
+         |""".stripMargin
+
+    assertThatThrownBy(() => util.verifyRelPlan(sql))
+      .hasCause(
+        new ValidationException(
+          "CUMULATE table function based aggregate requires maxSize and step to be positive," +
+            s" but got maxSize ${size * 1000 * 60 * 60} ms and step ${step * 1000 * 60} ms."))
+  }
+
+  @ParameterizedTest(name = "{index}: {0}, {1}")
+  @CsvSource(Array[String]("2, 3", "4, 7"))
+  def testCumulateWindowWithWrongStepAndSize(step: Int, size: Int): Unit = {
+    val sql =
+      s"""
+         |SELECT *
+         |FROM TABLE(
+         | CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '$step' SECOND, INTERVAL '$size' SECOND))
+         |""".stripMargin
+
+    assertThatThrownBy(() => util.verifyRelPlan(sql))
+      .hasCause(new ValidationException("CUMULATE table function based aggregate requires maxSize must " +
+        s"be an integral multiple of step, but got maxSize ${size * 1000} ms and step ${step * 1000} ms."))
+  }
+
+  @ParameterizedTest(name = "{index}: {0}, {1}")
+  @CsvSource(Array[String]("-1, 1", "0, 2", "3, 0", "4, -3"))
+  def testHopWindowWithNonPositiveSlideAndSize(slide: Int, size: Int): Unit = {
+    val sql =
+      s"""
+         |SELECT *
+         |FROM TABLE(
+         | HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '$slide' MINUTE, INTERVAL '$size' MINUTE))
+         |""".stripMargin
+
+    assertThatThrownBy(() => util.verifyRelPlan(sql))
+      .hasCause(
+        new ValidationException(
+          "HOP table function based aggregate requires slide and size to be positive," +
+            s" but got slide ${slide * 1000 * 60} ms and size ${size * 1000 * 60} ms."))
+  }
+
+  @ParameterizedTest(name = "{index}: {0}")
+  @ValueSource(ints = Array[Int](-1, 0))
+  def testSessionWindowWithNonPositiveGap(gap: Int): Unit = {
+    val sql =
+      s"""
+         |SELECT *
+         |FROM TABLE(SESSION(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '$gap' MINUTE))
+         |""".stripMargin
+
+    assertThatThrownBy(() => util.verifyRelPlan(sql))
+      .hasCause(
+        new ValidationException(
+          s"SESSION table function based aggregate requires gap to be positive," +
+            s" but got gap ${gap * 1000 * 60} ms."))
   }
 
   private def enableMiniBatch(): Unit = {

@@ -147,7 +147,7 @@ network transfer:
 ```java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-DataStreamSource<String> source = env.fromElements(...);
+DataStreamSource<String> source = env.fromData(...);
 
 source.name("source")
 	.map(...).name("map1")

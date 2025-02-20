@@ -83,19 +83,20 @@ public class EventTimeWrappedOneInputStreamProcessFunction<IN, OUT>
     }
 
     @Override
-    public void endInput(NonPartitionedContext<OUT> ctx) {
+    public void endInput(NonPartitionedContext<OUT> ctx) throws Exception {
         wrappedUserFunction.endInput(ctx);
     }
 
     @Override
     public void onProcessingTimer(
-            long timestamp, Collector<OUT> output, PartitionedContext<OUT> ctx) {
+            long timestamp, Collector<OUT> output, PartitionedContext<OUT> ctx) throws Exception {
         wrappedUserFunction.onProcessingTimer(timestamp, output, ctx);
     }
 
     @Override
     public WatermarkHandlingResult onWatermark(
-            Watermark watermark, Collector<OUT> output, NonPartitionedContext<OUT> ctx) {
+            Watermark watermark, Collector<OUT> output, NonPartitionedContext<OUT> ctx)
+            throws Exception {
         if (EventTimeExtensionImpl.isEventTimeExtensionWatermark(watermark)) {
             // If the watermark is from the event time extension, process it and call {@code
             // userFunction#onEventTimeWatermark} when the event time is updated; otherwise, forward
@@ -118,7 +119,8 @@ public class EventTimeWrappedOneInputStreamProcessFunction<IN, OUT>
         }
     }
 
-    public void onEventTime(long timestamp, Collector<OUT> output, PartitionedContext ctx) {
+    public void onEventTime(long timestamp, Collector<OUT> output, PartitionedContext<OUT> ctx)
+            throws Exception {
         wrappedUserFunction.onEventTimer(timestamp, output, ctx);
     }
 
