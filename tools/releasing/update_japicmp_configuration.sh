@@ -64,7 +64,8 @@ function clear_exclusions() {
   exclusion_end=$(($(sed -n '/<!-- MARKER: end exclusions/=' ${POM}) - 1))
 
   if [[ $exclusion_start -lt $exclusion_end ]]; then
-    sed -i "${exclusion_start},${exclusion_end}d" ${POM}
+    sed -i.bak "${exclusion_start},${exclusion_end}d" ${POM}
+    rm ${POM}.bak
   fi
 }
 
