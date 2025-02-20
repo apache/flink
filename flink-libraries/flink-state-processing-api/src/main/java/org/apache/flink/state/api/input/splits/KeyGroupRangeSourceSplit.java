@@ -22,45 +22,59 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
-import org.apache.flink.runtime.state.OperatorStateHandle;
-
-import javax.annotation.Nonnull;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 
 import java.util.Collections;
+import java.util.List;
 
-/** An input split containing state handles for operator state. */
+/** An input split representing a key-group range from a savepoint. */
 @Internal
-public final class OperatorStateInputSplit implements PrioritizedOperatorSubtaskStateInputSplit {
+public final class KeyGroupRangeSourceSplit implements PrioritizedOperatorSubtaskStateSourceSplit {
 
-    private static final long serialVersionUID = -1892383531558135420L;
+    private static final long serialVersionUID = -3715297712294815706L;
 
-    private final StateObjectCollection<OperatorStateHandle> managedOperatorState;
+    private final List<KeyedStateHandle> managedKeyedState;
 
-    private final int splitNum;
+    private final List<KeyedStateHandle> rawKeyedState;
 
-    public OperatorStateInputSplit(
-            StateObjectCollection<OperatorStateHandle> managedOperatorState, int splitNum) {
-        this.managedOperatorState = managedOperatorState;
-        this.splitNum = splitNum;
+    private final int numKeyGroups;
+
+    private final int split;
+
+    public KeyGroupRangeSourceSplit(
+            List<KeyedStateHandle> managedKeyedState,
+            List<KeyedStateHandle> rawKeyedState,
+            int numKeyGroups,
+            int split) {
+
+        this.managedKeyedState = managedKeyedState;
+        this.rawKeyedState = rawKeyedState;
+
+        this.numKeyGroups = numKeyGroups;
+        this.split = split;
+    }
+
+    public int getSplit() {
+        return split;
     }
 
     @Override
-    public int getSplitNumber() {
-        return splitNum;
-    }
-
-    @Nonnull
-    public StateObjectCollection<OperatorStateHandle> getPrioritizedManagedOperatorState() {
-        return this.managedOperatorState;
+    public String splitId() {
+        return "" + split;
     }
 
     @Override
     public PrioritizedOperatorSubtaskState getPrioritizedOperatorSubtaskState() {
         final OperatorSubtaskState subtaskState =
                 OperatorSubtaskState.builder()
-                        .setManagedOperatorState(managedOperatorState)
+                        .setManagedKeyedState(new StateObjectCollection<>(managedKeyedState))
+                        .setRawKeyedState(new StateObjectCollection<>(rawKeyedState))
                         .build();
         return new PrioritizedOperatorSubtaskState.Builder(subtaskState, Collections.emptyList())
                 .build();
+    }
+
+    public int getNumKeyGroups() {
+        return numKeyGroups;
     }
 }

@@ -16,15 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.api.input.splits;
+package org.apache.flink.state.api.input.source.common;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.io.InputSplit;
-import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 
-/** An input split that returns {@link PrioritizedOperatorSubtaskState}. */
+/** No operation enumerator state. */
 @Internal
-public interface PrioritizedOperatorSubtaskStateInputSplit extends InputSplit {
-
-    PrioritizedOperatorSubtaskState getPrioritizedOperatorSubtaskState();
-}
+public class NoOpEnumState {}

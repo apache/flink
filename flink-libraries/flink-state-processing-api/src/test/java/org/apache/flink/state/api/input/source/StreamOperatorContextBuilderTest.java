@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.api.input;
+package org.apache.flink.state.api.input.source;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateBackendOptions;
@@ -24,7 +24,8 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.state.api.input.splits.PrioritizedOperatorSubtaskStateInputSplit;
+import org.apache.flink.state.api.input.source.common.StreamOperatorContextBuilder;
+import org.apache.flink.state.api.input.splits.PrioritizedOperatorSubtaskStateSourceSplit;
 import org.apache.flink.state.api.utils.CustomStateBackendFactory;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 
@@ -51,7 +52,7 @@ public class StreamOperatorContextBuilderTest {
                         context,
                         configuration,
                         new OperatorState(null, null, new OperatorID(), 1, 128),
-                        new PrioritizedOperatorSubtaskStateInputSplit() {
+                        new PrioritizedOperatorSubtaskStateSourceSplit() {
                             @Override
                             public PrioritizedOperatorSubtaskState
                                     getPrioritizedOperatorSubtaskState() {
@@ -59,8 +60,8 @@ public class StreamOperatorContextBuilderTest {
                             }
 
                             @Override
-                            public int getSplitNumber() {
-                                return 0;
+                            public String splitId() {
+                                return Integer.toString(0);
                             }
                         },
                         new CloseableRegistry(),

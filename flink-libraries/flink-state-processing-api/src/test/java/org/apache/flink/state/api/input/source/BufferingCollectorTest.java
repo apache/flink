@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.api.input;
+package org.apache.flink.state.api.input.source;
+
+import org.apache.flink.state.api.input.source.common.BufferingCollector;
 
 import org.junit.Assert;
 import org.junit.Test;
