@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler.adaptivebatch.util;
 import org.apache.flink.runtime.executiongraph.ExecutionVertexInputInfo;
 import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.executiongraph.JobVertexInputInfo;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.adaptivebatch.BisectionSearchUtils;
 import org.apache.flink.runtime.scheduler.adaptivebatch.BlockingInputInfo;
 
@@ -43,6 +44,8 @@ import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
 import static org.apache.flink.runtime.executiongraph.IndexRangeUtil.mergeIndexRanges;
+import static org.apache.flink.runtime.executiongraph.VertexInputInfoComputationUtils.computeVertexInputInfoForAllToAll;
+import static org.apache.flink.runtime.executiongraph.VertexInputInfoComputationUtils.computeVertexInputInfoForPointwise;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -657,5 +660,54 @@ public class VertexParallelismAndInputInfosDeciderUtils {
     public static long calculateDataVolumePerTaskForInput(
             long globalDataVolumePerTask, long inputsGroupBytes, long totalDataBytes) {
         return (long) ((double) inputsGroupBytes / totalDataBytes * globalDataVolumePerTask);
+    }
+
+    /**
+     * Logs the data distribution optimization info when a balanced data distribution algorithm is
+     * effectively optimized compared to the num-based data distribution algorithm.
+     *
+     * @param logger The logger instance used for logging output.
+     * @param jobVertexId The id for the job vertex.
+     * @param inputInfo The original input info
+     * @param optimizedJobVertexInputInfo The optimized job vertex input info.
+     */
+    public static void logBalancedDataDistributionOptimizationResult(
+            Logger logger,
+            JobVertexID jobVertexId,
+            BlockingInputInfo inputInfo,
+            JobVertexInputInfo optimizedJobVertexInputInfo) {
+        List<ExecutionVertexInputInfo> optimizedExecutionVertexInputInfos =
+                optimizedJobVertexInputInfo.getExecutionVertexInputInfos();
+        int parallelism = optimizedExecutionVertexInputInfos.size();
+        List<ExecutionVertexInputInfo> nonOptimizedExecutionVertexInputInfos =
+                computeNumBasedJobVertexInputInfo(parallelism, inputInfo)
+                        .getExecutionVertexInputInfos();
+        // When the execution vertex input infos of the two are inconsistent, we consider that
+        // data balanced distribution optimization has performed.
+        if (!optimizedExecutionVertexInputInfos.equals(nonOptimizedExecutionVertexInputInfos)) {
+            logger.info(
+                    "Optimized the balanced data distribution for vertex {}, which reads from result {} with type number {}",
+                    jobVertexId,
+                    inputInfo.getResultId(),
+                    inputInfo.getInputTypeNumber());
+        }
+    }
+
+    private static JobVertexInputInfo computeNumBasedJobVertexInputInfo(
+            int parallelism, BlockingInputInfo inputInfo) {
+        int sourceParallelism = inputInfo.getNumPartitions();
+
+        if (inputInfo.isPointwise()) {
+            return computeVertexInputInfoForPointwise(
+                    sourceParallelism, parallelism, inputInfo::getNumSubpartitions, true);
+        } else {
+            return computeVertexInputInfoForAllToAll(
+                    sourceParallelism,
+                    parallelism,
+                    inputInfo::getNumSubpartitions,
+                    true,
+                    inputInfo.isBroadcast(),
+                    inputInfo.isSingleSubpartitionContainsAllData());
+        }
     }
 }

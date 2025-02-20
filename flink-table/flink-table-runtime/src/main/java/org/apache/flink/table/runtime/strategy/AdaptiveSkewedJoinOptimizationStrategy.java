@@ -205,7 +205,7 @@ public class AdaptiveSkewedJoinOptimizationStrategy
         checkState(
                 leftInputSize != null,
                 "Left input bytes of adaptive join [%s] is unknown, which is unexpected.",
-                adaptiveJoinNode.getId());
+                adaptiveJoinNode.toString());
         long[] rightInputSize =
                 aggregatedProducedBytesByTypeNumberAndNodeId
                         .get(adaptiveJoinNode.getId())
@@ -213,7 +213,7 @@ public class AdaptiveSkewedJoinOptimizationStrategy
         checkState(
                 rightInputSize != null,
                 "Right input bytes of adaptive join [%s] is unknown, which is unexpected.",
-                adaptiveJoinNode.getId());
+                adaptiveJoinNode.toString());
 
         long leftSkewedThreshold =
                 computeSkewThreshold(median(leftInputSize), skewedFactor, skewedThresholdInBytes);
@@ -254,7 +254,7 @@ public class AdaptiveSkewedJoinOptimizationStrategy
             LOG.info(
                     "Apply skewed join optimization {} for left input of node {}.",
                     isModificationSucceed ? "succeeded" : "failed",
-                    adaptiveJoinNode.getId());
+                    adaptiveJoinNode);
         }
         if (isRightOptimizable) {
             boolean isModificationSucceed =
@@ -263,7 +263,7 @@ public class AdaptiveSkewedJoinOptimizationStrategy
             LOG.info(
                     "Apply skewed join optimization {} for right input of node {}.",
                     isModificationSucceed ? "succeeded" : "failed",
-                    adaptiveJoinNode.getId());
+                    adaptiveJoinNode);
         }
     }
 
