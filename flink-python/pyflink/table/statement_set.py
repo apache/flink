@@ -23,11 +23,13 @@ from pyflink.table.compiled_plan import CompiledPlan
 from pyflink.table.table_descriptor import TableDescriptor
 from pyflink.table.table_pipeline import TablePipeline
 from pyflink.table.table_result import TableResult
+from pyflink.util.api_stability_decorators import PublicEvolving
 from pyflink.util.java_utils import to_j_explain_detail_arr
 
 __all__ = ['StatementSet']
 
 
+@PublicEvolving()
 class StatementSet(object):
     """
     A :class:`~StatementSet` accepts pipelines defined by DML statements or :class:`~Table` objects.

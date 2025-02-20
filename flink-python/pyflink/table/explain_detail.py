@@ -18,7 +18,10 @@
 
 __all__ = ['ExplainDetail']
 
+from pyflink.util.api_stability_decorators import PublicEvolving
 
+
+@PublicEvolving()
 class ExplainDetail(object):
     """
     ExplainDetail defines the types of details for explain result.
