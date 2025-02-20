@@ -115,25 +115,26 @@ public class FlinkRecomputeStatisticsProgram implements FlinkOptimizeProgram<Bat
             FilterPushDownSpec filterPushDownSpec,
             boolean reportStatEnabled) {
         TableStats origTableStats = table.getStatistic().getTableStats();
+        // bail out early if stats computation is disabled.
+        if (!reportStatEnabled) {
+            return origTableStats;
+        }
         DynamicTableSource tableSource = table.tableSource();
         if (filterPushDownSpec != null && !filterPushDownSpec.isAllPredicatesRetained()) {
             // filter push down but some predicates are accepted by source and not in reaming
             // predicates
             // the catalog do not support get statistics with filters,
-            // so only call reportStatistics method if reportStatEnabled is true
+            // so call reportStatistics method of the table source.
             // TODO estimate statistics by selectivity
-            return reportStatEnabled
-                    ? ((SupportsStatisticReport) tableSource).reportStatistics()
-                    : null;
+            return ((SupportsStatisticReport) tableSource).reportStatistics();
         } else if (partitionPushDownSpec != null) {
             // ignore filter push down if all pushdown predicates are also in outer Filter operator
             // otherwise the result will be estimated twice.
             // partition push down
             // try to get the statistics for the remaining partitions
             TableStats newTableStat = getPartitionsTableStats(table, partitionPushDownSpec);
-            // call reportStatistics method if reportStatEnabled is true and the partition
-            // statistics is unknown
-            if (reportStatEnabled && isUnknownTableStats(newTableStat)) {
+            // call reportStatistics method if the partition statistics is unknown.
+            if (isUnknownTableStats(newTableStat)) {
                 return ((SupportsStatisticReport) tableSource).reportStatistics();
             } else {
                 return newTableStat;
@@ -143,9 +144,8 @@ public class FlinkRecomputeStatisticsProgram implements FlinkOptimizeProgram<Bat
                 // if table is partition table, try to recompute stats by catalog.
                 origTableStats = getPartitionsTableStats(table, null);
             }
-            // call reportStatistics method if reportStatEnabled is true and the newTableStats is
-            // unknown.
-            if (reportStatEnabled && isUnknownTableStats(origTableStats)) {
+            // call reportStatistics method if the newTableStats is unknown.
+            if (isUnknownTableStats(origTableStats)) {
                 return ((SupportsStatisticReport) tableSource).reportStatistics();
             } else {
                 return origTableStats;
