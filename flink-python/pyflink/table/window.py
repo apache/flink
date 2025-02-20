@@ -20,6 +20,7 @@ from py4j.java_gateway import get_method
 from pyflink.java_gateway import get_gateway
 from pyflink.table import Expression
 from pyflink.table.expression import _get_java_expression
+from pyflink.util.api_stability_decorators import PublicEvolving
 
 __all__ = [
     'Tumble',
@@ -33,6 +34,7 @@ __all__ = [
 from pyflink.table.utils import to_expression_jarray
 
 
+@PublicEvolving()
 class GroupWindow(object):
     """
     A group window specification.
@@ -51,6 +53,7 @@ class GroupWindow(object):
         self._java_window = java_window
 
 
+@PublicEvolving()
 class Tumble(object):
     """
     Helper class for creating a tumbling window. Tumbling windows are consecutive, non-overlapping
@@ -79,6 +82,7 @@ class Tumble(object):
         return TumbleWithSize(get_gateway().jvm.Tumble.over(_get_java_expression(size)))
 
 
+@PublicEvolving()
 class TumbleWithSize(object):
     """
     Tumbling window.
@@ -106,6 +110,7 @@ class TumbleWithSize(object):
         return TumbleWithSizeOnTime(self._java_window.on(_get_java_expression(time_field)))
 
 
+@PublicEvolving()
 class TumbleWithSizeOnTime(object):
     """
     Tumbling window on time. You need to assign an alias for the window.
@@ -128,6 +133,7 @@ class TumbleWithSizeOnTime(object):
         return GroupWindow(get_method(self._java_window, "as")(alias))
 
 
+@PublicEvolving()
 class Session(object):
     """
     Helper class for creating a session window. The boundary of session windows are defined by
@@ -157,6 +163,7 @@ class Session(object):
         return SessionWithGap(get_gateway().jvm.Session.withGap(_get_java_expression(gap)))
 
 
+@PublicEvolving()
 class SessionWithGap(object):
     """
     Session window.
@@ -184,6 +191,7 @@ class SessionWithGap(object):
         return SessionWithGapOnTime(self._java_window.on(_get_java_expression(time_field)))
 
 
+@PublicEvolving()
 class SessionWithGapOnTime(object):
     """
     Session window on time. You need to assign an alias for the window.
@@ -206,6 +214,7 @@ class SessionWithGapOnTime(object):
         return GroupWindow(get_method(self._java_window, "as")(alias))
 
 
+@PublicEvolving()
 class Slide(object):
     """
     Helper class for creating a sliding window. Sliding windows have a fixed size and slide by
@@ -243,6 +252,7 @@ class Slide(object):
         return SlideWithSize(get_gateway().jvm.Slide.over(_get_java_expression(size)))
 
 
+@PublicEvolving()
 class SlideWithSize(object):
     """
     Partially specified sliding window. The size of the window either as time or row-count
@@ -269,6 +279,7 @@ class SlideWithSize(object):
         return SlideWithSizeAndSlide(self._java_window.every(_get_java_expression(slide)))
 
 
+@PublicEvolving()
 class SlideWithSizeAndSlide(object):
     """
     Sliding window. The size of the window either as time or row-count interval.
@@ -293,6 +304,7 @@ class SlideWithSizeAndSlide(object):
         return SlideWithSizeAndSlideOnTime(self._java_window.on(_get_java_expression(time_field)))
 
 
+@PublicEvolving()
 class SlideWithSizeAndSlideOnTime(object):
     """
     Sliding window on time. You need to assign an alias for the window.
@@ -315,6 +327,7 @@ class SlideWithSizeAndSlideOnTime(object):
         return GroupWindow(get_method(self._java_window, "as")(alias))
 
 
+@PublicEvolving()
 class Over(object):
     """
     Helper class for creating an over window. Similar to SQL, over window aggregates compute an
@@ -361,6 +374,7 @@ class Over(object):
             to_expression_jarray(partition_by)))
 
 
+@PublicEvolving()
 class OverWindowPartitionedOrdered(object):
     """
     Partially defined over window with (optional) partitioning and order.
@@ -389,6 +403,7 @@ class OverWindowPartitionedOrdered(object):
             self._java_over_window.preceding(_get_java_expression(preceding)))
 
 
+@PublicEvolving()
 class OverWindowPartitionedOrderedPreceding(object):
     """
     Partially defined over window with (optional) partitioning, order, and preceding.
@@ -418,6 +433,7 @@ class OverWindowPartitionedOrderedPreceding(object):
             self._java_over_window.following(_get_java_expression(following)))
 
 
+@PublicEvolving()
 class OverWindowPartitioned(object):
     """
     Partially defined over window with partitioning.
@@ -442,6 +458,7 @@ class OverWindowPartitioned(object):
             _get_java_expression(order_by)))
 
 
+@PublicEvolving()
 class OverWindow(object):
     """
     An over window specification.

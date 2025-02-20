@@ -19,10 +19,12 @@ from typing import List
 
 from pyflink.table.expression import Expression
 from pyflink.table.types import DataType, _from_java_data_type
+from pyflink.util.api_stability_decorators import PublicEvolving
 
 __all__ = ["ResolvedExpression"]
 
 
+@PublicEvolving()
 class ResolvedExpression(Expression):
     """
     Expression that has been fully resolved and validated.
