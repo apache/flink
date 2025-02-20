@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.api.input;
+package org.apache.flink.state.api.input.operator.iterator;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.StateDescriptor;
@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.util.CloseableIterator;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -82,6 +83,6 @@ public final class MultiStateKeyIterator<K> implements CloseableIterator<K> {
 
     @Override
     public void close() throws Exception {
-        registry.close();
+        IOUtils.closeQuietly(registry);
     }
 }

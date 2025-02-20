@@ -20,25 +20,25 @@ package org.apache.flink.state.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
-import org.apache.flink.state.api.input.BroadcastStateInputFormat;
-import org.apache.flink.state.api.input.KeyedStateInputFormat;
-import org.apache.flink.state.api.input.ListStateInputFormat;
-import org.apache.flink.state.api.input.SourceBuilder;
-import org.apache.flink.state.api.input.UnionStateInputFormat;
 import org.apache.flink.state.api.input.operator.KeyedStateReaderOperator;
+import org.apache.flink.state.api.input.source.broadcast.BroadcastStateSource;
+import org.apache.flink.state.api.input.source.keyed.KeyedStateSource;
+import org.apache.flink.state.api.input.source.list.ListStateSource;
+import org.apache.flink.state.api.input.source.union.UnionStateSource;
 import org.apache.flink.state.api.runtime.MutableConfig;
 import org.apache.flink.state.api.runtime.SavepointLoader;
 import org.apache.flink.state.api.runtime.metadata.SavepointMetadataV2;
@@ -194,14 +194,15 @@ public class SavepointReader {
             throws IOException {
 
         OperatorState operatorState = metadata.getOperatorState(identifier);
-        ListStateInputFormat<T> inputFormat =
-                new ListStateInputFormat<>(
+        Source<T, ?, ?> source =
+                new ListStateSource<>(
+                        stateBackend,
                         operatorState,
                         MutableConfig.of(env.getConfiguration()),
-                        stateBackend,
-                        descriptor,
-                        env.getConfig());
-        return SourceBuilder.fromFormat(env, inputFormat, typeInfo);
+                        env.getConfig(),
+                        descriptor);
+        return env.fromSource(
+                source, WatermarkStrategy.noWatermarks(), "List State Source", typeInfo);
     }
 
     /**
@@ -249,14 +250,15 @@ public class SavepointReader {
             throws IOException {
 
         OperatorState operatorState = metadata.getOperatorState(identifier);
-        UnionStateInputFormat<T> inputFormat =
-                new UnionStateInputFormat<>(
+        Source<T, ?, ?> source =
+                new UnionStateSource<>(
+                        stateBackend,
                         operatorState,
                         MutableConfig.of(env.getConfiguration()),
-                        stateBackend,
-                        descriptor,
-                        env.getConfig());
-        return SourceBuilder.fromFormat(env, inputFormat, typeInfo);
+                        env.getConfig(),
+                        descriptor);
+        return env.fromSource(
+                source, WatermarkStrategy.noWatermarks(), "Union State Source", typeInfo);
     }
 
     /**
@@ -323,15 +325,18 @@ public class SavepointReader {
             throws IOException {
 
         OperatorState operatorState = metadata.getOperatorState(identifier);
-        BroadcastStateInputFormat<K, V> inputFormat =
-                new BroadcastStateInputFormat<>(
+        Source<Tuple2<K, V>, ?, ?> source =
+                new BroadcastStateSource<>(
+                        stateBackend,
                         operatorState,
                         MutableConfig.of(env.getConfiguration()),
-                        stateBackend,
-                        descriptor,
-                        env.getConfig());
-        return SourceBuilder.fromFormat(
-                env, inputFormat, new TupleTypeInfo<>(keyTypeInfo, valueTypeInfo));
+                        env.getConfig(),
+                        descriptor);
+        return env.fromSource(
+                source,
+                WatermarkStrategy.noWatermarks(),
+                "Broadcast State Source",
+                new TupleTypeInfo<>(keyTypeInfo, valueTypeInfo));
     }
 
     /**
@@ -403,15 +408,15 @@ public class SavepointReader {
             throws IOException {
 
         OperatorState operatorState = metadata.getOperatorState(identifier);
-        KeyedStateInputFormat<K, VoidNamespace, OUT> inputFormat =
-                new KeyedStateInputFormat<>(
-                        operatorState,
+        Source<OUT, ?, ?> source =
+                new KeyedStateSource<>(
                         stateBackend,
+                        operatorState,
                         MutableConfig.of(env.getConfiguration()),
-                        new KeyedStateReaderOperator<>(function, keyTypeInfo),
-                        env.getConfig());
-
-        return SourceBuilder.fromFormat(env, inputFormat, outTypeInfo);
+                        env.getConfig(),
+                        new KeyedStateReaderOperator<>(function, keyTypeInfo));
+        return env.fromSource(
+                source, WatermarkStrategy.noWatermarks(), "Keyed State Source", outTypeInfo);
     }
 
     /**

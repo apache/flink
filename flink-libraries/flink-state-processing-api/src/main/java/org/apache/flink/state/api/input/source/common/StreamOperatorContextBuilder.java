@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.api.input;
+package org.apache.flink.state.api.input.source.common;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -29,7 +29,7 @@ import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
-import org.apache.flink.state.api.input.splits.PrioritizedOperatorSubtaskStateInputSplit;
+import org.apache.flink.state.api.input.splits.PrioritizedOperatorSubtaskStateSourceSplit;
 import org.apache.flink.state.api.runtime.NeverFireProcessingTimeService;
 import org.apache.flink.state.api.runtime.SavepointEnvironment;
 import org.apache.flink.streaming.api.operators.KeyContext;
@@ -46,7 +46,7 @@ import java.io.IOException;
 
 /** Utility for creating a {@link StreamOperatorStateContext}. */
 @Internal
-class StreamOperatorContextBuilder {
+public class StreamOperatorContextBuilder {
 
     private final RuntimeContext ctx;
 
@@ -58,7 +58,7 @@ class StreamOperatorContextBuilder {
 
     private int maxParallelism;
 
-    private final PrioritizedOperatorSubtaskStateInputSplit split;
+    private final PrioritizedOperatorSubtaskStateSourceSplit split;
 
     private final CloseableRegistry registry;
 
@@ -68,11 +68,11 @@ class StreamOperatorContextBuilder {
 
     @Nullable private TypeSerializer<?> keySerializer;
 
-    StreamOperatorContextBuilder(
+    public StreamOperatorContextBuilder(
             RuntimeContext ctx,
             Configuration configuration,
             OperatorState operatorState,
-            PrioritizedOperatorSubtaskStateInputSplit split,
+            PrioritizedOperatorSubtaskStateSourceSplit split,
             CloseableRegistry registry,
             @Nullable StateBackend applicationStateBackend,
             ExecutionConfig executionConfig) {
@@ -86,22 +86,23 @@ class StreamOperatorContextBuilder {
         this.executionConfig = executionConfig;
     }
 
-    StreamOperatorContextBuilder withMaxParallelism(int maxParallelism) {
+    public StreamOperatorContextBuilder withMaxParallelism(int maxParallelism) {
         this.maxParallelism = maxParallelism;
         return this;
     }
 
-    StreamOperatorContextBuilder withKey(KeyContext keyContext, TypeSerializer<?> keySerializer) {
+    public StreamOperatorContextBuilder withKey(
+            KeyContext keyContext, TypeSerializer<?> keySerializer) {
         this.keyContext = keyContext;
         this.keySerializer = keySerializer;
         return this;
     }
 
-    StreamOperatorStateContext build(Logger logger) throws IOException {
+    public StreamOperatorStateContext build(Logger logger) throws IOException {
         final Environment environment =
                 new SavepointEnvironment.Builder(ctx, executionConfig, maxParallelism)
                         .setConfiguration(configuration)
-                        .setSubtaskIndex(split.getSplitNumber())
+                        .setSubtaskIndex(Integer.parseInt(split.splitId()))
                         .setPrioritizedOperatorSubtaskState(
                                 split.getPrioritizedOperatorSubtaskState())
                         .build();

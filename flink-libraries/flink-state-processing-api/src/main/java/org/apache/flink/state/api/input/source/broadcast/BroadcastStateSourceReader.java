@@ -16,16 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.api.input;
+package org.apache.flink.state.api.input.source.broadcast;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.connector.source.RichSourceReaderContext;
+import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.state.api.input.source.common.OperatorStateSourceReader;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -34,35 +36,20 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.stream.StreamSupport;
 
-/**
- * The input format for reading {@link org.apache.flink.api.common.state.BroadcastState}.
- *
- * @param <K> The type of the keys in the {@code BroadcastState}.
- * @param <V> The type of the values in the {@code BroadcastState}.
- */
-@Internal
-public class BroadcastStateInputFormat<K, V> extends OperatorStateInputFormat<Tuple2<K, V>> {
-
-    private static final long serialVersionUID = -7625225340801402409L;
+/** A {@link SourceReader} implementation that reads data from broadcast state. */
+public class BroadcastStateSourceReader<K, V> extends OperatorStateSourceReader<Tuple2<K, V>> {
 
     private final MapStateDescriptor<K, V> descriptor;
 
-    /**
-     * Creates an input format for reading broadcast state from an operator in a savepoint.
-     *
-     * @param operatorState The state to be queried.
-     * @param configuration The cluster configuration for restoring the backend.
-     * @param backend The state backend used to restore the state.
-     * @param descriptor The descriptor for this state, providing a name and serializer.
-     */
-    public BroadcastStateInputFormat(
+    public BroadcastStateSourceReader(
+            RichSourceReaderContext sourceReaderContext,
+            @Nullable StateBackend stateBackend,
             OperatorState operatorState,
             Configuration configuration,
-            @Nullable StateBackend backend,
-            MapStateDescriptor<K, V> descriptor,
-            ExecutionConfig executionConfig)
+            ExecutionConfig executionConfig,
+            MapStateDescriptor<K, V> descriptor)
             throws IOException {
-        super(operatorState, configuration, backend, true, executionConfig);
+        super(sourceReaderContext, stateBackend, operatorState, configuration, executionConfig);
 
         this.descriptor =
                 Preconditions.checkNotNull(descriptor, "The state descriptor must not be null");
