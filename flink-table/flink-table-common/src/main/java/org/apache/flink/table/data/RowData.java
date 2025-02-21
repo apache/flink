@@ -286,9 +286,6 @@ public interface RowData {
             default:
                 throw new IllegalArgumentException();
         }
-        if (!fieldType.isNullable()) {
-            return fieldGetter;
-        }
         return row -> {
             if (row.isNullAt(fieldPos)) {
                 return null;
