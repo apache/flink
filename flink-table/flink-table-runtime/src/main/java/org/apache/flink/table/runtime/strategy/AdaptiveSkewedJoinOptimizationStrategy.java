@@ -27,19 +27,11 @@ import org.apache.flink.streaming.api.graph.StreamGraphContext;
 import org.apache.flink.streaming.api.graph.util.ImmutableStreamEdge;
 import org.apache.flink.streaming.api.graph.util.ImmutableStreamNode;
 import org.apache.flink.streaming.api.graph.util.StreamEdgeUpdateRequestInfo;
-import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
-import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.ForwardForConsecutiveHashPartitioner;
-import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
-import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
-import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
-import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.adaptive.AdaptiveJoin;
-import org.apache.flink.table.runtime.partitioner.BinaryHashPartitioner;
-import org.apache.flink.table.runtime.partitioner.RowDataCustomStreamPartitioner;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +40,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.computeSkewThreshold;
 import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.median;
@@ -65,25 +56,6 @@ public class AdaptiveSkewedJoinOptimizationStrategy
 
     private static final int LEFT_INPUT_TYPE_NUMBER = 1;
     private static final int RIGHT_INPUT_TYPE_NUMBER = 2;
-
-    /** Set of partitioners that can automatically correct key group. */
-    private static final Set<Class<?>> partitionersCanCorrectKeyGroupAutomatic =
-            Set.of(
-                    BinaryHashPartitioner.class,
-                    BroadcastPartitioner.class,
-                    CustomPartitionerWrapper.class,
-                    GlobalPartitioner.class,
-                    KeyGroupStreamPartitioner.class,
-                    RebalancePartitioner.class,
-                    RowDataCustomStreamPartitioner.class,
-                    ShufflePartitioner.class);
-
-    /**
-     * Set of partitioners that can force key group correction but may introduce additional shuffle
-     * overhead.
-     */
-    private static final Set<Class<?>> partitionersCanCorrectKeyGroupForced =
-            Set.of(ForwardForConsecutiveHashPartitioner.class);
 
     private Map<Integer, Map<Integer, long[]>> aggregatedProducedBytesByTypeNumberAndNodeId;
 
@@ -327,43 +299,5 @@ public class AdaptiveSkewedJoinOptimizationStrategy
             }
         }
         return false;
-    }
-
-    private static boolean canPerformOptimizationAutomatic(
-            StreamGraphContext context, ImmutableStreamNode adaptiveJoinNode) {
-        return adaptiveJoinNode.getOutEdges().stream()
-                .allMatch(
-                        edge -> {
-                            Class<?> classOfOutputPartitioner =
-                                    checkNotNull(
-                                                    context.getOutputPartitioner(
-                                                            edge.getEdgeId(),
-                                                            edge.getSourceId(),
-                                                            edge.getTargetId()))
-                                            .getClass();
-                            return !edge.isIntraInputKeyCorrelated()
-                                    || partitionersCanCorrectKeyGroupAutomatic.contains(
-                                            classOfOutputPartitioner);
-                        });
-    }
-
-    private static boolean canPerformOptimizationForced(
-            StreamGraphContext context, ImmutableStreamNode adaptiveJoinNode) {
-        return adaptiveJoinNode.getOutEdges().stream()
-                .allMatch(
-                        edge -> {
-                            Class<?> classOfOutputPartitioner =
-                                    checkNotNull(
-                                                    context.getOutputPartitioner(
-                                                            edge.getEdgeId(),
-                                                            edge.getSourceId(),
-                                                            edge.getTargetId()))
-                                            .getClass();
-                            return !edge.isIntraInputKeyCorrelated()
-                                    || partitionersCanCorrectKeyGroupAutomatic.contains(
-                                            classOfOutputPartitioner)
-                                    || partitionersCanCorrectKeyGroupForced.contains(
-                                            classOfOutputPartitioner);
-                        });
     }
 }
