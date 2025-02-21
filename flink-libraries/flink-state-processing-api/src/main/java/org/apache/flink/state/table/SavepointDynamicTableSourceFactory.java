@@ -71,7 +71,7 @@ public class SavepointDynamicTableSourceFactory implements DynamicTableSourceFac
         Configuration options = new Configuration();
         context.getCatalogTable().getOptions().forEach(options::setString);
 
-        final String stateBackendType = options.get(STATE_BACKEND_TYPE);
+        final String stateBackendType = options.getOptional(STATE_BACKEND_TYPE).orElse(null);
         final String statePath = options.get(STATE_PATH);
         final OperatorIdentifier operatorIdentifier = getOperatorIdentifier(options);
 
@@ -331,7 +331,6 @@ public class SavepointDynamicTableSourceFactory implements DynamicTableSourceFac
     @Override
     public Set<ConfigOption<?>> requiredOptions() {
         final Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(STATE_BACKEND_TYPE);
         options.add(STATE_PATH);
         return options;
     }
@@ -339,6 +338,8 @@ public class SavepointDynamicTableSourceFactory implements DynamicTableSourceFac
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
         final Set<ConfigOption<?>> options = new HashSet<>();
+
+        options.add(STATE_BACKEND_TYPE);
 
         // Either UID or hash
         options.add(OPERATOR_UID);
