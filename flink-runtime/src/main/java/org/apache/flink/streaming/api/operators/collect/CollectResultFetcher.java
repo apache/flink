@@ -27,6 +27,7 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.dispatcher.UnavailableDispatcherOperationException;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequestGateway;
+import org.apache.flink.runtime.scheduler.CoordinatorNotExistException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -139,6 +140,10 @@ public class CollectResultFetcher<T> {
                         LOG.debug(
                                 "The job cannot be found. It is very likely that the job is not in a RUNNING state.",
                                 e);
+                    } else if (ExceptionUtils.findThrowableWithMessage(
+                                    e, CoordinatorNotExistException.class.getName())
+                            .isPresent()) {
+                        LOG.debug("The coordinator does not exist.", e);
                     } else {
                         LOG.warn("An exception occurred when fetching query results", e);
                     }
