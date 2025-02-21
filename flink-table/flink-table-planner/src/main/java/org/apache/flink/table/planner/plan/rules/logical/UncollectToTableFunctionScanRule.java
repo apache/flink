@@ -22,7 +22,7 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
-import org.apache.flink.table.runtime.functions.table.UnnestRowsFunction;
+import org.apache.flink.table.runtime.functions.table.UnnestRowsFunctionBase;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.calcite.plan.RelOptCluster;
@@ -37,7 +37,6 @@ import org.apache.calcite.rel.logical.LogicalTableFunctionScan;
 import org.apache.calcite.rel.logical.LogicalValues;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.SqlFunction;
 import org.immutables.value.Value;
 
 import java.util.Collections;
@@ -91,14 +90,20 @@ public class UncollectToTableFunctionScanRule
         RelDataType relDataType = uc.getInput().getRowType().getFieldList().get(0).getValue();
         LogicalType logicalType = FlinkTypeFactory.toLogicalType(relDataType);
 
-        SqlFunction sqlFunction =
-                BridgingSqlFunction.of(cluster, BuiltInFunctionDefinitions.INTERNAL_UNNEST_ROWS);
+        BridgingSqlFunction sqlFunction =
+                BridgingSqlFunction.of(
+                        cluster,
+                        uc.withOrdinality
+                                ? BuiltInFunctionDefinitions.INTERNAL_UNNEST_ROWS_WITH_ORDINALITY
+                                : BuiltInFunctionDefinitions.INTERNAL_UNNEST_ROWS);
 
         RexNode rexCall =
                 cluster.getRexBuilder()
                         .makeCall(
                                 typeFactory.createFieldTypeFromLogicalType(
-                                        toRowType(UnnestRowsFunction.getUnnestedType(logicalType))),
+                                        toRowType(
+                                                UnnestRowsFunctionBase.getUnnestedType(
+                                                        logicalType, uc.withOrdinality))),
                                 sqlFunction,
                                 ((LogicalProject) getRel(uc.getInput())).getProjects());
         return new LogicalTableFunctionScan(
