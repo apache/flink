@@ -505,17 +505,16 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
     }
 
     /**
-     * Aggregates subpartition bytes if all conditions are met. This method checks whether the
-     * result info instance is of type {@link AllToAllBlockingResultInfo}, whether all consumer
-     * vertices are created, whether all consumer vertices are initialized, and whether input bytes
-     * information for all consumer vertices has been initialized . If these conditions are
-     * satisfied, the fine-grained statistic info will not be required by consumer vertices, and
-     * then we could aggregate the subpartition bytes.
+     * Notifies that fine-grained subpartition bytes may not be needed for the specified result
+     * info. This method checks if the given {@link BlockingResultInfo} instance is of type {@link
+     * AllToAllBlockingResultInfo}, if all consumer vertices are created and initialized, and if the
+     * input bytes information for all consumer vertices is initialized. If all these conditions are
+     * met, the fine-grained statistics for subpartition bytes will not be needed.
      *
-     * @param resultInfo the BlockingResultInfo instance to potentially aggregate subpartition bytes
-     *     for.
+     * @param resultInfo the {@link BlockingResultInfo} instance, which holds the fine-grained
+     *     subpartition bytes.
      */
-    private void maybeAggregateSubpartitionBytes(BlockingResultInfo resultInfo) {
+    private void notifyFineGrainedSubpartitionBytesMayNotNeeded(BlockingResultInfo resultInfo) {
         IntermediateResult intermediateResult =
                 getExecutionGraph().getAllIntermediateResults().get(resultInfo.getResultId());
 
@@ -534,7 +533,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
                                                         taskVertex ->
                                                                 taskVertex.getInputBytes()
                                                                         != NUM_BYTES_UNKNOWN))) {
-            ((AllToAllBlockingResultInfo) resultInfo).aggregateSubpartitionBytes();
+            ((AllToAllBlockingResultInfo) resultInfo).onFineGrainedSubpartitionBytesNotNeeded();
         }
     }
 
@@ -824,7 +823,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
                             blockingResultInfo.getNumBytesProduced(
                                     partitionIndexRange, subpartitionIndexRange);
                 }
-                maybeAggregateSubpartitionBytes(blockingResultInfo);
+                notifyFineGrainedSubpartitionBytesMayNotNeeded(blockingResultInfo);
             }
             ev.setInputBytes(inputBytes);
         }
