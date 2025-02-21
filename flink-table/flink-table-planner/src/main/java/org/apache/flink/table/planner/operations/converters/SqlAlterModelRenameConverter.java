@@ -19,51 +19,35 @@
 package org.apache.flink.table.planner.operations.converters;
 
 import org.apache.flink.sql.parser.ddl.SqlAlterModelRename;
-import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.catalog.ContextResolvedModel;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.AlterModelRenameOperation;
 
-import java.util.Optional;
-
 /** A converter for {@link org.apache.flink.sql.parser.ddl.SqlAlterModelRename}. */
-public class SqlAlterModelRenameConverter implements SqlNodeConverter<SqlAlterModelRename> {
+public class SqlAlterModelRenameConverter
+        extends AbstractSqlAlterModelConverter<SqlAlterModelRename> {
 
     @Override
     public Operation convertSqlNode(
             SqlAlterModelRename sqlAlterModelRename, ConvertContext context) {
-        final CatalogManager catalogManager = context.getCatalogManager();
-        UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(sqlAlterModelRename.fullModelName());
-        ObjectIdentifier modelIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-        Optional<ContextResolvedModel> optionalCatalogModel =
-                catalogManager.getModel(modelIdentifier);
-        if (optionalCatalogModel.isEmpty() || optionalCatalogModel.get().isTemporary()) {
-            if (optionalCatalogModel.isEmpty()) {
-                if (!sqlAlterModelRename.ifModelExists()) {
-                    throw new ValidationException(
-                            String.format("Model %s doesn't exist.", modelIdentifier));
-                }
-            } else if (optionalCatalogModel.get().isTemporary()) {
-                throw new ValidationException(
-                        String.format("Model %s is a temporary model.", modelIdentifier));
-            }
-        }
         ResolvedCatalogModel existingModel =
-                optionalCatalogModel.map(ContextResolvedModel::getResolvedModel).orElse(null);
+                getExistingModel(
+                        context,
+                        sqlAlterModelRename.fullModelName(),
+                        sqlAlterModelRename.ifModelExists());
 
-        // Rename model
         UnresolvedIdentifier newUnresolvedIdentifier =
                 UnresolvedIdentifier.of(sqlAlterModelRename.fullNewModelName());
         ObjectIdentifier newModelIdentifier =
-                catalogManager.qualifyIdentifier(newUnresolvedIdentifier);
+                context.getCatalogManager().qualifyIdentifier(newUnresolvedIdentifier);
+
         return new AlterModelRenameOperation(
                 existingModel,
-                modelIdentifier,
+                context.getCatalogManager()
+                        .qualifyIdentifier(
+                                UnresolvedIdentifier.of(sqlAlterModelRename.fullModelName())),
                 newModelIdentifier,
                 sqlAlterModelRename.ifModelExists());
     }
