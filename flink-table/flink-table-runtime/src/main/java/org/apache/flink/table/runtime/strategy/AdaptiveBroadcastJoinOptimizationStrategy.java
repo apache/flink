@@ -79,8 +79,7 @@ public class AdaptiveBroadcastJoinOptimizationStrategy
             ImmutableStreamNode adaptiveJoinNode,
             List<ImmutableStreamEdge> upstreamStreamEdges,
             AdaptiveJoin adaptiveJoin) {
-        if (!canPerformOptimization(
-                adaptiveJoinNode, context.getStreamGraph().getConfiguration())) {
+        if (!canPerformOptimization(adaptiveJoinNode, context)) {
             return;
         }
         for (ImmutableStreamEdge upstreamEdge : upstreamStreamEdges) {
@@ -172,8 +171,12 @@ public class AdaptiveBroadcastJoinOptimizationStrategy
     }
 
     private boolean canPerformOptimization(
-            ImmutableStreamNode adaptiveJoinNode, ReadableConfig config) {
-        return !isBroadcastJoinDisabled(config) && !isBroadcastJoin(adaptiveJoinNode);
+            ImmutableStreamNode adaptiveJoinNode, StreamGraphContext context) {
+        if (isBroadcastJoinDisabled(context.getStreamGraph().getConfiguration())
+                || isBroadcastJoin(adaptiveJoinNode)) {
+            return false;
+        }
+        return canPerformOptimizationAutomatic(context, adaptiveJoinNode);
     }
 
     private void aggregatedInputBytesByTypeNumber(

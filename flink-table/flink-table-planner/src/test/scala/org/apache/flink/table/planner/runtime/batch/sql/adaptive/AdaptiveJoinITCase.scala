@@ -71,7 +71,7 @@ trait AdaptiveJoinITCase extends AdaptiveBatchTestBase {
       """
         |WITH
         |  r AS (SELECT * FROM T1, T2, T3 WHERE a1 = a2 and a1 = a3)
-        |SELECT sum(b1) FROM r group by a1
+        |SELECT sum(b1), count(c1) FROM r group by a1
         |""".stripMargin
     checkResult(sql)
   }

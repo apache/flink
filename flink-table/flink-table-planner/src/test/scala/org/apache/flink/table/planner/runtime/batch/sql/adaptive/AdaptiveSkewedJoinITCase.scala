@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.runtime.batch.sql.adaptive
 
-import org.apache.flink.configuration.{BatchExecutionOptions, MemorySize}
+import org.apache.flink.configuration.{BatchExecutionOptions, MemorySize, PipelineOptions}
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 
 import org.junit.jupiter.api.{BeforeEach, Test}
@@ -110,6 +110,8 @@ class AdaptiveSkewedJoinITCase extends AdaptiveJoinITCase {
         OptimizerConfigOptions.TABLE_OPTIMIZER_ADAPTIVE_SKEWED_JOIN_OPTIMIZATION_STRATEGY,
         OptimizerConfigOptions.AdaptiveSkewedJoinOptimizationStrategy.FORCED
       )
+    tEnv.getConfig.set(PipelineOptions.OPERATOR_CHAINING, Boolean.box(false))
     checkResult(sql, expected)
+    tEnv.getConfig.set(PipelineOptions.OPERATOR_CHAINING, Boolean.box(true))
   }
 }
