@@ -70,7 +70,7 @@ class AllToAllBlockingResultInfoTest {
         AllToAllBlockingResultInfo resultInfo =
                 new AllToAllBlockingResultInfo(new IntermediateDataSetID(), 2, 2, false, false);
         resultInfo.recordPartitionInfo(0, new ResultPartitionBytes(new long[] {32L, 64L}));
-        resultInfo.aggregateSubpartitionBytes();
+        resultInfo.onFineGrainedSubpartitionBytesNotNeeded();
 
         assertThatThrownBy(resultInfo::getNumBytesProduced)
                 .isInstanceOf(IllegalStateException.class);
@@ -103,7 +103,7 @@ class AllToAllBlockingResultInfoTest {
         assertThat(resultInfo.getAggregatedSubpartitionBytes()).containsExactly(192L, 384L);
         // The raw info should not be clear
         assertThat(resultInfo.getNumOfRecordedPartitions()).isGreaterThan(0);
-        resultInfo.aggregateSubpartitionBytes();
+        resultInfo.onFineGrainedSubpartitionBytesNotNeeded();
         // The raw info should be clear
         assertThat(resultInfo.getNumOfRecordedPartitions()).isZero();
 
