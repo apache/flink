@@ -20,57 +20,30 @@ package org.apache.flink.table.planner.operations.converters;
 
 import org.apache.flink.sql.parser.ddl.SqlAlterModelSet;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.catalog.ContextResolvedModel;
 import org.apache.flink.table.catalog.ModelChange;
-import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.AlterModelChangeOperation;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
-import javax.annotation.Nullable;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 /** A converter for {@link org.apache.flink.sql.parser.ddl.SqlAlterModelSet}. */
-public class SqlAlterModelSetConverter implements SqlNodeConverter<SqlAlterModelSet> {
+public class SqlAlterModelSetConverter extends AbstractSqlAlterModelConverter<SqlAlterModelSet> {
 
     @Override
     public Operation convertSqlNode(SqlAlterModelSet sqlAlterModelSet, ConvertContext context) {
-        final CatalogManager catalogManager = context.getCatalogManager();
-        UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(sqlAlterModelSet.fullModelName());
-        ObjectIdentifier modelIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-        Optional<ContextResolvedModel> optionalCatalogModel =
-                catalogManager.getModel(modelIdentifier);
-        if (optionalCatalogModel.isEmpty() || optionalCatalogModel.get().isTemporary()) {
-            if (optionalCatalogModel.isEmpty()) {
-                if (!sqlAlterModelSet.ifModelExists()) {
-                    throw new ValidationException(
-                            String.format("Model %s doesn't exist.", modelIdentifier));
-                }
-            } else if (optionalCatalogModel.get().isTemporary()) {
-                throw new ValidationException(
-                        String.format("Model %s is a temporary model.", modelIdentifier));
-            }
-        }
         ResolvedCatalogModel existingModel =
-                optionalCatalogModel.map(ContextResolvedModel::getResolvedModel).orElse(null);
+                getExistingModel(
+                        context,
+                        sqlAlterModelSet.fullModelName(),
+                        sqlAlterModelSet.ifModelExists());
 
-        return convertAlterModelSet(modelIdentifier, sqlAlterModelSet, existingModel);
-    }
-
-    private static AlterModelChangeOperation convertAlterModelSet(
-            ObjectIdentifier modelIdentifier,
-            SqlAlterModelSet sqlAlterModelSet,
-            @Nullable ResolvedCatalogModel existingModel) {
         Map<String, String> changeModelOptions =
                 OperationConverterUtils.extractProperties(sqlAlterModelSet.getOptionList());
         if (changeModelOptions.isEmpty()) {
@@ -81,7 +54,12 @@ public class SqlAlterModelSetConverter implements SqlNodeConverter<SqlAlterModel
 
         if (existingModel == null) {
             return new AlterModelChangeOperation(
-                    modelIdentifier, modelChanges, null, sqlAlterModelSet.ifModelExists());
+                    context.getCatalogManager()
+                            .qualifyIdentifier(
+                                    UnresolvedIdentifier.of(sqlAlterModelSet.fullModelName())),
+                    modelChanges,
+                    null,
+                    sqlAlterModelSet.ifModelExists());
         }
 
         Map<String, String> newOptions =
@@ -97,7 +75,9 @@ public class SqlAlterModelSetConverter implements SqlNodeConverter<SqlAlterModel
         newOptions.putAll(lowercaseChangeModelOptions);
 
         return new AlterModelChangeOperation(
-                modelIdentifier,
+                context.getCatalogManager()
+                        .qualifyIdentifier(
+                                UnresolvedIdentifier.of(sqlAlterModelSet.fullModelName())),
                 modelChanges,
                 existingModel.copy(newOptions),
                 sqlAlterModelSet.ifModelExists());

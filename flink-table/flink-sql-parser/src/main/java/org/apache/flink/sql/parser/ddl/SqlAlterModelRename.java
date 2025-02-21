@@ -47,10 +47,7 @@ public class SqlAlterModelRename extends SqlAlterModel {
     }
 
     public String[] fullNewModelName() {
-        if (newModelName != null) {
-            return newModelName.names.toArray(new String[0]);
-        }
-        return new String[0];
+        return newModelName.names.toArray(new String[0]);
     }
 
     @Override
