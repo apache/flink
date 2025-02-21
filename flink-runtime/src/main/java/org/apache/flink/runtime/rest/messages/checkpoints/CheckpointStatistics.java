@@ -88,6 +88,8 @@ public class CheckpointStatistics implements ResponseBody {
 
     public static final String FIELD_NAME_IS_SAVEPOINT = "is_savepoint";
 
+    public static final String FIELD_NAME_IS_FULL = "is_full";
+
     public static final String FIELD_NAME_SAVEPOINT_FORMAT = "savepointFormat";
 
     public static final String FIELD_NAME_TRIGGER_TIMESTAMP = "trigger_timestamp";
@@ -120,6 +122,8 @@ public class CheckpointStatistics implements ResponseBody {
 
     public static final String FIELD_NAME_CHECKPOINT_TYPE = "checkpoint_type";
 
+    public static final String FIELD_NAME_TYPE_RESOLVED = "type_resolved";
+
     @JsonProperty(FIELD_NAME_ID)
     private final long id;
 
@@ -128,6 +132,11 @@ public class CheckpointStatistics implements ResponseBody {
 
     @JsonProperty(FIELD_NAME_IS_SAVEPOINT)
     private final boolean savepoint;
+
+    @JsonProperty(FIELD_NAME_IS_FULL)
+    public boolean isFull() {
+        return checkpointType.isFull();
+    }
 
     @JsonProperty(FIELD_NAME_SAVEPOINT_FORMAT)
     @Nullable
@@ -166,6 +175,11 @@ public class CheckpointStatistics implements ResponseBody {
     @JsonProperty(FIELD_NAME_CHECKPOINT_TYPE)
     private final RestAPICheckpointType checkpointType;
 
+    @JsonProperty(FIELD_NAME_TYPE_RESOLVED)
+    public boolean isTypeResolved() {
+        return checkpointType.isTypeResolved();
+    }
+
     @JsonProperty(FIELD_NAME_TASKS)
     @JsonSerialize(keyUsing = JobVertexIDKeySerializer.class)
     private final Map<JobVertexID, TaskCheckpointStatistics> checkpointStatisticsPerTask;
@@ -175,7 +189,6 @@ public class CheckpointStatistics implements ResponseBody {
             @JsonProperty(FIELD_NAME_ID) long id,
             @JsonProperty(FIELD_NAME_STATUS) CheckpointStatsStatus status,
             @JsonProperty(FIELD_NAME_IS_SAVEPOINT) boolean savepoint,
-            @JsonProperty(FIELD_NAME_SAVEPOINT_FORMAT) String savepointFormat,
             @JsonProperty(FIELD_NAME_TRIGGER_TIMESTAMP) long triggerTimestamp,
             @JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP) long latestAckTimestamp,
             @JsonProperty(FIELD_NAME_CHECKPOINTED_SIZE) long checkpointedSize,
@@ -193,7 +206,6 @@ public class CheckpointStatistics implements ResponseBody {
         this.id = id;
         this.status = Preconditions.checkNotNull(status);
         this.savepoint = savepoint;
-        this.savepointFormat = savepointFormat;
         this.triggerTimestamp = triggerTimestamp;
         this.latestAckTimestamp = latestAckTimestamp;
         this.checkpointedSize = checkpointedSize;
@@ -268,7 +280,6 @@ public class CheckpointStatistics implements ResponseBody {
         CheckpointStatistics that = (CheckpointStatistics) o;
         return id == that.id
                 && savepoint == that.savepoint
-                && Objects.equals(savepointFormat, that.savepointFormat)
                 && triggerTimestamp == that.triggerTimestamp
                 && latestAckTimestamp == that.latestAckTimestamp
                 && stateSize == that.stateSize
@@ -289,7 +300,6 @@ public class CheckpointStatistics implements ResponseBody {
                 id,
                 status,
                 savepoint,
-                savepointFormat,
                 triggerTimestamp,
                 latestAckTimestamp,
                 stateSize,
@@ -352,6 +362,7 @@ public class CheckpointStatistics implements ResponseBody {
                     completedCheckpointStats.getCheckpointId(),
                     completedCheckpointStats.getStatus(),
                     snapshotType.isSavepoint(),
+                    snapshotType.isFull(),
                     savepointFormat,
                     completedCheckpointStats.getTriggerTimestamp(),
                     completedCheckpointStats.getLatestAckTimestamp(),
@@ -377,6 +388,7 @@ public class CheckpointStatistics implements ResponseBody {
                     failedCheckpointStats.getCheckpointId(),
                     failedCheckpointStats.getStatus(),
                     failedCheckpointStats.getProperties().isSavepoint(),
+                    failedCheckpointStats.getProperties().isFull(),
                     savepointFormat,
                     failedCheckpointStats.getTriggerTimestamp(),
                     failedCheckpointStats.getLatestAckTimestamp(),
@@ -402,6 +414,7 @@ public class CheckpointStatistics implements ResponseBody {
                     pendingCheckpointStats.getCheckpointId(),
                     pendingCheckpointStats.getStatus(),
                     pendingCheckpointStats.getProperties().isSavepoint(),
+                    pendingCheckpointStats.getProperties().isFull(),
                     savepointFormat,
                     pendingCheckpointStats.getTriggerTimestamp(),
                     pendingCheckpointStats.getLatestAckTimestamp(),
@@ -474,6 +487,7 @@ public class CheckpointStatistics implements ResponseBody {
                 @JsonProperty(FIELD_NAME_ID) long id,
                 @JsonProperty(FIELD_NAME_STATUS) CheckpointStatsStatus status,
                 @JsonProperty(FIELD_NAME_IS_SAVEPOINT) boolean savepoint,
+                @JsonProperty(FIELD_NAME_IS_FULL) boolean full,
                 @JsonProperty(FIELD_NAME_SAVEPOINT_FORMAT) String savepointFormat,
                 @JsonProperty(FIELD_NAME_TRIGGER_TIMESTAMP) long triggerTimestamp,
                 @JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP) long latestAckTimestamp,
@@ -495,6 +509,7 @@ public class CheckpointStatistics implements ResponseBody {
                     id,
                     status,
                     savepoint,
+                    full,
                     savepointFormat,
                     triggerTimestamp,
                     latestAckTimestamp,
@@ -562,6 +577,7 @@ public class CheckpointStatistics implements ResponseBody {
                 @JsonProperty(FIELD_NAME_ID) long id,
                 @JsonProperty(FIELD_NAME_STATUS) CheckpointStatsStatus status,
                 @JsonProperty(FIELD_NAME_IS_SAVEPOINT) boolean savepoint,
+                @JsonProperty(FIELD_NAME_IS_FULL) boolean full,
                 @JsonProperty(FIELD_NAME_SAVEPOINT_FORMAT) String savepointFormat,
                 @JsonProperty(FIELD_NAME_TRIGGER_TIMESTAMP) long triggerTimestamp,
                 @JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP) long latestAckTimestamp,
@@ -583,6 +599,7 @@ public class CheckpointStatistics implements ResponseBody {
                     id,
                     status,
                     savepoint,
+                    full,
                     savepointFormat,
                     triggerTimestamp,
                     latestAckTimestamp,
@@ -640,6 +657,7 @@ public class CheckpointStatistics implements ResponseBody {
                 @JsonProperty(FIELD_NAME_ID) long id,
                 @JsonProperty(FIELD_NAME_STATUS) CheckpointStatsStatus status,
                 @JsonProperty(FIELD_NAME_IS_SAVEPOINT) boolean savepoint,
+                @JsonProperty(FIELD_NAME_IS_FULL) boolean full,
                 @JsonProperty(FIELD_NAME_SAVEPOINT_FORMAT) String savepointFormat,
                 @JsonProperty(FIELD_NAME_TRIGGER_TIMESTAMP) long triggerTimestamp,
                 @JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP) long latestAckTimestamp,
@@ -659,6 +677,7 @@ public class CheckpointStatistics implements ResponseBody {
                     id,
                     status,
                     savepoint,
+                    full,
                     savepointFormat,
                     triggerTimestamp,
                     latestAckTimestamp,

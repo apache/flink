@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
@@ -849,5 +850,31 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                     checkpointMetaData.getCheckpointId(),
                     delay);
         }
+    }
+
+    private ChannelStateWriteResult checkpointChannelState(
+            CheckpointBarrier barrier,
+            CheckpointMetaData checkpointMetaData,
+            CheckpointMetrics checkpointMetrics)
+            throws Exception {
+
+        ChannelStateWriteResult channelStateWriteResult =
+                channelStateWriter.getAndRemoveWriteResult(checkpointMetaData.getCheckpointId());
+
+        // Determine if this is a full checkpoint based on the channel state
+        boolean isFullCheckpoint =
+                channelStateWriteResult != null && channelStateWriteResult.isFullCheckpoint();
+
+        // Resolve the checkpoint type
+        barrier.getCheckpointType().resolveType(isFullCheckpoint);
+
+        // Report back to the coordinator
+        env.getTaskManagerActions()
+                .reportCheckpointTypeResolution(
+                        checkpointMetaData.getCheckpointId(),
+                        env.getExecutionId(),
+                        isFullCheckpoint);
+
+        return channelStateWriteResult;
     }
 }

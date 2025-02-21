@@ -1099,7 +1099,8 @@ public class CheckpointCoordinator {
     // Returns true if the checkpoint is successfully completed, false otherwise.
     private boolean maybeCompleteCheckpoint(PendingCheckpoint checkpoint) {
         synchronized (lock) {
-            if (checkpoint.isFullyAcknowledged()) {
+            if (checkpoint.isFullyAcknowledged()
+                    && checkpoint.getCheckpointType().isTypeResolved()) {
                 try {
                     // we need to check inside the lock for being shutdown as well,
                     // otherwise we get races and invalid error log messages.
@@ -2448,5 +2449,21 @@ public class CheckpointCoordinator {
     @Nullable
     private PendingCheckpointStats getStatsCallback(PendingCheckpoint pendingCheckpoint) {
         return statsTracker.getPendingCheckpointStats(pendingCheckpoint.getCheckpointID());
+    }
+
+    /**
+     * Reports the resolution of a checkpoint type from a subtask.
+     *
+     * @param checkpointId ID of the checkpoint
+     * @param executionAttemptID ID of the reporting task
+     * @param isFull Whether the checkpoint was determined to be full
+     */
+    public void reportCheckpointTypeResolution(
+            long checkpointId, ExecutionAttemptID executionAttemptID, boolean isFull) {
+
+        PendingCheckpoint checkpoint = pendingCheckpoints.get(checkpointId);
+        if (checkpoint != null) {
+            checkpoint.getCheckpointType().resolveType(isFull);
+        }
     }
 }

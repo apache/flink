@@ -25,21 +25,32 @@ import java.util.Objects;
 /** The type of checkpoint to perform. */
 @Internal
 public final class CheckpointType implements SnapshotType {
+    private volatile boolean typeResolved = false;
+    private volatile boolean isFull = false;
 
     /** A checkpoint, full or incremental. */
     public static final CheckpointType CHECKPOINT =
             new CheckpointType("Checkpoint", SharingFilesStrategy.FORWARD_BACKWARD);
 
+    /** A checkpoint that is explicitly marked as full */
     public static final CheckpointType FULL_CHECKPOINT =
-            new CheckpointType("Full Checkpoint", SharingFilesStrategy.FORWARD);
+            new CheckpointType("Full Checkpoint", SharingFilesStrategy.FORWARD, true);
 
     private final String name;
-
     private final SharingFilesStrategy sharingFilesStrategy;
 
-    private CheckpointType(final String name, SharingFilesStrategy sharingFilesStrategy) {
+    private CheckpointType(String name, SharingFilesStrategy sharingFilesStrategy) {
+        this(name, sharingFilesStrategy, false);
+    }
+
+    private CheckpointType(
+            String name, SharingFilesStrategy sharingFilesStrategy, boolean preResolvedAsFull) {
         this.name = name;
         this.sharingFilesStrategy = sharingFilesStrategy;
+        if (preResolvedAsFull) {
+            this.isFull = true;
+            this.typeResolved = true;
+        }
     }
 
     public boolean isSavepoint() {
@@ -54,6 +65,21 @@ public final class CheckpointType implements SnapshotType {
         return sharingFilesStrategy;
     }
 
+    public boolean isFull() {
+        return typeResolved && isFull;
+    }
+
+    public void resolveType(boolean isFull) {
+        if (!typeResolved) {
+            this.isFull = isFull;
+            this.typeResolved = true;
+        }
+    }
+
+    public boolean isTypeResolved() {
+        return typeResolved;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -63,12 +89,15 @@ public final class CheckpointType implements SnapshotType {
             return false;
         }
         CheckpointType type = (CheckpointType) o;
-        return name.equals(type.name) && sharingFilesStrategy == type.sharingFilesStrategy;
+        return typeResolved == type.typeResolved
+                && isFull == type.isFull
+                && name.equals(type.name)
+                && sharingFilesStrategy == type.sharingFilesStrategy;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, sharingFilesStrategy);
+        return Objects.hash(name, sharingFilesStrategy, typeResolved, isFull);
     }
 
     @Override
@@ -79,6 +108,10 @@ public final class CheckpointType implements SnapshotType {
                 + '\''
                 + ", sharingFilesStrategy="
                 + sharingFilesStrategy
+                + ", typeResolved="
+                + typeResolved
+                + ", isFull="
+                + isFull
                 + '}';
     }
 }
