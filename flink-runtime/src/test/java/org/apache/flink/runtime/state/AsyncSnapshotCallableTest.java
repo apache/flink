@@ -217,6 +217,9 @@ class AsyncSnapshotCallableTest {
         }
 
         @Override
+        protected void cleanupCompletedResource(String completedResource) {}
+
+        @Override
         protected void logAsyncSnapshotComplete(long startTime) {
             invocationOrder.add(METHOD_LOG);
         }
