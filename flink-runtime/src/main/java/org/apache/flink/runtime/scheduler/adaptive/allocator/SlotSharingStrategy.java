@@ -17,21 +17,23 @@
 
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.jobmaster.SlotInfo;
-import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan.SlotAssignment;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator.ExecutionSlotSharingGroup;
 
 import java.util.Collection;
 
-import static org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator.ExecutionSlotSharingGroup;
-
-/** Interface for assigning slots to slot sharing groups. */
-@Internal
-public interface SlotAssigner {
-
-    Collection<SlotAssignment> assignSlots(
-            JobInformation jobInformation,
-            Collection<? extends SlotInfo> freeSlots,
-            Collection<ExecutionSlotSharingGroup> requestExecutionSlotSharingGroups,
-            JobAllocationsInformation previousAllocations);
+/**
+ * The strategy to define how to construct execution slot sharing groups from the execution vertices
+ * of a job with the vertices parallelisms.
+ */
+public interface SlotSharingStrategy {
+    /**
+     * Get the execution slot sharing groups for the job information based on the vertices
+     * parallelisms.
+     *
+     * @param jobInformation the job information.
+     * @param vertexParallelism the parallelisms for the vertices of the job information.
+     * @return the all execution slot sharing groups for the deployment of the job.
+     */
+    Collection<ExecutionSlotSharingGroup> getExecutionSlotSharingGroups(
+            JobInformation jobInformation, VertexParallelism vertexParallelism);
 }

@@ -22,6 +22,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
@@ -29,6 +30,8 @@ import org.apache.flink.runtime.scheduler.adaptive.allocator.JobInformation;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
+
+import javax.annotation.Nullable;
 
 import java.util.Collection;
 
@@ -51,6 +54,11 @@ public class JobGraphJobInformation implements JobInformation {
     @Override
     public Collection<SlotSharingGroup> getSlotSharingGroups() {
         return jobGraph.getSlotSharingGroups();
+    }
+
+    @Override
+    public Collection<CoLocationGroup> getCoLocationGroups() {
+        return jobGraph.getCoLocationGroups();
     }
 
     @Override
@@ -122,6 +130,12 @@ public class JobGraphJobInformation implements JobInformation {
         @Override
         public SlotSharingGroup getSlotSharingGroup() {
             return jobVertex.getSlotSharingGroup();
+        }
+
+        @Nullable
+        @Override
+        public CoLocationGroup getCoLocationGroup() {
+            return jobVertex.getCoLocationGroup();
         }
     }
 }
