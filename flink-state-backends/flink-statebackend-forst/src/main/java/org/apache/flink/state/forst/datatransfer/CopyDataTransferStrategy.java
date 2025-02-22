@@ -31,7 +31,6 @@ import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
-import org.apache.flink.state.forst.fs.filemapping.FileOwnership;
 import org.apache.flink.state.forst.fs.filemapping.MappingEntry;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
@@ -115,10 +114,6 @@ public class CopyDataTransferStrategy extends DataTransferStrategy {
                     ((ForStFlinkFileSystem) dbFileSystem).getMappingEntry(dbFilePath);
             Preconditions.checkNotNull(mappingEntry, "dbFile not found: " + dbFilePath);
             sourceStateHandle = mappingEntry.getSource().toStateHandle();
-            if (mappingEntry.getFileOwnership() == FileOwnership.NOT_OWNED) {
-                // The file is already owned by JM, simply return the state handle
-                return HandleAndLocalPath.of(sourceStateHandle, dbFilePath.getName());
-            }
         } else {
             // Construct a FileStateHandle base on the DB file
             FileSystem sourceFileSystem = dbFilePath.getFileSystem();
