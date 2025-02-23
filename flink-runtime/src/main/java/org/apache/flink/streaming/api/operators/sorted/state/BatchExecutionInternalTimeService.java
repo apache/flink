@@ -83,6 +83,11 @@ public class BatchExecutionInternalTimeService<K, N> implements InternalTimerSer
     }
 
     @Override
+    public void initializeWatermark(long watermark) {
+        this.currentWatermark = watermark;
+    }
+
+    @Override
     public void registerProcessingTimeTimer(N namespace, long time) {
         // the currentWatermark == Long.MAX_VALUE indicates the timer was registered from the
         // callback
