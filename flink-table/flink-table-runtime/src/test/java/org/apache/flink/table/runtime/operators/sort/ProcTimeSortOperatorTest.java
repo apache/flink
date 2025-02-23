@@ -19,27 +19,42 @@
 package org.apache.flink.table.runtime.operators.sort;
 
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.keyselector.EmptyRowDataKeySelector;
+import org.apache.flink.table.runtime.operators.sort.asyncprocessing.AsyncStateProcTimeSortOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 
 /** Tests for {@link ProcTimeSortOperator}. */
+@ExtendWith(ParameterizedTestExtension.class)
 class ProcTimeSortOperatorTest {
+
+    @Parameters(name = "enableAsyncState = {0}")
+    public static List<Boolean> enableAsyncState() {
+        return Arrays.asList(false, true);
+    }
+
+    @Parameter private boolean enableAsyncState;
 
     private InternalTypeInfo<RowData> inputRowType =
             InternalTypeInfo.ofFields(
@@ -60,9 +75,9 @@ class ProcTimeSortOperatorTest {
     private RowDataHarnessAssertor assertor =
             new RowDataHarnessAssertor(inputRowType.toRowFieldTypes());
 
-    @Test
+    @TestTemplate
     void test() throws Exception {
-        ProcTimeSortOperator operator = createSortOperator();
+        OneInputStreamOperator<RowData, RowData> operator = createSortOperator();
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createTestHarness(operator);
         testHarness.open();
@@ -114,12 +129,16 @@ class ProcTimeSortOperatorTest {
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    private ProcTimeSortOperator createSortOperator() {
-        return new ProcTimeSortOperator(inputRowType, gComparator);
+    private OneInputStreamOperator<RowData, RowData> createSortOperator() {
+        if (enableAsyncState) {
+            return new AsyncStateProcTimeSortOperator(inputRowType, gComparator);
+        } else {
+            return new ProcTimeSortOperator(inputRowType, gComparator);
+        }
     }
 
     private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
-            BaseTemporalSortOperator operator) throws Exception {
+            OneInputStreamOperator<RowData, RowData> operator) throws Exception {
         OneInputStreamOperatorTestHarness testHarness =
                 new KeyedOneInputStreamOperatorTestHarness<>(
                         operator,
