@@ -323,13 +323,12 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                 throw new CatalogException(format("Catalog %s already exists.", catalogName));
             }
         } else {
-            // Store the catalog in the catalog store
-            catalogStoreHolder.catalogStore().storeCatalog(catalogName, catalogDescriptor);
-
             // Initialize and store the catalog in memory
             Catalog catalog = initCatalog(catalogName, catalogDescriptor);
             catalog.open();
             catalogs.put(catalogName, catalog);
+            // Store the catalog in the catalog store
+            catalogStoreHolder.catalogStore().storeCatalog(catalogName, catalogDescriptor);
         }
     }
 
