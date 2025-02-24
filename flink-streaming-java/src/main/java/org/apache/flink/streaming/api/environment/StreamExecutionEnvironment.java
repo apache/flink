@@ -2437,7 +2437,8 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         final PipelineExecutor executor = getPipelineExecutor();
 
         CompletableFuture<JobClient> jobClientFuture =
-                executor.execute(streamGraph, configuration, userClassloader);
+                executor.execute(
+                        streamGraph, configuration, Thread.currentThread().getContextClassLoader());
 
         try {
             JobClient jobClient = jobClientFuture.get();
