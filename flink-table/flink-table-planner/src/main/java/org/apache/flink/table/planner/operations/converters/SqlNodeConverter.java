@@ -38,6 +38,7 @@ import javax.annotation.Nullable;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 
 /**
  * A converter to convert {@link SqlNode} instance into {@link Operation}.
@@ -86,6 +87,9 @@ public interface SqlNodeConverter<S extends SqlNode> {
 
         /** Returns the {@link FlinkPlannerImpl} in the convert context. */
         FlinkPlannerImpl getFlinkPlanner();
+
+        /** Returns the {@link Function} in the convert context. */
+        Function<SqlNode, String> getEscapeExpression();
 
         /** Converts the given validated {@link SqlNode} into a {@link RelRoot}. */
         RelRoot toRelRoot(SqlNode sqlNode);

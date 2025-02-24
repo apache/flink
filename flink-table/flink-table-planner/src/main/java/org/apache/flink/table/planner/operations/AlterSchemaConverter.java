@@ -94,7 +94,7 @@ public class AlterSchemaConverter {
     private final Function<SqlNode, String> escapeExpression;
     private final CatalogManager catalogManager;
 
-    AlterSchemaConverter(
+    public AlterSchemaConverter(
             SqlValidator sqlValidator,
             Function<SqlNode, String> escapeExpression,
             CatalogManager catalogManager) {

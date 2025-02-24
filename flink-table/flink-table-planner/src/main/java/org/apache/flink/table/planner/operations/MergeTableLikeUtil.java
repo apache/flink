@@ -55,7 +55,7 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /** A utility class with logic for handling the {@code CREATE TABLE ... LIKE} clause. */
-class MergeTableLikeUtil {
+public class MergeTableLikeUtil {
     /** Default merging strategy if given option was not provided explicitly by the user. */
     private static final HashMap<FeatureOption, MergingStrategy> defaultMergingStrategies =
             new HashMap<>();
@@ -74,7 +74,7 @@ class MergeTableLikeUtil {
     private final Function<SqlNode, String> escapeExpression;
     private final DataTypeFactory dataTypeFactory;
 
-    MergeTableLikeUtil(
+    public MergeTableLikeUtil(
             SqlValidator validator,
             Function<SqlNode, String> escapeExpression,
             DataTypeFactory dataTypeFactory) {

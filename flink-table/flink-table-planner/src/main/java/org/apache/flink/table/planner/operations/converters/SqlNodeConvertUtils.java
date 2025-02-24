@@ -26,21 +26,30 @@ import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ContextResolvedTable;
+import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter.ConvertContext;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.sql.SqlBasicCall;
+import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.SqlSetOperator;
 import org.apache.calcite.sql.SqlWith;
+import org.apache.calcite.sql.dialect.CalciteSqlDialect;
+import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.validate.SqlValidatorNamespace;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.HashMap;
@@ -200,5 +209,54 @@ class SqlNodeConvertUtils {
         } else {
             return null;
         }
+    }
+
+    /**
+     * Converts language string to the FunctionLanguage.
+     *
+     * @param languageString the language string from SQL parser
+     * @return supported FunctionLanguage otherwise raise UnsupportedOperationException.
+     * @throws UnsupportedOperationException if the languageString is not parsable or language is
+     *     not supported
+     */
+    public static FunctionLanguage parseLanguage(String languageString) {
+        if (StringUtils.isNullOrWhitespaceOnly(languageString)) {
+            return FunctionLanguage.JAVA;
+        }
+
+        FunctionLanguage language;
+        try {
+            language = FunctionLanguage.valueOf(languageString);
+        } catch (IllegalArgumentException e) {
+            throw new UnsupportedOperationException(
+                    String.format("Unrecognized function language string %s", languageString), e);
+        }
+
+        return language;
+    }
+
+    public static String getQuotedSqlString(SqlNode sqlNode, FlinkPlannerImpl flinkPlanner) {
+        SqlParser.Config parserConfig = flinkPlanner.config().getParserConfig();
+        SqlDialect dialect =
+                new CalciteSqlDialect(
+                        SqlDialect.EMPTY_CONTEXT
+                                .withQuotedCasing(parserConfig.unquotedCasing())
+                                .withConformance(parserConfig.conformance())
+                                .withUnquotedCasing(parserConfig.unquotedCasing())
+                                .withIdentifierQuoteString(parserConfig.quoting().string));
+        return sqlNode.toSqlString(dialect).getSql();
+    }
+
+    public static int[][] getTargetColumnIndices(
+            @Nonnull ContextResolvedTable contextResolvedTable,
+            @Nullable SqlNodeList targetColumns) {
+        if (targetColumns == null) {
+            return null;
+        }
+        List<String> allColumns = contextResolvedTable.getResolvedSchema().getColumnNames();
+        return targetColumns.stream()
+                .mapToInt(c -> allColumns.indexOf(((SqlIdentifier) c).getSimple()))
+                .mapToObj(idx -> new int[] {idx})
+                .toArray(int[][]::new);
     }
 }
