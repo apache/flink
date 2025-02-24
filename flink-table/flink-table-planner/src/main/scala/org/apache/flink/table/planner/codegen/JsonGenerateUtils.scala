@@ -185,7 +185,7 @@ object JsonGenerateUtils {
     }
   }
 
-  /** Determines whether the given operand is a call to a JSON_OBJECT */
+  /** Determines whether the given operand is a call to a JSON_ARRAY */
   def isJsonArrayOperand(operand: RexNode): Boolean = {
     operand match {
       case rexCall: RexCall =>

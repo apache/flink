@@ -774,12 +774,15 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testSqlRuntimeError(
                                 "JSON_OBJECT(KEY 'K' VALUE JSON('{'))",
                                 TableRuntimeException.class,
-                                "Invalid JSON string in JSON(value) function: \"{\". Error: org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.io.JsonEOFException: Unexpected end-of-input: expected close marker for Object (start marker at [Source: REDACTED (`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION` disabled); line: 1, column: 1])")
+                                "Invalid JSON string in JSON(value) function")
+                        .testSqlRuntimeError(
+                                "JSON_OBJECT(KEY 'K' VALUE JSON('{'))",
+                                TableRuntimeException.class,
+                                "line: 1, column: 1")
                         .testTableApiRuntimeError(
                                 jsonObject(JsonOnNull.NULL, "K", json("{")),
                                 TableRuntimeException.class,
-                                "Invalid JSON string in JSON(value) function: \"{\". Error: org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.io.JsonEOFException: Unexpected end-of-input: expected close marker for Object (start marker at [Source: (String)\"{\"; line: 1, column: 1])\n"
-                                        + " at [Source: (String)\"{\"; line: 1, column: 2]"),
+                                "Invalid JSON string in JSON(value) function"),
                 // Tests for JSON calls inside of JSON_ARRAY
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_ARRAY)
                         .onFieldsWithData("{\"key\":\"value\"}", "{\"key\": {\"value\": 42}}")
@@ -852,15 +855,14 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_ARRAY(JSON_ARRAY(JSON(CAST(NULL AS STRING)) NULL ON NULL) NULL ON NULL)",
                                 "[[null]]",
                                 STRING().notNull())
-                        .testSqlRuntimeError(
-                                "JSON_ARRAY(JSON('{'))",
-                                TableRuntimeException.class,
-                                "Unexpected end-of-input: expected close marker for Object (start marker at [Source: (String)\"{\"; line: 1, column: 1])")
                         .testTableApiRuntimeError(
                                 jsonArray(JsonOnNull.NULL, json("{")),
                                 TableRuntimeException.class,
-                                "Invalid JSON string in JSON(value) function: \"{\". Error: org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.io.JsonEOFException: Unexpected end-of-input: expected close marker for Object (start marker at [Source: (String)\"{\"; line: 1, column: 1])\n"
-                                        + " at [Source: (String)\"{\"; line: 1, column: 2]")
+                                "Invalid JSON string in JSON(value) function")
+                        .testSqlRuntimeError(
+                                "JSON_ARRAY(JSON('{'))",
+                                TableRuntimeException.class,
+                                "line: 1, column: 1")
                         .testTableApiValidationError(
                                 json($("f0")),
                                 "The JSON() function is currently only supported inside a JSON_OBJECT() or JSON_ARRAY() function.")

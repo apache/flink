@@ -1103,9 +1103,12 @@ json:
       -- [{"K2":42}]
       JSON_ARRAY(JSON('{"K2": 42}'))
 
-      -- [{"K2":{"K3":42}}]
-      JSON_ARRAY(JSON('{"K2":{"K3":42}}'))
+      -- [{"K":{"K1":42}}]
+      JSON_ARRAY(JSON('{"K":{"K1":42}}'))
 
+      -- [{"K":{"K1":42}}, {"K":{"K1":87}}]
+      JSON_ARRAY(JSON('{"K":{"K1":42}}'), JSON('{"K":{"K1":87}}'))
+      
       -- [null]
       JSON_ARRAY(JSON('') NULL ON NULL)
 
