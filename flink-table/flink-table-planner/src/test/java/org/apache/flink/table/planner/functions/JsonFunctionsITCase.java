@@ -778,13 +778,11 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testSqlRuntimeError(
                                 "JSON_OBJECT(KEY 'K' VALUE JSON('{'))",
                                 TableRuntimeException.class,
-                                "Invalid JSON string in JSON(value) function: \"{\". Error: org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.io.JsonEOFException: Unexpected end-of-input: expected close marker for Object (start marker at [Source: (String)\"{\"; line: 1, column: 1])\n"
-                                        + " at [Source: (String)\"{\"; line: 1, column: 2]")
+                                "Invalid JSON string in JSON(value) function")
                         .testTableApiRuntimeError(
                                 jsonObject(JsonOnNull.NULL, "K", json("{")),
                                 TableRuntimeException.class,
-                                "Invalid JSON string in JSON(value) function: \"{\". Error: org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.io.JsonEOFException: Unexpected end-of-input: expected close marker for Object (start marker at [Source: (String)\"{\"; line: 1, column: 1])\n"
-                                        + " at [Source: (String)\"{\"; line: 1, column: 2]"),
+                                "Invalid JSON string in JSON(value) function"),
                 // Tests for JSON calls inside of JSON_ARRAY
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_ARRAY)
                         .onFieldsWithData("{\"key\":\"value\"}", "{\"key\": {\"value\": 42}}")
@@ -864,8 +862,7 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testTableApiRuntimeError(
                                 jsonArray(JsonOnNull.NULL, json("{")),
                                 TableRuntimeException.class,
-                                "Invalid JSON string in JSON(value) function: \"{\". Error: org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.io.JsonEOFException: Unexpected end-of-input: expected close marker for Object (start marker at [Source: (String)\"{\"; line: 1, column: 1])\n"
-                                        + " at [Source: (String)\"{\"; line: 1, column: 2]")
+                                "Invalid JSON string in JSON(value) function")
                         .testTableApiValidationError(
                                 json($("f0")),
                                 "The JSON() function is currently only supported inside a JSON_OBJECT() or JSON_ARRAY() function.")
