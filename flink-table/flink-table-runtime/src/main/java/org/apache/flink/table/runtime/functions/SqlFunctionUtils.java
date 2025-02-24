@@ -430,7 +430,13 @@ public class SqlFunctionUtils {
             return null;
         }
         try {
-            return str.replaceAll(regex, Matcher.quoteReplacement(replacement));
+            Matcher matcher = Pattern.compile(regex).matcher(str);
+            StringBuffer result = new StringBuffer();
+            while (matcher.find()) {
+                matcher.appendReplacement(result, quoteReplacementSkipDollar(replacement));
+            }
+            matcher.appendTail(result);
+            return result.toString();
         } catch (Exception e) {
             LOG.error(
                     String.format(
@@ -440,6 +446,27 @@ public class SqlFunctionUtils {
             // return null if exception in regex replace
             return null;
         }
+    }
+
+    /**
+     * Similar to the ${@link java.util.regex.Matcher} ${quoteReplacement} method, but dollar signs
+     * ('$') will be given a special meaning.
+     */
+    public static String quoteReplacementSkipDollar(String s) {
+        if ((s.indexOf('\\') == -1)) {
+            return s;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < s.length(); ++i) {
+            char c = s.charAt(i);
+            if (c == '\\'
+                    && ((i == s.length() - 1)
+                            || ((i + 1) < s.length() && s.charAt(i + 1) != '$'))) {
+                sb.append('\\');
+            }
+            sb.append(c);
+        }
+        return sb.toString();
     }
 
     /**
