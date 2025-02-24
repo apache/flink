@@ -22,8 +22,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.{Arr
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.util.RawValue
 import org.apache.flink.table.api.{DataTypes, JsonOnNull}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{className, newName, rowFieldReadAccess, typeTerm, ARRAY_DATA, MAP_DATA}
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
+import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable.{JSON_ARRAY, JSON_OBJECT}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapFunctionDefinition
@@ -180,6 +179,18 @@ object JsonGenerateUtils {
       case rexCall: RexCall =>
         rexCall.getOperator match {
           case JSON_OBJECT => true
+          case _ => false
+        }
+      case _ => false
+    }
+  }
+
+  /** Determines whether the given operand is a call to a JSON_OBJECT */
+  def isJsonArrayOperand(operand: RexNode): Boolean = {
+    operand match {
+      case rexCall: RexCall =>
+        rexCall.getOperator match {
+          case JSON_ARRAY => true
           case _ => false
         }
       case _ => false
