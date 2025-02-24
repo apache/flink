@@ -33,6 +33,18 @@
             <td>The maximum number of jobs to retain in each archive directory defined by `historyserver.archive.fs.dir`. If set to `-1`(default), there is no limit to the number of archives. If set to `0` or less than `-1` HistoryServer will throw an <code class="highlighter-rouge">IllegalConfigurationException</code>. </td>
         </tr>
         <tr>
+            <td><h5>historyserver.cleanup.enable</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether HistoryServer should cleanup jobs that are present `historyserver.archive.fs.dir`.</td>
+        </tr>
+        <tr>
+            <td><h5>historyserver.cleanup.interval</h5></td>
+            <td style="word-wrap: break-word;">7 d</td>
+            <td>Duration</td>
+            <td>If `historyserver.cleanup.enable` is set to true, HistoryServer will cleanup jobs that are present `historyserver.archive.fs.dir` according to this config.</td>
+        </tr>
+        <tr>
             <td><h5>historyserver.log.jobmanager.url-pattern</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>

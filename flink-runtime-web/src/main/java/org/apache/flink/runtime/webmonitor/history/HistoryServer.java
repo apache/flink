@@ -244,13 +244,19 @@ public class HistoryServer {
                     "Cannot set %s to 0 or less than -1",
                     HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS.key());
         }
+        boolean cleanupIntervalEnable =
+                config.get(HistoryServerOptions.HISTORY_SERVER_CLEANUP_ENABLE);
+        long cleanupIntervalMillis =
+                config.get(HistoryServerOptions.HISTORY_SERVER_CLEANUP_INTERVAL).toMillis();
         archiveFetcher =
                 new HistoryServerArchiveFetcher(
                         refreshDirs,
                         webDir,
                         jobArchiveEventListener,
                         cleanupExpiredArchives,
-                        maxHistorySize);
+                        maxHistorySize,
+                        cleanupIntervalEnable,
+                        cleanupIntervalMillis);
 
         this.shutdownHook =
                 ShutdownHookUtil.addShutdownHook(
