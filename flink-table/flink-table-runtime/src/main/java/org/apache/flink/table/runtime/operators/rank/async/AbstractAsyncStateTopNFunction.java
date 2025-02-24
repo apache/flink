@@ -89,6 +89,7 @@ public abstract class AbstractAsyncStateTopNFunction extends AbstractTopNFunctio
      */
     protected StateFuture<Long> initRankEnd(RowData row) {
         if (isConstantRankEnd) {
+            rankEnd = Objects.requireNonNull(constantRankEnd);
             return StateFutureUtils.completedFuture(Objects.requireNonNull(constantRankEnd));
         } else {
             return rankEndState
@@ -98,9 +99,11 @@ public abstract class AbstractAsyncStateTopNFunction extends AbstractTopNFunctio
                                 long curRankEnd = rankEndFetcher.apply(row);
                                 if (rankEndInState == null) {
                                     // no need to wait this future
+                                    rankEnd = curRankEnd;
                                     rankEndState.asyncUpdate(curRankEnd);
                                     return curRankEnd;
                                 } else {
+                                    rankEnd = rankEndInState;
                                     if (rankEndInState != curRankEnd) {
                                         // increment the invalid counter when the current rank end
                                         // not equal to previous rank end

@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.rank;
+package org.apache.flink.table.runtime.operators.rank.async;
 
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
-import org.apache.flink.api.common.state.MapState;
-import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.StateTtlConfig;
+import org.apache.flink.api.common.state.v2.MapState;
+import org.apache.flink.api.common.state.v2.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -31,9 +31,15 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessingOperator;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.runtime.operators.rank.RankRange;
+import org.apache.flink.table.runtime.operators.rank.RankType;
+import org.apache.flink.table.runtime.operators.rank.RetractableTopNFunction;
+import org.apache.flink.table.runtime.operators.rank.TopNBuffer;
 import org.apache.flink.table.runtime.operators.rank.utils.RankRow;
 import org.apache.flink.table.runtime.operators.rank.utils.UpdatableTopNHelper;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -50,10 +56,10 @@ import java.util.Map;
  * input data has unique keys and unique key must contain partition key 3. input stream could not
  * contain DELETE record or UPDATE_BEFORE record
  */
-public class UpdatableTopNFunction extends AbstractSyncStateTopNFunction
+public class AsyncStateUpdatableTopNFunction extends AbstractAsyncStateTopNFunction
         implements CheckpointedFunction {
 
-    private static final long serialVersionUID = 6786508184355952781L;
+    private static final long serialVersionUID = 1L;
 
     private final InternalTypeInfo<RowData> rowKeyType;
     private final long cacheSize;
@@ -69,9 +75,9 @@ public class UpdatableTopNFunction extends AbstractSyncStateTopNFunction
     private final TypeSerializer<RowData> inputRowSer;
     private final KeySelector<RowData, RowData> rowKeySelector;
 
-    private transient SyncStateUpdatableTopNHelper helper;
+    private transient AsyncStateUpdatableTopNHelper helper;
 
-    public UpdatableTopNFunction(
+    public AsyncStateUpdatableTopNFunction(
             StateTtlConfig ttlConfig,
             InternalTypeInfo<RowData> inputRowType,
             RowDataKeySelector rowKeySelector,
@@ -108,9 +114,9 @@ public class UpdatableTopNFunction extends AbstractSyncStateTopNFunction
         if (ttlConfig.isEnabled()) {
             mapStateDescriptor.enableTimeToLive(ttlConfig);
         }
-        dataState = getRuntimeContext().getMapState(mapStateDescriptor);
+        dataState = ((StreamingRuntimeContext) getRuntimeContext()).getMapState(mapStateDescriptor);
 
-        helper = new SyncStateUpdatableTopNHelper();
+        helper = new AsyncStateUpdatableTopNHelper();
 
         // metrics
         helper.registerMetric();
@@ -125,14 +131,18 @@ public class UpdatableTopNFunction extends AbstractSyncStateTopNFunction
     public void processElement(RowData input, Context context, Collector<RowData> out)
             throws Exception {
         helper.initHeapStates();
-        initRankEnd(input);
-        if (outputRankNumber || hasOffset()) {
-            // the without-number-algorithm can't handle topN with offset,
-            // so use the with-number-algorithm to handle offset
-            helper.processElementWithRowNumber(input, out);
-        } else {
-            helper.processElementWithoutRowNumber(input, out);
-        }
+
+        initRankEnd(input)
+                .thenAccept(
+                        VOID -> {
+                            if (outputRankNumber || hasOffset()) {
+                                // the without-number-algorithm can't handle topN with offset,
+                                // so use the with-number-algorithm to handle offset
+                                helper.processElementWithRowNumber(input, out);
+                            } else {
+                                helper.processElementWithoutRowNumber(input, out);
+                            }
+                        });
     }
 
     @Override
@@ -140,10 +150,10 @@ public class UpdatableTopNFunction extends AbstractSyncStateTopNFunction
         helper.flushAllCacheToState();
     }
 
-    private class SyncStateUpdatableTopNHelper extends UpdatableTopNHelper {
-        private SyncStateUpdatableTopNHelper() {
+    private class AsyncStateUpdatableTopNHelper extends UpdatableTopNHelper {
+        private AsyncStateUpdatableTopNHelper() {
             super(
-                    UpdatableTopNFunction.this,
+                    AsyncStateUpdatableTopNFunction.this,
                     cacheSize,
                     getDefaultTopNSize(),
                     rowKeySelector,
@@ -156,33 +166,38 @@ public class UpdatableTopNFunction extends AbstractSyncStateTopNFunction
         protected void flushBufferToState(
                 RowData currentKey, Tuple2<TopNBuffer, Map<RowData, RankRow>> bufferEntry)
                 throws Exception {
-            keyContext.setCurrentKey(currentKey);
-            Map<RowData, RankRow> curRowKeyMap = bufferEntry.f1;
-            for (Map.Entry<RowData, RankRow> entry : curRowKeyMap.entrySet()) {
-                RowData key = entry.getKey();
-                RankRow rankRow = entry.getValue();
-                if (rankRow.dirty) {
-                    // should update state
-                    dataState.put(key, Tuple2.of(rankRow.row, rankRow.innerRank));
-                    rankRow.dirty = false;
-                }
-            }
+            ((AsyncStateProcessingOperator) keyContext)
+                    .asyncProcessWithKey(
+                            currentKey,
+                            () -> {
+                                Map<RowData, RankRow> curRowKeyMap = bufferEntry.f1;
+                                for (Map.Entry<RowData, RankRow> entry : curRowKeyMap.entrySet()) {
+                                    RowData key = entry.getKey();
+                                    RankRow rankRow = entry.getValue();
+                                    if (rankRow.dirty) {
+                                        // should update state
+                                        dataState.put(
+                                                key, Tuple2.of(rankRow.row, rankRow.innerRank));
+                                        rankRow.dirty = false;
+                                    }
+                                }
+                            });
         }
 
         @Override
         protected void removeDataState(RowData rowKey) throws Exception {
+            // no need to wait for the future
             dataState.remove(rowKey);
         }
 
         @Override
-        protected Iterator<Map.Entry<RowData, Tuple2<RowData, Integer>>> getDataStateIterator()
-                throws Exception {
+        protected Iterator<Map.Entry<RowData, Tuple2<RowData, Integer>>> getDataStateIterator() {
             return dataState.iterator();
         }
 
         @Override
         protected boolean isInRankEnd(long rank) {
-            return UpdatableTopNFunction.this.isInRankEnd(rank);
+            return AsyncStateUpdatableTopNFunction.this.isInRankEnd(rank);
         }
 
         @Override
