@@ -207,22 +207,31 @@ public class DefaultVertexParallelismAndInputInfosDecider
                     }
                 });
 
-        // For AllToAll like inputs, we derive parallelism as a whole, while for Pointwise inputs,
-        // we derive parallelism separately for each input, and our goal is ensured that the final
-        // parallelisms of those inputs are consistent and meet expectations.
-        // Since AllToAll supports deriving parallelism within a flexible range, this might
-        // interfere with the target parallelism. Therefore, in the following cases, we need to
-        // reset the minimum and maximum parallelism to limit the flexibility of parallelism
-        // derivation to achieve the goal:
-        // 1.  Vertex has a specified parallelism, we should follow it.
-        // 2.  There are pointwise inputs, which means that there may be inputs whose parallelism is
-        // derived one-by-one, we need to reset the min and max parallelism.
-        if (vertexInitialParallelism > 0 || !pointwiseInputs.isEmpty()) {
+        // As vertex has a specified parallelism, we should follow it.
+        if (vertexInitialParallelism > 0) {
             minParallelism = parallelism;
             maxParallelism = parallelism;
         }
 
         Map<IntermediateDataSetID, JobVertexInputInfo> vertexInputInfos = new HashMap<>();
+
+        if (!pointwiseInputs.isEmpty()) {
+            vertexInputInfos.putAll(
+                    pointwiseVertexInputInfoComputer.compute(
+                            pointwiseInputs,
+                            parallelism,
+                            minParallelism,
+                            maxParallelism,
+                            calculateDataVolumePerTaskForInputsGroup(
+                                    dataVolumePerTask, pointwiseInputs, consumedResults)));
+            // We need to reset the minimum and maximum parallelism to limit the flexibility of
+            // parallelism derivation to make final parallelisms of all inputs are consistent
+            if (!allToAllInputs.isEmpty()) {
+                parallelism = checkAndGetParallelism(vertexInputInfos.values());
+                minParallelism = parallelism;
+                maxParallelism = parallelism;
+            }
+        }
 
         if (!allToAllInputs.isEmpty()) {
             vertexInputInfos.putAll(
@@ -234,15 +243,6 @@ public class DefaultVertexParallelismAndInputInfosDecider
                             maxParallelism,
                             calculateDataVolumePerTaskForInputsGroup(
                                     dataVolumePerTask, allToAllInputs, consumedResults)));
-        }
-
-        if (!pointwiseInputs.isEmpty()) {
-            vertexInputInfos.putAll(
-                    pointwiseVertexInputInfoComputer.compute(
-                            pointwiseInputs,
-                            parallelism,
-                            calculateDataVolumePerTaskForInputsGroup(
-                                    dataVolumePerTask, pointwiseInputs, consumedResults)));
         }
 
         for (BlockingInputInfo inputInfo : consumedResults) {

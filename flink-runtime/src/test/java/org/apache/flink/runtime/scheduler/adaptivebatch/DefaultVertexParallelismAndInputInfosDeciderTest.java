@@ -276,16 +276,18 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
                 createDeciderAndDecideParallelismAndInputInfos(
                         1, 10, 60L, Arrays.asList(resultInfo1, resultInfo2));
 
-        assertThat(parallelismAndInputInfos.getParallelism()).isEqualTo(4);
+        assertThat(parallelismAndInputInfos.getParallelism()).isEqualTo(6);
         assertThat(parallelismAndInputInfos.getJobVertexInputInfos()).hasSize(2);
 
         checkAllToAllJobVertexInputInfo(
                 parallelismAndInputInfos.getJobVertexInputInfos().get(resultInfo1.getResultId()),
                 Arrays.asList(
                         new IndexRange(0, 1),
-                        new IndexRange(2, 5),
-                        new IndexRange(6, 7),
-                        new IndexRange(8, 9)));
+                        new IndexRange(2, 3),
+                        new IndexRange(4, 6),
+                        new IndexRange(7, 7),
+                        new IndexRange(8, 8),
+                        new IndexRange(9, 9)));
         checkJobVertexInputInfo(
                 parallelismAndInputInfos.getJobVertexInputInfos().get(resultInfo2.getResultId()),
                 Arrays.asList(
@@ -295,8 +297,10 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
                                 new IndexRange(0, 0),
                                 new IndexRange(4, 4),
                                 new IndexRange(1, 1),
-                                new IndexRange(0, 1)),
-                        Map.of(new IndexRange(1, 1), new IndexRange(2, 4))));
+                                new IndexRange(0, 0)),
+                        Map.of(new IndexRange(1, 1), new IndexRange(1, 1)),
+                        Map.of(new IndexRange(1, 1), new IndexRange(2, 3)),
+                        Map.of(new IndexRange(1, 1), new IndexRange(4, 4))));
     }
 
     @Test
