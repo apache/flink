@@ -32,10 +32,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.scheduler.adaptivebatch.util.SubpartitionSlice.createSubpartitionSlice;
-import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.calculateDataVolumePerTaskForInput;
-import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.createdJobVertexInputInfoForNonBroadcast;
+import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.checkAndGetPartitionNum;
+import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.checkAndGetSubpartitionNum;
+import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.createJobVertexInputInfos;
+import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.getInputsWithIntraCorrelation;
+import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.getMinSubpartitionCount;
 import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.isLegalParallelism;
 import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.tryComputeSubpartitionSliceRange;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -45,43 +49,9 @@ public class PointwiseVertexInputInfoComputer {
     private static final Logger LOG =
             LoggerFactory.getLogger(PointwiseVertexInputInfoComputer.class);
 
-    /**
-     * Computes the input information for a job vertex based on the provided blocking input
-     * information and parallelism.
-     *
-     * @param inputInfos List of blocking input information for the job vertex.
-     * @param parallelism Parallelism of the job vertex.
-     * @param dataVolumePerTask Proposed data volume per task for this set of inputInfo.
-     * @return A map of intermediate data set IDs to their corresponding job vertex input
-     *     information.
-     */
-    public Map<IntermediateDataSetID, JobVertexInputInfo> compute(
-            List<BlockingInputInfo> inputInfos, int parallelism, long dataVolumePerTask) {
-        long totalDataBytes =
-                inputInfos.stream().mapToLong(BlockingInputInfo::getNumBytesProduced).sum();
-        Map<IntermediateDataSetID, JobVertexInputInfo> vertexInputInfos = new HashMap<>();
-        for (BlockingInputInfo inputInfo : inputInfos) {
-            // Currently, we consider all inputs in this method must don't have inter-inputs key
-            // correlation. If other possibilities are introduced in the future, please add new
-            // branches to this method.
-            checkState(!inputInfo.areInterInputsKeysCorrelated());
-            if (inputInfo.isIntraInputKeyCorrelated()) {
-                // In this case, we won't split subpartitions within the same partition, so need
-                // to ensure NumPartitions >= parallelism.
-                checkState(parallelism <= inputInfo.getNumPartitions());
-            }
-            vertexInputInfos.put(
-                    inputInfo.getResultId(),
-                    computeVertexInputInfo(
-                            inputInfo,
-                            parallelism,
-                            calculateDataVolumePerTaskForInput(
-                                    dataVolumePerTask,
-                                    inputInfo.getNumBytesProduced(),
-                                    totalDataBytes)));
-        }
-        return vertexInputInfos;
-    }
+    // Used to limit the maximum number of subpartition slices to prevent increasing the
+    // time complexity of the parallelism deciding.
+    private static final int MAX_NUM_SUBPARTITION_SLICES_FACTOR = 32;
 
     /**
      * Decide parallelism and input infos, which will make the data be evenly distributed to
@@ -100,57 +70,96 @@ public class PointwiseVertexInputInfoComputer {
      * The final result is the `SubpartitionGroup` that each of the three parallel tasks need to
      * subscribe.
      *
-     * @param inputInfo The information of consumed blocking results
-     * @param parallelism The parallelism of the job vertex. Since pointwise inputs always compute
-     *     vertex input info one-by-one, we need a determined parallelism to ensure the final
-     *     decided parallelism for all inputs is consistent.
-     * @return the vertex input info
+     * @param inputInfos The information of consumed blocking results
+     * @param parallelism The parallelism of the job vertex
+     * @param minParallelism the min parallelism
+     * @param maxParallelism the max parallelism
+     * @param dataVolumePerTask proposed data volume per task for this set of inputInfo
+     * @return the parallelism and vertex input infos
      */
-    private static JobVertexInputInfo computeVertexInputInfo(
-            BlockingInputInfo inputInfo, int parallelism, long dataVolumePerTask) {
-        List<SubpartitionSlice> subpartitionSlices = createSubpartitionSlices(inputInfo);
+    public Map<IntermediateDataSetID, JobVertexInputInfo> compute(
+            List<BlockingInputInfo> inputInfos,
+            int parallelism,
+            int minParallelism,
+            int maxParallelism,
+            long dataVolumePerTask) {
+        Map<Integer, List<SubpartitionSlice>> subpartitionSlicesByInputIndex =
+                createSubpartitionSlicesByInputIndex(inputInfos, maxParallelism);
 
-        // Node: SubpartitionSliceRanges does not represent the real index of the subpartitions, but
+        // Note: SubpartitionSliceRanges does not represent the real index of the subpartitions, but
         // the location of that subpartition in all subpartitions, as we aggregate all subpartitions
         // into a one-digit array to calculate.
         Optional<List<IndexRange>> optionalSubpartitionSliceRanges =
                 tryComputeSubpartitionSliceRange(
-                        parallelism,
-                        parallelism,
+                        minParallelism,
+                        maxParallelism,
                         dataVolumePerTask,
-                        Map.of(inputInfo.getInputTypeNumber(), subpartitionSlices));
+                        subpartitionSlicesByInputIndex);
 
         if (optionalSubpartitionSliceRanges.isEmpty()) {
             LOG.info(
-                    "Cannot find a legal parallelism to evenly distribute data amount for input {}, "
+                    "Cannot find a legal parallelism to evenly distribute data amount for inputs {}, "
                             + "fallback to compute a parallelism that can evenly distribute num subpartitions.",
-                    inputInfo.getResultId());
+                    inputInfos.stream()
+                            .map(BlockingInputInfo::getResultId)
+                            .collect(Collectors.toList()));
             // This computer is only used in the adaptive batch scenario, where isDynamicGraph
             // should always be true.
-            return VertexInputInfoComputationUtils.computeVertexInputInfoForPointwise(
-                    inputInfo.getNumPartitions(),
-                    parallelism,
-                    inputInfo::getNumSubpartitions,
-                    true);
+            return VertexInputInfoComputationUtils.computeVertexInputInfos(
+                    parallelism, inputInfos, true);
         }
 
         List<IndexRange> subpartitionSliceRanges = optionalSubpartitionSliceRanges.get();
 
-        checkState(isLegalParallelism(subpartitionSliceRanges.size(), parallelism, parallelism));
+        checkState(
+                isLegalParallelism(subpartitionSliceRanges.size(), minParallelism, maxParallelism));
 
-        // Create vertex input info based on the subpartition slice and ranges.
-        return createJobVertexInputInfo(inputInfo, subpartitionSliceRanges, subpartitionSlices);
+        // Create vertex input infos based on the subpartition slice and ranges.
+        return createJobVertexInputInfos(
+                inputInfos,
+                subpartitionSlicesByInputIndex,
+                subpartitionSliceRanges,
+                index -> index);
     }
 
-    private static List<SubpartitionSlice> createSubpartitionSlices(BlockingInputInfo inputInfo) {
+    private static Map<Integer, List<SubpartitionSlice>> createSubpartitionSlicesByInputIndex(
+            List<BlockingInputInfo> inputInfos, int maxParallelism) {
+        int numSubpartitionSlices;
+        List<BlockingInputInfo> inputsWithIntraCorrelation =
+                getInputsWithIntraCorrelation(inputInfos);
+        if (!inputsWithIntraCorrelation.isEmpty()) {
+            // Ensure that when creating subpartition slices, data with intra-correlation will
+            // not be split.
+            numSubpartitionSlices = checkAndGetPartitionNum(inputsWithIntraCorrelation);
+        } else {
+            // Use the minimum of the two to avoid creating too many subpartition slices, which will
+            // lead to too high the time complexity of the parallelism deciding.
+            numSubpartitionSlices =
+                    Math.min(
+                            getMinSubpartitionCount(inputInfos),
+                            MAX_NUM_SUBPARTITION_SLICES_FACTOR * maxParallelism);
+        }
+
+        Map<Integer, List<SubpartitionSlice>> subpartitionSlices = new HashMap<>();
+        for (int i = 0; i < inputInfos.size(); ++i) {
+            BlockingInputInfo inputInfo = inputInfos.get(i);
+            subpartitionSlices.put(i, createSubpartitionSlices(inputInfo, numSubpartitionSlices));
+        }
+
+        return subpartitionSlices;
+    }
+
+    private static List<SubpartitionSlice> createSubpartitionSlices(
+            BlockingInputInfo inputInfo, int total) {
         List<SubpartitionSlice> subpartitionSlices = new ArrayList<>();
-        if (inputInfo.isIntraInputKeyCorrelated()) {
-            // If the input has intra-input correlation, we need to ensure all subpartitions
-            // in the same partition index are assigned to the same downstream concurrent task.
-            for (int i = 0; i < inputInfo.getNumPartitions(); ++i) {
-                IndexRange partitionRange = new IndexRange(i, i);
-                IndexRange subpartitionRange =
-                        new IndexRange(0, inputInfo.getNumSubpartitions(i) - 1);
+        int numPartitions = inputInfo.getNumPartitions();
+        int numSubpartitions = checkAndGetSubpartitionNum(List.of(inputInfo));
+        if (numPartitions >= total) {
+            for (int i = 0; i < total; ++i) {
+                int start = i * numPartitions / total;
+                int nextStart = (i + 1) * numPartitions / total;
+                IndexRange partitionRange = new IndexRange(start, nextStart - 1);
+                IndexRange subpartitionRange = new IndexRange(0, numSubpartitions - 1);
                 subpartitionSlices.add(
                         createSubpartitionSlice(
                                 partitionRange,
@@ -158,10 +167,14 @@ public class PointwiseVertexInputInfoComputer {
                                 inputInfo.getNumBytesProduced(partitionRange, subpartitionRange)));
             }
         } else {
-            for (int i = 0; i < inputInfo.getNumPartitions(); ++i) {
+            for (int i = 0; i < numPartitions; i++) {
+                int count = (i + 1) * total / numPartitions - i * total / numPartitions;
+                checkState(count > 0 && count <= numSubpartitions);
                 IndexRange partitionRange = new IndexRange(i, i);
-                for (int j = 0; j < inputInfo.getNumSubpartitions(i); ++j) {
-                    IndexRange subpartitionRange = new IndexRange(j, j);
+                for (int j = 0; j < count; ++j) {
+                    int start = j * numSubpartitions / count;
+                    int nextStart = (j + 1) * numSubpartitions / count;
+                    IndexRange subpartitionRange = new IndexRange(start, nextStart - 1);
                     subpartitionSlices.add(
                             createSubpartitionSlice(
                                     partitionRange,
@@ -172,14 +185,5 @@ public class PointwiseVertexInputInfoComputer {
             }
         }
         return subpartitionSlices;
-    }
-
-    private static JobVertexInputInfo createJobVertexInputInfo(
-            BlockingInputInfo inputInfo,
-            List<IndexRange> subpartitionSliceRanges,
-            List<SubpartitionSlice> subpartitionSlices) {
-        checkState(!inputInfo.isBroadcast());
-        return createdJobVertexInputInfoForNonBroadcast(
-                inputInfo, subpartitionSliceRanges, subpartitionSlices);
     }
 }
