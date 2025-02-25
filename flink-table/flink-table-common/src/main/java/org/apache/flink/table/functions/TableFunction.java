@@ -19,12 +19,8 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.functions.InvalidTypesException;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.extraction.TypeInferenceExtractor;
 import org.apache.flink.table.types.inference.TypeInference;
@@ -141,48 +137,6 @@ public abstract class TableFunction<T> extends UserDefinedFunction {
     /** Internal use. Sets the current collector. */
     public final void setCollector(Collector<T> collector) {
         this.collector = collector;
-    }
-
-    /**
-     * Returns the result type of the evaluation method.
-     *
-     * @deprecated This method uses the old type system and is based on the old reflective
-     *     extraction logic. The method will be removed in future versions and is only called when
-     *     using the deprecated {@code TableEnvironment.registerFunction(...)} method. The new
-     *     reflective extraction logic (possibly enriched with {@link DataTypeHint} and {@link
-     *     FunctionHint}) should be powerful enough to cover most use cases. For advanced users, it
-     *     is possible to override {@link UserDefinedFunction#getTypeInference(DataTypeFactory)}.
-     */
-    @Deprecated
-    public TypeInformation<T> getResultType() {
-        return null;
-    }
-
-    /**
-     * Returns {@link TypeInformation} about the operands of the evaluation method with a given
-     * signature.
-     *
-     * @deprecated This method uses the old type system and is based on the old reflective
-     *     extraction logic. The method will be removed in future versions and is only called when
-     *     using the deprecated {@code TableEnvironment.registerFunction(...)} method. The new
-     *     reflective extraction logic (possibly enriched with {@link DataTypeHint} and {@link
-     *     FunctionHint}) should be powerful enough to cover most use cases. For advanced users, it
-     *     is possible to override {@link UserDefinedFunction#getTypeInference(DataTypeFactory)}.
-     */
-    @Deprecated
-    public TypeInformation<?>[] getParameterTypes(Class<?>[] signature) {
-        final TypeInformation<?>[] types = new TypeInformation<?>[signature.length];
-        for (int i = 0; i < signature.length; i++) {
-            try {
-                types[i] = TypeExtractor.getForClass(signature[i]);
-            } catch (InvalidTypesException e) {
-                throw new ValidationException(
-                        "Parameter types of table function "
-                                + this.getClass().getCanonicalName()
-                                + " cannot be automatically determined. Please provide type information manually.");
-            }
-        }
-        return types;
     }
 
     /**
