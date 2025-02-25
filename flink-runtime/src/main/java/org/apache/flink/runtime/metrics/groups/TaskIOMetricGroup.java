@@ -342,6 +342,14 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
         this.numRecordsOut.addCounter(numRecordsOutCounter);
     }
 
+    public void reuseBytesInputCounter(Counter numBytesInCounter) {
+        this.numBytesIn.addCounter(numBytesInCounter);
+    }
+
+    public void reuseBytesOutputCounter(Counter numBytesOutCounter) {
+        this.numBytesOut.addCounter(numBytesOutCounter);
+    }
+
     public void registerResultPartitionBytesCounter(
             IntermediateResultPartitionID resultPartitionId,
             ResultPartitionBytesCounter resultPartitionBytesCounter) {
