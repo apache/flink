@@ -402,7 +402,8 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
                                     generateUpdateBefore,
                                     generateInsert(),
                                     true,
-                                    generatedEqualiser);
+                                    generatedEqualiser,
+                                    null);
                     return new KeyedMapBundleOperator<>(processFunction, trigger);
                 } else {
                     ProcTimeMiniBatchDeduplicateKeepFirstRowFunction processFunction =
@@ -419,7 +420,8 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
                                     generateUpdateBefore,
                                     generateInsert(),
                                     true,
-                                    generatedEqualiser);
+                                    generatedEqualiser,
+                                    null);
                     return new KeyedProcessOperator<>(processFunction);
                 } else {
                     ProcTimeDeduplicateKeepFirstRowFunction processFunction =

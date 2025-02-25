@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
+import org.apache.flink.table.planner.codegen.FilterCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -40,6 +41,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.StateMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.MinibatchUtil;
+import org.apache.flink.table.runtime.generated.GeneratedFilterCondition;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator;
@@ -52,6 +54,8 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
 
@@ -82,12 +86,18 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
     public static final String FIELD_NAME_UNIQUE_KEYS = "uniqueKeys";
     public static final String FIELD_NAME_GENERATE_UPDATE_BEFORE = "generateUpdateBefore";
     public static final String STATE_NAME = "changelogNormalizeState";
+    public static final String FIELD_NAME_FILTER_CONDITION = "filterCondition";
 
     @JsonProperty(FIELD_NAME_UNIQUE_KEYS)
     private final int[] uniqueKeys;
 
     @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE)
     private final boolean generateUpdateBefore;
+
+    @Nullable
+    @JsonProperty(FIELD_NAME_FILTER_CONDITION)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final RexNode filterCondition;
 
     @Nullable
     @JsonProperty(FIELD_NAME_STATE)
@@ -98,6 +108,7 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
             ReadableConfig tableConfig,
             int[] uniqueKeys,
             boolean generateUpdateBefore,
+            @Nullable RexNode filterCondition,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -110,7 +121,8 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
                 StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, STATE_NAME),
                 Collections.singletonList(inputProperty),
                 outputType,
-                description);
+                description,
+                filterCondition);
     }
 
     @JsonCreator
@@ -123,11 +135,13 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
             @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
-            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description,
+            @JsonProperty(FIELD_NAME_FILTER_CONDITION) @Nullable RexNode filterCondition) {
         super(id, context, persistedConfig, inputProperties, outputType, description);
         this.uniqueKeys = uniqueKeys;
         this.generateUpdateBefore = generateUpdateBefore;
         this.stateMetadataList = stateMetadataList;
+        this.filterCondition = filterCondition;
     }
 
     @SuppressWarnings("unchecked")
@@ -146,10 +160,15 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
                 StateMetadata.getStateTtlForOneInputOperator(config, stateMetadataList);
         final boolean isMiniBatchEnabled = MinibatchUtil.isMiniBatchEnabled(config);
 
-        GeneratedRecordEqualiser generatedEqualiser =
-                new EqualiserCodeGenerator(
-                                rowTypeInfo.toRowType(), planner.getFlinkContext().getClassLoader())
+        final ClassLoader classLoader = planner.getFlinkContext().getClassLoader();
+        final RowType inputType = rowTypeInfo.toRowType();
+        final GeneratedRecordEqualiser generatedEqualiser =
+                new EqualiserCodeGenerator(inputType, classLoader)
                         .generateRecordEqualiser("DeduplicateRowEqualiser");
+
+        final GeneratedFilterCondition generatedFilterCondition =
+                FilterCodeGenerator.generateFilterCondition(
+                        config, classLoader, filterCondition, inputType);
 
         if (isMiniBatchEnabled) {
             TypeSerializer<RowData> rowSerializer =
@@ -163,7 +182,8 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
                             generateUpdateBefore,
                             true, // generateInsert
                             false, // inputInsertOnly
-                            generatedEqualiser);
+                            generatedEqualiser,
+                            generatedFilterCondition);
             CountBundleTrigger<RowData> trigger = MinibatchUtil.createMiniBatchTrigger(config);
             operator = new KeyedMapBundleOperator<>(processFunction, trigger);
         } else {
@@ -174,7 +194,8 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
                             generateUpdateBefore,
                             true, // generateInsert
                             false, // inputInsertOnly
-                            generatedEqualiser);
+                            generatedEqualiser,
+                            generatedFilterCondition);
             operator = new KeyedProcessOperator<>(processFunction);
         }
 
@@ -188,8 +209,7 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
                         false);
 
         final RowDataKeySelector selector =
-                KeySelectorUtil.getRowDataSelector(
-                        planner.getFlinkContext().getClassLoader(), uniqueKeys, rowTypeInfo);
+                KeySelectorUtil.getRowDataSelector(classLoader, uniqueKeys, rowTypeInfo);
         transform.setStateKeySelector(selector);
         transform.setStateKeyType(selector.getProducedType());
 

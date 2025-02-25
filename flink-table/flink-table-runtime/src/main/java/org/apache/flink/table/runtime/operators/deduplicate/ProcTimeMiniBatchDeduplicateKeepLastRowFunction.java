@@ -18,9 +18,12 @@
 
 package org.apache.flink.table.runtime.operators.deduplicate;
 
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.context.ExecutionContext;
+import org.apache.flink.table.runtime.generated.FilterCondition;
+import org.apache.flink.table.runtime.generated.GeneratedFilterCondition;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -31,6 +34,7 @@ import javax.annotation.Nullable;
 import java.util.Map;
 
 import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.processLastRowOnChangelog;
+import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.processLastRowOnChangelogWithFilter;
 import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.processLastRowOnProcTime;
 
 /** This function is used to get the last row for every key partition in miniBatch mode. */
@@ -45,9 +49,12 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunction
     private final boolean isStateTtlEnabled;
     // The code generated equaliser used to equal RowData.
     private final GeneratedRecordEqualiser genRecordEqualiser;
+    private final GeneratedFilterCondition genFilterCondition;
 
     // The record equaliser used to equal RowData.
     private transient RecordEqualiser equaliser;
+
+    private transient FilterCondition filterCondition;
 
     public ProcTimeMiniBatchDeduplicateKeepLastRowFunction(
             InternalTypeInfo<RowData> typeInfo,
@@ -56,13 +63,15 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunction
             boolean generateUpdateBefore,
             boolean generateInsert,
             boolean inputInsertOnly,
-            GeneratedRecordEqualiser genRecordEqualiser) {
+            GeneratedRecordEqualiser genRecordEqualiser,
+            GeneratedFilterCondition genFilterCondition) {
         super(typeInfo, stateRetentionTime);
         this.serializer = serializer;
         this.generateUpdateBefore = generateUpdateBefore;
         this.generateInsert = generateInsert;
         this.inputInsertOnly = inputInsertOnly;
         this.genRecordEqualiser = genRecordEqualiser;
+        this.genFilterCondition = genFilterCondition;
         this.isStateTtlEnabled = stateRetentionTime > 0;
     }
 
@@ -71,6 +80,12 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunction
         super.open(ctx);
         equaliser =
                 genRecordEqualiser.newInstance(ctx.getRuntimeContext().getUserCodeClassLoader());
+        if (genFilterCondition != null) {
+            filterCondition =
+                    genFilterCondition.newInstance(
+                            ctx.getRuntimeContext().getUserCodeClassLoader());
+            FunctionUtils.setFunctionRuntimeContext(filterCondition, ctx.getRuntimeContext());
+        }
     }
 
     @Override
@@ -95,6 +110,15 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunction
                         out,
                         isStateTtlEnabled,
                         equaliser);
+            } else if (filterCondition != null) {
+                processLastRowOnChangelogWithFilter(
+                        currentRow,
+                        generateUpdateBefore,
+                        state,
+                        out,
+                        isStateTtlEnabled,
+                        equaliser,
+                        filterCondition);
             } else {
                 processLastRowOnChangelog(
                         currentRow, generateUpdateBefore, state, out, isStateTtlEnabled, equaliser);
