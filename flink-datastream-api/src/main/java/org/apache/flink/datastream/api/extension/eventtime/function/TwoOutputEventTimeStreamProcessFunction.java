@@ -50,5 +50,6 @@ public interface TwoOutputEventTimeStreamProcessFunction<IN, OUT1, OUT2>
             long timestamp,
             Collector<OUT1> output1,
             Collector<OUT2> output2,
-            TwoOutputPartitionedContext<OUT1, OUT2> ctx) {}
+            TwoOutputPartitionedContext<OUT1, OUT2> ctx)
+            throws Exception {}
 }

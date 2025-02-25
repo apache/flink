@@ -1635,6 +1635,8 @@ under the License.
 						<exclude>flink-tests/src/test/resources/avro/*.avsc</exclude>
 						<exclude>flink-connectors/flink-connector-datagen-test/src/test/resources/avro/*.avsc</exclude>
 						<exclude>flink-runtime-web/web-dashboard/dev/notice-template</exclude>
+						<exclude>flink-examples/flink-examples-streaming/src/main/resources/datas/**</exclude>
+						<exclude>flink-examples/flink-examples-streaming/src/test/resources/datas/**</exclude>
 						<!-- ArchUnit violation stores  -->
 						<exclude>**/archunit-violations/**</exclude>
 
