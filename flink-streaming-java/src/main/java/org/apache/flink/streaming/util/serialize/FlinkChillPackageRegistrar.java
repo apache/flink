@@ -22,17 +22,8 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.ChillSerializerRegistrar
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
-import com.twitter.chill.java.ArraysAsListSerializer;
-import com.twitter.chill.java.BitSetSerializer;
-import com.twitter.chill.java.InetSocketAddressSerializer;
-import com.twitter.chill.java.LocaleSerializer;
-import com.twitter.chill.java.RegexSerializer;
-import com.twitter.chill.java.SimpleDateFormatSerializer;
-import com.twitter.chill.java.SqlDateSerializer;
-import com.twitter.chill.java.SqlTimeSerializer;
-import com.twitter.chill.java.TimestampSerializer;
-import com.twitter.chill.java.URISerializer;
-import com.twitter.chill.java.UUIDSerializer;
+import com.esotericsoftware.kryo.serializers.DefaultSerializers;
+import com.esotericsoftware.kryo.serializers.JavaSerializer;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -66,18 +57,20 @@ public class FlinkChillPackageRegistrar implements ChillSerializerRegistrar {
     public void registerSerializers(Kryo kryo) {
         //noinspection ArraysAsListWithZeroOrOneArgument
         new RegistrationHelper(FIRST_REGISTRATION_ID, kryo)
-                .register(Arrays.asList("").getClass(), new ArraysAsListSerializer())
-                .register(BitSet.class, new BitSetSerializer())
-                .register(PriorityQueue.class, new PriorityQueueSerializer())
-                .register(Pattern.class, new RegexSerializer())
-                .register(Date.class, new SqlDateSerializer())
-                .register(Time.class, new SqlTimeSerializer())
-                .register(Timestamp.class, new TimestampSerializer())
-                .register(URI.class, new URISerializer())
+                .register(
+                        Arrays.asList("").getClass(),
+                        new DefaultSerializers.ArraysAsListSerializer())
+                .register(BitSet.class, new DefaultSerializers.BitSetSerializer())
+                .register(PriorityQueue.class, new DefaultSerializers.PriorityQueueSerializer())
+                .register(Pattern.class, new DefaultSerializers.PatternSerializer())
+                .register(Date.class, new DefaultSerializers.DateSerializer())
+                .register(Time.class, new DefaultSerializers.DateSerializer())
+                .register(Timestamp.class, new DefaultSerializers.TimestampSerializer())
+                .register(URI.class, new DefaultSerializers.URISerializer())
                 .register(InetSocketAddress.class, new InetSocketAddressSerializer())
-                .register(UUID.class, new UUIDSerializer())
-                .register(Locale.class, new LocaleSerializer())
-                .register(SimpleDateFormat.class, new SimpleDateFormatSerializer());
+                .register(UUID.class, new DefaultSerializers.UUIDSerializer())
+                .register(Locale.class, new DefaultSerializers.LocaleSerializer())
+                .register(SimpleDateFormat.class, new JavaSerializer());
     }
 
     private static final class RegistrationHelper {

@@ -282,7 +282,7 @@ class StreamExecutionEnvironmentComplexConfigurationTest {
         public void write(Kryo kryo, Output output, CustomPojo object) {}
 
         @Override
-        public CustomPojo read(Kryo kryo, Input input, Class<CustomPojo> type) {
+        public CustomPojo read(Kryo kryo, Input input, Class<? extends CustomPojo> type) {
             return null;
         }
     }

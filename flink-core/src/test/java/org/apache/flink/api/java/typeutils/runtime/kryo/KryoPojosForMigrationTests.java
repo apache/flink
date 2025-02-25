@@ -122,7 +122,7 @@ public class KryoPojosForMigrationTests {
         }
 
         @Override
-        public Parrot read(Kryo kryo, Input input, Class<Parrot> type) {
+        public Parrot read(Kryo kryo, Input input, Class<? extends Parrot> type) {
             return new Parrot(input.readString());
         }
     }
@@ -138,7 +138,7 @@ public class KryoPojosForMigrationTests {
         }
 
         @Override
-        public Dog read(Kryo kryo, Input input, Class<Dog> type) {
+        public Dog read(Kryo kryo, Input input, Class<? extends Dog> type) {
             return new Dog(input.readString());
         }
     }
@@ -154,7 +154,7 @@ public class KryoPojosForMigrationTests {
         }
 
         @Override
-        public Dog read(Kryo kryo, Input input, Class<Dog> type) {
+        public Dog read(Kryo kryo, Input input, Class<? extends Dog> type) {
             return new Dog(input.readString());
         }
     }
