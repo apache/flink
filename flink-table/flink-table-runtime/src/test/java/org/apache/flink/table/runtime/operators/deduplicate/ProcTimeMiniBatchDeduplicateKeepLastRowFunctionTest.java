@@ -28,10 +28,13 @@ import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator;
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
@@ -54,7 +57,22 @@ class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
                 generateUpdateBefore,
                 generateInsert,
                 true,
-                generatedEqualiser);
+                generatedEqualiser,
+                null);
+    }
+
+    private ProcTimeMiniBatchDeduplicateKeepLastRowFunction createFunctionWithFilter(
+            boolean generateUpdateBefore) {
+
+        return new ProcTimeMiniBatchDeduplicateKeepLastRowFunction(
+                inputRowType,
+                typeSerializer,
+                minTime.toMillis(),
+                generateUpdateBefore,
+                false,
+                false,
+                generatedEqualiser,
+                generatedFilterCondition);
     }
 
     private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
@@ -181,5 +199,61 @@ class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
         expectedOutput.add(insertRecord("book", 1L, 19));
         expectedOutput.add(insertRecord("book", 2L, 18));
         assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testWithFilterCondition(boolean updateBefore) throws Exception {
+        ProcTimeMiniBatchDeduplicateKeepLastRowFunction func =
+                createFunctionWithFilter(updateBefore);
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
+        testHarness.open();
+        testHarness.processElement(updateAfterRecord("book", 1L, 12));
+        testHarness.processElement(updateAfterRecord("book", 1L, 15));
+        // output is empty because bundle not trigger yet.
+        assertThat(testHarness.getOutput()).isEmpty();
+        testHarness.processElement(updateAfterRecord("book", 1L, 16));
+        // first bundle end
+
+        testHarness.processElement(updateAfterRecord("book", 1L, 16));
+        testHarness.processElement(updateAfterRecord("book", 1L, 18));
+        testHarness.processElement(updateAfterRecord("book", 1L, 19));
+        // second bundle end
+
+        testHarness.processElement(updateAfterRecord("book", 1L, 8));
+        testHarness.processElement(updateAfterRecord("book", 1L, 9));
+        testHarness.processElement(updateAfterRecord("book", 1L, 7));
+        // third bundle end
+
+        testHarness.processElement(updateAfterRecord("book", 1L, 21));
+        testHarness.processElement(updateAfterRecord("book", 1L, 22));
+        testHarness.processElement(updateAfterRecord("book", 1L, 23));
+        // fourth bundle end
+
+        testHarness.processElement(updateAfterRecord("book", 1L, 23));
+        testHarness.processElement(updateAfterRecord("book", 1L, 23));
+        testHarness.processElement(deleteRecord("book", 1L, null));
+        // fifth bundle end
+
+        List<Object> expectedOutput = new ArrayList<>();
+        // first bundle result
+        expectedOutput.add(insertRecord("book", 1L, 16));
+
+        // second bundle result
+        if (updateBefore) {
+            expectedOutput.add(updateBeforeRecord("book", 1L, 16));
+        }
+        expectedOutput.add(updateAfterRecord("book", 1L, 19));
+
+        // third bundle result
+        expectedOutput.add(deleteRecord("book", 1L, 19));
+
+        // fourth bundle result
+        expectedOutput.add(insertRecord("book", 1L, 23));
+
+        // fifth bundle result
+        expectedOutput.add(deleteRecord("book", 1L, 23));
+        assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
     }
 }

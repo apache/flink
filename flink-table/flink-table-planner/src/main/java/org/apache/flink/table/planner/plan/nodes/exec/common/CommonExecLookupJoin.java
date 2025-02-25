@@ -44,6 +44,7 @@ import org.apache.flink.table.legacy.sources.LookupableTableSource;
 import org.apache.flink.table.legacy.sources.TableSource;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.FilterCodeGenerator;
 import org.apache.flink.table.planner.codegen.LookupJoinCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
@@ -442,7 +443,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                         JavaScalaConversionUtil.toScala(
                                 Optional.ofNullable(remainingJoinCondition)));
         GeneratedFilterCondition generatedPreFilterCondition =
-                LookupJoinCodeGenerator.generatePreFilterCondition(
+                FilterCodeGenerator.generateFilterCondition(
                         config, classLoader, preFilterCondition, inputRowType);
 
         DataStructureConverter<?, ?> fetcherConverter =
@@ -581,7 +582,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                         true);
 
         GeneratedFilterCondition generatedPreFilterCondition =
-                LookupJoinCodeGenerator.generatePreFilterCondition(
+                FilterCodeGenerator.generateFilterCondition(
                         config, classLoader, preFilterCondition, inputRowType);
         ProcessFunction<RowData, RowData> processFunc;
         if (projectionOnTemporalTable != null) {

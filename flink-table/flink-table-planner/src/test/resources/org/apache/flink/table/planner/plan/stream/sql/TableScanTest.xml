@@ -95,8 +95,8 @@ LogicalProject(a=[$1], b=[$2], c=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a, b, c], where=[>(a, 1)], changelogMode=[I,UB,UA,D])
-+- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
+Calc(select=[a, b, c], changelogMode=[I,UB,UA,D])
++- ChangelogNormalize(key=[id], condition=[>(a, 1)], changelogMode=[I,UB,UA,D])
    +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
       +- Calc(select=[id, a, b, c], changelogMode=[I,UA,D])
          +- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1000:INTERVAL SECOND)], changelogMode=[I,UA,D])
@@ -546,6 +546,90 @@ Calc(select=[id1, a, b], changelogMode=[I,UA,D])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSetParallelismForSource">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(id=[$0], b=[$1], c=[$2], id0=[$3], a=[$4])
++- LogicalFilter(condition=[>($2, 1)])
+   +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, src]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, changelog_src]])
+
+== Optimized Physical Plan ==
+Join(joinType=[LeftOuterJoin], where=[=(id, id0)], select=[id, b, c, id0, a], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
+:- Exchange(distribution=[hash[id]])
+:  +- Calc(select=[id, b, c], where=[>(c, 1)])
+:     +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[id, b, c])
++- Exchange(distribution=[hash[id]])
+   +- ChangelogNormalize(key=[id])
+      +- Exchange(distribution=[hash[id]])
+         +- TableSourceScan(table=[[default_catalog, default_database, changelog_src]], fields=[id, a])
+
+== Optimized Execution Plan ==
+Join(joinType=[LeftOuterJoin], where=[(id = id0)], select=[id, b, c, id0, a], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
+:- Exchange(distribution=[hash[id]])
+:  +- Calc(select=[id, b, c], where=[(c > 1)])
+:     +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[id, b, c])
++- Exchange(distribution=[hash[id]])
+   +- ChangelogNormalize(key=[id])
+      +- Exchange(distribution=[hash[id]])
+         +- TableSourceScan(table=[[default_catalog, default_database, changelog_src]], fields=[id, a])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: src[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[id, b, c])",
+    "parallelism" : 3
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[id, b, c], where=[(c > 1)])",
+    "parallelism" : 10,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "REBALANCE",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Source: changelog_src[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, changelog_src]], fields=[id, a])",
+    "parallelism" : 5
+  }, {
+    "id" : ,
+    "type" : "ChangelogNormalize[]",
+    "pact" : "Operator",
+    "contents" : "[]:ChangelogNormalize(key=[id])",
+    "parallelism" : 10,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Join[]",
+    "pact" : "Operator",
+    "contents" : "[]:Join(joinType=[LeftOuterJoin], where=[(id = id0)], select=[id, b, c, id0, a], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])",
+    "parallelism" : 10,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH",
+      "side" : "second"
+    }, {
+      "id" : ,
+      "ship_strategy" : "HASH",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testUnionUpsertSourceAndAggregation">
     <Resource name="sql">
       <![CDATA[
@@ -634,8 +718,8 @@ LogicalProject(a=[$1], b=[$2], c=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a, b, c], where=[>(a, 1)], changelogMode=[I,UB,UA,D])
-+- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
+Calc(select=[a, b, c], changelogMode=[I,UB,UA,D])
++- ChangelogNormalize(key=[id], condition=[>(a, 1)], changelogMode=[I,UB,UA,D])
    +- Exchange(distribution=[hash[id]], changelogMode=[UA,D])
       +- Calc(select=[id, a, b, c], changelogMode=[UA,D])
          +- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1000:INTERVAL SECOND)], changelogMode=[UA,D])
@@ -710,90 +794,5 @@ Calc(select=[ts, a, b], where=[>(a, 1)], changelogMode=[I,UB,UA,D])
    +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[ts, a, b], changelogMode=[I,UB,UA,D])
 ]]>
     </Resource>
-  </TestCase>
-
-  <TestCase name="testSetParallelismForSource">
-  <Resource name="explain">
-	  <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(id=[$0], b=[$1], c=[$2], id0=[$3], a=[$4])
-+- LogicalFilter(condition=[>($2, 1)])
-   +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
-      :- LogicalTableScan(table=[[default_catalog, default_database, src]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, changelog_src]])
-
-== Optimized Physical Plan ==
-Join(joinType=[LeftOuterJoin], where=[=(id, id0)], select=[id, b, c, id0, a], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
-:- Exchange(distribution=[hash[id]])
-:  +- Calc(select=[id, b, c], where=[>(c, 1)])
-:     +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[id, b, c])
-+- Exchange(distribution=[hash[id]])
-   +- ChangelogNormalize(key=[id])
-      +- Exchange(distribution=[hash[id]])
-         +- TableSourceScan(table=[[default_catalog, default_database, changelog_src]], fields=[id, a])
-
-== Optimized Execution Plan ==
-Join(joinType=[LeftOuterJoin], where=[(id = id0)], select=[id, b, c, id0, a], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
-:- Exchange(distribution=[hash[id]])
-:  +- Calc(select=[id, b, c], where=[(c > 1)])
-:     +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[id, b, c])
-+- Exchange(distribution=[hash[id]])
-   +- ChangelogNormalize(key=[id])
-      +- Exchange(distribution=[hash[id]])
-         +- TableSourceScan(table=[[default_catalog, default_database, changelog_src]], fields=[id, a])
-
-== Physical Execution Plan ==
-{
-  "nodes" : [ {
-    "id" : ,
-    "type" : "Source: src[]",
-    "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[id, b, c])",
-    "parallelism" : 3
-  }, {
-    "id" : ,
-    "type" : "Calc[]",
-    "pact" : "Operator",
-    "contents" : "[]:Calc(select=[id, b, c], where=[(c > 1)])",
-    "parallelism" : 10,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "REBALANCE",
-      "side" : "second"
-    } ]
-  }, {
-    "id" : ,
-    "type" : "Source: changelog_src[]",
-    "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, changelog_src]], fields=[id, a])",
-    "parallelism" : 5
-  }, {
-    "id" : ,
-    "type" : "ChangelogNormalize[]",
-    "pact" : "Operator",
-    "contents" : "[]:ChangelogNormalize(key=[id])",
-    "parallelism" : 10,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "HASH",
-      "side" : "second"
-    } ]
-  }, {
-    "id" : ,
-    "type" : "Join[]",
-    "pact" : "Operator",
-    "contents" : "[]:Join(joinType=[LeftOuterJoin], where=[(id = id0)], select=[id, b, c, id0, a], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])",
-    "parallelism" : 10,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "HASH",
-      "side" : "second"
-    }, {
-      "id" : ,
-      "ship_strategy" : "HASH",
-      "side" : "second"
-    } ]
-  } ]
-}]]>
-  </Resource>
   </TestCase>
 </Root>
