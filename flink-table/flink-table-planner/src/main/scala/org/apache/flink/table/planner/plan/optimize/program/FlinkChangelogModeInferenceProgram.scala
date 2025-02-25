@@ -22,6 +22,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.config.ExecutionConfigOptions.UpsertMaterialize
 import org.apache.flink.table.connector.ChangelogMode
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.`trait`.UpdateKindTrait.{beforeAfterOrNone, onlyAfterOrNone, BEFORE_AND_AFTER, ONLY_UPDATE_AFTER}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
@@ -247,9 +248,33 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val children = visitChildren(cep, ModifyKindSetTrait.INSERT_ONLY, "Match Recognize")
         createNewNode(cep, children, ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
 
+      case over: StreamPhysicalOverAggregate =>
+        // OverAggregate can only support insert for row-time/proc-time sort keys
+        var overRequiredTrait = ModifyKindSetTrait.INSERT_ONLY
+        val builder = ModifyKindSet
+          .newBuilder()
+          .addContainedKind(ModifyKind.INSERT)
+
+        // All aggregates are computed over the same window and order by is supported for only 1 field
+        val orderKeyIndex =
+          over.logicWindow.groups.get(0).orderKeys.getFieldCollations.get(0).getFieldIndex
+        val orderKeyType = over.logicWindow.getRowType.getFieldList.get(orderKeyIndex).getType
+        if (
+          !FlinkTypeFactory.isRowtimeIndicatorType(orderKeyType)
+          && !FlinkTypeFactory.isProctimeIndicatorType(orderKeyType)
+        ) {
+          // Only non row-time/proc-time sort can support UPDATES
+          builder.addContainedKind(ModifyKind.UPDATE)
+          builder.addContainedKind(ModifyKind.DELETE)
+          overRequiredTrait = ModifyKindSetTrait.ALL_CHANGES
+        }
+        val children = visitChildren(over, overRequiredTrait)
+        val providedTrait = new ModifyKindSetTrait(builder.build())
+        createNewNode(over, children, providedTrait, requiredTrait, requester)
+
       case _: StreamPhysicalTemporalSort | _: StreamPhysicalIntervalJoin |
-          _: StreamPhysicalOverAggregate | _: StreamPhysicalPythonOverAggregate =>
-        // TemporalSort, OverAggregate, IntervalJoin only support consuming insert-only
+          _: StreamPhysicalPythonOverAggregate =>
+        // TemporalSort, IntervalJoin only support consuming insert-only
         // and producing insert-only changes
         val children = visitChildren(rel, ModifyKindSetTrait.INSERT_ONLY)
         createNewNode(rel, children, ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
@@ -504,8 +529,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         case _: StreamPhysicalGroupAggregate | _: StreamPhysicalGroupTableAggregate |
             _: StreamPhysicalLimit | _: StreamPhysicalPythonGroupAggregate |
             _: StreamPhysicalPythonGroupTableAggregate | _: StreamPhysicalGroupWindowAggregateBase |
-            _: StreamPhysicalWindowAggregate =>
-          // Aggregate, TableAggregate, Limit, GroupWindowAggregate, WindowAggregate,
+            _: StreamPhysicalWindowAggregate | _: StreamPhysicalOverAggregate =>
+          // Aggregate, TableAggregate, OverAggregate, Limit, GroupWindowAggregate, WindowAggregate,
           // and WindowTableAggregate requires update_before if there are updates
           val requiredChildTrait = beforeAfterOrNone(getModifyKindSet(rel.getInput(0)))
           val children = visitChildren(rel, requiredChildTrait)
@@ -513,10 +538,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           createNewNode(rel, children, requiredTrait)
 
         case _: StreamPhysicalWindowRank | _: StreamPhysicalWindowDeduplicate |
-            _: StreamPhysicalTemporalSort | _: StreamPhysicalMatch |
-            _: StreamPhysicalOverAggregate | _: StreamPhysicalIntervalJoin |
+            _: StreamPhysicalTemporalSort | _: StreamPhysicalMatch | _: StreamPhysicalIntervalJoin |
             _: StreamPhysicalPythonOverAggregate | _: StreamPhysicalWindowJoin =>
-          // WindowRank, WindowDeduplicate, Deduplicate, TemporalSort, CEP, OverAggregate,
+          // WindowRank, WindowDeduplicate, Deduplicate, TemporalSort, CEP,
           // and IntervalJoin, WindowJoin require nothing about UpdateKind.
           val children = visitChildren(rel, UpdateKindTrait.NONE)
           createNewNode(rel, children, requiredTrait)
