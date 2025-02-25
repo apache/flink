@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler.adaptivebatch.util;
 import org.apache.flink.runtime.executiongraph.ExecutionVertexInputInfo;
 import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.executiongraph.JobVertexInputInfo;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.adaptivebatch.BisectionSearchUtils;
 import org.apache.flink.runtime.scheduler.adaptivebatch.BlockingInputInfo;
@@ -304,7 +305,7 @@ public class VertexParallelismAndInputInfosDeciderUtils {
      * @param minParallelism The minimum parallelism.
      * @param maxParallelism The maximum parallelism.
      * @param maxDataVolumePerTask The maximum data volume per task.
-     * @param subpartitionSlicesByTypeNumber A map of lists of subpartition slices grouped by type
+     * @param subpartitionSlices A map of lists of subpartition slices grouped by type or index
      *     number.
      * @return An {@code Optional} containing a list of index ranges representing the subpartition
      *     slice ranges. Returns an empty {@code Optional} if no suitable ranges can be computed.
@@ -313,22 +314,44 @@ public class VertexParallelismAndInputInfosDeciderUtils {
             int minParallelism,
             int maxParallelism,
             long maxDataVolumePerTask,
-            Map<Integer, List<SubpartitionSlice>> subpartitionSlicesByTypeNumber) {
+            Map<Integer, List<SubpartitionSlice>> subpartitionSlices) {
         Optional<List<IndexRange>> subpartitionSliceRanges =
                 tryComputeSubpartitionSliceRangeEvenlyDistributedData(
-                        minParallelism,
-                        maxParallelism,
-                        maxDataVolumePerTask,
-                        subpartitionSlicesByTypeNumber);
+                        minParallelism, maxParallelism, maxDataVolumePerTask, subpartitionSlices);
         if (subpartitionSliceRanges.isEmpty()) {
             LOG.info(
                     "Failed to compute a legal subpartition slice range that can evenly distribute data amount, "
                             + "fallback to compute it that can evenly distribute the number of subpartition slices.");
             subpartitionSliceRanges =
                     tryComputeSubpartitionSliceRangeEvenlyDistributedSubpartitionSlices(
-                            minParallelism, maxParallelism, subpartitionSlicesByTypeNumber);
+                            minParallelism, maxParallelism, subpartitionSlices);
         }
         return subpartitionSliceRanges;
+    }
+
+    public static Map<IntermediateDataSetID, JobVertexInputInfo> createJobVertexInputInfos(
+            List<BlockingInputInfo> inputInfos,
+            Map<Integer, List<SubpartitionSlice>> subpartitionSlices,
+            List<IndexRange> subpartitionSliceRanges,
+            Function<Integer, Integer> subpartitionSliceKeyResolver) {
+        final Map<IntermediateDataSetID, JobVertexInputInfo> vertexInputInfos = new HashMap<>();
+        for (int i = 0; i < inputInfos.size(); ++i) {
+            BlockingInputInfo inputInfo = inputInfos.get(i);
+            if (inputInfo.isBroadcast()) {
+                vertexInputInfos.put(
+                        inputInfo.getResultId(),
+                        createdJobVertexInputInfoForBroadcast(
+                                inputInfo, subpartitionSliceRanges.size()));
+            } else {
+                vertexInputInfos.put(
+                        inputInfo.getResultId(),
+                        createdJobVertexInputInfoForNonBroadcast(
+                                inputInfo,
+                                subpartitionSliceRanges,
+                                subpartitionSlices.get(subpartitionSliceKeyResolver.apply(i))));
+            }
+        }
+        return vertexInputInfos;
     }
 
     public static JobVertexInputInfo createdJobVertexInputInfoForBroadcast(
@@ -383,24 +406,23 @@ public class VertexParallelismAndInputInfosDeciderUtils {
             int minParallelism,
             int maxParallelism,
             long maxDataVolumePerTask,
-            Map<Integer, List<SubpartitionSlice>> subpartitionSlicesByTypeNumber) {
-        int subpartitionSlicesSize =
-                checkAndGetSubpartitionSlicesSize(subpartitionSlicesByTypeNumber);
+            Map<Integer, List<SubpartitionSlice>> subpartitionSlices) {
+        int subpartitionSlicesSize = checkAndGetSubpartitionSlicesSize(subpartitionSlices);
         // Distribute the input data evenly among the downstream tasks and record the
         // subpartition slice range for each task.
         List<IndexRange> subpartitionSliceRanges =
                 computeSubpartitionSliceRanges(
-                        maxDataVolumePerTask,
-                        subpartitionSlicesSize,
-                        subpartitionSlicesByTypeNumber);
+                        maxDataVolumePerTask, subpartitionSlicesSize, subpartitionSlices);
         // if the parallelism is not legal, try to adjust to a legal parallelism
         if (!isLegalParallelism(subpartitionSliceRanges.size(), minParallelism, maxParallelism)) {
+            LOG.info(
+                    "Failed to compute a legal subpartition slice range that can evenly distribute data amount, "
+                            + "try to adjust to a legal parallelism.");
             long minBytesSize = maxDataVolumePerTask;
             long sumBytesSize = 0;
             for (int i = 0; i < subpartitionSlicesSize; ++i) {
                 long currentBytesSize = 0;
-                for (List<SubpartitionSlice> subpartitionSlice :
-                        subpartitionSlicesByTypeNumber.values()) {
+                for (List<SubpartitionSlice> subpartitionSlice : subpartitionSlices.values()) {
                     currentBytesSize += subpartitionSlice.get(i).getDataBytes();
                 }
                 minBytesSize = Math.min(minBytesSize, currentBytesSize);
@@ -413,12 +435,10 @@ public class VertexParallelismAndInputInfosDeciderUtils {
                     maxParallelism,
                     minBytesSize,
                     sumBytesSize,
-                    limit ->
-                            computeParallelism(
-                                    limit, subpartitionSlicesSize, subpartitionSlicesByTypeNumber),
+                    limit -> computeParallelism(limit, subpartitionSlicesSize, subpartitionSlices),
                     limit ->
                             computeSubpartitionSliceRanges(
-                                    limit, subpartitionSlicesSize, subpartitionSlicesByTypeNumber));
+                                    limit, subpartitionSlicesSize, subpartitionSlices));
         }
         return Optional.of(subpartitionSliceRanges);
     }
@@ -427,9 +447,8 @@ public class VertexParallelismAndInputInfosDeciderUtils {
             tryComputeSubpartitionSliceRangeEvenlyDistributedSubpartitionSlices(
                     int minParallelism,
                     int maxParallelism,
-                    Map<Integer, List<SubpartitionSlice>> subpartitionSlicesByTypeNumber) {
-        int subpartitionSlicesSize =
-                checkAndGetSubpartitionSlicesSize(subpartitionSlicesByTypeNumber);
+                    Map<Integer, List<SubpartitionSlice>> subpartitionSlices) {
+        int subpartitionSlicesSize = checkAndGetSubpartitionSlicesSize(subpartitionSlices);
         if (subpartitionSlicesSize < minParallelism) {
             return Optional.empty();
         }
@@ -709,5 +728,33 @@ public class VertexParallelismAndInputInfosDeciderUtils {
                     inputInfo.isBroadcast(),
                     inputInfo.isSingleSubpartitionContainsAllData());
         }
+    }
+
+    static int checkAndGetPartitionNum(List<BlockingInputInfo> consumedResults) {
+        final Set<Integer> subpartitionNumSet =
+                consumedResults.stream()
+                        .map(BlockingInputInfo::getNumPartitions)
+                        .collect(Collectors.toSet());
+        // all partitions have the same subpartition num
+        checkState(subpartitionNumSet.size() == 1);
+        return subpartitionNumSet.iterator().next();
+    }
+
+    static int getMinSubpartitionCount(List<BlockingInputInfo> consumedResults) {
+        checkState(!consumedResults.isEmpty());
+        int minSubpartitionCount = Integer.MAX_VALUE;
+        for (BlockingInputInfo inputInfo : consumedResults) {
+            int numPartitions = inputInfo.getNumPartitions();
+            int numSubpartitions = checkAndGetSubpartitionNum(List.of(inputInfo));
+            minSubpartitionCount = Math.min(minSubpartitionCount, numPartitions * numSubpartitions);
+        }
+        return minSubpartitionCount;
+    }
+
+    static List<BlockingInputInfo> getInputsWithIntraCorrelation(
+            List<BlockingInputInfo> inputInfos) {
+        return inputInfos.stream()
+                .filter(BlockingInputInfo::isIntraInputKeyCorrelated)
+                .collect(Collectors.toList());
     }
 }
