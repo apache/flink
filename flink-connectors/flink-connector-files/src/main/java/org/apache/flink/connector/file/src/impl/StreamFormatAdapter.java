@@ -154,16 +154,36 @@ public final class StreamFormatAdapter<T> implements BulkFormat<T, FileSourceSpl
             throws IOException {
 
         final FileSystem fs = file.getFileSystem();
-        final long fileLength = fs.getFileStatus(file).getLen();
 
         final int fetchSize =
                 MathUtils.checkedDownCast(config.get(StreamFormat.FETCH_IO_SIZE).getBytes());
+
         if (fetchSize <= 0) {
             throw new IllegalConfigurationException(
                     String.format(
                             "The fetch size (%s) must be > 0, but is %d",
                             StreamFormat.FETCH_IO_SIZE.key(), fetchSize));
         }
+
+        if (!fs.exists(file) && config.getBoolean(StreamFormat.SKIP_MISSING_FILES)) {
+            final FSDataInputStream emptyStream = new FSDataInputStream() {
+                @Override
+                public void seek(long desired){}
+
+                @Override
+                public long getPos() throws IOException {
+                    return 0;
+                }
+
+                @Override
+                public int read() throws IOException {
+                    return 0;
+                }
+            };
+            return new TrackingFsDataInputStream(emptyStream, 0, fetchSize);
+        }
+
+        final long fileLength = fs.getFileStatus(file).getLen();
 
         final InflaterInputStreamFactory<?> deCompressor =
                 StandardDeCompressors.getDecompressorForFileName(file.getPath());
