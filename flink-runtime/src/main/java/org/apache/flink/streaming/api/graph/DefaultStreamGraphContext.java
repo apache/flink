@@ -194,14 +194,16 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
     }
 
     @Override
-    public boolean areAllUpstreamNodesFinished(ImmutableStreamNode streamNode) {
-        for (ImmutableStreamEdge streamEdge : streamNode.getInEdges()) {
-            if (!finishedStreamNodeIds.contains(streamEdge.getSourceId())) {
-                return false;
-            }
-        }
-
-        return true;
+    public boolean checkUpstreamNodesFinished(ImmutableStreamNode streamNode, Integer typeNumber) {
+        List<ImmutableStreamEdge> inEdgesWithTypeNumber =
+                streamNode.getInEdges().stream()
+                        .filter(edge -> typeNumber == null || edge.getTypeNumber() == typeNumber)
+                        .collect(Collectors.toList());
+        checkState(
+                !inEdgesWithTypeNumber.isEmpty(),
+                String.format("The stream edge with typeNumber %s does not exist.", typeNumber));
+        return inEdgesWithTypeNumber.stream()
+                .allMatch(edge -> finishedStreamNodeIds.contains(edge.getSourceId()));
     }
 
     @Override
