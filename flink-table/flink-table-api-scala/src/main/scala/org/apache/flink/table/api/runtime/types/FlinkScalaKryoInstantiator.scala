@@ -18,11 +18,12 @@
 package org.apache.flink.table.api.runtime.types
 
 import org.apache.flink.annotation.Internal
+import org.apache.flink.runtime.checkpoint.{StateObjectCollection, StateObjectCollectionSerializer}
 import org.apache.flink.streaming.util.serialize.FlinkChillPackageRegistrar
 import org.apache.flink.table.api.runtime.types.FlinkScalaKryoInstantiator.{registerConcreteTraversableClass, useFieldSerializer}
+
 import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.serializers.DefaultSerializers.{BitSetSerializer, VoidSerializer}
-import org.apache.flink.runtime.checkpoint.{StateObjectCollection, StateObjectCollectionSerializer}
 
 import scala.collection.JavaConverters._
 import scala.collection.generic.CanBuildFrom
