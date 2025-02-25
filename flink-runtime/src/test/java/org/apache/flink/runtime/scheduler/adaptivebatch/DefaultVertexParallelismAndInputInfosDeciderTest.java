@@ -300,6 +300,45 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
     }
 
     @Test
+    void testHavePointwiseAndBroadcastEdge() {
+        AllToAllBlockingResultInfo resultInfo1 =
+                createAllToAllBlockingResultInfo(
+                        new long[] {10L, 15L, 13L, 12L, 1L, 10L, 8L, 20L, 12L, 17L}, true, false);
+        PointwiseBlockingResultInfo resultInfo2 =
+                createPointwiseBlockingResultInfo(
+                        new long[] {8L, 12L, 21L, 9L, 13L}, new long[] {7L, 19L, 13L, 14L, 5L});
+        ParallelismAndInputInfos parallelismAndInputInfos =
+                createDeciderAndDecideParallelismAndInputInfos(
+                        1, 10, 60L, Arrays.asList(resultInfo1, resultInfo2));
+
+        assertThat(parallelismAndInputInfos.getParallelism()).isEqualTo(6);
+        assertThat(parallelismAndInputInfos.getJobVertexInputInfos()).hasSize(2);
+
+        checkAllToAllJobVertexInputInfo(
+                parallelismAndInputInfos.getJobVertexInputInfos().get(resultInfo1.getResultId()),
+                Arrays.asList(
+                        new IndexRange(0, 9),
+                        new IndexRange(0, 9),
+                        new IndexRange(0, 9),
+                        new IndexRange(0, 9),
+                        new IndexRange(0, 9),
+                        new IndexRange(0, 9)));
+        checkJobVertexInputInfo(
+                parallelismAndInputInfos.getJobVertexInputInfos().get(resultInfo2.getResultId()),
+                Arrays.asList(
+                        Map.of(new IndexRange(0, 0), new IndexRange(0, 1)),
+                        Map.of(new IndexRange(0, 0), new IndexRange(2, 3)),
+                        Map.of(
+                                new IndexRange(0, 0),
+                                new IndexRange(4, 4),
+                                new IndexRange(1, 1),
+                                new IndexRange(0, 0)),
+                        Map.of(new IndexRange(1, 1), new IndexRange(1, 1)),
+                        Map.of(new IndexRange(1, 1), new IndexRange(2, 3)),
+                        Map.of(new IndexRange(1, 1), new IndexRange(4, 4))));
+    }
+
+    @Test
     void testSourceJobVertex() {
         ParallelismAndInputInfos parallelismAndInputInfos =
                 createDeciderAndDecideParallelismAndInputInfos(
