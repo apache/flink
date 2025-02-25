@@ -84,11 +84,9 @@ public class PythonConfigUtil {
         env.getConfiguration()
                 .getOptional(PipelineOptions.CACHED_FILES)
                 .ifPresent(
-                        f -> {
-                            env.getCachedFiles().clear();
-                            env.getCachedFiles()
-                                    .addAll(DistributedCache.parseCachedFilesFromString(f));
-                        });
+                        f ->
+                                env.getCachedFiles()
+                                        .addAll(DistributedCache.parseCachedFilesFromString(f)));
 
         for (Transformation<?> transformation : env.getTransformations()) {
             alignTransformation(transformation);
