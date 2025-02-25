@@ -489,7 +489,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c])
-+- Deduplicate(keep=[FirstRow], key=[a], order=[PROCTIME])
++- Deduplicate(keep=[FirstRow], key=[a], order=[PROCTIME], outputInsertOnly=[true])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, proctime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -518,7 +518,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c])
-+- Deduplicate(keep=[LastRow], key=[a], order=[PROCTIME])
++- Deduplicate(keep=[LastRow], key=[a], order=[PROCTIME], outputInsertOnly=[false])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, proctime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -547,7 +547,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c])
-+- Deduplicate(keep=[FirstRow], key=[a], order=[ROWTIME])
++- Deduplicate(keep=[FirstRow], key=[a], order=[ROWTIME], outputInsertOnly=[true])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, rowtime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -576,7 +576,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c])
-+- Deduplicate(keep=[LastRow], key=[a], order=[ROWTIME])
++- Deduplicate(keep=[LastRow], key=[a], order=[ROWTIME], outputInsertOnly=[false])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, rowtime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -1178,10 +1178,10 @@ LogicalProject(c=[$0], b=[$1], d=[$2])
       <![CDATA[
 Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=9], partitionBy=[c, b], orderBy=[d DESC], select=[c, b, d])
 +- Exchange(distribution=[hash[c, b]])
-   +- GroupAggregate(groupBy=[c, b], select=[c, b, SUM_RETRACT(a) FILTER $f3 AS d])
+   +- GroupAggregate(groupBy=[c, b], select=[c, b, SUM(a) FILTER $f3 AS d])
       +- Exchange(distribution=[hash[c, b]])
          +- Calc(select=[c, b, a, (a > 0) IS TRUE AS $f3])
-            +- Deduplicate(keep=[FirstRow], key=[c], order=[PROCTIME])
+            +- Deduplicate(keep=[FirstRow], key=[c], order=[PROCTIME], outputInsertOnly=[true])
                +- Exchange(distribution=[hash[c]])
                   +- Calc(select=[a, b, c, PROCTIME() AS $5])
                      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])

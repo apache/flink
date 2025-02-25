@@ -53,7 +53,7 @@ class DeduplicateTest extends TableTestBase {
       """.stripMargin
 
     // the rank condition is not 1, so it will not be translate to LastRow, but Rank
-    util.verifyExecPlan(sql)
+    util.verifyExplain(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -68,7 +68,7 @@ class DeduplicateTest extends TableTestBase {
       """.stripMargin
 
     // the rank condition is not 1, so it will not be translate to LastRow, but Rank
-    util.verifyExecPlan(sql)
+    util.verifyExplain(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -94,7 +94,7 @@ class DeduplicateTest extends TableTestBase {
       """.stripMargin
 
     // the input is not append-only, it will not be translate to LastRow, but Rank
-    util.verifyExecPlan(sql)
+    util.verifyExplain(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -134,22 +134,24 @@ class DeduplicateTest extends TableTestBase {
          |GROUP BY b, TUMBLE(ts, INTERVAL '0.004' SECOND)
       """.stripMargin
 
-    util.verifyExplain(windowSql)
+    util.verifyExplain(windowSql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testSimpleFirstRowOnRowtime(): Unit = {
     val sql =
       """
-        |SELECT a, b, c
-        |FROM (
-        |  SELECT *,
-        |      ROW_NUMBER() OVER (PARTITION BY a ORDER BY rowtime ASC) as rank_num
-        |  FROM MyTable)
-        |WHERE rank_num <= 1
+        |SELECT sum(a), b, sum(c) FROM (
+        |  SELECT a, b, c
+        |  FROM (
+        |    SELECT *,
+        |        ROW_NUMBER() OVER (PARTITION BY a ORDER BY rowtime ASC) as rank_num
+        |    FROM MyTable)
+        |  WHERE rank_num <= 1)
+        |GROUP BY b
       """.stripMargin
 
-    util.verifyExecPlan(sql)
+    util.verifyExplain(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -183,22 +185,25 @@ class DeduplicateTest extends TableTestBase {
         |)
       """.stripMargin
 
-    util.verifyExecPlan(sql)
+    util.verifyExplain(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testSimpleLastRowOnRowtime(): Unit = {
+    // indirectly check output insert only via used SUM or SUM_RETRACT aggregation function
     val sql =
       """
-        |SELECT a, b, c
-        |FROM (
-        |  SELECT *,
-        |      ROW_NUMBER() OVER (PARTITION BY a ORDER BY rowtime DESC) as rank_num
-        |  FROM MyTable)
-        |WHERE rank_num = 1
+        |SELECT sum(a), b, sum(c) FROM (
+        |  SELECT a, b, c
+        |  FROM (
+        |    SELECT *,
+        |        ROW_NUMBER() OVER (PARTITION BY a ORDER BY rowtime DESC) as rank_num
+        |    FROM MyTable)
+        |  WHERE rank_num = 1)
+        |GROUP BY b
       """.stripMargin
 
-    util.verifyExecPlan(sql)
+    util.verifyExplain(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -232,22 +237,25 @@ class DeduplicateTest extends TableTestBase {
         |)
       """.stripMargin
 
-    util.verifyExecPlan(sql)
+    util.verifyExplain(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testSimpleLastRowOnProctime(): Unit = {
+    // indirectly check output insert only via used SUM or SUM_RETRACT aggregation function
     val sql =
       """
-        |SELECT *
-        |FROM (
-        |  SELECT *,
-        |      ROW_NUMBER() OVER (PARTITION BY a ORDER BY proctime DESC) as rank_num
-        |  FROM MyTable)
-        |WHERE rank_num = 1
+        |SELECT sum(a), b, sum(c) FROM (
+        |  SELECT a, b, c
+        |  FROM (
+        |    SELECT *,
+        |        ROW_NUMBER() OVER (PARTITION BY a ORDER BY proctime DESC) as rank_num
+        |    FROM MyTable)
+        |  WHERE rank_num = 1)
+        |GROUP BY b
       """.stripMargin
 
-    util.verifyExecPlan(sql)
+    util.verifyExplain(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -263,22 +271,24 @@ class DeduplicateTest extends TableTestBase {
         |WHERE rowNum = 1
       """.stripMargin
 
-    util.verifyExecPlan(sqlQuery)
+    util.verifyExplain(sqlQuery, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testSimpleFirstRowOnProctime(): Unit = {
     val sql =
       """
-        |SELECT a, b, c
-        |FROM (
-        |  SELECT *,
-        |      ROW_NUMBER() OVER (PARTITION BY a ORDER BY proctime ASC) as rank_num
-        |  FROM MyTable)
-        |WHERE rank_num = 1
+        |SELECT sum(a), b, sum(c) FROM (
+        |  SELECT a, b, c
+        |  FROM (
+        |    SELECT *,
+        |        ROW_NUMBER() OVER (PARTITION BY a ORDER BY proctime ASC) as rank_num
+        |    FROM MyTable)
+        |  WHERE rank_num = 1)
+        |GROUP BY b
       """.stripMargin
 
-    util.verifyExecPlan(sql)
+    util.verifyExplain(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -294,7 +304,7 @@ class DeduplicateTest extends TableTestBase {
         |WHERE rowNum = 1
       """.stripMargin
 
-    util.verifyExecPlan(sqlQuery)
+    util.verifyExplain(sqlQuery, ExplainDetail.CHANGELOG_MODE)
   }
 
 }
