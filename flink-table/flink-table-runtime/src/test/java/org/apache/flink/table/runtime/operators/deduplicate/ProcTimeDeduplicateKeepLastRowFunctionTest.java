@@ -24,10 +24,13 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
@@ -37,7 +40,13 @@ class ProcTimeDeduplicateKeepLastRowFunctionTest extends ProcTimeDeduplicateFunc
     private ProcTimeDeduplicateKeepLastRowFunction createFunctionWithoutStateTtl(
             boolean generateUpdateBefore, boolean generateInsert) {
         return new ProcTimeDeduplicateKeepLastRowFunction(
-                inputRowType, 0, generateUpdateBefore, generateInsert, true, generatedEqualiser);
+                inputRowType,
+                0,
+                generateUpdateBefore,
+                generateInsert,
+                true,
+                generatedEqualiser,
+                null);
     }
 
     private ProcTimeDeduplicateKeepLastRowFunction createFunction(
@@ -48,7 +57,20 @@ class ProcTimeDeduplicateKeepLastRowFunctionTest extends ProcTimeDeduplicateFunc
                 generateUpdateBefore,
                 generateInsert,
                 true,
-                generatedEqualiser);
+                generatedEqualiser,
+                null);
+    }
+
+    private ProcTimeDeduplicateKeepLastRowFunction createFunctionWithFilter(
+            boolean generateUpdateBefore) {
+        return new ProcTimeDeduplicateKeepLastRowFunction(
+                inputRowType,
+                minTime.toMillis(),
+                generateUpdateBefore,
+                true,
+                false,
+                generatedEqualiser,
+                generatedFilterCondition);
     }
 
     private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
@@ -155,6 +177,32 @@ class ProcTimeDeduplicateKeepLastRowFunctionTest extends ProcTimeDeduplicateFunc
         expectedOutput.add(updateBeforeRecord("book", 1L, 17));
         expectedOutput.add(updateAfterRecord("book", 1L, 19));
         expectedOutput.add(insertRecord("book", 2L, 18));
+        assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testWithFilterCondition(boolean updateBefore) throws Exception {
+        ProcTimeDeduplicateKeepLastRowFunction func = createFunctionWithFilter(updateBefore);
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
+        testHarness.open();
+        testHarness.processElement(updateAfterRecord("book", 1L, 12));
+        testHarness.processElement(updateAfterRecord("book", 1L, 15));
+        testHarness.processElement(updateAfterRecord("book", 1L, 8));
+        testHarness.processElement(updateAfterRecord("book", 1L, 9));
+        testHarness.processElement(updateAfterRecord("book", 1L, 13));
+        testHarness.processElement(deleteRecord("book", 1L, null));
+
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord("book", 1L, 12));
+        if (updateBefore) {
+            expectedOutput.add(updateBeforeRecord("book", 1L, 12));
+        }
+        expectedOutput.add(updateAfterRecord("book", 1L, 15));
+        expectedOutput.add(deleteRecord("book", 1L, 15));
+        expectedOutput.add(insertRecord("book", 1L, 13));
+        expectedOutput.add(deleteRecord("book", 1L, 13));
         assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
         testHarness.close();
     }

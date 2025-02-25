@@ -54,6 +54,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -368,13 +370,31 @@ public class WatermarkAssignerChangelogNormalizeTransposeRule
             } else if (currentNode instanceof StreamPhysicalChangelogNormalize) {
                 final List<String> inputNodeFields = inputNode.getRowType().getFieldNames();
                 final List<String> currentNodeFields = currentNode.getRowType().getFieldNames();
+                final Map<Integer, Integer> indexMapping =
+                        IntStream.range(0, currentNodeFields.size())
+                                .boxed()
+                                .collect(
+                                        Collectors.toMap(
+                                                Function.identity(),
+                                                i ->
+                                                        inputNodeFields.indexOf(
+                                                                currentNodeFields.get(i))));
+                final StreamPhysicalChangelogNormalize changelogNormalize =
+                        (StreamPhysicalChangelogNormalize) currentNode;
                 int[] remappedUniqueKeys =
-                        Arrays.stream(((StreamPhysicalChangelogNormalize) currentNode).uniqueKeys())
-                                .map(ukIdx -> inputNodeFields.indexOf(currentNodeFields.get(ukIdx)))
+                        Arrays.stream(changelogNormalize.uniqueKeys())
+                                .map(indexMapping::get)
                                 .toArray();
+
+                final RexNode remappedCondition =
+                        changelogNormalize.filterCondition() == null
+                                ? null
+                                : adjustInputRef(
+                                        changelogNormalize.filterCondition(), indexMapping);
+
                 currentNode =
-                        ((StreamPhysicalChangelogNormalize) currentNode)
-                                .copy(nodeAndTrait.f1, inputNode, remappedUniqueKeys);
+                        changelogNormalize.copy(
+                                nodeAndTrait.f1, inputNode, remappedUniqueKeys, remappedCondition);
             } else {
                 currentNode =
                         currentNode.copy(nodeAndTrait.f1, Collections.singletonList(inputNode));
@@ -382,6 +402,19 @@ public class WatermarkAssignerChangelogNormalizeTransposeRule
             inputNode = currentNode;
         }
         return currentNode;
+    }
+
+    /** Adjust the {@param expr} field indices according to the field index {@param mapping}. */
+    private RexNode adjustInputRef(RexNode expr, Map<Integer, Integer> mapping) {
+        return expr.accept(
+                new RexShuttle() {
+
+                    @Override
+                    public RexNode visitInputRef(RexInputRef inputRef) {
+                        Integer newIndex = mapping.get(inputRef.getIndex());
+                        return new RexInputRef(newIndex, inputRef.getType());
+                    }
+                });
     }
 
     /** Rule configuration. */
