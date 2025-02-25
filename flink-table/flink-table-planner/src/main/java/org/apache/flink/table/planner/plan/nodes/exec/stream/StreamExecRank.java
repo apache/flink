@@ -62,6 +62,7 @@ import org.apache.flink.table.runtime.operators.rank.UpdatableTopNFunction;
 import org.apache.flink.table.runtime.operators.rank.async.AbstractAsyncStateTopNFunction;
 import org.apache.flink.table.runtime.operators.rank.async.AsyncStateAppendOnlyTopNFunction;
 import org.apache.flink.table.runtime.operators.rank.async.AsyncStateFastTop1Function;
+import org.apache.flink.table.runtime.operators.rank.async.AsyncStateUpdatableTopNFunction;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
 import org.apache.flink.table.runtime.util.StateConfigUtil;
@@ -86,7 +87,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-rank",
         version = 1,
-        consumedOptions = {"table.exec.rank.topn-cache-size"},
+        consumedOptions = {"table.exec.rank.topn-cache-size", "table.exec.async-state.enabled"},
         producedTransformations = StreamExecRank.RANK_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
@@ -346,18 +347,33 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                                 planner.getFlinkContext().getClassLoader(),
                                 primaryKeys,
                                 inputRowTypeInfo);
-                processFunction =
-                        new UpdatableTopNFunction(
-                                ttlConfig,
-                                inputRowTypeInfo,
-                                rowKeySelector,
-                                sortKeyComparator,
-                                sortKeySelector,
-                                rankType,
-                                rankRange,
-                                generateUpdateBefore,
-                                outputRankNumber,
-                                cacheSize);
+                if (isAsyncStateEnabled) {
+                    processFunction =
+                            new AsyncStateUpdatableTopNFunction(
+                                    ttlConfig,
+                                    inputRowTypeInfo,
+                                    rowKeySelector,
+                                    sortKeyComparator,
+                                    sortKeySelector,
+                                    rankType,
+                                    rankRange,
+                                    generateUpdateBefore,
+                                    outputRankNumber,
+                                    cacheSize);
+                } else {
+                    processFunction =
+                            new UpdatableTopNFunction(
+                                    ttlConfig,
+                                    inputRowTypeInfo,
+                                    rowKeySelector,
+                                    sortKeyComparator,
+                                    sortKeySelector,
+                                    rankType,
+                                    rankRange,
+                                    generateUpdateBefore,
+                                    outputRankNumber,
+                                    cacheSize);
+                }
             }
         } else if (rankStrategy instanceof RankProcessStrategy.RetractStrategy) {
             EqualiserCodeGenerator equaliserCodeGen =

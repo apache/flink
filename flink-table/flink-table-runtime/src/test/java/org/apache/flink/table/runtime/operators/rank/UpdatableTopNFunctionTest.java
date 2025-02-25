@@ -20,8 +20,11 @@ package org.apache.flink.table.runtime.operators.rank;
 
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.operators.rank.async.AsyncStateUpdatableTopNFunction;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
 import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +35,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterR
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
 
 /** Tests for {@link UpdatableTopNFunction}. */
+@ExtendWith(ParameterizedTestExtension.class)
 class UpdatableTopNFunctionTest extends TopNFunctionTestBase {
 
     @Override
@@ -41,22 +45,36 @@ class UpdatableTopNFunctionTest extends TopNFunctionTestBase {
             boolean generateUpdateBefore,
             boolean outputRankNumber,
             boolean enableAsyncState) {
-        return new UpdatableTopNFunction(
-                ttlConfig,
-                inputRowType,
-                rowKeySelector,
-                generatedSortKeyComparator,
-                sortKeySelector,
-                rankType,
-                rankRange,
-                generateUpdateBefore,
-                outputRankNumber,
-                cacheSize);
+        if (enableAsyncState) {
+            return new AsyncStateUpdatableTopNFunction(
+                    ttlConfig,
+                    inputRowType,
+                    rowKeySelector,
+                    generatedSortKeyComparator,
+                    sortKeySelector,
+                    rankType,
+                    rankRange,
+                    generateUpdateBefore,
+                    outputRankNumber,
+                    cacheSize);
+        } else {
+            return new UpdatableTopNFunction(
+                    ttlConfig,
+                    inputRowType,
+                    rowKeySelector,
+                    generatedSortKeyComparator,
+                    sortKeySelector,
+                    rankType,
+                    rankRange,
+                    generateUpdateBefore,
+                    outputRankNumber,
+                    cacheSize);
+        }
     }
 
     @Override
     boolean supportedAsyncState() {
-        return false;
+        return true;
     }
 
     @TestTemplate

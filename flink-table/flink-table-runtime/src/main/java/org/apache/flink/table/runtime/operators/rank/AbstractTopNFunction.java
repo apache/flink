@@ -80,6 +80,8 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
 
     protected final long rankStart;
 
+    protected long rankEnd;
+
     // constant rank end
     // if rank end is variable, this var is null
     @Nullable protected final Long constantRankEnd;
@@ -228,6 +230,10 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
                 .<Long, Gauge<Long>>gauge("topn.cache.size", () -> heapSize);
     }
 
+    protected void collectInsert(Collector<RowData> out, RowData inputRow, long rank) {
+        collectInsert(out, inputRow, rank, rankEnd);
+    }
+
     protected void collectInsert(
             Collector<RowData> out, RowData inputRow, long rank, long rankEnd) {
         if (isInRankRange(rank, rankEnd)) {
@@ -280,6 +286,26 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
 
     protected boolean isInRankRange(long rank, long rankEnd) {
         return rank <= rankEnd && rank >= rankStart;
+    }
+
+    public boolean isInRankEnd(long rank) {
+        return rank <= rankEnd;
+    }
+
+    protected boolean isInRankRange(long rank) {
+        return rank <= rankEnd && rank >= rankStart;
+    }
+
+    protected void collectDelete(Collector<RowData> out, RowData inputRow, long rank) {
+        collectDelete(out, inputRow, rank, rankEnd);
+    }
+
+    protected void collectUpdateAfter(Collector<RowData> out, RowData inputRow, long rank) {
+        collectUpdateAfter(out, inputRow, rank, rankEnd);
+    }
+
+    protected void collectUpdateBefore(Collector<RowData> out, RowData inputRow, long rank) {
+        collectUpdateBefore(out, inputRow, rank, rankEnd);
     }
 
     protected boolean hasOffset() {
@@ -343,6 +369,10 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
             topNFunction.collectInsert(out, inputRow, rank, rankEnd);
         }
 
+        protected void collectInsert(Collector<RowData> out, RowData inputRow, long rank) {
+            topNFunction.collectInsert(out, inputRow, rank);
+        }
+
         protected void collectInsert(Collector<RowData> out, RowData inputRow) {
             topNFunction.collectInsert(out, inputRow);
         }
@@ -361,6 +391,10 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
             topNFunction.collectUpdateAfter(out, inputRow, rank, rankEnd);
         }
 
+        protected void collectUpdateAfter(Collector<RowData> out, RowData inputRow, long rank) {
+            topNFunction.collectUpdateAfter(out, inputRow, rank);
+        }
+
         protected void collectUpdateAfter(Collector<RowData> out, RowData inputRow) {
             topNFunction.collectUpdateAfter(out, inputRow);
         }
@@ -370,8 +404,16 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
             topNFunction.collectUpdateBefore(out, inputRow, rank, rankEnd);
         }
 
+        protected void collectUpdateBefore(Collector<RowData> out, RowData inputRow, long rank) {
+            topNFunction.collectUpdateBefore(out, inputRow, rank);
+        }
+
         protected void collectUpdateBefore(Collector<RowData> out, RowData inputRow) {
             topNFunction.collectUpdateBefore(out, inputRow);
+        }
+
+        protected boolean checkSortKeyInBufferRange(RowData sortKey, TopNBuffer buffer) {
+            return topNFunction.checkSortKeyInBufferRange(sortKey, buffer);
         }
 
         protected boolean isInRankEnd(long rank, long rankEnd) {
