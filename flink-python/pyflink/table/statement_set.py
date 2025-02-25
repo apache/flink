@@ -20,6 +20,7 @@ from typing import Union
 from pyflink.java_gateway import get_gateway
 from pyflink.table import ExplainDetail
 from pyflink.table.table_descriptor import TableDescriptor
+from pyflink.table.table_pipeline import TablePipeline
 from pyflink.table.table_result import TableResult
 from pyflink.util.java_utils import to_j_explain_detail_arr
 
@@ -39,6 +40,18 @@ class StatementSet(object):
     def __init__(self, _j_statement_set, t_env):
         self._j_statement_set = _j_statement_set
         self._t_env = t_env
+
+    def add(self, table_pipeline: TablePipeline) -> 'StatementSet':
+        """
+        Adds a :class:`~pyflink.table.TablePipeline`.
+
+        :param table_pipeline: The TablePipeline to be added.
+        :return: current StatementSet instance.
+
+        .. versionadded:: 2.1.0
+        """
+        self._j_statement_set.add(table_pipeline._j_table_pipeline)
+        return self
 
     def add_insert_sql(self, stmt: str) -> 'StatementSet':
         """
