@@ -20,9 +20,9 @@ package org.apache.flink.table.api.runtime.types
 import org.apache.flink.annotation.Internal
 import org.apache.flink.streaming.util.serialize.FlinkChillPackageRegistrar
 import org.apache.flink.table.api.runtime.types.FlinkScalaKryoInstantiator.{registerConcreteTraversableClass, useFieldSerializer}
-
 import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.serializers.DefaultSerializers.{BitSetSerializer, VoidSerializer}
+import org.apache.flink.runtime.checkpoint.{StateObjectCollection, StateObjectCollectionSerializer}
 
 import scala.collection.JavaConverters._
 import scala.collection.generic.CanBuildFrom
@@ -106,6 +106,11 @@ class FlinkScalaKryoInstantiator {
     k.register(classOf[BoxedUnit], new SingletonSerializer(()))
 
     new FlinkChillPackageRegistrar().registerSerializers(k)
+
+    // StateObjectCollection requires a custom serializer for custom new instance instantiation
+    // That class is in the flink-runtime project so it makes sense to register it here, rather
+    // than in flink-core which doesn't have a dependency on flink-runtime.
+    k.addDefaultSerializer(classOf[StateObjectCollection[_]], new StateObjectCollectionSerializer())
 
     k
   }
