@@ -54,9 +54,6 @@ public class AdaptiveSkewedJoinOptimizationStrategy
     private static final Logger LOG =
             LoggerFactory.getLogger(AdaptiveSkewedJoinOptimizationStrategy.class);
 
-    private static final int LEFT_INPUT_TYPE_NUMBER = 1;
-    private static final int RIGHT_INPUT_TYPE_NUMBER = 2;
-
     private Map<Integer, Map<Integer, long[]>> aggregatedProducedBytesByTypeNumberAndNodeId;
 
     private OptimizerConfigOptions.AdaptiveSkewedJoinOptimizationStrategy
@@ -110,7 +107,7 @@ public class AdaptiveSkewedJoinOptimizationStrategy
                     edge.getTypeNumber(),
                     ((AllToAllBlockingResultInfo) resultInfo).getAggregatedSubpartitionBytes());
         }
-        if (context.areAllUpstreamNodesFinished(adaptiveJoinNode)) {
+        if (context.checkUpstreamNodesFinished(adaptiveJoinNode, null)) {
             applyAdaptiveSkewedJoinOptimization(
                     context, adaptiveJoinNode, adaptiveJoin.getJoinType());
             freeNodeStatistic(adaptiveJoinNode.getId());

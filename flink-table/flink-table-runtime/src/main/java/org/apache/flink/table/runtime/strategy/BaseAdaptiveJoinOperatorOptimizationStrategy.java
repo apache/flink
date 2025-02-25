@@ -47,6 +47,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class BaseAdaptiveJoinOperatorOptimizationStrategy
         implements StreamGraphOptimizationStrategy {
 
+    protected static final int LEFT_INPUT_TYPE_NUMBER = 1;
+    protected static final int RIGHT_INPUT_TYPE_NUMBER = 2;
+
     /** Set of partitioners that can automatically correct key group. */
     private static final Set<Class<?>> PARTITIONERS_CAN_CORRECT_KEY_GROUP_AUTOMATIC =
             Set.of(
