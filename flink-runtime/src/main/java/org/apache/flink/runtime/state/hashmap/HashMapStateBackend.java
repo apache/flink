@@ -33,6 +33,7 @@ import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
+import org.apache.flink.runtime.state.metrics.SizeTrackingStateConfig;
 
 import java.io.IOException;
 
@@ -71,6 +72,7 @@ public class HashMapStateBackend extends AbstractStateBackend implements Configu
     private HashMapStateBackend(HashMapStateBackend original, ReadableConfig config) {
         // configure latency tracking
         latencyTrackingConfigBuilder = original.latencyTrackingConfigBuilder.configure(config);
+        sizeTrackingConfigBuilder = original.sizeTrackingConfigBuilder.configure(config);
     }
 
     @Override
@@ -101,6 +103,8 @@ public class HashMapStateBackend extends AbstractStateBackend implements Configu
 
         LatencyTrackingStateConfig latencyTrackingStateConfig =
                 latencyTrackingConfigBuilder.setMetricGroup(parameters.getMetricGroup()).build();
+        SizeTrackingStateConfig sizeTrackingStateConfig =
+                sizeTrackingConfigBuilder.setMetricGroup(parameters.getMetricGroup()).build();
         return new HeapKeyedStateBackendBuilder<>(
                         parameters.getKvStateRegistry(),
                         parameters.getKeySerializer(),
@@ -110,6 +114,7 @@ public class HashMapStateBackend extends AbstractStateBackend implements Configu
                         parameters.getEnv().getExecutionConfig(),
                         parameters.getTtlTimeProvider(),
                         latencyTrackingStateConfig,
+                        sizeTrackingStateConfig,
                         parameters.getStateHandles(),
                         getCompressionDecorator(parameters.getEnv().getExecutionConfig()),
                         localRecoveryConfig,

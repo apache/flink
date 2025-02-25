@@ -35,8 +35,8 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for {@link LatencyTrackingMapState}. */
-class LatencyTrackingMapStateTest extends LatencyTrackingStateTestBase<Integer> {
+/** Tests for {@link MetricsTrackingMapState}. */
+class MetricsTrackingMapStateTest extends MetricsTrackingStateTestBase<Integer> {
     @Override
     @SuppressWarnings("unchecked")
     MapStateDescriptor<Integer, Double> getStateDescriptor() {
@@ -58,11 +58,11 @@ class LatencyTrackingMapStateTest extends LatencyTrackingStateTestBase<Integer> 
     void testLatencyTrackingMapState() throws Exception {
         AbstractKeyedStateBackend<Integer> keyedBackend = createKeyedBackend(getKeySerializer());
         try {
-            LatencyTrackingMapState<Integer, VoidNamespace, Long, Double> latencyTrackingState =
-                    (LatencyTrackingMapState)
-                            createLatencyTrackingState(keyedBackend, getStateDescriptor());
+            MetricsTrackingMapState<Integer, VoidNamespace, Long, Double> latencyTrackingState =
+                    (MetricsTrackingMapState)
+                            createMetricsTrackingState(keyedBackend, getStateDescriptor());
             latencyTrackingState.setCurrentNamespace(VoidNamespace.INSTANCE);
-            LatencyTrackingMapState.MapStateLatencyMetrics latencyTrackingStateMetric =
+            MetricsTrackingMapState.MapStateMetrics latencyTrackingStateMetric =
                     latencyTrackingState.getLatencyTrackingStateMetric();
 
             assertThat(latencyTrackingStateMetric.getContainsCount()).isZero();
@@ -127,14 +127,62 @@ class LatencyTrackingMapStateTest extends LatencyTrackingStateTestBase<Integer> 
 
     @Test
     @SuppressWarnings({"unchecked", "rawtypes"})
+    void testSizeTrackingMapState() throws Exception {
+        AbstractKeyedStateBackend<Integer> keyedBackend = createKeyedBackend(getKeySerializer());
+        try {
+            MetricsTrackingMapState<Integer, VoidNamespace, Long, Double> sizeTrackingState =
+                    (MetricsTrackingMapState)
+                            createMetricsTrackingState(keyedBackend, getStateDescriptor());
+            sizeTrackingState.setCurrentNamespace(VoidNamespace.INSTANCE);
+            MetricsTrackingMapState.MapStateMetrics sizeTrackingStateMetric =
+                    sizeTrackingState.getSizeTrackingStateMetric();
+
+            assertThat(sizeTrackingStateMetric.getContainsCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getEntriesInitCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getGetCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getIsEmptyCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getIteratorInitCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getIteratorHasNextCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getIteratorNextCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getKeysInitCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getValuesInitCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getIteratorRemoveCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getPutAllCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getPutCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getRemoveCount()).isZero();
+
+            setCurrentKey(keyedBackend);
+            ThreadLocalRandom random = ThreadLocalRandom.current();
+            for (int index = 1; index <= SAMPLE_INTERVAL; index++) {
+                int expectedResult = index == SAMPLE_INTERVAL ? 0 : index;
+                sizeTrackingState.put(random.nextLong(), random.nextDouble());
+                assertThat(sizeTrackingStateMetric.getPutCount()).isEqualTo(expectedResult);
+
+                sizeTrackingState.putAll(
+                        Collections.singletonMap(random.nextLong(), random.nextDouble()));
+                assertThat(sizeTrackingStateMetric.getPutAllCount()).isEqualTo(expectedResult);
+
+                sizeTrackingState.get(random.nextLong());
+                assertThat(sizeTrackingStateMetric.getGetCount()).isEqualTo(expectedResult);
+            }
+        } finally {
+            if (keyedBackend != null) {
+                keyedBackend.close();
+                keyedBackend.dispose();
+            }
+        }
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
     void testLatencyTrackingMapStateIterator() throws Exception {
         AbstractKeyedStateBackend<Integer> keyedBackend = createKeyedBackend(getKeySerializer());
         try {
-            LatencyTrackingMapState<Integer, VoidNamespace, Long, Double> latencyTrackingState =
-                    (LatencyTrackingMapState)
-                            createLatencyTrackingState(keyedBackend, getStateDescriptor());
+            MetricsTrackingMapState<Integer, VoidNamespace, Long, Double> latencyTrackingState =
+                    (MetricsTrackingMapState)
+                            createMetricsTrackingState(keyedBackend, getStateDescriptor());
             latencyTrackingState.setCurrentNamespace(VoidNamespace.INSTANCE);
-            LatencyTrackingMapState.MapStateLatencyMetrics latencyTrackingStateMetric =
+            MetricsTrackingMapState.MapStateMetrics latencyTrackingStateMetric =
                     latencyTrackingState.getLatencyTrackingStateMetric();
 
             setCurrentKey(keyedBackend);
@@ -168,8 +216,8 @@ class LatencyTrackingMapStateTest extends LatencyTrackingStateTestBase<Integer> 
     }
 
     private <E> void verifyIterator(
-            LatencyTrackingMapState<Integer, VoidNamespace, Long, Double> latencyTrackingState,
-            LatencyTrackingMapState.MapStateLatencyMetrics latencyTrackingStateMetric,
+            MetricsTrackingMapState<Integer, VoidNamespace, Long, Double> latencyTrackingState,
+            MetricsTrackingMapState.MapStateMetrics latencyTrackingStateMetric,
             SupplierWithException<Iterator<E>, Exception> iteratorSupplier,
             boolean removeIterator)
             throws Exception {
