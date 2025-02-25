@@ -29,8 +29,8 @@ import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexDistinctKeyV
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.GenerateUtils._
-import org.apache.flink.table.planner.codegen.JsonGenerateUtils.{isJsonFunctionOperand, isJsonObjectOperand, isJsonObjectOrArrayOperand}
-import org.apache.flink.table.planner.codegen.calls.{JsonCallGen, _}
+import org.apache.flink.table.planner.codegen.JsonGenerateUtils.{isJsonArrayOperand, isJsonFunctionOperand, isJsonObjectOperand}
+import org.apache.flink.table.planner.codegen.calls._
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
 import org.apache.flink.table.planner.codegen.calls.SearchOperatorGen.generateSearch
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
@@ -461,11 +461,12 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   override def visitCall(call: RexCall): GeneratedExpression = {
     val resultType = FlinkTypeFactory.toLogicalType(call.getType)
 
-    // throw exception if json function is called outside JSON_OBJECT
+    // throw exception if json function is called outside JSON_OBJECT or JSON_ARRAY function
     if (isJsonFunctionOperand(call)) {
       throw new ValidationException(
-        "The JSON() function is currently only supported inside a JSON_OBJECT() function." +
-          " Example: JSON_OBJECT('a', JSON('{\"key\": \"value\"}'))")
+        "The JSON() function is currently only supported inside a JSON_OBJECT() or JSON_ARRAY()" +
+          " function. Example: JSON_OBJECT('a', JSON('{\"key\": \"value\"}')) or " +
+          "JSON_ARRAY(JSON('{\"key\": \"value\"}')).")
     }
 
     if (call.getKind == SqlKind.SEARCH) {
@@ -485,9 +486,10 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
             call.getOperator.getReturnTypeInference == ReturnTypes.ARG0 =>
         generateNullLiteral(resultType)
 
-      // We only support JSON function operands as the value param of a JSON_OBJECT function
+      // We only support JSON function operands as the value param of a JSON_OBJECT or JSON_ARRAY function
       case (operand: RexNode, i)
-          if i == 2 && isJsonObjectOperand(call) && isJsonFunctionOperand(operand) =>
+          if isJsonFunctionOperand(operand) &&
+            (isJsonArrayOperand(call) || i == 2 && isJsonObjectOperand(call)) =>
         generateJsonCall(operand)
 
       case (o @ _, _) => o.accept(this)

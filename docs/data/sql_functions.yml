@@ -1066,8 +1066,8 @@ json:
       JSON_OBJECT(KEY 'K1' VALUE CAST(NULL AS STRING) NULL ON NULL)   -- '{"K1":null}'
       JSON_OBJECT(KEY 'K1' VALUE CAST(NULL AS STRING) ABSENT ON NULL) -- '{}'
 
-      -- '{"K1":{"K2":{"value":42}}}'
-      JSON_OBJECT('K1' VALUE JSON('{"K2": {"value": 42}}'))
+      -- '{"K1":{"nested_json":{"value":42}}}'
+      JSON_OBJECT('K1' VALUE JSON('{"nested_json": {"value": 42}}'))
       
       -- '{"K1":{"K2":"V"}}'
       JSON_OBJECT(
@@ -1083,11 +1083,12 @@ json:
     description: |
       Expects a raw, pre-formatted JSON string and returns its values as-is without escaping it as a string.
 
-      This function can currently only be used within the `JSON_OBJECT` function. It allows passing 
-      pre-formatted JSON strings that will be inserted directly into the resulting JSON structure 
-      rather than being escaped as a string value. This allows storing nested JSON structures in a 
-      JSON_OBJECT without processing them as strings, which is often useful when ingesting already 
-      formatted json data. If the value is NULL or empty, the function returns NULL.
+      This function can currently only be used within the `JSON_OBJECT` and `JSON_ARRAY` functions. 
+      It allows passing pre-formatted JSON strings that will be inserted directly into the 
+      resulting JSON structure rather than being escaped as a string value. This allows storing 
+      nested JSON structures in a `JSON_OBJECT` or `JSON_ARRAY` without processing them as strings, 
+      which is often useful when ingesting already formatted json data. If the value is NULL or empty, 
+      the function returns NULL.
 
       ```sql
       -- {"K":{"K2":42}}
@@ -1098,6 +1099,15 @@ json:
 
       -- {"K": null}
       JSON_OBJECT('K' VALUE JSON(''))
+      
+      -- [{"K2":42}]
+      JSON_ARRAY(JSON('{"K2": 42}'))
+
+      -- [{"K2":{"K3":42}}]
+      JSON_ARRAY(JSON('{"K2":{"K3":42}}'))
+
+      -- [null]
+      JSON_ARRAY(JSON('') NULL ON NULL)
 
       -- Invalid - JSON function can only be used within JSON_OBJECT
       JSON('{"value": 42}')
@@ -1130,6 +1140,9 @@ json:
 
       -- '[[1]]'
       JSON_ARRAY(JSON_ARRAY(1))
+      
+      -- [{"nested_json":{"value":42}}]
+      JSON_ARRAY(JSON('{"nested_json": {"value": 42}}'))
       ```
 
 valueconstruction:
