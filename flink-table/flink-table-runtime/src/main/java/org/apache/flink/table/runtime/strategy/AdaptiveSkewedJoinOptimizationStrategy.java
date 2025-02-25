@@ -110,7 +110,7 @@ public class AdaptiveSkewedJoinOptimizationStrategy
                     edge.getTypeNumber(),
                     ((AllToAllBlockingResultInfo) resultInfo).getAggregatedSubpartitionBytes());
         }
-        if (context.areAllUpstreamNodesFinished(adaptiveJoinNode)) {
+        if (context.checkUpstreamNodesFinished(adaptiveJoinNode, null)) {
             applyAdaptiveSkewedJoinOptimization(
                     context, adaptiveJoinNode, adaptiveJoin.getJoinType());
             freeNodeStatistic(adaptiveJoinNode.getId());
