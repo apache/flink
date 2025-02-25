@@ -15,34 +15,25 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+
+from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase, PyFlinkTestCase
 from pyflink.table.resolved_schema import ResolvedSchema
-from pyflink.table.table_schema import TableSchema
-from pyflink.table.types import DataTypes
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 
 
-class StreamTableSchemaTests(PyFlinkStreamTableTestCase):
+class ResolvedSchemaAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
+    """
+    Tests whether the Python :class:`ResolvedSchema` is consistent with
+    Java `org.apache.flink.table.catalog.ResolvedSchema`.
+    """
 
-    def test_print_schema(self):
-        t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.group_by(t.c).select(t.a.sum, t.c.alias('b'))
-        result.print_schema()
+    @classmethod
+    def python_class(cls):
+        return ResolvedSchema
 
-    def test_get_schema(self):
-        t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.group_by(t.c).select(t.a.sum.alias('a'), t.c.alias('b'))
-        schema = result.get_schema()
+    @classmethod
+    def java_class(cls):
+        return "org.apache.flink.table.catalog.ResolvedSchema"
 
-        assert schema == TableSchema(["a", "b"], [DataTypes.BIGINT(), DataTypes.STRING()])
-
-    def test_get_resolved_schema(self):
-        t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        resolved_schema = t.get_resolved_schema()
-        expected_schema = ResolvedSchema.physical(
-            ['a', 'b', 'c'],
-            [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()],
-        )
-        assert resolved_schema == expected_schema
 
 if __name__ == '__main__':
     import unittest
