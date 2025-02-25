@@ -24,6 +24,7 @@ import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
@@ -39,7 +40,7 @@ public class DelegatingAsyncResultFuture implements BiConsumer<Object, Throwable
     private final List<Object> synchronousResults = new ArrayList<>();
     private Function<Object, RowData> outputFactory;
     private CompletableFuture<Object> future;
-    private CompletableFuture<Object> convertedFuture;
+    private DataStructureConverter<Object, Object> converter;
 
     public DelegatingAsyncResultFuture(ResultFuture<Object> delegatedResultFuture) {
         this.delegatedResultFuture = delegatedResultFuture;
@@ -60,11 +61,11 @@ public class DelegatingAsyncResultFuture implements BiConsumer<Object, Throwable
     public CompletableFuture<?> createAsyncFuture(
             DataStructureConverter<Object, Object> converter) {
         Preconditions.checkState(future == null);
-        Preconditions.checkState(convertedFuture == null);
+        Preconditions.checkState(this.converter == null);
         Preconditions.checkNotNull(outputFactory);
         future = new CompletableFuture<>();
-        convertedFuture = future.thenApply(converter::toInternal);
-        this.convertedFuture.whenComplete(this);
+        this.converter = converter;
+        future.whenComplete(this);
         return future;
     }
 
@@ -74,8 +75,11 @@ public class DelegatingAsyncResultFuture implements BiConsumer<Object, Throwable
             delegatedResultFuture.completeExceptionally(throwable);
         } else {
             try {
-                RowData rowData = outputFactory.apply(o);
-                delegatedResultFuture.complete(java.util.Collections.singleton(rowData));
+                delegatedResultFuture.complete(
+                        () -> {
+                            Object converted = converter.toInternal(o);
+                            return Collections.singleton(outputFactory.apply(converted));
+                        });
             } catch (Throwable t) {
                 delegatedResultFuture.completeExceptionally(t);
             }
