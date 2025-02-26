@@ -126,11 +126,12 @@ public class DefaultVertexParallelismAndInputInfosDecider
             return new ParallelismAndInputInfos(parallelism, Collections.emptyMap());
         }
 
+        checkArgument(vertexInitialParallelism == ExecutionConfig.PARALLELISM_DEFAULT);
+
         int minParallelism = Math.max(globalMinParallelism, vertexMinParallelism);
         int maxParallelism = globalMaxParallelism;
 
-        if (vertexInitialParallelism == ExecutionConfig.PARALLELISM_DEFAULT
-                && vertexMaxParallelism < minParallelism) {
+        if (vertexMaxParallelism < minParallelism) {
             LOG.info(
                     "The vertex maximum parallelism {} is smaller than the minimum parallelism {}. "
                             + "Use {} as the lower bound to decide parallelism of job vertex {}.",
@@ -140,8 +141,7 @@ public class DefaultVertexParallelismAndInputInfosDecider
                     jobVertexId);
             minParallelism = vertexMaxParallelism;
         }
-        if (vertexInitialParallelism == ExecutionConfig.PARALLELISM_DEFAULT
-                && vertexMaxParallelism < maxParallelism) {
+        if (vertexMaxParallelism < maxParallelism) {
             LOG.info(
                     "The vertex maximum parallelism {} is smaller than the global maximum parallelism {}. "
                             + "Use {} as the upper bound to decide parallelism of job vertex {}.",
@@ -154,11 +154,7 @@ public class DefaultVertexParallelismAndInputInfosDecider
         checkState(maxParallelism >= minParallelism);
 
         return decideParallelismAndInputInfosForNonSource(
-                jobVertexId,
-                consumedResults,
-                vertexInitialParallelism,
-                minParallelism,
-                maxParallelism);
+                jobVertexId, consumedResults, minParallelism, maxParallelism);
     }
 
     @Override
@@ -185,14 +181,10 @@ public class DefaultVertexParallelismAndInputInfosDecider
     private ParallelismAndInputInfos decideParallelismAndInputInfosForNonSource(
             JobVertexID jobVertexId,
             List<BlockingInputInfo> consumedResults,
-            int vertexInitialParallelism,
             int minParallelism,
             int maxParallelism) {
         int parallelism =
-                vertexInitialParallelism > 0
-                        ? vertexInitialParallelism
-                        : decideParallelism(
-                                jobVertexId, consumedResults, minParallelism, maxParallelism);
+                decideParallelism(jobVertexId, consumedResults, minParallelism, maxParallelism);
 
         List<BlockingInputInfo> pointwiseInputs = new ArrayList<>();
 
@@ -214,10 +206,9 @@ public class DefaultVertexParallelismAndInputInfosDecider
         // interfere with the target parallelism. Therefore, in the following cases, we need to
         // reset the minimum and maximum parallelism to limit the flexibility of parallelism
         // derivation to achieve the goal:
-        // 1.  Vertex has a specified parallelism, we should follow it.
-        // 2.  There are pointwise inputs, which means that there may be inputs whose parallelism is
+        // 1. There are pointwise inputs, which means that there may be inputs whose parallelism is
         // derived one-by-one, we need to reset the min and max parallelism.
-        if (vertexInitialParallelism > 0 || !pointwiseInputs.isEmpty()) {
+        if (!pointwiseInputs.isEmpty()) {
             minParallelism = parallelism;
             maxParallelism = parallelism;
         }
