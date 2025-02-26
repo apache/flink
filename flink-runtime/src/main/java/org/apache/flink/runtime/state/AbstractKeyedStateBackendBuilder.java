@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
+import org.apache.flink.runtime.state.metrics.SizeTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import org.slf4j.Logger;
@@ -45,6 +46,7 @@ public abstract class AbstractKeyedStateBackendBuilder<K>
     protected final ExecutionConfig executionConfig;
     protected final TtlTimeProvider ttlTimeProvider;
     protected final LatencyTrackingStateConfig latencyTrackingStateConfig;
+    protected final SizeTrackingStateConfig sizeTrackingStateConfig;
     protected final StreamCompressionDecorator keyGroupCompressionDecorator;
     protected final Collection<KeyedStateHandle> restoreStateHandles;
     protected final CloseableRegistry cancelStreamRegistry;
@@ -58,6 +60,7 @@ public abstract class AbstractKeyedStateBackendBuilder<K>
             ExecutionConfig executionConfig,
             TtlTimeProvider ttlTimeProvider,
             LatencyTrackingStateConfig latencyTrackingStateConfig,
+            SizeTrackingStateConfig sizeTrackingStateConfig,
             @Nonnull Collection<KeyedStateHandle> stateHandles,
             StreamCompressionDecorator keyGroupCompressionDecorator,
             CloseableRegistry cancelStreamRegistry) {
@@ -70,6 +73,7 @@ public abstract class AbstractKeyedStateBackendBuilder<K>
         this.executionConfig = executionConfig;
         this.ttlTimeProvider = ttlTimeProvider;
         this.latencyTrackingStateConfig = latencyTrackingStateConfig;
+        this.sizeTrackingStateConfig = sizeTrackingStateConfig;
         this.keyGroupCompressionDecorator = keyGroupCompressionDecorator;
         this.restoreStateHandles = stateHandles;
         this.cancelStreamRegistry = cancelStreamRegistry;
