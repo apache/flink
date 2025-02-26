@@ -21,10 +21,19 @@ package org.apache.flink.formats.protobuf;
 import org.apache.flink.formats.protobuf.testproto.MapTest;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.RowType;
 
 import com.google.protobuf.ByteString;
 import org.junit.Test;
 
+import static org.apache.flink.table.api.DataTypes.BIGINT;
+import static org.apache.flink.table.api.DataTypes.BYTES;
+import static org.apache.flink.table.api.DataTypes.FIELD;
+import static org.apache.flink.table.api.DataTypes.INT;
+import static org.apache.flink.table.api.DataTypes.MAP;
+import static org.apache.flink.table.api.DataTypes.ROW;
+import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
@@ -42,22 +51,39 @@ public class MapProtoToRowTest {
                         .putMap2("f", innerMessageTest)
                         .putMap3("e", ByteString.copyFrom(new byte[] {1, 2, 3}))
                         .build();
-        RowData row = ProtobufTestHelper.pbBytesToRow(MapTest.class, mapTest.toByteArray());
 
-        MapData map1 = row.getMap(1);
+        DataType dataType =
+                ROW(
+                        FIELD("map1", MAP(STRING(), STRING())),
+                        FIELD("map2", MAP(STRING(), ROW(FIELD("a", INT()), FIELD("b", BIGINT())))),
+                        FIELD("map3", MAP(STRING(), BYTES())));
+        RowType schema = (RowType) dataType.getLogicalType();
+        String[][] projectedField =
+                new String[][] {
+                    new String[] {"map1"}, new String[] {"map2"}, new String[] {"map3"}
+                };
+
+        RowData row =
+                ProtobufTestProjectHelper.pbBytesToRowProjected(
+                        schema,
+                        mapTest.toByteArray(),
+                        new PbFormatConfig(MapTest.class.getName(), false, false, ""),
+                        projectedField);
+
+        MapData map1 = row.getMap(0);
         assertEquals("a", map1.keyArray().getString(0).toString());
         assertEquals("b", map1.valueArray().getString(0).toString());
         assertEquals("c", map1.keyArray().getString(1).toString());
         assertEquals("d", map1.valueArray().getString(1).toString());
 
-        MapData map2 = row.getMap(2);
+        MapData map2 = row.getMap(1);
         assertEquals("f", map2.keyArray().getString(0).toString());
         RowData rowData2 = map2.valueArray().getRow(0, 2);
 
         assertEquals(1, rowData2.getInt(0));
         assertEquals(2L, rowData2.getLong(1));
 
-        MapData map3 = row.getMap(3);
+        MapData map3 = row.getMap(2);
         assertEquals("e", map3.keyArray().getString(0).toString());
         assertArrayEquals(new byte[] {1, 2, 3}, map3.valueArray().getBinary(0));
     }

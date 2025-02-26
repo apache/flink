@@ -19,7 +19,9 @@
 package org.apache.flink.formats.protobuf;
 
 import org.apache.flink.formats.protobuf.testproto.TimestampTestOuterMulti;
+import org.apache.flink.formats.protobuf.util.PbToRowTypeUtil;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.logical.RowType;
 
 import com.google.protobuf.Timestamp;
 import org.junit.Test;
@@ -38,9 +40,16 @@ public class TimestampOuterMultiProtoToRowTest {
                 TimestampTestOuterMulti.newBuilder()
                         .setTs(Timestamp.newBuilder().setSeconds(1672498800).setNanos(123))
                         .build();
+        RowType schema = PbToRowTypeUtil.generateRowType(TimestampTestOuterMulti.getDescriptor());
+        String[][] projectedField = new String[][] {new String[] {"ts"}};
+
         RowData row =
-                ProtobufTestHelper.pbBytesToRow(
-                        TimestampTestOuterMulti.class, timestampTestOuterMulti.toByteArray());
+                ProtobufTestProjectHelper.pbBytesToRowProjected(
+                        schema,
+                        timestampTestOuterMulti.toByteArray(),
+                        new PbFormatConfig(
+                                TimestampTestOuterMulti.class.getName(), false, false, ""),
+                        projectedField);
 
         RowData rowData = row.getRow(0, 2);
         assertEquals(1672498800, rowData.getLong(0));
