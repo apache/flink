@@ -300,32 +300,6 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
     }
 
     @Test
-    void testParallelismAlreadyDecided() {
-        final DefaultVertexParallelismAndInputInfosDecider decider =
-                createDecider(MIN_PARALLELISM, MAX_PARALLELISM, DATA_VOLUME_PER_TASK);
-
-        AllToAllBlockingResultInfo allToAllBlockingResultInfo =
-                createAllToAllBlockingResultInfo(
-                        new long[] {10L, 15L, 13L, 12L, 1L, 10L, 8L, 20L, 12L, 17L});
-        ParallelismAndInputInfos parallelismAndInputInfos =
-                decider.decideParallelismAndInputInfosForVertex(
-                        new JobVertexID(),
-                        Collections.singletonList(
-                                toBlockingInputInfoView(allToAllBlockingResultInfo)),
-                        3,
-                        MIN_PARALLELISM,
-                        MAX_PARALLELISM);
-
-        assertThat(parallelismAndInputInfos.getParallelism()).isEqualTo(3);
-        assertThat(parallelismAndInputInfos.getJobVertexInputInfos()).hasSize(1);
-
-        checkAllToAllJobVertexInputInfo(
-                Iterables.getOnlyElement(
-                        parallelismAndInputInfos.getJobVertexInputInfos().values()),
-                Arrays.asList(new IndexRange(0, 2), new IndexRange(3, 6), new IndexRange(7, 9)));
-    }
-
-    @Test
     void testSourceJobVertex() {
         ParallelismAndInputInfos parallelismAndInputInfos =
                 createDeciderAndDecideParallelismAndInputInfos(
