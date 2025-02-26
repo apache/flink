@@ -243,11 +243,11 @@ public class TaskMailboxImpl implements TaskMailbox {
 
     @Override
     public List<Mail> drain() {
-        List<Mail> drainedMails = new ArrayList<>(batch);
-        batch.clear();
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
+            List<Mail> drainedMails = new ArrayList<>(batch);
+            batch.clear();
             drainedMails.addAll(queue);
             queue.clear();
             hasNewMail = false;
