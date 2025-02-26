@@ -67,6 +67,9 @@ class TablePipeline(object):
         """
         Returns the sink table's :class:`~pyflink.table.catalog.ObjectIdentifier`, if any.
         The result is empty for anonymous sink tables that haven't been registered before.
+        Registering sink tables can be done via
+        :func:`~pyflink.table.TableEnvironment.create_temporary_table` using a
+        :class:`~pyflink.table.TableDescriptor`.
 
         .. versionadded:: 2.1.0
         """

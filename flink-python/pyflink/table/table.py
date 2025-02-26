@@ -1096,8 +1096,8 @@ class Table(object):
             Example:
             ::
 
-                >>> table = table_env.sql_query("SELECTFROM MyTable")
-                >>> table_pipeline = table.insert_into_table_path("MySinkTable", True)
+                >>> table = table_env.sql_query("SELECT * FROM MyTable")
+                >>> table_pipeline = table.insert_into("MySinkTable", True)
                 >>> table_result = table_pipeline.execute().wait()
 
         When ``target_path_or_descriptor`` is a  :class:`~pyflink.table.TableDescriptor` :
@@ -1110,8 +1110,8 @@ class Table(object):
             in the operation tree. Note that calling this method multiple times, even with the same
             descriptor, results in multiple sink tables instances.
 
-            This method allows to declare a :class:`~pyflink.table.Schema` for the sink descriptor.
-            The declaration is similar to a ``CREATE TABLE`` DDL in SQL and allows to:
+            A :class:`~pyflink.table.Schema` can be associated with the sink descriptor, which
+            asserts a structure on the described table, and can be used to:
 
             - overwrite automatically derived columns with a custom
               :class:`~pyflink.table.types.DataType`

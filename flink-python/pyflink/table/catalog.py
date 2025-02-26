@@ -1395,15 +1395,18 @@ class CatalogDescriptor:
 
 class ObjectIdentifier(object):
     """
-    Identifies an object in a catalog. It allows to identify objects such as tables, views,
-    function, or types in a catalog. An identifier must be fully qualified. It is the
-    responsibility of the catalog manager to resolve an identifier to an object.
+    Identifies an object in a catalog, including tables, views, function, or types.
+    An :class:`ObjectIdentifier` must be fully qualified. It is the responsibility of the catalog
+    manager to resolve an :class:`ObjectIdentifier` to an object.
 
     While Path :class:`ObjectPath` is used within the same catalog, instances of this class can be
-    used across catalogs.
+    used across catalogs. An :class:`ObjectPath` only describes the name and database of an
+    object and so is scoped over a particular catalog, but an :class:`ObjectIdentifier` is fully
+    qualified and describes the name, database and catalog of the object.
 
-    Two objects are considered equal if they share the same object identifier in a stable session
-    context.
+    Two objects are considered equal if they share the same :class:`ObjectIdentifier` in a session
+    context, such as a :class:`~pyflink.table.TableEnvironment`, where catalogs (or objects in a
+    catalog) have not been added, deleted or modified.
     """
 
     _UNKNOWN = "<UNKNOWN>"
