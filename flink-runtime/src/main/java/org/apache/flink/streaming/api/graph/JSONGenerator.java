@@ -70,7 +70,7 @@ public class JSONGenerator {
     }
 
     private void visit(
-            ArrayNode jsonArray, List<Integer> toVisit, Map<Integer, Integer> edgeRemapings) {
+            ArrayNode jsonArray, List<Integer> toVisit, Map<Integer, Integer> edgeRemappings) {
 
         Integer vertexID = toVisit.get(0);
         StreamNode vertex = streamGraph.getStreamNode(vertexID);
@@ -89,8 +89,8 @@ public class JSONGenerator {
                     int inputID = inEdge.getSourceId();
 
                     Integer mappedID =
-                            (edgeRemapings.keySet().contains(inputID))
-                                    ? edgeRemapings.get(inputID)
+                            (edgeRemappings.keySet().contains(inputID))
+                                    ? edgeRemappings.get(inputID)
                                     : inputID;
                     decorateEdge(inputs, inEdge, mappedID);
                 }
@@ -117,12 +117,12 @@ public class JSONGenerator {
             ArrayNode iterationInputs = mapper.createArrayNode();
             obj.put(PREDECESSORS, iterationInputs);
             toVisit.remove(iterationHead);
-            visitIteration(iterationSteps, toVisit, iterationHead, edgeRemapings, iterationInputs);
+            visitIteration(iterationSteps, toVisit, iterationHead, edgeRemappings, iterationInputs);
             jsonArray.add(obj);
         }
 
         if (!toVisit.isEmpty()) {
-            visit(jsonArray, toVisit, edgeRemapings);
+            visit(jsonArray, toVisit, edgeRemappings);
         }
     }
 
