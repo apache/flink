@@ -811,11 +811,14 @@ public abstract class BaseResultSet implements ResultSet {
 
     @Override
     public <T> T unwrap(Class<T> iface) throws SQLException {
-        throw new SQLFeatureNotSupportedException("FlinkResultSet#unwrap is not supported");
+        if (isWrapperFor(iface)) {
+            return iface.cast(this);
+        }
+        throw new SQLException("The receiver is not a wrapper for " + iface.getName());
     }
 
     @Override
-    public boolean isWrapperFor(Class<?> iface) throws SQLException {
-        throw new SQLFeatureNotSupportedException("FlinkResultSet#isWrapperFor is not supported");
+    public boolean isWrapperFor(Class<?> iface) {
+        return iface.isAssignableFrom(this.getClass());
     }
 }
