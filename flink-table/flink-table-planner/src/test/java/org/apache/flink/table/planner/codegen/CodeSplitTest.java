@@ -237,11 +237,13 @@ class CodeSplitTest {
         Configuration splitTableConfig = new Configuration();
         splitTableConfig.set(TableConfigOptions.MAX_LENGTH_GENERATED_CODE, 4000);
         splitTableConfig.set(TableConfigOptions.MAX_MEMBERS_GENERATED_CODE, 10000);
+        splitTableConfig.set(TableConfigOptions.FIELDS_PER_INIT_METHOD, 1000);
         consumer.accept(splitTableConfig);
 
         Configuration noSplitTableConfig = new Configuration();
         noSplitTableConfig.set(TableConfigOptions.MAX_LENGTH_GENERATED_CODE, Integer.MAX_VALUE);
         noSplitTableConfig.set(TableConfigOptions.MAX_MEMBERS_GENERATED_CODE, Integer.MAX_VALUE);
+        noSplitTableConfig.set(TableConfigOptions.FIELDS_PER_INIT_METHOD, Integer.MAX_VALUE);
         PrintStream originalStdOut = System.out;
         try {
             // redirect stdout to a null output stream to silence compile error in CompileUtils
