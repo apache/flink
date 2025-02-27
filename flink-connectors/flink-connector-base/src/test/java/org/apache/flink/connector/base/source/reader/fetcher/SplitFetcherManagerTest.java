@@ -37,8 +37,10 @@ import org.junit.jupiter.api.Timeout;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 
@@ -68,7 +70,7 @@ class SplitFetcherManagerTest {
         reader.setCloseWithException();
         SplitFetcherManager<Object, TestingSourceSplit> fetcherManager =
                 createFetcher("test-split", reader, new Configuration());
-        fetcherManager.close(1000L);
+        fetcherManager.close(30000L);
         assertThatThrownBy(fetcherManager::checkErrors)
                 .hasRootCauseMessage("Artificial exception on closing the split reader.");
     }
@@ -98,6 +100,55 @@ class SplitFetcherManagerTest {
                 "The idle fetcher should have been removed.");
         // Now close the fetcher manager. The fetcher manager closing should not block.
         fetcherManager.close(Long.MAX_VALUE);
+    }
+
+    /**
+     * This test is somewhat testing the implementation instead of contract. This is because the
+     * test is trying to make sure the element queue draining thread is not tight looping.
+     */
+    @Test
+    public void testCloseBlockingWaitingForFetcherShutdown() throws Exception {
+        final String splitId = "testSplit";
+        // create a reader which blocks on close().
+        final AwaitingReader<Integer, TestingSourceSplit> reader = new AwaitingReader<>();
+        final SplitFetcherManager<Integer, TestingSourceSplit> fetcherManager =
+                createFetcher(splitId, reader, new Configuration());
+        // Now close the fetcher manager. The fetcher should still be running when the fetcher
+        // manager returns.
+        Thread closingThread =
+                new Thread(
+                        () -> {
+                            try {
+                                fetcherManager.close(Long.MAX_VALUE);
+                            } catch (Exception e) {
+                                fail("failed.");
+                                throw new RuntimeException(e);
+                            }
+                        },
+                        "closingThread");
+        closingThread.start();
+
+        waitUntil(
+                () -> findThread(SplitFetcherManager.THREAD_NAME_PREFIX).size() == 2,
+                Duration.ofSeconds(30),
+                "The element queue draining thread should have started.");
+        for (Thread t : findThread(SplitFetcherManager.THREAD_NAME_PREFIX)) {
+            waitUntil(
+                    () ->
+                            t.getState().equals(Thread.State.WAITING)
+                                    || t.getState().equals(Thread.State.TIMED_WAITING),
+                    Duration.ofSeconds(30),
+                    "All the executor threads should be in waiting status.");
+        }
+
+        assertThat(fetcherManager.getQueue().getAvailabilityFuture().getNumberOfDependents())
+                .as("The future should have just one dependent stage")
+                .isLessThanOrEqualTo(1);
+        assertThat(fetcherManager.fetchers.size()).isEqualTo(1);
+        reader.triggerThrowException();
+        reader.triggerClose();
+        waitUntil(fetcherManager.fetchers::isEmpty, "The fetcher should be closed now.");
+        closingThread.join();
     }
 
     @Test
@@ -197,6 +248,16 @@ class SplitFetcherManagerTest {
         while (queue.poll() != null) {}
     }
 
+    private static List<Thread> findThread(String keyword) {
+        List<Thread> threads = new ArrayList<>();
+        for (Thread t : Thread.getAllStackTraces().keySet()) {
+            if (t.getName().contains(keyword)) {
+                threads.add(t);
+            }
+        }
+        return threads;
+    }
+
     // ------------------------------------------------------------------------
     //  test mocks
     // ------------------------------------------------------------------------
@@ -209,13 +270,19 @@ class SplitFetcherManagerTest {
 
         private final OneShotLatch inBlocking = new OneShotLatch();
         private final OneShotLatch throwError = new OneShotLatch();
-
+        private final OneShotLatch closeBlocker = new OneShotLatch();
         private volatile boolean isClosed = false;
 
         @SafeVarargs
         AwaitingReader(IOException testError, RecordsWithSplitIds<E>... fetches) {
             this.testError = testError;
             this.fetches = new ArrayDeque<>(Arrays.asList(fetches));
+            this.closeBlocker.trigger();
+        }
+
+        AwaitingReader() {
+            this.testError = new IOException("DummyException");
+            this.fetches = new ArrayDeque<>(Collections.emptyList());
         }
 
         @Override
@@ -242,6 +309,7 @@ class SplitFetcherManagerTest {
 
         @Override
         public void close() throws Exception {
+            closeBlocker.await();
             isClosed = true;
         }
 
@@ -251,6 +319,10 @@ class SplitFetcherManagerTest {
 
         public void triggerThrowException() {
             throwError.trigger();
+        }
+
+        public void triggerClose() {
+            closeBlocker.trigger();
         }
     }
 }
