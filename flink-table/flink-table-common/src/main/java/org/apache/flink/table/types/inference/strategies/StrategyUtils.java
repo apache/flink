@@ -187,6 +187,8 @@ final class StrategyUtils {
                 return DataTypes.INTERVAL(DataTypes.SECOND());
             case NULL:
                 return DataTypes.NULL();
+            case DESCRIPTOR:
+                return DataTypes.DESCRIPTOR();
             case ARRAY:
             case MULTISET:
             case MAP:

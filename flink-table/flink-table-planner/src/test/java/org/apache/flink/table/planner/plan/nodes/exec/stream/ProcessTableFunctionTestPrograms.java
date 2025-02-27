@@ -22,6 +22,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.AtomicTypeWrappingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ClearStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ContextFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.DescriptorFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MultiStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PojoArgsFunction;
@@ -342,5 +343,20 @@ public class ProcessTableFunctionTestPrograms {
                                                     + "]")
                                     .build())
                     .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_DESCRIPTOR =
+            TableTestProgram.of(
+                            "process-descriptor",
+                            "takes nullable, optional, and not nullable DESCRIPTOR() arguments")
+                    .setupTemporarySystemFunction("f", DescriptorFunction.class)
+                    .setupSql(BASIC_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(BASE_SINK_SCHEMA)
+                                    .consumedValues("+I[{null, null, (`a`, `b`, `c`)}]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f(columnList1 => NULL, columnList3 => DESCRIPTOR(a, b, c))")
                     .build();
 }

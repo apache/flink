@@ -57,5 +57,10 @@ public enum LogicalTypeFamily {
 
     COLLECTION,
 
+    // According to the SQL standard, DESCRIPTOR belongs to the PREDEFINED category. However,
+    // because it is a quite special type, we use a dedicated family to not interfere with existing
+    // logic.
+    DESCRIPTOR,
+
     EXTENSION
 }

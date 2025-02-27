@@ -715,6 +715,9 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case AS =>
         operands.head
 
+      case DESCRIPTOR =>
+        generateDescriptor(ctx, operands, resultType)
+
       // rows
       case ROW =>
         generateRow(ctx, resultType, operands)

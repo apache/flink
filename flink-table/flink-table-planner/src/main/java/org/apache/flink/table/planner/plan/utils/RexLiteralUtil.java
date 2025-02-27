@@ -187,6 +187,7 @@ public class RexLiteralUtil {
             case STRUCTURED_TYPE:
             case NULL:
             case UNRESOLVED:
+            case DESCRIPTOR:
                 throw new CodeGenException("Type not supported: " + valueType);
         }
         throw new IllegalStateException(

@@ -89,5 +89,9 @@ public interface LogicalTypeVisitor<R> {
 
     R visit(SymbolType<?> symbolType);
 
+    default R visit(DescriptorType descriptorType) {
+        return visit((LogicalType) descriptorType);
+    }
+
     R visit(LogicalType other);
 }
