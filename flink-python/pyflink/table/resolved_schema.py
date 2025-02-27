@@ -17,6 +17,8 @@
 ################################################################################
 from typing import List, Optional, Union
 
+from py4j.java_gateway import JavaObject
+
 from pyflink.java_gateway import get_gateway
 from pyflink.table.catalog import Column, WatermarkSpec, UniqueConstraint
 from pyflink.table.types import DataType, _to_java_data_type, _from_java_data_type
@@ -40,6 +42,8 @@ class ResolvedSchema(object):
     This class should not be passed into a connector. It is therefore also not serializable.
     Instead, the :func:`to_physical_row_data_type` can be passed around where necessary.
     """
+
+    _j_resolved_schema: JavaObject
 
     def __init__(
         self,
@@ -134,7 +138,8 @@ class ResolvedSchema(object):
 
     def get_column(self, column_index_or_name: Union[int, str]) -> Optional[Column]:
         """
-        Returns the :class:`~pyflink.table.catalog.Column` instance for the given column index or name.
+        Returns the :class:`~pyflink.table.catalog.Column` instance for the given column index or
+        name.
 
         :param column_index_or_name: either the index of the column or the name of the column
         """

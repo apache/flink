@@ -257,8 +257,9 @@ class TableEnvironmentTest(PyFlinkUTTestCase):
 
         table = self.t_env.from_descriptor(descriptor)
         self.assertEqual(schema,
-                         Schema(Schema.new_builder()._j_builder
-                                .fromResolvedSchema(table._j_table.getResolvedSchema()).build()))
+                         Schema.new_builder().from_resolved_schema(
+                             table.get_resolved_schema()
+                         ).build())
         contextResolvedTable = table._j_table.getQueryOperation().getContextResolvedTable()
         options = contextResolvedTable.getTable().getOptions()
         self.assertEqual("fake", options.get("connector"))
@@ -407,7 +408,7 @@ class DataStreamConversionTestCases(PyFlinkUTTestCase):
         self.assertEqual("""(
   `f0` RAW('[B', '...')
 )""",
-                         result._j_table_result.getResolvedSchema().toString())
+                         str(result.get_resolved_schema()))
         with result.collect() as result:
             collected_result = [str(item) for item in result]
             expected_result = [item for item
@@ -517,7 +518,7 @@ class DataStreamConversionTestCases(PyFlinkUTTestCase):
   `rowtime` TIMESTAMP_LTZ(3) *ROWTIME* METADATA,
   WATERMARK FOR `rowtime`: TIMESTAMP_LTZ(3) AS SOURCE_WATERMARK()
 )""",
-                         table._j_table.getResolvedSchema().toString())
+                         str(table.get_resolved_schema()))
         self.t_env.create_temporary_view("t",
                                          ds,
                                          Schema.new_builder()
