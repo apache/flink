@@ -50,7 +50,18 @@ Flink adds the following fields to [MDC](https://www.slf4j.org/api/org/slf4j/MDC
 
 This is most useful in environments with structured logging and allows you to quickly filter the relevant logs.
 
-The MDC is propagated by slf4j to the logging backend which usually adds it to the log records automatically (e.g. in [log4j json layout](https://logging.apache.org/log4j/2.x/manual/json-template-layout.html)).
+The MDC is propagated by slf4j to the logging backend which usually adds it to the log records automatically (e.g. in [log4j2 json layout](https://logging.apache.org/log4j/2.x/manual/json-template-layout.html#event-template-resolver-mdc).
+
+#### Log4j 2 JsonTemplateLayout
+
+> JsonTemplateLayout is a customizable, efficient, and garbage-free JSON generating layout. It encodes LogEvents according to the structure described by the JSON template provided.
+
+The required jar `log4j-layout-template-json` is bundled in the flink-dist for convenience.
+
+For example templates, see the [Event Templates](https://logging.apache.org/log4j/2.x/manual/json-template-layout.html#event-templates).
+
+#### Log4j 2 PatternLayout
+
 Alternatively, it can be configured explicitly - [log4j pattern layout](https://logging.apache.org/log4j/1.2/apidocs/org/apache/log4j/PatternLayout.html) might look like this:
 
 `[%-32X{flink-job-id}] %c{0} %m%n`.
