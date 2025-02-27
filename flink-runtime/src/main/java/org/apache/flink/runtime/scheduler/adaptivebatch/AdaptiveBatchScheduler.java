@@ -900,8 +900,18 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
     }
 
     private boolean canInitialize(final ExecutionJobVertex jobVertex) {
-        if (jobVertex.isInitialized() || !jobVertex.isParallelismDecided()) {
+        if (jobVertex.isInitialized()
+                || (!jobVertex.isParallelismDecided()
+                        && adaptiveExecutionHandler.getInitialParallelism(
+                                        jobVertex.getJobVertexId())
+                                == ExecutionConfig.PARALLELISM_DEFAULT)) {
             return false;
+        }
+
+        if (!jobVertex.isParallelismDecided()) {
+            changeJobVertexParallelism(
+                    jobVertex,
+                    adaptiveExecutionHandler.getInitialParallelism(jobVertex.getJobVertexId()));
         }
 
         // all the upstream job vertices need to have been initialized
