@@ -23,7 +23,7 @@ from pyflink.common.types import RowKind
 from pyflink.common import Row
 from pyflink.common.job_client import JobClient
 from pyflink.java_gateway import get_gateway
-from pyflink.table.resolved_schema import ResolvedSchema
+from pyflink.table.catalog import ResolvedSchema
 from pyflink.table.result_kind import ResultKind
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import _from_java_data_type
@@ -209,7 +209,7 @@ class TableResult(object):
         The schema of SELECT is the selected field names and types.
 
         :return: The resolved schema of result.
-        :rtype: pyflink.table.ResolvedSchema
+        :rtype: pyflink.table.catalog.ResolvedSchema
 
         .. versionadded:: 2.1.0
         """

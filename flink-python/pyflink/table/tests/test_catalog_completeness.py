@@ -17,9 +17,9 @@
 ################################################################################
 
 from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase, PyFlinkTestCase
-from pyflink.table.catalog import (Catalog, CatalogDatabase, CatalogBaseTable, CatalogPartition, \
+from pyflink.table.catalog import Catalog, CatalogDatabase, CatalogBaseTable, CatalogPartition, \
     ObjectIdentifier, CatalogFunction, CatalogColumnStatistics, CatalogPartitionSpec, \
-    ObjectPath, Column, WatermarkSpec, Constraint, UniqueConstraint)
+    ObjectPath, Column, WatermarkSpec, Constraint, UniqueConstraint, ResolvedSchema
 
 
 class CatalogAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
@@ -234,6 +234,21 @@ class UniqueConstraintAPICompletenessTests(PythonAPICompletenessTestCase, PyFlin
     @classmethod
     def java_class(cls):
         return "org.apache.flink.table.catalog.UniqueConstraint"
+
+
+class ResolvedSchemaAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
+    """
+    Tests whether the Python :class:`ResolvedSchema` is consistent with
+    Java `org.apache.flink.table.catalog.ResolvedSchema`.
+    """
+
+    @classmethod
+    def python_class(cls):
+        return ResolvedSchema
+
+    @classmethod
+    def java_class(cls):
+        return "org.apache.flink.table.catalog.ResolvedSchema"
 
 
 if __name__ == '__main__':

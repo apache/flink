@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.table.resolved_schema import ResolvedSchema
+from pyflink.table.catalog import ResolvedSchema
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import DataTypes
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
