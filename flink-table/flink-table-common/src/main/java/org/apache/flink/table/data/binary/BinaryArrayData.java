@@ -110,6 +110,7 @@ public final class BinaryArrayData extends BinarySection implements ArrayData, T
             case NULL:
             case SYMBOL:
             case UNRESOLVED:
+            case DESCRIPTOR:
             default:
                 throw new IllegalArgumentException();
         }

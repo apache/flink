@@ -16,6 +16,8 @@
  */
 package org.apache.calcite.rex;
 
+import org.apache.flink.table.planner.calcite.RexTableArgCall;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -868,7 +870,8 @@ public class RexUtil {
     }
 
     /**
-     * Returns whether a given tree contains any {link RexInputRef} nodes.
+     * Returns whether a given tree contains any input references (both {@link RexInputRef} or
+     * {@link RexTableArgCall}).
      *
      * @param node a RexNode tree
      */
@@ -879,6 +882,14 @@ public class RexUtil {
                         @Override
                         public Void visitInputRef(RexInputRef inputRef) {
                             throw new Util.FoundOne(inputRef);
+                        }
+
+                        @Override
+                        public Void visitCall(RexCall call) {
+                            if (call instanceof RexTableArgCall) {
+                                throw new Util.FoundOne(call);
+                            }
+                            return super.visitCall(call);
                         }
                     };
             node.accept(visitor);

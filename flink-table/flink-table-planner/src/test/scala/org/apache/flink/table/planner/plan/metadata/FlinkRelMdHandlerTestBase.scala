@@ -3277,7 +3277,7 @@ class FlinkRelMdHandlerTestBase {
         relBuilder.call(
           FlinkSqlOperatorTable.TUMBLE,
           new RexTableArgCall(outputRowType, 0, Array(), Array()),
-          relBuilder.call(FlinkSqlOperatorTable.DESCRIPTOR, relBuilder.field(2)),
+          relBuilder.call(FlinkSqlOperatorTable.DESCRIPTOR, relBuilder.literal("ptime")),
           rexBuilder.makeIntervalLiteral(
             bd(600000L),
             new SqlIntervalQualifier(TimeUnit.MILLISECOND, null, SqlParserPos.ZERO))

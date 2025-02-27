@@ -32,6 +32,7 @@ import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.DescriptorType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
@@ -325,7 +326,8 @@ public final class LogicalTypeParser {
         NULL,
         RAW,
         LEGACY,
-        NOT
+        NOT,
+        DESCRIPTOR
     }
 
     private static final Set<String> KEYWORDS =
@@ -567,6 +569,8 @@ public final class LogicalTypeParser {
                     return parseRawType();
                 case LEGACY:
                     return parseLegacyType();
+                case DESCRIPTOR:
+                    return new DescriptorType();
                 default:
                     throw parsingError("Unsupported type: " + token().value);
             }

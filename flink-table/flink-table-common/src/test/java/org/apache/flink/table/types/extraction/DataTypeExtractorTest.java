@@ -42,6 +42,7 @@ import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
+import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.Row;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -472,7 +473,8 @@ class DataTypeExtractorTest {
                                 DataTypes.STRUCTURED(
                                         PojoWithUnderscore.class,
                                         DataTypes.FIELD("int_field", DataTypes.INT()),
-                                        DataTypes.FIELD("string_field", DataTypes.STRING()))));
+                                        DataTypes.FIELD("string_field", DataTypes.STRING()))),
+                TestSpec.forType(ColumnList.class).expectDataType(DataTypes.DESCRIPTOR()));
     }
 
     @ParameterizedTest(name = "{index}: {0}")
