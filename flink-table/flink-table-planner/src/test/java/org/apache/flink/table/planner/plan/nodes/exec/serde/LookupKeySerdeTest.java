@@ -37,8 +37,8 @@ class LookupKeySerdeTest {
     @Test
     void testLookupKey() throws IOException {
         SerdeContext serdeCtx = JsonSerdeTestUtil.configuredSerdeContext();
-        ObjectReader objectReader = JsonSmileSerdeUtil.createJsonObjectReader(serdeCtx);
-        ObjectWriter objectWriter = JsonSmileSerdeUtil.createJsonObjectWriter(serdeCtx);
+        ObjectReader objectReader = CompiledPlanSerdeUtil.createJsonObjectReader(serdeCtx);
+        ObjectWriter objectWriter = CompiledPlanSerdeUtil.createJsonObjectWriter(serdeCtx);
 
         LookupJoinUtil.LookupKey[] lookupKeys =
                 new LookupJoinUtil.LookupKey[] {

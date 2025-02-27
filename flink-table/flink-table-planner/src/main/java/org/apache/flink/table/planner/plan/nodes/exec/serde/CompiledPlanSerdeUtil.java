@@ -75,7 +75,7 @@ import java.util.Optional;
 
 /** A utility class that provide abilities for JSON and Smile serialization and deserialization. */
 @Internal
-public class JsonSmileSerdeUtil {
+public class CompiledPlanSerdeUtil {
 
     /**
      * Object mapper shared instance to serialize and deserialize the plan. Note that creating and
@@ -96,7 +96,7 @@ public class JsonSmileSerdeUtil {
                 // Make sure to register the classloader of the planner
                 JSON_OBJECT_MAPPER_INSTANCE
                         .getTypeFactory()
-                        .withClassLoader(JsonSmileSerdeUtil.class.getClassLoader()));
+                        .withClassLoader(CompiledPlanSerdeUtil.class.getClassLoader()));
         JSON_OBJECT_MAPPER_INSTANCE.disable(MapperFeature.USE_GETTERS_AS_SETTERS);
         JSON_OBJECT_MAPPER_INSTANCE.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
         JSON_OBJECT_MAPPER_INSTANCE.registerModule(createFlinkTableJacksonModule());
@@ -269,5 +269,5 @@ public class JsonSmileSerdeUtil {
         }
     }
 
-    private JsonSmileSerdeUtil() {}
+    private CompiledPlanSerdeUtil() {}
 }

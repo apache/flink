@@ -24,7 +24,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectRea
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.PlanReference.{ByteContentPlanReference, ContentPlanReference, FilePlanReference, ResourcePlanReference}
+import org.apache.flink.table.api.PlanReference.{BytesContentPlanReference, FilePlanReference, JsonContentPlanReference, ResourcePlanReference}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.sink.DynamicTableSink
@@ -46,7 +46,7 @@ import org.apache.flink.table.planner.plan.ExecNodeGraphInternalPlan
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNodeGraph, ExecNodeGraphGenerator}
 import org.apache.flink.table.planner.plan.nodes.exec.processor.{ExecNodeGraphProcessor, ProcessorContext}
-import org.apache.flink.table.planner.plan.nodes.exec.serde.{JsonSmileSerdeUtil, SerdeContext}
+import org.apache.flink.table.planner.plan.nodes.exec.serde.{CompiledPlanSerdeUtil, SerdeContext}
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.Optimizer
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
@@ -189,14 +189,14 @@ abstract class PlannerBase(
 
   override def loadPlan(planReference: PlanReference): InternalPlan = {
     val ctx = createSerdeContext
-    val objectReader: ObjectReader = JsonSmileSerdeUtil.createJsonObjectReader(ctx)
+    val objectReader: ObjectReader = CompiledPlanSerdeUtil.createJsonObjectReader(ctx)
     val execNodeGraph = planReference match {
       case filePlanReference: FilePlanReference =>
         objectReader.readValue(filePlanReference.getFile, classOf[ExecNodeGraph])
-      case contentPlanReference: ContentPlanReference =>
+      case contentPlanReference: JsonContentPlanReference =>
         objectReader.readValue(contentPlanReference.getContent, classOf[ExecNodeGraph])
-      case byteContentPlanReference: ByteContentPlanReference =>
-        JsonSmileSerdeUtil
+      case byteContentPlanReference: BytesContentPlanReference =>
+        CompiledPlanSerdeUtil
           .createSmileObjectReader(ctx)
           .readValue(byteContentPlanReference.getContent, classOf[ExecNodeGraph])
       case resourcePlanReference: ResourcePlanReference =>
@@ -235,11 +235,11 @@ abstract class PlannerBase(
       execNodeGraph: ExecNodeGraph) = {
     new ExecNodeGraphInternalPlan(
       () =>
-        JsonSmileSerdeUtil
+        CompiledPlanSerdeUtil
           .createJsonObjectWriter(ctx)
           .withDefaultPrettyPrinter()
           .writeValueAsString(execNodeGraph),
-      () => JsonSmileSerdeUtil.createSmileObjectWriter(ctx).writeValueAsBytes(execNodeGraph),
+      () => CompiledPlanSerdeUtil.createSmileObjectWriter(ctx).writeValueAsBytes(execNodeGraph),
       execNodeGraph)
   }
 

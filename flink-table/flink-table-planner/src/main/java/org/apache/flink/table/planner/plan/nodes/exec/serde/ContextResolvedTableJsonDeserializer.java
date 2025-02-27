@@ -73,7 +73,7 @@ final class ContextResolvedTableJsonDeserializer extends StdDeserializer<Context
 
         // Deserialize the two fields, if available
         final ObjectIdentifier identifier =
-                JsonSmileSerdeUtil.deserializeOptionalField(
+                CompiledPlanSerdeUtil.deserializeOptionalField(
                                 objectNode,
                                 FIELD_NAME_IDENTIFIER,
                                 ObjectIdentifier.class,
@@ -81,7 +81,7 @@ final class ContextResolvedTableJsonDeserializer extends StdDeserializer<Context
                                 ctx)
                         .orElse(null);
         final ResolvedCatalogTable resolvedCatalogTable =
-                JsonSmileSerdeUtil.deserializeOptionalField(
+                CompiledPlanSerdeUtil.deserializeOptionalField(
                                 objectNode,
                                 FIELD_NAME_CATALOG_TABLE,
                                 ResolvedCatalogTable.class,

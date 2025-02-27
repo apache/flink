@@ -51,12 +51,12 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.createJsonObjectReader;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.createJsonObjectWriter;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ContextResolvedTableJsonSerializer.FIELD_NAME_CATALOG_TABLE;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ContextResolvedTableJsonSerializer.FIELD_NAME_IDENTIFIER;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.assertThatJsonContains;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.assertThatJsonDoesNotContain;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSmileSerdeUtil.createJsonObjectReader;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSmileSerdeUtil.createJsonObjectWriter;
 import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_CATALOG;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
