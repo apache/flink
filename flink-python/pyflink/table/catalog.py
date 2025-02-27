@@ -1409,8 +1409,6 @@ class ObjectIdentifier(object):
     catalog) have not been added, deleted or modified.
     """
 
-    _UNKNOWN = "<UNKNOWN>"
-
     def __init__(self, j_object_identifier):
         self._j_object_identifier = j_object_identifier
 
@@ -1431,14 +1429,11 @@ class ObjectIdentifier(object):
         assert database_name is not None, "Database name must not be null."
         assert object_name is not None, "Object name must not be null."
 
-        if catalog_name == ObjectIdentifier._UNKNOWN or database_name == ObjectIdentifier._UNKNOWN:
-            raise ValueError(f"Catalog or database cannot be named {ObjectIdentifier._UNKNOWN}")
-        else:
-            gateway = get_gateway()
-            j_object_identifier = gateway.jvm.org.apache.flink.table.catalog.ObjectIdentifier.of(
-                catalog_name, database_name, object_name
-            )
-            return ObjectIdentifier(j_object_identifier=j_object_identifier)
+        gateway = get_gateway()
+        j_object_identifier = gateway.jvm.org.apache.flink.table.catalog.ObjectIdentifier.of(
+            catalog_name, database_name, object_name
+        )
+        return ObjectIdentifier(j_object_identifier=j_object_identifier)
 
     def get_catalog_name(self) -> str:
         return self._j_object_identifier.getCatalogName()
