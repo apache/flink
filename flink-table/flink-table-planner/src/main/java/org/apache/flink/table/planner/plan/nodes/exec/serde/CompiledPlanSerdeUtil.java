@@ -91,21 +91,26 @@ public class CompiledPlanSerdeUtil {
 
     static {
         JSON_OBJECT_MAPPER_INSTANCE = JacksonMapperFactory.createObjectMapper();
+        JSON_OBJECT_MAPPER_INSTANCE
+                .setTypeFactory(
+                        // Make sure to register the classloader of the planner
+                        JSON_OBJECT_MAPPER_INSTANCE
+                                .getTypeFactory()
+                                .withClassLoader(CompiledPlanSerdeUtil.class.getClassLoader()))
+                .disable(MapperFeature.USE_GETTERS_AS_SETTERS)
+                .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+                .registerModule(createFlinkTableJacksonModule());
 
-        JSON_OBJECT_MAPPER_INSTANCE.setTypeFactory(
-                // Make sure to register the classloader of the planner
-                JSON_OBJECT_MAPPER_INSTANCE
-                        .getTypeFactory()
-                        .withClassLoader(CompiledPlanSerdeUtil.class.getClassLoader()));
-        JSON_OBJECT_MAPPER_INSTANCE.disable(MapperFeature.USE_GETTERS_AS_SETTERS);
-        JSON_OBJECT_MAPPER_INSTANCE.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
-        JSON_OBJECT_MAPPER_INSTANCE.registerModule(createFlinkTableJacksonModule());
-
-        SMILE_OBJECT_MAPPER_INSTANCE =
-                JacksonMapperFactory.createObjectMapper(new SmileFactory())
-                        .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
-                        .disable(MapperFeature.USE_GETTERS_AS_SETTERS)
-                        .registerModule(createFlinkTableJacksonModule());
+        SMILE_OBJECT_MAPPER_INSTANCE = JacksonMapperFactory.createObjectMapper(new SmileFactory());
+        SMILE_OBJECT_MAPPER_INSTANCE
+                .setTypeFactory(
+                        // Make sure to register the classloader of the planner
+                        SMILE_OBJECT_MAPPER_INSTANCE
+                                .getTypeFactory()
+                                .withClassLoader(CompiledPlanSerdeUtil.class.getClassLoader()))
+                .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+                .disable(MapperFeature.USE_GETTERS_AS_SETTERS)
+                .registerModule(createFlinkTableJacksonModule());
     }
 
     public static ObjectReader createJsonObjectReader(SerdeContext serdeContext) {
