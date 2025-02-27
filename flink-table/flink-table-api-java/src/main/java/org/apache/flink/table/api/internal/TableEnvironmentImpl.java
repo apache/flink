@@ -20,10 +20,13 @@ package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.JobStatusChangedListener;
+import org.apache.flink.core.execution.JobStatusChangedListenerUtils;
 import org.apache.flink.core.execution.JobStatusHook;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.CompiledPlan;
@@ -109,6 +112,7 @@ import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
+import org.apache.flink.table.runtime.execution.DefaultQueryOperationEvent;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
@@ -157,6 +161,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     protected final Planner planner;
     private final boolean isStreamingMode;
     private final ExecutableOperation.Context operationCtx;
+    private final List<JobStatusChangedListener> jobStatusChangedListeners;
 
     private static final String UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
             "Unsupported SQL query! executeSql() only accepts a single SQL statement of type "
@@ -176,7 +181,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             Executor executor,
             FunctionCatalog functionCatalog,
             Planner planner,
-            boolean isStreamingMode) {
+            boolean isStreamingMode,
+            List<JobStatusChangedListener> jobStatusChangedListeners) {
         this.catalogManager = catalogManager;
         this.moduleManager = moduleManager;
         this.resourceManager = resourceManager;
@@ -224,6 +230,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         resourceManager,
                         tableConfig,
                         isStreamingMode);
+        this.jobStatusChangedListeners = jobStatusChangedListeners;
     }
 
     public static TableEnvironmentImpl create(Configuration configuration) {
@@ -281,6 +288,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                         .build())
                         .build();
 
+        // This creates another job listeners althrough such listeners already exist in executor
+        final List<JobStatusChangedListener> jobStatusChangedListeners =
+                JobStatusChangedListenerUtils.createJobStatusChangedListeners(
+                        (Configuration) tableConfig.getRootConfiguration());
+
         final FunctionCatalog functionCatalog =
                 new FunctionCatalog(tableConfig, resourceManager, catalogManager, moduleManager);
 
@@ -301,7 +313,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 executor,
                 functionCatalog,
                 planner,
-                settings.isStreamingMode());
+                settings.isStreamingMode(),
+                jobStatusChangedListeners);
     }
 
     @Override
@@ -839,7 +852,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         List<Transformation<?>> transformations = planner.translatePlan(plan);
         List<String> sinkIdentifierNames =
                 deduplicateSinkIdentifierNames(plan.getSinkIdentifiers());
-        return executeInternal(transformations, sinkIdentifierNames);
+        return executeInternal(transformations, sinkIdentifierNames, Collections.emptyList());
     }
 
     private CompiledPlan compilePlanAndWrite(
@@ -929,7 +942,13 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
         List<Transformation<?>> transformations = translate(mapOperations);
         List<String> sinkIdentifierNames = extractSinkIdentifierNames(mapOperations);
-        return executeInternal(transformations, sinkIdentifierNames, jobStatusHookList);
+        List<QueryOperation> queryOperationsList = extractQueryOperations(mapOperations);
+        return executeInternal(
+                transformations, sinkIdentifierNames, queryOperationsList, jobStatusHookList);
+    }
+
+    private List<QueryOperation> extractQueryOperations(List<ModifyOperation> mapOperations) {
+        return mapOperations.stream().map(ModifyOperation::getChild).collect(Collectors.toList());
     }
 
     private ModifyOperation getModifyOperation(
@@ -1062,13 +1081,17 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     private TableResultInternal executeInternal(
-            List<Transformation<?>> transformations, List<String> sinkIdentifierNames) {
-        return executeInternal(transformations, sinkIdentifierNames, Collections.emptyList());
+            List<Transformation<?>> transformations,
+            List<String> sinkIdentifierNames,
+            List<QueryOperation> queryOperationsList) {
+        return executeInternal(
+                transformations, sinkIdentifierNames, queryOperationsList, Collections.emptyList());
     }
 
     private TableResultInternal executeInternal(
             List<Transformation<?>> transformations,
             List<String> sinkIdentifierNames,
+            List<QueryOperation> queryOperationsList,
             List<JobStatusHook> jobStatusHookList) {
         final String defaultJobName = "insert-into_" + String.join(",", sinkIdentifierNames);
 
@@ -1083,6 +1106,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         jobStatusHookList);
         try {
             JobClient jobClient = execEnv.executeAsync(pipeline);
+            notifyJobStatusListeners(jobClient.getJobID(), queryOperationsList);
+
             final List<Column> columns = new ArrayList<>();
             Long[] affectedRowCounts = new Long[transformations.size()];
             for (int i = 0; i < transformations.size(); ++i) {
@@ -1114,6 +1139,18 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         }
     }
 
+    private void notifyJobStatusListeners(JobID jobID, List<QueryOperation> queryOperationsList) {
+        jobStatusChangedListeners.forEach(
+                listener -> {
+                    try {
+                        listener.onEvent(
+                                new DefaultQueryOperationEvent(jobID, queryOperationsList));
+                    } catch (Throwable e) {
+                        // should not interrupt the flow
+                    }
+                });
+    }
+
     private TableResultInternal executeQueryOperation(
             QueryOperation operation,
             CollectModifyOperation sinkOperation,
@@ -1123,6 +1160,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         Pipeline pipeline = generatePipelineFromQueryOperation(operation, transformations);
         try {
             JobClient jobClient = execEnv.executeAsync(pipeline);
+            notifyJobStatusListeners(jobClient.getJobID(), Collections.singletonList(operation));
+
             ResultProvider resultProvider = sinkOperation.getSelectResultProvider();
             // We must reset resultProvider as we might to reuse it between different jobs.
             resultProvider.reset();
