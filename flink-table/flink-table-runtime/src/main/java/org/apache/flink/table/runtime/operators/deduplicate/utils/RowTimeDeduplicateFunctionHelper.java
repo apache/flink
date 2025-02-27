@@ -26,7 +26,7 @@ import org.apache.flink.util.Collector;
 import javax.annotation.Nullable;
 
 import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.checkInsertOnly;
-import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.isDuplicate;
+import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.shouldKeepCurrentRow;
 import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.updateDeduplicateResult;
 
 /**
@@ -65,7 +65,7 @@ public abstract class RowTimeDeduplicateFunctionHelper {
             throws Exception {
         checkInsertOnly(currentRow);
 
-        if (isDuplicate(prevRow, currentRow, rowtimeIndex, keepLastRow)) {
+        if (shouldKeepCurrentRow(prevRow, currentRow, rowtimeIndex, keepLastRow)) {
             updateDeduplicateResult(generateUpdateBefore, generateInsert, prevRow, currentRow, out);
             updateState(currentRow);
         }

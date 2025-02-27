@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.checkInsertOnly;
-import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.isDuplicate;
+import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.shouldKeepCurrentRow;
 import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.updateDeduplicateResult;
 
 /** This function is used to get the first or last row for every key partition in miniBatch mode. */
@@ -120,7 +120,7 @@ public class RowTimeMiniBatchDeduplicateFunction
         // The motivation is we need all changelog in versioned table of temporal join.
         for (RowData currentRow : bufferedRows) {
             checkInsertOnly(currentRow);
-            if (isDuplicate(preRow, currentRow, rowtimeIndex, keepLastRow)) {
+            if (shouldKeepCurrentRow(preRow, currentRow, rowtimeIndex, keepLastRow)) {
                 updateDeduplicateResult(
                         generateUpdateBefore, generateInsert, preRow, currentRow, out);
                 preRow = currentRow;
