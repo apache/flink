@@ -17,41 +17,31 @@
 ################################################################################
 
 from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase, PyFlinkTestCase
-from pyflink.table import Table
+from pyflink.table.resolved_expression import ResolvedExpression
 
 
-class TableAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
+class ResolvedExpressionAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
     """
-    Tests whether the Python :class:`Table` is consistent with
-    Java `org.apache.flink.table.api.Table`.
+    Tests whether the Python :class:`ResolvedExpression` is consistent with
+    Java `org.apache.flink.table.expressions.ResolvedExpression`.
     """
 
     @classmethod
     def python_class(cls):
-        return Table
+        return ResolvedExpression
 
     @classmethod
     def java_class(cls):
-        return "org.apache.flink.table.api.Table"
+        return "org.apache.flink.table.expressions.ResolvedExpression"
 
     @classmethod
     def excluded_methods(cls):
-        # getSchema method returns a TableSchema, the implementation of TableSchema requires a
-        # complete type system, which does not exist currently. It will be implemented after
-        # FLINK-12408 is merged. So we exclude this method for the time being.
-        # Also FLINK-25986 are excluded.
-        return {'createTemporalTableFunction', 'getQueryOperation', 'printExplain'}
-
-    @classmethod
-    def java_method_name(cls, python_method_name):
-        """
-        Due to 'as' is python keyword, so we use 'alias'
-        in Python API corresponding 'as' in Java API.
-
-        :param python_method_name:
-        :return:
-        """
-        return {'alias': 'as'}.get(python_method_name, python_method_name)
+        return {
+            'asSummaryString',
+            'accept',
+            'asSerializableString',
+            'getChildren',
+        }
 
 
 if __name__ == '__main__':

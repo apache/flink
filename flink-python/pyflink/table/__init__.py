@@ -167,5 +167,5 @@ __all__ = [
     'RowKind',
     'ChangelogMode',
     'ExplainDetail',
-    'ResultKind'
+    'ResultKind',
 ]
