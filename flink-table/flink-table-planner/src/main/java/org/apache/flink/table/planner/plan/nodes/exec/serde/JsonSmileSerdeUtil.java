@@ -87,10 +87,7 @@ public class JsonSmileSerdeUtil {
      */
     private static final ObjectMapper JSON_OBJECT_MAPPER_INSTANCE;
 
-    private static final ObjectMapper SMILE_OBJECT_MAPPER_INSTANCE =
-            JacksonMapperFactory.createObjectMapper(new SmileFactory())
-                    .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
-                    .registerModule(createFlinkTableJacksonModule());
+    private static final ObjectMapper SMILE_OBJECT_MAPPER_INSTANCE;
 
     static {
         JSON_OBJECT_MAPPER_INSTANCE = JacksonMapperFactory.createObjectMapper();
@@ -100,9 +97,15 @@ public class JsonSmileSerdeUtil {
                 JSON_OBJECT_MAPPER_INSTANCE
                         .getTypeFactory()
                         .withClassLoader(JsonSmileSerdeUtil.class.getClassLoader()));
-        JSON_OBJECT_MAPPER_INSTANCE.configure(MapperFeature.USE_GETTERS_AS_SETTERS, false);
-        JSON_OBJECT_MAPPER_INSTANCE.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
+        JSON_OBJECT_MAPPER_INSTANCE.disable(MapperFeature.USE_GETTERS_AS_SETTERS);
+        JSON_OBJECT_MAPPER_INSTANCE.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
         JSON_OBJECT_MAPPER_INSTANCE.registerModule(createFlinkTableJacksonModule());
+
+        SMILE_OBJECT_MAPPER_INSTANCE =
+                JacksonMapperFactory.createObjectMapper(new SmileFactory())
+                        .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+                        .disable(MapperFeature.USE_GETTERS_AS_SETTERS)
+                        .registerModule(createFlinkTableJacksonModule());
     }
 
     public static ObjectReader createJsonObjectReader(SerdeContext serdeContext) {
@@ -137,7 +140,7 @@ public class JsonSmileSerdeUtil {
         return new InjectableValues.Std().addValue("isDeserialize", true);
     }
 
-    static Module createFlinkTableJacksonModule() {
+    private static Module createFlinkTableJacksonModule() {
         final SimpleModule module = new SimpleModule("Flink table module");
         ExecNodeMetadataUtil.execNodes()
                 .forEach(c -> module.registerSubtypes(new NamedType(c, c.getName())));
