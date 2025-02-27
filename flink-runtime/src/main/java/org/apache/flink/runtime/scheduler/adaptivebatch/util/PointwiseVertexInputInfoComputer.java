@@ -49,6 +49,10 @@ public class PointwiseVertexInputInfoComputer {
     private static final Logger LOG =
             LoggerFactory.getLogger(PointwiseVertexInputInfoComputer.class);
 
+    // Used to limit the maximum number of subpartition slices to prevent increasing the
+    // time complexity of the parallelism deciding.
+    private static final int MAX_NUM_SUBPARTITION_SLICES_FACTOR = 32;
+
     /**
      * Decide parallelism and input infos, which will make the data be evenly distributed to
      * downstream subtasks for POINTWISE, such that different downstream subtasks consume roughly
@@ -80,7 +84,7 @@ public class PointwiseVertexInputInfoComputer {
             int maxParallelism,
             long dataVolumePerTask) {
         Map<Integer, List<SubpartitionSlice>> subpartitionSlicesByInputIndex =
-                createSubpartitionSlicesByInputIndex(inputInfos);
+                createSubpartitionSlicesByInputIndex(inputInfos, maxParallelism);
 
         // Note: SubpartitionSliceRanges does not represent the real index of the subpartitions, but
         // the location of that subpartition in all subpartitions, as we aggregate all subpartitions
@@ -119,7 +123,7 @@ public class PointwiseVertexInputInfoComputer {
     }
 
     private static Map<Integer, List<SubpartitionSlice>> createSubpartitionSlicesByInputIndex(
-            List<BlockingInputInfo> inputInfos) {
+            List<BlockingInputInfo> inputInfos, int maxParallelism) {
         int numSubpartitionSlices;
         List<BlockingInputInfo> inputsWithIntraCorrelation =
                 getInputsWithIntraCorrelation(inputInfos);
@@ -128,7 +132,12 @@ public class PointwiseVertexInputInfoComputer {
             // not be split.
             numSubpartitionSlices = checkAndGetPartitionNum(inputsWithIntraCorrelation);
         } else {
-            numSubpartitionSlices = getMinSubpartitionCount(inputInfos);
+            // Use the minimum of the two to avoid creating too many subpartition slices, which will
+            // lead to too high the time complexity of the parallelism deciding.
+            numSubpartitionSlices =
+                    Math.min(
+                            getMinSubpartitionCount(inputInfos),
+                            MAX_NUM_SUBPARTITION_SLICES_FACTOR * maxParallelism);
         }
 
         Map<Integer, List<SubpartitionSlice>> subpartitionSlices = new HashMap<>();
