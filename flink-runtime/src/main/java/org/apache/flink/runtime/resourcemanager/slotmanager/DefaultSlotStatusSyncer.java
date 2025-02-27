@@ -44,6 +44,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.BiFunction;
 
 /** Default implementation of {@link SlotStatusSyncer} for fine-grained slot management. */
 public class DefaultSlotStatusSyncer implements SlotStatusSyncer {
@@ -137,62 +138,57 @@ public class DefaultSlotStatusSyncer implements SlotStatusSyncer {
 
         FutureUtils.assertNoException(
                 requestFuture.handleAsync(
-                        (Acknowledge acknowledge, Throwable throwable) -> {
-                            if (!pendingSlotAllocations.remove(allocationId)) {
-                                LOG.debug(
-                                        "Ignoring slot allocation update from task manager {} for allocation {} and job {}, because the allocation was already completed or cancelled.",
-                                        instanceId,
-                                        allocationId,
-                                        jobId);
-                                returnedFuture.complete(null);
-                                return null;
-                            }
-                            if (!taskManagerTracker
-                                    .getAllocatedOrPendingSlot(allocationId)
-                                    .isPresent()) {
-                                LOG.debug(
-                                        "The slot {} has been removed before. Ignore the future.",
-                                        allocationId);
-                                returnedFuture.complete(null);
-                                return null;
-                            }
-                            if (acknowledge != null) {
-                                LOG.trace(
-                                        "Completed allocation of allocation {} for job {}.",
-                                        allocationId,
-                                        jobId);
-                                taskManagerTracker.notifySlotStatus(
-                                        allocationId,
-                                        jobId,
-                                        instanceId,
-                                        resourceProfile,
-                                        SlotState.ALLOCATED);
-                                returnedFuture.complete(null);
-                            } else {
-                                if (throwable instanceof SlotOccupiedException) {
-                                    LOG.error("Should not get this exception.", throwable);
-                                } else {
-                                    // TODO If the taskManager does not have enough resource, we
-                                    // may endlessly allocate slot on it until the next heartbeat.
-                                    LOG.warn(
-                                            "Slot allocation for allocation {} for job {} failed.",
-                                            allocationId,
-                                            jobId,
-                                            throwable);
-                                    resourceTracker.notifyLostResource(jobId, resourceProfile);
-                                    taskManagerTracker.notifySlotStatus(
-                                            allocationId,
-                                            jobId,
-                                            instanceId,
-                                            resourceProfile,
-                                            SlotState.FREE);
-                                }
-                                returnedFuture.completeExceptionally(throwable);
-                            }
-                            return null;
-                        },
+                        handleSlotAllocation(
+                                instanceId, jobId, resourceProfile, allocationId, returnedFuture),
                         mainThreadExecutor));
         return returnedFuture;
+    }
+
+    private BiFunction<Acknowledge, Throwable, Object> handleSlotAllocation(
+            InstanceID instanceId,
+            JobID jobId,
+            ResourceProfile resourceProfile,
+            AllocationID allocationId,
+            CompletableFuture<Void> returnedFuture) {
+        return (Acknowledge acknowledge, Throwable throwable) -> {
+            if (!pendingSlotAllocations.remove(allocationId)) {
+                LOG.debug(
+                        "Ignoring slot allocation update from task manager {} for allocation {} and job {}, because the allocation was already completed or cancelled.",
+                        instanceId,
+                        allocationId,
+                        jobId);
+                returnedFuture.complete(null);
+                return null;
+            }
+            if (!taskManagerTracker.getAllocatedOrPendingSlot(allocationId).isPresent()) {
+                LOG.debug("The slot {} has been removed before. Ignore the future.", allocationId);
+                returnedFuture.complete(null);
+                return null;
+            }
+            if (acknowledge != null) {
+                LOG.trace("Completed allocation of allocation {} for job {}.", allocationId, jobId);
+                taskManagerTracker.notifySlotStatus(
+                        allocationId, jobId, instanceId, resourceProfile, SlotState.ALLOCATED);
+                returnedFuture.complete(null);
+            } else {
+                if (throwable instanceof SlotOccupiedException) {
+                    LOG.error("Should not get this exception.", throwable);
+                } else {
+                    // TODO If the taskManager does not have enough resource, we
+                    // may endlessly allocate slot on it until the next heartbeat.
+                    LOG.warn(
+                            "Slot allocation for allocation {} for job {} failed.",
+                            allocationId,
+                            jobId,
+                            throwable);
+                    resourceTracker.notifyLostResource(jobId, resourceProfile);
+                    taskManagerTracker.notifySlotStatus(
+                            allocationId, jobId, instanceId, resourceProfile, SlotState.FREE);
+                }
+                returnedFuture.completeExceptionally(throwable);
+            }
+            return null;
+        };
     }
 
     @Override
