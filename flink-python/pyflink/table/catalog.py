@@ -31,7 +31,7 @@ from abc import ABCMeta, abstractmethod
 __all__ = ['Catalog', 'CatalogDatabase', 'CatalogBaseTable', 'CatalogPartition', 'CatalogFunction',
            'Procedure', 'ObjectPath', 'CatalogPartitionSpec', 'CatalogTableStatistics',
            'CatalogColumnStatistics', 'HiveCatalog', 'CatalogDescriptor', 'ObjectIdentifier',
-            'Column', 'PhysicalColumn', 'ComputedColumn', 'MetaDataColumn', 'WatermarkSpec',
+           'Column', 'PhysicalColumn', 'ComputedColumn', 'MetadataColumn', 'WatermarkSpec',
            'Constraint', 'UniqueConstraint']
 
 
@@ -1523,9 +1523,9 @@ class Column(metaclass=ABCMeta):
         if get_java_class(JPhysicalColumn).isAssignableFrom(j_column.getClass()):
             return PhysicalColumn(j_physical_column=j_column.getClass())
         elif get_java_class(JComputedColumn).isAssignableFrom(j_column.getClass()):
-            return MetaDataColumn(j_metadata_column=j_column.getClass())
+            return ComputedColumn(j_computed_column=j_column.getClass())
         elif get_java_class(JMetadataColumn).isAssignableFrom(j_column.getClass()):
-            return MetaDataColumn(j_metadata_column=j_column.getClass())
+            return MetadataColumn(j_metadata_column=j_column.getClass())
         else:
             return None
 
@@ -1557,7 +1557,7 @@ class Column(metaclass=ABCMeta):
     @staticmethod
     def metadata(
         name: str, data_type: DataType, metadata_key: Optional[str], is_virtual: bool
-    ) -> "MetaDataColumn":
+    ) -> "MetadataColumn":
         """
         Creates a metadata column from metadata of the given column name or from metadata of the
         given key (if not null).
@@ -1569,7 +1569,7 @@ class Column(metaclass=ABCMeta):
         j_metadata_column = gateway.jvm.org.apache.flink.table.catalog.Column.metadata(
             name, j_data_type, metadata_key, is_virtual
         )
-        return MetaDataColumn(j_metadata_column)
+        return MetadataColumn(j_metadata_column)
 
     @abstractmethod
     def with_comment(self, comment: Optional[str]):
@@ -1709,7 +1709,7 @@ class ComputedColumn(Column):
         return self._j_computed_column.rename(new_name)
 
 
-class MetaDataColumn(Column):
+class MetadataColumn(Column):
     """
     Representation of a metadata column.
     """
@@ -1733,7 +1733,7 @@ class MetaDataColumn(Column):
         optional_result = self._j_metadata_column.getMetadataKey()
         return optional_result.get() if optional_result.isPresent() else None
 
-    def with_comment(self, comment: str) -> "MetaDataColumn":
+    def with_comment(self, comment: str) -> "MetadataColumn":
         return self._j_metadata_column.withComment(comment)
 
     def is_physical(self) -> bool:
