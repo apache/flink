@@ -32,16 +32,13 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import com.esotericsoftware.kryo.serializers.CollectionSerializer;
 
-import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -171,50 +168,8 @@ public class Serializers {
         }
 
         @Override
-        public T read(Kryo kryo, Input input, Class<T> aClass) {
+        public T read(Kryo kryo, Input input, Class<? extends T> aClass) {
             throw new UnsupportedOperationException("Could not find required Avro dependency.");
-        }
-    }
-
-    // --------------------------------------------------------------------------------------------
-    // Custom Serializers
-    // --------------------------------------------------------------------------------------------
-
-    /** Special serializer for Java's {@link ArrayList} used for Avro's GenericData.Array. */
-    @SuppressWarnings("rawtypes")
-    public static class SpecificInstanceCollectionSerializerForArrayList
-            extends SpecificInstanceCollectionSerializer<ArrayList> {
-        private static final long serialVersionUID = 1L;
-
-        public SpecificInstanceCollectionSerializerForArrayList() {
-            super(ArrayList.class);
-        }
-    }
-
-    /**
-     * Special serializer for Java collections enforcing certain instance types. Avro is serializing
-     * collections with an "GenericData.Array" type. Kryo is not able to handle this type, so we use
-     * ArrayLists.
-     */
-    @SuppressWarnings("rawtypes")
-    public static class SpecificInstanceCollectionSerializer<T extends Collection>
-            extends CollectionSerializer implements Serializable {
-        private static final long serialVersionUID = 1L;
-
-        private Class<T> type;
-
-        public SpecificInstanceCollectionSerializer(Class<T> type) {
-            this.type = type;
-        }
-
-        @Override
-        protected Collection create(Kryo kryo, Input input, Class<Collection> type) {
-            return kryo.newInstance(this.type);
-        }
-
-        @Override
-        protected Collection createCopy(Kryo kryo, Collection original) {
-            return kryo.newInstance(this.type);
         }
     }
 }

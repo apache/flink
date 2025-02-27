@@ -31,7 +31,7 @@ public class NonPojoSerializer extends Serializer<NonPojo> {
     }
 
     @Override
-    public NonPojo read(Kryo kryo, Input input, Class<NonPojo> type) {
+    public NonPojo read(Kryo kryo, Input input, Class<? extends NonPojo> type) {
         input.readInt();
         return new NonPojo();
     }

@@ -251,7 +251,7 @@ class SerializerConfigImplTest {
 
         @Override
         public SerializerConfigImplTest read(
-                Kryo kryo, Input input, Class<SerializerConfigImplTest> type) {
+                Kryo kryo, Input input, Class<? extends SerializerConfigImplTest> type) {
             return null;
         }
     }
@@ -264,7 +264,9 @@ class SerializerConfigImplTest {
 
         @Override
         public SerializerConfigImplTest.TestSerializer1 read(
-                Kryo kryo, Input input, Class<SerializerConfigImplTest.TestSerializer1> type) {
+                Kryo kryo,
+                Input input,
+                Class<? extends SerializerConfigImplTest.TestSerializer1> type) {
             return null;
         }
     }
@@ -277,7 +279,9 @@ class SerializerConfigImplTest {
 
         @Override
         public SerializerConfigImplTest.TestSerializer2 read(
-                Kryo kryo, Input input, Class<SerializerConfigImplTest.TestSerializer2> type) {
+                Kryo kryo,
+                Input input,
+                Class<? extends SerializerConfigImplTest.TestSerializer2> type) {
             return null;
         }
     }

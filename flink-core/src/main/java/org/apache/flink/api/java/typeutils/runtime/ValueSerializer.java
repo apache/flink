@@ -29,6 +29,7 @@ import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.InstantiationUtil;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.util.DefaultInstantiatorStrategy;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
 import java.io.IOException;
@@ -138,12 +139,11 @@ public final class ValueSerializer<T extends Value> extends TypeSerializer<T> {
         if (this.kryo == null) {
             this.kryo = new Kryo();
 
-            Kryo.DefaultInstantiatorStrategy instantiatorStrategy =
-                    new Kryo.DefaultInstantiatorStrategy();
-            instantiatorStrategy.setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
-            kryo.setInstantiatorStrategy(instantiatorStrategy);
+            DefaultInstantiatorStrategy initStrategy = new DefaultInstantiatorStrategy();
+            initStrategy.setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
+            kryo.setInstantiatorStrategy(initStrategy);
 
-            this.kryo.setAsmEnabled(true);
+            // this.kryo.setAsmEnabled(true);
 
             KryoUtils.applyRegistrations(
                     this.kryo, kryoRegistrations.values(), this.kryo.getNextRegistrationId());
