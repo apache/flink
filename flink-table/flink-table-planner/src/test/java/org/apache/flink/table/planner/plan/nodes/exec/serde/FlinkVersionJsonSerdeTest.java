@@ -50,6 +50,8 @@ final class FlinkVersionJsonSerdeTest {
         final String flinkVersion = "1.15";
 
         assertThat(toJson(ctx, FlinkVersion.v1_15))
-                .isEqualTo(JsonSerdeUtil.createObjectWriter(ctx).writeValueAsString(flinkVersion));
+                .isEqualTo(
+                        CompiledPlanSerdeUtil.createJsonObjectWriter(ctx)
+                                .writeValueAsString(flinkVersion));
     }
 }

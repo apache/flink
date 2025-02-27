@@ -61,7 +61,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.loadClass;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.loadClass;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_ATTRIBUTES;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_ATTRIBUTE_DESCRIPTION;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_ATTRIBUTE_NAME;

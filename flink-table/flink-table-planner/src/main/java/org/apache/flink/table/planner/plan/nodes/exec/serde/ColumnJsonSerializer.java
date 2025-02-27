@@ -27,7 +27,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.S
 
 import java.io.IOException;
 
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.serializeOptionalField;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.serializeOptionalField;
 
 /**
  * JSON serializer for {@link Column}.
