@@ -206,10 +206,10 @@ public class OrcFormatStatisticsReportTest extends StatisticsReportTestBase {
                 "f_timestamp9",
                 new ColumnStats.Builder()
                         .setMax(
-                                DateTimeUtils.parseTimestampData("1990-10-16 12:12:43.123", 3)
+                                DateTimeUtils.parseTimestampData("1990-10-16 12:12:43.123456789", 9)
                                         .toTimestamp())
                         .setMin(
-                                DateTimeUtils.parseTimestampData("1990-10-14 12:12:43.123", 3)
+                                DateTimeUtils.parseTimestampData("1990-10-14 12:12:43.123456789", 9)
                                         .toTimestamp())
                         .setNullCount(0L)
                         .build());
