@@ -27,6 +27,7 @@ import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
 import org.apache.flink.runtime.state.changelog.StateChange;
 import org.apache.flink.runtime.state.changelog.StateChangelogHandleReader;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorageView;
 import org.apache.flink.state.changelog.ChangelogKeyedStateBackend;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
@@ -38,6 +39,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Restores {@link ChangelogKeyedStateBackend} from the provided {@link ChangelogStateBackendHandle
@@ -97,11 +100,11 @@ public class ChangelogBackendRestoreOperation {
         Map<Short, StateID> stateIds = new HashMap<>();
         for (ChangelogStateHandle changelogHandle :
                 backendHandle.getNonMaterializedStateHandles()) {
+            StateChangelogStorageView<?> stateChangelogStorageView =
+                    taskStateManager.getStateChangelogStorageView(configuration, changelogHandle);
+            requireNonNull(stateChangelogStorageView, "Changelog storage view must not be null.");
             StateChangelogHandleReader<T> changelogHandleReader =
-                    (StateChangelogHandleReader<T>)
-                            taskStateManager
-                                    .getStateChangelogStorageView(configuration, changelogHandle)
-                                    .createReader();
+                    (StateChangelogHandleReader<T>) stateChangelogStorageView.createReader();
             try (CloseableIterator<StateChange> changes =
                     changelogHandleReader.getChanges((T) changelogHandle)) {
                 while (changes.hasNext()) {
