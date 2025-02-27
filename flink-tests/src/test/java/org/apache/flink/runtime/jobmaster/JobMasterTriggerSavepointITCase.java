@@ -39,10 +39,20 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.resourcemanager.StandaloneResourceManager;
+import org.apache.flink.runtime.resourcemanager.slotmanager.DefaultResourceTracker;
+import org.apache.flink.runtime.resourcemanager.slotmanager.DefaultSlotStatusSyncer;
+import org.apache.flink.runtime.resourcemanager.slotmanager.FineGrainedSlotManager;
+import org.apache.flink.runtime.resourcemanager.slotmanager.FineGrainedTaskManagerTracker;
+import org.apache.flink.runtime.scheduler.adaptive.AdaptiveScheduler;
+import org.apache.flink.runtime.scheduler.adaptive.DefaultStateTransitionManager;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.testutils.logging.LoggerAuditingExtension;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.MdcUtils;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Assumptions;
@@ -59,6 +69,7 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -68,10 +79,12 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.configuration.JobManagerOptions.SCHEDULER;
+import static org.apache.flink.util.JobIDLoggingUtil.assertKeyPresent;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.isOneOf;
+import static org.slf4j.event.Level.TRACE;
 
 /**
  * Tests for {@link org.apache.flink.runtime.jobmaster.JobMaster#triggerSavepoint(String, boolean,
@@ -86,6 +99,34 @@ public class JobMasterTriggerSavepointITCase {
     private static volatile CountDownLatch triggerCheckpointLatch;
 
     @TempDir protected File temporaryFolder;
+
+    @RegisterExtension
+    public final LoggerAuditingExtension standaloneResourceManagerLogging =
+            new LoggerAuditingExtension(StandaloneResourceManager.class, TRACE);
+
+    @RegisterExtension
+    public final LoggerAuditingExtension adaptiveSchedulerLogging =
+            new LoggerAuditingExtension(AdaptiveScheduler.class, TRACE);
+
+    @RegisterExtension
+    public final LoggerAuditingExtension defaultStateTransitionManagerLogging =
+            new LoggerAuditingExtension(DefaultStateTransitionManager.class, TRACE);
+
+    @RegisterExtension
+    public final LoggerAuditingExtension defaultResourceTrackerLogging =
+            new LoggerAuditingExtension(DefaultResourceTracker.class, TRACE);
+
+    @RegisterExtension
+    public final LoggerAuditingExtension defaultSlotStatusSyncerLogging =
+            new LoggerAuditingExtension(DefaultSlotStatusSyncer.class, TRACE);
+
+    @RegisterExtension
+    public final LoggerAuditingExtension fineGrainedTaskManagerTrackerLogging =
+            new LoggerAuditingExtension(FineGrainedTaskManagerTracker.class, TRACE);
+
+    @RegisterExtension
+    public final LoggerAuditingExtension fineGrainedSlotManagerLogging =
+            new LoggerAuditingExtension(FineGrainedSlotManager.class, TRACE);
 
     @RegisterExtension
     public static MiniClusterExtension miniClusterResource =
@@ -207,6 +248,81 @@ public class JobMasterTriggerSavepointITCase {
         // assert that checkpoints are continued to be triggered
         triggerCheckpointLatch = new CountDownLatch(1);
         assertThat(triggerCheckpointLatch.await(60L, TimeUnit.SECONDS), equalTo(true));
+
+        // assert that JobId is present in the logs
+        waitForDisconnect(clusterClient);
+        verifyJobIdIsLogged(clusterClient);
+    }
+
+    private void verifyJobIdIsLogged(ClusterClient<?> clusterClient) throws Exception {
+        final Set<String> jobIDs =
+                clusterClient.listJobs().get().stream()
+                        .map(r -> r.getJobId().toHexString())
+                        .collect(Collectors.toSet());
+
+        // NOTE: most of the assertions are empirical, such as
+        // - which classes are important
+        // - how many messages to expect
+        // - which log patterns to ignore
+        assertKeyPresent(
+                MdcUtils.JOB_ID,
+                jobIDs,
+                adaptiveSchedulerLogging,
+                List.of(
+                        "Closing the AdaptiveScheduler. Trying to suspend the current job execution.",
+                        "Transition from state .*",
+                        "Stopping the checkpoint services with state .*"));
+        assertKeyPresent(
+                MdcUtils.JOB_ID,
+                jobIDs,
+                defaultStateTransitionManagerLogging,
+                List.of(
+                        "OnChange event received in phase Idling for job .*",
+                        "OnTrigger event received in phase Idling for job .*",
+                        "Transitioning from .*",
+                        "Desired resources are .*"));
+        assertKeyPresent(
+                MdcUtils.JOB_ID,
+                jobIDs,
+                standaloneResourceManagerLogging,
+                List.of(
+                        "Registering job manager .*",
+                        "Registered job manager .*",
+                        "Disconnect job manager .*"),
+                "Registering TaskManager with ResourceID .*");
+        assertKeyPresent(
+                MdcUtils.JOB_ID,
+                jobIDs,
+                defaultResourceTrackerLogging,
+                List.of(
+                        "Received notification for job .*",
+                        "Initiating tracking of resources for job .*",
+                        "Stopping tracking of resources for job .*"));
+        assertKeyPresent(
+                MdcUtils.JOB_ID,
+                jobIDs,
+                defaultSlotStatusSyncerLogging,
+                List.of(
+                        "Freeing slot .*",
+                        "Starting allocation of slot .*",
+                        "Completed allocation of allocation .*"));
+        assertKeyPresent(
+                MdcUtils.JOB_ID,
+                jobIDs,
+                fineGrainedTaskManagerTrackerLogging,
+                List.of(
+                        "Add pending slot with allocationId .*",
+                        "Complete slot allocation with allocationId .*",
+                        "Free allocated slot with allocationId .*"),
+                "Add task manager .*");
+        assertKeyPresent(
+                MdcUtils.JOB_ID,
+                jobGraph.getJobID().toHexString(),
+                fineGrainedSlotManagerLogging,
+                List.of("Received resource requirements from job .*"),
+                "(?s)Matching resource requirements against available resources..*",
+                "Freeing slot .*",
+                "Registering task executor .*");
     }
 
     /**
@@ -244,6 +360,13 @@ public class JobMasterTriggerSavepointITCase {
             Thread.sleep(1000);
         }
         throw new AssertionError("Job did not become running within timeout.");
+    }
+
+    private void waitForDisconnect(ClusterClient<?> clusterClient) throws Exception {
+        clusterClient.cancel(jobGraph.getJobID()).get();
+        CommonTestUtils.waitUntilCondition(
+                () -> clusterClient.getJobStatus(jobGraph.getJobID()).get() == JobStatus.CANCELED,
+                600);
     }
 
     /**
