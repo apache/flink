@@ -22,11 +22,13 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
+import org.apache.flink.runtime.state.InputStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
+import org.apache.flink.runtime.state.OutputStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -102,18 +104,17 @@ class OperatorSnapshotFuturesTest {
                 spy(DoneFuture.of(operatorStateRawResult));
 
         InputChannelStateHandle inputChannelRawStateHandle = mock(InputChannelStateHandle.class);
-        SnapshotResult<StateObjectCollection<InputChannelStateHandle>> inputChannelStateRawResult =
+        SnapshotResult<StateObjectCollection<InputStateHandle>> inputChannelStateRawResult =
                 SnapshotResult.of(StateObjectCollection.singleton(inputChannelRawStateHandle));
-        Future<SnapshotResult<StateObjectCollection<InputChannelStateHandle>>>
-                inputChannelStateRawFuture = spy(DoneFuture.of(inputChannelStateRawResult));
+        Future<SnapshotResult<StateObjectCollection<InputStateHandle>>> inputChannelStateRawFuture =
+                spy(DoneFuture.of(inputChannelStateRawResult));
 
         ResultSubpartitionStateHandle resultSubpartitionRawStateHandle =
                 mock(ResultSubpartitionStateHandle.class);
-        SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>>
-                resultSubpartitionStateRawResult =
-                        SnapshotResult.of(
-                                StateObjectCollection.singleton(resultSubpartitionRawStateHandle));
-        Future<SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>>>
+        SnapshotResult<StateObjectCollection<OutputStateHandle>> resultSubpartitionStateRawResult =
+                SnapshotResult.of(
+                        StateObjectCollection.singleton(resultSubpartitionRawStateHandle));
+        Future<SnapshotResult<StateObjectCollection<OutputStateHandle>>>
                 resultSubpartitionStateRawFuture =
                         spy(DoneFuture.of(resultSubpartitionStateRawResult));
 
