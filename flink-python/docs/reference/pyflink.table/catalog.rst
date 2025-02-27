@@ -250,3 +250,34 @@ A CatalogDescriptor is a template for creating a catalog instance. It closely re
     :toctree: api/
 
     CatalogDescriptor.of
+
+
+ObjectIdentifier
+----------------
+
+Identifies an object in a catalog, including tables, views, function, or types.
+An :class:`ObjectIdentifier` must be fully qualified. It is the responsibility of the catalog
+manager to resolve an :class:`ObjectIdentifier` to an object.
+
+While Path :class:`ObjectPath` is used within the same catalog, instances of this class can be
+used across catalogs. An :class:`ObjectPath` only describes the name and database of an
+object and so is scoped over a particular catalog, but an :class:`ObjectIdentifier` is fully
+qualified and describes the name, database and catalog of the object.
+
+Two objects are considered equal if they share the same :class:`ObjectIdentifier` in a session
+context, such as a :class:`~pyflink.table.TableEnvironment`, where catalogs (or objects in a
+catalog) have not been added, deleted or modified.
+
+.. currentmodule:: pyflink.table.catalog
+
+.. autosummary::
+    :toctree: api/
+
+    ObjectIdentifier.of
+    ObjectIdentifier.get_catalog_name
+    ObjectIdentifier.get_database_name
+    ObjectIdentifier.get_object_name
+    ObjectIdentifier.to_object_path
+    ObjectIdentifier.to_list
+    ObjectIdentifier.as_serializable_string
+    ObjectIdentifier.as_summary_string
