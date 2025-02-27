@@ -17,12 +17,13 @@
 ################################################################################
 from typing import List
 
+from pyflink.table import Expression
 from pyflink.table.types import DataType, _from_java_data_type
 
 __all__ = ["ResolvedExpression"]
 
 
-class ResolvedExpression(object):
+class ResolvedExpression(Expression):
     """
     Expression that has been fully resolved and validated.
 
@@ -37,6 +38,7 @@ class ResolvedExpression(object):
     """
 
     def __init__(self, j_resolved_expr):
+        super().__init__(j_expr_or_property_name=j_resolved_expr)
         self._j_resolved_expr = j_resolved_expr
 
     def get_output_data_type(self) -> DataType:
