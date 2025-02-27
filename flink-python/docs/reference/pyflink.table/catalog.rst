@@ -359,3 +359,39 @@ A unique key constraint. It can be declared also as a PRIMARY KEY.
 
     UniqueConstraint.get_columns
     UniqueConstraint.get_type_string
+
+ResolvedSchema
+--------------
+
+Schema of a table or view consisting of columns, constraints, and watermark specifications.
+
+This class is the result of resolving a :class:`~pyflink.table.Schema` into a final validated
+representation.
+
+- Data types and functions have been expanded to fully qualified identifiers.
+- Time attributes are represented in the column's data type.
+- :class:`pyflink.table.Expression` have been translated to
+  :class:`pyflink.table.ResolvedExpression`
+
+This class should not be passed into a connector. It is therefore also not serializable.
+Instead, the :func:`~pyflink.table.ResolvedSchema.to_physical_row_data_type` can be passed around
+where necessary.
+
+.. currentmodule:: pyflink.table.catalog
+
+.. autosummary::
+    :toctree: api/
+
+    ResolvedSchema.of
+    ResolvedSchema.physical
+    ResolvedSchema.get_column_count
+    ResolvedSchema.get_columns
+    ResolvedSchema.get_column_names
+    ResolvedSchema.get_column_data_types
+    ResolvedSchema.get_column
+    ResolvedSchema.get_watermark_specs
+    ResolvedSchema.get_primary_key
+    ResolvedSchema.get_primary_key_indexes
+    ResolvedSchema.to_source_row_data_type
+    ResolvedSchema.to_physical_row_data_type
+    ResolvedSchema.to_sink_row_data_type

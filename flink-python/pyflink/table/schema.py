@@ -26,7 +26,7 @@ from pyflink.util.java_utils import to_jarray
 if TYPE_CHECKING:
     # This is imported here under the type-checking condition to avoid a circular dependency
     # between schema.py -> resolved_schema.py -> catalog.py -> schema.py
-    from pyflink.table import ResolvedSchema
+    from pyflink.table.catalog import ResolvedSchema
 
 __all__ = ['Schema']
 
