@@ -164,4 +164,39 @@ public class ChangelogNormalizeTestPrograms {
                                     .build())
                     .runSql("INSERT INTO sink_t SELECT a, b, c FROM source_t")
                     .build();
+
+    static final TableTestProgram UPSERT_SOURCE_WITH_FILTER =
+            TableTestProgram.of(
+                            "changelog-normalize-upsert-filter",
+                            "validates changelog normalize upsert with filter")
+                    .setupConfig(
+                            ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, true)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addSchema(SOURCE_SCHEMA)
+                                    .producedBeforeRestore(
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "one", 1, "a"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "one", 2, "b"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "one", 12, "b"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "one", 13, "b"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "three", 3, "cc"))
+                                    .producedAfterRestore(
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "one", 15, "aa"),
+                                            Row.ofKind(RowKind.DELETE, "one", 15, "c"),
+                                            Row.ofKind(RowKind.DELETE, "three", 3, "cc"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(SINK_SCHEMA)
+                                    .consumedBeforeRestore(
+                                            "+I[one, 1, a]",
+                                            "-U[one, 1, a]",
+                                            "+U[one, 2, b]",
+                                            "-D[one, 2, b]",
+                                            "+I[three, 3, cc]")
+                                    .consumedAfterRestore("-D[three, 3, cc]")
+                                    .build())
+                    .runSql("INSERT INTO sink_t SELECT a, b, c FROM source_t WHERE b < 10")
+                    .build();
 }
