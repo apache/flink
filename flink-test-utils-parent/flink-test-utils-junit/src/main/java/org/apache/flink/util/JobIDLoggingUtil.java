@@ -27,8 +27,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import static java.util.stream.Collectors.toList;
@@ -42,17 +43,17 @@ public class JobIDLoggingUtil {
     private static final Logger logger = LoggerFactory.getLogger(JobIDLoggingUtil.class);
 
     /**
-     * Asserts that the specified key is present in the log events with the expected value.
+     * Asserts that the specified key is present in the log events with the expected values.
      *
      * @param key the key to look for
-     * @param expectedValue the expected value of the key
+     * @param expectedValues the expected values of the key
      * @param ext the LoggerAuditingExtension instance
      * @param expectedPatterns the list of expected patterns
      * @param ignoredPatterns the array of ignore patterns
      */
     public static void assertKeyPresent(
             String key,
-            String expectedValue,
+            Set<String> expectedValues,
             LoggerAuditingExtension ext,
             List<String> expectedPatterns,
             String... ignoredPatterns) {
@@ -67,7 +68,7 @@ public class JobIDLoggingUtil {
         for (LogEvent e : ext.getEvents()) {
             ReadOnlyStringMap context = e.getContextData();
             if (context.containsKey(key)) {
-                if (Objects.equals(context.getValue(key), expectedValue)) {
+                if (expectedValues.contains(context.getValue(key))) {
                     expected.removeIf(
                             pattern ->
                                     pattern.matcher(e.getMessage().getFormattedMessage())
@@ -98,6 +99,25 @@ public class JobIDLoggingUtil {
         assertThat(eventsWithMissingKey)
                 .as("too many events without key logged by %s", ext.getLoggerName())
                 .isEmpty();
+    }
+
+    /**
+     * Asserts that the specified key is present in the log events with the expected value.
+     *
+     * @param key the key to look for
+     * @param expectedValue the expected value of the key
+     * @param ext the LoggerAuditingExtension instance
+     * @param expectedPatterns the list of expected patterns
+     * @param ignoredPatterns the array of ignore patterns
+     */
+    public static void assertKeyPresent(
+            String key,
+            String expectedValue,
+            LoggerAuditingExtension ext,
+            List<String> expectedPatterns,
+            String... ignoredPatterns) {
+        assertKeyPresent(
+                key, Collections.singleton(expectedValue), ext, expectedPatterns, ignoredPatterns);
     }
 
     private static boolean matchesAny(List<Pattern> patterns, String message) {
