@@ -1084,9 +1084,8 @@ class Table(object):
         """
         When ``target_path_or_descriptor`` is a table path:
 
-            Declares that the pipeline defined by the given :class:`Table` (backed by a
-            DynamicTableSink) should be written to a table that was registered under the specified
-            path.
+            Declares that the pipeline defined by the given :class:`Table` should be written to a
+            table (backed by a DynamicTableSink) that was registered under the specified path.
 
             See the documentation of
             :func:`pyflink.table.table_environment.TableEnvironment.use_database` or
