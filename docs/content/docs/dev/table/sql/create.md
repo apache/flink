@@ -502,7 +502,7 @@ You can control the merging behavior of:
 * GENERATED - computed columns
 * METADATA - metadata columns
 * OPTIONS - connector options that describe connector and format properties
-* DISTRIBUTION - distribution definition
+* DISTRIBUTION - bucketing of the tables.
 * PARTITIONS - partition of the tables
 * WATERMARKS - watermark declarations
 
