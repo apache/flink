@@ -1400,6 +1400,16 @@ Besides that, we support the following metrics:
       <td>The remaining space in the volume for the configured cache. Only available when 'state.backend.forst.cache.reserve-size' is set above 0. </td>
       <td>Gauge</td>
     </tr>
+    <tr>
+      <td>lru.evict</td>
+      <td>The number of cache files that are evicted from LRU.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lru.loadback</td>
+      <td>The number of cache files that are loaded back from remote storage into the LRU. </td>
+      <td>Gauge</td>
+    </tr>
   </tbody>
 </table>
 

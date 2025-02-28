@@ -15,6 +15,18 @@
             <td>The directory where ForSt caches its SST files, fallback to the subdirectory of '/cache' under the value of 'state.backend.forst.local-dir' if not configured.</td>
         </tr>
         <tr>
+            <td><h5>state.backend.forst.cache.lru.access-before-promote</h5></td>
+            <td style="word-wrap: break-word;">6</td>
+            <td>Integer</td>
+            <td>When the number of accesses to a block in cold link reaches this value, the block will be promoted to the head of the LRU list and become a hot link. The evicted file in cache will be reloaded as well. The default value is '5'.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.forst.cache.lru.promote-limit</h5></td>
+            <td style="word-wrap: break-word;">3</td>
+            <td>Integer</td>
+            <td>When the number of eviction that a block in hot link is moved to cold link reaches this value, the block will be blocked from being promoted to the head of the LRU list. The default value is '3'.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.forst.cache.reserve-size</h5></td>
             <td style="word-wrap: break-word;">0 bytes</td>
             <td>MemorySize</td>

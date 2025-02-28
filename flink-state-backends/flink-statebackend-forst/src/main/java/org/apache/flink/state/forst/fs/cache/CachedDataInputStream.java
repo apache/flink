@@ -28,6 +28,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.Semaphore;
 
+import static org.apache.flink.state.forst.fs.cache.FileBasedCache.isFlinkThread;
+
 /**
  * A {@link FSDataInputStream} delegates requests to other one and supports reading data with {@link
  * ByteBuffer}. One CachedDataInputStream only supports one thread reading which is guaranteed by
@@ -56,38 +58,137 @@ public class CachedDataInputStream extends FSDataInputStream implements ByteBuff
 
     private Semaphore semaphore;
 
+    private final FileBasedCache fileBasedCache;
+
+    private boolean closed = false;
+
     public CachedDataInputStream(
+            FileBasedCache fileBasedCache,
             FileCacheEntry cacheEntry,
             FSDataInputStream cacheStream,
             FSDataInputStream originalStream) {
+        this.fileBasedCache = fileBasedCache;
         this.cacheEntry = cacheEntry;
         this.fsdis = cacheStream;
         this.originalStream = originalStream;
         this.streamStatus = StreamStatus.CACHED_OPEN;
         this.semaphore = new Semaphore(0);
+        LOG.trace("Create CachedDataInputStream for {} with CACHED_OPEN", cacheEntry.cachePath);
     }
 
+    public CachedDataInputStream(
+            FileBasedCache fileBasedCache,
+            FileCacheEntry cacheEntry,
+            FSDataInputStream originalStream) {
+        this.fileBasedCache = fileBasedCache;
+        this.cacheEntry = cacheEntry;
+        this.fsdis = null;
+        this.originalStream = originalStream;
+        this.streamStatus = StreamStatus.CACHED_CLOSED;
+        this.semaphore = new Semaphore(0);
+        LOG.trace("Create CachedDataInputStream for {} with CACHED_CLOSED", cacheEntry.cachePath);
+    }
+
+    /**
+     * Retrieves the appropriate input stream for reading data. This method attempts to use the
+     * cached stream if it is available and valid. If the cached stream is not available, it falls
+     * back to the original stream. The method also handles the transition between cached and
+     * original streams based on the current status of the stream.
+     *
+     * @return the input stream to be used for reading data
+     * @throws IOException if an I/O error occurs while accessing the stream
+     */
     private FSDataInputStream getStream() throws IOException {
-        if (streamStatus == StreamStatus.CACHED_OPEN && cacheEntry.tryRetain() > 0) {
-            return fsdis;
-        } else if (streamStatus != StreamStatus.ORIGINAL) {
-            try {
-                semaphore.acquire(1);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+        if (isFlinkThread()) {
+            cacheEntry.touch();
+        }
+        FSDataInputStream stream = tryGetCacheStream();
+        if (stream != null) {
+            fileBasedCache.incHitCounter();
+            return stream;
+        }
+
+        if (streamStatus == StreamStatus.CACHED_CLOSED
+                || streamStatus == StreamStatus.CACHED_CLOSING) {
+            if (streamStatus == StreamStatus.CACHED_CLOSING) {
+                try {
+                    semaphore.acquire(1);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                originalStream.seek(position);
+                position = -1;
+                LOG.trace(
+                        "Stream {} status from {} to {}",
+                        cacheEntry.cachePath,
+                        streamStatus,
+                        StreamStatus.CACHED_CLOSED);
+                streamStatus = StreamStatus.CACHED_CLOSED;
             }
-            originalStream.seek(position);
-            position = -1;
-            streamStatus = StreamStatus.ORIGINAL;
+            // try reopen
+            tryReopen();
+            stream = tryGetCacheStream();
+            if (stream != null) {
+                fileBasedCache.incHitCounter();
+                return stream;
+            }
+            fileBasedCache.incMissCounter();
+            return originalStream;
+        } else if (streamStatus == StreamStatus.ORIGINAL) {
+            fileBasedCache.incMissCounter();
             return originalStream;
         } else {
+            if (streamStatus == StreamStatus.CACHED_OPEN) {
+                stream = tryGetCacheStream();
+                if (stream != null) {
+                    fileBasedCache.incHitCounter();
+                    return stream;
+                }
+            }
+            fileBasedCache.incMissCounter();
             return originalStream;
         }
     }
 
-    private void closeStream() throws IOException {
+    private FSDataInputStream tryGetCacheStream() {
+        if (streamStatus == StreamStatus.CACHED_OPEN && cacheEntry.tryRetain() > 0) {
+            return fsdis;
+        }
+        return null;
+    }
+
+    private void tryReopen() {
+        if (streamStatus == StreamStatus.CACHED_CLOSED && isFlinkThread()) {
+            try {
+                fsdis = cacheEntry.getCacheStream();
+                if (fsdis != null) {
+                    LOG.trace(
+                            "Stream {} status from {} to {}",
+                            cacheEntry.cachePath,
+                            streamStatus,
+                            StreamStatus.CACHED_OPEN);
+                    fsdis.seek(originalStream.getPos());
+                    streamStatus = StreamStatus.CACHED_OPEN;
+                    cacheEntry.release();
+                }
+            } catch (IOException e) {
+                LOG.warn("Reopen stream error.", e);
+            }
+        }
+    }
+
+    /**
+     * Closes the cached stream if it is open. Note that this might be invoked by different threads,
+     * the user thread or the cache eviction (async) thread.
+     */
+    synchronized void closeCachedStream() throws IOException {
         if (streamStatus == StreamStatus.CACHED_OPEN) {
-            streamStatus = StreamStatus.CACHED_CLOSED;
+            LOG.trace(
+                    "Stream {} status from {} to {}",
+                    cacheEntry.cachePath,
+                    streamStatus,
+                    StreamStatus.CACHED_CLOSING);
+            streamStatus = StreamStatus.CACHED_CLOSING;
             position = fsdis.getPos();
             fsdis.close();
             fsdis = null;
@@ -166,7 +267,15 @@ public class CachedDataInputStream extends FSDataInputStream implements ByteBuff
 
     @Override
     public void close() throws IOException {
-        closeStream();
+        if (closed) {
+            return;
+        }
+        closed = true;
+        closeCachedStream();
+    }
+
+    public boolean isClosed() {
+        return closed;
     }
 
     @Override
@@ -252,10 +361,18 @@ public class CachedDataInputStream extends FSDataInputStream implements ByteBuff
         return n;
     }
 
-    /** The status of the underlying stream. */
+    /** The status of the underlying cache stream. */
     enum StreamStatus {
+        /** The cached stream is open and available for reading. */
         CACHED_OPEN,
+
+        /** The cached stream is in the process of closing. */
+        CACHED_CLOSING,
+
+        /** The cached stream is closed and not available for reading. */
         CACHED_CLOSED,
+
+        /** The original stream is being used instead of the cached stream. */
         ORIGINAL
     }
 }

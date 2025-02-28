@@ -107,6 +107,29 @@ public class ForStOptions {
                                             text(MemorySize.ZERO.toString()))
                                     .build());
 
+    @Documentation.Section(Documentation.Sections.EXPERT_FORST)
+    public static final ConfigOption<Integer> CACHE_LRU_ACCESS_BEFORE_PROMOTION =
+            ConfigOptions.key("state.backend.forst.cache.lru.access-before-promote")
+                    .intType()
+                    .defaultValue(6)
+                    .withDescription(
+                            "When the number of accesses to "
+                                    + "a block in cold link reaches this value, the block will "
+                                    + "be promoted to the head of the LRU list and become a hot link. "
+                                    + "The evicted file in cache will be reloaded as well. "
+                                    + "The default value is '5'.");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_FORST)
+    public static final ConfigOption<Integer> CACHE_LRU_PROMOTION_LIMIT =
+            ConfigOptions.key("state.backend.forst.cache.lru.promote-limit")
+                    .intType()
+                    .defaultValue(3)
+                    .withDescription(
+                            "When the number of eviction that a block in hot link "
+                                    + "is moved to cold link reaches this value, the block will be blocked "
+                                    + "from being promoted to the head of the LRU list. "
+                                    + "The default value is '3'.");
+
     /** The options factory class for ForSt to create DBOptions and ColumnFamilyOptions. */
     @Documentation.Section(Documentation.Sections.EXPERT_FORST)
     public static final ConfigOption<String> OPTIONS_FACTORY =
