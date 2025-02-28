@@ -69,9 +69,7 @@ public interface TableResult {
     void await(long timeout, TimeUnit unit)
             throws InterruptedException, ExecutionException, TimeoutException;
 
-    /**
-     * Returns the schema of the result.
-     */
+    /** Returns the schema of the result. */
     ResolvedSchema getResolvedSchema();
 
     /**
