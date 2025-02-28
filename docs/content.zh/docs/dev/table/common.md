@@ -387,19 +387,19 @@ Table table = ...;
 
 // register the view named 'exampleView' in the catalog named 'custom_catalog'
 // in the database named 'custom_database' 
-tableEnv.createTemporaryView("exampleView", table);
+tEnv.createTemporaryView("exampleView", table);
 
 // register the view named 'exampleView' in the catalog named 'custom_catalog'
 // in the database named 'other_database' 
-tableEnv.createTemporaryView("other_database.exampleView", table);
+tEnv.createTemporaryView("other_database.exampleView", table);
 
 // register the view named 'example.View' in the catalog named 'custom_catalog'
 // in the database named 'custom_database' 
-tableEnv.createTemporaryView("`example.View`", table);
+tEnv.createTemporaryView("`example.View`", table);
 
 // register the view named 'exampleView' in the catalog named 'other_catalog'
 // in the database named 'other_database' 
-tableEnv.createTemporaryView("other_catalog.other_database.exampleView", table);
+tEnv.createTemporaryView("other_catalog.other_database.exampleView", table);
 
 ```
 {{< /tab >}}
@@ -414,19 +414,19 @@ val table: Table = ...
 
 // register the view named 'exampleView' in the catalog named 'custom_catalog'
 // in the database named 'custom_database'
-tableEnv.createTemporaryView("exampleView", table)
+tEnv.createTemporaryView("exampleView", table)
 
 // register the view named 'exampleView' in the catalog named 'custom_catalog'
 // in the database named 'other_database'
-tableEnv.createTemporaryView("other_database.exampleView", table)
+tEnv.createTemporaryView("other_database.exampleView", table)
 
 // register the view named 'example.View' in the catalog named 'custom_catalog'
 // in the database named 'custom_database'
-tableEnv.createTemporaryView("`example.View`", table)
+tEnv.createTemporaryView("`example.View`", table)
 
 // register the view named 'exampleView' in the catalog named 'other_catalog'
 // in the database named 'other_database'
-tableEnv.createTemporaryView("other_catalog.other_database.exampleView", table)
+tEnv.createTemporaryView("other_catalog.other_database.exampleView", table)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
