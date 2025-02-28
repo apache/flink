@@ -258,6 +258,77 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
 ]]>
     </Resource>
   </TestCase>
+	<TestCase name="testIntervalJoin">
+		<Resource name="sql">
+			<![CDATA[
+SELECT * FROM Orders AS o
+ JOIN ratesHistory AS r
+ ON o.currency = r.currency
+ WHERE o.rowtime BETWEEN r.rowtime - INTERVAL '5' SECOND AND r.rowtime + INTERVAL '5' SECOND
+      ]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
++- LogicalFilter(condition=[AND(>=($2, -($6, 5000:INTERVAL SECOND)), <=($2, +($6, 5000:INTERVAL SECOND)))])
+   +- LogicalJoin(condition=[=($1, $4)], joinType=[inner])
+      :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+      :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders, source: [CollectionTableSource(amount, currency, rowtime)]]])
+      +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, ratesHistory, source: [CollectionTableSource(currency, rate, rowtime)]]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, rowtime0], changelogMode=[I])
++- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-5000, leftUpperBound=5000, leftTimeIndex=2, rightTimeIndex=2], where=[AND(=(currency, currency0), >=(rowtime, -(rowtime0, 5000:INTERVAL SECOND)), <=(rowtime, +(rowtime0, 5000:INTERVAL SECOND)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0], changelogMode=[I])
+   :- Exchange(distribution=[hash[currency]], changelogMode=[I])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I])
+   :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime], changelogMode=[I])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, Orders, source: [CollectionTableSource(amount, currency, rowtime)]]], fields=[amount, currency, rowtime], changelogMode=[I])
+   +- Exchange(distribution=[hash[currency]], changelogMode=[I])
+      +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, ratesHistory, source: [CollectionTableSource(currency, rate, rowtime)]]], fields=[currency, rate, rowtime], changelogMode=[I])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testIntervalJoinToRegularJoin">
+		<Resource name="sql">
+			<![CDATA[
+SELECT * FROM Orders AS o
+ JOIN ratesChangelogStream AS r
+ ON o.currency = r.currency
+ WHERE o.rowtime BETWEEN r.rowtime - INTERVAL '5' SECOND AND r.rowtime + INTERVAL '5' SECOND
+      ]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
++- LogicalFilter(condition=[AND(>=($2, -($6, 5000:INTERVAL SECOND)), <=($2, +($6, 5000:INTERVAL SECOND)))])
+   +- LogicalJoin(condition=[=($1, $4)], joinType=[inner])
+      :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+      :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders, source: [CollectionTableSource(amount, currency, rowtime)]]])
+      +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, ratesChangelogStream]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, rowtime0], changelogMode=[I,UA,D])
++- Join(joinType=[InnerJoin], where=[=(currency, currency0)], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UA,D])
+   :- Exchange(distribution=[hash[currency]], changelogMode=[I])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I])
+   :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime], changelogMode=[I])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, Orders, source: [CollectionTableSource(amount, currency, rowtime)]]], fields=[amount, currency, rowtime], changelogMode=[I])
+   +- Exchange(distribution=[hash[currency]], changelogMode=[I,UA,D])
+      +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I,UA,D])
+         +- DropUpdateBefore(changelogMode=[I,UA,D])
+            +- TableSourceScan(table=[[default_catalog, default_database, ratesChangelogStream]], fields=[currency, rate, rowtime], changelogMode=[I,UB,UA,D])
+]]>
+		</Resource>
+	</TestCase>
   <TestCase name="testTwoLevelGroupByLocalGlobalOn">
     <Resource name="sql">
       <![CDATA[

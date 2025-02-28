@@ -247,9 +247,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val children = visitChildren(cep, ModifyKindSetTrait.INSERT_ONLY, "Match Recognize")
         createNewNode(cep, children, ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
 
-      case _: StreamPhysicalTemporalSort | _: StreamPhysicalIntervalJoin |
-          _: StreamPhysicalOverAggregate | _: StreamPhysicalPythonOverAggregate =>
-        // TemporalSort, OverAggregate, IntervalJoin only support consuming insert-only
+      case _: StreamPhysicalTemporalSort | _: StreamPhysicalOverAggregate |
+          _: StreamPhysicalPythonOverAggregate =>
+        // TemporalSort, and OverAggregate only support consuming insert-only
         // and producing insert-only changes
         val children = visitChildren(rel, ModifyKindSetTrait.INSERT_ONLY)
         createNewNode(rel, children, ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
@@ -286,6 +286,39 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         // forward left input changes
         val leftTrait = children.head.getTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
         createNewNode(temporalJoin, children, leftTrait, requiredTrait, requester)
+
+      case intervalJoin: StreamPhysicalIntervalJoin =>
+        // IntervalJoin only support consuming insert-only and producing insert-only changes
+        // However, when the input contains updates convert to RegularJoin
+        val children = visitChildren(rel, ModifyKindSetTrait.ALL_CHANGES)
+        val inputModifyKindSet = ModifyKindSet.union(children.map(getModifyKindSet): _*)
+        val containsUpdatesOrDeletes = inputModifyKindSet.contains(
+          ModifyKind.UPDATE) || inputModifyKindSet.contains(ModifyKind.DELETE)
+        if (containsUpdatesOrDeletes) {
+          // Convert to regular join if the input contains Updates
+          val isInnerJoin = intervalJoin.joinSpec.getJoinType == FlinkJoinType.INNER
+          val providedTrait = if (isInnerJoin) {
+            // forward left and right modify operations
+            val leftKindSet = getModifyKindSet(children.head)
+            val rightKindSet = getModifyKindSet(children.last)
+            new ModifyKindSetTrait(leftKindSet.union(rightKindSet))
+          } else {
+            // otherwise, it may produce any kinds of changes
+            ModifyKindSetTrait.ALL_CHANGES
+          }
+          val regularJoin = new StreamPhysicalJoin(
+            rel.getCluster,
+            rel.getTraitSet,
+            intervalJoin.getLeft,
+            intervalJoin.getRight,
+            intervalJoin.getCondition,
+            intervalJoin.getJoinType,
+            intervalJoin.getHints)
+          createNewNode(regularJoin, children, providedTrait, requiredTrait, requester)
+        } else {
+          // IntervalJoin can only support Inserts
+          createNewNode(rel, children, ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
+        }
 
       case _: StreamPhysicalCalcBase | _: StreamPhysicalCorrelateBase |
           _: StreamPhysicalLookupJoin | _: StreamPhysicalExchange | _: StreamPhysicalExpand |
