@@ -22,7 +22,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableMap;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;

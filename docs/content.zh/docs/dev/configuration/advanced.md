@@ -40,7 +40,7 @@ Flink 还在 `/opt` 文件夹下提供了额外的可选依赖项，可以通过
 
 ## Scala 版本
 
-不同的 Scala 版本二进制不兼容，所有（传递地）依赖于 Scala 的 Flink 依赖项都以它们构建的 Scala 版本为后缀（如 `flink-streaming-scala_2.12`）。
+不同的 Scala 版本二进制不兼容，所有（传递地）依赖于 Scala 的 Flink 依赖项都以它们构建的 Scala 版本为后缀（如 `flink-table-api-scala-bridge_2.12`）。
 
 如果您只使用 Flink 的 Java API，您可以使用任何 Scala 版本。如果您使用 Flink 的 Scala API，则需要选择与应用程序的 Scala 匹配的 Scala 版本。
 

@@ -84,4 +84,9 @@ public class ImmutableStreamNode {
                 .filter(Objects::nonNull)
                 .toArray(TypeSerializer<?>[]::new);
     }
+
+    @Override
+    public String toString() {
+        return streamNode.toString();
+    }
 }

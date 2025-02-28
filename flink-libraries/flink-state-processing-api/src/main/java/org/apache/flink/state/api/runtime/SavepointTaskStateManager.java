@@ -124,7 +124,7 @@ final class SavepointTaskStateManager implements TaskStateManager {
     @Override
     public StateChangelogStorageView<?> getStateChangelogStorageView(
             Configuration configuration, ChangelogStateHandle changelogStateHandle) {
-        return null;
+        throw new UnsupportedOperationException("State processor api does not support changelog.");
     }
 
     @Nullable

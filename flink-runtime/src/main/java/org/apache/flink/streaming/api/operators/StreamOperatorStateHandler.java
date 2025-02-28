@@ -57,7 +57,7 @@ import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.util.CloseableIterable;
 import org.apache.flink.util.IOUtils;
 
-import org.apache.flink.shaded.guava32.com.google.common.io.Closer;
+import org.apache.flink.shaded.guava33.com.google.common.io.Closer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

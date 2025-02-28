@@ -36,7 +36,7 @@ import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
-import org.apache.flink.shaded.guava32.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava33.com.google.common.cache.Cache;
 
 import java.io.IOException;
 import java.time.Duration;

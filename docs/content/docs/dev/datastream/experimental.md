@@ -58,8 +58,6 @@ the method creates a keyed stream from the base stream.
 
 Code example:
 
-{{< tabs "01a03be7-da80-4a50-b45f-97a28fbcd670" >}}
-{{< tab "Java" >}}
 ```java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 DataStreamSource<Integer> source = ...;
@@ -69,19 +67,5 @@ DataStreamUtils.reinterpretAsKeyedStream(source, (in) -> in, TypeInformation.of(
     .addSink(new DiscardingSink<>());
 env.execute();
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment
-env.setParallelism(1)
-val source = ...
-new DataStreamUtils(source).reinterpretAsKeyedStream((in) => in)
-  .window(TumblingEventTimeWindows.of(Duration.ofSeconds(1)))
-  .reduce((a, b) => a + b)
-  .addSink(new DiscardingSink[Int])
-env.execute()
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 {{< top >}}

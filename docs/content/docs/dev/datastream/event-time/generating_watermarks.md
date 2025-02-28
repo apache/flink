@@ -85,15 +85,6 @@ WatermarkStrategy
         .withTimestampAssigner((event, timestamp) -> event.f0);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-WatermarkStrategy
-  .forBoundedOutOfOrderness[(Long, String)](Duration.ofSeconds(20))
-  .withTimestampAssigner(new SerializableTimestampAssigner[(Long, String)] {
-    override def extractTimestamp(element: (Long, String), recordTimestamp: Long): Long = element._1
-  })
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 class FirstElementTimestampAssigner(TimestampAssigner):
@@ -159,25 +150,6 @@ withTimestampsAndWatermarks
         .addSink(...);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment
-
-val stream: DataStream[MyEvent] = env.readFile(
-         myFormat, myFilePath, FileProcessingMode.PROCESS_CONTINUOUSLY, 100,
-         FilePathFilter.createDefaultFilter())
-
-val withTimestampsAndWatermarks: DataStream[MyEvent] = stream
-        .filter( _.severity == WARNING )
-        .assignTimestampsAndWatermarks(<watermark strategy>)
-
-withTimestampsAndWatermarks
-        .keyBy( _.getGroup )
-        .window(TumblingEventTimeWindows.of(Duration.ofSeconds(10)))
-        .reduce( (a, b) => a.add(b) )
-        .addSink(...)
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 env = StreamExecutionEnvironment.get_execution_environment()
@@ -225,13 +197,6 @@ WatermarkStrategy
         .withIdleness(Duration.ofMinutes(1));
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-WatermarkStrategy
-  .forBoundedOutOfOrderness[(Long, String)](Duration.ofSeconds(20))
-  .withIdleness(Duration.ofMinutes(1))
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 WatermarkStrategy \
@@ -267,13 +232,6 @@ alignment for every source separately:
 WatermarkStrategy
         .<Tuple2<Long, String>>forBoundedOutOfOrderness(Duration.ofSeconds(20))
         .withWatermarkAlignment("alignment-group-1", Duration.ofSeconds(20), Duration.ofSeconds(1));
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-WatermarkStrategy
-  .forBoundedOutOfOrderness[(Long, String)](Duration.ofSeconds(20))
-  .withWatermarkAlignment("alignment-group-1", Duration.ofSeconds(20), Duration.ofSeconds(1))
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -431,48 +389,6 @@ public class TimeLagWatermarkGenerator implements WatermarkGenerator<MyEvent> {
 }
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-/**
- * This generator generates watermarks assuming that elements arrive out of order,
- * but only to a certain degree. The latest elements for a certain timestamp t will arrive
- * at most n milliseconds after the earliest elements for timestamp t.
- */
-class BoundedOutOfOrdernessGenerator extends WatermarkGenerator[MyEvent] {
-
-    val maxOutOfOrderness = 3500L // 3.5 seconds
-
-    var currentMaxTimestamp: Long = _
-
-    override def onEvent(element: MyEvent, eventTimestamp: Long, output: WatermarkOutput): Unit = {
-        currentMaxTimestamp = max(eventTimestamp, currentMaxTimestamp)
-    }
-
-    override def onPeriodicEmit(output: WatermarkOutput): Unit = {
-        // emit the watermark as current highest timestamp minus the out-of-orderness bound
-        output.emitWatermark(new Watermark(currentMaxTimestamp - maxOutOfOrderness - 1))
-    }
-}
-
-/**
- * This generator generates watermarks that are lagging behind processing 
- * time by a fixed amount. It assumes that elements arrive in Flink after 
- * a bounded delay.
- */
-class TimeLagWatermarkGenerator extends WatermarkGenerator[MyEvent] {
-
-    val maxTimeLag = 5000L // 5 seconds
-
-    override def onEvent(element: MyEvent, eventTimestamp: Long, output: WatermarkOutput): Unit = {
-        // don't need to do anything because we work on processing time
-    }
-
-    override def onPeriodicEmit(output: WatermarkOutput): Unit = {
-        output.emitWatermark(new Watermark(System.currentTimeMillis() - maxTimeLag))
-    }
-}
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 Still not supported in Python API.
@@ -503,22 +419,6 @@ public class PunctuatedAssigner implements WatermarkGenerator<MyEvent> {
 
     @Override
     public void onPeriodicEmit(WatermarkOutput output) {
-        // don't need to do anything because we emit in reaction to events above
-    }
-}
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-class PunctuatedAssigner extends WatermarkGenerator[MyEvent] {
-
-    override def onEvent(element: MyEvent, eventTimestamp: Long): Unit = {
-        if (event.hasWatermarkMarker()) {
-            output.emitWatermark(new Watermark(event.getWatermarkTimestamp()))
-        }
-    }
-
-    override def onPeriodicEmit(): Unit = {
         // don't need to do anything because we emit in reaction to events above
     }
 }
@@ -576,20 +476,6 @@ KafkaSource<String> kafkaSource = KafkaSource.<String>builder()
 
 DataStream<String> stream = env.fromSource(
     kafkaSource, WatermarkStrategy.forBoundedOutOfOrderness(Duration.ofSeconds(20)), "mySource");
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val kafkaSource: KafkaSource[String] = KafkaSource.builder[String]()
-    .setBootstrapServers("brokers")
-    .setTopics("my-topic")
-    .setGroupId("my-group")
-    .setStartingOffsets(OffsetsInitializer.earliest())
-    .setValueOnlyDeserializer(new SimpleStringSchema)
-    .build()
-
-val stream = env.fromSource(
-    kafkaSource, WatermarkStrategy.forBoundedOutOfOrderness(Duration.ofSeconds(20)), "mySource")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}

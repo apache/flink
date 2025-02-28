@@ -79,7 +79,7 @@ import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFai
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFinishedTaskExecutionState;
 import static org.apache.flink.runtime.scheduler.adaptivebatch.DefaultVertexParallelismAndInputInfosDeciderTest.createDecider;
 import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
-import static org.apache.flink.shaded.guava32.com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.flink.shaded.guava33.com.google.common.collect.Iterables.getOnlyElement;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link AdaptiveBatchScheduler}. */
@@ -193,7 +193,7 @@ class AdaptiveBatchSchedulerTest {
         // trigger source finished.
         transitionExecutionsState(scheduler, ExecutionState.FINISHED, source);
         assertThat(mapExecutionJobVertex.getParallelism()).isEqualTo(5);
-        assertThat(sinkExecutionJobVertex.getParallelism()).isEqualTo(-1);
+        assertThat(sinkExecutionJobVertex.getParallelism()).isEqualTo(5);
 
         // trigger map finished.
         transitionExecutionsState(scheduler, ExecutionState.FINISHED, map);

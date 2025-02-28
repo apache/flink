@@ -89,7 +89,8 @@ class StreamGraphOptimizerTest {
                     }
 
                     @Override
-                    public boolean areAllUpstreamNodesFinished(ImmutableStreamNode streamNode) {
+                    public boolean checkUpstreamNodesFinished(
+                            ImmutableStreamNode streamNode, Integer typeNumber) {
                         return false;
                     }
 

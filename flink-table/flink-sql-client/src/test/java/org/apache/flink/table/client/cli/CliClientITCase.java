@@ -40,7 +40,7 @@ import org.apache.flink.test.junit5.InjectClusterClientConfiguration;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
-import org.apache.flink.shaded.guava32.com.google.common.io.PatternFilenameFilter;
+import org.apache.flink.shaded.guava33.com.google.common.io.PatternFilenameFilter;
 
 import org.apache.calcite.util.Util;
 import org.apache.commons.io.IOUtils;

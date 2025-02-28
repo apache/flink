@@ -330,12 +330,6 @@ Each savepoint is made up of one or more `StateBootstrapTransformation`'s (expla
 When using the `SavepointWriter`, your application must be executed under [BATCH]({{< ref "docs/dev/datastream/execution_mode" >}}) execution.
 {{< /hint >}}
 
-{{< hint info >}}
-**Note** The state processor api does not currently provide a Scala API. As a result
-it will always auto-derive serializers using the Java type stack. To bootstrap 
-a savepoint for the Scala DataStream API please manually pass in all type information.
-{{< /hint >}}
-
 ```java
 int maxParallelism = 128;
 
@@ -585,13 +579,13 @@ CREATE TABLE state_table (
 ### Connector options
 
 #### General options
-| Option             | Required | Default | Type                                   | Description                                                                                                                                                                      |
-|--------------------|----------|---------|----------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| connector          | required | (none)  | String                                 | Specify what connector to use, here should be 'savepoint'.                                                                                                                       |
-| state.backend.type | required | (none)  | Enum Possible values: hashmap, rocksdb | Defines the state backend which must be used for state reading. This must match with the value which was defined in Flink job which created the savepoint or checkpoint.         |
-| state.path         | required | (none)  | String                                 | Defines the state path which must be used for state reading. All file system that are supported by Flink can be used here.                                                       |
-| operator.uid       | optional | (none)  | String                                 | Defines the operator UID which must be used for state reading (can't be used together with `operator.uid.hash`). Either `operator.uid` or `operator.uid.hash` must be specified. |
-| operator.uid.hash  | optional | (none)  | String                                 | Defines the operator UID hash which must be used for state reading (can't be used together with `operator.uid`). Either `operator.uid` or `operator.uid.hash` must be specified. |
+| Option             | Required | Default | Type                                   | Description                                                                                                                                                                                                                          |
+|--------------------|----------|---------|----------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| connector          | required | (none)  | String                                 | Specify what connector to use, here should be 'savepoint'.                                                                                                                                                                           |
+| state.backend.type | optional | (none)  | Enum Possible values: hashmap, rocksdb | Defines the state backend which must be used for state reading. This must match with the value which was defined in Flink job which created the savepoint or checkpoint. If not provided then it falls back to `state.backend.type` in flink configuration. |
+| state.path         | required | (none)  | String                                 | Defines the state path which must be used for state reading. All file system that are supported by Flink can be used here.                                                                                                           |
+| operator.uid       | optional | (none)  | String                                 | Defines the operator UID which must be used for state reading (can't be used together with `operator.uid.hash`). Either `operator.uid` or `operator.uid.hash` must be specified.                                                     |
+| operator.uid.hash  | optional | (none)  | String                                 | Defines the operator UID hash which must be used for state reading (can't be used together with `operator.uid`). Either `operator.uid` or `operator.uid.hash` must be specified.                                                     |
 
 #### Connector options for column ‘#’
 | Option                  | Required | Default | Type   | Description                                                                                                                                                                                          |

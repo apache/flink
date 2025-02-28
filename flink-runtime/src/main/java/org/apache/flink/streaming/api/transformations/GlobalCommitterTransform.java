@@ -31,7 +31,7 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.util.function.SerializableFunction;
 import org.apache.flink.util.function.SerializableSupplier;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
 
 import java.util.Collections;
 import java.util.List;

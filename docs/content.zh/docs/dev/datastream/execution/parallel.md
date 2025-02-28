@@ -58,21 +58,6 @@ wordCounts.print();
 env.execute("Word Count Example");
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment
-
-val text = [...]
-val wordCounts = text
-    .flatMap{ _.split(" ") map { (_, 1) } }
-    .keyBy(_._1)
-    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
-    .sum(1).setParallelism(5)
-wordCounts.print()
-
-env.execute("Word Count Example")
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 env = StreamExecutionEnvironment.get_execution_environment()
@@ -112,22 +97,6 @@ wordCounts.print();
 env.execute("Word Count Example");
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment
-env.setParallelism(3)
-
-val text = [...]
-val wordCounts = text
-    .flatMap{ _.split(" ") map { (_, 1) } }
-    .keyBy(_._1)
-    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
-    .sum(1)
-wordCounts.print()
-
-env.execute("Word Count Example")
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 env = StreamExecutionEnvironment.get_execution_environment()
@@ -150,14 +119,14 @@ env.execute("Word Count Example")
 
 ### 客户端层次
 
-将作业提交到 Flink 时可在客户端设定其并行度。客户端可以是 Java 或 Scala 程序，Flink 的命令行接口（CLI）就是一种典型的客户端。
+将作业提交到 Flink 时可在客户端设定其并行度，Flink 的命令行接口（CLI）就是一种典型的客户端。
 
 在 CLI 客户端中，可以通过 `-p` 参数指定并行度，例如：
 
     ./bin/flink run -p 10 ../examples/*WordCount-java*.jar
 
 
-在 Java/Scala 程序中，可以通过如下方式指定并行度：
+在客户端程序中，可以通过如下方式指定并行度：
 
 {{< tabs "59257013-dbf1-41d8-a719-72ace65f63ff" >}}
 {{< tab "Java" >}}
@@ -177,23 +146,6 @@ try {
     e.printStackTrace();
 }
 
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-try {
-    PackagedProgram program = new PackagedProgram(file, args)
-    InetSocketAddress jobManagerAddress = RemoteExecutor.getInetFromHostport("localhost:6123")
-    Configuration config = new Configuration()
-
-    Client client = new Client(jobManagerAddress, new Configuration(), program.getUserCodeClassLoader())
-
-    // set the parallelism to 10 here
-    client.run(program, 10, true)
-
-} catch {
-    case e: Exception => e.printStackTrace
-}
 ```
 {{< /tab >}}
 {{< tab "Python" >}}

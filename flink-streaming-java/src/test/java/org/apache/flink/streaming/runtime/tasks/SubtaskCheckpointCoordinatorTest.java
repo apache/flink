@@ -86,7 +86,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
-import static org.apache.flink.shaded.guava32.com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
+import static org.apache.flink.shaded.guava33.com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
 import static org.apache.flink.streaming.api.operators.StreamOperatorUtils.setProcessingTimeService;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

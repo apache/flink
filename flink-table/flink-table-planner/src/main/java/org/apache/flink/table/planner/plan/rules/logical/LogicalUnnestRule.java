@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.functions.table.UnnestRowsFunctionBase;
 import org.apache.flink.table.types.logical.LogicalType;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableList;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptRuleCall;

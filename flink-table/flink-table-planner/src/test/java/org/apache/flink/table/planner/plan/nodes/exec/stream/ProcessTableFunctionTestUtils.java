@@ -26,6 +26,7 @@ import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.runtime.operators.process.ProcessTableOperator;
+import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.Row;
 
 import static org.apache.flink.table.annotation.ArgumentTrait.OPTIONAL_PARTITION_BY;
@@ -226,6 +227,16 @@ public class ProcessTableFunctionTestUtils {
                                 internalContext.getValueStateDescriptor("s3").getTtlConfig()));
                 s0.setField("emitted", true);
             }
+        }
+    }
+
+    /** Testing function. */
+    public static class DescriptorFunction extends TestProcessTableFunctionBase {
+        public void eval(
+                ColumnList columnList1,
+                @ArgumentHint(isOptional = true) ColumnList columnList2,
+                @DataTypeHint("DESCRIPTOR NOT NULL") ColumnList columnList3) {
+            collectObjects(columnList1, columnList2, columnList3);
         }
     }
 

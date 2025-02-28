@@ -22,9 +22,9 @@ import org.apache.flink.streaming.api.operators.KeyContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.function.BiConsumerWithException;
 
-import org.apache.flink.shaded.guava32.com.google.common.cache.RemovalCause;
-import org.apache.flink.shaded.guava32.com.google.common.cache.RemovalListener;
-import org.apache.flink.shaded.guava32.com.google.common.cache.RemovalNotification;
+import org.apache.flink.shaded.guava33.com.google.common.cache.RemovalCause;
+import org.apache.flink.shaded.guava33.com.google.common.cache.RemovalListener;
+import org.apache.flink.shaded.guava33.com.google.common.cache.RemovalNotification;
 
 /**
  * A common cache removal listener for rank node.

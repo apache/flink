@@ -39,7 +39,7 @@ This _Concepts in Depth_ section provides a deeper understanding of how Flink's 
 
 Flink offers different levels of abstraction for developing streaming/batch applications.
 
-{{< img src="/fig/levels_of_abstraction.png" alt="Programming levels of abstraction" width="70%" >}}
+{{< img src="/fig/concepts/levels_of_abstraction.svg" alt="Programming levels of abstraction" width="70%" >}}
 
   - The lowest level abstraction simply offers **stateful and timely stream processing**. It is
     embedded into the [DataStream API]({{< ref "docs/dev/datastream/overview" >}}) via the [Process

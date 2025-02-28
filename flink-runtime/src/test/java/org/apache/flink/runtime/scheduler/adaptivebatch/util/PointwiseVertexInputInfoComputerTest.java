@@ -42,13 +42,13 @@ class PointwiseVertexInputInfoComputerTest {
         PointwiseVertexInputInfoComputer computer = createPointwiseVertexInputInfoComputer();
         List<BlockingInputInfo> inputInfos = createBlockingInputInfos(2, List.of(), false);
         Map<IntermediateDataSetID, JobVertexInputInfo> vertexInputs =
-                computer.compute(inputInfos, 2, 10);
+                computer.compute(inputInfos, 2, 2, 2, 10);
         checkCorrectnessForNonCorrelatedInput(vertexInputs, inputInfos.get(0), 2);
         checkConsumedDataVolumePerSubtask(new long[] {3L, 3L}, inputInfos, vertexInputs);
 
         // with different parallelism
         Map<IntermediateDataSetID, JobVertexInputInfo> vertexInputs2 =
-                computer.compute(inputInfos, 3, 10);
+                computer.compute(inputInfos, 3, 3, 3, 10);
         checkCorrectnessForNonCorrelatedInput(vertexInputs2, inputInfos.get(0), 3);
         checkConsumedDataVolumePerSubtask(new long[] {2L, 2L, 2L}, inputInfos, vertexInputs2);
     }
@@ -62,14 +62,17 @@ class PointwiseVertexInputInfoComputerTest {
         inputInfosWithDifferentSkewedPartitions.add(inputInfo1);
         inputInfosWithDifferentSkewedPartitions.add(inputInfo2);
         Map<IntermediateDataSetID, JobVertexInputInfo> vertexInputs =
-                computer.compute(inputInfosWithDifferentSkewedPartitions, 3, 10);
+                computer.compute(inputInfosWithDifferentSkewedPartitions, 3, 3, 3, 10);
         checkCorrectnessForNonCorrelatedInput(vertexInputs, inputInfo1, 3);
         checkConsumedDataVolumePerSubtask(
-                new long[] {10L, 10L, 16L}, List.of(inputInfo1), vertexInputs);
+                new long[] {20L, 11L, 5L}, List.of(inputInfo1), vertexInputs);
 
         checkCorrectnessForNonCorrelatedInput(vertexInputs, inputInfo2, 3);
         checkConsumedDataVolumePerSubtask(
-                new long[] {13L, 10L, 13L}, List.of(inputInfo2), vertexInputs);
+                new long[] {2L, 11L, 23L}, List.of(inputInfo2), vertexInputs);
+
+        checkConsumedDataVolumePerSubtask(
+                new long[] {22L, 22L, 28L}, List.of(inputInfo1, inputInfo2), vertexInputs);
     }
 
     @Test
@@ -81,14 +84,17 @@ class PointwiseVertexInputInfoComputerTest {
         inputInfosWithDifferentNumPartitions.add(inputInfo1);
         inputInfosWithDifferentNumPartitions.add(inputInfo2);
         Map<IntermediateDataSetID, JobVertexInputInfo> vertexInputs =
-                computer.compute(inputInfosWithDifferentNumPartitions, 3, 10);
+                computer.compute(inputInfosWithDifferentNumPartitions, 3, 3, 3, 10);
         checkCorrectnessForNonCorrelatedInput(vertexInputs, inputInfo1, 3);
         checkConsumedDataVolumePerSubtask(
-                new long[] {13L, 10L, 13L}, List.of(inputInfo1), vertexInputs);
+                new long[] {13L, 20L, 3L}, List.of(inputInfo1), vertexInputs);
 
         checkCorrectnessForNonCorrelatedInput(vertexInputs, inputInfo2, 3);
         checkConsumedDataVolumePerSubtask(
-                new long[] {13L, 10L, 10L}, List.of(inputInfo2), vertexInputs);
+                new long[] {3L, 10L, 20L}, List.of(inputInfo2), vertexInputs);
+
+        checkConsumedDataVolumePerSubtask(
+                new long[] {16L, 30L, 23L}, List.of(inputInfo1, inputInfo2), vertexInputs);
     }
 
     @Test
@@ -100,14 +106,17 @@ class PointwiseVertexInputInfoComputerTest {
         inputInfosWithDifferentNumSubpartitions.add(inputInfo1);
         inputInfosWithDifferentNumSubpartitions.add(inputInfo2);
         Map<IntermediateDataSetID, JobVertexInputInfo> vertexInputs =
-                computer.compute(inputInfosWithDifferentNumSubpartitions, 3, 10);
+                computer.compute(inputInfosWithDifferentNumSubpartitions, 3, 3, 3, 10);
         checkCorrectnessForNonCorrelatedInput(vertexInputs, inputInfo1, 3);
         checkConsumedDataVolumePerSubtask(
                 new long[] {13L, 10L, 13L}, List.of(inputInfo1), vertexInputs);
 
         checkCorrectnessForNonCorrelatedInput(vertexInputs, inputInfo2, 3);
         checkConsumedDataVolumePerSubtask(
-                new long[] {25L, 20L, 15L}, List.of(inputInfo2), vertexInputs);
+                new long[] {15L, 20L, 25L}, List.of(inputInfo2), vertexInputs);
+
+        checkConsumedDataVolumePerSubtask(
+                new long[] {28L, 30L, 38L}, List.of(inputInfo1, inputInfo2), vertexInputs);
     }
 
     @Test
@@ -115,7 +124,7 @@ class PointwiseVertexInputInfoComputerTest {
         PointwiseVertexInputInfoComputer computer = createPointwiseVertexInputInfoComputer();
         List<BlockingInputInfo> inputInfos = createBlockingInputInfos(3, List.of(), true);
         Map<IntermediateDataSetID, JobVertexInputInfo> vertexInputs =
-                computer.compute(inputInfos, 3, 10);
+                computer.compute(inputInfos, 3, 3, 3, 10);
         checkCorrectnessForNonCorrelatedInput(vertexInputs, inputInfos.get(0), 3);
         checkConsumedSubpartitionGroups(
                 List.of(
@@ -127,7 +136,7 @@ class PointwiseVertexInputInfoComputerTest {
 
         // with different parallelism
         Map<IntermediateDataSetID, JobVertexInputInfo> vertexInputs2 =
-                computer.compute(inputInfos, 2, 10);
+                computer.compute(inputInfos, 2, 2, 2, 10);
         checkCorrectnessForNonCorrelatedInput(vertexInputs2, inputInfos.get(0), 2);
         checkConsumedSubpartitionGroups(
                 List.of(

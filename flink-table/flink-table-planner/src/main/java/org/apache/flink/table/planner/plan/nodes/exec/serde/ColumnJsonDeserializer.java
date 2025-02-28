@@ -45,8 +45,8 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.ColumnJsonSer
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ColumnJsonSerializer.KIND_PHYSICAL;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ColumnJsonSerializer.METADATA_KEY;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ColumnJsonSerializer.NAME;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.deserializeOptionalField;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.traverse;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.deserializeOptionalField;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.traverse;
 
 /**
  * JSON deserializer for {@link Column}.

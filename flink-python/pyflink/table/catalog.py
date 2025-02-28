@@ -25,7 +25,7 @@ from typing import Dict, List, Optional
 
 __all__ = ['Catalog', 'CatalogDatabase', 'CatalogBaseTable', 'CatalogPartition', 'CatalogFunction',
            'Procedure', 'ObjectPath', 'CatalogPartitionSpec', 'CatalogTableStatistics',
-           'CatalogColumnStatistics', 'HiveCatalog', 'CatalogDescriptor']
+           'CatalogColumnStatistics', 'HiveCatalog', 'CatalogDescriptor', 'ObjectIdentifier']
 
 
 class Catalog(object):
@@ -1391,3 +1391,85 @@ class CatalogDescriptor:
         j_catalog_descriptor = gateway.jvm.org.apache.flink.table.catalog.CatalogDescriptor.of(
             catalog_name, configuration._j_configuration, comment)
         return CatalogDescriptor(j_catalog_descriptor)
+
+
+class ObjectIdentifier(object):
+    """
+    Identifies an object in a catalog, including tables, views, function, or types.
+    An :class:`ObjectIdentifier` must be fully qualified. It is the responsibility of the catalog
+    manager to resolve an :class:`ObjectIdentifier` to an object.
+
+    While Path :class:`ObjectPath` is used within the same catalog, instances of this class can be
+    used across catalogs. An :class:`ObjectPath` only describes the name and database of an
+    object and so is scoped over a particular catalog, but an :class:`ObjectIdentifier` is fully
+    qualified and describes the name, database and catalog of the object.
+
+    Two objects are considered equal if they share the same :class:`ObjectIdentifier` in a session
+    context, such as a :class:`~pyflink.table.TableEnvironment`, where catalogs (or objects in a
+    catalog) have not been added, deleted or modified.
+    """
+
+    def __init__(self, j_object_identifier):
+        self._j_object_identifier = j_object_identifier
+
+    def __str__(self):
+        return self._j_object_identifier.toString()
+
+    def __hash__(self):
+        return self._j_object_identifier.hashCode()
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self._j_object_identifier.equals(
+            other._j_object_identifier
+        )
+
+    @staticmethod
+    def of(catalog_name: str, database_name: str, object_name: str) -> "ObjectIdentifier":
+        assert catalog_name is not None, "Catalog name must not be null."
+        assert database_name is not None, "Database name must not be null."
+        assert object_name is not None, "Object name must not be null."
+
+        gateway = get_gateway()
+        j_object_identifier = gateway.jvm.org.apache.flink.table.catalog.ObjectIdentifier.of(
+            catalog_name, database_name, object_name
+        )
+        return ObjectIdentifier(j_object_identifier=j_object_identifier)
+
+    def get_catalog_name(self) -> str:
+        return self._j_object_identifier.getCatalogName()
+
+    def get_database_name(self) -> str:
+        return self._j_object_identifier.getDatabaseName()
+
+    def get_object_name(self) -> str:
+        return self._j_object_identifier.getObjectName()
+
+    def to_object_path(self) -> ObjectPath:
+        """
+        Convert this :class:`ObjectIdentifier` to :class:`ObjectPath`.
+
+        Throws a TableException if the identifier cannot be converted.
+        """
+        j_object_path = self._j_object_identifier.toObjectPath()
+        return ObjectPath(j_object_path=j_object_path)
+
+    def to_list(self) -> List[str]:
+        """
+        List of the component names of this object identifier.
+        """
+        return self._j_object_identifier.toList()
+
+    def as_serializable_string(self) -> str:
+        """
+        Returns a string that fully serializes this instance. The serialized string can be used for
+        transmitting or persisting an object identifier.
+
+        Throws a TableException if the identifier cannot be serialized.
+        """
+        return self._j_object_identifier.asSerializableString()
+
+    def as_summary_string(self) -> str:
+        """
+        Returns a string that summarizes this instance for printing to a console or log.
+        """
+        return self._j_object_identifier.asSummaryString()

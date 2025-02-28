@@ -76,12 +76,14 @@ public interface StreamGraphContext {
     boolean modifyStreamNode(List<StreamNodeUpdateRequestInfo> requestInfos);
 
     /**
-     * Check whether all upstream nodes of the stream node have finished executing.
+     * Check if the upstream nodes of the stream node with the specified type number have finished.
+     * If the type number is null, evaluate the completion of all upstream processes.
      *
      * @param streamNode the stream node that needs to be determined.
      * @return true if all upstream nodes are finished, false otherwise.
      */
-    boolean areAllUpstreamNodesFinished(ImmutableStreamNode streamNode);
+    boolean checkUpstreamNodesFinished(
+            ImmutableStreamNode streamNode, @Nullable Integer typeNumber);
 
     /**
      * Retrieves the IntermediateDataSetID consumed by the specified edge.

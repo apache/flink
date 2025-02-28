@@ -80,7 +80,7 @@ public class StreamPhysicalConstantTableFunctionScanRule
 
     public boolean matches(RelOptRuleCall call) {
         final FlinkLogicalTableFunctionScan scan = call.rel(0);
-        return !RexUtil.containsInputRef(scan.getCall()) && scan.getInputs().isEmpty();
+        return !RexUtil.containsInputRef(scan.getCall());
     }
 
     public void onMatch(RelOptRuleCall call) {

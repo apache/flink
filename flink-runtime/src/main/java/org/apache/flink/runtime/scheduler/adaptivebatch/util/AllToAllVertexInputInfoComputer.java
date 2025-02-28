@@ -44,6 +44,7 @@ import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParall
 import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.checkAndGetParallelism;
 import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.checkAndGetSubpartitionNum;
 import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.checkAndGetSubpartitionNumForAggregatedInputs;
+import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.createJobVertexInputInfos;
 import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.createdJobVertexInputInfoForBroadcast;
 import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.createdJobVertexInputInfoForNonBroadcast;
 import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.getNonBroadcastInputInfos;
@@ -202,7 +203,10 @@ public class AllToAllVertexInputInfoComputer {
 
         // Create vertex input info based on the subpartition slice and its range.
         return createJobVertexInputInfos(
-                inputInfos, subpartitionSlicesByTypeNumber, subpartitionSliceRanges);
+                inputInfos,
+                subpartitionSlicesByTypeNumber,
+                subpartitionSliceRanges,
+                index -> inputInfos.get(index).getInputTypeNumber());
     }
 
     private Map<Integer, List<SubpartitionSlice>>
@@ -351,29 +355,6 @@ public class AllToAllVertexInputInfoComputer {
         }
         splitPartitionRange.add(new IndexRange(startIndex, partitionNum - 1));
         return splitPartitionRange;
-    }
-
-    private static Map<IntermediateDataSetID, JobVertexInputInfo> createJobVertexInputInfos(
-            List<BlockingInputInfo> inputInfos,
-            Map<Integer, List<SubpartitionSlice>> subpartitionSlices,
-            List<IndexRange> subpartitionSliceRanges) {
-        final Map<IntermediateDataSetID, JobVertexInputInfo> vertexInputInfos = new HashMap<>();
-        for (BlockingInputInfo inputInfo : inputInfos) {
-            if (inputInfo.isBroadcast()) {
-                vertexInputInfos.put(
-                        inputInfo.getResultId(),
-                        createdJobVertexInputInfoForBroadcast(
-                                inputInfo, subpartitionSliceRanges.size()));
-            } else {
-                vertexInputInfos.put(
-                        inputInfo.getResultId(),
-                        createdJobVertexInputInfoForNonBroadcast(
-                                inputInfo,
-                                subpartitionSliceRanges,
-                                subpartitionSlices.get(inputInfo.getInputTypeNumber())));
-            }
-        }
-        return vertexInputInfos;
     }
 
     private Map<IntermediateDataSetID, JobVertexInputInfo>

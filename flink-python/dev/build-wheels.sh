@@ -49,7 +49,7 @@ if [[ "$(uname)" != "Darwin" ]]; then
         auditwheel repair ${wheel_file} -w dist
         rm -f ${wheel_file}
     done
-    source deactivate
+    deactivate
 fi
 ## see the result
 ls -al dist/

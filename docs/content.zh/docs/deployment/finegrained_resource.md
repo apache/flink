@@ -113,26 +113,6 @@ someStream.filter(...).slotSharingGroup("a") // 设置Slot共享组的名字为�
 env.registerSlotSharingGroup(ssgA); // 注册共享组的资源
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment
-
-val ssgA = SlotSharingGroup.newBuilder("a")
-  .setCpuCores(1.0)
-  .setTaskHeapMemoryMB(100)
-  .build()
-
-val ssgB = SlotSharingGroup.newBuilder("b")
-  .setCpuCores(0.5)
-  .setTaskHeapMemoryMB(100)
-  .build()
-
-someStream.filter(...).slotSharingGroup("a") // 设置Slot共享组的名字为‘a’ 
-.map(...).slotSharingGroup(ssgB) // 直接设置Slot共享组的名字和资源.
-
-env.registerSlotSharingGroup(ssgA) // 注册共享组的资源
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 env = StreamExecutionEnvironment.get_execution_environment()
@@ -181,23 +161,6 @@ SlotSharingGroup ssgWithResource =
 // 构建一个 slot 共享组未指定资源，然后在 StreamExecutionEnvironment 中注册资源
 SlotSharingGroup ssgWithName = SlotSharingGroup.newBuilder("ssg").build();
 env.registerSlotSharingGroup(ssgWithResource);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-// 通过指定资源直接构建一个 slot 共享组
-val ssgWithResource =
-    SlotSharingGroup.newBuilder("ssg")
-        .setCpuCores(1.0) // required
-        .setTaskHeapMemoryMB(100) // required
-        .setTaskOffHeapMemoryMB(50)
-        .setManagedMemory(MemorySize.ofMebiBytes(200))
-        .setExternalResource("gpu", 1.0)
-        .build()
-
-// 构建一个 slot 共享组未指定资源，然后在 StreamExecutionEnvironment中注册资源
-val ssgWithName = SlotSharingGroup.newBuilder("ssg").build()
-env.registerSlotSharingGroup(ssgWithResource)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}

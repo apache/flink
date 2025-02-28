@@ -84,11 +84,11 @@ class CsvRowDataSerDeSchemaTest {
         testNullableField(DOUBLE(), "0.33333333332", 0.33333333332d);
         testNullableField(
                 DECIMAL(38, 25),
-                "\"1234.0000000000000000000000001\"",
+                "1234.0000000000000000000000001",
                 new BigDecimal("1234.0000000000000000000000001"));
         testNullableField(
                 DECIMAL(38, 0),
-                "\"123400000000000000000000000001\"",
+                "123400000000000000000000000001",
                 new BigDecimal("123400000000000000000000000001"));
         testNullableField(DATE(), "2018-10-12", Date.valueOf("2018-10-12"));
         testNullableField(TIME(0), "12:12:12", Time.valueOf("12:12:12"));

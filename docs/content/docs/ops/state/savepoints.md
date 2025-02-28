@@ -320,11 +320,6 @@ execution.checkpointing.savepoint-dir: hdfs:///flink/savepoints
 env.setDefaultSavepointDir("hdfs:///flink/savepoints");
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-env.setDefaultSavepointDir("hdfs:///flink/savepoints")
-```
-{{< /tab >}}
 {{< /tabs >}}
 
 If you neither configure a default nor specify a custom target directory, triggering the savepoint will fail.

@@ -28,7 +28,7 @@ import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFram
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.TreeCache;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.TreeCacheEvent;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.TreeCacheListener;
-import org.apache.flink.shaded.guava32.com.google.common.io.Closer;
+import org.apache.flink.shaded.guava33.com.google.common.io.Closer;
 
 import org.apache.curator.test.TestingServer;
 import org.junit.jupiter.api.AfterEach;

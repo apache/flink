@@ -119,26 +119,6 @@ someStream.filter(...).slotSharingGroup("a") // Set the slot sharing group with 
 env.registerSlotSharingGroup(ssgA); // Then register the resource of group “a”
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment
-
-val ssgA = SlotSharingGroup.newBuilder("a")
-  .setCpuCores(1.0)
-  .setTaskHeapMemoryMB(100)
-  .build()
-
-val ssgB = SlotSharingGroup.newBuilder("b")
-  .setCpuCores(0.5)
-  .setTaskHeapMemoryMB(100)
-  .build()
-
-someStream.filter(...).slotSharingGroup("a") // Set the slot sharing group with name “a”
-.map(...).slotSharingGroup(ssgB) // Directly set the slot sharing group with name and resource.
-
-env.registerSlotSharingGroup(ssgA) // Then register the resource of group “a”
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 env = StreamExecutionEnvironment.get_execution_environment()
@@ -187,23 +167,6 @@ SlotSharingGroup ssgWithResource =
 // Build a slot sharing group without specific resource and then register the resource of it in StreamExecutionEnvironment
 SlotSharingGroup ssgWithName = SlotSharingGroup.newBuilder("ssg").build();
 env.registerSlotSharingGroup(ssgWithResource);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-// Directly build a slot sharing group with specific resource
-val ssgWithResource =
-    SlotSharingGroup.newBuilder("ssg")
-        .setCpuCores(1.0) // required
-        .setTaskHeapMemoryMB(100) // required
-        .setTaskOffHeapMemoryMB(50)
-        .setManagedMemory(MemorySize.ofMebiBytes(200))
-        .setExternalResource("gpu", 1.0)
-        .build()
-
-// Build a slot sharing group without specific resource and then register the resource of it in StreamExecutionEnvironment
-val ssgWithName = SlotSharingGroup.newBuilder("ssg").build()
-env.registerSlotSharingGroup(ssgWithResource)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}

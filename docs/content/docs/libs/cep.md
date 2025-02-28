@@ -59,8 +59,6 @@ you want to apply pattern matching must implement proper `equals()` and `hashCod
 because FlinkCEP uses them for comparing and matching events.
 {{< /hint >}}
 
-{{< tabs "8951ef0a-cdd4-40d1-bda8-dec1299aaf41" >}}
-{{< tab "Java" >}}
 ```java
 DataStream<Event> input = ...;
 
@@ -85,29 +83,6 @@ DataStream<Alert> result = patternStream.process(
         }
     });
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val input: DataStream[Event] = ...
-
-val pattern = Pattern.begin[Event]("start").where(_.getId == 42)
-  .next("middle").subtype(classOf[SubEvent]).where(_.getVolume >= 10.0)
-  .followedBy("end").where(_.getName == "end")
-
-val patternStream = CEP.pattern(input, pattern)
-
-val result: DataStream[Alert] = patternStream.process(
-    new PatternProcessFunction[Event, Alert]() {
-        override def processMatch(
-              `match`: util.Map[String, util.List[Event]],
-              ctx: PatternProcessFunction.Context,
-              out: Collector[Alert]): Unit = {
-            out.collect(createAlertFrom(pattern))
-        }
-    })
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 ## The Pattern API
 
@@ -144,8 +119,6 @@ You can make looping patterns greedy using the `pattern.greedy()` method, but yo
 
 For a pattern named `start`, the following are valid quantifiers:
 
-{{< tabs "83522c42-0d20-4068-ac8c-3ab942de8fb0" >}}
-{{< tab "Java" >}}
 ```java
 // expecting 4 occurrences
 start.times(4);
@@ -189,53 +162,6 @@ start.timesOrMore(2).optional()
 // expecting 0, 2 or more occurrences and repeating as many as possible
 start.timesOrMore(2).optional().greedy();
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-// expecting 4 occurrences
-start.times(4)
-
-// expecting 0 or 4 occurrences
-start.times(4).optional()
-
-// expecting 2, 3 or 4 occurrences
-start.times(2, 4)
-
-// expecting 2, 3 or 4 occurrences and repeating as many as possible
-start.times(2, 4).greedy()
-
-// expecting 0, 2, 3 or 4 occurrences
-start.times(2, 4).optional()
-
-// expecting 0, 2, 3 or 4 occurrences and repeating as many as possible
-start.times(2, 4).optional().greedy()
-
-// expecting 1 or more occurrences
-start.oneOrMore()
-
-// expecting 1 or more occurrences and repeating as many as possible
-start.oneOrMore().greedy()
-
-// expecting 0 or more occurrences
-start.oneOrMore().optional()
-
-// expecting 0 or more occurrences and repeating as many as possible
-start.oneOrMore().optional().greedy()
-
-// expecting 2 or more occurrences
-start.timesOrMore(2)
-
-// expecting 2 or more occurrences and repeating as many as possible
-start.timesOrMore(2).greedy()
-
-// expecting 0, 2 or more occurrences
-start.timesOrMore(2).optional()
-
-// expecting 0, 2 or more occurrences and repeating as many as possible
-start.timesOrMore(2).optional().greedy()
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 #### Conditions
 
@@ -250,8 +176,6 @@ accepts subsequent events based on properties of the previously accepted events 
 Below is the code for an iterative condition that accepts the next event for a pattern named "middle" if its name starts
 with "foo", and if the sum of the prices of the previously accepted events for that pattern plus the price of the current event do not exceed the value of 5.0. Iterative conditions can be powerful, especially in combination with looping patterns, e.g. `oneOrMore()`.
 
-{{< tabs "f60c47c8-7629-4a3a-bb42-d2eddff17082" >}}
-{{< tab "Java" >}}
 ```java
 middle.oneOrMore()
     .subtype(SubEvent.class)
@@ -270,20 +194,6 @@ middle.oneOrMore()
         }
     });
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-middle.oneOrMore()
-    .subtype(classOf[SubEvent])
-    .where(
-        (value, ctx) => {
-            lazy val sum = ctx.getEventsForPattern("middle").map(_.getPrice).sum
-            value.getName.startsWith("foo") && sum + value.getPrice < 5.0
-        }
-    )
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 {{< hint info >}}
 The call to `ctx.getEventsForPattern(...)` finds all the
@@ -296,52 +206,24 @@ Described context gives one access to event time characteristics as well. For mo
 **Simple Conditions:** This type of condition extends the aforementioned `IterativeCondition` class and decides
 whether to accept an event or not, based *only* on properties of the event itself.
 
-{{< tabs "3a34bfc1-691f-41e7-88ee-c76ca6430e4c" >}}
-{{< tab "Java" >}}
 ```java
 start.where(SimpleCondition.of(value -> value.getName().startsWith("foo")));
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-start.where(event => event.getName.startsWith("foo"))
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 Finally, you can also restrict the type of the accepted event to a subtype of the initial event type (here `Event`)
 via the `pattern.subtype(subClass)` method.
 
-{{< tabs "be703e92-5424-4a03-a358-abc84f0f2e65" >}}
-{{< tab "Java" >}}
 ```java
 start.subtype(SubEvent.class)
         .where(SimpleCondition.of(value -> ... /*some condition*/));
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-start.subtype(classOf[SubEvent]).where(subEvent => ... /* some condition */)
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 **Combining Conditions:** As shown above, you can combine the `subtype` condition with additional conditions. This holds for every condition. You can arbitrarily combine conditions by sequentially calling `where()`. The final result will be the logical **AND** of the results of the individual conditions. To combine conditions using **OR**, you can use the `or()` method, as shown below.
 
-{{< tabs "101511a2-3555-43c8-9c49-6c7ce24695f1" >}}
-{{< tab "Java" >}}
 ```java
 pattern.where(SimpleCondition.of(value -> ... /*some condition*/))
         .or(SimpleCondition.of(value -> ... /*some condition*/));
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-pattern.where(event => ... /* some condition */).or(event => ... /* or condition */)
-```
-{{< /tab >}}
-{{< /tabs >}}
-
 
 **Stop condition:** In case of looping patterns (`oneOrMore()` and `oneOrMore().optional()`) you can
 also specify a stop condition, e.g. accept events with value larger than 5 until the sum of values is smaller than 50.
@@ -361,8 +243,6 @@ As you can see `{a1 a2 a3}` or `{a2 a3}` are not returned due to the stop condit
 Defines a condition for the current pattern. To match the pattern, an event must satisfy the condition.
 Multiple consecutive where() clauses lead to their conditions being `AND`ed.
 
-{{< tabs "where" >}}
-{{< tab "Java" >}}
 ```java
 pattern.where(new IterativeCondition<Event>() {
     @Override
@@ -371,20 +251,11 @@ pattern.where(new IterativeCondition<Event>() {
     }
 });
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-pattern.where(event => ... /* some condition */)
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 #### `or(condition)`
 
 Adds a new condition which is `OR`ed with an existing one. An event can match the pattern only if it passes at least one of the conditions.
 
-{{< tabs orcondition >}}
-{{< tab "Java" >}}
 ```java
 pattern.where(new IterativeCondition<Event>() {
     @Override
@@ -398,14 +269,6 @@ pattern.where(new IterativeCondition<Event>() {
     }
 });
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-pattern.where(event => ... /* some condition */)
-    .or(event => ... /* alternative condition */)
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 #### `until(condition)`
 
@@ -413,8 +276,6 @@ Specifies a stop condition for a looping pattern. Meaning if event matching the 
 events will be accepted into the pattern. Applicable only in conjunction with `oneOrMore()`
 `NOTE:` It allows for cleaning state for corresponding pattern on event-based condition.
 
-{{< tabs untilcond >}}
-{{< tab "Java" >}}
 ```java
 pattern.oneOrMore().until(new IterativeCondition<Event>() {
     @Override
@@ -423,30 +284,14 @@ pattern.oneOrMore().until(new IterativeCondition<Event>() {
     }
 });
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-pattern.oneOrMore().until(event => ... /* some condition */)
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 #### `subtype(subClass)`
 
 Defines a subtype condition for the current pattern. An event can only match the pattern if it is of this subtype.
 
-{{< tabs subtype >}}
-{{< tab "Java" >}}
 ```java
 pattern.subtype(SubEvent.class);
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-pattern.subtype(classOf[SubEvent])
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 #### `oneOrMore()`
 
@@ -455,18 +300,9 @@ By default a relaxed internal contiguity (between subsequent events) is used. Fo
 internal contiguity see <a href="#consecutive_java">consecutive</a>.
 It is advised to use either `until()` or `within()` to enable state clearing.
 
-{{< tabs oneormoe >}}
-{{< tab "Java" >}}
 ```java
 pattern.oneOrMore();
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-pattern.oneOrMore()
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 #### `timesOrMore(#times)`
 
@@ -474,13 +310,9 @@ Specifies that this pattern expects at least `#times` occurrences of a matching 
 By default a relaxed internal contiguity (between subsequent events) is used. For more info on
 internal contiguity see <a href="#consecutive_java">consecutive</a>.
 
-{{< tabs timesormore >}}
-{{< tab "Java" >}}
 ```java
 pattern.timesOrMore(2);
 ```
-{{< /tab >}}
-{{< /tabs >}}
 
 #### `times(#ofTimes)`
 
@@ -488,18 +320,9 @@ Specifies that this pattern expects an exact number of occurrences of a matching
 By default a relaxed internal contiguity (between subsequent events) is used.
 For more info on internal contiguity see <a href="#consecutive_java">consecutive</a>.
 
-{{< tabs times >}}
-{{< tab "Java" >}}
 ```java
 pattern.times(2);
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-pattern.times(2)
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 #### `times(#fromTimes, #toTimes)`
 
@@ -508,53 +331,26 @@ and `#toTimes` of a matching event.
 By default a relaxed internal contiguity (between subsequent events) is used. For more info on
 internal contiguity see <a href="#consecutive_java">consecutive</a>.
 
-{{< tabs timesrange >}}
-{{< tab "Java" >}}
 ```java
 pattern.times(2, 4);
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```java
-pattern.times(2, 4)
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 #### `optional()`
 
 Specifies that this pattern is optional, i.e. it may not occur at all. This is applicable to all aforementioned quantifiers.
 
-{{< tabs optional >}}
-{{< tab "Java" >}}
 ```java
 pattern.oneOrMore().optional();
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```java
-pattern.oneOrMore().optional()
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 #### `greedy()`
 
 Specifies that this pattern is greedy, i.e. it will repeat as many as possible. This is only applicable
 to quantifiers and it does not support group pattern currently.
 
-{{< tabs greedy >}}
-{{< tab "Java" >}}
 ```java
 pattern.oneOrMore().greedy();
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```java
-pattern.oneOrMore().greedy()
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 ### Combining Patterns
 
@@ -563,18 +359,9 @@ into a full pattern sequence.
 
 A pattern sequence has to start with an initial pattern, as shown below:
 
-{{< tabs "fdd1a5fa-d96e-4616-b682-cac7a821e0bb" >}}
-{{< tab "Java" >}}
 ```java
 Pattern<Event, ?> start = Pattern.<Event>begin("start");
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val start : Pattern[Event, _] = Pattern.begin("start")
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 Next, you can append more patterns to your pattern sequence by specifying the desired *contiguity conditions* between
 them. FlinkCEP supports the following forms of contiguity between events:
@@ -605,8 +392,6 @@ A pattern sequence cannot end with `notFollowedBy()` if the time interval is not
 A **NOT** pattern cannot be preceded by an optional one.
 {{< /hint >}}
 
-{{< tabs "71aa0caf-8bc9-4f4f-a5d1-78139230ef48" >}}
-{{< tab "Java" >}}
 ```java
 
 // strict contiguity
@@ -625,28 +410,6 @@ Pattern<Event, ?> strictNot = start.notNext("not").where(...);
 Pattern<Event, ?> relaxedNot = start.notFollowedBy("not").where(...);
 
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-// strict contiguity
-val strict: Pattern[Event, _] = start.next("middle").where(...)
-
-// relaxed contiguity
-val relaxed: Pattern[Event, _] = start.followedBy("middle").where(...)
-
-// non-deterministic relaxed contiguity
-val nonDetermin: Pattern[Event, _] = start.followedByAny("middle").where(...)
-
-// NOT pattern with strict contiguity
-val strictNot: Pattern[Event, _] = start.notNext("not").where(...)
-
-// NOT pattern with relaxed contiguity
-val relaxedNot: Pattern[Event, _] = start.notFollowedBy("not").where(...)
-
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 Relaxed contiguity means that only the first succeeding matching event will be matched, while
 with non-deterministic relaxed contiguity, multiple matches will be emitted for the same beginning. As an example,
@@ -667,24 +430,13 @@ Temporal patterns are supported for both [processing and event time]({{< ref "do
 A pattern sequence can only have one temporal constraint. If multiple such constraints are defined on different individual patterns, then the smallest is applied.
 {{< /hint >}}
 
-{{< tabs "df27eb6d-c532-430a-b56f-98ad4082e6d5" >}}
-{{< tab "Java" >}}
 ```java
 next.within(Duration.ofSeconds(10));
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-next.within(Duration.ofSeconds(10))
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 Notice that a pattern sequence can end with `notFollowedBy()` with temporal constraint
 E.g. a pattern like:
 
-{{< tabs "df27eb6d-c532-430a-b56f-98ad4082e6d5" >}}
-{{< tab "Java" >}}
 ```java
 Pattern.<Event>begin("start")
     .next("middle")
@@ -693,15 +445,6 @@ Pattern.<Event>begin("start")
     .where(SimpleCondition.of(value -> value.getName().equals("b")))
     .within(Duration.ofSeconds(10));
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-Pattern.begin("start").where(_.getName().equals("a"))
-.notFollowedBy("end").where(_.getName == "b")
-.within(Duration.ofSeconds(10))
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 #### Contiguity within looping patterns
 
@@ -729,8 +472,6 @@ If not applied a relaxed contiguity (as in `followedBy()`) is used.
 
 E.g. a pattern like:
 
-{{< tabs consecutive >}}
-{{< tab "Java" >}}
 ```java
 Pattern.<Event>begin("start")
     .where(SimpleCondition.of(value -> value.getName().equals("c")))
@@ -741,16 +482,6 @@ Pattern.<Event>begin("start")
     .followedBy("end1")
     .where(SimpleCondition.of(value -> value.getName().equals("b")));
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-Pattern.begin("start").where(_.getName().equals("c"))
-  .followedBy("middle").where(_.getName().equals("a"))
-                       .oneOrMore().consecutive()
-  .followedBy("end1").where(_.getName().equals("b"))
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 Will generate the following matches for an input sequence: `C D A1 A2 A3 D A4 B`
 with consecutive applied: `{C A1 B}`, `{C A1 A2 B}`, `{C A1 A2 A3 B}`
@@ -764,8 +495,6 @@ If not applied a relaxed contiguity (as in `followedBy()`) is used.
 
 E.g. a pattern like:
 
-{{< tabs allowcombinations >}}
-{{< tab "Java" >}}
 ```java
 Pattern.<Event>begin("start")
     .where(SimpleCondition.of(value -> value.getName().equals("c")))
@@ -776,16 +505,6 @@ Pattern.<Event>begin("start")
     .followedBy("end1")
     .where(SimpleCondition.of(value -> value.getName().equals("b")));
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-Pattern.begin("start").where(_.getName().equals("c"))
-  .followedBy("middle").where(_.getName().equals("a"))
-                       .oneOrMore().allowCombinations()
-  .followedBy("end1").where(_.getName().equals("b"))
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 Will generate the following matches for an input sequence: `C D A1 A2 A3 D A4 B`.
 with combinations enabled: `{C A1 B}`, `{C A1 A2 B}`, `{C A1 A3 B}`, `{C A1 A4 B}`, `{C A1 A2 A3 B}`, `{C A1 A2 A4 B}`, `{C A1 A3 A4 B}`, `{C A1 A2 A3 A4 B}`
@@ -798,8 +517,6 @@ It's also possible to define a pattern sequence as the condition for `begin`, `f
 returned and it is possible to apply `oneOrMore()`, `times(#ofTimes)`, `times(#fromTimes, #toTimes)`, `optional()`,
 `consecutive()`, `allowCombinations()` to the `GroupPattern`.
 
-{{< tabs "68e62a8a-d33a-44c2-bcf1-be2f8b01f448" >}}
-{{< tab "Java" >}}
 ```java
 
 Pattern<Event, ?> start = Pattern.begin(
@@ -822,147 +539,60 @@ Pattern<Event, ?> nonDetermin = start.followedByAny(
 ).optional();
 
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-val start: Pattern[Event, _] = Pattern.begin(
-    Pattern.begin[Event]("start").where(...).followedBy("start_middle").where(...)
-)
-
-// strict contiguity
-val strict: Pattern[Event, _] = start.next(
-    Pattern.begin[Event]("next_start").where(...).followedBy("next_middle").where(...)
-).times(3)
-
-// relaxed contiguity
-val relaxed: Pattern[Event, _] = start.followedBy(
-    Pattern.begin[Event]("followedby_start").where(...).followedBy("followedby_middle").where(...)
-).oneOrMore()
-
-// non-deterministic relaxed contiguity
-val nonDetermin: Pattern[Event, _] = start.followedByAny(
-    Pattern.begin[Event]("followedbyany_start").where(...).followedBy("followedbyany_middle").where(...)
-).optional()
-
-```
-{{< /tab >}}
-{{< /tab >}}
 
 #### `begin(#name)`
 
 Defines a starting pattern.
 
-{{< tabs begin>}}
-{{< tab "Java" >}}
 ```java
 Pattern<Event, ?> start = Pattern.<Event>begin("start");
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val start = Pattern.begin[Event]("start")
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 #### `begin(#pattern_sequence)`
 
 Defines a starting pattern
 
-{{< tabs beginsequence >}}
-{{< tab "Java" >}}
 ```java
 Pattern<Event, ?> start = Pattern.<Event>begin(
     Pattern.<Event>begin("start").where(...).followedBy("middle").where(...)
 );
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val start = Pattern.begin(
-    Pattern.begin[Event]("start").where(...).followedBy("middle").where(...)
-)
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 #### `next(#name)`
 
 Appends a new pattern. A matching event has to directly succeed the previous matching event (strict contiguity).
 
-{{< tabs next >}}
-{{< tab "Java" >}}
 ```java
 Pattern<Event, ?> next = start.next("middle");
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val next = start.next("middle")
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 #### `next(#pattern_sequence)`
 
 Appends a new pattern. A sequence of matching events have to directly succeed the previous matching event (strict contiguity).
 
-{{< tabs nextseq >}}
-{{< tab "Java" >}}
 ```java
 Pattern<Event, ?> next = start.next(
     Pattern.<Event>begin("start").where(...).followedBy("middle").where(...)
 );
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val next = start.next(
-    Pattern.begin[Event]("start").where(...).followedBy("middle").where(...)
-)
-```
-{{< /tab >}}
-{{< /tabs >}}
-
 
 #### `followedBy(#name)`
 
 Appends a new pattern. Other events can occur between a matching event and the previous matching event (relaxed contiguity).
 
-{{< tabs followedby >}}
-{{< tab "Java" >}}
 ```java
 Pattern<Event, ?> followedBy = start.followedBy("middle");
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val followedBy = start.followedBy("middle")
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 #### `followedBy(#pattern_sequence)`
 
 Appends a new pattern. Other events can occur between a matching event and the previous matching event (relaxed contiguity).
 
-{{< tabs followedbyseq >}}
-{{< tab "Java" >}}
 ```java
 Pattern<Event, ?> followedBy = start.followedBy(
     Pattern.<Event>begin("start").where(...).followedBy("middle").where(...)
 );
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val followedBy = start.followedBy(
-    Pattern.begin[Event]("start").where(...).followedBy("middle").where(...)
-)
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 #### `followedByAny(#name)`
 
@@ -970,18 +600,9 @@ Appends a new pattern. Other events can occur between a matching event and the p
 matching event, and alternative matches will be presented for every alternative matching event
 (non-deterministic relaxed contiguity).
 
-{{< tabs followedbyany >}}
-{{< tab "Java" >}}
 ```java
 Pattern<Event, ?> followedByAny = start.followedByAny("middle");
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val followedByAny = start.followedByAny("middle")
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 #### `followedByAny(#pattern_sequence)`
 
@@ -989,75 +610,37 @@ Appends a new pattern. Other events can occur between a matching event and the p
 matching event, and alternative matches will be presented for every alternative matching event
 (non-deterministic relaxed contiguity).
 
-{{< tabs followedbyanyseq >}}
-{{< tab "Java" >}}
 ```java
 Pattern<Event, ?> next = start.next(
     Pattern.<Event>begin("start").where(...).followedBy("middle").where(...)
 );
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val followedByAny = start.followedByAny(
-    Pattern.begin[Event]("start").where(...).followedBy("middle").where(...)
-)
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 #### `notNext()`
 
 Appends a new negative pattern.
 A matching (negative) event has to directly succeed the previous matching event (strict contiguity) for the partial match to be discarded.
 
-{{< tabs notnext >}}
-{{< tab "Java" >}}
 ```java
 Pattern<Event, ?> notNext = start.notNext("not");
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val notNext = start.notNext("not")
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 #### `notFollowedBy()`
 
 Appends a new negative pattern. A partial matching event sequence will be discarded even if other events occur between the matching (negative) event and the previous matching event (relaxed contiguity).
 
-{{< tabs notfollowedby >}}
-{{< tab "Java" >}}
 ```java
 Pattern<Event, ?> notFollowedBy = start.notFollowedBy("not");
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val notFollowedBy = start.notFollowedBy("not")
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 #### `within(time)`
 
 Defines the maximum time interval for an event sequence to match the pattern.
 If a non-completed event sequence exceeds this time, it is discarded.
 
-{{< tabs within >}}
-{{< tab "Java" >}}
 ```java
 pattern.within(Duration.ofSeconds(10));
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-pattern.within(Duration.ofSeconds(10))
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 ### After Match Skip Strategy
 
@@ -1210,38 +793,19 @@ To specify which skip strategy to use, just create an `AfterMatchSkipStrategy` b
 
 Then apply the skip strategy to a pattern by calling:
 
-{{< tabs "64a34dcc-47f8-443d-b31a-515f7fd17243" >}}
-{{< tab "Java" >}}
 ```java
 AfterMatchSkipStrategy skipStrategy = ...;
 Pattern.begin("patternName", skipStrategy);
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val skipStrategy = ...
-Pattern.begin("patternName", skipStrategy)
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 {{< hint info >}}
 For `SKIP_TO_FIRST`/`LAST` there are two options how to handle cases when there are no events mapped to the PatternName. By default a NO_SKIP strategy will be used in this case. The other option is to throw exception in such situation.
 One can enable this option by:
 {{< /hint >}}
 
-{{< tabs "59e07b27-61d3-4348-ab60-c8a805500c87" >}}
-{{< tab "Java" >}}
 ```java
 AfterMatchSkipStrategy.skipToFirst(patternName).throwExceptionOnMiss();
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-AfterMatchSkipStrategy.skipToFirst(patternName).throwExceptionOnMiss()
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 ## Detecting Patterns
 
@@ -1249,8 +813,6 @@ After specifying the pattern sequence you are looking for, it is time to apply i
 potential matches. To run a stream of events against your pattern sequence, you have to create a `PatternStream`.
 Given an input stream `input`, a pattern `pattern` and an optional comparator `comparator` used to sort events with the same timestamp in case of EventTime or that arrived at the same moment, you create the `PatternStream` by calling:
 
-{{< tabs "79719c8a-f503-4f3e-9717-75540e637481" >}}
-{{< tab "Java" >}}
 ```java
 DataStream<Event> input = ...;
 Pattern<Event, ?> pattern = ...;
@@ -1258,17 +820,6 @@ EventComparator<Event> comparator = ...; // optional
 
 PatternStream<Event> patternStream = CEP.pattern(input, pattern, comparator);
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val input : DataStream[Event] = ...
-val pattern : Pattern[Event, _] = ...
-var comparator : EventComparator[Event] = ... // optional
-
-val patternStream: PatternStream[Event] = CEP.pattern(input, pattern, comparator)
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 The input stream can be *keyed* or *non-keyed* depending on your use-case.
 
@@ -1335,9 +886,6 @@ through [side-outputs]({{< ref "docs/dev/datastream/side_output" >}}) though, th
 The aforementioned `PatternProcessFunction` was introduced in Flink 1.8 and since then it is the recommended way to interact with matches.
 One can still use the old style API like `select`/`flatSelect`, which internally will be translated into a `PatternProcessFunction`.
 
-{{< tabs "04d04e1c-3d3b-4e33-ad5f-1ce41f5fc025" >}}
-{{< tab "Java" >}}
-
 ```java
 PatternStream<Event> patternStream = CEP.pattern(input, pattern);
 
@@ -1363,29 +911,6 @@ SingleOutputStreamOperator<ComplexEvent> flatResult = patternStream.flatSelect(
 DataStream<TimeoutEvent> timeoutFlatResult = flatResult.getSideOutput(outputTag);
 ```
 
-{{< /tab >}}
-{{< tab "Scala" >}}
-
-```scala
-
-val patternStream: PatternStream[Event] = CEP.pattern(input, pattern)
-
-val outputTag = OutputTag[String]("side-output")
-
-val result: SingleOutputStreamOperator[ComplexEvent] = patternStream.flatSelect(outputTag){
-    (pattern: Map[String, Iterable[Event]], timestamp: Long, out: Collector[TimeoutEvent]) =>
-        out.collect(TimeoutEvent())
-} {
-    (pattern: mutable.Map[String, Iterable[Event]], out: Collector[ComplexEvent]) =>
-        out.collect(ComplexEvent())
-}
-
-val timeoutResult: DataStream[TimeoutEvent] = result.getSideOutput(outputTag)
-```
-
-{{< /tab >}}
-{{< /tabs >}}
-
 ## Time in CEP library
 
 ### Handling Lateness in Event Time
@@ -1399,9 +924,6 @@ The library assumes correctness of the watermark when working in event time.
 To guarantee that elements across watermarks are processed in event-time order, Flink's CEP library assumes
 *correctness of the watermark*, and considers as *late* elements whose timestamp is smaller than that of the last
 seen watermark. Late elements are not further processed. Also, you can specify a sideOutput tag to collect the late elements come after the last seen watermark, you can use it like this.
-
-{{< tabs "fb816b4d-5aca-4afe-baad-bdaf34e5a0eb" >}}
-{{< tab "Java" >}}
 
 ```java
 PatternStream<Event> patternStream = CEP.pattern(input, pattern);
@@ -1417,28 +939,6 @@ SingleOutputStreamOperator<ComplexEvent> result = patternStream
 DataStream<String> lateData = result.getSideOutput(lateDataOutputTag);
 
 ```
-
-{{< /tab >}}
-{{< tab "Scala" >}}
-
-```scala
-
-val patternStream: PatternStream[Event] = CEP.pattern(input, pattern)
-
-val lateDataOutputTag = OutputTag[String]("late-data")
-
-val result: SingleOutputStreamOperator[ComplexEvent] = patternStream
-      .sideOutputLateData(lateDataOutputTag)
-      .select{
-          pattern: Map[String, Iterable[ComplexEvent]] => ComplexEvent()
-      }
-
-val lateData: DataStream[String] = result.getSideOutput(lateDataOutputTag)
-
-```
-
-{{< /tab >}}
-{{< /tabs >}}
 
 ### Time context
 
@@ -1489,8 +989,6 @@ The following example detects the pattern `start, middle(name = "error") -> end(
 stream of `Events`. The events are keyed by their `id`s and a valid pattern has to occur within 10 seconds.
 The whole processing is done with event time.
 
-{{< tabs "573ac3c5-e8b9-4ffa-b7b6-e2db19611ff5" >}}
-{{< tab "Java" >}}
 ```java
 StreamExecutionEnvironment env = ...;
 
@@ -1519,26 +1017,6 @@ DataStream<Alert> alerts = patternStream.select(new PatternSelectFunction<Event,
 	}
 });
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env : StreamExecutionEnvironment = ...
-
-val input : DataStream[Event] = ...
-
-val partitionedInput = input.keyBy(event => event.getId)
-
-val pattern = Pattern.begin[Event]("start")
-  .next("middle").where(_.getName == "error")
-  .followedBy("end").where(_.getName == "critical")
-  .within(Duration.ofSeconds(10))
-
-val patternStream = CEP.pattern(partitionedInput, pattern)
-
-val alerts = patternStream.select(createAlert(_))
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 ## Migrating from an older Flink version(pre 1.5)
 

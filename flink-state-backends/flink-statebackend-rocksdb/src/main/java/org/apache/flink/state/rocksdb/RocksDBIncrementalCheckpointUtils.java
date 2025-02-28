@@ -27,7 +27,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ResourceGuard;
 import org.apache.flink.util.function.RunnableWithException;
 
-import org.apache.flink.shaded.guava32.com.google.common.primitives.UnsignedBytes;
+import org.apache.flink.shaded.guava33.com.google.common.primitives.UnsignedBytes;
 
 import org.rocksdb.Checkpoint;
 import org.rocksdb.ColumnFamilyHandle;

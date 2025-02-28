@@ -51,6 +51,11 @@ class CompiledPlanImpl implements CompiledPlan {
     }
 
     @Override
+    public byte[] asSmileBytes() {
+        return internalPlan.asSmileBytes();
+    }
+
+    @Override
     public void writeToFile(File file, boolean ignoreIfExists) {
         internalPlan.writeToFile(
                 file,

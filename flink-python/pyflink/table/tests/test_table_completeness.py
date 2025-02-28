@@ -41,7 +41,7 @@ class TableAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
         # FLINK-12408 is merged. So we exclude this method for the time being.
         # Also FLINK-25986 are excluded.
         return {'createTemporalTableFunction', 'getQueryOperation', 'getResolvedSchema',
-                'insertInto', 'printExplain'}
+                'printExplain'}
 
     @classmethod
     def java_method_name(cls, python_method_name):
