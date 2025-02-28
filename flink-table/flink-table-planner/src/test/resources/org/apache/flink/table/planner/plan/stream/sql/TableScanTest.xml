@@ -333,7 +333,7 @@ Calc(select=[currency, amount, rate, *(amount, rate) AS EXPR$3], changelogMode=[
    :     +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[amount, currency, rowtime], changelogMode=[I])
    +- Exchange(distribution=[hash[currency]], changelogMode=[UA,D])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[UA,D])
-         +- TableSourceScan(table=[[default_catalog, default_database, rates_history]], fields=[currency, rate, rowtime], changelogMode=[UA,D])
+         +- TableSourceScan(table=[[default_catalog, default_database, rates_history]], fields=[currency, rate, rowtime], changelogMode=[UA,PD])
 ]]>
     </Resource>
   </TestCase>
@@ -486,8 +486,8 @@ Calc(select=[currency, amount, rate, *(amount, rate) AS EXPR$3], changelogMode=[
    :     +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[amount, currency], changelogMode=[I])
    +- Exchange(distribution=[hash[currency]], changelogMode=[I,UA,D])
       +- ChangelogNormalize(key=[currency], changelogMode=[I,UA,D])
-         +- Exchange(distribution=[hash[currency]], changelogMode=[UA,D])
-            +- TableSourceScan(table=[[default_catalog, default_database, rates_history]], fields=[currency, rate], changelogMode=[UA,D])
+         +- Exchange(distribution=[hash[currency]], changelogMode=[UA,PD])
+            +- TableSourceScan(table=[[default_catalog, default_database, rates_history]], fields=[currency, rate], changelogMode=[UA,PD])
 ]]>
     </Resource>
   </TestCase>
@@ -658,8 +658,8 @@ LogicalProject(b=[$2], ts=[$0], a=[$1])
 Union(all=[true], union=[b, ts, a], changelogMode=[I,UA,D])
 :- Calc(select=[b, ts, CAST(a AS INTEGER) AS a], changelogMode=[I,UA,D])
 :  +- ChangelogNormalize(key=[a], changelogMode=[I,UA,D])
-:     +- Exchange(distribution=[hash[a]], changelogMode=[UA,D])
-:        +- TableSourceScan(table=[[default_catalog, default_database, upsert_src]], fields=[ts, a, b], changelogMode=[UA,D])
+:     +- Exchange(distribution=[hash[a]], changelogMode=[UA,PD])
+:        +- TableSourceScan(table=[[default_catalog, default_database, upsert_src]], fields=[ts, a, b], changelogMode=[UA,PD])
 +- Calc(select=[b, t AS ts, a], changelogMode=[I,UA])
    +- GroupAggregate(groupBy=[a], select=[a, MAX(ts) AS t, MAX(b) AS b], changelogMode=[I,UA])
       +- Exchange(distribution=[hash[a]], changelogMode=[I])
@@ -744,8 +744,8 @@ LogicalProject(id=[$0], ts=[$4])
       <![CDATA[
 Calc(select=[id, Reinterpret(TO_TIMESTAMP(c)) AS ts], changelogMode=[I,UA,D])
 +- ChangelogNormalize(key=[id], changelogMode=[I,UA,D])
-   +- Exchange(distribution=[hash[id]], changelogMode=[UA,D])
-      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id, c], metadata=[], watermark=[-(TO_TIMESTAMP(c), 1000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[id, c], changelogMode=[UA,D])
+   +- Exchange(distribution=[hash[id]], changelogMode=[UA,PD])
+      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id, c], metadata=[], watermark=[-(TO_TIMESTAMP(c), 1000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[id, c], changelogMode=[UA,PD])
 ]]>
     </Resource>
   </TestCase>

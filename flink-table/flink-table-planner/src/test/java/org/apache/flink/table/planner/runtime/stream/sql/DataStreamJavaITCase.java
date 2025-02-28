@@ -577,6 +577,7 @@ class DataStreamJavaITCase {
                 tableEnv.fromChangelogStream(
                         changelogStream,
                         Schema.newBuilder().primaryKey("f0").build(),
+                        // produce partial deletes
                         ChangelogMode.upsert()));
 
         final Table result = tableEnv.sqlQuery("SELECT f0, SUM(f1) FROM t GROUP BY f0");
@@ -585,7 +586,8 @@ class DataStreamJavaITCase {
                 tableEnv.toChangelogStream(
                         result,
                         Schema.newBuilder().primaryKey("f0").build(),
-                        ChangelogMode.upsert()),
+                        // expect full deletes, therefore, require changelog normalize
+                        ChangelogMode.upsert(false)),
                 getOutput(inputOrOutput));
     }
 
