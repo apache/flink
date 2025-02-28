@@ -37,9 +37,7 @@ class ResolvedExpressionAPICompletenessTests(PythonAPICompletenessTestCase, PyFl
     @classmethod
     def excluded_methods(cls):
         return {
-            'asSummaryString',
             'accept',
-            'asSerializableString',
             'getChildren',
         }
 
