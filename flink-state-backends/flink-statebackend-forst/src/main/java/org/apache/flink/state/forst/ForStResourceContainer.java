@@ -386,6 +386,7 @@ public final class ForStResourceContainer implements AutoCloseable {
                             remoteForStPath.toUri(),
                             localForStPath,
                             ForStFlinkFileSystem.getFileBasedCache(
+                                    configuration,
                                     cacheBasePath,
                                     remoteForStPath,
                                     cacheCapacity,
@@ -456,6 +457,9 @@ public final class ForStResourceContainer implements AutoCloseable {
             sharedResources.close();
         }
         cleanRelocatedDbLogs();
+        if (forStFileSystem != null) {
+            forStFileSystem.close();
+        }
     }
 
     /**

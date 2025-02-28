@@ -76,6 +76,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static org.apache.flink.state.forst.ForStConfigurableOptions.WRITE_BATCH_SIZE;
+import static org.apache.flink.state.forst.fs.cache.FileBasedCache.setFlinkThread;
 
 /**
  * Builder class for {@link ForStKeyedStateBackend} which handles all necessary initializations and
@@ -247,6 +248,9 @@ public class ForStKeyedStateBackendBuilder<K>
         PriorityQueueSetFactory priorityQueueFactory;
 
         try {
+            // Current thread (task thread) must be a Flink thread to enable proper cache
+            // management.
+            setFlinkThread();
             optionsContainer.prepareDirectories();
             restoreOperation =
                     getForStRestoreOperation(
