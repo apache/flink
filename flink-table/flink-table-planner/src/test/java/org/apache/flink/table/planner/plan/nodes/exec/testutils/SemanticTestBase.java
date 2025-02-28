@@ -94,19 +94,14 @@ public abstract class SemanticTestBase implements TableTestProgramRunner {
                         final String id =
                                 TestValuesTableFactory.registerData(
                                         sourceTestStep.dataBeforeRestore);
-                        final Map<String, String> options = new HashMap<>();
-                        options.put("connector", "values");
-                        options.put("data-id", id);
-                        options.put("runtime-source", "NewSource");
+                        final Map<String, String> options = createSourceOptions(id);
                         sourceTestStep.apply(env, options);
                     }
                     break;
                 case SINK_WITH_DATA:
                     {
                         final SinkTestStep sinkTestStep = (SinkTestStep) testStep;
-                        final Map<String, String> options = new HashMap<>();
-                        options.put("connector", "values");
-                        options.put("sink-insert-only", "false");
+                        final Map<String, String> options = createSinkOptions();
                         sinkTestStep.apply(env, options);
                     }
                     break;
@@ -133,6 +128,25 @@ public abstract class SemanticTestBase implements TableTestProgramRunner {
                     .containsExactlyInAnyOrder(
                             sinkTestStep.getExpectedAsStrings().toArray(new String[0]));
         }
+    }
+
+    private static Map<String, String> createSourceOptions(String id) {
+        final Map<String, String> options = new HashMap<>();
+        options.put("connector", "values");
+        options.put("data-id", id);
+        options.put("runtime-source", "NewSource");
+        // Enforce per-record watermarks for testing
+        options.put("disable-lookup", "true");
+        options.put("enable-watermark-push-down", "true");
+        options.put("scan.watermark.emit.strategy", "on-event");
+        return options;
+    }
+
+    private static Map<String, String> createSinkOptions() {
+        final Map<String, String> options = new HashMap<>();
+        options.put("connector", "values");
+        options.put("sink-insert-only", "false");
+        return options;
     }
 
     private static List<String> getActualResults(SinkTestStep sinkTestStep, String tableName) {

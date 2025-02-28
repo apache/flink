@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecCalc;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc0;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc1;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc2;
@@ -28,13 +30,15 @@ import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
-/**
- * {@link TableTestProgram} definitions for testing {@link
- * org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc}.
- */
+/** {@link TableTestProgram}s for testing {@link StreamExecCalc} and {@link BatchExecCalc}. */
 public class CalcTestPrograms {
+
+    // --------------------------------------------------------------------------------------------
+    // With restore data
+    // --------------------------------------------------------------------------------------------
 
     public static final TableTestProgram SIMPLE_CALC =
             TableTestProgram.of("calc-simple", "validates basic calc node")
@@ -188,7 +192,7 @@ public class CalcTestPrograms {
                                                     "11 and 11 and 1702688461000",
                                                     "hello world11",
                                                     "$hello",
-                                                    LocalDateTime.of(2023, 12, 16, 01, 01, 00, 0)))
+                                                    LocalDateTime.of(2023, 12, 16, 1, 1, 0, 0)))
                                     .consumedAfterRestore(
                                             Row.of(
                                                     5L,
@@ -197,7 +201,7 @@ public class CalcTestPrograms {
                                                     "11 and 11 and 1702688461000",
                                                     "hello world11",
                                                     "$hello",
-                                                    LocalDateTime.of(2023, 12, 16, 01, 01, 00, 0)))
+                                                    LocalDateTime.of(2023, 12, 16, 1, 1, 0, 0)))
                                     .build())
                     .runSql(
                             "INSERT INTO sink_t SELECT "
@@ -210,5 +214,39 @@ public class CalcTestPrograms {
                                     + "udf5(d, 1000) as d1 "
                                     + "from source_t where "
                                     + "(udf1(a) > 0 or (a * b) < 100) and b > 10")
+                    .build();
+
+    // --------------------------------------------------------------------------------------------
+    // Without restore data
+    // --------------------------------------------------------------------------------------------
+
+    public static final TableTestProgram CURRENT_WATERMARK =
+            TableTestProgram.of(
+                            "calc-current-watermark", "validates the CURRENT_WATERMARK function")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING",
+                                            "ts TIMESTAMP_LTZ(3)",
+                                            "WATERMARK FOR ts AS ts")
+                                    .producedValues(
+                                            Row.of("Bob", Instant.ofEpochMilli(0)),
+                                            Row.of("Bob", Instant.ofEpochMilli(1)),
+                                            Row.of("Alice", Instant.ofEpochMilli(2)),
+                                            Row.of("Bob", Instant.ofEpochMilli(3)))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(
+                                            "name STRING",
+                                            "ts TIMESTAMP_LTZ(3)",
+                                            "w TIMESTAMP_LTZ(3)")
+                                    .consumedValues(
+                                            "+I[Bob, 1970-01-01T00:00:00Z, null]",
+                                            "+I[Bob, 1970-01-01T00:00:00.001Z, 1970-01-01T00:00:00Z]",
+                                            "+I[Alice, 1970-01-01T00:00:00.002Z, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Bob, 1970-01-01T00:00:00.003Z, 1970-01-01T00:00:00.002Z]")
+                                    .build())
+                    .runSql("INSERT INTO sink_t SELECT name, ts, CURRENT_WATERMARK(ts) AS w FROM t")
                     .build();
 }

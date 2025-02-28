@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.planner.plan.nodes.exec.common.CalcTestPrograms;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.SemanticTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
@@ -28,6 +29,8 @@ public class MiscSemanticTests extends SemanticTestBase {
 
     @Override
     public List<TableTestProgram> programs() {
-        return List.of(WindowRankTestPrograms.WINDOW_RANK_HOP_TVF_NAMED_MIN_TOP_1);
+        return List.of(
+                WindowRankTestPrograms.WINDOW_RANK_HOP_TVF_NAMED_MIN_TOP_1,
+                CalcTestPrograms.CURRENT_WATERMARK);
     }
 }
