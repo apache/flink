@@ -1687,7 +1687,7 @@ class ComputedColumn(Column):
     def __hash__(self):
         return self._j_computed_column.hashCode()
 
-    def with_comment(self, comment: str) -> "PhysicalColumn":
+    def with_comment(self, comment: str) -> "ComputedColumn":
         return self._j_computed_column.withComment(comment)
 
     def is_physical(self) -> bool:
