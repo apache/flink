@@ -98,63 +98,6 @@ class TableResult(object):
         """
         Returns the schema of the result.
 
-        The schema of ``DDL``, ``USE``, ``EXPLAIN``:
-
-        +-------------+-------------+----------+
-        | column name | column type | comments |
-        +-------------+-------------+----------+
-        | result      | ``STRING``  |          |
-        +-------------+-------------+----------+
-
-        The schema of ``SHOW``:
-
-        +---------------+-------------+----------+
-        |  column name  | column type | comments |
-        +---------------+-------------+----------+
-        | <object name> | ``STRING``  |          |
-        +---------------+-------------+----------+
-
-        The column names are as follows:
-
-        - ``SHOW CATALOGS`` is "catalog name".
-        - ``SHOW DATABASES`` is "database name".
-        - ``SHOW TABLES`` is "table name".
-        - ``SHOW VIEWS`` is "view name".
-        - ``SHOW FUNCTIONS`` is "function name".
-        - ``SHOW MODULES`` is "module name".
-
-        The schema of ``DESCRIBE``:
-
-        +-------------+-------------+-------------------------------------------------+
-        | column name | column type |                 comments                        |
-        +-------------+-------------+-------------------------------------------------+
-        | name        | ``STRING``  | field name                                      |
-        +-------------+-------------+-------------------------------------------------+
-        | type        | ``STRING``  | field type expressed as a String                |
-        +-------------+-------------+-------------------------------------------------+
-        | null        | ``BOOLEAN`` | field nullability: true if a field is nullable, |
-        |             |             | else false                                      |
-        +-------------+-------------+-------------------------------------------------+
-        | key         | ``BOOLEAN`` | key constraint: 'PRI' for primary keys,         |
-        |             |             | 'UNQ' for unique keys, else null                |
-        +-------------+-------------+-------------------------------------------------+
-        | extras      | ``STRING``  | extras such as computed or metadata column      |
-        |             |             | information, else null                          |
-        +-------------+-------------+-------------------------------------------------+
-        | watermark   | ``STRING``  | watermark: string expression if a field is      |
-        |             |             | watermark, else null                            |
-        +-------------+-------------+-------------------------------------------------+
-
-        The schema of ``INSERT``: (one column per one sink)
-
-        +----------------------------+-------------+-----------------------+
-        | column name                | column type | comments              |
-        +----------------------------+-------------+-----------------------+
-        | (name of the insert table) | ``BIGINT``  | the insert table name |
-        +----------------------------+-------------+-----------------------+
-
-        The schema of ``SELECT`` is the selected field names and types.
-
         :return: The schema of the result.
         :rtype: pyflink.table.catalog.ResolvedSchema
 
