@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.forst.fs;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.ByteBufferReadable;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
@@ -54,6 +55,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
+import static org.apache.flink.state.forst.ForStOptions.CACHE_LRU_ACCESS_BEFORE_PROMOTION;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ForStFlinkFileSystem}. */
@@ -69,7 +71,7 @@ public class ForStFlinkFileSystemTest {
                     {null},
                     {
                         new FileBasedCache(
-                                1024 * 3,
+                                new Configuration(),
                                 new SizeBasedCacheLimitPolicy(1024 * 3),
                                 FileSystem.getLocalFileSystem(),
                                 new org.apache.flink.core.fs.Path(tempDir.toString() + "/cache"),
@@ -251,7 +253,7 @@ public class ForStFlinkFileSystemTest {
                 };
         FileBasedCache cache =
                 new FileBasedCache(
-                        250,
+                        new Configuration(),
                         cacheLimitPolicy,
                         FileSystem.getLocalFileSystem(),
                         cachePath,
@@ -274,15 +276,17 @@ public class ForStFlinkFileSystemTest {
         org.apache.flink.core.fs.Path cachePath1 =
                 new org.apache.flink.core.fs.Path(cachePath, sstRealPath1.getName());
         os1.write(tmpBytes);
+        os1.write(76);
         os1.write(89);
         os1.sync();
         os1.close();
         assertThat(fileSystem.exists(sstRemotePath1)).isTrue();
         assertThat(cachePath.getFileSystem().exists(cachePath1)).isTrue();
-        assertThat(registeredGauges.get("forst.fileCache.usedBytes").getValue()).isEqualTo(234L);
+        assertThat(registeredGauges.get("forst.fileCache.usedBytes").getValue()).isEqualTo(235L);
         assertThat(registeredCounters.get("forst.fileCache.hit").getCount()).isEqualTo(0L);
         assertThat(registeredCounters.get("forst.fileCache.miss").getCount()).isEqualTo(0L);
-        FileCacheEntry cacheEntry1 = cache.get(cachePath.getPath() + "/" + sstRealPath1.getName());
+        FileCacheEntry cacheEntry1 =
+                cache.get(cachePath.getPath() + "/" + sstRealPath1.getName(), false);
         assertThat(cacheEntry1).isNotNull();
         assertThat(cacheEntry1.getReferenceCount()).isEqualTo(1);
 
@@ -291,7 +295,14 @@ public class ForStFlinkFileSystemTest {
         assertThat(is.read(tmpBytes)).isEqualTo(233);
         assertThat(cacheEntry1.getReferenceCount()).isEqualTo(1);
         assertThat(cacheEntry1.getReferenceCount()).isEqualTo(1);
-        assertThat(registeredCounters.get("forst.fileCache.hit").getCount()).isEqualTo(2L);
+        assertThat(registeredCounters.get("forst.fileCache.hit").getCount()).isEqualTo(0L);
+        assertThat(registeredCounters.get("forst.fileCache.miss").getCount()).isEqualTo(0L);
+
+        // set flink thread to enable the metrics
+        FileBasedCache.setFlinkThread();
+        assertThat(is.read()).isEqualTo(76);
+        assertThat(registeredCounters.get("forst.fileCache.hit").getCount()).isEqualTo(1L);
+
         // evict
         org.apache.flink.core.fs.Path sstRemotePath2 =
                 new org.apache.flink.core.fs.Path(remotePath, "2.sst");
@@ -311,6 +322,23 @@ public class ForStFlinkFileSystemTest {
         assertThat(registeredGauges.get("forst.fileCache.usedBytes").getValue()).isEqualTo(233L);
         // read after evict
         assertThat(is.read()).isEqualTo(89);
+
+        // more file to fill the cold link
+        org.apache.flink.core.fs.Path sstRemotePath3 =
+                new org.apache.flink.core.fs.Path(remotePath, "3.sst");
+        ByteBufferWritableFSDataOutputStream os3 = fileSystem.create(sstRemotePath3);
+        os3.write(tmpBytes);
+        os3.sync();
+        os3.close();
+
+        // more access to loadback
+        for (int i = 0; i < CACHE_LRU_ACCESS_BEFORE_PROMOTION.defaultValue() - 1; i++) {
+            assertThat(registeredGauges.get("forst.fileCache.usedBytes").getValue())
+                    .isEqualTo(233L);
+            is.seek(0);
+        }
+        assertThat(registeredGauges.get("forst.fileCache.usedBytes").getValue()).isEqualTo(235L);
+
         is.close();
     }
 

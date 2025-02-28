@@ -21,14 +21,21 @@ package org.apache.flink.state.forst.fs.cache;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.Path;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
  * A {@link FSDataOutputStream} delegates requests to other one and supports writing data with
- * {@link ByteBuffer}.
+ * {@link ByteBuffer}. The data will be written to the original output stream and the cache output
+ * stream. When the stream is closed, the data will be put into the cache and ready to be read.
  */
 public class CachedDataOutputStream extends FSDataOutputStream {
+
+    private static final Logger LOG = LoggerFactory.getLogger(CachedDataOutputStream.class);
+
     /** The original path of file. */
     private final Path originalPath;
 
@@ -52,6 +59,7 @@ public class CachedDataOutputStream extends FSDataOutputStream {
         this.cachePath = cachePath;
         this.cacheOutputStream = cacheOutputStream;
         this.fileBasedCache = cache;
+        LOG.trace("Create CachedDataOutputStream for {} and {}", originalPath, cachePath);
     }
 
     @Override
@@ -105,6 +113,9 @@ public class CachedDataOutputStream extends FSDataOutputStream {
         long thisSize = cacheOutputStream.getPos();
         FileCacheEntry fileCacheEntry =
                 new FileCacheEntry(fileBasedCache, originalPath, cachePath, thisSize);
-        fileBasedCache.put(cachePath.toString(), fileCacheEntry);
+        fileCacheEntry.switchStatus(
+                FileCacheEntry.EntryStatus.REMOVED, FileCacheEntry.EntryStatus.LOADED);
+        fileCacheEntry.loaded();
+        fileBasedCache.addFirst(cachePath.toString(), fileCacheEntry);
     }
 }
