@@ -19,22 +19,35 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
 import java.time.{Instant, LocalDateTime}
+import java.util.{Collection => JCollection}
+
+import scala.collection.JavaConversions._
 
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
-class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
+class TemporalSortITCase(mode: StateBackendMode, enableAsyncState: Boolean)
+  extends StreamingWithStateTestBase(mode) {
+
+  @BeforeEach
+  override def before(): Unit = {
+    super.before()
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED,
+      Boolean.box(enableAsyncState))
+  }
 
   @TestTemplate
   def testOnlyEventTimeOrderBy(): Unit = {
@@ -277,4 +290,16 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     assertThat(sink.getRetractResults).isEqualTo(expected)
   }
 
+}
+
+object TemporalSortITCase {
+
+  @Parameters(name = "StateBackend={0}, EnableAsyncState={1}")
+  def parameters(): JCollection[Array[java.lang.Object]] = {
+    Seq[Array[AnyRef]](
+      Array(HEAP_BACKEND, Boolean.box(false)),
+      Array(HEAP_BACKEND, Boolean.box(true)),
+      Array(ROCKSDB_BACKEND, Boolean.box(false))
+    )
+  }
 }
