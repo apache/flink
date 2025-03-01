@@ -72,3 +72,12 @@ This change added tests and can be verified as follows:
 
   - Does this pull request introduce a new feature? (yes / no)
   - If yes, how is the feature documented? (not applicable / docs / JavaDocs / not documented)
+  - If no, was the documentation adjusted? (yes / no)
+
+## Definition of Done
+
+1. The implementation is following the [code contribution process](#code-contribution-process). (yes / no)
+2. It is implemented according to the [code style and quality guide]({{ site.base }}/contributing/code-style-and-quality-preamble.html). (yes / no)
+3. In case of user facing changes the documentation has been updated acording to the [documentation style guide]({{ site.base }}/contributing/docs-style.html). (yes / no)
+4. The PR is covered by tests. (yes / no)
+5. All tests passed. (yes / no)
