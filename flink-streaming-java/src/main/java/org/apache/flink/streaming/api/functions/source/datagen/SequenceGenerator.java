@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.functions.source.datagen;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -50,12 +51,26 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
     /**
      * Creates a DataGenerator that emits all numbers from the given interval exactly once.
      *
-     * @param start Start of the range of numbers to emit.
-     * @param end End of the range of numbers to emit.
+     * <p>The {@code SequenceGenerator} requires that the {@code inclEnd} must be greater than the
+     * {@code inclStart} and that the total number cannot be greater than {@code Long.MAX_VALUE -
+     * 1}.
+     *
+     * @param inclStart Start of the range of numbers to emit.
+     * @param inclEnd End of the range of numbers to emit.
      */
-    public SequenceGenerator(long start, long end) {
-        this.start = start;
-        this.end = end;
+    protected SequenceGenerator(long inclStart, long inclEnd) {
+        Preconditions.checkArgument(
+                inclEnd > inclStart,
+                "The start value (%s) cannot be greater than the end value (%s).",
+                inclStart,
+                inclEnd);
+        Preconditions.checkArgument(
+                inclEnd - inclStart <= Long.MAX_VALUE - 1,
+                "The total size of range (%s, %s) exceeds the maximum limit: Long.MAX_VALUE - 1.",
+                inclStart,
+                inclEnd);
+        this.start = inclStart;
+        this.end = inclEnd;
     }
 
     @Override
@@ -85,8 +100,9 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
             final long congruence = start + taskIdx;
 
             long totalNoOfElements = Math.abs(end - start + 1);
-            final int baseSize = safeDivide(totalNoOfElements, stepSize);
-            final int toCollect =
+            final long baseSize = totalNoOfElements / stepSize;
+
+            final long toCollect =
                     (totalNoOfElements % stepSize > taskIdx) ? baseSize + 1 : baseSize;
 
             for (long collected = 0; collected < toCollect; collected++) {
@@ -109,11 +125,14 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
         return !this.valuesToEmit.isEmpty();
     }
 
-    private static int safeDivide(long left, long right) {
-        Preconditions.checkArgument(right > 0);
-        Preconditions.checkArgument(left >= 0);
-        Preconditions.checkArgument(left <= Integer.MAX_VALUE * right);
-        return (int) (left / right);
+    @VisibleForTesting
+    public long getStart() {
+        return start;
+    }
+
+    @VisibleForTesting
+    public long getEnd() {
+        return end;
     }
 
     public static SequenceGenerator<Long> longGenerator(long start, long end) {
