@@ -36,6 +36,7 @@ import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.DynamicTableSource.Context;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DynamicTableFactory;
@@ -68,7 +69,7 @@ public class AvroFileFormatFactory implements BulkReaderFormatFactory, BulkWrite
     @Override
     public BulkDecodingFormat<RowData> createDecodingFormat(
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
-        return new AvroBulkDecodingFormat();
+        return new AvroBulkDecodingFormat(formatOptions.get(AVRO_TIMESTAMP_LEGACY_MAPPING));
     }
 
     @Override
@@ -117,7 +118,13 @@ public class AvroFileFormatFactory implements BulkReaderFormatFactory, BulkWrite
 
     private static class AvroBulkDecodingFormat
             implements BulkDecodingFormat<RowData>,
-                    ProjectableDecodingFormat<BulkFormat<RowData, FileSourceSplit>> {
+            ProjectableDecodingFormat<BulkFormat<RowData, FileSourceSplit>> {
+
+        private final Boolean legacyTimestampMapping;
+
+        public AvroBulkDecodingFormat(Boolean legacyTimestampMapping) {
+            this.legacyTimestampMapping = legacyTimestampMapping;
+        }
 
         @Override
         public BulkFormat<RowData, FileSourceSplit> createRuntimeDecoder(
@@ -132,7 +139,7 @@ public class AvroFileFormatFactory implements BulkReaderFormatFactory, BulkWrite
             // for detailed discussion see comments in https://github.com/apache/flink/pull/18657
             DataType producedDataType = Projection.of(projections).project(physicalDataType);
             return new AvroGenericRecordBulkFormat(
-                    context, (RowType) producedDataType.getLogicalType().copy(false));
+                    context, (RowType) producedDataType.getLogicalType().copy(false), legacyTimestampMapping);
         }
 
         @Override
@@ -150,8 +157,8 @@ public class AvroFileFormatFactory implements BulkReaderFormatFactory, BulkWrite
         private final TypeInformation<RowData> producedTypeInfo;
 
         public AvroGenericRecordBulkFormat(
-                DynamicTableSource.Context context, RowType producedRowType) {
-            super(AvroSchemaConverter.convertToSchema(producedRowType));
+                Context context, RowType producedRowType, Boolean legacyTimestampMapping) {
+            super(AvroSchemaConverter.convertToSchema(producedRowType, legacyTimestampMapping));
             this.producedRowType = producedRowType;
             this.producedTypeInfo = context.createTypeInformation(producedRowType);
         }
@@ -184,10 +191,12 @@ public class AvroFileFormatFactory implements BulkReaderFormatFactory, BulkWrite
 
         private final AvroWriterFactory<GenericRecord> factory;
         private final RowType rowType;
+        private final boolean legacyTimestampMapping;
 
         private RowDataAvroWriterFactory(
                 RowType rowType, String codec, boolean legacyTimestampMapping) {
             this.rowType = rowType;
+            this.legacyTimestampMapping = legacyTimestampMapping;
             this.factory =
                     new AvroWriterFactory<>(
                             new AvroBuilder<GenericRecord>() {
@@ -216,7 +225,7 @@ public class AvroFileFormatFactory implements BulkReaderFormatFactory, BulkWrite
             BulkWriter<GenericRecord> writer = factory.create(out);
             RowDataToAvroConverters.RowDataToAvroConverter converter =
                     RowDataToAvroConverters.createConverter(rowType);
-            Schema schema = AvroSchemaConverter.convertToSchema(rowType);
+            Schema schema = AvroSchemaConverter.convertToSchema(rowType, legacyTimestampMapping);
             return new BulkWriter<RowData>() {
 
                 @Override
