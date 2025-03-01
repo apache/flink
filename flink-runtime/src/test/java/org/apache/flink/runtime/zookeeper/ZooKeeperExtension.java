@@ -36,7 +36,13 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * {@link org.junit.jupiter.api.extension.Extension} which starts a {@link
@@ -86,6 +92,53 @@ public class ZooKeeperExtension implements CustomExtension {
 
     public String getConnectString() {
         return getRunningZookeeperInstanceOrFail().getConnectString();
+    }
+
+    private String[] getConnectionInfo() {
+        final String connectStr = getConnectString();
+        final String[] connectionInfo = connectStr.split(":");
+
+        Preconditions.checkState(
+                connectionInfo.length == 2,
+                "The connect string doesn't match the expected format <host>:<port> (actual: %s)",
+                connectStr);
+
+        return connectionInfo;
+    }
+
+    public String getHost() {
+        return getConnectionInfo()[0];
+    }
+
+    public int getPort() {
+        return Integer.parseInt(getConnectionInfo()[1]);
+    }
+
+    public Iterable<String> executeCommand(String command) throws IOException {
+        try (final Socket echoSocket = new Socket(getHost(), getPort())) {
+            final PrintWriter out = new PrintWriter(echoSocket.getOutputStream(), true);
+            final BufferedReader in =
+                    new BufferedReader(new InputStreamReader(echoSocket.getInputStream()));
+
+            out.write(command);
+            out.flush();
+
+            String line = in.readLine();
+            List<String> lines = new ArrayList<>();
+            while (line != null) {
+                lines.add(line);
+                line = in.readLine();
+            }
+
+            return lines;
+        }
+    }
+
+    public AutoCloseable whitelistAdminCommand(String command) {
+        final String whitelistSystemProperty = "zookeeper.4lw.commands.whitelist";
+        System.getProperties().setProperty(whitelistSystemProperty, command);
+
+        return () -> System.getProperties().remove(whitelistSystemProperty);
     }
 
     private TestingServer getRunningZookeeperInstanceOrFail() {
