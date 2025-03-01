@@ -81,13 +81,20 @@ public class JsonParserToRowDataConverters implements Serializable {
     /** Timestamp format specification which is used to parse timestamp. */
     private final TimestampFormat timestampFormat;
 
+    /**
+     * Flag indicating whether ignore key case of field between json string and table row schema.
+     */
+    private final boolean ignoreKeyCase;
+
     public JsonParserToRowDataConverters(
             boolean failOnMissingField,
             boolean ignoreParseErrors,
+            boolean ignoreKeyCase,
             TimestampFormat timestampFormat) {
         this.failOnMissingField = failOnMissingField;
         this.ignoreParseErrors = ignoreParseErrors;
         this.timestampFormat = timestampFormat;
+        this.ignoreKeyCase = ignoreKeyCase;
     }
 
     /**
@@ -391,7 +398,7 @@ public class JsonParserToRowDataConverters implements Serializable {
 
         Map<String, Integer> nameIdxMap = new HashMap<>();
         for (int i = 0; i < rowType.getFieldCount(); i++) {
-            nameIdxMap.put(fieldNames[i], i);
+            nameIdxMap.put(ignoreKeyCase ? fieldNames[i].toLowerCase() : fieldNames[i], i);
         }
 
         return jp -> {
@@ -407,7 +414,7 @@ public class JsonParserToRowDataConverters implements Serializable {
                     skipToNextField(jp);
                     continue;
                 }
-                String fieldName = jp.getText();
+                String fieldName = ignoreKeyCase ? jp.getText().toLowerCase() : jp.getText();
                 jp.nextToken();
                 Integer idx = nameIdxMap.get(fieldName);
                 if (idx != null) {
