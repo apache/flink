@@ -169,6 +169,7 @@ public class HistoryServerStaticFileServerHandler
                     }
                 } catch (Throwable t) {
                     LOG.error("error while responding", t);
+                    file.delete();
                 } finally {
                     if (!success) {
                         LOG.debug("Unable to load requested file {} from classloader", requestPath);
