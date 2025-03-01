@@ -26,6 +26,7 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMapSharedInformer;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesException;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesNode;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPodsWatcher;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
@@ -181,7 +182,27 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
     @Override
     public CompletableFuture<Void> stopPod(String podName) {
         return CompletableFuture.runAsync(
-                () -> this.internalClient.pods().withName(podName).delete(),
+                () -> {
+                    KubernetesNode kubernetesNode =
+                            new KubernetesNode(
+                                    this.internalClient
+                                            .nodes()
+                                            .withName(
+                                                    this.internalClient
+                                                            .pods()
+                                                            .withName(podName)
+                                                            .get()
+                                                            .getSpec()
+                                                            .getNodeName())
+                                            .get());
+                    // When the Ready NodeCondition status is False or Unknown, to force delete the
+                    // pod on it.
+                    this.internalClient
+                            .pods()
+                            .withName(podName)
+                            .withGracePeriod(kubernetesNode.isNodeNotReady() ? 0 : 30)
+                            .delete();
+                },
                 kubeClientExecutorService);
     }
 
