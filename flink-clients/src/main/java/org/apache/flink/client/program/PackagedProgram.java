@@ -246,7 +246,18 @@ public class PackagedProgram implements AutoCloseable {
 
     /** Returns all provided libraries needed to run the program. */
     public List<URL> getJobJarAndDependencies() {
-        List<URL> libs = new ArrayList<URL>(extractedTempLibraries.size() + 1);
+        List<URL> libs = getJobJarAndDependencies(jarFile, extractedTempLibraries);
+
+        if (isPython) {
+            libs.add(PackagedProgramUtils.getPythonJar());
+        }
+
+        return libs;
+    }
+
+    private static List<URL> getJobJarAndDependencies(
+            URL jarFile, List<File> extractedTempLibraries) {
+        List<URL> libs = new ArrayList<>(extractedTempLibraries.size() + 1);
 
         if (jarFile != null) {
             libs.add(jarFile);
@@ -258,11 +269,6 @@ public class PackagedProgram implements AutoCloseable {
                 throw new RuntimeException("URL is invalid. This should not happen.", e);
             }
         }
-
-        if (isPython) {
-            libs.add(PackagedProgramUtils.getPythonJar());
-        }
-
         return libs;
     }
 
@@ -276,18 +282,7 @@ public class PackagedProgram implements AutoCloseable {
                         ? Collections.emptyList()
                         : extractContainedLibraries(jarFileUrl);
 
-        List<URL> libs = new ArrayList<URL>(extractedTempLibraries.size() + 1);
-
-        if (jarFileUrl != null) {
-            libs.add(jarFileUrl);
-        }
-        for (File tmpLib : extractedTempLibraries) {
-            try {
-                libs.add(tmpLib.getAbsoluteFile().toURI().toURL());
-            } catch (MalformedURLException e) {
-                throw new RuntimeException("URL is invalid. This should not happen.", e);
-            }
-        }
+        List<URL> libs = getJobJarAndDependencies(jarFileUrl, extractedTempLibraries);
 
         if (isPython(entryPointClassName)) {
             libs.add(PackagedProgramUtils.getPythonJar());
