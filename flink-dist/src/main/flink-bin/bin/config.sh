@@ -44,7 +44,7 @@ constructFlinkClassPath() {
         exit 1
     fi
 
-    echo "$FLINK_CLASSPATH""$FLINK_DIST"
+    echo "$FLINK_USER_JAR":"$FLINK_CLASSPATH""$FLINK_DIST"
 }
 
 findSqlGatewayJar() {
