@@ -35,6 +35,8 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * Hybrid source reader that delegates to the actual source reader.
@@ -58,15 +60,18 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
     private int currentSourceIndex = -1;
     private boolean isFinalSource;
     private SourceReader<T, ? extends SourceSplit> currentReader;
+    private final ReadWriteLock currentReaderReadWriteLock;
     private CompletableFuture<Void> availabilityFuture = new CompletableFuture<>();
     private List<HybridSourceSplit> restoredSplits = new ArrayList<>();
 
     public HybridSourceReader(SourceReaderContext readerContext) {
         this.readerContext = readerContext;
+        this.currentReaderReadWriteLock = new ReentrantReadWriteLock();
     }
 
     @Override
     public void start() {
+        currentReaderReadWriteLock.readLock().lock();
         // underlying reader starts on demand with split assignment
         int initialSourceIndex = currentSourceIndex;
         if (!restoredSplits.isEmpty()) {
@@ -74,11 +79,14 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
         }
         readerContext.sendSourceEventToCoordinator(
                 new SourceReaderFinishedEvent(initialSourceIndex));
+        currentReaderReadWriteLock.readLock().unlock();
     }
 
     @Override
     public InputStatus pollNext(ReaderOutput output) throws Exception {
+        currentReaderReadWriteLock.readLock().lock();
         if (currentReader == null) {
+            currentReaderReadWriteLock.readLock().unlock();
             return InputStatus.NOTHING_AVAILABLE;
         }
 
@@ -101,30 +109,37 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
                 return InputStatus.NOTHING_AVAILABLE;
             }
         }
+        currentReaderReadWriteLock.readLock().unlock();
         return status;
     }
 
     @Override
     public List<HybridSourceSplit> snapshotState(long checkpointId) {
+        currentReaderReadWriteLock.readLock().lock();
         List<? extends SourceSplit> state =
                 currentReader != null
                         ? currentReader.snapshotState(checkpointId)
                         : Collections.emptyList();
+        currentReaderReadWriteLock.readLock().unlock();
         return HybridSourceSplit.wrapSplits(state, currentSourceIndex, switchedSources);
     }
 
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
+        currentReaderReadWriteLock.readLock().lock();
         if (currentReader != null) {
             currentReader.notifyCheckpointComplete(checkpointId);
         }
+        currentReaderReadWriteLock.readLock().unlock();
     }
 
     @Override
     public void notifyCheckpointAborted(long checkpointId) throws Exception {
+        currentReaderReadWriteLock.readLock().lock();
         if (currentReader != null) {
             currentReader.notifyCheckpointAborted(checkpointId);
         }
+        currentReaderReadWriteLock.readLock().unlock();
     }
 
     @Override
@@ -138,6 +153,7 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
 
     @Override
     public void addSplits(List<HybridSourceSplit> splits) {
+        currentReaderReadWriteLock.readLock().lock();
         LOG.info(
                 "Adding splits subtask={} sourceIndex={} currentReader={} {}",
                 readerContext.getIndexOfSubtask(),
@@ -159,10 +175,12 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
             }
             currentReader.addSplits((List) realSplits);
         }
+        currentReaderReadWriteLock.readLock().unlock();
     }
 
     @Override
     public void notifyNoMoreSplits() {
+        currentReaderReadWriteLock.readLock().lock();
         if (currentReader != null) {
             currentReader.notifyNoMoreSplits();
         }
@@ -171,10 +189,12 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
                 readerContext.getIndexOfSubtask(),
                 currentSourceIndex,
                 currentReader);
+        currentReaderReadWriteLock.readLock().unlock();
     }
 
     @Override
     public void handleSourceEvents(SourceEvent sourceEvent) {
+        currentReaderReadWriteLock.readLock().lock();
         if (sourceEvent instanceof SwitchSourceEvent) {
             SwitchSourceEvent sse = (SwitchSourceEvent) sourceEvent;
             LOG.info(
@@ -183,15 +203,19 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
                     sse.sourceIndex(),
                     sse.source());
             switchedSources.put(sse.sourceIndex(), sse.source());
+            currentReaderReadWriteLock.readLock().unlock();
             setCurrentReader(sse.sourceIndex());
+            currentReaderReadWriteLock.readLock().lock();
             isFinalSource = sse.isFinalSource();
         } else {
             currentReader.handleSourceEvents(sourceEvent);
         }
+        currentReaderReadWriteLock.readLock().unlock();
     }
 
     @Override
     public void close() throws Exception {
+        currentReaderReadWriteLock.readLock().lock();
         if (currentReader != null) {
             currentReader.close();
         }
@@ -200,14 +224,17 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
                 readerContext.getIndexOfSubtask(),
                 currentSourceIndex,
                 currentReader);
+        currentReaderReadWriteLock.readLock().unlock();
     }
 
     private void setCurrentReader(int index) {
+        currentReaderReadWriteLock.writeLock().lock();
         Preconditions.checkArgument(index != currentSourceIndex);
         if (currentReader != null) {
             try {
                 currentReader.close();
             } catch (Exception e) {
+                currentReaderReadWriteLock.writeLock().unlock();
                 throw new RuntimeException("Failed to close current reader", e);
             }
             LOG.debug(
@@ -222,6 +249,7 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
         try {
             reader = source.createReader(readerContext);
         } catch (Exception e) {
+            currentReaderReadWriteLock.writeLock().unlock();
             throw new RuntimeException("Failed tp create reader", e);
         }
         reader.start();
@@ -244,7 +272,10 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
                     it.remove();
                 }
             }
+            currentReaderReadWriteLock.writeLock().unlock();
             addSplits(splits);
+            return;
         }
+        currentReaderReadWriteLock.writeLock().unlock();
     }
 }
