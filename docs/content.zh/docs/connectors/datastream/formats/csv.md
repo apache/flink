@@ -114,6 +114,13 @@ CsvReaderFormat<ComplexPojo> csvFormat =
                 TypeInformation.of(ComplexPojo.class));
 ```
 
+If you need to change the default encoding(UTF-8), you can use `withCharset`:
+
+```java
+CsvReaderFormat<Pojo> csvFormat = ...
+csvFormat.withCharset(Charset.forName("GBK"));
+```
+
 For PyFlink users, a csv schema can be defined by manually adding columns, and the output type of the csv source will be a Row with each column mapped to a field.
 ```python
 schema = CsvSchema.builder() \
