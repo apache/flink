@@ -200,7 +200,7 @@ if [ -z "$FLINK_OPT_DIR" ]; then FLINK_OPT_DIR=$FLINK_HOME/opt; fi
 # directory, so it needs to be unmangled.
 FLINK_HOME_DIR_MANGLED=`manglePath "$FLINK_HOME"`
 if [ -z "$FLINK_CONF_DIR" ]; then FLINK_CONF_DIR=$FLINK_HOME_DIR_MANGLED/conf; fi
-FLINK_BIN_DIR=$FLINK_HOME_DIR_MANGLED/bin
+FLINK_BIN_DIR=$FLINK_HOME/bin
 DEFAULT_FLINK_LOG_DIR=$FLINK_HOME_DIR_MANGLED/log
 
 ### Exported environment variables ###
