@@ -88,6 +88,7 @@ public class CastRuleProvider {
                 // To binary rules
                 .addRule(BinaryToBinaryCastRule.INSTANCE)
                 .addRule(RawToBinaryCastRule.INSTANCE)
+                .addRule(NumericToBinaryCastRule.INSTANCE)
                 // Collection rules
                 .addRule(ArrayToArrayCastRule.INSTANCE)
                 .addRule(MapToMapAndMultisetToMultisetCastRule.INSTANCE)
