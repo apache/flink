@@ -63,6 +63,8 @@ Flink's POJO field selection also works with POJOs generated from Avro. However,
 Specifying a field in Avro like this `{"name": "type_double_test", "type": "double"},` works fine, however specifying it as a UNION-type with only one field (`{"name": "type_double_test", "type": ["double"]},`) will generate a field of type `Object`. Note that specifying nullable types (`{"name": "type_double_test", "type": ["null", "double"]},`) is possible!
 
 
+## Python
+
 For Python jobs, an Avro schema should be defined to read from Avro files, and the elements will be vanilla Python objects. For example:
 
 ```python
