@@ -184,7 +184,11 @@ public class JarHandlerUtils {
             try {
                 return initPackagedProgramBuilder(configuration).build();
             } catch (final ProgramInvocationException e) {
-                throw new CompletionException(e);
+                throw new CompletionException(
+                        new RestHandlerException(
+                                "Could not execute application.",
+                                HttpResponseStatus.BAD_REQUEST,
+                                e));
             }
         }
 
