@@ -53,6 +53,7 @@ public class CastRuleProvider {
                 .addRule(NumericPrimitiveToDecimalCastRule.INSTANCE)
                 .addRule(DecimalToNumericPrimitiveCastRule.INSTANCE)
                 .addRule(NumericPrimitiveCastRule.INSTANCE)
+                .addRule(BinaryToNumericCastRule.INSTANCE)
                 // Boolean <-> numeric rules
                 .addRule(BooleanToNumericCastRule.INSTANCE)
                 .addRule(NumericToBooleanCastRule.INSTANCE)
