@@ -98,7 +98,7 @@ public final class StreamSQLExample {
 
     /** Simple POJO. */
     public static class Order {
-        public Long user;
+        public long user;
         public String product;
         public int amount;
 
@@ -106,7 +106,7 @@ public final class StreamSQLExample {
         public Order() {}
 
         // for structured type detection in Table API
-        public Order(Long user, String product, int amount) {
+        public Order(long user, String product, int amount) {
             this.user = user;
             this.product = product;
             this.amount = amount;
