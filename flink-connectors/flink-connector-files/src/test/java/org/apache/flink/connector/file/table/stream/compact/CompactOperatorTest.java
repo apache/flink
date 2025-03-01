@@ -26,6 +26,8 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.StateObjectCollection;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -192,6 +194,156 @@ class CompactOperatorTest extends AbstractCompactTestBase {
 
         harness0.close();
         harness1.close();
+    }
+
+    @Test
+    void testCompactOperatorWithDecreasingParallelism() throws Exception {
+        AtomicReference<OperatorSubtaskState> state = new AtomicReference<>();
+
+        Path f0 = newFile(".uncompacted-f0", 3);
+        Path f1 = newFile(".uncompacted-f1", 2);
+        Path f2 = newFile(".uncompacted-f2", 2);
+        Path f3 = newFile(".uncompacted-f3", 5);
+        Path f4 = newFile(".uncompacted-f4", 1);
+        Path f5 = newFile(".uncompacted-f5", 5);
+        Path f6 = newFile(".uncompacted-f6", 4);
+        FileSystem fs = f0.getFileSystem();
+
+        // start with 2 parallelism
+        OneInputStreamOperatorTestHarness<CoordinatorOutput, PartitionCommitInfo> harness0 =
+                create(2, 0);
+        harness0.setup();
+        harness0.open();
+
+        OneInputStreamOperatorTestHarness<CoordinatorOutput, PartitionCommitInfo> harness1 =
+                create(2, 1);
+        harness1.setup();
+        harness1.open();
+
+        // broadcast to subtask 0
+        harness0.processElement(new CompactionUnit(0, "p0", Arrays.asList(f0, f1, f4)), 0);
+        harness0.processElement(new CompactionUnit(1, "p0", Collections.singletonList(f3)), 0);
+        harness0.processElement(new CompactionUnit(2, "p0", Arrays.asList(f2, f5)), 0);
+        harness0.processElement(new CompactionUnit(3, "p0", Collections.singletonList(f6)), 0);
+        harness0.processElement(new EndCompaction(1), 0);
+
+        assertThat(fs.exists(new Path(folder, "compacted-f0"))).isTrue();
+        assertThat(fs.exists(new Path(folder, "compacted-f2"))).isTrue();
+
+        // broadcast to subtask 1
+        harness1.processElement(new CompactionUnit(0, "p0", Arrays.asList(f0, f1, f4)), 0);
+        harness1.processElement(new CompactionUnit(1, "p0", Collections.singletonList(f3)), 0);
+        harness1.processElement(new CompactionUnit(2, "p0", Arrays.asList(f2, f5)), 0);
+        harness1.processElement(new CompactionUnit(3, "p0", Collections.singletonList(f6)), 0);
+        harness1.processElement(new EndCompaction(1), 0);
+
+        // check compacted file generated
+        assertThat(fs.exists(new Path(folder, "compacted-f3"))).isTrue();
+        assertThat(fs.exists(new Path(folder, "compacted-f6"))).isTrue();
+
+        // set state
+        StateObjectCollection<OperatorStateHandle> stateCol0 =
+                harness0.snapshot(2, 0).getManagedOperatorState();
+        StateObjectCollection<OperatorStateHandle> stateCol1 =
+                harness1.snapshot(3, 0).getManagedOperatorState();
+
+        harness0.close();
+        harness1.close();
+
+        StateObjectCollection<OperatorStateHandle> stateFinal = new StateObjectCollection<>();
+        stateFinal.addAll(stateCol0);
+        stateFinal.addAll(stateCol1);
+        state.set(OperatorSubtaskState.builder().setManagedOperatorState(stateFinal).build());
+
+        OneInputStreamOperatorTestHarness<CoordinatorOutput, PartitionCommitInfo> newHarness0 =
+                create(1, 0);
+
+        newHarness0.setup();
+        newHarness0.initializeState(state.get());
+        newHarness0.open();
+        newHarness0.notifyOfCompletedCheckpoint(2);
+        newHarness0.notifyOfCompletedCheckpoint(3);
+
+        assertThat(fs.exists(f0)).isFalse();
+        assertThat(fs.exists(f1)).isFalse();
+        assertThat(fs.exists(f2)).isFalse();
+        assertThat(fs.exists(f3)).isFalse();
+        assertThat(fs.exists(f4)).isFalse();
+        assertThat(fs.exists(f5)).isFalse();
+        assertThat(fs.exists(f6)).isFalse();
+
+        newHarness0.close();
+    }
+
+    @Test
+    void testCompactOperatorWithIncreasingParallelism() throws Exception {
+        AtomicReference<OperatorSubtaskState> state0 = new AtomicReference<>();
+        AtomicReference<OperatorSubtaskState> state1 = new AtomicReference<>();
+
+        Path f0 = newFile(".uncompacted-f0", 3);
+        Path f1 = newFile(".uncompacted-f1", 2);
+        Path f2 = newFile(".uncompacted-f2", 2);
+        Path f3 = newFile(".uncompacted-f3", 5);
+        Path f4 = newFile(".uncompacted-f4", 1);
+        Path f5 = newFile(".uncompacted-f5", 5);
+        Path f6 = newFile(".uncompacted-f6", 4);
+        FileSystem fs = f0.getFileSystem();
+
+        // start with 1 parallelism
+        OneInputStreamOperatorTestHarness<CoordinatorOutput, PartitionCommitInfo> harness0 =
+                create(1, 0);
+        harness0.setup();
+        harness0.open();
+
+        // broadcast all to subtask 0
+        harness0.processElement(new CompactionUnit(0, "p0", Arrays.asList(f0, f1, f4)), 0);
+        harness0.processElement(new CompactionUnit(1, "p0", Collections.singletonList(f3)), 0);
+        harness0.processElement(new CompactionUnit(2, "p0", Arrays.asList(f2, f5)), 0);
+        harness0.processElement(new CompactionUnit(3, "p0", Collections.singletonList(f6)), 0);
+        harness0.processElement(new EndCompaction(1), 0);
+
+        assertThat(fs.exists(new Path(folder, "compacted-f0"))).isTrue();
+        assertThat(fs.exists(new Path(folder, "compacted-f2"))).isTrue();
+        assertThat(fs.exists(new Path(folder, "compacted-f3"))).isTrue();
+        assertThat(fs.exists(new Path(folder, "compacted-f6"))).isTrue();
+
+        OperatorSubtaskState subtaskState0 = harness0.snapshot(2, 0);
+        // create restored state with empty list state
+        OperatorSubtaskState subtaskState1 =
+                OperatorSubtaskState.builder()
+                        .setRawOperatorState(
+                                subtaskState0.getManagedOperatorState().iterator().next())
+                        .build();
+        // set state
+        state0.set(subtaskState0);
+        state1.set(subtaskState1);
+
+        // new operator with 2 parallelism
+        OneInputStreamOperatorTestHarness<CoordinatorOutput, PartitionCommitInfo> newHarness0 =
+                create(2, 0);
+
+        OneInputStreamOperatorTestHarness<CoordinatorOutput, PartitionCommitInfo> newHarness1 =
+                create(2, 1);
+
+        newHarness0.setup();
+        newHarness0.initializeState(state0.get());
+        newHarness0.open();
+        newHarness0.notifyOfCompletedCheckpoint(2);
+
+        newHarness1.setup();
+        newHarness1.initializeState(state1.get());
+        newHarness1.open();
+
+        assertThat(fs.exists(f0)).isFalse();
+        assertThat(fs.exists(f1)).isFalse();
+        assertThat(fs.exists(f2)).isFalse();
+        assertThat(fs.exists(f3)).isFalse();
+        assertThat(fs.exists(f4)).isFalse();
+        assertThat(fs.exists(f5)).isFalse();
+        assertThat(fs.exists(f6)).isFalse();
+
+        newHarness0.close();
+        newHarness1.close();
     }
 
     private void runCompact(
