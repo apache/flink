@@ -2086,6 +2086,9 @@ under the License.
 						</goals>
 					</execution>
 				</executions>
+				<configuration>
+					<verbose>false</verbose>
+				</configuration>
 			</plugin>
 		</plugins>
 
