@@ -285,6 +285,11 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
                     }
                     e.stateVersion = stateMapVersion;
                     e.state = getStateSerializer().copy(e.state);
+                } else if (e.stateVersion < stateMapVersion) {
+                    // the entry state is going to be modified - advance its version so that it
+                    // will be snapshotted by the next incremental checkpoint after this
+                    // modification
+                    e.stateVersion = stateMapVersion;
                 }
 
                 return e.state;
