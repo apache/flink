@@ -989,7 +989,7 @@ class MyProcessWindowFunction(ProcessWindowFunction):
 
 `ProcessWindowFunction` 可以与 `ReduceFunction` 或 `AggregateFunction` 搭配使用，
 使其能够在数据到达窗口的时候进行增量聚合。当窗口关闭时，`ProcessWindowFunction` 将会得到聚合的结果。
-这样它就可以增量聚合窗口的元素并且从 ProcessWindowFunction` 中获得窗口的元数据。
+这样它就可以增量聚合窗口的元素并且从 `ProcessWindowFunction` 中获得窗口的元数据。
 
 你也可以对过时的 `WindowFunction` 使用增量聚合。
 
