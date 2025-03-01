@@ -80,7 +80,7 @@ jobs:
       # timeout in minutes - this environment variable is required by uploading_watchdog.sh
       GHA_JOB_TIMEOUT: 240
     outputs:
-      stringified-workflow-name: ${{ steps.workflow-prep-step.outputs.stringified-workflow-name }}
+      stringified-workflow-name: ${{ steps.workflow-prep-step.outputs.stringified_value }}
     steps:
       - name: "Flink Checkout"
         uses: actions/checkout@v4
@@ -96,15 +96,10 @@ jobs:
           target_directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
 
       - name: "Stringify workflow name"
+        uses: "./.github/actions/stringify"
         id: workflow-prep-step
-        run: |
-          # adds a stringified version of the workflow name that can be used for generating unique build artifact names within a composite workflow
-          # - replaces any special characters (except for underscores and dots) with dashes
-          # - makes the entire string lowercase
-          # - condenses multiple dashes into a single one
-          # - removes leading and following dashes
-          stringified_workflow_name=$(echo "${{ github.workflow }}-${{ inputs.workflow-caller-id }}" | tr -C '[:alnum:]._' '-' |  tr '[:upper:]' '[:lower:]' | sed -e 's/--*/-/g' -e 's/^-*//g' -e 's/-*$//g')
-          echo "stringified-workflow-name=${stringified_workflow_name}" >> $GITHUB_OUTPUT
+        with:
+          value: "${{ github.workflow }}-${{ inputs.workflow-caller-id }}"
 
       - name: "Compile Flink"
         uses: "./.github/actions/run_mvn"
@@ -122,7 +117,7 @@ jobs:
       - name: "Upload artifacts to make them available in downstream jobs"
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts-${{ steps.workflow-prep-step.outputs.stringified-workflow-name }}-${{ github.run_number }}
+          name: build-artifacts-${{ steps.workflow-prep-step.outputs.stringified_value }}-${{ github.run_number }}
           path: ${{ env.FLINK_ARTIFACT_DIR }}/${{ env.FLINK_ARTIFACT_FILENAME }}
           if-no-files-found: error
           # use minimum here because we only need these artifacts to speed up the build
