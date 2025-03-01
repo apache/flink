@@ -26,6 +26,7 @@ import org.apache.flink.api.connector.source.SupportsHandleExecutionAttemptSourc
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.PendingSplitsCheckpoint;
 import org.apache.flink.connector.file.src.assigners.FileSplitAssigner;
+import org.apache.flink.connector.file.src.assigners.FixedFileSplitAssigner;
 import org.apache.flink.connector.file.src.enumerate.DynamicFileEnumerator;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.connector.source.DynamicFilteringData;
@@ -129,7 +130,7 @@ public class DynamicFileSplitEnumerator<SplitT extends FileSourceSplit>
             LOG.debug("Subtask {} {} is requesting a file source split", subtask, hostInfo);
         }
 
-        final Optional<FileSourceSplit> nextSplit = getNextUnassignedSplit(hostname);
+        final Optional<FileSourceSplit> nextSplit = getNextUnassignedSplit(hostname, subtask);
         if (nextSplit.isPresent()) {
             final FileSourceSplit split = nextSplit.get();
             context.assignSplit((SplitT) split, subtask);
@@ -141,15 +142,15 @@ public class DynamicFileSplitEnumerator<SplitT extends FileSourceSplit>
         }
     }
 
-    private Optional<FileSourceSplit> getNextUnassignedSplit(String hostname) {
-        Optional<FileSourceSplit> nextSplit = splitAssigner.getNext(hostname);
+    private Optional<FileSourceSplit> getNextUnassignedSplit(String hostname, int subTaskId) {
+        Optional<FileSourceSplit> nextSplit = splitAssigner.getNext(hostname, subTaskId);
         while (nextSplit.isPresent()) {
             FileSourceSplit split = nextSplit.get();
             // ignore the split if it has been assigned
             if (!assignedSplits.contains(split.splitId())) {
                 return nextSplit;
             }
-            nextSplit = splitAssigner.getNext(hostname);
+            nextSplit = splitAssigner.getNext(hostname, subTaskId);
         }
         return nextSplit;
     }
@@ -178,6 +179,10 @@ public class DynamicFileSplitEnumerator<SplitT extends FileSourceSplit>
             throw new FlinkRuntimeException("Could not enumerate file splits", e);
         }
         splitAssigner = splitAssignerFactory.create(splits);
+        if (splitAssigner instanceof FixedFileSplitAssigner) {
+            ((FixedFileSplitAssigner) splitAssigner)
+                    .setTaskParallelism(context.currentParallelism());
+        }
     }
 
     @Override

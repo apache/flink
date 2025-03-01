@@ -21,6 +21,8 @@ package org.apache.flink.connector.file.src.assigners;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Optional;
@@ -41,7 +43,7 @@ public class SimpleSplitAssigner implements FileSplitAssigner {
     // ------------------------------------------------------------------------
 
     @Override
-    public Optional<FileSourceSplit> getNext(String hostname) {
+    public Optional<FileSourceSplit> getNext(String hostname, @Nullable Integer subTask) {
         final int size = splits.size();
         return size == 0 ? Optional.empty() : Optional.of(splits.remove(size - 1));
     }
