@@ -143,11 +143,27 @@ class TtlMapState<K, N, UK, UV>
         TypeSerializer<TtlValue<UV>> valueSerializer =
                 ((MapSerializer<UK, TtlValue<UV>>) original.getValueSerializer())
                         .getValueSerializer();
+        int firstExpireElementIndex = -1;
+        int i = 0;
         for (Map.Entry<UK, TtlValue<UV>> e : ttlValue.entrySet()) {
-            if (!expired(e.getValue())) {
+            if (expired(e.getValue())) {
+                firstExpireElementIndex = i;
+                break;
+            }
+            i++;
+        }
+        if (firstExpireElementIndex == -1) {
+            return ttlValue;
+        }
+
+        i = 0;
+        for (Map.Entry<UK, TtlValue<UV>> e : ttlValue.entrySet()) {
+            if (i < firstExpireElementIndex
+                    || (i > firstExpireElementIndex && !expired(e.getValue()))) {
                 // we have to do the defensive copy to update the value
                 unexpired.put(e.getKey(), valueSerializer.copy(e.getValue()));
             }
+            i++;
         }
         if (!unexpired.isEmpty()) {
             return unexpired;
