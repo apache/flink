@@ -38,7 +38,10 @@ import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
   styleUrls: ['./job-manager-thread-dump.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent],
-  standalone: true
+  standalone: true,
+  host: {
+    '[class.full-screen]': 'isFullScreen'
+  }
 })
 export class JobManagerThreadDumpComponent implements OnInit, OnDestroy {
   public readonly downloadName = `jobmanager_thread_dump`;
@@ -46,6 +49,7 @@ export class JobManagerThreadDumpComponent implements OnInit, OnDestroy {
   public editorOptions: EditorOptions;
   public dump = '';
   public loading = true;
+  public isFullScreen = false;
 
   private readonly destroy$ = new Subject<void>();
 
@@ -82,5 +86,9 @@ export class JobManagerThreadDumpComponent implements OnInit, OnDestroy {
         this.dump = data;
         this.cdr.markForCheck();
       });
+  }
+
+  public toggleFullScreen(fullScreen: boolean): void {
+    this.isFullScreen = fullScreen;
   }
 }
