@@ -2620,6 +2620,13 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     // non-constant bit length
     testAllApis("test".sha2('f44), "SHA2('test', f44)", expectedSha256)
 
+    testExpectedAllApisException(
+      "test".sha2(128),
+      "SHA2('test', 128)",
+      "Could not instantiate generated class",
+      classOf[RuntimeException]
+    )
+
     // null test
     testSqlApi("MD5(cast(null as varbinary))", "NULL")
     testSqlApi("SHA1(cast(null as varbinary))", "NULL")
