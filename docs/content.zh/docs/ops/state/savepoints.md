@@ -103,7 +103,7 @@ mapper-id   | State of StatefulMapper
 
 {{< hint warning >}}
 在如下两种情况中不支持 savepoint 目录的移动：1）如果启用了 *<a href="{{< ref "docs/deployment/filesystems/s3" >}}#entropy-injection-for-s3-file-systems">entropy injection</a>* ：这种情况下，savepoint 目录不包含所有的数据文件，因为注入的路径会分散在各个路径中。
-由于缺乏一个共同的根目录，因此 savepoint 将包含绝对路径，从而导致无法支持 savepoint 目录的迁移。2）作业包含了 task-owned state（比如 `GenericWriteAhreadLog` sink）。
+由于缺乏一个共同的根目录，因此 savepoint 将包含绝对路径，从而导致无法支持 savepoint 目录的迁移。2）作业包含了 task-owned state（比如 `GenericWriteAheadLog` sink）。
 {{< /hint >}}
 
 {{< hint warning >}}
