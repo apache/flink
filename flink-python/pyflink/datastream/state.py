@@ -235,7 +235,7 @@ class MapState(State, Generic[K, V]):
         pass
 
     @abstractmethod
-    def put_all(self, dict_value: Dict[K, V]) -> None:
+    def put_all(self, dict_value: Iterable[K, V]) -> None:
         """
         Copies all of the mappings from the given map into the state.
         """
