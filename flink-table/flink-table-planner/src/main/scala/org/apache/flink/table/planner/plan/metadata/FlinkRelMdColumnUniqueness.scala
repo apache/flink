@@ -436,6 +436,18 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = {
+    var (groups, aggStartPos) = FlinkRelMdUniqueKeys.INSTANCE.getGroupsAndStartPos(overAgg)
+    for (group <- groups) {
+      FlinkRelMdUniqueKeys.INSTANCE.getUniqueKeysOfWindowGroup(group, aggStartPos) match {
+        case Some(upsertKeys) =>
+          val isColumnsBelongsToRowNumber = upsertKeys.exists(columns.contains)
+          if (isColumnsBelongsToRowNumber) {
+            return true
+          }
+        case _ =>
+      }
+      aggStartPos = aggStartPos + group.aggCalls.length
+    }
     val input = overAgg.getInput
     val inputFieldLength = input.getRowType.getFieldCount
     val columnsBelongsToInput = ImmutableBitSet.of(columns.filter(_ < inputFieldLength).toList)
