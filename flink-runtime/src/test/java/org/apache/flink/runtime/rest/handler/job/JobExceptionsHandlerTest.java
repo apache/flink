@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -89,6 +90,29 @@ class JobExceptionsHandlerTest {
                     JobExceptionsHeaders.getInstance(),
                     new DefaultExecutionGraphCache(TestingUtils.TIMEOUT, TestingUtils.TIMEOUT),
                     Executors.directExecutor());
+
+    @Test
+    void testSingleMaxExceptionsParam() {
+        final ExecutionGraphInfo executionGraphInfo =
+                new ExecutionGraphInfo(new ArchivedExecutionGraphBuilder().build());
+
+        final Map<String, String> pathParameters = new HashMap<>();
+        pathParameters.put(JobIDPathParameter.KEY, executionGraphInfo.getJobId().toString());
+        final Map<String, List<String>> queryParameters = new HashMap<>();
+        // Multiple values should not be allowed
+        queryParameters.put(UpperLimitExceptionParameter.KEY, Arrays.asList("10", "20"));
+
+        CommonTestUtils.assertThrows(
+                "Cannot resolve query parameter (maxExceptions) from value \"10,20\".",
+                HandlerRequestException.class,
+                () ->
+                        HandlerRequest.resolveParametersAndCreate(
+                                EmptyRequestBody.getInstance(),
+                                new JobExceptionsMessageParameters(),
+                                pathParameters,
+                                queryParameters,
+                                Collections.emptyList()));
+    }
 
     @Test
     void testNoExceptions() throws HandlerRequestException {
