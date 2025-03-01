@@ -50,7 +50,7 @@ Next, [download the latest binary release]({{< downloads >}}) of Flink,
 then extract the archive: 
 
 ```bash
-$ tar -xzf flink-*.tgz
+$ tar -xzf flink-{{< param Version >}}-bin-scala{{< param ScalaVersion >}}.tgz
 ```
 
 ## Browsing the project directory
@@ -58,7 +58,7 @@ $ tar -xzf flink-*.tgz
 Navigate to the extracted directory and list the contents by issuing:
 
 ```bash
-$ cd flink-* && ls -l
+$ cd flink-{{< param Version >}} && ls -l
 ```
 
 You should see something like:
