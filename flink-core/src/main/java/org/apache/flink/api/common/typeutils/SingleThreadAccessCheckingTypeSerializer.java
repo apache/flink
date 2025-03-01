@@ -21,6 +21,7 @@ package org.apache.flink.api.common.typeutils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -28,6 +29,11 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * A wrapper serializer which checks the inner serializer is accessed by single thread.
+ *
+ * @param <T> The data type that the serializer serializes.
+ */
 @Internal
 public class SingleThreadAccessCheckingTypeSerializer<T> extends TypeSerializer<T> {
     private static final long serialVersionUID = 131020282727167064L;
@@ -37,7 +43,7 @@ public class SingleThreadAccessCheckingTypeSerializer<T> extends TypeSerializer<
 
     public SingleThreadAccessCheckingTypeSerializer(TypeSerializer<T> originalSerializer) {
         this.singleThreadAccessChecker = new SingleThreadAccessChecker();
-        this.originalSerializer = originalSerializer;
+        this.originalSerializer = Preconditions.checkNotNull(originalSerializer);
     }
 
     @Override
@@ -127,7 +133,9 @@ public class SingleThreadAccessCheckingTypeSerializer<T> extends TypeSerializer<
             return obj == this
                     || (obj != null
                             && obj.getClass() == getClass()
-                            && originalSerializer.equals(obj));
+                            && originalSerializer.equals(
+                                    ((SingleThreadAccessCheckingTypeSerializer<?>) obj)
+                                            .originalSerializer));
         }
     }
 
@@ -147,6 +155,7 @@ public class SingleThreadAccessCheckingTypeSerializer<T> extends TypeSerializer<
         }
     }
 
+    /** Configuration snapshot specific to the {@link SingleThreadAccessCheckingTypeSerializer}. */
     public static class SingleThreadAccessCheckingTypeSerializerSnapshot<T>
             extends CompositeTypeSerializerSnapshot<
                     T, SingleThreadAccessCheckingTypeSerializer<T>> {
