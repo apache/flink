@@ -63,7 +63,9 @@ public class RowTimeMiniBatchLatestChangeDeduplicateFunction
     }
 
     @Override
-    public RowData addInput(@Nullable RowData value, RowData input) throws Exception {
+    public RowData addInput(
+            RowData key, @Nullable RowData value, RowData input, Collector<RowData> out)
+            throws Exception {
         if (isDuplicate(value, input, rowtimeIndex, keepLastRow)) {
             return serializer.copy(input);
         }

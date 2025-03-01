@@ -47,7 +47,8 @@ public class ProcTimeMiniBatchDeduplicateKeepFirstRowFunction
     }
 
     @Override
-    public RowData addInput(@Nullable RowData value, RowData input) {
+    public RowData addInput(
+            RowData key, @Nullable RowData value, RowData input, Collector<RowData> out) {
         if (value == null) {
             // put the input into buffer
             return serializer.copy(input);
