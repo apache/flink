@@ -108,7 +108,14 @@ class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                                 "ELLO WORLDhello worl",
                                 DataTypes.STRING().notNull())
                         .testTableApiValidationError(
-                                callSql("UPPER(f1)"), "Invalid SQL expression: UPPER(f1)"));
+                                callSql("UPPER(f1)"), "Invalid SQL expression: UPPER(f1)"),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.NOT_EQUALS)
+                        .onFieldsWithData(12, "Hello world", false)
+                        .testResult(
+                                $("f0").isNotEqual(13),
+                                "f0 != 13",
+                                true,
+                                DataTypes.BOOLEAN().notNull()));
     }
 
     // --------------------------------------------------------------------------------------------
