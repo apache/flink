@@ -51,7 +51,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test the avro input format. (The testcase is mostly the getting started tutorial of avro)
- * http://avro.apache.org/docs/current/gettingstartedjava.html
+ * https://avro.apache.org/docs/++version++/getting-started-java/
  */
 class AvroSplittableInputFormatTest {
 
