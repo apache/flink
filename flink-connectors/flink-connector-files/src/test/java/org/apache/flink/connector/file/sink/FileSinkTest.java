@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link FileSink}. */
 public class FileSinkTest {
@@ -41,6 +41,6 @@ public class FileSinkTest {
                         .withRollingPolicy(new PartSizeAndCheckpointRollingPolicy<>(1024, true))
                         .build();
         sink.createWriter(ctx);
-        assertEquals(ctx.getTestProcessingTimeService().getNumActiveTimers(), 1);
+        assertThat(ctx.getTestProcessingTimeService().getNumActiveTimers()).isEqualTo(1);
     }
 }
