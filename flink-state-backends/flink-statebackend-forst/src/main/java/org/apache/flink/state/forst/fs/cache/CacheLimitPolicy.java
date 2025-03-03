@@ -22,6 +22,10 @@ import org.apache.flink.metrics.MetricGroup;
 
 /** Cache limit policy. */
 public interface CacheLimitPolicy {
+
+    /** Whether to support directly write in cache. */
+    boolean directWriteInCache();
+
     /**
      * Whether the cache usage is safe to add.
      *
@@ -33,10 +37,11 @@ public interface CacheLimitPolicy {
     /**
      * Whether the cache usage is exceeded the upperbound.
      *
-     * @param toAddSize
+     * @param toAddSize the size about to add.
+     * @param hasFile whether the file is already in cache.
      * @return true if the cache usage is overflow, false otherwise.
      */
-    boolean isOverflow(long toAddSize);
+    boolean isOverflow(long toAddSize, boolean hasFile);
 
     /**
      * Acquire cache.

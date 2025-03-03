@@ -72,7 +72,7 @@ public class ForStFlinkFileSystemTest {
                     {
                         new FileBasedCache(
                                 new Configuration(),
-                                new SizeBasedCacheLimitPolicy(1024 * 3),
+                                new SizeBasedCacheLimitPolicy(1024 * 3, 64 * 1024 * 1024),
                                 FileSystem.getLocalFileSystem(),
                                 new org.apache.flink.core.fs.Path(tempDir.toString() + "/cache"),
                                 null)
@@ -236,7 +236,7 @@ public class ForStFlinkFileSystemTest {
         BundledCacheLimitPolicy cacheLimitPolicy =
                 new BundledCacheLimitPolicy(
                         new SpaceBasedCacheLimitPolicy(new File(cachePath.toString()), 0, 0),
-                        new SizeBasedCacheLimitPolicy(250));
+                        new SizeBasedCacheLimitPolicy(250, 250));
         UnregisteredMetricsGroup metricsGroup =
                 new UnregisteredMetricsGroup() {
                     @Override
