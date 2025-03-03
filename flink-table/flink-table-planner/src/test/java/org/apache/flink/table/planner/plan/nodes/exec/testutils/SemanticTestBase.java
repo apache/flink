@@ -39,7 +39,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -131,22 +130,19 @@ public abstract class SemanticTestBase implements TableTestProgramRunner {
     }
 
     private static Map<String, String> createSourceOptions(String id) {
-        final Map<String, String> options = new HashMap<>();
-        options.put("connector", "values");
-        options.put("data-id", id);
-        options.put("runtime-source", "NewSource");
-        // Enforce per-record watermarks for testing
-        options.put("disable-lookup", "true");
-        options.put("enable-watermark-push-down", "true");
-        options.put("scan.watermark.emit.strategy", "on-event");
-        return options;
+        return Map.ofEntries(
+                Map.entry("connector", "values"),
+                Map.entry("data-id", id),
+                Map.entry("runtime-source", "NewSource"),
+                // Enforce per-record watermarks for testing
+                Map.entry("disable-lookup", "true"),
+                Map.entry("enable-watermark-push-down", "true"),
+                Map.entry("scan.watermark.emit.strategy", "on-event"));
     }
 
     private static Map<String, String> createSinkOptions() {
-        final Map<String, String> options = new HashMap<>();
-        options.put("connector", "values");
-        options.put("sink-insert-only", "false");
-        return options;
+        return Map.ofEntries(
+                Map.entry("connector", "values"), Map.entry("sink-insert-only", "false"));
     }
 
     private static List<String> getActualResults(SinkTestStep sinkTestStep, String tableName) {
