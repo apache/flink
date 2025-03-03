@@ -17,21 +17,31 @@
 
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.TaskExecutorsLoadInformation;
 import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan.SlotAssignment;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator.ExecutionSlotSharingGroup;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.Collection;
+import java.util.function.Supplier;
 
-/** Interface for assigning slots to slot sharing groups. */
-@Internal
-public interface SlotAssigner {
+/** The interface to define the methods for request slot matching strategy. */
+public interface RequestSlotMatchingStrategy {
 
-    Collection<SlotAssignment> assignSlots(
-            JobInformation jobInformation,
+    Supplier<FlinkRuntimeException> NO_SLOTS_EXCEPTION_GETTER =
+            () -> new FlinkRuntimeException("No suitable slots enough.");
+
+    /**
+     * Match slots from the free slots with the given collection of requests execution groups.
+     *
+     * @param requestGroups the requested execution slot sharing groups.
+     * @param freeSlots the free slots.
+     * @param taskExecutorsLoadInformation the task executors loading information.
+     * @return The assignment result.
+     */
+    Collection<SlotAssignment> matchRequestsWithSlots(
+            Collection<ExecutionSlotSharingGroup> requestGroups,
             Collection<PhysicalSlot> freeSlots,
-            VertexParallelism vertexParallelism,
-            TaskExecutorsLoadInformation taskExecutorsLoadInformation,
-            JobAllocationsInformation previousAllocations);
+            TaskExecutorsLoadInformation taskExecutorsLoadInformation);
 }

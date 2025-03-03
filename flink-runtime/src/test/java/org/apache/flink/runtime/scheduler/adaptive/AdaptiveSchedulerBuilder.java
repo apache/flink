@@ -19,6 +19,7 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateRecoveryOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
@@ -272,7 +273,9 @@ public class AdaptiveSchedulerBuilder {
                 slotAllocator == null
                         ? AdaptiveSchedulerFactory.createSlotSharingSlotAllocator(
                                 declarativeSlotPool,
-                                jobMasterConfiguration.get(StateRecoveryOptions.LOCAL_RECOVERY))
+                                jobMasterConfiguration.get(StateRecoveryOptions.LOCAL_RECOVERY),
+                                jobMasterConfiguration.get(
+                                        TaskManagerOptions.TASK_MANAGER_LOAD_BALANCE_MODE))
                         : slotAllocator,
                 executorService,
                 userCodeLoader,
