@@ -86,12 +86,10 @@ public class TestSourceFunction implements SourceFunction<RowData> {
             for (int i = 0; i < rowDataSize; i++) {
                 row.setField(i, list.get(i));
             }
+            ctx.collect(row);
+            index++;
             generator.onEvent(row, Long.MIN_VALUE, output);
             generator.onPeriodicEmit(output);
-
-            ctx.collect(row);
-
-            index++;
         }
         ctx.close();
     }
