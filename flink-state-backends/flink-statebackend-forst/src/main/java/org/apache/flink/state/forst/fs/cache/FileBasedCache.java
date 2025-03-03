@@ -196,7 +196,9 @@ public final class FileBasedCache extends DoubleListLru<String, FileCacheEntry>
                 path,
                 cachePath,
                 originalOutputStream,
-                cacheFs.create(cachePath, FileSystem.WriteMode.OVERWRITE),
+                cacheLimitPolicy.directWriteInCache()
+                        ? cacheFs.create(cachePath, FileSystem.WriteMode.OVERWRITE)
+                        : null,
                 this);
     }
 
@@ -290,7 +292,8 @@ public final class FileBasedCache extends DoubleListLru<String, FileCacheEntry>
     @Override
     void addedToFirst(FileCacheEntry value) {
         LOG.trace("Cache entry {} added to first link.", value.cachePath);
-        while (cacheLimitPolicy.isOverflow(value.entrySize)) {
+        while (cacheLimitPolicy.isOverflow(
+                value.entrySize, value.checkStatus(FileCacheEntry.EntryStatus.LOADED))) {
             moveMiddleFront();
         }
         cacheLimitPolicy.acquire(value.entrySize);
@@ -380,7 +383,9 @@ public final class FileBasedCache extends DoubleListLru<String, FileCacheEntry>
     @Override
     void promotedToFirst(FileCacheEntry value) {
         value.accessCountInColdLink = 0;
-        while (cacheLimitPolicy.isOverflow(value.entrySize)) {
+        // the loading has started, so we believe the entry has file. Even if it's not, won't cause
+        // anything here.
+        while (cacheLimitPolicy.isOverflow(value.entrySize, true)) {
             moveMiddleFront();
         }
         cacheLimitPolicy.acquire(value.entrySize);
