@@ -55,6 +55,8 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.state.forst.ForStConfigurableOptions.TARGET_FILE_SIZE_BASE;
+
 /**
  * A {@link FileSystem} delegates some requests to file system loaded by Flink FileSystem mechanism.
  *
@@ -67,8 +69,6 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
 
     // TODO: make it configurable
     private static final int DEFAULT_INPUT_STREAM_CAPACITY = 32;
-
-    private static final long SST_FILE_SIZE = 1024 * 1024 * 64;
 
     private final FileSystem localFS;
     private final FileSystem delegateFS;
@@ -127,20 +127,21 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
             return null;
         }
         CacheLimitPolicy cacheLimitPolicy = null;
+        long targetSstFileSize = config.get(TARGET_FILE_SIZE_BASE).getBytes();
         if (cacheCapacity > 0 && cacheReservedSize >= 0) {
             cacheLimitPolicy =
                     new BundledCacheLimitPolicy(
-                            new SizeBasedCacheLimitPolicy(cacheCapacity),
+                            new SizeBasedCacheLimitPolicy(cacheCapacity, targetSstFileSize),
                             new SpaceBasedCacheLimitPolicy(
                                     new File(cacheBase.toString()),
                                     cacheReservedSize,
-                                    SST_FILE_SIZE));
+                                    targetSstFileSize));
         } else if (cacheCapacity > 0) {
-            cacheLimitPolicy = new SizeBasedCacheLimitPolicy(cacheCapacity);
+            cacheLimitPolicy = new SizeBasedCacheLimitPolicy(cacheCapacity, targetSstFileSize);
         } else if (cacheReservedSize >= 0) {
             cacheLimitPolicy =
                     new SpaceBasedCacheLimitPolicy(
-                            new File(cacheBase.toString()), cacheReservedSize, SST_FILE_SIZE);
+                            new File(cacheBase.toString()), cacheReservedSize, targetSstFileSize);
         }
         return new FileBasedCache(
                 config, cacheLimitPolicy, cacheBase.getFileSystem(), cacheBase, metricGroup);
