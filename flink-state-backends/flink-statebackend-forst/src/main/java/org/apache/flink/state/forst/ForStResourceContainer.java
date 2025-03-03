@@ -91,9 +91,10 @@ public final class ForStResourceContainer implements AutoCloseable {
     @Nullable private final Path localForStPath;
 
     @Nullable private Path cacheBasePath;
-    private long cacheCapacity;
 
-    private long cacheReservedSize;
+    private final long cacheCapacity;
+
+    private final long cacheReservedSize;
 
     /** The configurations from file. */
     private final ReadableConfig configuration;

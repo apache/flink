@@ -117,7 +117,7 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
             long cacheReservedSize,
             MetricGroup metricGroup)
             throws IOException {
-        if (cacheBase == null || cacheCapacity <= 0 && cacheReservedSize <= 0) {
+        if (cacheBase == null || cacheCapacity <= 0 && cacheReservedSize < 0) {
             return null;
         }
         if (cacheBase.getFileSystem().equals(remoteForStPath.getFileSystem())) {
@@ -127,7 +127,7 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
             return null;
         }
         CacheLimitPolicy cacheLimitPolicy = null;
-        if (cacheCapacity > 0 && cacheReservedSize > 0) {
+        if (cacheCapacity > 0 && cacheReservedSize >= 0) {
             cacheLimitPolicy =
                     new BundledCacheLimitPolicy(
                             new SizeBasedCacheLimitPolicy(cacheCapacity),
@@ -137,7 +137,7 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
                                     SST_FILE_SIZE));
         } else if (cacheCapacity > 0) {
             cacheLimitPolicy = new SizeBasedCacheLimitPolicy(cacheCapacity);
-        } else if (cacheReservedSize > 0) {
+        } else if (cacheReservedSize >= 0) {
             cacheLimitPolicy =
                     new SpaceBasedCacheLimitPolicy(
                             new File(cacheBase.toString()), cacheReservedSize, SST_FILE_SIZE);

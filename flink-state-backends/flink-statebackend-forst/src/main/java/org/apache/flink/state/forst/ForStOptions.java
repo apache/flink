@@ -94,7 +94,7 @@ public class ForStOptions {
     public static final ConfigOption<MemorySize> CACHE_RESERVED_SIZE =
             ConfigOptions.key("state.backend.forst.cache.reserve-size")
                     .memoryType()
-                    .defaultValue(MemorySize.ZERO)
+                    .defaultValue(MemorySize.ofMebiBytes(256))
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -102,9 +102,10 @@ public class ForStOptions {
                                                     + "the cache will reserve the specified size of disk space. "
                                                     + "This option and the '%s' option can be set simultaneously, the "
                                                     + "smaller cache limit will be used as the upper limit. "
-                                                    + "The default value is '%s', meaning the cache will not reserve any disk space.",
+                                                    + "The default value is '%s', meaning the disk will be reserved that much "
+                                                    + "and remaining of which can be used for cache.",
                                             text(CACHE_SIZE_BASE_LIMIT.key()),
-                                            text(MemorySize.ZERO.toString()))
+                                            text(MemorySize.ofMebiBytes(256).toString()))
                                     .build());
 
     @Documentation.Section(Documentation.Sections.EXPERT_FORST)
