@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.eventtime;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.eventtime.WatermarkOutputMultiplexer.NoOpWatermarkUpdateListener;
 
 import java.util.stream.IntStream;
 
@@ -43,7 +44,9 @@ public final class IndexedCombinedWatermarkStatus {
         CombinedWatermarkStatus.PartialWatermark[] partialWatermarks =
                 IntStream.range(0, inputsCount)
                         .mapToObj(
-                                i -> new CombinedWatermarkStatus.PartialWatermark(watermark -> {}))
+                                i ->
+                                        new CombinedWatermarkStatus.PartialWatermark(
+                                                new NoOpWatermarkUpdateListener()))
                         .toArray(CombinedWatermarkStatus.PartialWatermark[]::new);
         CombinedWatermarkStatus combinedWatermarkStatus = new CombinedWatermarkStatus();
         for (CombinedWatermarkStatus.PartialWatermark partialWatermark : partialWatermarks) {
