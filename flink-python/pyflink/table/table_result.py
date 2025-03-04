@@ -23,6 +23,7 @@ from pyflink.common.types import RowKind
 from pyflink.common import Row
 from pyflink.common.job_client import JobClient
 from pyflink.java_gateway import get_gateway
+from pyflink.table.catalog import ResolvedSchema
 from pyflink.table.result_kind import ResultKind
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import _from_java_data_type
@@ -77,71 +78,32 @@ class TableResult(object):
 
     def get_table_schema(self) -> TableSchema:
         """
-        Get the schema of result.
+        Returns the schema of the result.
 
-        The schema of DDL, USE, EXPLAIN:
-        ::
-
-            +-------------+-------------+----------+
-            | column name | column type | comments |
-            +-------------+-------------+----------+
-            | result      | STRING      |          |
-            +-------------+-------------+----------+
-
-        The schema of SHOW:
-        ::
-
-            +---------------+-------------+----------+
-            |  column name  | column type | comments |
-            +---------------+-------------+----------+
-            | <object name> | STRING      |          |
-            +---------------+-------------+----------+
-            The column name of `SHOW CATALOGS` is "catalog name",
-            the column name of `SHOW DATABASES` is "database name",
-            the column name of `SHOW TABLES` is "table name",
-            the column name of `SHOW VIEWS` is "view name",
-            the column name of `SHOW FUNCTIONS` is "function name".
-
-        The schema of DESCRIBE:
-        ::
-
-            +------------------+-------------+-------------------------------------------------+
-            | column name      | column type |                 comments                        |
-            +------------------+-------------+-------------------------------------------------+
-            | name             | STRING      | field name                                      |
-            +------------------+-------------+-------------------------------------------------+
-            | type             | STRING      | field type expressed as a String                |
-            +------------------+-------------+-------------------------------------------------+
-            | null             | BOOLEAN     | field nullability: true if a field is nullable, |
-            |                  |             | else false                                      |
-            +------------------+-------------+-------------------------------------------------+
-            | key              | BOOLEAN     | key constraint: 'PRI' for primary keys,         |
-            |                  |             | 'UNQ' for unique keys, else null                |
-            +------------------+-------------+-------------------------------------------------+
-            | computed column  | STRING      | computed column: string expression              |
-            |                  |             | if a field is computed column, else null        |
-            +------------------+-------------+-------------------------------------------------+
-            | watermark        | STRING      | watermark: string expression if a field is      |
-            |                  |             | watermark, else null                            |
-            +------------------+-------------+-------------------------------------------------+
-
-        The schema of INSERT: (one column per one sink)
-        ::
-
-            +----------------------------+-------------+-----------------------+
-            | column name                | column type | comments              |
-            +----------------------------+-------------+-----------------------+
-            | (name of the insert table) | BIGINT      | the insert table name |
-            +----------------------------+-------------+-----------------------+
-
-        The schema of SELECT is the selected field names and types.
-
-        :return: The schema of result.
+        :return: The schema of the result.
         :rtype: pyflink.table.TableSchema
 
         .. versionadded:: 1.11.0
+        .. deprecated:: 2.1.0
+           This function has been deprecated as part of FLIP-164.
+           :class:`~pyflink.table.table_schema.TableSchema` has been replaced by two more
+           dedicated classes :class:`~pyflink.table.Schema` and
+           :class:`~pyflink.table.catalog.ResolvedSchema`. Use :class:`~pyflink.table.Schema` for
+           declaration in APIs. :class:`~pyflink.table.catalog.ResolvedSchema` is offered by the
+           framework after resolution and validation.
         """
         return TableSchema(j_table_schema=self._get_java_table_schema())
+
+    def get_resolved_schema(self) -> ResolvedSchema:
+        """
+        Returns the schema of the result.
+
+        :return: The schema of the result.
+        :rtype: pyflink.table.catalog.ResolvedSchema
+
+        .. versionadded:: 2.1.0
+        """
+        return ResolvedSchema(j_resolved_schema=self._j_table_result.getResolvedSchema())
 
     def get_result_kind(self) -> ResultKind:
         """

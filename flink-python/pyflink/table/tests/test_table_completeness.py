@@ -36,12 +36,7 @@ class TableAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
 
     @classmethod
     def excluded_methods(cls):
-        # getSchema method returns a TableSchema, the implementation of TableSchema requires a
-        # complete type system, which does not exist currently. It will be implemented after
-        # FLINK-12408 is merged. So we exclude this method for the time being.
-        # Also FLINK-25986 are excluded.
-        return {'createTemporalTableFunction', 'getQueryOperation', 'getResolvedSchema',
-                'printExplain'}
+        return {'createTemporalTableFunction', 'getQueryOperation', 'printExplain'}
 
     @classmethod
     def java_method_name(cls, python_method_name):

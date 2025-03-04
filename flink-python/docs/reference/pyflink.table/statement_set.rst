@@ -53,6 +53,7 @@ A :class:`~pyflink.table.TableResult` is the representation of the statement exe
     TableResult.get_job_client
     TableResult.wait
     TableResult.get_table_schema
+    TableResult.get_resolved_schema
     TableResult.get_result_kind
     TableResult.collect
     TableResult.print

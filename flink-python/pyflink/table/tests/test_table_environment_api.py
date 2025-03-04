@@ -168,7 +168,7 @@ class TableEnvironmentTest(PyFlinkUTTestCase):
             get_gateway().jvm.org.apache.flink.table.module.CoreModule.INSTANCE))
         table_result = t_env.execute_sql("select concat('unload', 'load') as test_module")
         self.assertEqual(table_result.get_result_kind(), ResultKind.SUCCESS_WITH_CONTENT)
-        self.assert_equals(table_result.get_table_schema().get_field_names(), ['test_module'])
+        self.assert_equals(table_result.get_resolved_schema().get_column_names(), ['test_module'])
 
     def test_create_and_drop_java_function(self):
         t_env = self.t_env
@@ -257,8 +257,9 @@ class TableEnvironmentTest(PyFlinkUTTestCase):
 
         table = self.t_env.from_descriptor(descriptor)
         self.assertEqual(schema,
-                         Schema(Schema.new_builder()._j_builder
-                                .fromResolvedSchema(table._j_table.getResolvedSchema()).build()))
+                         Schema.new_builder().from_resolved_schema(
+                             table.get_resolved_schema()
+                         ).build())
         contextResolvedTable = table._j_table.getQueryOperation().getContextResolvedTable()
         options = contextResolvedTable.getTable().getOptions()
         self.assertEqual("fake", options.get("connector"))
@@ -407,7 +408,7 @@ class DataStreamConversionTestCases(PyFlinkUTTestCase):
         self.assertEqual("""(
   `f0` RAW('[B', '...')
 )""",
-                         result._j_table_result.getResolvedSchema().toString())
+                         str(result.get_resolved_schema()))
         with result.collect() as result:
             collected_result = [str(item) for item in result]
             expected_result = [item for item
@@ -517,7 +518,7 @@ class DataStreamConversionTestCases(PyFlinkUTTestCase):
   `rowtime` TIMESTAMP_LTZ(3) *ROWTIME* METADATA,
   WATERMARK FOR `rowtime`: TIMESTAMP_LTZ(3) AS SOURCE_WATERMARK()
 )""",
-                         table._j_table.getResolvedSchema().toString())
+                         str(table.get_resolved_schema()))
         self.t_env.create_temporary_view("t",
                                          ds,
                                          Schema.new_builder()
