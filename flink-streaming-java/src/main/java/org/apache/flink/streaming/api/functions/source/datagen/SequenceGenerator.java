@@ -22,40 +22,64 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.guava31.com.google.common.collect.Queues;
+
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
+import java.util.NoSuchElementException;
+import java.util.Queue;
 
 /**
  * A stateful, re-scalable {@link DataGenerator} that emits each number from a given interval
  * exactly once, possibly in parallel.
+ *
+ * <p>It maintains a state internally to record the position of the current subtask sending
+ * sequence. When the task resumes, it will continue to send the sequence value according to the
+ * position sent by the state, until all the sequences have been sent.
+ *
+ * <p><b>IMPORTANT NOTE: </b> When the degree of parallelism increases, there may be cases where
+ * subtasks are running empty. When the degree of parallelism decreases, there may be cases where
+ * one subtask handles multiple states.
  */
 @Experimental
 public abstract class SequenceGenerator<T> implements DataGenerator<T> {
 
     private final long start;
     private final long end;
+    /**
+     * Save the intermediate state of the data to be sent by the current subtask, when the state
+     * restore, the sequence values continue to be sent based on the intermediate state.
+     */
+    private transient Queue<SubTaskState> subTaskStates;
 
-    private transient ListState<Long> checkpointedState;
-    protected transient Deque<Long> valuesToEmit;
+    private transient ListState<SubTaskState> checkpointedState;
 
     /**
      * Creates a DataGenerator that emits all numbers from the given interval exactly once.
      *
-     * @param start Start of the range of numbers to emit.
-     * @param end End of the range of numbers to emit.
+     * @param inclStart Start of the range of numbers to emit.
+     * @param inclEnd End of the range of numbers to emit.
      */
-    public SequenceGenerator(long start, long end) {
-        this.start = start;
-        this.end = end;
+    public SequenceGenerator(long inclStart, long inclEnd) {
+        Preconditions.checkArgument(
+                inclEnd > inclStart,
+                "The start value (%s) cannot be greater than the end value (%s).",
+                inclStart,
+                inclEnd);
+        Preconditions.checkArgument(
+                inclEnd - inclStart <= Long.MAX_VALUE - 1,
+                "The total size of range (%s, %s) exceeds the maximum limit: Long.MAX_VALUE - 1.",
+                inclStart,
+                inclEnd);
+        this.start = inclStart;
+        this.end = inclEnd;
     }
 
     @Override
@@ -66,33 +90,45 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
                 this.checkpointedState == null,
                 "The " + getClass().getSimpleName() + " has already been initialized.");
 
-        this.checkpointedState =
-                context.getOperatorStateStore()
-                        .getListState(
-                                new ListStateDescriptor<>(
-                                        name + "-sequence-state", LongSerializer.INSTANCE));
-        this.valuesToEmit = new ArrayDeque<>();
+        final ListStateDescriptor<SubTaskState> stateDescriptor =
+                new ListStateDescriptor<>(
+                        name + "-sequence-state", TypeInformation.of(SubTaskState.class));
+        this.checkpointedState = context.getOperatorStateStore().getListState(stateDescriptor);
+
+        this.subTaskStates = Queues.newPriorityQueue();
+
         if (context.isRestored()) {
-            // upon restoring
-
-            for (Long v : this.checkpointedState.get()) {
-                this.valuesToEmit.add(v);
-            }
+            checkpointedState.get().forEach(subTaskStates::offer);
         } else {
-            // the first time the job is executed
-            final int stepSize = runtimeContext.getTaskInfo().getNumberOfParallelSubtasks();
-            final int taskIdx = runtimeContext.getTaskInfo().getIndexOfThisSubtask();
-            final long congruence = start + taskIdx;
-
-            long totalNoOfElements = Math.abs(end - start + 1);
-            final int baseSize = safeDivide(totalNoOfElements, stepSize);
-            final int toCollect =
-                    (totalNoOfElements % stepSize > taskIdx) ? baseSize + 1 : baseSize;
-
-            for (long collected = 0; collected < toCollect; collected++) {
-                this.valuesToEmit.add(collected * stepSize + congruence);
-            }
+            // The first time the job is executed.
+            final int startOffset = runtimeContext.getTaskInfo().getIndexOfThisSubtask();
+            final long stepSize = runtimeContext.getTaskInfo().getNumberOfParallelSubtasks();
+            final SubTaskState state = new SubTaskState(stepSize, start + startOffset);
+            subTaskStates.offer(state);
         }
+    }
+
+    public Long nextValue() {
+        if (subTaskStates.isEmpty()) {
+            throw new NoSuchElementException(
+                    "SequenceGenerator.nextValue() was called with no remaining values.");
+        }
+
+        final SubTaskState state = subTaskStates.poll();
+        final long currentValue = state.nextValue;
+
+        try {
+            state.nextValue = Math.addExact(currentValue, state.stepSize);
+            // All sequence values are cleared from the state after they are sent.
+            if (state.nextValue <= this.end) {
+                subTaskStates.offer(state);
+            }
+        } catch (ArithmeticException e) {
+            // When it overflows, it means that all the data has been sent and needs to be
+            // cleared from the state.
+        }
+
+        return currentValue;
     }
 
     @Override
@@ -101,26 +137,20 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
                 this.checkpointedState != null,
                 "The " + getClass().getSimpleName() + " state has not been properly initialized.");
 
-        this.checkpointedState.update(new ArrayList<>(this.valuesToEmit));
+        this.checkpointedState.clear();
+        this.checkpointedState.update(new ArrayList<>(subTaskStates));
     }
 
     @Override
     public boolean hasNext() {
-        return !this.valuesToEmit.isEmpty();
-    }
-
-    private static int safeDivide(long left, long right) {
-        Preconditions.checkArgument(right > 0);
-        Preconditions.checkArgument(left >= 0);
-        Preconditions.checkArgument(left <= Integer.MAX_VALUE * right);
-        return (int) (left / right);
+        return !subTaskStates.isEmpty();
     }
 
     public static SequenceGenerator<Long> longGenerator(long start, long end) {
         return new SequenceGenerator<Long>(start, end) {
             @Override
             public Long next() {
-                return valuesToEmit.poll();
+                return nextValue();
             }
         };
     }
@@ -129,7 +159,7 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
         return new SequenceGenerator<Integer>(start, end) {
             @Override
             public Integer next() {
-                return valuesToEmit.poll().intValue();
+                return nextValue().intValue();
             }
         };
     }
@@ -138,7 +168,7 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
         return new SequenceGenerator<Short>(start, end) {
             @Override
             public Short next() {
-                return valuesToEmit.poll().shortValue();
+                return nextValue().shortValue();
             }
         };
     }
@@ -147,7 +177,7 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
         return new SequenceGenerator<Byte>(start, end) {
             @Override
             public Byte next() {
-                return valuesToEmit.poll().byteValue();
+                return nextValue().byteValue();
             }
         };
     }
@@ -156,7 +186,7 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
         return new SequenceGenerator<Float>(start, end) {
             @Override
             public Float next() {
-                return valuesToEmit.poll().floatValue();
+                return nextValue().floatValue();
             }
         };
     }
@@ -165,7 +195,7 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
         return new SequenceGenerator<Double>(start, end) {
             @Override
             public Double next() {
-                return valuesToEmit.poll().doubleValue();
+                return nextValue().doubleValue();
             }
         };
     }
@@ -176,8 +206,7 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
             @Override
             public BigDecimal next() {
                 BigDecimal decimal =
-                        new BigDecimal(
-                                valuesToEmit.poll().doubleValue(), new MathContext(precision));
+                        new BigDecimal(nextValue().doubleValue(), new MathContext(precision));
                 return decimal.setScale(scale, RoundingMode.DOWN);
             }
         };
@@ -187,8 +216,28 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
         return new SequenceGenerator<String>(start, end) {
             @Override
             public String next() {
-                return valuesToEmit.poll().toString();
+                return nextValue().toString();
             }
         };
+    }
+
+    /**
+     * The internal state of the sequence generator's subtask(s), which is used to record the latest
+     * state of the sequence value sent by the current sequence generator. When recovering from the
+     * state, it is guaranteed to continue sending the sequence value from the latest state.
+     */
+    private static class SubTaskState implements Comparable<SubTaskState> {
+        long stepSize;
+        long nextValue;
+
+        public SubTaskState(long stepSize, long nextValue) {
+            this.stepSize = stepSize;
+            this.nextValue = nextValue;
+        }
+
+        @Override
+        public int compareTo(SubTaskState subTaskState) {
+            return Long.compare(nextValue, subTaskState.nextValue);
+        }
     }
 }
