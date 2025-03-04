@@ -20,6 +20,7 @@ package org.apache.flink.streaming.examples.utils;
 
 import java.io.Serializable;
 import java.util.Iterator;
+import java.util.function.Supplier;
 
 import static java.util.Objects.requireNonNull;
 
@@ -38,12 +39,29 @@ public class ThrottledIterator<T> implements Iterator<T>, Serializable {
 
     private final long sleepBatchSize;
     private final long sleepBatchTime;
+    private final Supplier<Long> currentTimeSupplier;
+    private final SleepFunction sleepFunction;
 
     private long lastBatchCheckTime;
     private long num;
 
+    @FunctionalInterface
+    public interface SleepFunction extends Serializable {
+        void sleep(long millis) throws InterruptedException;
+    }
+
     public ThrottledIterator(Iterator<T> source, long elementsPerSecond) {
+        this(source, elementsPerSecond, System::currentTimeMillis, Thread::sleep);
+    }
+
+    public ThrottledIterator(
+            Iterator<T> source,
+            long elementsPerSecond,
+            Supplier<Long> currentTimeSupplier,
+            SleepFunction sleepFunction) {
         this.source = requireNonNull(source);
+        this.currentTimeSupplier = requireNonNull(currentTimeSupplier);
+        this.sleepFunction = requireNonNull(sleepFunction);
 
         if (!(source instanceof Serializable)) {
             throw new IllegalArgumentException("source must be java.io.Serializable");
@@ -75,20 +93,19 @@ public class ThrottledIterator<T> implements Iterator<T>, Serializable {
             if (++num >= sleepBatchSize) {
                 num = 0;
 
-                final long now = System.currentTimeMillis();
-                final long elapsed = now - lastBatchCheckTime;
+                final long elapsed = currentTimeSupplier.get() - lastBatchCheckTime;
                 if (elapsed < sleepBatchTime) {
                     try {
-                        Thread.sleep(sleepBatchTime - elapsed);
+                        sleepFunction.sleep(sleepBatchTime - elapsed);
                     } catch (InterruptedException e) {
                         // restore interrupt flag and proceed
                         Thread.currentThread().interrupt();
                     }
                 }
-                lastBatchCheckTime = now;
+                lastBatchCheckTime = currentTimeSupplier.get();
             }
         } else {
-            lastBatchCheckTime = System.currentTimeMillis();
+            lastBatchCheckTime = currentTimeSupplier.get();
         }
 
         return source.next();
