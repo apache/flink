@@ -19,9 +19,13 @@
 package org.apache.flink.runtime.state.metrics;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -33,33 +37,61 @@ import java.util.Map;
  * @param <UK> Type of the user entry key of state
  * @param <UV> Type of the user entry value of state
  */
-class LatencyTrackingMapState<K, N, UK, UV>
-        extends AbstractLatencyTrackState<
+class MetricsTrackingMapState<K, N, UK, UV>
+        extends AbstractMetricsTrackState<
                 K,
                 N,
                 Map<UK, UV>,
                 InternalMapState<K, N, UK, UV>,
-                LatencyTrackingMapState.MapStateLatencyMetrics>
+                MetricsTrackingMapState.MapStateMetrics>
         implements InternalMapState<K, N, UK, UV> {
-    LatencyTrackingMapState(
+
+    private TypeSerializer<UK> userKeySerializer;
+    private TypeSerializer<UV> userValueSerializer;
+
+    MetricsTrackingMapState(
             String stateName,
             InternalMapState<K, N, UK, UV> original,
-            LatencyTrackingStateConfig latencyTrackingStateConfig) {
+            KeyedStateBackend<K> keyedStateBackend,
+            LatencyTrackingStateConfig latencyTrackingStateConfig,
+            SizeTrackingStateConfig sizeTrackingStateConfig) {
         super(
                 original,
-                new MapStateLatencyMetrics(
-                        stateName,
-                        latencyTrackingStateConfig.getMetricGroup(),
-                        latencyTrackingStateConfig.getSampleInterval(),
-                        latencyTrackingStateConfig.getHistorySize(),
-                        latencyTrackingStateConfig.isStateNameAsVariable()));
+                keyedStateBackend,
+                latencyTrackingStateConfig.isEnabled()
+                        ? new MapStateMetrics(
+                                stateName,
+                                latencyTrackingStateConfig.getMetricGroup(),
+                                latencyTrackingStateConfig.getSampleInterval(),
+                                latencyTrackingStateConfig.getHistorySize(),
+                                latencyTrackingStateConfig.isStateNameAsVariable())
+                        : null,
+                sizeTrackingStateConfig.isEnabled()
+                        ? new MapStateMetrics(
+                                stateName,
+                                sizeTrackingStateConfig.getMetricGroup(),
+                                sizeTrackingStateConfig.getSampleInterval(),
+                                sizeTrackingStateConfig.getHistorySize(),
+                                sizeTrackingStateConfig.isStateNameAsVariable())
+                        : null);
+        if (valueSerializer != null) {
+            MapSerializer<UK, UV> castedMapSerializer = (MapSerializer<UK, UV>) valueSerializer;
+            userKeySerializer = castedMapSerializer.getKeySerializer();
+            userValueSerializer = castedMapSerializer.getValueSerializer();
+        }
     }
 
     @Override
     public UV get(UK key) throws Exception {
-        if (latencyTrackingStateMetric.trackLatencyOnGet()) {
+        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackLatencyOnGet()) {
+            sizeTrackingStateMetric.updateMetrics(
+                    MapStateMetrics.MAP_STATE_GET_KEY_SIZE, sizeOfKeyAndUserKey(key));
+            sizeTrackingStateMetric.updateMetrics(
+                    MapStateMetrics.MAP_STATE_GET_VALUE_SIZE, sizeOfUserValue(original.get(key)));
+        }
+        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackLatencyOnGet()) {
             return trackLatencyWithException(
-                    () -> original.get(key), MapStateLatencyMetrics.MAP_STATE_GET_LATENCY);
+                    () -> original.get(key), MapStateMetrics.MAP_STATE_GET_LATENCY);
         } else {
             return original.get(key);
         }
@@ -67,9 +99,15 @@ class LatencyTrackingMapState<K, N, UK, UV>
 
     @Override
     public void put(UK key, UV value) throws Exception {
-        if (latencyTrackingStateMetric.trackLatencyOnPut()) {
+        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackLatencyOnPut()) {
+            sizeTrackingStateMetric.updateMetrics(
+                    MapStateMetrics.MAP_STATE_PUT_KEY_SIZE, sizeOfKeyAndUserKey(key));
+            sizeTrackingStateMetric.updateMetrics(
+                    MapStateMetrics.MAP_STATE_PUT_VALUE_SIZE, sizeOfUserValue(value));
+        }
+        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackLatencyOnPut()) {
             trackLatencyWithException(
-                    () -> original.put(key, value), MapStateLatencyMetrics.MAP_STATE_PUT_LATENCY);
+                    () -> original.put(key, value), MapStateMetrics.MAP_STATE_PUT_LATENCY);
         } else {
             original.put(key, value);
         }
@@ -77,9 +115,21 @@ class LatencyTrackingMapState<K, N, UK, UV>
 
     @Override
     public void putAll(Map<UK, UV> map) throws Exception {
-        if (latencyTrackingStateMetric.trackLatencyOnPutAll()) {
+        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackLatencyOnPutAll()) {
+            for (Map.Entry<UK, UV> entry : map.entrySet()) {
+                sizeTrackingStateMetric.updateMetrics(
+                        MapStateMetrics.MAP_STATE_PUT_KEY_SIZE,
+                        sizeOfKeyAndUserKey(entry.getKey()));
+                sizeTrackingStateMetric.updateMetrics(
+                        MapStateMetrics.MAP_STATE_PUT_VALUE_SIZE,
+                        sizeOfUserValue(entry.getValue()));
+            }
+        }
+
+        if (latencyTrackingStateMetric != null
+                && latencyTrackingStateMetric.trackLatencyOnPutAll()) {
             trackLatencyWithException(
-                    () -> original.putAll(map), MapStateLatencyMetrics.MAP_STATE_PUT_ALL_LATENCY);
+                    () -> original.putAll(map), MapStateMetrics.MAP_STATE_PUT_ALL_LATENCY);
         } else {
             original.putAll(map);
         }
@@ -87,9 +137,10 @@ class LatencyTrackingMapState<K, N, UK, UV>
 
     @Override
     public void remove(UK key) throws Exception {
-        if (latencyTrackingStateMetric.trackLatencyOnRemove()) {
+        if (latencyTrackingStateMetric != null
+                && latencyTrackingStateMetric.trackLatencyOnRemove()) {
             trackLatencyWithException(
-                    () -> original.remove(key), MapStateLatencyMetrics.MAP_STATE_REMOVE_LATENCY);
+                    () -> original.remove(key), MapStateMetrics.MAP_STATE_REMOVE_LATENCY);
         } else {
             original.remove(key);
         }
@@ -97,10 +148,10 @@ class LatencyTrackingMapState<K, N, UK, UV>
 
     @Override
     public boolean contains(UK key) throws Exception {
-        if (latencyTrackingStateMetric.trackLatencyOnContains()) {
+        if (latencyTrackingStateMetric != null
+                && latencyTrackingStateMetric.trackLatencyOnContains()) {
             return trackLatencyWithException(
-                    () -> original.contains(key),
-                    MapStateLatencyMetrics.MAP_STATE_CONTAINS_LATENCY);
+                    () -> original.contains(key), MapStateMetrics.MAP_STATE_CONTAINS_LATENCY);
         } else {
             return original.contains(key);
         }
@@ -108,10 +159,11 @@ class LatencyTrackingMapState<K, N, UK, UV>
 
     @Override
     public Iterable<Map.Entry<UK, UV>> entries() throws Exception {
-        if (latencyTrackingStateMetric.trackLatencyOnEntriesInit()) {
+        if (latencyTrackingStateMetric != null
+                && latencyTrackingStateMetric.trackLatencyOnEntriesInit()) {
             return trackLatencyWithException(
                     () -> new IterableWrapper<>(original.entries()),
-                    MapStateLatencyMetrics.MAP_STATE_ENTRIES_INIT_LATENCY);
+                    MapStateMetrics.MAP_STATE_ENTRIES_INIT_LATENCY);
         } else {
             return new IterableWrapper<>(original.entries());
         }
@@ -119,10 +171,11 @@ class LatencyTrackingMapState<K, N, UK, UV>
 
     @Override
     public Iterable<UK> keys() throws Exception {
-        if (latencyTrackingStateMetric.trackLatencyOnKeysInit()) {
+        if (latencyTrackingStateMetric != null
+                && latencyTrackingStateMetric.trackLatencyOnKeysInit()) {
             return trackLatencyWithException(
                     () -> new IterableWrapper<>(original.keys()),
-                    MapStateLatencyMetrics.MAP_STATE_KEYS_INIT_LATENCY);
+                    MapStateMetrics.MAP_STATE_KEYS_INIT_LATENCY);
         } else {
             return new IterableWrapper<>(original.keys());
         }
@@ -130,10 +183,11 @@ class LatencyTrackingMapState<K, N, UK, UV>
 
     @Override
     public Iterable<UV> values() throws Exception {
-        if (latencyTrackingStateMetric.trackLatencyOnValuesInit()) {
+        if (latencyTrackingStateMetric != null
+                && latencyTrackingStateMetric.trackLatencyOnValuesInit()) {
             return trackLatencyWithException(
                     () -> new IterableWrapper<>(original.values()),
-                    MapStateLatencyMetrics.MAP_STATE_VALUES_INIT_LATENCY);
+                    MapStateMetrics.MAP_STATE_VALUES_INIT_LATENCY);
         } else {
             return new IterableWrapper<>(original.values());
         }
@@ -141,10 +195,11 @@ class LatencyTrackingMapState<K, N, UK, UV>
 
     @Override
     public Iterator<Map.Entry<UK, UV>> iterator() throws Exception {
-        if (latencyTrackingStateMetric.trackLatencyOnIteratorInit()) {
+        if (latencyTrackingStateMetric != null
+                && latencyTrackingStateMetric.trackLatencyOnIteratorInit()) {
             return trackLatencyWithException(
                     () -> new IteratorWrapper<>(original.iterator()),
-                    MapStateLatencyMetrics.MAP_STATE_ITERATOR_INIT_LATENCY);
+                    MapStateMetrics.MAP_STATE_ITERATOR_INIT_LATENCY);
         } else {
             return new IteratorWrapper<>(original.iterator());
         }
@@ -152,12 +207,51 @@ class LatencyTrackingMapState<K, N, UK, UV>
 
     @Override
     public boolean isEmpty() throws Exception {
-        if (latencyTrackingStateMetric.trackLatencyOnIsEmpty()) {
+        if (latencyTrackingStateMetric != null
+                && latencyTrackingStateMetric.trackLatencyOnIsEmpty()) {
             return trackLatencyWithException(
-                    () -> original.isEmpty(), MapStateLatencyMetrics.MAP_STATE_IS_EMPTY_LATENCY);
+                    () -> original.isEmpty(), MapStateMetrics.MAP_STATE_IS_EMPTY_LATENCY);
         } else {
             return original.isEmpty();
         }
+    }
+
+    protected long sizeOfKeyAndUserKey(UK userKey) throws IOException {
+
+        if (userKeySerializer == null || userKey == null) {
+            return super.sizeOfKey();
+        }
+        long userKeySize;
+        if (userKeySerializer.getLength() == -1) {
+            try {
+                userKeySerializer.serialize(userKey, outputSerializer);
+                userKeySize = outputSerializer.length();
+            } finally {
+                outputSerializer.clear();
+            }
+        } else {
+            userKeySize = userKeySerializer.getLength();
+        }
+
+        return super.sizeOfKey() + userKeySize;
+    }
+
+    protected long sizeOfUserValue(UV userValue) throws IOException {
+        if (userValueSerializer == null || userValue == null) {
+            return 0;
+        }
+        long userValueSize;
+        if (userValueSerializer.getLength() == -1) {
+            try {
+                userValueSerializer.serialize(userValue, outputSerializer);
+                userValueSize = outputSerializer.length();
+            } finally {
+                outputSerializer.clear();
+            }
+        } else {
+            userValueSize = userValueSerializer.getLength();
+        }
+        return userValueSize;
     }
 
     private class IterableWrapper<E> implements Iterable<E> {
@@ -182,10 +276,10 @@ class LatencyTrackingMapState<K, N, UK, UV>
 
         @Override
         public boolean hasNext() {
-            if (latencyTrackingStateMetric.trackLatencyOnIteratorHasNext()) {
+            if (latencyTrackingStateMetric != null
+                    && latencyTrackingStateMetric.trackLatencyOnIteratorHasNext()) {
                 return trackLatency(
-                        iterator::hasNext,
-                        MapStateLatencyMetrics.MAP_STATE_ITERATOR_HAS_NEXT_LATENCY);
+                        iterator::hasNext, MapStateMetrics.MAP_STATE_ITERATOR_HAS_NEXT_LATENCY);
             } else {
                 return iterator.hasNext();
             }
@@ -193,9 +287,10 @@ class LatencyTrackingMapState<K, N, UK, UV>
 
         @Override
         public E next() {
-            if (latencyTrackingStateMetric.trackLatencyOnIteratorNext()) {
+            if (latencyTrackingStateMetric != null
+                    && latencyTrackingStateMetric.trackLatencyOnIteratorNext()) {
                 return trackLatency(
-                        iterator::next, MapStateLatencyMetrics.MAP_STATE_ITERATOR_NEXT_LATENCY);
+                        iterator::next, MapStateMetrics.MAP_STATE_ITERATOR_NEXT_LATENCY);
             } else {
                 return iterator.next();
             }
@@ -203,16 +298,16 @@ class LatencyTrackingMapState<K, N, UK, UV>
 
         @Override
         public void remove() {
-            if (latencyTrackingStateMetric.trackLatencyOnIteratorRemove()) {
-                trackLatency(
-                        iterator::remove, MapStateLatencyMetrics.MAP_STATE_ITERATOR_REMOVE_LATENCY);
+            if (latencyTrackingStateMetric != null
+                    && latencyTrackingStateMetric.trackLatencyOnIteratorRemove()) {
+                trackLatency(iterator::remove, MapStateMetrics.MAP_STATE_ITERATOR_REMOVE_LATENCY);
             } else {
                 iterator.remove();
             }
         }
     }
 
-    static class MapStateLatencyMetrics extends StateLatencyMetricBase {
+    static class MapStateMetrics extends StateMetricBase {
         private static final String MAP_STATE_GET_LATENCY = "mapStateGetLatency";
         private static final String MAP_STATE_PUT_LATENCY = "mapStatePutLatency";
         private static final String MAP_STATE_PUT_ALL_LATENCY = "mapStatePutAllLatency";
@@ -228,6 +323,10 @@ class LatencyTrackingMapState<K, N, UK, UV>
         private static final String MAP_STATE_ITERATOR_NEXT_LATENCY = "mapStateIteratorNextLatency";
         private static final String MAP_STATE_ITERATOR_REMOVE_LATENCY =
                 "mapStateIteratorRemoveLatency";
+        private static final String MAP_STATE_GET_KEY_SIZE = "mapStateGetKeySize";
+        private static final String MAP_STATE_GET_VALUE_SIZE = "mapStateGetValueSize";
+        private static final String MAP_STATE_PUT_KEY_SIZE = "mapStatePutKeySize";
+        private static final String MAP_STATE_PUT_VALUE_SIZE = "mapStatePutValueSize";
 
         private int getCount = 0;
         private int iteratorRemoveCount = 0;
@@ -243,7 +342,7 @@ class LatencyTrackingMapState<K, N, UK, UV>
         private int iteratorHasNextCount = 0;
         private int iteratorNextCount = 0;
 
-        private MapStateLatencyMetrics(
+        private MapStateMetrics(
                 String stateName,
                 MetricGroup metricGroup,
                 int sampleInterval,
