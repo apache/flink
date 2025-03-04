@@ -23,6 +23,7 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.table.api.ValidationException;
@@ -75,6 +76,13 @@ public class DebeziumAvroFormatFactory
 
     public static final String IDENTIFIER = "debezium-avro-confluent";
 
+    public static final ConfigOption<Boolean> UPSERT_MODE =
+            ConfigOptions.key("upsert-mode")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Optional flag to specify run in upsert mode. In upsert mode the format will not produce UPDATE_BEFORE Rows from Debezium op='u' change events when deserializing.");
+
     @Override
     public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
@@ -82,6 +90,7 @@ public class DebeziumAvroFormatFactory
         FactoryUtil.validateFactoryOptions(this, formatOptions);
         String schemaRegistryURL = formatOptions.get(URL);
         String schema = formatOptions.getOptional(SCHEMA).orElse(null);
+        Boolean upsertMode = formatOptions.get(UPSERT_MODE);
         Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
 
         return new ProjectableDecodingFormat<DeserializationSchema<RowData>>() {
@@ -99,11 +108,19 @@ public class DebeziumAvroFormatFactory
                         producedTypeInfo,
                         schemaRegistryURL,
                         schema,
-                        optionalPropertiesMap);
+                        optionalPropertiesMap,
+                        upsertMode);
             }
 
             @Override
             public ChangelogMode getChangelogMode() {
+                if (upsertMode) {
+                    return ChangelogMode.newBuilder()
+                            .addContainedKind(RowKind.INSERT)
+                            .addContainedKind(RowKind.UPDATE_AFTER)
+                            .addContainedKind(RowKind.DELETE)
+                            .build();
+                }
                 return ChangelogMode.newBuilder()
                         .addContainedKind(RowKind.INSERT)
                         .addContainedKind(RowKind.UPDATE_BEFORE)
@@ -122,6 +139,7 @@ public class DebeziumAvroFormatFactory
         String schemaRegistryURL = formatOptions.get(URL);
         Optional<String> subject = formatOptions.getOptional(SUBJECT);
         String schema = formatOptions.getOptional(SCHEMA).orElse(null);
+        Boolean upsertMode = formatOptions.get(UPSERT_MODE);
         Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
 
         if (!subject.isPresent()) {
@@ -134,6 +152,13 @@ public class DebeziumAvroFormatFactory
         return new EncodingFormat<SerializationSchema<RowData>>() {
             @Override
             public ChangelogMode getChangelogMode() {
+                if (upsertMode) {
+                    return ChangelogMode.newBuilder()
+                            .addContainedKind(RowKind.INSERT)
+                            .addContainedKind(RowKind.UPDATE_AFTER)
+                            .addContainedKind(RowKind.DELETE)
+                            .build();
+                }
                 return ChangelogMode.newBuilder()
                         .addContainedKind(RowKind.INSERT)
                         .addContainedKind(RowKind.UPDATE_BEFORE)
@@ -178,6 +203,7 @@ public class DebeziumAvroFormatFactory
         options.add(BASIC_AUTH_USER_INFO);
         options.add(BEARER_AUTH_CREDENTIALS_SOURCE);
         options.add(BEARER_AUTH_TOKEN);
+        options.add(UPSERT_MODE);
         return options;
     }
 
