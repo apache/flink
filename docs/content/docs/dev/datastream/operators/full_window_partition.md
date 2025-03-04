@@ -98,7 +98,7 @@ An example is as follows:
 ```java
 DataStream<Tuple2<Integer, Integer>> dataStream = //...
 PartitionWindowedStream<Tuple2<Integer, Integer>> partitionWindowedDataStream = dataStream.fullWindowPartition();
-DataStream<Integer> resultStream = partitionWindowedDataStream.aggregate(new ReduceFunction<>{...});
+DataStream<Integer> resultStream = partitionWindowedDataStream.reduce(new ReduceFunction<>{...});
 ```
 
 {{< top >}}
