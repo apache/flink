@@ -25,10 +25,10 @@ import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenUtils, ProjectionCodeGenerator}
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList
-import org.apache.flink.table.planner.typeutils.RowTypeUtils
 import org.apache.flink.table.runtime.generated.GeneratedOperator
 import org.apache.flink.table.runtime.operators.TableStreamOperator
 import org.apache.flink.table.types.logical.RowType
+import org.apache.flink.table.typeutils.RowTypeUtils
 
 import org.apache.calcite.tools.RelBuilder
 
