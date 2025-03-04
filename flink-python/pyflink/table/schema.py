@@ -21,6 +21,7 @@ from pyflink.java_gateway import get_gateway
 from pyflink.table import Expression
 from pyflink.table.expression import _get_java_expression
 from pyflink.table.types import DataType, _to_java_data_type
+from pyflink.util.api_stability_decorators import PublicEvolving
 from pyflink.util.java_utils import to_jarray
 
 if TYPE_CHECKING:
@@ -31,6 +32,7 @@ if TYPE_CHECKING:
 __all__ = ['Schema']
 
 
+@PublicEvolving()
 class Schema(object):
     """
     Schema of a table or view.
@@ -67,6 +69,7 @@ class Schema(object):
     def __hash__(self):
         return self._j_schema.hashCode()
 
+    @PublicEvolving()
     class Builder(object):
         """
         A builder for constructing an immutable but still unresolved Schema.
