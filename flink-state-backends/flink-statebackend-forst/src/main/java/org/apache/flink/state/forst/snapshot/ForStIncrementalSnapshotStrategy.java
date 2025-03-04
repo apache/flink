@@ -136,19 +136,11 @@ public class ForStIncrementalSnapshotStrategy<K> extends ForStNativeFullSnapshot
             case FORWARD_BACKWARD:
                 // incremental checkpoint, use origin PreviousSnapshot
                 break;
+            case FORWARD:
             case NO_SHARING:
                 // savepoint, use empty PreviousSnapshot
                 snapshotResources.setPreviousSnapshot(EMPTY_PREVIOUS_SNAPSHOT);
                 break;
-            case FORWARD:
-                // Full checkpoint for IncrementalSnapshotStrategy is not supported, except for the
-                // first one.
-                if (snapshotResources.previousSnapshot.isEmpty()) {
-                    break;
-                } else {
-                    throw new IllegalArgumentException(
-                            "Triggering a full checkpoint for IncrementalSnapshotStrategy is not supported.");
-                }
             default:
                 throw new IllegalArgumentException(
                         String.format(
