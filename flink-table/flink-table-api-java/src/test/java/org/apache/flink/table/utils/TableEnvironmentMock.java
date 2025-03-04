@@ -28,6 +28,7 @@ import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.resource.ResourceManager;
 
 import java.net.URL;
+import java.util.Collections;
 
 /** Mocking {@link TableEnvironment} for tests. */
 public class TableEnvironmentMock extends TableEnvironmentImpl {
@@ -57,7 +58,8 @@ public class TableEnvironmentMock extends TableEnvironmentImpl {
                 executor,
                 functionCatalog,
                 planner,
-                isStreamingMode);
+                isStreamingMode,
+                Collections.emptyList());
         this.catalogManager = catalogManager;
         this.executor = executor;
         this.functionCatalog = functionCatalog;
