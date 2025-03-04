@@ -185,6 +185,14 @@ public interface StreamFormat<T> extends Serializable, ResultTypeQueryable<T> {
                     .withDescription(
                             "The approximate of bytes per fetch that is passed from the I/O thread to file reader.");
 
+    ConfigOption<Boolean> SKIP_MISSING_FILES =
+            ConfigOptions.key("source.file.skip.missing.files")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "The reader should skip missing input files during processing"
+                                    + " enabling the job to continue if encountered.");
+
     // ------------------------------------------------------------------------
 
     /** The actual reader that reads the records. */
