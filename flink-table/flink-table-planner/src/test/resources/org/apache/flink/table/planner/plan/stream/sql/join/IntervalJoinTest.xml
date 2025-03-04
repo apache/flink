@@ -61,6 +61,44 @@ Calc(select=[a])
 ]]>
     </Resource>
   </TestCase>
+	<TestCase name="testIntervalJoinToRegularJoin">
+		<Resource name="sql">
+			<![CDATA[
+SELECT t4.a FROM MyTable4 t4
+ JOIN MyTable5 t5
+ ON t4.a = t5.a
+ AND t4.rowtime BETWEEN t5.rowtime - INTERVAL '5' SECOND AND t5.rowtime + INTERVAL '5' SECOND
+      ]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0])
++- LogicalJoin(condition=[AND(=($0, $4), >=($3, -($7, 5000:INTERVAL SECOND)), <=($3, +($7, 5000:INTERVAL SECOND)))], joinType=[inner])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$3])
+   :  +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[TO_TIMESTAMP_LTZ($1, 3)])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable4]])
+   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$3])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[TO_TIMESTAMP_LTZ($1, 3)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable5]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[a])
++- Join(joinType=[InnerJoin], where=[((a = a0) AND (rowtime >= (rowtime0 - 5000:INTERVAL SECOND)) AND (rowtime <= (rowtime0 + 5000:INTERVAL SECOND)))], select=[a, rowtime, a0, rowtime0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, CAST(rowtime AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)) AS rowtime])
+   :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :        +- Calc(select=[a, TO_TIMESTAMP_LTZ(b, 3) AS rowtime])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, MyTable4, project=[a, b], metadata=[]]], fields=[a, b])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, CAST(rowtime AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)) AS rowtime])
+         +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+            +- Calc(select=[a, TO_TIMESTAMP_LTZ(b, 3) AS rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable5, project=[a, b], metadata=[]]], fields=[a, b])
+]]>
+		</Resource>
+	</TestCase>
   <TestCase name="testInteravalDiffTimeIndicator">
     <Resource name="sql">
       <![CDATA[

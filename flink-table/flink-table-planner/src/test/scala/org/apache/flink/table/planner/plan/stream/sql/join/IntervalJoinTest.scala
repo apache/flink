@@ -63,6 +63,19 @@ class IntervalJoinTest extends TableTestBase {
                               |  'bounded' = 'false'
                               |)
        """.stripMargin)
+  util.tableEnv.executeSql(s"""
+                              |CREATE TABLE MyTable5 (
+                              |  a int,
+                              |  b bigint,
+                              |  c string,
+                              |  rowtime as TO_TIMESTAMP_LTZ(b, 3),
+                              |  watermark for rowtime as rowtime
+                              |) WITH (
+                              |  'connector' = 'values',
+                              |  'bounded' = 'false',
+                              |  'changelog-mode'='I,UA,UB'
+                              |)
+       """.stripMargin)
 
   /** There should exist exactly two time conditions * */
   @Test
@@ -503,6 +516,20 @@ class IntervalJoinTest extends TableTestBase {
         |   GROUP BY t2.a
         |)
     """.stripMargin
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testIntervalJoinToRegularJoin(): Unit = {
+    // the following query would be translated into regular join instead of interval join because
+    // the right table (t5) contains updates and the time attributes of both sides are materialized.
+    val sql =
+      """
+        |SELECT t4.a FROM MyTable4 t4
+        | JOIN MyTable5 t5
+        | ON t4.a = t5.a
+        | AND t4.rowtime BETWEEN t5.rowtime - INTERVAL '5' SECOND AND t5.rowtime + INTERVAL '5' SECOND
+      """.stripMargin
     util.verifyExecPlan(sql)
   }
 
