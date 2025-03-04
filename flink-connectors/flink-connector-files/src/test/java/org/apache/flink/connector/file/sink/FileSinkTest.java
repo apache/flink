@@ -41,6 +41,6 @@ public class FileSinkTest {
                         .withRollingPolicy(new PartSizeAndCheckpointRollingPolicy<>(1024, true))
                         .build();
         sink.createWriter(ctx);
-        assertThat(ctx.getTestProcessingTimeService().getNumActiveTimers()).isEqualTo(1);
+        assertThat(ctx.getTestProcessingTimeService().getNumActiveTimers()).isOne();
     }
 }
