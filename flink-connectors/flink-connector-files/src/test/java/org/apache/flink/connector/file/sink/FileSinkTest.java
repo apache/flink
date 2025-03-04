@@ -30,7 +30,7 @@ import java.io.IOException;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link FileSink}. */
-public class FileSinkTest {
+class FileSinkTest {
 
     @Test
     public void testCreateFileWriterWithTimerRegistered() throws IOException {
