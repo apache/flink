@@ -56,7 +56,10 @@ public class ForStDBMapValueIterRequest<K, N, UK, UV> extends ForStDBIterRequest
             throws IOException {
         Collection<UV> deserializedEntries = new ArrayList<>(entries.size());
         for (RawEntry en : entries) {
-            deserializedEntries.add(deserializeUserValue(en.rawValueBytes));
+            UV userValue = deserializeUserValue(en.rawValueBytes);
+            if (userValue != null) {
+                deserializedEntries.add(userValue);
+            }
         }
         return deserializedEntries;
     }
