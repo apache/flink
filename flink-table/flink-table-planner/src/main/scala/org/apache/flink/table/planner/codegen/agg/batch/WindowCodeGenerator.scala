@@ -38,7 +38,6 @@ import org.apache.flink.table.planner.expressions.ExpressionBuilder._
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.planner.plan.utils.{AggregateInfo, AggregateInfoList, AggregateUtil}
-import org.apache.flink.table.planner.typeutils.RowTypeUtils
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 import org.apache.flink.table.runtime.operators.window.TimeWindow
@@ -46,6 +45,7 @@ import org.apache.flink.table.runtime.operators.window.grouping.{HeapWindowsGrou
 import org.apache.flink.table.runtime.util.RowIterator
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME
+import org.apache.flink.table.typeutils.RowTypeUtils
 import org.apache.flink.table.utils.DateTimeUtils
 
 import org.apache.calcite.rel.core.AggregateCall

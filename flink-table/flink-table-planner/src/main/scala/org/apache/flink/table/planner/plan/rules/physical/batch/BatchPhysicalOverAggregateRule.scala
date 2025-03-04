@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalOv
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, OverAggregateUtil, SortUtil}
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.flink.table.planner.utils.ShortcutUtils
+import org.apache.flink.table.typeutils.RowTypeUtils
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.plan.RelOptRule._
