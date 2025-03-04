@@ -59,10 +59,12 @@ public class ForStDBMapEntryIterRequest<K, N, UK, UV>
             List<RawEntry> entries, int userKeyOffset) throws IOException {
         Collection<Map.Entry<UK, UV>> deserializedEntries = new ArrayList<>(entries.size());
         for (RawEntry en : entries) {
-            deserializedEntries.add(
-                    new MapEntry<>(
-                            deserializeUserKey(en.rawKeyBytes, userKeyOffset),
-                            deserializeUserValue(en.rawValueBytes)));
+            // Since this value might be written from sync mode, the user value can be null.
+            UV userValue = deserializeUserValue(en.rawValueBytes);
+            if (userValue != null) {
+                UK userKey = deserializeUserKey(en.rawKeyBytes, userKeyOffset);
+                deserializedEntries.add(new MapEntry<>(userKey, userValue));
+            }
         }
         return deserializedEntries;
     }
