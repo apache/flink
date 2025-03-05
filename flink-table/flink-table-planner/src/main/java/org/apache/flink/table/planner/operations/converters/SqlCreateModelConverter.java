@@ -87,7 +87,7 @@ public class SqlCreateModelConverter implements SqlNodeConverter<SqlCreateModel>
                                 dataType,
                                 OperationConverterUtils.getComment(regularColumn)));
             } else {
-                throw new TableException("Column " + column + " can only be SqlRegularColumn");
+                throw new TableException("Column " + column + " can only be a physical column.");
             }
         }
         final Schema.Builder builder = Schema.newBuilder();
@@ -103,9 +103,7 @@ public class SqlCreateModelConverter implements SqlNodeConverter<SqlCreateModel>
                 .forEach(
                         p ->
                                 options.put(
-                                        ((SqlTableOption) Objects.requireNonNull(p))
-                                                .getKeyString()
-                                                .toUpperCase(),
+                                        ((SqlTableOption) Objects.requireNonNull(p)).getKeyString(),
                                         ((SqlTableOption) p).getValueString()));
         return options;
     }

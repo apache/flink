@@ -28,10 +28,9 @@ import org.apache.flink.table.operations.ddl.AlterModelChangeOperation;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.stream.Collectors;
 
 /** A converter for {@link org.apache.flink.sql.parser.ddl.SqlAlterModelSet}. */
 public class SqlAlterModelSetConverter extends AbstractSqlAlterModelConverter<SqlAlterModelSet> {
@@ -47,7 +46,7 @@ public class SqlAlterModelSetConverter extends AbstractSqlAlterModelConverter<Sq
         Map<String, String> changeModelOptions =
                 OperationConverterUtils.extractProperties(sqlAlterModelSet.getOptionList());
         if (changeModelOptions.isEmpty()) {
-            throw new ValidationException("ALTER MODEL SET does not support empty option");
+            throw new ValidationException("ALTER MODEL SET does not support empty option.");
         }
         List<ModelChange> modelChanges = new ArrayList<>();
         changeModelOptions.forEach((key, value) -> modelChanges.add(ModelChange.set(key, value)));
@@ -62,17 +61,8 @@ public class SqlAlterModelSetConverter extends AbstractSqlAlterModelConverter<Sq
                     sqlAlterModelSet.ifModelExists());
         }
 
-        Map<String, String> newOptions =
-                existingModel.getOptions().entrySet().stream()
-                        .collect(
-                                Collectors.toMap(
-                                        entry -> entry.getKey().toLowerCase(), Entry::getValue));
-        Map<String, String> lowercaseChangeModelOptions =
-                changeModelOptions.entrySet().stream()
-                        .collect(
-                                Collectors.toMap(
-                                        entry -> entry.getKey().toLowerCase(), Entry::getValue));
-        newOptions.putAll(lowercaseChangeModelOptions);
+        Map<String, String> newOptions = new HashMap<>(existingModel.getOptions());
+        newOptions.putAll(changeModelOptions);
 
         return new AlterModelChangeOperation(
                 context.getCatalogManager()
