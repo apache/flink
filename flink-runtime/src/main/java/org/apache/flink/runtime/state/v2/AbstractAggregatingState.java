@@ -100,7 +100,8 @@ public class AbstractAggregatingState<K, N, IN, ACC, OUT> extends AbstractKeyedS
         try {
             ACC newValue =
                     acc == null
-                            ? this.aggregateFunction.createAccumulator()
+                            ? this.aggregateFunction.add(
+                                    value, this.aggregateFunction.createAccumulator())
                             : this.aggregateFunction.add(value, acc);
             updateInternal(newValue);
         } catch (Exception e) {
