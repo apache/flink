@@ -101,6 +101,50 @@ class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
     }
 
     @Test
+    @SuppressWarnings({"unchecked"})
+    public void testAggregatingStateAddWithSyncAPI() {
+        AggregateFunction<Integer, Integer, Integer> aggregator = new SumAggregator(1);
+        AggregatingStateDescriptor<Integer, Integer, Integer> descriptor =
+                new AggregatingStateDescriptor<>(
+                        "testState", aggregator, BasicTypeInfo.INT_TYPE_INFO);
+        AsyncExecutionController<String> aec =
+                new AsyncExecutionController<>(
+                        new SyncMailboxExecutor(),
+                        (a, b) -> {},
+                        new AbstractAggregatingStateTest.AggregatingStateExecutor(),
+                        new DeclarationManager(),
+                        1,
+                        100,
+                        10000,
+                        1,
+                        null,
+                        null);
+        AbstractAggregatingState<String, String, Integer, Integer, Integer> aggregatingState =
+                new AbstractAggregatingState<>(aec, descriptor);
+        aec.setCurrentContext(aec.buildContext("test", "test"));
+        aec.setCurrentNamespaceForState(aggregatingState, "1");
+        aggregatingState.add(1);
+        assertThat(AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.size())
+                .isEqualTo(1);
+        assertThat(
+                        AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.get(
+                                Tuple2.of("test", "1")))
+                .isEqualTo(2);
+        aec.setCurrentNamespaceForState(aggregatingState, "2");
+        aggregatingState.add(2);
+        assertThat(AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.size())
+                .isEqualTo(2);
+        assertThat(
+                        AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.get(
+                                Tuple2.of("test", "1")))
+                .isEqualTo(2);
+        assertThat(
+                        AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.get(
+                                Tuple2.of("test", "2")))
+                .isEqualTo(3);
+    }
+
+    @Test
     public void testMergeNamespace() throws Exception {
         AggregateFunction<Integer, Integer, Integer> aggregator = new SumAggregator(0);
         AggregatingStateDescriptor<Integer, Integer, Integer> descriptor =
