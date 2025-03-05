@@ -53,7 +53,7 @@ public class SystemResourcesCounter extends Thread {
 
     private volatile boolean running = true;
 
-    private long[] previousCpuTicks;
+    private volatile long[] previousCpuTicks;
     private long[][] previousProcCpuTicks;
     private long[] bytesReceivedPerInterface;
     private long[] bytesSentPerInterface;
