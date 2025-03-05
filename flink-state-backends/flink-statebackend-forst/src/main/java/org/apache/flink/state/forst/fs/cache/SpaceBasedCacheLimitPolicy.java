@@ -67,6 +67,12 @@ public class SpaceBasedCacheLimitPolicy implements CacheLimitPolicy {
                 reservedSize);
     }
 
+    public static boolean worksOn(File instanceBasePath) {
+        // We could detect the free space of the instance base path to determine whether the cache
+        // limit policy works.
+        return instanceBasePath.getFreeSpace() > 0;
+    }
+
     private boolean isOverSpace(long toAddSize, long leftSpace) {
         return toAddSize > instanceBasePath.getFreeSpace() - leftSpace;
     }
