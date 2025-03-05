@@ -60,17 +60,17 @@ the disaggregated state. For more details, see [New State APIs]({{< ref "docs/de
  * **SQL Support**: Many SQL operators are rewritten to support the disaggregated state management
 and asynchronous state access. User can easily enable these by setting the configuration.
 
-{{ <hint info >}}
+{{< hint info >}}
 Disaggregated state and asynchronous state access are encouraged for large state. However, when
 the state size is small, the local state management with synchronous state access is a better
 choice.
-{{ </hint >}}
+{{< /hint >}}
 
-{{ <hint info >}}
+{{< hint warning >}}
 The disaggregated state management is still in experimental state. We are working on improving
 the performance and stability of this feature. The APIs and configurations may change in future
 release.
-{{ </hint >}}
+{{< /hint >}}
 
 ## Quick Start
 
@@ -190,4 +190,4 @@ Default is true. Setting this to false will raise the CPU usage.
  - `state.backend.forst.executor.inline-coordinator`: Whether to let task thread be the coordinator thread.
 Default is true. Setting this to false will raise the CPU usage.
 
-{{ <top> }}
+{{< top >}}
