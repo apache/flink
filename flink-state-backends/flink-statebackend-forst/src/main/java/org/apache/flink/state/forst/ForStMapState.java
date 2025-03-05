@@ -140,8 +140,8 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
     public UV deserializeValue(byte[] valueBytes) throws IOException {
         DataInputDeserializer inputView = valueDeserializerView.get();
         inputView.setBuffer(valueBytes);
-        inputView.readBoolean();
-        return userValueSerializer.deserialize(inputView);
+        boolean isNull = inputView.readBoolean();
+        return isNull ? null : userValueSerializer.deserialize(inputView);
     }
 
     public UK deserializeUserKey(byte[] userKeyBytes, int userKeyOffset) throws IOException {
