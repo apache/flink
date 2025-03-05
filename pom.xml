@@ -1397,7 +1397,7 @@ under the License.
 				</property>
 			</activation>
 			<properties>
-				<target.java.version>17</target.java.version>
+				<target.java.version>11</target.java.version>
 			</properties>
 			<build>
 				<plugins>
