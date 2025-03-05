@@ -26,7 +26,6 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.util.ImmutableNullableList;
 import org.apache.calcite.util.NlsString;
 
 import java.util.List;
@@ -52,12 +51,12 @@ public class SqlAlterModelReset extends SqlAlterModel {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(modelName, optionKeyList);
+        return List.of(modelName, optionKeyList);
     }
 
     public Set<String> getResetKeys() {
         return optionKeyList.getList().stream()
-                .map(key -> ((NlsString) SqlLiteral.value(key)).getValue().toUpperCase())
+                .map(key -> ((NlsString) SqlLiteral.value(key)).getValue())
                 .collect(Collectors.toSet());
     }
 

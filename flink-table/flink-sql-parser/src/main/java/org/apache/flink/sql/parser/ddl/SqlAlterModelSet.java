@@ -25,7 +25,6 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.util.ImmutableNullableList;
 
 import java.util.List;
 
@@ -55,7 +54,7 @@ public class SqlAlterModelSet extends SqlAlterModel {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(modelName, modelOptionList);
+        return List.of(modelName, modelOptionList);
     }
 
     @Override

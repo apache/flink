@@ -26,9 +26,9 @@ import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.AlterModelChangeOperation;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -44,15 +44,12 @@ public class SqlAlterModelResetConverter
                         sqlAlterModelReset.fullModelName(),
                         sqlAlterModelReset.ifModelExists());
 
-        Set<String> lowercaseResetKeys =
-                sqlAlterModelReset.getResetKeys().stream()
-                        .map(String::toLowerCase)
-                        .collect(Collectors.toSet());
-        if (lowercaseResetKeys.isEmpty()) {
-            throw new ValidationException("ALTER MODEL RESET does not support empty key");
+        Set<String> resetKeys = sqlAlterModelReset.getResetKeys();
+        if (resetKeys.isEmpty()) {
+            throw new ValidationException("ALTER MODEL RESET does not support empty key.");
         }
         List<ModelChange> modelChanges =
-                lowercaseResetKeys.stream().map(ModelChange::reset).collect(Collectors.toList());
+                resetKeys.stream().map(ModelChange::reset).collect(Collectors.toList());
 
         if (existingModel == null) {
             return new AlterModelChangeOperation(
@@ -64,12 +61,8 @@ public class SqlAlterModelResetConverter
                     sqlAlterModelReset.ifModelExists());
         }
 
-        Map<String, String> newOptions =
-                existingModel.getOptions().entrySet().stream()
-                        .collect(
-                                Collectors.toMap(
-                                        entry -> entry.getKey().toLowerCase(), Entry::getValue));
-        lowercaseResetKeys.forEach(newOptions::remove);
+        Map<String, String> newOptions = new HashMap<>(existingModel.getOptions());
+        resetKeys.forEach(newOptions::remove);
 
         return new AlterModelChangeOperation(
                 context.getCatalogManager()
