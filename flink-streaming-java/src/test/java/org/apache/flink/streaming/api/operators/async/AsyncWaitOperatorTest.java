@@ -907,6 +907,7 @@ class AsyncWaitOperatorTest {
             harness.processAll();
             assertThat(harness.getOutput()).containsOnly(new StreamRecord<>(1));
             assertThat(TimeoutAfterCompletionTestFunction.TIMED_OUT).isFalse();
+            harness.waitForTaskCompletion();
         }
     }
 
@@ -1246,6 +1247,7 @@ class AsyncWaitOperatorTest {
                         testHarness.getOutput(),
                         new StreamRecordComparator());
             }
+            testHarness.waitForTaskCompletion();
         }
     }
 
@@ -1318,6 +1320,7 @@ class AsyncWaitOperatorTest {
             // case when test machine under high load)
             assertThat(asyncFunction.getTryCount(1)).isLessThanOrEqualTo(2);
             assertThat(asyncFunction.getTryCount(2)).isLessThanOrEqualTo(2);
+            testHarness.waitForTaskCompletion();
         }
     }
 
