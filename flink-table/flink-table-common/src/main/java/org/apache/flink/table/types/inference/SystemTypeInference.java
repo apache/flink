@@ -28,13 +28,24 @@ import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.RowType.RowField;
+import org.apache.flink.table.types.logical.TimestampKind;
+import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
+import org.apache.flink.types.ColumnList;
 
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -57,7 +68,11 @@ import java.util.stream.Stream;
 public class SystemTypeInference {
 
     public static final List<StaticArgument> PROCESS_TABLE_FUNCTION_SYSTEM_ARGS =
-            List.of(StaticArgument.scalar("uid", DataTypes.STRING(), true));
+            List.of(
+                    StaticArgument.scalar("on_time", DataTypes.DESCRIPTOR(), true),
+                    StaticArgument.scalar("uid", DataTypes.STRING(), true));
+
+    public static final String PROCESS_TABLE_FUNCTION_RESULT_ROWTIME = "rowtime";
 
     /**
      * Format of unique identifiers for {@link ProcessTableFunction}.
@@ -129,10 +144,10 @@ public class SystemTypeInference {
     private static void checkReservedArgs(List<StaticArgument> staticArgs) {
         final Set<String> declaredArgs =
                 staticArgs.stream().map(StaticArgument::getName).collect(Collectors.toSet());
-        final Set<String> reservedArgs =
+        final List<String> reservedArgs =
                 PROCESS_TABLE_FUNCTION_SYSTEM_ARGS.stream()
                         .map(StaticArgument::getName)
-                        .collect(Collectors.toSet());
+                        .collect(Collectors.toList());
         if (reservedArgs.stream().anyMatch(declaredArgs::contains)) {
             throw new ValidationException(
                     "Function signature must not declare system arguments. "
@@ -177,15 +192,18 @@ public class SystemTypeInference {
         if (functionKind != FunctionKind.TABLE && functionKind != FunctionKind.PROCESS_TABLE) {
             return outputStrategy;
         }
-        return new SystemOutputStrategy(staticArgs, outputStrategy);
+        return new SystemOutputStrategy(functionKind, staticArgs, outputStrategy);
     }
 
     private static class SystemOutputStrategy implements TypeStrategy {
 
+        private final FunctionKind functionKind;
         private final List<StaticArgument> staticArgs;
         private final TypeStrategy origin;
 
-        private SystemOutputStrategy(List<StaticArgument> staticArgs, TypeStrategy origin) {
+        private SystemOutputStrategy(
+                FunctionKind functionKind, List<StaticArgument> staticArgs, TypeStrategy origin) {
+            this.functionKind = functionKind;
             this.staticArgs = staticArgs;
             this.origin = origin;
         }
@@ -208,6 +226,7 @@ public class SystemTypeInference {
                                 // this whole topic is kind of vendor specific already
                                 fields.addAll(derivePassThroughFields(callContext));
                                 fields.addAll(deriveFunctionOutputFields(functionDataType));
+                                fields.addAll(deriveRowtimeField(callContext));
 
                                 final List<Field> uniqueFields = makeFieldNamesUnique(fields);
 
@@ -233,7 +252,7 @@ public class SystemTypeInference {
         }
 
         private List<Field> derivePassThroughFields(CallContext callContext) {
-            if (staticArgs == null) {
+            if (functionKind != FunctionKind.PROCESS_TABLE) {
                 return List.of();
             }
             final List<DataType> argDataTypes = callContext.getArgumentDataTypes();
@@ -275,6 +294,149 @@ public class SystemTypeInference {
                     .mapToObj(pos -> DataTypes.FIELD(fieldNames.get(pos), fieldTypes.get(pos)))
                     .collect(Collectors.toList());
         }
+
+        private List<Field> deriveRowtimeField(CallContext callContext) {
+            if (this.functionKind != FunctionKind.PROCESS_TABLE) {
+                return List.of();
+            }
+            final List<DataType> args = callContext.getArgumentDataTypes();
+
+            // Check if on_time is defined and non-empty
+            final int onTimePos = args.size() - 2;
+            final Set<String> onTimeFields =
+                    callContext
+                            .getArgumentValue(onTimePos, ColumnList.class)
+                            .map(ColumnList::getNames)
+                            .map(Set::copyOf)
+                            .orElse(Set.of());
+
+            final Set<String> usedOnTimeFields = new HashSet<>();
+
+            final List<LogicalType> onTimeColumns =
+                    IntStream.range(0, staticArgs.size())
+                            .mapToObj(
+                                    pos -> {
+                                        final StaticArgument staticArg = staticArgs.get(pos);
+                                        if (!staticArg.is(StaticArgumentTrait.TABLE)) {
+                                            return null;
+                                        }
+                                        final RowType rowType =
+                                                (RowType) args.get(pos).getLogicalType();
+                                        final int onTimeColumn =
+                                                findUniqueOnTimeColumn(
+                                                        staticArg.getName(), rowType, onTimeFields);
+                                        if (onTimeColumn >= 0) {
+                                            usedOnTimeFields.add(
+                                                    rowType.getFieldNames().get(onTimeColumn));
+                                            return rowType.getTypeAt(onTimeColumn);
+                                        }
+                                        if (staticArg.is(StaticArgumentTrait.REQUIRE_ON_TIME)) {
+                                            throw new ValidationException(
+                                                    String.format(
+                                                            "Table argument '%s' requires a time attribute. "
+                                                                    + "Please provide one using the implicit `on_time` argument. "
+                                                                    + "For example: myFunction(..., on_time => DESCRIPTOR(`my_timestamp`)",
+                                                            staticArg.getName()));
+                                        }
+                                        return null;
+                                    })
+                            .filter(Objects::nonNull)
+                            .collect(Collectors.toList());
+
+            final Set<String> unusedOnTimeFields = new HashSet<>(onTimeFields);
+            unusedOnTimeFields.removeAll(usedOnTimeFields);
+            if (!unusedOnTimeFields.isEmpty()) {
+                throw new ValidationException(
+                        "Invalid time attribute declaration. "
+                                + "Each column in the `on_time` argument must reference at least one "
+                                + "column in one of the table arguments. Unknown references: "
+                                + unusedOnTimeFields);
+            }
+
+            if (onTimeColumns.isEmpty()) {
+                return List.of();
+            }
+
+            // Don't allow mixtures of time attribute roots
+            if (onTimeColumns.stream().map(LogicalType::getTypeRoot).distinct().count() > 1) {
+                throw new ValidationException(
+                        "Invalid time attribute declaration. "
+                                + "All columns in the `on_time` argument must reference the same data type kind.");
+            }
+
+            final LogicalType commonOnTimeType =
+                    LogicalTypeMerging.findCommonType(onTimeColumns)
+                            .orElseThrow(
+                                    () ->
+                                            new IllegalStateException(
+                                                    "Unable to derive data type for PTF result time attribute."));
+
+            final LogicalType resultTimestamp =
+                    forwardTimeAttribute(commonOnTimeType, onTimeColumns);
+
+            return List.of(
+                    DataTypes.FIELD(
+                            PROCESS_TABLE_FUNCTION_RESULT_ROWTIME, DataTypes.of(resultTimestamp)));
+        }
+
+        private static int findUniqueOnTimeColumn(
+                String tableArgName, RowType rowType, Set<String> onTimeFields) {
+            final List<RowField> fields = rowType.getFields();
+            int found = -1;
+            for (int pos = 0; pos < fields.size(); pos++) {
+                final RowField field = fields.get(pos);
+                if (!onTimeFields.contains(field.getName())) {
+                    continue;
+                }
+                if (found != -1) {
+                    throw new ValidationException(
+                            String.format(
+                                    "Ambiguous time attribute found. "
+                                            + "The `on_time` argument must reference at most one column in a table argument. "
+                                            + "Currently, the columns in `on_time` point to both '%s' and '%s' in table argument '%s'.",
+                                    fields.get(found).getName(), field.getName(), tableArgName));
+                }
+                found = pos;
+                if (isUnsupportedOnTimeColumn(field.getType())) {
+                    throw new ValidationException(
+                            String.format(
+                                    "Unsupported data type for time attribute. "
+                                            + "The `on_time` argument must reference a TIMESTAMP or TIMESTAMP_LTZ column (up to precision 3). "
+                                            + "However, column '%s' in table argument '%s' has data type '%s'.",
+                                    field.getName(),
+                                    tableArgName,
+                                    field.getType().asSummaryString()));
+                }
+            }
+            return found;
+        }
+
+        private static LogicalType forwardTimeAttribute(
+                LogicalType timestampType, List<LogicalType> onTimeColumns) {
+            if (onTimeColumns.stream().noneMatch(LogicalTypeChecks::isTimeAttribute)) {
+                return timestampType.copy(false);
+            }
+            switch (timestampType.getTypeRoot()) {
+                case TIMESTAMP_WITHOUT_TIME_ZONE:
+                    return new TimestampType(
+                            false,
+                            TimestampKind.ROWTIME,
+                            LogicalTypeChecks.getPrecision(timestampType));
+                case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                    return new LocalZonedTimestampType(
+                            false,
+                            TimestampKind.ROWTIME,
+                            LogicalTypeChecks.getPrecision(timestampType));
+                default:
+                    throw new IllegalStateException(
+                            "Timestamp type expected for PTF result time attribute.");
+            }
+        }
+
+        private static boolean isUnsupportedOnTimeColumn(LogicalType type) {
+            return !LogicalTypeChecks.canBeTimeAttributeType(type)
+                    || LogicalTypeChecks.getPrecision(type) > 3;
+        }
     }
 
     private static class SystemInputStrategy implements InputTypeStrategy {
@@ -312,8 +474,8 @@ public class SystemTypeInference {
                                 + "that is not overloaded and doesn't contain varargs.");
             }
 
-            checkUidArg(callContext);
             checkTableArgTraits(staticArgs, callContext);
+            checkUidArg(callContext);
 
             return Optional.of(inferredDataTypes);
         }
@@ -329,7 +491,7 @@ public class SystemTypeInference {
             final List<DataType> args = callContext.getArgumentDataTypes();
 
             // Verify the uid format if provided
-            int uidPos = args.size() - 1;
+            final int uidPos = args.size() - 1;
             if (!callContext.isArgumentNull(uidPos)) {
                 final String uid = callContext.getArgumentValue(uidPos, String.class).orElse("");
                 if (isInvalidUidForProcessTableFunction(uid)) {

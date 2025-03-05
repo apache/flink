@@ -18,30 +18,20 @@
 
 package org.apache.flink.table.runtime.operators.process;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.utils.JoinedRowData;
-import org.apache.flink.table.types.inference.SystemTypeInference;
 
-/** Forwards all input columns in sync with the output strategy of {@link SystemTypeInference}. */
+/** Forwards all columns of the given row. */
+@Internal
 public class PassAllCollector extends PassThroughCollectorBase {
-
-    private final JoinedRowData joinedRowData;
-    private RowData inputRow;
 
     public PassAllCollector(Output<StreamRecord<RowData>> output) {
         super(output);
-        joinedRowData = new JoinedRowData();
     }
 
-    void setInput(RowData input) {
-        inputRow = input;
-    }
-
-    @Override
-    public void collect(RowData functionOutput) {
-        joinedRowData.replace(inputRow, functionOutput);
-        super.collect(joinedRowData);
+    public void setPrefix(RowData input) {
+        prefix = input;
     }
 }

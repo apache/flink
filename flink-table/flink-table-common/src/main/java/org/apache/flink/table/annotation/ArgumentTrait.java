@@ -20,6 +20,7 @@ package org.apache.flink.table.annotation;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.functions.ProcessTableFunction;
+import org.apache.flink.table.functions.ProcessTableFunction.TimeContext;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.types.RowKind;
 
@@ -90,7 +91,7 @@ public enum ArgumentTrait {
      * PARTITION BY clause are passed through.
      *
      * <p>Given a table t (containing columns k and v), and a PTF f() (producing columns c1 and c2),
-     * the output of a {@code SELECT * FROM f(tableArg => TABLE t PARTITION BY k)} uses the
+     * the output of a {@code SELECT * FROM f(table_arg => TABLE t PARTITION BY k)} uses the
      * following order:
      *
      * <pre>
@@ -100,6 +101,8 @@ public enum ArgumentTrait {
      *
      * <p>In case of multiple table arguments, pass-through columns are added according to the
      * declaration order in the PTF signature.
+     *
+     * <p>Timers are not available when pass-through columns are enabled.
      *
      * <p>Note: This trait is valid for {@link #TABLE_AS_ROW} and {@link #TABLE_AS_SET} arguments.
      */
@@ -118,7 +121,7 @@ public enum ArgumentTrait {
      *     WITH UpdatingTable AS (
      *       SELECT COUNT(*) FROM (VALUES 1, 2, 3)
      *     )
-     *     SELECT * FROM f(tableArg => TABLE UpdatingTable)
+     *     SELECT * FROM f(table_arg => TABLE UpdatingTable)
      * </pre>
      *
      * <p>If updates should be supported, ensure that the data type of the table argument is chosen
@@ -130,9 +133,38 @@ public enum ArgumentTrait {
      * streaming mode, results should be emitted based on watermarks and event-time. The trait
      * {@link #PASS_COLUMNS_THROUGH} is not supported if this trait is declared.
      *
+     * <p>Timers are not available when updates are enabled.
+     *
      * <p>Note: This trait is valid for {@link #TABLE_AS_ROW} and {@link #TABLE_AS_SET} arguments.
      */
-    SUPPORT_UPDATES(false, StaticArgumentTrait.SUPPORT_UPDATES);
+    SUPPORT_UPDATES(false, StaticArgumentTrait.SUPPORT_UPDATES),
+
+    /**
+     * Defines that an {@code on_time} argument must be provided, referencing a watermarked
+     * timestamp column in the given table.
+     *
+     * <p>The {@code on_time} argument indicates which column provides the event-time timestamp. In
+     * other words, it specifies the column that defines the timestamp for when a row was generated.
+     * This timestamp is used within the PTF for timers and time-based operations when the watermark
+     * progresses the logical clock.
+     *
+     * <p>By default, the {@code on_time} argument is optional. If no timestamp column is set for
+     * the PTF, the {@link TimeContext#time()} will return null. If the {@code on_time} argument is
+     * provided, {@link TimeContext#time()} will return it and the PTF will return a {@code rowtime}
+     * column in the output, allowing subsequent operations to access and propagate the resulting
+     * event-time timestamp.
+     *
+     * <p>For example:
+     *
+     * <pre>
+     *     CREATE TABLE t (v STRING, ts TIMESTAMP_LTZ(3), WATERMARK FOR ts AS ts - INTERVAL '2' SECONDS);
+     *
+     *     SELECT v, rowtime FROM f(table_arg => TABLE t, on_time => DESCRIPTOR(ts));
+     * </pre>
+     *
+     * <p>Note: This trait is valid for {@link #TABLE_AS_ROW} and {@link #TABLE_AS_SET} arguments.
+     */
+    REQUIRE_ON_TIME(false, StaticArgumentTrait.REQUIRE_ON_TIME);
 
     private final boolean isRoot;
     private final StaticArgumentTrait staticTrait;

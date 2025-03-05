@@ -23,12 +23,12 @@ limitations under the License.
     <Resource name="ast">
       <![CDATA[
 LogicalProject(out=[$0])
-+- LogicalTableFunctionScan(invocation=[f(DESCRIPTOR(_UTF-16LE'a'), DESCRIPTOR(_UTF-16LE'b', _UTF-16LE'c'), DESCRIPTOR(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
++- LogicalTableFunctionScan(invocation=[f(DESCRIPTOR(_UTF-16LE'a'), DESCRIPTOR(_UTF-16LE'b', _UTF-16LE'c'), DESCRIPTOR(), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ProcessTableFunction(invocation=[f(DESCRIPTOR(_UTF-16LE'a'), DESCRIPTOR(_UTF-16LE'b', _UTF-16LE'c'), DESCRIPTOR(), DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
+ProcessTableFunction(invocation=[f(DESCRIPTOR(_UTF-16LE'a'), DESCRIPTOR(_UTF-16LE'b', _UTF-16LE'c'), DESCRIPTOR(), DEFAULT(), DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
 +- Values(tuples=[[{  }]])
 ]]>
     </Resource>
@@ -40,7 +40,7 @@ ProcessTableFunction(invocation=[f(DESCRIPTOR(_UTF-16LE'a'), DESCRIPTOR(_UTF-16L
     <Resource name="ast">
       <![CDATA[
 LogicalProject(score=[$0], out=[$1])
-+- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($1), 1, DEFAULT())], rowType=[RecordType(INTEGER score, VARCHAR(2147483647) out)])
++- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($1), 1, DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER score, VARCHAR(2147483647) out)])
    +- LogicalProject(name=[$0], score=[$1])
       +- LogicalProject(name=[$0], score=[$1])
          +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
@@ -48,7 +48,7 @@ LogicalProject(score=[$0], out=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($1), 1, DEFAULT())], uid=[f], select=[score,out], rowType=[RecordType(INTEGER score, VARCHAR(2147483647) out)])
+ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($1), 1, DEFAULT(), DEFAULT())], uid=[f], select=[score,out], rowType=[RecordType(INTEGER score, VARCHAR(2147483647) out)])
 +- Exchange(distribution=[hash[score]])
    +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
 ]]>
@@ -61,13 +61,34 @@ ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($1), 1, DEFAULT())], u
     <Resource name="ast">
       <![CDATA[
 LogicalProject(out=[$0])
-+- LogicalTableFunctionScan(invocation=[f(_UTF-16LE'my-ptf')], rowType=[RecordType(VARCHAR(2147483647) out)])
++- LogicalTableFunctionScan(invocation=[f(DEFAULT(), _UTF-16LE'my-ptf')], rowType=[RecordType(VARCHAR(2147483647) out)])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ProcessTableFunction(invocation=[f(_UTF-16LE'my-ptf')], uid=[my-ptf], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
+ProcessTableFunction(invocation=[f(DEFAULT(), _UTF-16LE'my-ptf')], uid=[my-ptf], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
 +- Values(tuples=[[{  }]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOnTime">
+    <Resource name="sql">
+      <![CDATA[SELECT `out`, `rowtime` FROM f(r => TABLE t_watermarked, on_time => DESCRIPTOR(ts))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(out=[$0], rowtime=[$1])
++- LogicalTableFunctionScan(invocation=[f(TABLE(#0), DESCRIPTOR(_UTF-16LE'ts'), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out, TIMESTAMP_LTZ(3) *ROWTIME* rowtime)])
+   +- LogicalProject(name=[$0], score=[$1], ts=[$2])
+      +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, t_watermarked]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[f(TABLE(#0), DESCRIPTOR(_UTF-16LE'ts'), DEFAULT())], uid=[null], select=[out,rowtime], rowType=[RecordType(VARCHAR(2147483647) out, TIMESTAMP_LTZ(3) *ROWTIME* rowtime)])
++- WatermarkAssigner(rowtime=[ts], watermark=[ts])
+   +- TableSourceScan(table=[[default_catalog, default_database, t_watermarked]], fields=[name, score, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -78,12 +99,12 @@ ProcessTableFunction(invocation=[f(_UTF-16LE'my-ptf')], uid=[my-ptf], select=[ou
     <Resource name="ast">
       <![CDATA[
 LogicalProject(out=[$0])
-+- LogicalTableFunctionScan(invocation=[f(1, true, DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
++- LogicalTableFunctionScan(invocation=[f(1, true, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ProcessTableFunction(invocation=[f(1, true, DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
+ProcessTableFunction(invocation=[f(1, true, DEFAULT(), DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
 +- Values(tuples=[[{  }]])
 ]]>
     </Resource>
@@ -93,14 +114,14 @@ ProcessTableFunction(invocation=[f(1, true, DEFAULT())], uid=[null], select=[out
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
 +- LogicalProject(name=[$0], out=[$1])
-   +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, _UTF-16LE'a')], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
+   +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'a')], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
       +- LogicalProject(name=[$0], score=[$1])
          +- LogicalProject(name=[$0], score=[$1])
             +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
 
 LogicalSink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
 +- LogicalProject(name=[$0], out=[$1])
-   +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, _UTF-16LE'b')], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
+   +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'b')], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
       +- LogicalProject(name=[$0], score=[$1])
          +- LogicalProject(name=[$0], score=[$1])
             +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
@@ -112,11 +133,11 @@ Exchange(distribution=[hash[name]])(reuse_id=[1])
 +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
 
 Sink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
-+- ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, _UTF-16LE'a')], uid=[a], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
++- ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'a')], uid=[a], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
    +- Reused(reference_id=[1])
 
 Sink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
-+- ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, _UTF-16LE'b')], uid=[b], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
++- ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'b')], uid=[b], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -128,12 +149,12 @@ Sink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(out=[$0])
-+- LogicalTableFunctionScan(invocation=[f(1, true, _UTF-16LE'my-uid')], rowType=[RecordType(VARCHAR(2147483647) out)])
++- LogicalTableFunctionScan(invocation=[f(1, true, DEFAULT(), _UTF-16LE'my-uid')], rowType=[RecordType(VARCHAR(2147483647) out)])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ProcessTableFunction(invocation=[f(1, true, _UTF-16LE'my-uid')], uid=[my-uid], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
+ProcessTableFunction(invocation=[f(1, true, DEFAULT(), _UTF-16LE'my-uid')], uid=[my-uid], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
 +- Values(tuples=[[{  }]])
 ]]>
     </Resource>
@@ -143,14 +164,14 @@ ProcessTableFunction(invocation=[f(1, true, _UTF-16LE'my-uid')], uid=[my-uid], s
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.t_sink], fields=[out])
 +- LogicalProject(out=[$0])
-   +- LogicalTableFunctionScan(invocation=[f(TABLE(#0), 1, DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
+   +- LogicalTableFunctionScan(invocation=[f(TABLE(#0), 1, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
       +- LogicalProject(name=[$0], score=[$1])
          +- LogicalProject(name=[$0], score=[$1])
             +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
 
 LogicalSink(table=[default_catalog.default_database.t_sink], fields=[out])
 +- LogicalProject(out=[$0])
-   +- LogicalTableFunctionScan(invocation=[f(TABLE(#0), 42, DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
+   +- LogicalTableFunctionScan(invocation=[f(TABLE(#0), 42, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
       +- LogicalProject(name=[$0], score=[$1])
          +- LogicalProject(name=[$0], score=[$1])
             +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
@@ -161,11 +182,11 @@ LogicalSink(table=[default_catalog.default_database.t_sink], fields=[out])
 Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])(reuse_id=[1])
 
 Sink(table=[default_catalog.default_database.t_sink], fields=[out])
-+- ProcessTableFunction(invocation=[f(TABLE(#0), 1, DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
++- ProcessTableFunction(invocation=[f(TABLE(#0), 1, DEFAULT(), DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
    +- Reused(reference_id=[1])
 
 Sink(table=[default_catalog.default_database.t_sink], fields=[out])
-+- ProcessTableFunction(invocation=[f(TABLE(#0), 42, DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
++- ProcessTableFunction(invocation=[f(TABLE(#0), 42, DEFAULT(), DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -177,7 +198,7 @@ Sink(table=[default_catalog.default_database.t_sink], fields=[out])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(name=[$0], score=[$1], out=[$2])
-+- LogicalTableFunctionScan(invocation=[f(TABLE(#0), 1, DEFAULT())], rowType=[RecordType(VARCHAR(5) name, INTEGER score, VARCHAR(2147483647) out)])
++- LogicalTableFunctionScan(invocation=[f(TABLE(#0), 1, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(5) name, INTEGER score, VARCHAR(2147483647) out)])
    +- LogicalProject(name=[$0], score=[$1])
       +- LogicalProject(name=[$0], score=[$1])
          +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
@@ -185,7 +206,7 @@ LogicalProject(name=[$0], score=[$1], out=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ProcessTableFunction(invocation=[f(TABLE(#0), 1, DEFAULT())], uid=[null], select=[name,score,out], rowType=[RecordType(VARCHAR(5) name, INTEGER score, VARCHAR(2147483647) out)])
+ProcessTableFunction(invocation=[f(TABLE(#0), 1, DEFAULT(), DEFAULT())], uid=[null], select=[name,score,out], rowType=[RecordType(VARCHAR(5) name, INTEGER score, VARCHAR(2147483647) out)])
 +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
 ]]>
     </Resource>
@@ -197,7 +218,7 @@ ProcessTableFunction(invocation=[f(TABLE(#0), 1, DEFAULT())], uid=[null], select
     <Resource name="ast">
       <![CDATA[
 LogicalProject(name=[$0], score=[$1], out=[$2])
-+- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT())], rowType=[RecordType(VARCHAR(5) name, INTEGER score, VARCHAR(2147483647) out)])
++- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(5) name, INTEGER score, VARCHAR(2147483647) out)])
    +- LogicalProject(name=[$0], score=[$1])
       +- LogicalProject(name=[$0], score=[$1])
          +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
@@ -205,7 +226,7 @@ LogicalProject(name=[$0], score=[$1], out=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT())], uid=[f], select=[name,score,out], rowType=[RecordType(VARCHAR(5) name, INTEGER score, VARCHAR(2147483647) out)])
+ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), DEFAULT())], uid=[f], select=[name,score,out], rowType=[RecordType(VARCHAR(5) name, INTEGER score, VARCHAR(2147483647) out)])
 +- Exchange(distribution=[hash[name]])
    +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
 ]]>
@@ -216,14 +237,14 @@ ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT())], u
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
 +- LogicalProject(name=[$0], out=[$1])
-   +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, _UTF-16LE'same')], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
+   +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'same')], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
       +- LogicalProject(name=[$0], score=[$1])
          +- LogicalProject(name=[$0], score=[$1])
             +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
 
 LogicalSink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
 +- LogicalProject(name=[$0], out=[$1])
-   +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, _UTF-16LE'same')], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
+   +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'same')], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
       +- LogicalProject(name=[$0], score=[$1])
          +- LogicalProject(name=[$0], score=[$1])
             +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
@@ -231,7 +252,7 @@ LogicalSink(table=[default_catalog.default_database.t_keyed_sink], fields=[name,
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, _UTF-16LE'same')], uid=[same], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])(reuse_id=[1])
+ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'same')], uid=[same], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])(reuse_id=[1])
 +- Exchange(distribution=[hash[name]])
    +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
 
@@ -249,7 +270,7 @@ Sink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
 LogicalSink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
 +- LogicalProject(name=[$0], out=[$1])
    +- LogicalFilter(condition=[=($0, _UTF-16LE'Bob')])
-      +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, _UTF-16LE'same')], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
+      +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'same')], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
          +- LogicalProject(name=[$0], score=[$1])
             +- LogicalProject(name=[$0], score=[$1])
                +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
@@ -257,7 +278,7 @@ LogicalSink(table=[default_catalog.default_database.t_keyed_sink], fields=[name,
 LogicalSink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
 +- LogicalProject(name=[$0], out=[$1])
    +- LogicalFilter(condition=[=($0, _UTF-16LE'Alice')])
-      +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, _UTF-16LE'same')], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
+      +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'same')], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
          +- LogicalProject(name=[$0], score=[$1])
             +- LogicalProject(name=[$0], score=[$1])
                +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
@@ -265,7 +286,7 @@ LogicalSink(table=[default_catalog.default_database.t_keyed_sink], fields=[name,
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, _UTF-16LE'same')], uid=[same], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])(reuse_id=[1])
+ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'same')], uid=[same], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])(reuse_id=[1])
 +- Exchange(distribution=[hash[name]])
    +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
 
@@ -286,12 +307,12 @@ Sink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(out=[$0])
-+- LogicalTableFunctionScan(invocation=[f(1, true, DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
++- LogicalTableFunctionScan(invocation=[f(1, true, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ProcessTableFunction(invocation=[f(1, true, DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
+ProcessTableFunction(invocation=[f(1, true, DEFAULT(), DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
 +- Values(tuples=[[{  }]])
 ]]>
     </Resource>
@@ -303,7 +324,7 @@ ProcessTableFunction(invocation=[f(1, true, DEFAULT())], uid=[null], select=[out
     <Resource name="ast">
       <![CDATA[
 LogicalProject(out=[$0])
-+- LogicalTableFunctionScan(invocation=[f(TABLE(#0), 1, DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
++- LogicalTableFunctionScan(invocation=[f(TABLE(#0), 1, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
    +- LogicalProject(name=[$0], different=[$1])
       +- LogicalProject(name=[_UTF-16LE'Bob'], different=[12])
          +- LogicalValues(tuples=[[{ 0 }]])
@@ -311,7 +332,7 @@ LogicalProject(out=[$0])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ProcessTableFunction(invocation=[f(TABLE(#0), 1, DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
+ProcessTableFunction(invocation=[f(TABLE(#0), 1, DEFAULT(), DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
 +- Calc(select=['Bob' AS name, 12 AS different])
    +- Values(tuples=[[{ 0 }]])
 ]]>

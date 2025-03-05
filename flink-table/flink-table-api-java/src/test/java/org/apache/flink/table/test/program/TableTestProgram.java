@@ -20,6 +20,7 @@ package org.apache.flink.table.test.program;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.test.program.FunctionTestStep.FunctionBehavior;
@@ -321,6 +322,15 @@ public class TableTestProgram {
         /** Run step for executing SQL. */
         public Builder runSql(String sql) {
             this.runSteps.add(new SqlTestStep(sql));
+            return this;
+        }
+
+        /**
+         * Run step for executing SQL that will fail eventually with a {@link
+         * TableRuntimeException}.
+         */
+        public Builder runFailingSql(String sql, String expectedErrorMessage) {
+            this.runSteps.add(new FailingSqlTestStep(sql, expectedErrorMessage));
             return this;
         }
 

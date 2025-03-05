@@ -20,16 +20,27 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.AtomicTypeWrappingFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedReceivingFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedSendingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ClearStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ContextFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.DescriptorFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyArgFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidPassThroughTimersFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidTableAsRowTimersFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidUpdatingTimersFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.LateTimersFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MultiStateFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.NamedTimersFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.OptionalOnTimeFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.OptionalPartitionOnTimeFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PojoArgsFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PojoCreatingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PojoStateFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PojoStateTimeFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PojoWithDefaultStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarArgsFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarArgsTimeFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsRowFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsRowPassThroughFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetFunction;
@@ -37,13 +48,19 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetPassThroughFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetUpdatingArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TestProcessTableFunctionBase;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TimeConversionsFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TimeToLiveStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedTableAsRowFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedTableAsSetFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UnnamedTimersFunction;
 import org.apache.flink.table.test.program.SinkTestStep;
+import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
+import org.apache.flink.types.Row;
 
 import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
 
 /** {@link TableTestProgram} definitions for testing {@link StreamExecProcessTableFunction}. */
 public class ProcessTableFunctionTestPrograms {
@@ -61,8 +78,47 @@ public class ProcessTableFunctionTestPrograms {
                     + "(VALUES ('Bob', 12), ('Alice', 42), ('Bob', 14)) AS T(name, score) "
                     + "GROUP BY name";
 
+    private static final SourceTestStep TIMED_SOURCE =
+            SourceTestStep.newBuilder("t")
+                    .addSchema(
+                            "name STRING",
+                            "score INT",
+                            "ts TIMESTAMP_LTZ(3)",
+                            "WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND")
+                    .producedValues(
+                            Row.of("Bob", 1, Instant.ofEpochMilli(0)),
+                            Row.of("Alice", 1, Instant.ofEpochMilli(1)),
+                            Row.of("Bob", 2, Instant.ofEpochMilli(2)),
+                            Row.of("Bob", 3, Instant.ofEpochMilli(3)),
+                            Row.of("Bob", 4, Instant.ofEpochMilli(4)),
+                            Row.of("Bob", 5, Instant.ofEpochMilli(5)),
+                            Row.of("Bob", 6, Instant.ofEpochMilli(6)))
+                    .build();
+
+    private static final SourceTestStep TIMED_SOURCE_LATE_EVENTS =
+            SourceTestStep.newBuilder("t")
+                    .addSchema(
+                            "name STRING",
+                            "score INT",
+                            "ts TIMESTAMP_LTZ(3)",
+                            "WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND")
+                    .producedValues(
+                            Row.of("Bob", 1, Instant.ofEpochMilli(0)),
+                            Row.of("Alice", 1, Instant.ofEpochMilli(1)),
+                            Row.of("Bob", 2, Instant.ofEpochMilli(99999)),
+                            Row.of("Bob", 3, Instant.ofEpochMilli(3)),
+                            Row.of("Bob", 4, Instant.ofEpochMilli(4)))
+                    .build();
+
     /** Corresponds to {@link TestProcessTableFunctionBase}. */
     private static final String BASE_SINK_SCHEMA = "`out` STRING";
+
+    /** Corresponds to {@link TestProcessTableFunctionBase}. */
+    private static final String TIMED_BASE_SINK_SCHEMA = "`out` STRING, `rowtime` TIMESTAMP_LTZ(3)";
+
+    /** Corresponds to {@link TestProcessTableFunctionBase}. */
+    private static final String KEYED_TIMED_BASE_SINK_SCHEMA =
+            "`name` STRING, `out` STRING, `rowtime` TIMESTAMP_LTZ(3)";
 
     /** Corresponds to {@link TestProcessTableFunctionBase}. */
     private static final String KEYED_BASE_SINK_SCHEMA = "`name` STRING, `out` STRING";
@@ -358,5 +414,332 @@ public class ProcessTableFunctionTestPrograms {
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT * FROM f(columnList1 => NULL, columnList3 => DESCRIPTOR(a, b, c))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_TIME_CONVERSIONS =
+            TableTestProgram.of(
+                            "process-time-conversions",
+                            "test all support conversion classes for both time and watermarks")
+                    .setupTemporarySystemFunction("f", TimeConversionsFunction.class)
+                    .setupTableSource(TIMED_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(TIMED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[{Time (Long: 0, Instant: 1970-01-01T00:00:00Z, LocalDateTime: 1970-01-01T00:00), "
+                                                    + "Watermark (Long: null, Instant: null, LocalDateTime: null)}, 1970-01-01T00:00:00Z]",
+                                            "+I[{Time (Long: 1, Instant: 1970-01-01T00:00:00.001Z, LocalDateTime: 1970-01-01T00:00:00.001), "
+                                                    + "Watermark (Long: -1, Instant: 1969-12-31T23:59:59.999Z, LocalDateTime: 1969-12-31T23:59:59.999)}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[{Time (Long: 2, Instant: 1970-01-01T00:00:00.002Z, LocalDateTime: 1970-01-01T00:00:00.002), "
+                                                    + "Watermark (Long: 0, Instant: 1970-01-01T00:00:00Z, LocalDateTime: 1970-01-01T00:00)}, 1970-01-01T00:00:00.002Z]",
+                                            "+I[{Time (Long: 3, Instant: 1970-01-01T00:00:00.003Z, LocalDateTime: 1970-01-01T00:00:00.003), "
+                                                    + "Watermark (Long: 1, Instant: 1970-01-01T00:00:00.001Z, LocalDateTime: 1970-01-01T00:00:00.001)}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[{Time (Long: 4, Instant: 1970-01-01T00:00:00.004Z, LocalDateTime: 1970-01-01T00:00:00.004), "
+                                                    + "Watermark (Long: 2, Instant: 1970-01-01T00:00:00.002Z, LocalDateTime: 1970-01-01T00:00:00.002)}, 1970-01-01T00:00:00.004Z]",
+                                            "+I[{Time (Long: 5, Instant: 1970-01-01T00:00:00.005Z, LocalDateTime: 1970-01-01T00:00:00.005),"
+                                                    + " Watermark (Long: 3, Instant: 1970-01-01T00:00:00.003Z, LocalDateTime: 1970-01-01T00:00:00.003)}, 1970-01-01T00:00:00.005Z]",
+                                            "+I[{Time (Long: 6, Instant: 1970-01-01T00:00:00.006Z, LocalDateTime: 1970-01-01T00:00:00.006), "
+                                                    + "Watermark (Long: 4, Instant: 1970-01-01T00:00:00.004Z, LocalDateTime: 1970-01-01T00:00:00.004)}, 1970-01-01T00:00:00.006Z]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f(r => TABLE t, on_time => DESCRIPTOR(ts))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_REGULAR_TIMESTAMP =
+            TableTestProgram.of(
+                            "process-regular-timestamp",
+                            "tests regular TIMESTAMP type instead of TIMESTAMP_LTZ")
+                    .setupTemporarySystemFunction("f", TimeConversionsFunction.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING",
+                                            "score INT",
+                                            "ts TIMESTAMP(3)",
+                                            "WATERMARK FOR ts AS ts - INTERVAL '1' HOUR")
+                                    .producedValues(
+                                            Row.of("Bob", 1, LocalDateTime.of(2025, 1, 1, 1, 0)),
+                                            Row.of("Alice", 1, LocalDateTime.of(2025, 1, 1, 2, 0)),
+                                            Row.of("Bob", 2, LocalDateTime.of(2025, 1, 1, 3, 0)),
+                                            Row.of("Bob", 3, LocalDateTime.of(2025, 1, 1, 4, 0)),
+                                            Row.of("Bob", 4, LocalDateTime.of(2025, 1, 1, 5, 0)),
+                                            Row.of("Bob", 5, LocalDateTime.of(2025, 1, 1, 6, 0)),
+                                            Row.of("Bob", 6, LocalDateTime.of(2025, 1, 1, 7, 0)))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("`out` STRING, `rowtime` TIMESTAMP(3)")
+                                    .consumedValues(
+                                            "+I[{Time (Long: 1735693200000, Instant: 2025-01-01T01:00:00Z, LocalDateTime: 2025-01-01T01:00), Watermark (Long: null, Instant: null, LocalDateTime: null)}, 2025-01-01T01:00]",
+                                            "+I[{Time (Long: 1735696800000, Instant: 2025-01-01T02:00:00Z, LocalDateTime: 2025-01-01T02:00), Watermark (Long: 1735689600000, Instant: 2025-01-01T00:00:00Z, LocalDateTime: 2025-01-01T00:00)}, 2025-01-01T02:00]",
+                                            "+I[{Time (Long: 1735700400000, Instant: 2025-01-01T03:00:00Z, LocalDateTime: 2025-01-01T03:00), Watermark (Long: 1735693200000, Instant: 2025-01-01T01:00:00Z, LocalDateTime: 2025-01-01T01:00)}, 2025-01-01T03:00]",
+                                            "+I[{Time (Long: 1735704000000, Instant: 2025-01-01T04:00:00Z, LocalDateTime: 2025-01-01T04:00), Watermark (Long: 1735696800000, Instant: 2025-01-01T02:00:00Z, LocalDateTime: 2025-01-01T02:00)}, 2025-01-01T04:00]",
+                                            "+I[{Time (Long: 1735707600000, Instant: 2025-01-01T05:00:00Z, LocalDateTime: 2025-01-01T05:00), Watermark (Long: 1735700400000, Instant: 2025-01-01T03:00:00Z, LocalDateTime: 2025-01-01T03:00)}, 2025-01-01T05:00]",
+                                            "+I[{Time (Long: 1735711200000, Instant: 2025-01-01T06:00:00Z, LocalDateTime: 2025-01-01T06:00), Watermark (Long: 1735704000000, Instant: 2025-01-01T04:00:00Z, LocalDateTime: 2025-01-01T04:00)}, 2025-01-01T06:00]",
+                                            "+I[{Time (Long: 1735714800000, Instant: 2025-01-01T07:00:00Z, LocalDateTime: 2025-01-01T07:00), Watermark (Long: 1735707600000, Instant: 2025-01-01T05:00:00Z, LocalDateTime: 2025-01-01T05:00)}, 2025-01-01T07:00]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f(r => TABLE t, on_time => DESCRIPTOR(ts))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_NAMED_TIMERS =
+            TableTestProgram.of(
+                            "process-partitioned-named-timers",
+                            "test create/fire/replace/clear/clear-all named timers")
+                    .setupTemporarySystemFunction("f", NamedTimersFunction.class)
+                    .setupTableSource(TIMED_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_TIMED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {Processing input row +I[Bob, 1, 1970-01-01T00:00:00Z] at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, {Registering timer timeout1 for 1 at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, {Registering timer timeout2 for 2 at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, {Registering timer timeout3 for 3 at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, {Registering timer timeout4 for 9223372036854775807 at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, {Registering timer timeout5 for 9223372036854775807 at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Alice, {Processing input row +I[Alice, 1, 1970-01-01T00:00:00.001Z] at time 1 watermark -1}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, 2, 1970-01-01T00:00:00.002Z] at time 2 watermark 0}, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Bob, {Timer timeout1 fired at time 1 watermark 1}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Bob, {Registering timer timeout2 for 5 at time 1 watermark 1}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Bob, {Clearing timer timeout3 at time 1 watermark 1}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, 3, 1970-01-01T00:00:00.003Z] at time 3 watermark 1}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, 4, 1970-01-01T00:00:00.004Z] at time 4 watermark 2}, 1970-01-01T00:00:00.004Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, 5, 1970-01-01T00:00:00.005Z] at time 5 watermark 3}, 1970-01-01T00:00:00.005Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, 6, 1970-01-01T00:00:00.006Z] at time 6 watermark 4}, 1970-01-01T00:00:00.006Z]",
+                                            "+I[Bob, {Timer timeout2 fired at time 5 watermark 5}, 1970-01-01T00:00:00.005Z]",
+                                            "+I[Bob, {Clearing all timers at time 5 watermark 5}, 1970-01-01T00:00:00.005Z]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name, on_time => DESCRIPTOR(ts))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_UNNAMED_TIMERS =
+            TableTestProgram.of(
+                            "process-partitioned-unnamed-timers",
+                            "test create/fire/re-create/clear/clear-all unnamed timers")
+                    .setupTemporarySystemFunction("f", UnnamedTimersFunction.class)
+                    .setupTableSource(TIMED_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_TIMED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {Processing input row +I[Bob, 1, 1970-01-01T00:00:00Z] at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, {Registering timer for 1 at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, {Registering timer for 2 at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, {Registering timer for 9223372036854775807 at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Alice, {Processing input row +I[Alice, 1, 1970-01-01T00:00:00.001Z] at time 1 watermark -1}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, 2, 1970-01-01T00:00:00.002Z] at time 2 watermark 0}, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Bob, {Timer null fired at time 1 watermark 1}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Bob, {Registering timer for 5 at time 1 watermark 1}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Bob, {Clearing timer 2 at time 1 watermark 1}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, 3, 1970-01-01T00:00:00.003Z] at time 3 watermark 1}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, 4, 1970-01-01T00:00:00.004Z] at time 4 watermark 2}, 1970-01-01T00:00:00.004Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, 5, 1970-01-01T00:00:00.005Z] at time 5 watermark 3}, 1970-01-01T00:00:00.005Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, 6, 1970-01-01T00:00:00.006Z] at time 6 watermark 4}, 1970-01-01T00:00:00.006Z]",
+                                            "+I[Bob, {Timer null fired at time 5 watermark 5}, 1970-01-01T00:00:00.005Z]",
+                                            "+I[Bob, {Clearing all timers at time 5 watermark 5}, 1970-01-01T00:00:00.005Z]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name, on_time => DESCRIPTOR(ts))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_LATE_EVENTS =
+            TableTestProgram.of(
+                            "process-late-events",
+                            "test that late events are dropped in both input and when registering timers")
+                    .setupTemporarySystemFunction("f", LateTimersFunction.class)
+                    .setupTableSource(TIMED_SOURCE_LATE_EVENTS)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_TIMED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {Processing input row +I[Bob, 1, 1970-01-01T00:00:00Z] at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, {Registering timer t for 0 at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, {Registering timer for 0 at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Alice, {Processing input row +I[Alice, 1, 1970-01-01T00:00:00.001Z] at time 1 watermark -1}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Alice, {Registering timer t for 0 at time 1 watermark -1}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Alice, {Registering timer for 0 at time 1 watermark -1}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Bob, {Timer null fired at time 0 watermark 0}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, {Registering timer again for 0 at time 0 watermark 0}, 1970-01-01T00:00:00Z]",
+                                            "+I[Alice, {Timer null fired at time 0 watermark 0}, 1970-01-01T00:00:00Z]",
+                                            "+I[Alice, {Registering timer again for 0 at time 0 watermark 0}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, {Timer t fired at time 0 watermark 0}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, {Registering timer again for 0 at time 0 watermark 0}, 1970-01-01T00:00:00Z]",
+                                            "+I[Alice, {Timer t fired at time 0 watermark 0}, 1970-01-01T00:00:00Z]",
+                                            "+I[Alice, {Registering timer again for 0 at time 0 watermark 0}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, 2, 1970-01-01T00:01:39.999Z] at time 99999 watermark 0}, 1970-01-01T00:01:39.999Z]",
+                                            "+I[Bob, {Registering timer t for 0 at time 99999 watermark 0}, 1970-01-01T00:01:39.999Z]",
+                                            "+I[Bob, {Registering timer for 0 at time 99999 watermark 0}, 1970-01-01T00:01:39.999Z]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name, on_time => DESCRIPTOR(ts))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_SCALAR_ARGS_TIME =
+            TableTestProgram.of(
+                            "process-scalar-args-time",
+                            "test time is not available for PTFs without tables")
+                    .setupTemporarySystemFunction("f", ScalarArgsTimeFunction.class)
+                    .setupTableSource(TIMED_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(BASE_SINK_SCHEMA)
+                                    .consumedValues("+I[{Time null and watermark null}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f()")
+                    .build();
+
+    public static final TableTestProgram PROCESS_OPTIONAL_PARTITION_BY_TIME =
+            TableTestProgram.of(
+                            "process-optional-partition-by-time",
+                            "test time and timers without PARTITION BY")
+                    .setupTemporarySystemFunction("f", OptionalPartitionOnTimeFunction.class)
+                    .setupTableSource(TIMED_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(TIMED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[{Processing input row +I[Bob, 1, 1970-01-01T00:00:00Z] at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[{Registering timer t for 1 at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[{Processing input row +I[Alice, 1, 1970-01-01T00:00:00.001Z] at time 1 watermark -1}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[{Processing input row +I[Bob, 2, 1970-01-01T00:00:00.002Z] at time 2 watermark 0}, 1970-01-01T00:00:00.002Z]",
+                                            "+I[{Timer t fired at time 1 watermark 1}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[{Registering timer again for 2 at time 1 watermark 1}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[{Processing input row +I[Bob, 3, 1970-01-01T00:00:00.003Z] at time 3 watermark 1}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[{Timer again fired at time 2 watermark 2}, 1970-01-01T00:00:00.002Z]",
+                                            "+I[{Processing input row +I[Bob, 4, 1970-01-01T00:00:00.004Z] at time 4 watermark 2}, 1970-01-01T00:00:00.004Z]",
+                                            "+I[{Processing input row +I[Bob, 5, 1970-01-01T00:00:00.005Z] at time 5 watermark 3}, 1970-01-01T00:00:00.005Z]",
+                                            "+I[{Processing input row +I[Bob, 6, 1970-01-01T00:00:00.006Z] at time 6 watermark 4}, 1970-01-01T00:00:00.006Z]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f(r => TABLE t, on_time => DESCRIPTOR(ts))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_OPTIONAL_ON_TIME =
+            TableTestProgram.of(
+                            "process-optional-on-time",
+                            "test optional time attribute, fire once for constant timer")
+                    .setupTemporarySystemFunction("f", OptionalOnTimeFunction.class)
+                    .setupTableSource(TIMED_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {Processing input row +I[Bob, 1, 1970-01-01T00:00:00Z] at time null watermark null}]",
+                                            "+I[Bob, {Registering timer t for 2 at time null watermark null}]",
+                                            "+I[Alice, {Processing input row +I[Alice, 1, 1970-01-01T00:00:00.001Z] at time null watermark -1}]",
+                                            "+I[Alice, {Registering timer t for 2 at time null watermark -1}]",
+                                            "+I[Bob, {Processing input row +I[Bob, 2, 1970-01-01T00:00:00.002Z] at time null watermark 0}]",
+                                            "+I[Bob, {Registering timer t for 2 at time null watermark 0}]",
+                                            "+I[Bob, {Processing input row +I[Bob, 3, 1970-01-01T00:00:00.003Z] at time null watermark 1}]",
+                                            "+I[Bob, {Registering timer t for 2 at time null watermark 1}]",
+                                            "+I[Alice, {Timer t fired at time 2 watermark 2}]",
+                                            "+I[Bob, {Timer t fired at time 2 watermark 2}]",
+                                            "+I[Bob, {Processing input row +I[Bob, 4, 1970-01-01T00:00:00.004Z] at time null watermark 2}]",
+                                            "+I[Bob, {Registering timer t for 2 at time null watermark 2}]",
+                                            "+I[Bob, {Processing input row +I[Bob, 5, 1970-01-01T00:00:00.005Z] at time null watermark 3}]",
+                                            "+I[Bob, {Registering timer t for 2 at time null watermark 3}]",
+                                            "+I[Bob, {Processing input row +I[Bob, 6, 1970-01-01T00:00:00.006Z] at time null watermark 4}]",
+                                            "+I[Bob, {Registering timer t for 2 at time null watermark 4}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_POJO_STATE_TIME =
+            TableTestProgram.of(
+                            "process-pojo-state-time",
+                            "test state access from both eval() and onTimer()")
+                    .setupTemporarySystemFunction("f", PojoStateTimeFunction.class)
+                    .setupTableSource(TIMED_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_TIMED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {Score(s='null', i=null), +I[Bob, 1, 1970-01-01T00:00:00Z]}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, {Registering timer t for 2 at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Alice, {Score(s='null', i=null), +I[Alice, 1, 1970-01-01T00:00:00.001Z]}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Alice, {Registering timer t for 3 at time 1 watermark -1}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Bob, {Score(s='null', i=1), +I[Bob, 2, 1970-01-01T00:00:00.002Z]}, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Bob, {Score(s='null', i=2), +I[Bob, 3, 1970-01-01T00:00:00.003Z]}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Bob, {Timer t fired at time 2 watermark 2}, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Bob, {Score(s='null', i=30), +I[Bob, 4, 1970-01-01T00:00:00.004Z]}, 1970-01-01T00:00:00.004Z]",
+                                            "+I[Alice, {Timer t fired at time 3 watermark 3}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Bob, {Score(s='null', i=31), +I[Bob, 5, 1970-01-01T00:00:00.005Z]}, 1970-01-01T00:00:00.005Z]",
+                                            "+I[Bob, {Score(s='null', i=32), +I[Bob, 6, 1970-01-01T00:00:00.006Z]}, 1970-01-01T00:00:00.006Z]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name, on_time => DESCRIPTOR(ts))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_CHAINED_TIME =
+            TableTestProgram.of(
+                            "process-chained-time",
+                            "test two chained PTFs where the second (receiving) PTF wraps the events of the first (sending) PTF")
+                    .setupTemporarySystemFunction("f1", ChainedSendingFunction.class)
+                    .setupTemporarySystemFunction("f2", ChainedReceivingFunction.class)
+                    .setupTableSource(TIMED_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_TIMED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {Processing input row +I[Bob, {Processing input row +I[Bob, 1, 1970-01-01T00:00:00Z] at time 0 watermark null}, 1970-01-01T00:00:00Z] at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Registering timer t for 1 at time 0 watermark null}, 1970-01-01T00:00:00Z] at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Alice, {Processing input row +I[Alice, {Processing input row +I[Alice, 1, 1970-01-01T00:00:00.001Z] at time 1 watermark -1}, 1970-01-01T00:00:00.001Z] at time 1 watermark -1}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Alice, {Processing input row +I[Alice, {Registering timer t for 2 at time 1 watermark -1}, 1970-01-01T00:00:00.001Z] at time 1 watermark -1}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Processing input row +I[Bob, 2, 1970-01-01T00:00:00.002Z] at time 2 watermark 0}, 1970-01-01T00:00:00.002Z] at time 2 watermark 0}, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Registering timer t for 3 at time 2 watermark 0}, 1970-01-01T00:00:00.002Z] at time 2 watermark 0}, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Processing input row +I[Bob, 3, 1970-01-01T00:00:00.003Z] at time 3 watermark 1}, 1970-01-01T00:00:00.003Z] at time 3 watermark 1}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Registering timer t for 4 at time 3 watermark 1}, 1970-01-01T00:00:00.003Z] at time 3 watermark 1}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Alice, {Processing input row +I[Alice, {Timer t fired at time 2 watermark 2}, 1970-01-01T00:00:00.002Z] at time 2 watermark 1}, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Alice, {Processing input row +I[Alice, {2}, 1970-01-01T00:00:00.002Z] at time 2 watermark 1}, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Processing input row +I[Bob, 4, 1970-01-01T00:00:00.004Z] at time 4 watermark 2}, 1970-01-01T00:00:00.004Z] at time 4 watermark 2}, 1970-01-01T00:00:00.004Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Registering timer t for 5 at time 4 watermark 2}, 1970-01-01T00:00:00.004Z] at time 4 watermark 2}, 1970-01-01T00:00:00.004Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Processing input row +I[Bob, 5, 1970-01-01T00:00:00.005Z] at time 5 watermark 3}, 1970-01-01T00:00:00.005Z] at time 5 watermark 3}, 1970-01-01T00:00:00.005Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Registering timer t for 6 at time 5 watermark 3}, 1970-01-01T00:00:00.005Z] at time 5 watermark 3}, 1970-01-01T00:00:00.005Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Processing input row +I[Bob, 6, 1970-01-01T00:00:00.006Z] at time 6 watermark 4}, 1970-01-01T00:00:00.006Z] at time 6 watermark 4}, 1970-01-01T00:00:00.006Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Registering timer t for 7 at time 6 watermark 4}, 1970-01-01T00:00:00.006Z] at time 6 watermark 4}, 1970-01-01T00:00:00.006Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Timer t fired at time 7 watermark 9223372036854775807}, 1970-01-01T00:00:00.007Z] at time 7 watermark 5}, 1970-01-01T00:00:00.007Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {7}, 1970-01-01T00:00:00.007Z] at time 7 watermark 5}, 1970-01-01T00:00:00.007Z]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "WITH "
+                                    + "ptf1 AS (SELECT * FROM f1(r => TABLE t PARTITION BY name, on_time => DESCRIPTOR(ts))), "
+                                    + "ptf2 AS (SELECT * FROM f2(r => TABLE ptf1 PARTITION BY name, on_time => DESCRIPTOR(rowtime))) "
+                                    + "SELECT * FROM ptf2")
+                    .build();
+
+    public static final TableTestProgram PROCESS_INVALID_TABLE_AS_ROW_TIMERS =
+            TableTestProgram.of(
+                            "process-invalid-table-as-row-timers",
+                            "error if timers are registered for PTFs with row semantic tables")
+                    .setupTemporarySystemFunction("f", InvalidTableAsRowTimersFunction.class)
+                    .setupSql(BASIC_VALUES)
+                    .runFailingSql(
+                            "SELECT * FROM f(r => TABLE t)",
+                            "Timers are not supported in the current PTF declaration.")
+                    .build();
+
+    public static final TableTestProgram PROCESS_INVALID_PASS_THROUGH_TIMERS =
+            TableTestProgram.of(
+                            "process-invalid-pass-through-timers",
+                            "error if timers are registered for PTFs with pass-through columns")
+                    .setupTemporarySystemFunction("f", InvalidPassThroughTimersFunction.class)
+                    .setupTableSource(TIMED_SOURCE)
+                    .runFailingSql(
+                            "SELECT * FROM f(r => TABLE t PARTITION BY name, on_time => DESCRIPTOR(ts))",
+                            "Timers are not supported in the current PTF declaration.")
+                    .build();
+
+    public static final TableTestProgram PROCESS_INVALID_UPDATING_TIMERS =
+            TableTestProgram.of(
+                            "process-invalid-updating-timers",
+                            "error if timers are registered for PTFs with updating inputs")
+                    .setupTemporarySystemFunction("f", InvalidUpdatingTimersFunction.class)
+                    .setupSql(UPDATING_VALUES)
+                    .runFailingSql(
+                            "SELECT * FROM f(r => TABLE t PARTITION BY name)",
+                            "Timers are not supported in the current PTF declaration.")
                     .build();
 }

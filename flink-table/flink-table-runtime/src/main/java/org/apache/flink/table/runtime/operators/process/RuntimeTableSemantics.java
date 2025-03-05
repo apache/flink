@@ -43,6 +43,7 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
     private final byte[] expectedChanges;
     private final boolean passColumnsThrough;
     private final boolean hasSetSemantics;
+    private final int timeColumn;
 
     private transient ChangelogMode changelogMode;
 
@@ -53,7 +54,8 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
             int[] partitionByColumns,
             byte[] expectedChanges,
             boolean passColumnsThrough,
-            boolean hasSetSemantics) {
+            boolean hasSetSemantics,
+            int timeColumn) {
         this.argName = argName;
         this.inputIndex = inputIndex;
         this.dataType = dataType;
@@ -61,6 +63,7 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
         this.expectedChanges = expectedChanges;
         this.passColumnsThrough = passColumnsThrough;
         this.hasSetSemantics = hasSetSemantics;
+        this.timeColumn = timeColumn;
     }
 
     public String getArgName() {
@@ -77,6 +80,17 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
 
     public boolean hasSetSemantics() {
         return hasSetSemantics;
+    }
+
+    public ChangelogMode getChangelogMode() {
+        if (changelogMode == null) {
+            final ChangelogMode.Builder builder = ChangelogMode.newBuilder();
+            for (byte expectedChange : expectedChanges) {
+                builder.addContainedKind(RowKind.fromByteValue(expectedChange));
+            }
+            changelogMode = builder.build();
+        }
+        return changelogMode;
     }
 
     @Override
@@ -96,7 +110,7 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
 
     @Override
     public int timeColumn() {
-        return -1;
+        return timeColumn;
     }
 
     @Override
@@ -106,13 +120,6 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
 
     @Override
     public Optional<ChangelogMode> changelogMode() {
-        if (changelogMode == null) {
-            final ChangelogMode.Builder builder = ChangelogMode.newBuilder();
-            for (byte expectedChange : expectedChanges) {
-                builder.addContainedKind(RowKind.fromByteValue(expectedChange));
-            }
-            changelogMode = builder.build();
-        }
-        return Optional.of(changelogMode);
+        return Optional.of(getChangelogMode());
     }
 }

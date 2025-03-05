@@ -63,6 +63,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.linq4j.Ord;
+import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -70,10 +71,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.planner.codegen.ProcessTableRunnerGenerator.GeneratedRunnerResult;
+import static org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalProcessTableFunction.deriveOnTimeFields;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldCount;
 
 /**
@@ -167,6 +171,7 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
         final List<Ord<StaticArgument>> providedInputArgs =
                 StreamPhysicalProcessTableFunction.getProvidedInputArgs(invocation);
         final List<RexNode> operands = invocation.getOperands();
+        final Set<String> onTimeFields = deriveOnTimeFields(operands);
         final List<RuntimeTableSemantics> runtimeTableSemantics =
                 providedInputArgs.stream()
                         .map(
@@ -174,7 +179,8 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
                                     final RexTableArgCall tableArgCall =
                                             (RexTableArgCall) operands.get(providedInputArg.i);
                                     final StaticArgument tabledArg = providedInputArg.e;
-                                    return createRuntimeTableSemantics(tabledArg, tableArgCall);
+                                    return createRuntimeTableSemantics(
+                                            tabledArg, tableArgCall, onTimeFields);
                                 })
                         .collect(Collectors.toList());
 
@@ -264,7 +270,7 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
     }
 
     private RuntimeTableSemantics createRuntimeTableSemantics(
-            StaticArgument tableArg, RexTableArgCall tableArgCall) {
+            StaticArgument tableArg, RexTableArgCall tableArgCall, Set<String> onTimeFields) {
         final RowKind[] kinds =
                 inputChangelogModes
                         .get(tableArgCall.getInputIndex())
@@ -278,6 +284,17 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
         } else {
             dataType = DataTypes.of(FlinkTypeFactory.toLogicalRowType(tableArgCall.type));
         }
+
+        final int timeColumn =
+                onTimeFields.stream()
+                        .map(
+                                onTimeField ->
+                                        tableArgCall.getType().getField(onTimeField, true, false))
+                        .filter(Objects::nonNull)
+                        .map(RelDataTypeField::getIndex)
+                        .findFirst()
+                        .orElse(-1);
+
         return new RuntimeTableSemantics(
                 tableArg.getName(),
                 tableArgCall.getInputIndex(),
@@ -285,7 +302,8 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
                 tableArgCall.getPartitionKeys(),
                 expectedChanges,
                 tableArg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH),
-                tableArg.is(StaticArgumentTrait.TABLE_AS_SET));
+                tableArg.is(StaticArgumentTrait.TABLE_AS_SET),
+                timeColumn);
     }
 
     private static RuntimeStateInfo createRuntimeStateInfo(

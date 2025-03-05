@@ -29,6 +29,9 @@ import org.apache.flink.table.types.extraction.TypeInferenceExtractor;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.util.Collector;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+
 /**
  * Base class for a user-defined process table function. A process table function (PTF) maps zero,
  * one, or multiple tables to zero, one, or multiple rows (or structured types). Scalar arguments
@@ -285,6 +288,76 @@ import org.apache.flink.util.Collector;
  * }
  * }</pre>
  *
+ * <h1>Time and Timers</h1>
+ *
+ * <p>A PTF supports event time natively. Time-based services are available via {@link
+ * Context#timeContext(Class)}.
+ *
+ * <h2>Time</h2>
+ *
+ * <p>Every PTF takes an optional {@code on_time} argument. The {@code on_time} argument in the function call declares the time attribute column for which
+ * a watermark has been declared. When processing a table's row, this timestamp can be accessed via
+ * {@link TimeContext#time()} and the watermark via {@link TimeContext#currentWatermark()}
+ * respectively.
+ *
+ * <p>Specifying an {@code on_time} argument in the function call instructs the framework to return
+ * a {@code rowtime} column in the function's output for subsequent time-based operations.
+ *
+ * <p>The {@link ArgumentTrait#REQUIRE_ON_TIME} makes the {@code on_time} argument mandatory if
+ * necessary.
+ *
+ * <h2>Timers</h2>
+ *
+ * <p>A PTF that takes set semantic tables can support timers. Timers allow for continuing the
+ * processing at a later point in time. This makes waiting, synchronization, or timeouts possible. A timer
+ * fires for the registered time when the watermark progresses the logical clock.
+ *
+ * <p>Timers can be named ({@link TimeContext#registerOnTime(String, Object)}) or unnamed ({@link
+ * TimeContext#registerOnTime(Object)}). The name of a timer can be useful for replacing or deleting
+ * an existing timer, or for identifying multiple timers via {@link OnTimerContext#currentTimer()} when they fire.
+ *
+ * <p>An {@code onTimer()} method must be declared next to the eval() method for reacting to timer
+ * events. The signature of the onTimer() method must contain an optional {@link OnTimerContext} followed by all
+ * state entries (as declared in the eval() method).
+ *
+ * <p>Flink takes care of storing and restoring timers during failures or restarts. Thus, timers are
+ * a special kind of state. Similarly, timers are scoped to a virtual processor defined by the
+ * PARTITION BY clause. A timer can only be registered and deleted in the current virtual processor.
+ *
+ * <pre>{@code
+ * // a function that waits for a second event or timeouts after 60 seconds
+ * class TimerFunction extends ProcessTableFunction<String> {
+ *   public static class SeenState {
+ *     public String seen = null;
+ *   }
+ *
+ *   public void eval(
+ *       Context ctx,
+ *       @StateHint SeenState memory,
+ *       @ArgumentHint( { TABLE_AS_SET, REQUIRE_ON_TIME } ) Row input) {
+ *     TimeContext<Instant> timeCtx = ctx.timeContext(Instant.class);
+ *     if (memory.seen == null) {
+ *       memory.seen = input.getField(0).toString();
+ *       timeCtx.registerOnTimer("timeout", timeCtx.time().plusSeconds(60));
+ *     } else {
+ *       collect("Second event arrived for: " + memory.seen)
+ *       ctx.clearAll();
+ *     }
+ *   }
+ *
+ *   public void onTimer(SeenState memory) {
+ *     collect("Timeout for: " + memory.seen)
+ *   }
+ * }
+ *
+ * <h2>Efficiency and Design Principles</h2>
+ *
+ * <p>Registering too many timers might affect performance. An ever-growing timer state can happen
+ * by an unlimited number of partitions (i.e. an open keyspace) or even within a partition. Thus,
+ * reduce the number of registered timers to a minimum and consider cleaning up timers if they are
+ * not needed anymore via {@link Context#clearAllTimers()} or {@link
+ * TimeContext#clearTimer(String)}.
+ *
  * @param <T> The type of the output row. Either an explicit composite type or an atomic type that
  *     is implicitly wrapped into a row consisting of one field.
  */
@@ -330,6 +403,21 @@ public abstract class ProcessTableFunction<T> extends UserDefinedFunction {
     public interface Context {
 
         /**
+         * Returns a specialized {@link TimeContext} to work with time and timers.
+         *
+         * <p>Time and timer timestamps can be represented as either {@link Instant}, {@link
+         * LocalDateTime}, or {@link Long}. Time and timers are based on milliseconds since epoch
+         * and do not take the local session timezone into consideration.
+         *
+         * <p>Note: A timer context is always scoped under the currently processed event (either the
+         * current input row or a firing timer).
+         *
+         * @param conversionClass representation of time and timer timestamps
+         * @return the context for time and timer services
+         */
+        <TimeType> TimeContext<TimeType> timeContext(Class<TimeType> conversionClass);
+
+        /**
          * Returns additional information about the semantics of a table argument.
          *
          * @param argName name of the table argument; either reflectively extracted or manually
@@ -351,9 +439,158 @@ public abstract class ProcessTableFunction<T> extends UserDefinedFunction {
         /**
          * Clears all state entries within the virtual partition once the eval() method returns.
          *
-         * <p>Semantically this is equal to calling {@link #clearState(String)} on all state
+         * <p>Semantically, this is equal to calling {@link #clearState(String)} on all state
          * entries.
          */
         void clearAllState();
+
+        /** Clears all timers within the virtual partition. */
+        void clearAllTimers();
+
+        /** Clears the virtual partition including timers and state. */
+        void clearAll();
+    }
+
+    /**
+     * A context that gives access to Flink's concepts of time and timers.
+     *
+     * <p>An event can have an event-time timestamp assigned. The timestamp can be accessed using
+     * the {@link #time()} method.
+     *
+     * <p>Timers allow for continuing the processing at a later point in time. This makes waiting,
+     * synchronization, or timeouts possible. A timer fires for the registered time when the
+     * watermark progresses the logical clock.
+     *
+     * <p>Flink takes care of storing and restoring timers during failures or restarts. Thus, timers
+     * are a special kind of state. Similarly, timers are scoped to a virtual processor defined by
+     * the PARTITION BY clause. A timer can only be registered and deleted in the current virtual
+     * processor.
+     *
+     * @param <TimeType> conversion class of timestamps, see {@link Context#timeContext(Class)}
+     */
+    @PublicEvolving
+    public interface TimeContext<TimeType> {
+
+        /**
+         * Returns the timestamp of the currently processed event.
+         *
+         * <p>An event can be either the row of a table or a firing timer:
+         *
+         * <h1>Row event timestamp</h1>
+         *
+         * <p>The timestamp of the row currently being processed within the {@code eval()} method.
+         *
+         * <p>Powered by the function call's {@code on_time} argument, this method will return the
+         * content of the referenced time attribute column. Returns {@code null} if the {@code
+         * on_time} argument doesn't reference a time attribute column in the currently processed
+         * table.
+         *
+         * <h1>Timer event timestamp</h1>
+         *
+         * <p>The timestamp of the firing timer currently being processed within the {@code
+         * onTimer()} method.
+         *
+         * @return the event-time timestamp, or {@code null} if no timestamp is present
+         */
+        TimeType time();
+
+        /**
+         * Returns the current event-time watermark.
+         *
+         * <p>Watermarks are generated in sources and sent through the topology for advancing the
+         * logical clock in each Flink subtask. The current watermark of a Flink subtask is the
+         * global minimum watermark of all inputs (i.e. across all parallel inputs and table
+         * partitions).
+         *
+         * <p>This method returns the current watermark of the Flink subtask that evaluates the PTF.
+         * Thus, the returned timestamp represents the entire Flink subtask, independent of the
+         * currently processed partition. This behavior is similar to a call to {@code SELECT
+         * CURRENT_WATERMARK(...)} in SQL.
+         *
+         * <p>If a watermark was not received from all inputs, the method returns {@code null}.
+         *
+         * <p>In case this method is called within the {@code onTimer()} method, the returned
+         * watermark is the triggering watermark that currently fires the timer.
+         *
+         * @return the current watermark of the Flink subtask, or {@code null} if no common logical
+         *     time could be determined from the inputs
+         */
+        TimeType currentWatermark();
+
+        /**
+         * Registers a timer under the given name.
+         *
+         * <p>The timer fires when the {@link #currentWatermark()} advances the logical clock of the
+         * Flink subtask to a timestamp later or equal to the desired timestamp. In other words: A
+         * timer only fires if a watermark was received from all inputs and the timestamp is smaller
+         * or equal to the minimum of all received watermarks.
+         *
+         * <p>Timers can be named for distinguishing them in the {@code onTimer()} method.
+         * Registering a timer under the same name twice will replace an existing timer.
+         *
+         * <p>Note: Because only PTFs taking set semantic tables support state, and timers are a
+         * special kind of state, at least one {@link ArgumentTrait#TABLE_AS_SET} table argument
+         * must be declared.
+         *
+         * @param name identifier of the timer
+         * @param time timestamp when the timer should fire
+         */
+        void registerOnTime(String name, TimeType time);
+
+        /**
+         * Registers a timer.
+         *
+         * <p>The timer fires when the {@link #currentWatermark()} advances the logical clock of the
+         * Flink subtask to a timestamp later or equal to the desired timestamp. In other words: A
+         * timer only fires if a watermark was received from all inputs and the timestamp is smaller
+         * or equal to the minimum of all received watermarks.
+         *
+         * <p>Only one timer can be registered for a given time.
+         *
+         * <p>Note: Because only PTFs taking set semantic tables support state, and timers are a
+         * special kind of state, at least one {@link ArgumentTrait#TABLE_AS_SET} table argument
+         * must be declared.
+         *
+         * @param time timestamp when the timer should fire
+         */
+        void registerOnTime(TimeType time);
+
+        /**
+         * Clears a timer that was previously registered under the given name.
+         *
+         * <p>The call is ignored if no timer can be found.
+         *
+         * @param name identifier of the timer
+         */
+        void clearTimer(String name);
+
+        /**
+         * Clears a timer that was previously registered for a given time.
+         *
+         * <p>The call is ignored if no timer can be found. Named timers cannot be deleted with this
+         * method.
+         *
+         * @param time timestamp when the timer should have fired
+         */
+        void clearTimer(TimeType time);
+
+        /** Deletes all timers within the virtual partition. */
+        void clearAllTimers();
+    }
+
+    /** Special {@link Context} that is available when the {@code onTimer()} method is called. */
+    public interface OnTimerContext extends Context {
+
+        /**
+         * Returns the name of the timer currently being fired, if the timer is a named timer (i.e.
+         * registered using {@link TimeContext#registerOnTime(String, Object)}).
+         *
+         * <p>Note: The time of the firing timer is available via {@link
+         * OnTimerContext#timeContext(Class)}.
+         *
+         * @return the timer's name, or {@code null} if the timer is unnamed (i.e. registered using
+         *     {@link TimeContext#registerOnTime(Object)})
+         */
+        String currentTimer();
     }
 }

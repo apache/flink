@@ -18,17 +18,44 @@
 
 package org.apache.flink.table.runtime.operators.process;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
 
 /** Base class for collectors that pass input columns. */
+@Internal
 public abstract class PassThroughCollectorBase extends StreamRecordCollector<RowData> {
+
+    private final JoinedRowData withPrefix;
+    private final JoinedRowData withRowtime;
+
+    private RowData rowtime;
+    protected RowData prefix;
 
     public PassThroughCollectorBase(Output<StreamRecord<RowData>> output) {
         super(output);
+        // constructs a flattened row of [[prefix | function output] | rowtime]
+        withPrefix = new JoinedRowData();
+        withRowtime = new JoinedRowData();
+        prefix = GenericRowData.of();
+        rowtime = GenericRowData.of();
     }
 
-    abstract void setInput(RowData input);
+    public abstract void setPrefix(RowData input);
+
+    public void setRowtime(Long time) {
+        rowtime = GenericRowData.of(TimestampData.fromEpochMillis(time));
+    }
+
+    @Override
+    public void collect(RowData functionOutput) {
+        withPrefix.replace(prefix, functionOutput);
+        withRowtime.replace(withPrefix, rowtime);
+        super.collect(withRowtime);
+    }
 }

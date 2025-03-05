@@ -19,28 +19,34 @@
 package org.apache.flink.table.test.program;
 
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.TableRuntimeException;
+
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Test step for executing SQL.
+ * Test step for executing SQL that will fail eventually with a {@link TableRuntimeException}..
  *
  * <p>Note: Not every runner supports generic SQL statements. Sometimes the runner would like to
  * enrich properties e.g. of a CREATE TABLE. Use this step with caution.
  */
-public final class SqlTestStep implements TestStep {
+public final class FailingSqlTestStep implements TestStep {
 
     public final String sql;
+    public final String expectedErrorMessage;
 
-    SqlTestStep(String sql) {
+    FailingSqlTestStep(String sql, String expectedErrorMessage) {
         this.sql = sql;
+        this.expectedErrorMessage = expectedErrorMessage;
     }
 
     @Override
     public TestKind getKind() {
-        return TestKind.SQL;
+        return TestKind.FAILING_SQL;
     }
 
-    public TableResult apply(TableEnvironment env) {
-        return env.executeSql(sql);
+    public void apply(TableEnvironment env) {
+        assertThatThrownBy(() -> env.executeSql(sql).await())
+                .satisfies(anyCauseMatches(TableRuntimeException.class, expectedErrorMessage));
     }
 }
