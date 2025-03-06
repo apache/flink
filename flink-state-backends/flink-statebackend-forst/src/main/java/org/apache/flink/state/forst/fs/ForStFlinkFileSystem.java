@@ -117,7 +117,7 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
             long cacheReservedSize,
             MetricGroup metricGroup)
             throws IOException {
-        if (cacheBase == null || cacheCapacity <= 0 && cacheReservedSize < 0) {
+        if (cacheBase == null || cacheCapacity <= 0 && cacheReservedSize <= 0) {
             return null;
         }
         if (cacheBase.getFileSystem().equals(remoteForStPath.getFileSystem())) {
@@ -126,9 +126,20 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
                             + "since the cache and primary path are on the same file system.");
             return null;
         }
+        // Create cache directory to enforce SpaceBasedCacheLimitPolicy.
+        if (!cacheBase.getFileSystem().mkdirs(cacheBase)) {
+            throw new IOException(
+                    String.format("Could not create ForSt cache directory at %s.", cacheBase));
+        }
         CacheLimitPolicy cacheLimitPolicy = null;
         long targetSstFileSize = config.get(TARGET_FILE_SIZE_BASE).getBytes();
-        if (cacheCapacity > 0 && cacheReservedSize >= 0) {
+        boolean useSizeBasedCache = cacheCapacity > 0;
+        // We may encounter the case that the SpaceBasedCacheLimitPolicy cannot work properly on
+        // the file system, so we need to check if it works.
+        boolean useSpaceBasedCache =
+                cacheReservedSize > 0
+                        && SpaceBasedCacheLimitPolicy.worksOn(new File(cacheBase.toString()));
+        if (useSizeBasedCache && useSpaceBasedCache) {
             cacheLimitPolicy =
                     new BundledCacheLimitPolicy(
                             new SizeBasedCacheLimitPolicy(cacheCapacity, targetSstFileSize),
@@ -136,12 +147,14 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
                                     new File(cacheBase.toString()),
                                     cacheReservedSize,
                                     targetSstFileSize));
-        } else if (cacheCapacity > 0) {
+        } else if (useSizeBasedCache) {
             cacheLimitPolicy = new SizeBasedCacheLimitPolicy(cacheCapacity, targetSstFileSize);
-        } else if (cacheReservedSize >= 0) {
+        } else if (useSpaceBasedCache) {
             cacheLimitPolicy =
                     new SpaceBasedCacheLimitPolicy(
                             new File(cacheBase.toString()), cacheReservedSize, targetSstFileSize);
+        } else {
+            return null;
         }
         return new FileBasedCache(
                 config, cacheLimitPolicy, cacheBase.getFileSystem(), cacheBase, metricGroup);
