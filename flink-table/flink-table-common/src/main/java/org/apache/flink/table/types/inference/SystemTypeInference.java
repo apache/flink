@@ -30,6 +30,7 @@ import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.logical.TimestampKind;
@@ -358,10 +359,16 @@ public class SystemTypeInference {
             }
 
             // Don't allow mixtures of time attribute roots
-            if (onTimeColumns.stream().map(LogicalType::getTypeRoot).distinct().count() > 1) {
+            final Set<LogicalTypeRoot> onTimeRoots =
+                    onTimeColumns.stream()
+                            .map(LogicalType::getTypeRoot)
+                            .collect(Collectors.toSet());
+            if (onTimeRoots.size() > 1) {
                 throw new ValidationException(
                         "Invalid time attribute declaration. "
-                                + "All columns in the `on_time` argument must reference the same data type kind.");
+                                + "All columns in the `on_time` argument must reference the same data type kind. "
+                                + "But found: "
+                                + onTimeRoots);
             }
 
             final LogicalType commonOnTimeType =

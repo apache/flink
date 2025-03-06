@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.AtomicTypeWrappingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedReceivingFunction;
@@ -718,6 +719,7 @@ public class ProcessTableFunctionTestPrograms {
                     .setupSql(BASIC_VALUES)
                     .runFailingSql(
                             "SELECT * FROM f(r => TABLE t)",
+                            TableRuntimeException.class,
                             "Timers are not supported in the current PTF declaration.")
                     .build();
 
@@ -729,6 +731,7 @@ public class ProcessTableFunctionTestPrograms {
                     .setupTableSource(TIMED_SOURCE)
                     .runFailingSql(
                             "SELECT * FROM f(r => TABLE t PARTITION BY name, on_time => DESCRIPTOR(ts))",
+                            TableRuntimeException.class,
                             "Timers are not supported in the current PTF declaration.")
                     .build();
 
@@ -740,6 +743,7 @@ public class ProcessTableFunctionTestPrograms {
                     .setupSql(UPDATING_VALUES)
                     .runFailingSql(
                             "SELECT * FROM f(r => TABLE t PARTITION BY name)",
+                            TableRuntimeException.class,
                             "Timers are not supported in the current PTF declaration.")
                     .build();
 }

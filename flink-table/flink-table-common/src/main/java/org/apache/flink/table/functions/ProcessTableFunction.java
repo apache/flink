@@ -349,6 +349,7 @@ import java.time.LocalDateTime;
  *     collect("Timeout for: " + memory.seen)
  *   }
  * }
+ * </pre>
  *
  * <h2>Efficiency and Design Principles</h2>
  *

@@ -329,8 +329,11 @@ public class TableTestProgram {
          * Run step for executing SQL that will fail eventually with a {@link
          * TableRuntimeException}.
          */
-        public Builder runFailingSql(String sql, String expectedErrorMessage) {
-            this.runSteps.add(new FailingSqlTestStep(sql, expectedErrorMessage));
+        public Builder runFailingSql(
+                String sql,
+                Class<? extends Exception> expectedException,
+                String expectedErrorMessage) {
+            this.runSteps.add(new FailingSqlTestStep(sql, expectedException, expectedErrorMessage));
             return this;
         }
 

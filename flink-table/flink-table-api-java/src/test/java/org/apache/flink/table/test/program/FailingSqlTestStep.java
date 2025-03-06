@@ -20,12 +20,15 @@ package org.apache.flink.table.test.program;
 
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableRuntimeException;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Test step for executing SQL that will fail eventually with a {@link TableRuntimeException}..
+ * Test step for executing SQL that will fail eventually with either {@link ValidationException}
+ * (during planning time) or {@link TableRuntimeException} (during execution time).
  *
  * <p>Note: Not every runner supports generic SQL statements. Sometimes the runner would like to
  * enrich properties e.g. of a CREATE TABLE. Use this step with caution.
@@ -33,10 +36,18 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public final class FailingSqlTestStep implements TestStep {
 
     public final String sql;
+    public final Class<? extends Exception> expectedException;
     public final String expectedErrorMessage;
 
-    FailingSqlTestStep(String sql, String expectedErrorMessage) {
+    FailingSqlTestStep(
+            String sql, Class<? extends Exception> expectedException, String expectedErrorMessage) {
+        Preconditions.checkArgument(
+                expectedException == ValidationException.class
+                        || expectedException == TableRuntimeException.class,
+                "Usually a SQL query should fail with either validation or runtime exception. "
+                        + "Otherwise this might require an update to the exception design.");
         this.sql = sql;
+        this.expectedException = expectedException;
         this.expectedErrorMessage = expectedErrorMessage;
     }
 
@@ -47,6 +58,6 @@ public final class FailingSqlTestStep implements TestStep {
 
     public void apply(TableEnvironment env) {
         assertThatThrownBy(() -> env.executeSql(sql).await())
-                .satisfies(anyCauseMatches(TableRuntimeException.class, expectedErrorMessage));
+                .satisfies(anyCauseMatches(expectedException, expectedErrorMessage));
     }
 }
