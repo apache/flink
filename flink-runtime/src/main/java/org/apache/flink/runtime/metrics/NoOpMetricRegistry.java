@@ -44,10 +44,10 @@ public class NoOpMetricRegistry implements MetricRegistry {
     }
 
     @Override
-    public void register(Metric metric, String metricName, AbstractMetricGroup group) {}
+    public void register(Metric metric, String metricName, AbstractMetricGroup<?> group) {}
 
     @Override
-    public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {}
+    public void unregister(Metric metric, String metricName, AbstractMetricGroup<?> group) {}
 
     @Override
     public void addSpan(SpanBuilder spanBuilder) {}

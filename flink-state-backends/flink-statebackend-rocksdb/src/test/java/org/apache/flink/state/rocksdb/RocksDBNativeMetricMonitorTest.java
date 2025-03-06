@@ -226,7 +226,7 @@ class RocksDBNativeMetricMonitorTest {
         public void addSpan(SpanBuilder spanBuilder) {}
 
         @Override
-        public void register(Metric metric, String metricName, AbstractMetricGroup group) {
+        public void register(Metric metric, String metricName, AbstractMetricGroup<?> group) {
             if (metric instanceof RocksDBNativeMetricMonitor.RocksDBNativePropertyMetricView) {
                 propertyMetrics.add(
                         (RocksDBNativeMetricMonitor.RocksDBNativePropertyMetricView) metric);
@@ -238,7 +238,7 @@ class RocksDBNativeMetricMonitorTest {
         }
 
         @Override
-        public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {}
+        public void unregister(Metric metric, String metricName, AbstractMetricGroup<?> group) {}
 
         @Override
         public ScopeFormats getScopeFormats() {
