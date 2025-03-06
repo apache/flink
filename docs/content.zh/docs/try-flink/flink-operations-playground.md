@@ -84,7 +84,7 @@ Job 监控以及资源管理。Flink TaskManager 运行 worker 进程，
 并说明如何验证我们正在操作的一切都是运行正常的。
 
 你需要在自己的主机上提前安装好 [docker](https://docs.docker.com/) (20.10+) 和 
-[docker-compose](https://docs.docker.com/compose/) (2.1+)。
+[docker compose](https://docs.docker.com/compose/) (2.1+)。
 
 我们所使用的配置文件位于 
 [flink-playgrounds](https://github.com/apache/flink-playgrounds) 仓库中，

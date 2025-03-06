@@ -90,7 +90,7 @@ The playground environment is set up in just a few steps. We will walk you throu
 commands and show how to validate that everything is running correctly.
 
 We assume that you have [Docker](https://docs.docker.com/) (20.10+) and
-[docker-compose](https://docs.docker.com/compose/) (2.1+) installed on your machine.
+[docker compose](https://docs.docker.com/compose/) (2.1+) installed on your machine.
 
 The required configuration files are available in the 
 [flink-playgrounds](https://github.com/apache/flink-playgrounds) repository. First checkout the code and build the docker image:
