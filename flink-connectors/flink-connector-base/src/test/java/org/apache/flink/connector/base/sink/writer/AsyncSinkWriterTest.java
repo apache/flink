@@ -721,6 +721,27 @@ class AsyncSinkWriterTest {
                 .containsExactlyInAnyOrder(1, 2, 3, 4, 5, 6);
     }
 
+    /** Simple assertion to make sure that {@link DequeBufferWrapper} is the default buffer. */
+    @Test
+    public void testUseCorrectBufferWrapperImplementation() {
+        AsyncSinkWriterImpl initialSinkWriter =
+                new AsyncSinkWriterImplBuilder().context(sinkInitContext).build();
+
+        assertThat(initialSinkWriter.getBufferedRequestEntries())
+                .isInstanceOf(DequeBufferWrapper.class);
+    }
+
+    /**
+     * Simple assertion to make sure that {@link SimpleBatchCreator} is the default batch creator.
+     */
+    @Test
+    public void testUseCorrectBatchCreatorImplementation() {
+        AsyncSinkWriterImpl initialSinkWriter =
+                new AsyncSinkWriterImplBuilder().context(sinkInitContext).build();
+
+        assertThat(initialSinkWriter.getBatchCreator()).isInstanceOf(SimpleBatchCreator.class);
+    }
+
     @Test
     void testWriterInitializedWithStateHasCallbackRegistered() throws Exception {
         AsyncSinkWriterImpl initialSinkWriter =
@@ -926,6 +947,48 @@ class AsyncSinkWriterTest {
         assertThat(res).isEqualTo(Arrays.asList(4, 1, 2, 3));
     }
 
+    @Test
+    public void testTotalSizeInBytesReflectsBufferBeforeFlush()
+            throws InterruptedException, IOException {
+        AsyncSinkWriterImpl sink =
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSizeInBytes(15)
+                        .maxRecordSizeInBytes(5)
+                        .maxBatchSize(5)
+                        .build();
+
+        // Since maxBatchSizeInBytes> 12(Size per element), flush will never be called.
+        sink.write("1");
+        sink.write("2");
+        sink.write("3");
+
+        // Assert: Total size before flush
+        assertThat(sink.getBufferedRequestEntries().totalSizeInBytes()).isEqualTo(12L);
+    }
+
+    @Test
+    public void testTotalSizeInBytesReflectsBufferAfterFlush()
+            throws InterruptedException, IOException {
+        AsyncSinkWriterImpl sink =
+                new AsyncSinkWriterImplBuilder()
+                        .context(sinkInitContext)
+                        .maxBatchSizeInBytes(11)
+                        .maxRecordSizeInBytes(5)
+                        .maxBatchSize(5)
+                        .build();
+
+        // Since maxBatchSizeInBytes< 12(Size per element), flush will be called.
+        // The first 2 elements will be flushed but not the last element.
+        sink.write("1");
+        sink.write("2");
+        sink.write("3");
+
+        // Assert: Total size after flush
+        // Last element will not be flushed.
+        assertThat(sink.getBufferedRequestEntries().totalSizeInBytes()).isEqualTo(4L);
+    }
+
     private void writeTwoElementsAndInterleaveTheNextTwoElements(
             AsyncSinkWriterImpl sink,
             CountDownLatch blockedWriteLatch,
@@ -1071,7 +1134,11 @@ class AsyncSinkWriterTest {
                                                             .build())
                                             .build())
                             .build(),
-                    bufferedState);
+                    bufferedState,
+                    new SimpleBatchCreator.Builder<Integer>()
+                            .setMaxBatchSizeInBytes(maxBatchSizeInBytes)
+                            .build(),
+                    new DequeBufferWrapper.Builder<Integer>().build());
             this.simulateFailures = simulateFailures;
             this.delay = delay;
         }
