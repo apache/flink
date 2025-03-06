@@ -85,8 +85,14 @@ public class ForStOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "The size-based capacity limit of cache."
-                                                    + "The default value is '%s', which means that the cache size is not limited by size.",
+                                            "An upper-bound of the size that can be used for cache. User "
+                                                    + "should specify at least one cache size limit to enable the cache, "
+                                                    + "either this option or the '%s' option. "
+                                                    + "They can be set simultaneously, and in this case, cache "
+                                                    + "will grow if meet the requirements of both two options. "
+                                                    + "The default value is '%s', meaning that this option is disabled. ",
+                                            // can not ref the static member before definition.
+                                            text("state.backend.forst.cache.reserve-size"),
                                             text(MemorySize.ZERO.toString()))
                                     .build());
 
@@ -98,14 +104,22 @@ public class ForStOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "The reserved size of cache, when set to a positive number. Meaning that "
-                                                    + "the cache will reserve the specified size of disk space. "
-                                                    + "This option and the '%s' option can be set simultaneously, the "
-                                                    + "smaller cache limit will be used as the upper limit. "
-                                                    + "The default value is '%s', meaning the disk will be reserved that much "
-                                                    + "and remaining of which can be used for cache.",
+                                            "The amount of reserved size on disk space, and remaining space can be "
+                                                    + "leveraged by the cache. The cache will evict the oldest files when "
+                                                    + "the reserved space on disk (the disk where cache directory is) is not "
+                                                    + "enough. User should specify at least one cache size limit to enable the cache, "
+                                                    + "either this option or the '%s' option. "
+                                                    + "They can be set simultaneously, and in this case, "
+                                                    + "cache will grow if meet the requirements of both two options. "
+                                                    + "If the specified file system of the cache directory does not support "
+                                                    + "reading the remaining space, the cache will not be able to reserve "
+                                                    + "the specified space, hence this option will be ignored. "
+                                                    + "The default value is '%s', meaning the disk will be reserved that much space, "
+                                                    + "and the remaining of the disk can be used for cache. "
+                                                    + "A configured value of '%s' means that this option is disabled.",
                                             text(CACHE_SIZE_BASE_LIMIT.key()),
-                                            text(MemorySize.ofMebiBytes(256).toString()))
+                                            text(MemorySize.ofMebiBytes(256).toString()),
+                                            text(MemorySize.ZERO.toString()))
                                     .build());
 
     @Documentation.Section(Documentation.Sections.EXPERT_FORST)
