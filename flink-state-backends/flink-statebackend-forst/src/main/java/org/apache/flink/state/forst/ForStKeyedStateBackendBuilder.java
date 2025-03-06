@@ -263,10 +263,16 @@ public class ForStKeyedStateBackendBuilder<K>
             defaultColumnFamilyHandle = restoreResult.getDefaultColumnFamilyHandle();
             nativeMetricMonitor = restoreResult.getNativeMetricMonitor();
 
-            // TODO: init materializedSstFiles and lastCompletedCheckpointId when implement restore
             SortedMap<Long, Collection<IncrementalKeyedStateHandle.HandleAndLocalPath>>
                     materializedSstFiles = new TreeMap<>();
             long lastCompletedCheckpointId = -1L;
+            if (restoreOperation instanceof ForStIncrementalRestoreOperation) {
+                backendUID = restoreResult.getBackendUID();
+                lastCompletedCheckpointId = restoreResult.getLastCompletedCheckpointId();
+                if (recoveryClaimMode != RecoveryClaimMode.NO_CLAIM) {
+                    materializedSstFiles = restoreResult.getRestoredSstFiles();
+                }
+            }
 
             snapshotStrategy =
                     initializeSnapshotStrategy(
