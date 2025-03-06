@@ -82,7 +82,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
     private final Map<String, Metric> metrics = new HashMap<>();
 
     /** All metric subgroups of this group. */
-    private final Map<String, AbstractMetricGroup> groups = new HashMap<>();
+    private final Map<String, AbstractMetricGroup<?>> groups = new HashMap<>();
 
     /**
      * The metrics scope represented by this group. For example ["host-7", "taskmanager-2",
@@ -101,7 +101,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
      * The logical metrics scope represented by this group for each reporter, as a concatenated
      * string, lazily computed. For example: "taskmanager.job.task"
      */
-    private String[] logicalScopeStrings;
+    private final String[] logicalScopeStrings;
 
     /** The metrics query service scope represented by this group, lazily computed. */
     protected QueryScopeInfo queryServiceScopeInfo;
@@ -324,7 +324,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
                 closed = true;
 
                 // close all subgroups
-                for (AbstractMetricGroup group : groups.values()) {
+                for (AbstractMetricGroup<?> group : groups.values()) {
                     group.close();
                 }
                 groups.clear();
@@ -357,6 +357,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
             if (closed) {
                 return;
             }
+
             registry.addSpan(spanBuilder);
         }
     }
@@ -481,8 +482,8 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
                                     + Arrays.toString(scopeComponents));
                 }
 
-                AbstractMetricGroup newGroup = createChildGroup(name, childType);
-                AbstractMetricGroup prior = groups.put(name, newGroup);
+                AbstractMetricGroup<?> newGroup = createChildGroup(name, childType);
+                AbstractMetricGroup<?> prior = groups.put(name, newGroup);
                 if (prior == null || prior.isClosed()) {
                     // no prior group or closed group with that name
                     return newGroup;
