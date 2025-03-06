@@ -400,7 +400,7 @@ class NettyShuffleEnvironmentTest {
         }
 
         @Override
-        public void register(Metric metric, String metricName, AbstractMetricGroup group) {
+        public void register(Metric metric, String metricName, AbstractMetricGroup<?> group) {
             metrics.put(
                     group.getLogicalScope(CharacterFilter.NO_OP_FILTER) + "." + metricName, metric);
         }

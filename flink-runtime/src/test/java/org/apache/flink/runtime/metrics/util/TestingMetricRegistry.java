@@ -70,12 +70,12 @@ public class TestingMetricRegistry implements MetricRegistry {
     }
 
     @Override
-    public void register(Metric metric, String metricName, AbstractMetricGroup group) {
+    public void register(Metric metric, String metricName, AbstractMetricGroup<?> group) {
         registerConsumer.accept(metric, metricName, group);
     }
 
     @Override
-    public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {
+    public void unregister(Metric metric, String metricName, AbstractMetricGroup<?> group) {
         unregisterConsumer.accept(metric, metricName, group);
     }
 

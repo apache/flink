@@ -50,7 +50,7 @@ public interface MetricRegistry {
      * @param metricName the name of the metric
      * @param group the group that contains the metric
      */
-    void register(Metric metric, String metricName, AbstractMetricGroup group);
+    void register(Metric metric, String metricName, AbstractMetricGroup<?> group);
 
     /**
      * Un-registers the given {@link Metric} with this registry.
@@ -59,7 +59,7 @@ public interface MetricRegistry {
      * @param metricName the name of the metric
      * @param group the group that contains the metric
      */
-    void unregister(Metric metric, String metricName, AbstractMetricGroup group);
+    void unregister(Metric metric, String metricName, AbstractMetricGroup<?> group);
 
     /**
      * Returns the scope formats.
