@@ -105,6 +105,8 @@ stages:
           stage_name: cron_snapshot_deployment
           environment: PROFILE="-Djdk11 -Pjava11-target"
           container: flink-build-container
+          # In order for other repository's(e.g. flink-docker, flink-benchmarks) CI to cover all supported jdks, keep it to the minimum supported version.
+          # Upgrade this only when we drop support for this jdk version.
           jdk: 11
       - template: jobs-template.yml
         parameters:
