@@ -169,7 +169,8 @@ under the License.
 		-->
 		<minikdc.version>3.2.4</minikdc.version>
 		<hive.version>2.3.10</hive.version>
-		<orc.version>1.5.6</orc.version>
+		<orc.version>1.9.4</orc.version>
+		<storage-api.version>2.8.1</storage-api.version>
 		<japicmp.referenceVersion>1.20.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
 		<checkstyle.version>10.18.2</checkstyle.version>
