@@ -295,10 +295,10 @@ import java.time.LocalDateTime;
  *
  * <h2>Time</h2>
  *
- * <p>Every PTF takes an optional {@code on_time} argument. The {@code on_time} argument in the function call declares the time attribute column for which
- * a watermark has been declared. When processing a table's row, this timestamp can be accessed via
- * {@link TimeContext#time()} and the watermark via {@link TimeContext#currentWatermark()}
- * respectively.
+ * <p>Every PTF takes an optional {@code on_time} argument. The {@code on_time} argument in the
+ * function call declares the time attribute column for which a watermark has been declared. When
+ * processing a table's row, this timestamp can be accessed via {@link TimeContext#time()} and the
+ * watermark via {@link TimeContext#currentWatermark()} respectively.
  *
  * <p>Specifying an {@code on_time} argument in the function call instructs the framework to return
  * a {@code rowtime} column in the function's output for subsequent time-based operations.
@@ -309,16 +309,17 @@ import java.time.LocalDateTime;
  * <h2>Timers</h2>
  *
  * <p>A PTF that takes set semantic tables can support timers. Timers allow for continuing the
- * processing at a later point in time. This makes waiting, synchronization, or timeouts possible. A timer
- * fires for the registered time when the watermark progresses the logical clock.
+ * processing at a later point in time. This makes waiting, synchronization, or timeouts possible. A
+ * timer fires for the registered time when the watermark progresses the logical clock.
  *
  * <p>Timers can be named ({@link TimeContext#registerOnTime(String, Object)}) or unnamed ({@link
  * TimeContext#registerOnTime(Object)}). The name of a timer can be useful for replacing or deleting
- * an existing timer, or for identifying multiple timers via {@link OnTimerContext#currentTimer()} when they fire.
+ * an existing timer, or for identifying multiple timers via {@link OnTimerContext#currentTimer()}
+ * when they fire.
  *
  * <p>An {@code onTimer()} method must be declared next to the eval() method for reacting to timer
- * events. The signature of the onTimer() method must contain an optional {@link OnTimerContext} followed by all
- * state entries (as declared in the eval() method).
+ * events. The signature of the onTimer() method must contain an optional {@link OnTimerContext}
+ * followed by all state entries (as declared in the eval() method).
  *
  * <p>Flink takes care of storing and restoring timers during failures or restarts. Thus, timers are
  * a special kind of state. Similarly, timers are scoped to a virtual processor defined by the
@@ -349,7 +350,7 @@ import java.time.LocalDateTime;
  *     collect("Timeout for: " + memory.seen)
  *   }
  * }
- * </pre>
+ * }</pre>
  *
  * <h2>Efficiency and Design Principles</h2>
  *
