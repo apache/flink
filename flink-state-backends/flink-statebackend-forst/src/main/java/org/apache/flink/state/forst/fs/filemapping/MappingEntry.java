@@ -42,6 +42,8 @@ public class MappingEntry extends ReferenceCounted {
 
     final boolean isDirectory;
 
+    volatile boolean writing;
+
     /** When delete a directory, if the directory is the parent of this source file, track it. */
     @Nullable MappingEntry parentDir;
 
@@ -54,7 +56,8 @@ public class MappingEntry extends ReferenceCounted {
                 initReference,
                 new HandleBackedMappingEntrySource(stateHandle),
                 fileOwnership,
-                isDirectory);
+                isDirectory,
+                false);
     }
 
     public MappingEntry(
@@ -63,19 +66,22 @@ public class MappingEntry extends ReferenceCounted {
                 initReference,
                 new FileBackedMappingEntrySource(sourcePath),
                 fileOwnership,
-                isDirectory);
+                isDirectory,
+                false);
     }
 
     public MappingEntry(
             int initReference,
             MappingEntrySource source,
             FileOwnership fileOwnership,
-            boolean isDirectory) {
+            boolean isDirectory,
+            boolean writing) {
         super(initReference);
         this.source = source;
         this.parentDir = null;
         this.fileOwnership = fileOwnership;
         this.isDirectory = isDirectory;
+        this.writing = writing;
     }
 
     public void setFileOwnership(FileOwnership ownership) {
@@ -106,6 +112,14 @@ public class MappingEntry extends ReferenceCounted {
 
     public FileOwnership getFileOwnership() {
         return fileOwnership;
+    }
+
+    public boolean isWriting() {
+        return writing;
+    }
+
+    public void endWriting() {
+        writing = false;
     }
 
     @Override
