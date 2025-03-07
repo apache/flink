@@ -19,8 +19,10 @@
 package org.apache.flink.state.forst.fs;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.BlockLocation;
 import org.apache.flink.core.fs.ByteBufferReadable;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.local.LocalDataInputStream;
 import org.apache.flink.core.fs.local.LocalFileSystem;
@@ -49,6 +51,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -340,6 +343,55 @@ public class ForStFlinkFileSystemTest {
         assertThat(registeredGauges.get("forst.fileCache.usedBytes").getValue()).isEqualTo(235L);
 
         is.close();
+    }
+
+    @Test
+    public void testFileStatusAndExist() throws IOException {
+        org.apache.flink.core.fs.Path remotePath =
+                new org.apache.flink.core.fs.Path(tempDir.toString() + "/remote");
+        org.apache.flink.core.fs.Path localPath =
+                new org.apache.flink.core.fs.Path(tempDir.toString() + "/local");
+        ForStFlinkFileSystem fileSystem =
+                new ForStFlinkFileSystem(
+                        new ByteBufferReadableLocalFileSystem(),
+                        remotePath.toString(),
+                        localPath.toString(),
+                        null);
+        fileSystem.mkdirs(remotePath);
+        fileSystem.mkdirs(localPath);
+        org.apache.flink.core.fs.Path sstRemotePath1 =
+                new org.apache.flink.core.fs.Path(remotePath, "1.sst");
+        ByteBufferWritableFSDataOutputStream os1 = fileSystem.create(sstRemotePath1);
+        assertThat(fileSystem.getFileStatus(sstRemotePath1)).isNotNull();
+        assertThat(fileSystem.getFileStatus(sstRemotePath1))
+                .isInstanceOf(ForStFlinkFileSystem.DummyFSFileStatus.class);
+        assertThat(fileSystem.getFileStatus(sstRemotePath1).getPath()).isEqualTo(sstRemotePath1);
+        assertThat(fileSystem.exists(sstRemotePath1)).isTrue();
+        assertThat(fileSystem.listStatus(remotePath)).hasSize(1);
+        assertFileStatusAndBlockLocations(fileSystem, fileSystem.getFileStatus(sstRemotePath1));
+        os1.write(1);
+        os1.close();
+        assertThat(fileSystem.getFileStatus(sstRemotePath1)).isNotNull();
+        assertThat(fileSystem.getFileStatus(sstRemotePath1))
+                .isNotInstanceOf(ForStFlinkFileSystem.DummyFSFileStatus.class);
+        assertThat(fileSystem.getFileStatus(sstRemotePath1).getPath()).isEqualTo(sstRemotePath1);
+        assertThat(fileSystem.getFileStatus(sstRemotePath1).getLen()).isEqualTo(1L);
+        assertThat(fileSystem.exists(sstRemotePath1)).isTrue();
+        assertThat(fileSystem.listStatus(remotePath)).hasSize(1);
+        assertFileStatusAndBlockLocations(fileSystem, fileSystem.getFileStatus(sstRemotePath1));
+    }
+
+    private static void assertFileStatusAndBlockLocations(
+            FileSystem fileSystem, FileStatus fileStatus) throws IOException {
+        BlockLocation[] blockLocations =
+                fileSystem.getFileBlockLocations(fileStatus, 0, fileStatus.getLen());
+        Arrays.sort(blockLocations, Comparator.comparingLong(BlockLocation::getOffset));
+        long offset = 0L;
+        for (BlockLocation blockLocation : blockLocations) {
+            assertThat(blockLocation.getOffset()).isEqualTo(offset);
+            offset += blockLocation.getLength();
+        }
+        assertThat(offset).isEqualTo(fileStatus.getLen());
     }
 
     private static class ByteBufferReadableLocalFileSystem extends LocalFileSystem {
