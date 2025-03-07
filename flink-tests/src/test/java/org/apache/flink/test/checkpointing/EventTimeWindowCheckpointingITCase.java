@@ -35,6 +35,8 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
+import org.apache.flink.state.forst.ForStOptions;
+import org.apache.flink.state.forst.ForStStateBackend;
 import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend;
 import org.apache.flink.state.rocksdb.RocksDBOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -110,6 +112,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
         ROCKSDB_FULL,
         ROCKSDB_INCREMENTAL,
         ROCKSDB_INCREMENTAL_ZK,
+        FORST_INCREMENTAL
     }
 
     @Parameterized.Parameters(name = "statebackend type ={0}")
@@ -191,6 +194,14 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                     setupRocksDB(config, 16, true);
                     break;
                 }
+            case FORST_INCREMENTAL:
+                {
+                    config.set(
+                            ForStOptions.TIMER_SERVICE_FACTORY,
+                            ForStStateBackend.PriorityQueueStateType.ForStDB);
+                    setupForSt(config, 16);
+                    break;
+                }
             default:
                 throw new IllegalStateException("No backend selected.");
         }
@@ -227,6 +238,29 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                     MemorySize.parse(fileSizeThreshold + "b"));
         }
         config.set(RocksDBOptions.LOCAL_DIRECTORIES, rocksDb);
+    }
+
+    private void setupForSt(Configuration config, int fileSizeThreshold) throws IOException {
+        // Configure the managed memory size as 64MB per slot for rocksDB state backend.
+        config.set(
+                TaskManagerOptions.MANAGED_MEMORY_SIZE,
+                MemorySize.ofMebiBytes(PARALLELISM / NUM_OF_TASK_MANAGERS * 64));
+
+        final String forstdb = tempFolder.newFolder().getAbsolutePath();
+        final File backups = tempFolder.newFolder().getAbsoluteFile();
+        // we use the fs backend with small threshold here to test the behaviour with file
+        // references, not self contained byte handles
+        config.set(StateBackendOptions.STATE_BACKEND, "forst");
+        config.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true);
+        config.set(
+                CheckpointingOptions.CHECKPOINTS_DIRECTORY,
+                Path.fromLocalFile(backups).toUri().toString());
+        if (fileSizeThreshold != -1) {
+            config.set(
+                    CheckpointingOptions.FS_SMALL_FILE_THRESHOLD,
+                    MemorySize.parse(fileSizeThreshold + "b"));
+        }
+        config.set(ForStOptions.LOCAL_DIRECTORIES, forstdb);
     }
 
     protected Configuration createClusterConfig() throws IOException {
