@@ -241,7 +241,7 @@ public class SqlNodeToOperationConversion {
 
     /**
      * This is the main entrance for executing all kinds of DDL/DML {@code SqlNode}s, different
-     * SqlNode will have it's implementation in the #convert(type) method whose 'type' argument is
+     * SqlNode will have its implementation in the #convert(type) method whose 'type' argument is
      * subclass of {@code SqlNode}.
      *
      * @param flinkPlanner FlinkPlannerImpl to convertCreateTable sql node to rel node
