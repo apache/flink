@@ -20,13 +20,23 @@ package org.apache.flink.table.runtime.operators.join.temporal;
 
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
+import org.apache.flink.table.runtime.operators.join.temporal.asyncprocessing.AsyncStateTemporalRowTimeJoinOperator;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord;
@@ -36,9 +46,18 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBefore
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Harness tests for {@link TemporalRowTimeJoinOperatorTest}. */
+@ExtendWith(ParameterizedTestExtension.class)
 class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
+
+    @Parameters(name = "enableAsyncState = {0}")
+    public static List<Boolean> enableAsyncState() {
+        return Arrays.asList(true);
+    }
+
+    @Parameter private boolean enableAsyncState;
+
     /** Test rowtime temporal join. */
-    @Test
+    @TestTemplate
     void testRowTimeTemporalJoin() throws Exception {
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(new Watermark(1));
@@ -55,7 +74,7 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
     }
 
     /** Test rowtime left temporal join. */
-    @Test
+    @TestTemplate
     void testRowTimeLeftTemporalJoin() throws Exception {
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(new Watermark(1));
@@ -76,8 +95,8 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
 
     private void testRowTimeTemporalJoin(boolean isLeftOuterJoin, List<Object> expectedOutput)
             throws Exception {
-        TemporalRowTimeJoinOperator joinOperator =
-                new TemporalRowTimeJoinOperator(
+        TwoInputStreamOperator<RowData, RowData, RowData> joinOperator =
+                createTemporalRowTimeJoinOperator(
                         rowType, rowType, joinCondition, 0, 0, 0, 0, isLeftOuterJoin);
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinOperator);
@@ -120,12 +139,12 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
     }
 
     /** Test rowtime temporal join when set idle state retention. */
-    @Test
+    @TestTemplate
     void testRowTimeTemporalJoinWithStateRetention() throws Exception {
         final int minRetentionTime = 4;
         final int maxRetentionTime = minRetentionTime * 3 / 2;
-        TemporalRowTimeJoinOperator joinOperator =
-                new TemporalRowTimeJoinOperator(
+        TwoInputStreamOperator<RowData, RowData, RowData> joinOperator =
+                createTemporalRowTimeJoinOperator(
                         rowType,
                         rowType,
                         joinCondition,
@@ -170,7 +189,7 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
 
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
         assertThat(
-                        joinOperator
+                        ((AbstractStreamOperator) joinOperator)
                                 .getKeyedStateStore()
                                 .getState(
                                         new ValueStateDescriptor<>(
@@ -180,7 +199,7 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
                                 .value())
                 .isNull();
         assertThat(
-                        joinOperator
+                        ((AbstractStreamOperator) joinOperator)
                                 .getKeyedStateStore()
                                 .getState(
                                         new ValueStateDescriptor<>(
@@ -193,7 +212,7 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
         testHarness.close();
     }
 
-    @Test
+    @TestTemplate
     void testRowTimeTemporalJoinOnUpsertSource() throws Exception {
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(new Watermark(1));
@@ -209,7 +228,7 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
         testRowTimeTemporalJoinOnUpsertSource(false, expectedOutput);
     }
 
-    @Test
+    @TestTemplate
     void testRowTimeLeftTemporalJoinOnUpsertSource() throws Exception {
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(new Watermark(1));
@@ -229,8 +248,8 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
 
     private void testRowTimeTemporalJoinOnUpsertSource(
             boolean isLeftOuterJoin, List<Object> expectedOutput) throws Exception {
-        TemporalRowTimeJoinOperator joinOperator =
-                new TemporalRowTimeJoinOperator(
+        TwoInputStreamOperator<RowData, RowData, RowData> joinOperator =
+                createTemporalRowTimeJoinOperator(
                         rowType, rowType, joinCondition, 0, 0, 0, 0, isLeftOuterJoin);
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinOperator);
@@ -270,10 +289,45 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
         testHarness.close();
     }
 
-    private KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
-            createTestHarness(TemporalRowTimeJoinOperator temporalJoinOperator) throws Exception {
+    @Override
+    protected KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
+            createTestHarness(
+                    TwoInputStreamOperator<RowData, RowData, RowData> temporalJoinOperator)
+                    throws Exception {
 
         return new KeyedTwoInputStreamOperatorTestHarness<>(
                 temporalJoinOperator, keySelector, keySelector, keyType);
+    }
+
+    private TwoInputStreamOperator<RowData, RowData, RowData> createTemporalRowTimeJoinOperator(
+            InternalTypeInfo<RowData> leftType,
+            InternalTypeInfo<RowData> rightType,
+            GeneratedJoinCondition generatedJoinCondition,
+            int leftTimeAttribute,
+            int rightTimeAttribute,
+            long minRetentionTime,
+            long maxRetentionTime,
+            boolean isLeftOuterJoin) {
+        if (!enableAsyncState) {
+            return new TemporalRowTimeJoinOperator(
+                    leftType,
+                    rightType,
+                    generatedJoinCondition,
+                    leftTimeAttribute,
+                    rightTimeAttribute,
+                    minRetentionTime,
+                    maxRetentionTime,
+                    isLeftOuterJoin);
+        } else {
+            return new AsyncStateTemporalRowTimeJoinOperator(
+                    leftType,
+                    rightType,
+                    generatedJoinCondition,
+                    leftTimeAttribute,
+                    rightTimeAttribute,
+                    minRetentionTime,
+                    maxRetentionTime,
+                    isLeftOuterJoin);
+        }
     }
 }
