@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DescribedEnum;
@@ -115,6 +116,9 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
 
     // -- configuration values, set in the application / configuration
 
+    /** This determines if incremental checkpointing is enabled. */
+    private final TernaryBoolean enableIncrementalCheckpointing;
+
     /**
      * Base paths for ForSt remote directory, as configured. Null if not yet set, in which case the
      * configuration values will be used. The configuration will fallback to local directory by
@@ -190,6 +194,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
 
     /** Creates a new {@code ForStStateBackend} for storing state. */
     public ForStStateBackend() {
+        this.enableIncrementalCheckpointing = TernaryBoolean.UNDEFINED;
         this.nativeMetricOptions = new ForStNativeMetricOptions();
         this.memoryConfiguration = new ForStMemoryConfiguration();
         this.priorityQueueConfig = new ForStPriorityQueueConfig();
@@ -209,6 +214,9 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
      */
     private ForStStateBackend(
             ForStStateBackend original, ReadableConfig config, ClassLoader classLoader) {
+        this.enableIncrementalCheckpointing =
+                original.enableIncrementalCheckpointing.resolveUndefined(
+                        config.get(CheckpointingOptions.INCREMENTAL_CHECKPOINTS));
         this.memoryConfiguration =
                 ForStMemoryConfiguration.fromOtherAndConfiguration(
                         original.memoryConfiguration, config);
@@ -558,6 +566,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                                 parameters.getStateHandles(),
                                 keyGroupCompressionDecorator,
                                 parameters.getCancelStreamRegistry())
+                        .setEnableIncrementalCheckpointing(isIncrementalCheckpointsEnabled())
                         .setNativeMetricOptions(
                                 resourceContainer.getMemoryWatcherOptions(nativeMetricOptions))
                         .setOverlapFractionThreshold(
@@ -635,6 +644,12 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
         }
 
         return optionsFactory;
+    }
+
+    /** Gets whether incremental checkpoints are enabled for this state backend. */
+    public boolean isIncrementalCheckpointsEnabled() {
+        return enableIncrementalCheckpointing.getOrDefault(
+                CheckpointingOptions.INCREMENTAL_CHECKPOINTS.defaultValue());
     }
 
     @Override
