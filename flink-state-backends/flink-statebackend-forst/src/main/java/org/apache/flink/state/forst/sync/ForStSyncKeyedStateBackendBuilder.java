@@ -245,6 +245,12 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
         this.injectedDefaultColumnFamilyHandle = injectedDefaultColumnFamilyHandle;
     }
 
+    public ForStSyncKeyedStateBackendBuilder<K> setEnableIncrementalCheckpointing(
+            boolean enableIncrementalCheckpointing) {
+        this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
+        return this;
+    }
+
     public ForStSyncKeyedStateBackendBuilder<K> setNativeMetricOptions(
             ForStNativeMetricOptions nativeMetricOptions) {
         this.nativeMetricOptions = nativeMetricOptions;
