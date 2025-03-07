@@ -72,11 +72,11 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
 
     /**
      * Reference to whether the state has been cleared within the function; if yes, a conversion
-     * from external to internal data structure is not necessary anymore
+     * from external to internal data structure is not necessary anymore.
      */
     protected boolean[] stateCleared;
 
-    /** State ready for persistence; null if {@link #stateCleared} was true during conversion */
+    /** State ready for persistence; null if {@link #stateCleared} was true during conversion. */
     protected RowData[] stateFromFunction;
 
     public void initialize(
