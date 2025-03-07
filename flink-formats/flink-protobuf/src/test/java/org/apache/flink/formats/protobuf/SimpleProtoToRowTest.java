@@ -20,11 +20,20 @@ package org.apache.flink.formats.protobuf;
 
 import org.apache.flink.formats.protobuf.testproto.SimpleTestMulti;
 import org.apache.flink.formats.protobuf.testproto.Status;
+import org.apache.flink.formats.protobuf.util.PbToRowTypeUtil;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.RowType;
 
 import com.google.protobuf.ByteString;
 import org.junit.Test;
 
+import static org.apache.flink.table.api.DataTypes.BIGINT;
+import static org.apache.flink.table.api.DataTypes.BOOLEAN;
+import static org.apache.flink.table.api.DataTypes.DOUBLE;
+import static org.apache.flink.table.api.DataTypes.FIELD;
+import static org.apache.flink.table.api.DataTypes.INT;
+import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -49,20 +58,30 @@ public class SimpleProtoToRowTest {
                         .setVpr6S(2)
                         .build();
 
-        RowData row = ProtobufTestHelper.pbBytesToRow(SimpleTestMulti.class, simple.toByteArray());
+        DataType dataType =
+                ROW(
+                        FIELD("b", BIGINT()),
+                        FIELD("e", DOUBLE()),
+                        FIELD("a", INT()),
+                        FIELD("c", BOOLEAN()));
+        RowType schema = (RowType) dataType.getLogicalType();
+        String[][] projectedField =
+                new String[][] {
+                    new String[] {"b"}, new String[] {"e"}, new String[] {"a"}, new String[] {"c"}
+                };
 
-        assertEquals(11, row.getArity());
-        assertEquals(1, row.getInt(0));
-        assertEquals(2L, row.getLong(1));
-        assertFalse(row.getBoolean(2));
-        assertEquals(Float.valueOf(0.1f), Float.valueOf(row.getFloat(3)));
-        assertEquals(Double.valueOf(0.01d), Double.valueOf(row.getDouble(4)));
-        assertEquals("haha", row.getString(5).toString());
-        assertEquals(1, (row.getBinary(6))[0]);
-        assertEquals("IMAGES", row.getString(7).toString());
-        assertEquals("FINISHED", row.getString(8).toString());
-        assertEquals(1, row.getInt(9));
-        assertEquals(2, row.getInt(10));
+        RowData row =
+                ProtobufTestProjectHelper.pbBytesToRowProjected(
+                        schema,
+                        simple.toByteArray(),
+                        new PbFormatConfig(SimpleTestMulti.class.getName(), false, false, ""),
+                        projectedField);
+
+        assertEquals(4, row.getArity());
+        assertEquals(2L, row.getLong(0));
+        assertEquals(Double.valueOf(0.01d), Double.valueOf(row.getDouble(1)));
+        assertEquals(1, row.getInt(2));
+        assertFalse(row.getBoolean(3));
     }
 
     @Test
@@ -76,7 +95,28 @@ public class SimpleProtoToRowTest {
                         .setF("haha")
                         .build();
 
-        RowData row = ProtobufTestHelper.pbBytesToRow(SimpleTestMulti.class, simple.toByteArray());
+        RowType schema = PbToRowTypeUtil.generateRowType(SimpleTestMulti.getDescriptor());
+        String[][] projectedField =
+                new String[][] {
+                    new String[] {"a"},
+                    new String[] {"b"},
+                    new String[] {"c"},
+                    new String[] {"d"},
+                    new String[] {"e"},
+                    new String[] {"f"},
+                    new String[] {"g"},
+                    new String[] {"h"},
+                    new String[] {"i"},
+                    new String[] {"f_abc_7d"},
+                    new String[] {"vpr6s"}
+                };
+
+        RowData row =
+                ProtobufTestProjectHelper.pbBytesToRowProjected(
+                        schema,
+                        simple.toByteArray(),
+                        new PbFormatConfig(SimpleTestMulti.class.getName(), false, false, ""),
+                        projectedField);
 
         assertTrue(row.isNullAt(0));
         assertFalse(row.isNullAt(1));
@@ -86,12 +126,28 @@ public class SimpleProtoToRowTest {
     public void testDefaultValues() throws Exception {
         SimpleTestMulti simple = SimpleTestMulti.newBuilder().build();
 
+        RowType schema = PbToRowTypeUtil.generateRowType(SimpleTestMulti.getDescriptor());
+        String[][] projectedField =
+                new String[][] {
+                    new String[] {"a"},
+                    new String[] {"b"},
+                    new String[] {"c"},
+                    new String[] {"d"},
+                    new String[] {"e"},
+                    new String[] {"f"},
+                    new String[] {"g"},
+                    new String[] {"h"},
+                    new String[] {"i"},
+                    new String[] {"f_abc_7d"},
+                    new String[] {"vpr6s"}
+                };
+
         RowData row =
-                ProtobufTestHelper.pbBytesToRow(
-                        SimpleTestMulti.class,
+                ProtobufTestProjectHelper.pbBytesToRowProjected(
+                        schema,
                         simple.toByteArray(),
                         new PbFormatConfig(SimpleTestMulti.class.getName(), false, true, ""),
-                        false);
+                        projectedField);
 
         assertFalse(row.isNullAt(0));
         assertFalse(row.isNullAt(1));
@@ -120,8 +176,28 @@ public class SimpleProtoToRowTest {
                         .setH(SimpleTestMulti.Corpus.IMAGES)
                         .setI(Status.STARTED)
                         .build();
+        RowType schema = PbToRowTypeUtil.generateRowType(SimpleTestMulti.getDescriptor(), true);
+        String[][] projectedField =
+                new String[][] {
+                    new String[] {"a"},
+                    new String[] {"b"},
+                    new String[] {"c"},
+                    new String[] {"d"},
+                    new String[] {"e"},
+                    new String[] {"f"},
+                    new String[] {"g"},
+                    new String[] {"h"},
+                    new String[] {"i"},
+                    new String[] {"f_abc_7d"},
+                    new String[] {"vpr6s"}
+                };
+
         RowData row =
-                ProtobufTestHelper.pbBytesToRow(SimpleTestMulti.class, simple.toByteArray(), true);
+                ProtobufTestProjectHelper.pbBytesToRowProjected(
+                        schema,
+                        simple.toByteArray(),
+                        new PbFormatConfig(SimpleTestMulti.class.getName(), false, true, ""),
+                        projectedField);
         assertEquals(2, row.getInt(7));
         assertEquals(1, row.getInt(8));
     }
