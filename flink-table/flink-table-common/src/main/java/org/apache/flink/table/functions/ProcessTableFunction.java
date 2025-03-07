@@ -332,10 +332,7 @@ import java.time.LocalDateTime;
  *     public String seen = null;
  *   }
  *
- *   public void eval(
- *       Context ctx,
- *       @StateHint SeenState memory,
- *       @ArgumentHint( { TABLE_AS_SET, REQUIRE_ON_TIME } ) Row input) {
+ *   public void eval(Context ctx, @StateHint SeenState memory, @ArgumentHint( { TABLE_AS_SET, REQUIRE_ON_TIME } ) Row input) {
  *     TimeContext<Instant> timeCtx = ctx.timeContext(Instant.class);
  *     if (memory.seen == null) {
  *       memory.seen = input.getField(0).toString();
