@@ -1359,7 +1359,7 @@ class AsyncWaitOperatorTest {
         testProcessingTimeWithMailboxThreadError(exceptionRetryStrategy);
     }
 
-    public void testProcessingTimeWithMailboxThreadError(
+    private void testProcessingTimeWithMailboxThreadError(
             @Nullable AsyncRetryStrategy<Integer> asyncRetryStrategy) throws Exception {
         StreamTaskMailboxTestHarnessBuilder<Integer> builder =
                 new StreamTaskMailboxTestHarnessBuilder<>(
