@@ -130,7 +130,7 @@ public class JSONGenerator {
             ArrayNode jsonArray,
             List<Integer> toVisit,
             int headId,
-            Map<Integer, Integer> edgeRemapings,
+            Map<Integer, Integer> edgeRemappings,
             ArrayNode iterationInEdges) {
 
         Integer vertexID = toVisit.get(0);
@@ -148,15 +148,15 @@ public class JSONGenerator {
             for (StreamEdge inEdge : vertex.getInEdges()) {
                 int inputID = inEdge.getSourceId();
 
-                if (edgeRemapings.keySet().contains(inputID)) {
+                if (edgeRemappings.keySet().contains(inputID)) {
                     decorateEdge(inEdges, inEdge, inputID);
                 } else if (!streamGraph.vertexIDtoLoopTimeout.containsKey(inputID)) {
                     decorateEdge(iterationInEdges, inEdge, inputID);
                 }
             }
 
-            edgeRemapings.put(vertexID, headId);
-            visitIteration(jsonArray, toVisit, headId, edgeRemapings, iterationInEdges);
+            edgeRemappings.put(vertexID, headId);
+            visitIteration(jsonArray, toVisit, headId, edgeRemappings, iterationInEdges);
         }
     }
 
