@@ -578,6 +578,7 @@ public abstract class ProcessTableFunction<T> extends UserDefinedFunction {
     }
 
     /** Special {@link Context} that is available when the {@code onTimer()} method is called. */
+    @PublicEvolving
     public interface OnTimerContext extends Context {
 
         /**
