@@ -20,8 +20,7 @@ package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
 
-import org.apache.flink.shaded.curator5.org.apache.curator.shaded.com.google.common.collect.Lists;
-
+import com.google.common.collect.Lists;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rel.RelNode;

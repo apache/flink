@@ -30,9 +30,8 @@ import org.apache.flink.table.runtime.groupwindow.RowtimeAttribute;
 import org.apache.flink.table.runtime.groupwindow.WindowEnd;
 import org.apache.flink.table.runtime.groupwindow.WindowStart;
 
-import org.apache.flink.shaded.guava33.com.google.common.collect.Iterables;
-import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
-
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rel.RelNode;
