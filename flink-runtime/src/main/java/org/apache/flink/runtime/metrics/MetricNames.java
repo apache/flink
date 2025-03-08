@@ -145,4 +145,13 @@ public class MetricNames {
     public static final String FAILED_COMMITTABLES = "failedCommittables";
     public static final String RETRIED_COMMITTABLES = "retriedCommittables";
     public static final String PENDING_COMMITTABLES = "pendingCommittables";
+
+    // FLIP-513 split level metrics
+    public static final String SPLIT_CURRENT_WATERMARK = "currentWatermark";
+    public static final String SPLIT_ACTIVE_TIME = "activeTimeMs" + SUFFIX_RATE;
+    public static final String SPLIT_PAUSED_TIME = "pausedTimeMs" + SUFFIX_RATE;
+    public static final String SPLIT_IDLE_TIME = "idleTimeMs" + SUFFIX_RATE;
+    public static final String ACC_SPLIT_PAUSED_TIME = "accumulatedPausedTimeMs";
+    public static final String ACC_SPLIT_ACTIVE_TIME = "accumulatedActiveTimeMs";
+    public static final String ACC_SPLIT_IDLE_TIME = "accumulatedIdleTimeMs";
 }

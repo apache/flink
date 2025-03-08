@@ -44,7 +44,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.CollectorOutput;
 import org.apache.flink.util.CollectionUtil;
-
+import static org.apache.flink.api.common.eventtime.WatermarkMatchers.watermark;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -235,6 +235,41 @@ class SourceOperatorTest {
                         new RecordAttributes(false));
     }
 
+    @Test
+    public void testMetricGroupIsCreatedForNewSplit() throws Exception {
+        operator.initializeState(context.createStateContext());
+        operator.open();
+        MockSourceSplit newSplit = new MockSourceSplit((2));
+        operator.handleOperatorEvent(
+                new AddSplitEvent<>(
+                        Collections.singletonList(newSplit), new MockSourceSplitSerializer()));
+        assertNotNull(operator.getSplitMetricGroup(newSplit.splitId()));
+    }
+
+    @Test
+    public void testMetricGroupIsCreatedForRestoredSplit() throws Exception {
+        MockSourceSplit restoredSplit = new MockSourceSplit((2));
+        StateInitializationContext stateContext =
+                context.createStateContext(Collections.singletonList(restoredSplit));
+        operator.initializeState(stateContext);
+        operator.open();
+        assertNotNull(operator.getSplitMetricGroup(restoredSplit.splitId()));
+    }
+
+    @Test
+    public void testMetricGroupTracksSplitWatermark() throws Exception {
+        long expectedWatermark = 1000;
+        operator.initializeState(context.createStateContext());
+        operator.open();
+        MockSourceSplit split = new MockSourceSplit((2));
+        operator.handleOperatorEvent(
+                new AddSplitEvent<>(
+                        Collections.singletonList(split), new MockSourceSplitSerializer()));
+        operator.updateCurrentSplitWatermark(split.splitId(), expectedWatermark);
+        assertEquals(
+                operator.getSplitMetricGroup(split.splitId()).getCurrentWatermark(),
+                expectedWatermark);
+    }
     private static class DataOutputToOutput<T> implements PushingAsyncDataInput.DataOutput<T> {
 
         private final Output<StreamRecord<T>> output;
