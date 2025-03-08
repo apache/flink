@@ -1,0 +1,92 @@
+package org.apache.flink.connector.base.sink.writer;
+
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.connector.base.sink.writer.strategy.RequestInfo;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * A simple implementation of {@link BatchCreator} that forms a batch by taking up to {@code
+ * requestInfo.getBatchSize()} entries from the head of the buffer, so long as the cumulative size
+ * in bytes does not exceed the configured maximum.
+ *
+ * <p>This strategy stops gathering entries from the buffer as soon as adding the next entry would
+ * exceed the {@code maxBatchSizeInBytes}, or once it has collected {@code
+ * requestInfo.getBatchSize()} entries, whichever occurs first.
+ *
+ * @param <RequestEntryT> the type of request entries managed by this batch creator
+ */
+@PublicEvolving
+public class
+SimpleBatchCreator<RequestEntryT extends Serializable>
+        implements BatchCreator<RequestEntryT> {
+
+    /** The maximum total byte size allowed for a single batch. */
+    private final long maxBatchSizeInBytes;
+
+    /**
+     * Constructs a {@code SimpleBatchCreator} with the specified maximum batch size in bytes.
+     *
+     * @param maxBatchSizeInBytes the maximum cumulative size in bytes allowed for any single batch
+     */
+    private SimpleBatchCreator(long maxBatchSizeInBytes) {
+        this.maxBatchSizeInBytes = maxBatchSizeInBytes;
+    }
+
+    /**
+     * Creates the next batch of request entries based on the provided {@code requestInfo} and the
+     * currently buffered entries.
+     */
+    @Override
+    public Batch<RequestEntryT> createNextBatch(
+            RequestInfo requestInfo, BufferWrapper<RequestEntryT> bufferedRequestEntries) {
+        List<RequestEntryT> batch = new ArrayList<>(requestInfo.getBatchSize());
+        long batchSizeBytes = 0L;
+
+        for (int i = 0; i < requestInfo.getBatchSize() && !bufferedRequestEntries.isEmpty(); i++) {
+            RequestEntryWrapper<RequestEntryT> peekedEntry = bufferedRequestEntries.peek();
+            long requestEntrySize = peekedEntry.getSize();
+
+            if (batchSizeBytes + requestEntrySize > maxBatchSizeInBytes) {
+                break; // Stop if adding the next entry exceeds the byte limit
+            }
+            RequestEntryWrapper<RequestEntryT> elem = bufferedRequestEntries.poll();
+            batch.add(elem.getRequestEntry());
+            batchSizeBytes += requestEntrySize;
+        }
+        return new Batch<>(batch, batchSizeBytes, batch.size());
+    }
+
+    /**
+     * Builder for {@link SimpleBatchCreator}.
+     *
+     * @param <RequestEntryT> The type of request entries that this batch creator will process.
+     */
+    public static class Builder<RequestEntryT extends Serializable>
+            implements BatchCreator.Builder<SimpleBatchCreator<RequestEntryT>, RequestEntryT> {
+        private long maxBatchSizeInBytes;
+
+        /**
+         * Sets the maximum batch size in bytes.
+         *
+         * @param maxBatchSizeInBytes The maximum allowed size for a batch in bytes.
+         * @return This builder instance for method chaining.
+         */
+        public Builder<RequestEntryT> setMaxBatchSizeInBytes(long maxBatchSizeInBytes) {
+            this.maxBatchSizeInBytes = maxBatchSizeInBytes;
+            return this;
+        }
+
+        /**
+         * Builds and returns a {@link SimpleBatchCreator} instance with the configured parameters.
+         *
+         * @return A new {@link SimpleBatchCreator} instance.
+         */
+        @Override
+        public SimpleBatchCreator<RequestEntryT> build() {
+            return new SimpleBatchCreator<>(maxBatchSizeInBytes);
+        }
+    }
+}
