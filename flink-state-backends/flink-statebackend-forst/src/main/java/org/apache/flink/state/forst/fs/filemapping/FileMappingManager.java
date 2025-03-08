@@ -68,7 +68,7 @@ public class FileMappingManager {
         }
 
         return addFileToMappingTable(
-                key, toUUIDPath(filePath), FileOwnershipDecider.decideForNewFile(filePath));
+                key, toUUIDPath(filePath), FileOwnershipDecider.decideForNewFile(filePath), true);
     }
 
     /** Register a file restored from checkpoints to the mapping table. */
@@ -87,16 +87,16 @@ public class FileMappingManager {
         MappingEntrySource source = new HandleBackedMappingEntrySource(stateHandle);
         MappingEntry existingEntry = getExistingMappingEntry(key, source, fileOwnership);
         return existingEntry == null
-                ? addMappingEntry(key, new MappingEntry(1, source, fileOwnership, false))
+                ? addMappingEntry(key, new MappingEntry(1, source, fileOwnership, false, false))
                 : existingEntry;
     }
 
     private MappingEntry addFileToMappingTable(
-            String key, Path filePath, FileOwnership fileOwnership) {
+            String key, Path filePath, FileOwnership fileOwnership, boolean writing) {
         MappingEntrySource source = new FileBackedMappingEntrySource(filePath);
         MappingEntry existingEntry = getExistingMappingEntry(key, source, fileOwnership);
         return existingEntry == null
-                ? addMappingEntry(key, new MappingEntry(1, source, fileOwnership, false))
+                ? addMappingEntry(key, new MappingEntry(1, source, fileOwnership, false, writing))
                 : existingEntry;
     }
 
