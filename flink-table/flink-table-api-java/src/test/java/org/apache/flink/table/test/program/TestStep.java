@@ -50,6 +50,7 @@ public interface TestStep {
         SINK_WITHOUT_DATA,
         SINK_WITH_DATA,
         SINK_WITH_RESTORE_DATA,
+        FAILING_SQL
     }
 
     TestKind getKind();

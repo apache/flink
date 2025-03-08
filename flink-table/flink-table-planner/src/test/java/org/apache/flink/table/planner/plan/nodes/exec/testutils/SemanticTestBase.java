@@ -22,6 +22,7 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.test.program.ConfigOptionTestStep;
+import org.apache.flink.table.test.program.FailingSqlTestStep;
 import org.apache.flink.table.test.program.FunctionTestStep;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
@@ -65,7 +66,7 @@ public abstract class SemanticTestBase implements TableTestProgramRunner {
 
     @Override
     public EnumSet<TestKind> supportedRunSteps() {
-        return EnumSet.of(TestKind.SQL);
+        return EnumSet.of(TestKind.SQL, TestKind.FAILING_SQL);
     }
 
     @AfterEach
@@ -119,7 +120,22 @@ public abstract class SemanticTestBase implements TableTestProgramRunner {
             }
         }
 
-        program.getRunSqlTestStep().apply(env).await();
+        for (TestStep testStep : program.runSteps) {
+            switch (testStep.getKind()) {
+                case SQL:
+                    {
+                        final SqlTestStep sqlTestStep = (SqlTestStep) testStep;
+                        sqlTestStep.apply(env).await();
+                    }
+                    break;
+                case FAILING_SQL:
+                    {
+                        final FailingSqlTestStep sqlTestStep = (FailingSqlTestStep) testStep;
+                        sqlTestStep.apply(env);
+                    }
+                    break;
+            }
+        }
 
         for (SinkTestStep sinkTestStep : program.getSetupSinkTestSteps()) {
             List<String> actualResults = getActualResults(sinkTestStep, sinkTestStep.name);

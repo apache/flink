@@ -18,34 +18,22 @@
 
 package org.apache.flink.table.runtime.operators.process;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.data.utils.ProjectedRowData;
-import org.apache.flink.table.types.inference.SystemTypeInference;
 
-/**
- * Forwards input partition keys in sync with the output strategy of {@link SystemTypeInference}.
- */
+/** Forwards partition keys of the given row. */
+@Internal
 public class PassPartitionKeysCollector extends PassThroughCollectorBase {
-
-    private final ProjectedRowData projectedInput;
-    private final JoinedRowData joinedRowData;
 
     public PassPartitionKeysCollector(Output<StreamRecord<RowData>> output, int[] partitionKeys) {
         super(output);
-        projectedInput = ProjectedRowData.from(partitionKeys);
-        joinedRowData = new JoinedRowData();
+        prefix = ProjectedRowData.from(partitionKeys);
     }
 
-    void setInput(RowData input) {
-        projectedInput.replaceRow(input);
-    }
-
-    @Override
-    public void collect(RowData functionOutput) {
-        joinedRowData.replace(projectedInput, functionOutput);
-        super.collect(joinedRowData);
+    public void setPrefix(RowData input) {
+        ((ProjectedRowData) prefix).replaceRow(input);
     }
 }
