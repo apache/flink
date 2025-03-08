@@ -25,6 +25,7 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.local.LocalBlockLocation;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.state.forst.fs.cache.BundledCacheLimitPolicy;
@@ -34,6 +35,7 @@ import org.apache.flink.state.forst.fs.cache.CachedDataOutputStream;
 import org.apache.flink.state.forst.fs.cache.FileBasedCache;
 import org.apache.flink.state.forst.fs.cache.SizeBasedCacheLimitPolicy;
 import org.apache.flink.state.forst.fs.cache.SpaceBasedCacheLimitPolicy;
+import org.apache.flink.state.forst.fs.filemapping.FSDataOutputStreamWithEntry;
 import org.apache.flink.state.forst.fs.filemapping.FileBackedMappingEntrySource;
 import org.apache.flink.state.forst.fs.filemapping.FileMappingManager;
 import org.apache.flink.state.forst.fs.filemapping.FileOwnershipDecider;
@@ -49,7 +51,6 @@ import javax.annotation.Nullable;
 
 import java.io.Closeable;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -195,6 +196,9 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
         // Create the actual file output stream
         FileSystem fileSystem = sourceRealPath.getFileSystem();
         FSDataOutputStream outputStream = fileSystem.create(sourceRealPath, overwriteMode);
+        // Bundle the output stream with the mapping entry, to close the entry when the stream is
+        // closed.
+        outputStream = new FSDataOutputStreamWithEntry(outputStream, createdMappingEntry);
 
         // Try to create file cache for SST files
         CachedDataOutputStream cachedDataOutputStream =
@@ -273,40 +277,57 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
         }
 
         if (FileOwnershipDecider.shouldAlwaysBeLocal(f)) {
-            return localFS.exists(mappingEntry.getSourcePath())
-                    || delegateFS.exists(mappingEntry.getSourcePath());
+            return localFS.exists(mappingEntry.getSourcePath());
         } else {
+            // Should be protected with synchronized, since the file closing is not an atomic
+            // operation, see FSDataOutputStreamWithEntry.close()
+            synchronized (mappingEntry) {
+                if (mappingEntry.isWriting()) {
+                    return true;
+                }
+            }
             return delegateFS.exists(mappingEntry.getSourcePath());
         }
     }
 
     @Override
     public synchronized FileStatus getFileStatus(Path path) throws IOException {
-        Path sourcePath = getSourcePath(path);
-        FileSystem fileSystem = sourcePath.getFileSystem();
-        return new FileStatusWrapper(fileSystem.getFileStatus(sourcePath), path);
+        MappingEntry mappingEntry = fileMappingManager.mappingEntry(path.toString());
+        if (mappingEntry == null) {
+            return new FileStatusWrapper(delegateFS.getFileStatus(path), path);
+        }
+        if (FileOwnershipDecider.shouldAlwaysBeLocal(path)) {
+            return new FileStatusWrapper(localFS.getFileStatus(mappingEntry.getSourcePath()), path);
+        } else {
+            // Should be protected with synchronized, since the file closing is not an atomic
+            // operation, see FSDataOutputStreamWithEntry.close()
+            synchronized (mappingEntry) {
+                if (mappingEntry.isWriting()) {
+                    return new DummyFSFileStatus(path);
+                }
+            }
+            return new FileStatusWrapper(
+                    delegateFS.getFileStatus(mappingEntry.getSourcePath()), path);
+        }
     }
 
     @Override
     public synchronized BlockLocation[] getFileBlockLocations(FileStatus file, long start, long len)
             throws IOException {
-        Path sourcePath = getSourcePath(file.getPath());
-
-        FileSystem fileSystem = sourcePath.getFileSystem();
-        FileStatus fileStatus = fileSystem.getFileStatus(sourcePath);
-        return fileSystem.getFileBlockLocations(fileStatus, start, len);
-    }
-
-    private @Nonnull Path getSourcePath(Path path) throws FileNotFoundException {
-        MappingEntry mappingEntry = fileMappingManager.mappingEntry(path.toString());
-        Preconditions.checkNotNull(mappingEntry);
-        MappingEntrySource source = mappingEntry.getSource();
-        Path sourcePath = source.getFilePath();
-        if (sourcePath == null) {
-            throw new FileNotFoundException(
-                    String.format("Cannot get file path for source: %s", source));
+        Path path = file.getPath();
+        if (file instanceof FileStatusWrapper) {
+            if (FileOwnershipDecider.shouldAlwaysBeLocal(path)) {
+                return localFS.getFileBlockLocations(
+                        ((FileStatusWrapper) file).delegate, start, len);
+            } else {
+                return delegateFS.getFileBlockLocations(
+                        ((FileStatusWrapper) file).delegate, start, len);
+            }
+        } else if (file instanceof DummyFSFileStatus) {
+            return new BlockLocation[] {new LocalBlockLocation(0L)};
+        } else {
+            throw new IOException("file is not an instance from ForStFlinkFileSystem.");
         }
-        return sourcePath;
     }
 
     @Override
@@ -442,6 +463,50 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
         @Override
         public boolean isDir() {
             return delegate.isDir();
+        }
+
+        @Override
+        public Path getPath() {
+            return path;
+        }
+    }
+
+    /** A dummy file status that only confirms the existence. */
+    static class DummyFSFileStatus implements FileStatus {
+        private final Path path;
+
+        DummyFSFileStatus(Path path) {
+            this.path = path;
+        }
+
+        @Override
+        public long getLen() {
+            return 0L;
+        }
+
+        @Override
+        public long getBlockSize() {
+            return 0L;
+        }
+
+        @Override
+        public short getReplication() {
+            return 0;
+        }
+
+        @Override
+        public long getModificationTime() {
+            return 0;
+        }
+
+        @Override
+        public long getAccessTime() {
+            return 0;
+        }
+
+        @Override
+        public boolean isDir() {
+            return false;
         }
 
         @Override
