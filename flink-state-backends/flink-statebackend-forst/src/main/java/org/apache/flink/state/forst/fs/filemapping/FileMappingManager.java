@@ -61,14 +61,18 @@ public class FileMappingManager {
     }
 
     /** Create a new file in the mapping table. */
-    public MappingEntry createNewFile(Path filePath) {
+    public MappingEntry createNewFile(Path filePath, boolean overwrite) {
         String key = filePath.toString();
         if (FileOwnershipDecider.shouldAlwaysBeLocal(filePath)) {
             filePath = forceLocalPath(filePath);
         }
 
         return addFileToMappingTable(
-                key, toUUIDPath(filePath), FileOwnershipDecider.decideForNewFile(filePath), true);
+                key,
+                toUUIDPath(filePath),
+                FileOwnershipDecider.decideForNewFile(filePath),
+                true,
+                overwrite);
     }
 
     /** Register a file restored from checkpoints to the mapping table. */
@@ -85,38 +89,63 @@ public class FileMappingManager {
     private MappingEntry addHandleBackedFileToMappingTable(
             String key, StreamStateHandle stateHandle, FileOwnership fileOwnership) {
         MappingEntrySource source = new HandleBackedMappingEntrySource(stateHandle);
-        MappingEntry existingEntry = getExistingMappingEntry(key, source, fileOwnership);
+        MappingEntry existingEntry = mappingTable.getOrDefault(key, null);
+        if (existingEntry != null) {
+            Preconditions.checkState(
+                    existingEntry.source.equals(source)
+                            && existingEntry.fileOwnership == fileOwnership,
+                    "Try to add a file that is already in mappingTable,"
+                            + " but with inconsistent entry. Key: %s, source: %s, fileOwnership: %s. "
+                            + " Entry in table: %s",
+                    key,
+                    source,
+                    fileOwnership,
+                    existingEntry);
+
+            LOG.trace("Skip adding a file that already exists in mapping table: {}", key);
+        }
         return existingEntry == null
                 ? addMappingEntry(key, new MappingEntry(1, source, fileOwnership, false, false))
                 : existingEntry;
     }
 
     private MappingEntry addFileToMappingTable(
-            String key, Path filePath, FileOwnership fileOwnership, boolean writing) {
+            String key,
+            Path filePath,
+            FileOwnership fileOwnership,
+            boolean writing,
+            boolean overwrite) {
         MappingEntrySource source = new FileBackedMappingEntrySource(filePath);
-        MappingEntry existingEntry = getExistingMappingEntry(key, source, fileOwnership);
+        MappingEntry existingEntry = mappingTable.getOrDefault(key, null);
+        if (existingEntry != null) {
+            if (!(existingEntry.source.equals(source)
+                    && existingEntry.fileOwnership == fileOwnership)) {
+                if (overwrite) {
+                    // if the file is already in the mapping table, but with different source or
+                    // fileOwnership,
+                    // we should remove the existing entry and add a new entry.
+                    LOG.trace(
+                            "Replace the mapping entry for file: {} from {} to {}",
+                            key,
+                            existingEntry.source,
+                            source);
+                    mappingTable.remove(key).release();
+                    existingEntry = null;
+                } else {
+                    throw new IllegalStateException(
+                            String.format(
+                                    "Try to add a file that is already in mappingTable,"
+                                            + " but with inconsistent entry. Key: %s, source: %s, fileOwnership: %s. "
+                                            + " Entry in table: %s",
+                                    key, source, fileOwnership, existingEntry));
+                }
+            } else {
+                LOG.trace("Skip adding a file that already exists in mapping table: {}", key);
+            }
+        }
         return existingEntry == null
                 ? addMappingEntry(key, new MappingEntry(1, source, fileOwnership, false, writing))
                 : existingEntry;
-    }
-
-    private @Nullable MappingEntry getExistingMappingEntry(
-            String key, MappingEntrySource source, FileOwnership fileOwnership) {
-        MappingEntry entryInTable = mappingTable.getOrDefault(key, null);
-        if (entryInTable != null) {
-            Preconditions.checkState(
-                    entryInTable.source.equals(source)
-                            && entryInTable.fileOwnership == fileOwnership,
-                    String.format(
-                            "Try to add a file that is already in mappingTable,"
-                                    + " but with inconsistent entry. Key: %s, source: %s, fileOwnership: %s. "
-                                    + " Entry in table: %s",
-                            key, source, fileOwnership, entryInTable));
-
-            LOG.trace("Skip adding a file that already exists in mapping table: {}", key);
-            return entryInTable;
-        }
-        return null;
     }
 
     private MappingEntry addMappingEntry(String key, MappingEntry entry) {
