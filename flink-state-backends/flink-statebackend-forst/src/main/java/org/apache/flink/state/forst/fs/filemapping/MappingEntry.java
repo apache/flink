@@ -21,12 +21,15 @@ package org.apache.flink.state.forst.fs.filemapping;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.asyncprocessing.ReferenceCounted;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.state.forst.fs.cache.FileBasedCache;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
+import java.io.IOException;
 
 /**
  * A file mapping entry that encapsulates source and destination path. Source Path : dest Path = 1 :
@@ -39,6 +42,8 @@ public class MappingEntry extends ReferenceCounted {
     MappingEntrySource source;
 
     FileOwnership fileOwnership;
+
+    final @Nullable FileBasedCache cache;
 
     final boolean isDirectory;
 
@@ -56,6 +61,7 @@ public class MappingEntry extends ReferenceCounted {
                 initReference,
                 new HandleBackedMappingEntrySource(stateHandle),
                 fileOwnership,
+                null,
                 isDirectory,
                 false);
     }
@@ -66,6 +72,7 @@ public class MappingEntry extends ReferenceCounted {
                 initReference,
                 new FileBackedMappingEntrySource(sourcePath),
                 fileOwnership,
+                null,
                 isDirectory,
                 false);
     }
@@ -74,14 +81,23 @@ public class MappingEntry extends ReferenceCounted {
             int initReference,
             MappingEntrySource source,
             FileOwnership fileOwnership,
+            FileBasedCache cache,
             boolean isDirectory,
             boolean writing) {
         super(initReference);
         this.source = source;
         this.parentDir = null;
         this.fileOwnership = fileOwnership;
+        this.cache = cache;
         this.isDirectory = isDirectory;
         this.writing = writing;
+        if (!writing && cache != null && !isDirectory && source.cacheable()) {
+            try {
+                cache.registerInCache(source.getFilePath(), source.getSize());
+            } catch (IOException e) {
+                LOG.warn("Failed to register file {} in cache.", source, e);
+            }
+        }
     }
 
     public void setFileOwnership(FileOwnership ownership) {
@@ -133,6 +149,9 @@ public class MappingEntry extends ReferenceCounted {
                 return;
             }
             source.delete(isDirectory);
+            if (cache != null && !isDirectory && source.cacheable()) {
+                cache.delete(source.getFilePath());
+            }
         } catch (Exception e) {
             LOG.warn("Failed to delete file {}.", source, e);
         }
