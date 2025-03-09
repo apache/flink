@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.ByteBufferReadable;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.core.fs.local.LocalDataInputStream;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.metrics.Counter;
@@ -57,6 +58,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.state.forst.ForStOptions.CACHE_LRU_ACCESS_BEFORE_PROMOTION;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -411,6 +416,60 @@ public class ForStFlinkFileSystemTest {
         assertThat(fileSystem.exists(sstRemotePath1)).isTrue();
         is = fileSystem.open(sstRemotePath1);
         assertThat(is.read()).isEqualTo(79);
+    }
+
+    @Test
+    public void testWriteStreamSharable() throws Exception {
+        org.apache.flink.core.fs.Path remotePath =
+                new org.apache.flink.core.fs.Path(tempDir.toString() + "/remote");
+        org.apache.flink.core.fs.Path localPath =
+                new org.apache.flink.core.fs.Path(tempDir.toString() + "/local");
+        org.apache.flink.core.fs.Path cachePath =
+                new org.apache.flink.core.fs.Path(tempDir.toString() + "/tmp-cache");
+        BundledCacheLimitPolicy cacheLimitPolicy =
+                new BundledCacheLimitPolicy(
+                        new SpaceBasedCacheLimitPolicy(new File(cachePath.toString()), 0, 0),
+                        new SizeBasedCacheLimitPolicy(250, 250));
+        FileBasedCache cache =
+                new FileBasedCache(
+                        new Configuration(),
+                        cacheLimitPolicy,
+                        FileSystem.getLocalFileSystem(),
+                        cachePath,
+                        new UnregisteredMetricsGroup());
+        ForStFlinkFileSystem fileSystem =
+                new ForStFlinkFileSystem(
+                        new ByteBufferReadableLocalFileSystem(),
+                        remotePath.toString(),
+                        localPath.toString(),
+                        cache);
+
+        // A write stream is create by other thread and can used by another thread.
+        ExecutorService executor = Executors.newFixedThreadPool(1);
+        org.apache.flink.core.fs.Path sstRemotePath =
+                new org.apache.flink.core.fs.Path(remotePath, "1.sst");
+        AtomicReference<ByteBufferWritableFSDataOutputStream> writeStream = new AtomicReference<>();
+        executor.submit(
+                        () -> {
+                            FileSystemSafetyNet.initializeSafetyNetForThread();
+                            try {
+                                writeStream.set(fileSystem.create(sstRemotePath));
+                                writeStream.get().write(1);
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            } finally {
+                                FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
+                            }
+                        })
+                .get(100, TimeUnit.SECONDS);
+        executor.shutdown();
+        assertThat(writeStream.get()).isNotNull();
+        // won't throw exception here
+        writeStream.get().write(2);
+        writeStream.get().close();
+        ByteBufferReadableFSDataInputStream is = fileSystem.open(sstRemotePath);
+        assertThat(is.read()).isEqualTo(1);
+        assertThat(is.read()).isEqualTo(2);
     }
 
     private static void assertFileStatusAndBlockLocations(
