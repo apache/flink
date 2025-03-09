@@ -33,7 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class FileSinkTest {
 
     @Test
-    public void testCreateFileWriterWithTimerRegistered() throws IOException {
+    void testCreateFileWriterWithTimerRegistered() throws IOException {
         TestSinkInitContext ctx = new TestSinkInitContext();
         FileSink<Integer> sink =
                 FileSink.forRowFormat(
