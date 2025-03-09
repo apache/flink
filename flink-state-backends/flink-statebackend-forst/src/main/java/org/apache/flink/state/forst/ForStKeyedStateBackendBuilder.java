@@ -298,6 +298,9 @@ public class ForStKeyedStateBackendBuilder<K>
             IOUtils.closeQuietly(restoreOperation);
             try {
                 optionsContainer.clearDirectories();
+                // TODO: Remove this after FLINK-37442, if we could properly handl the directory
+                //       deletion in file mapping manager.
+                optionsContainer.forceClearRemoteDirectories();
             } catch (Exception ex) {
                 logger.warn(
                         "Failed to delete ForSt local base path {}, remote base path {}.",
