@@ -186,7 +186,8 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
     public synchronized ByteBufferWritableFSDataOutputStream create(
             Path dbFilePath, WriteMode overwriteMode) throws IOException {
         // Create a file in the mapping table
-        MappingEntry createdMappingEntry = fileMappingManager.createNewFile(dbFilePath);
+        MappingEntry createdMappingEntry =
+                fileMappingManager.createNewFile(dbFilePath, overwriteMode == WriteMode.OVERWRITE);
 
         // The source must be backed by a file
         FileBackedMappingEntrySource source =
