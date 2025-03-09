@@ -348,6 +348,31 @@ public class ForStFlinkFileSystemTest {
         assertThat(registeredGauges.get("forst.fileCache.usedBytes").getValue()).isEqualTo(235L);
 
         is.close();
+
+        // test link and deleted by reference
+        long waitLoaded = 0L;
+        while (waitLoaded < 30000L && cacheEntry1.getReferenceCount() <= 0) {
+            try {
+                Thread.sleep(100);
+                waitLoaded += 100;
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        assertThat(cacheEntry1.getReferenceCount()).isEqualTo(1);
+        org.apache.flink.core.fs.Path sstRemotePath4 =
+                new org.apache.flink.core.fs.Path(remotePath, "4.sst");
+        fileSystem.link(sstRemotePath1, sstRemotePath4);
+        assertThat(cacheEntry1.getReferenceCount()).isEqualTo(1);
+        assertThat(fileSystem.exists(sstRemotePath4)).isTrue();
+        fileSystem.delete(sstRemotePath1, false);
+        assertThat(fileSystem.exists(sstRemotePath1)).isFalse();
+        assertThat(fileSystem.exists(sstRemotePath4)).isTrue();
+        assertThat(cacheEntry1.getReferenceCount()).isEqualTo(1);
+        assertThat(registeredGauges.get("forst.fileCache.usedBytes").getValue()).isEqualTo(235L);
+        fileSystem.delete(sstRemotePath4, false);
+        assertThat(cacheEntry1.getReferenceCount()).isEqualTo(0);
+        assertThat(registeredGauges.get("forst.fileCache.usedBytes").getValue()).isEqualTo(0L);
     }
 
     @Test

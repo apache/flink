@@ -191,7 +191,8 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
             Path dbFilePath, WriteMode overwriteMode) throws IOException {
         // Create a file in the mapping table
         MappingEntry createdMappingEntry =
-                fileMappingManager.createNewFile(dbFilePath, overwriteMode == WriteMode.OVERWRITE);
+                fileMappingManager.createNewFile(
+                        dbFilePath, overwriteMode == WriteMode.OVERWRITE, fileBasedCache);
 
         // The source must be backed by a file
         FileBackedMappingEntrySource source =
@@ -359,14 +360,7 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
 
     @Override
     public synchronized boolean delete(Path path, boolean recursive) throws IOException {
-        MappingEntry mappingEntry = fileMappingManager.mappingEntry(path.toString());
-        boolean success = fileMappingManager.deleteFileOrDirectory(path, recursive);
-        if (fileBasedCache != null && mappingEntry != null) {
-            // if mappingEntry is not null, it means it is a file, not directory
-            MappingEntrySource source = mappingEntry.getSource();
-            fileBasedCache.delete(source.getFilePath());
-        }
-        return success;
+        return fileMappingManager.deleteFileOrDirectory(path, recursive);
     }
 
     @Override
@@ -390,11 +384,8 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
     public synchronized void registerReusedRestoredFile(
             String key, StreamStateHandle stateHandle, Path dbFilePath) {
         MappingEntry mappingEntry =
-                fileMappingManager.registerReusedRestoredFile(key, stateHandle, dbFilePath);
-        if (fileBasedCache != null) {
-            fileBasedCache.registerInCache(
-                    mappingEntry.getSourcePath(), stateHandle.getStateSize());
-        }
+                fileMappingManager.registerReusedRestoredFile(
+                        key, stateHandle, dbFilePath, fileBasedCache);
     }
 
     public synchronized @Nullable MappingEntry getMappingEntry(Path path) {
