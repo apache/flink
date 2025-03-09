@@ -17,6 +17,15 @@
 # limitations under the License.
 ################################################################################
 
+addSpaces() {
+  local str=$1
+  local count=$2
+  for ((i=0; i<count; i++)); do
+    str="$str "
+  done
+  echo "$str"
+}
+
 readFromConfigFile() {
     local key=$1
     local defaultValue=$2
@@ -26,9 +35,37 @@ readFromConfigFile() {
     # if a key exists multiple times, take the "last" one (tail)
     local value=`sed -n "s/^[ ]*${key}[ ]*: \([^#]*\).*$/\1/p" "${configFile}" | sed "s/^ *//;s/ *$//" | tail -n 1`
 
+    # when extract empty in flattened format, try to extract in nested format
+    if [ -z "$value" ]; then
+        # split key by dot
+        IFS='.'
+        read -ra nodes <<< "$key"
+
+        # build a sed command in loop to get key in nested format
+        local sed_cmd_left="sed -n \"/^"
+        local sed_cmd_right=" | "
+        for index in ${!nodes[@]}; do
+            node=${nodes[index]}
+            if [ $index -eq 0 ]; then
+                sed_cmd_left+=$node
+                sed_cmd_left+=":/,/^[^ ]/p\" "
+            elif [ $index -eq $((${#nodes[@]}-1)) ]; then
+                sed_cmd_right+="sed -n \"/"
+                sed_cmd_right+=$node
+                sed_cmd_right+=":/s/.*: //p\" | tail -n 1"
+            else
+                let spaces_count=$index*2
+                sed_cmd_right+="sed -n \"/^"
+                sed_cmd_right+=$(addSpaces "" "$spaces_count")
+                sed_cmd_right+=$node
+                sed_cmd_right+=":/,/^[^ ]/p\" | "
+            fi
+        done
+        value=$(eval "$sed_cmd_left \"$configFile\" $sed_cmd_right")
+    fi
+	
     [ -z "$value" ] && echo "$defaultValue" || echo "$value"
 }
-
 
 setJavaHome() {
     # read JAVA_HOME from config with no default value
