@@ -1340,16 +1340,15 @@ public class TypeExtractor {
             List<Type> typeHierarchy,
             TypeInformation<IN1> in1Type,
             TypeInformation<IN2> in2Type) {
-
-        final List<Type> factoryHierarchy = new ArrayList<>(typeHierarchy);
-        final TypeInfoFactory<? super OUT> factory = getClosestFactory(factoryHierarchy, t);
+        final List<Type> newTypeHierarchy = new ArrayList<>(typeHierarchy);
+        final TypeInfoFactory<? super OUT> factory = getClosestFactory(newTypeHierarchy, t);
         if (factory == null) {
             return null;
         }
-        final Type factoryDefiningType = factoryHierarchy.get(factoryHierarchy.size() - 1);
+        final Type factoryDefiningType = newTypeHierarchy.get(newTypeHierarchy.size() - 1);
 
         return createTypeInfoFromFactory(
-                t, in1Type, in2Type, factoryHierarchy, factory, factoryDefiningType);
+                t, in1Type, in2Type, newTypeHierarchy, factory, factoryDefiningType);
     }
 
     /** Creates type information using a given factory. */
@@ -1358,7 +1357,7 @@ public class TypeExtractor {
             Type t,
             TypeInformation<IN1> in1Type,
             TypeInformation<IN2> in2Type,
-            List<Type> factoryHierarchy,
+            List<Type> typeHierarchy,
             TypeInfoFactory<? super OUT> factory,
             Type factoryDefiningType) {
         // infer possible type parameters from input
@@ -1369,8 +1368,7 @@ public class TypeExtractor {
             final Type[] args = typeToClass(paramDefiningType).getTypeParameters();
 
             final TypeInformation<?>[] subtypeInfo =
-                    createSubTypesInfo(
-                            t, paramDefiningType, factoryHierarchy, in1Type, in2Type, true);
+                    createSubTypesInfo(t, paramDefiningType, typeHierarchy, in1Type, in2Type, true);
             assert subtypeInfo != null;
             for (int i = 0; i < subtypeInfo.length; i++) {
                 genericParams.put(args[i].toString(), subtypeInfo[i]);
