@@ -338,10 +338,7 @@ public class FileMappingManager {
     }
 
     private Path forceLocalPath(Path filePath) {
-        if (isParentDir(filePath.toString(), remoteBase)) {
-            return new Path(localBase, filePath.getName());
-        }
-        return filePath;
+        return new Path(localBase, filePath.getName());
     }
 
     private Path toUUIDPath(Path filePath) {
