@@ -381,6 +381,38 @@ public class ForStFlinkFileSystemTest {
         assertFileStatusAndBlockLocations(fileSystem, fileSystem.getFileStatus(sstRemotePath1));
     }
 
+    @Test
+    public void testOverride() throws IOException {
+        org.apache.flink.core.fs.Path remotePath =
+                new org.apache.flink.core.fs.Path(tempDir.toString() + "/remote");
+        org.apache.flink.core.fs.Path localPath =
+                new org.apache.flink.core.fs.Path(tempDir.toString() + "/local");
+        ForStFlinkFileSystem fileSystem =
+                new ForStFlinkFileSystem(
+                        new ByteBufferReadableLocalFileSystem(),
+                        remotePath.toString(),
+                        localPath.toString(),
+                        null);
+        fileSystem.mkdirs(remotePath);
+        fileSystem.mkdirs(localPath);
+        org.apache.flink.core.fs.Path sstRemotePath1 =
+                new org.apache.flink.core.fs.Path(remotePath, "1.sst");
+        ByteBufferWritableFSDataOutputStream os1 = fileSystem.create(sstRemotePath1);
+        os1.write(76);
+        os1.close();
+        assertThat(fileSystem.exists(sstRemotePath1)).isTrue();
+        ByteBufferReadableFSDataInputStream is = fileSystem.open(sstRemotePath1);
+        assertThat(is.read()).isEqualTo(76);
+
+        // rewrite
+        ByteBufferWritableFSDataOutputStream os2 = fileSystem.create(sstRemotePath1);
+        os2.write(79);
+        os2.close();
+        assertThat(fileSystem.exists(sstRemotePath1)).isTrue();
+        is = fileSystem.open(sstRemotePath1);
+        assertThat(is.read()).isEqualTo(79);
+    }
+
     private static void assertFileStatusAndBlockLocations(
             FileSystem fileSystem, FileStatus fileStatus) throws IOException {
         BlockLocation[] blockLocations =

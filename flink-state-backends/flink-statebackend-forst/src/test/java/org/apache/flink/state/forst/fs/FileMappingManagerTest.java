@@ -55,7 +55,7 @@ public class FileMappingManagerTest {
             return manager.registerReusedRestoredFile(
                     filePath.toString(), new FileStateHandle(filePath, 0), filePath);
         } else {
-            return manager.createNewFile(filePath);
+            return manager.createNewFile(filePath, false);
         }
     }
 
