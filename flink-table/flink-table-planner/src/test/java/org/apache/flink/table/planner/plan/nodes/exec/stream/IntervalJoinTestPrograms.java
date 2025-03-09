@@ -52,6 +52,10 @@ public class IntervalJoinTestPrograms {
         Row.of(13, 10, "2020-04-15 08:00:16")
     };
 
+    static final String[] ORDERS_NON_TIME_SCHEMA = {
+        "id INT", "order_ts_str STRING", "order_ts AS TO_TIMESTAMP(order_ts_str)"
+    };
+
     static final String[] ORDERS_EVENT_TIME_SCHEMA = {
         "id INT",
         "order_ts_str STRING",
@@ -59,8 +63,23 @@ public class IntervalJoinTestPrograms {
         "WATERMARK for `order_ts` AS `order_ts` - INTERVAL '1' SECOND"
     };
 
+    static final String[] ORDERS_EVENT_TIME_SCHEMA_WITH_PRIMARY_KEY = {
+        "id INT",
+        "order_ts_str STRING",
+        "order_ts AS TO_TIMESTAMP(order_ts_str)",
+        "WATERMARK for `order_ts` AS `order_ts` - INTERVAL '1' SECOND",
+        "PRIMARY KEY(id) NOT ENFORCED"
+    };
+
     static final String[] ORDERS_PROC_TIME_SCHEMA = {
         "id INT", "order_ts_str STRING", "proc_time AS PROCTIME()"
+    };
+
+    static final String[] SHIPMENTS_NON_TIME_SCHEMA = {
+        "id INT",
+        "order_id INT",
+        "shipment_ts_str STRING",
+        "shipment_ts AS TO_TIMESTAMP(shipment_ts_str)",
     };
 
     static final String[] SHIPMENTS_EVENT_TIME_SCHEMA = {
@@ -77,6 +96,13 @@ public class IntervalJoinTestPrograms {
 
     static final String[] SINK_SCHEMA = {
         "order_id INT", "order_ts_str STRING", "shipment_ts_str STRING"
+    };
+
+    static final String[] SINK_SCHEMA_WITH_PRIMARY_KEY = {
+        "order_id INT",
+        "order_ts_str STRING",
+        "shipment_ts_str STRING",
+        "PRIMARY KEY(order_id) NOT ENFORCED"
     };
 
     static final TableTestProgram INTERVAL_JOIN_EVENT_TIME =
@@ -102,6 +128,86 @@ public class IntervalJoinTestPrograms {
                                             "+I[2, 2020-04-15 08:00:02, 2020-04-15 08:00:05]",
                                             "+I[5, 2020-04-15 08:00:05, 2020-04-15 08:00:06]")
                                     .consumedAfterRestore(
+                                            "+I[10, 2020-04-15 08:00:11, 2020-04-15 08:00:16]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT\n"
+                                    + "     o.id AS order_id,\n"
+                                    + "     o.order_ts_str,\n"
+                                    + "     s.shipment_ts_str\n"
+                                    + " FROM orders_t o\n"
+                                    + " JOIN shipments_t s ON o.id = s.order_id\n"
+                                    + " WHERE o.order_ts BETWEEN s.shipment_ts - INTERVAL '5' SECOND AND s.shipment_ts + INTERVAL '5' SECOND;")
+                    .build();
+
+    static final TableTestProgram INTERVAL_JOIN_EVENT_TIME_UPDATING_SOURCE =
+            TableTestProgram.of(
+                            "interval-join-event-time-updating-source",
+                            "validates interval join using event time and updating source")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("orders_t")
+                                    .addOption("changelog-mode", "I,UA,UB")
+                                    .addSchema(ORDERS_EVENT_TIME_SCHEMA)
+                                    .producedBeforeRestore(ORDER_BEFORE_DATA)
+                                    .producedAfterRestore(ORDER_AFTER_DATA)
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("shipments_t")
+                                    .addSchema(SHIPMENTS_EVENT_TIME_SCHEMA)
+                                    .producedBeforeRestore(SHIPMENT_BEFORE_DATA)
+                                    .producedAfterRestore(SHIPMENT_AFTER_DATA)
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(SINK_SCHEMA)
+                                    .consumedBeforeRestore(
+                                            "+I[1, 2020-04-15 08:00:01, 2020-04-15 08:00:02]",
+                                            "+I[2, 2020-04-15 08:00:02, 2020-04-15 08:00:05]",
+                                            "+I[4, 2020-04-15 08:00:04, 2020-04-15 08:00:15]",
+                                            "+I[5, 2020-04-15 08:00:05, 2020-04-15 08:00:06]")
+                                    .consumedAfterRestore(
+                                            "+I[3, 2020-04-15 08:00:03, 2020-04-15 08:00:15]",
+                                            "+I[7, 2020-04-15 08:00:09, 2020-04-15 08:00:16]",
+                                            "+I[10, 2020-04-15 08:00:11, 2020-04-15 08:00:16]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT\n"
+                                    + "     o.id AS order_id,\n"
+                                    + "     o.order_ts_str,\n"
+                                    + "     s.shipment_ts_str\n"
+                                    + " FROM orders_t o\n"
+                                    + " JOIN shipments_t s ON o.id = s.order_id\n"
+                                    + " WHERE o.order_ts BETWEEN s.shipment_ts - INTERVAL '5' SECOND AND s.shipment_ts + INTERVAL '5' SECOND;")
+                    .build();
+
+    static final TableTestProgram INTERVAL_JOIN_EVENT_TIME_UPDATING_SOURCE_AND_SINK_MATERIALIZE =
+            TableTestProgram.of(
+                            "interval-join-event-time-updating-source-sink-materialize",
+                            "validates interval join with updating source and sink materialize")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("orders_t")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addSchema(ORDERS_EVENT_TIME_SCHEMA_WITH_PRIMARY_KEY)
+                                    .producedBeforeRestore(ORDER_BEFORE_DATA)
+                                    .producedAfterRestore(ORDER_AFTER_DATA)
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("shipments_t")
+                                    .addSchema(SHIPMENTS_EVENT_TIME_SCHEMA)
+                                    .producedBeforeRestore(SHIPMENT_BEFORE_DATA)
+                                    .producedAfterRestore(SHIPMENT_AFTER_DATA)
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(SINK_SCHEMA_WITH_PRIMARY_KEY)
+                                    .consumedBeforeRestore(
+                                            "+I[1, 2020-04-15 08:00:01, 2020-04-15 08:00:02]",
+                                            "+I[2, 2020-04-15 08:00:02, 2020-04-15 08:00:05]",
+                                            "+I[4, 2020-04-15 08:00:04, 2020-04-15 08:00:15]",
+                                            "+I[5, 2020-04-15 08:00:05, 2020-04-15 08:00:06]")
+                                    .consumedAfterRestore(
+                                            "+I[3, 2020-04-15 08:00:03, 2020-04-15 08:00:15]",
+                                            "+I[7, 2020-04-15 08:00:09, 2020-04-15 08:00:16]",
                                             "+I[10, 2020-04-15 08:00:11, 2020-04-15 08:00:16]")
                                     .build())
                     .runSql(
@@ -152,6 +258,46 @@ public class IntervalJoinTestPrograms {
                                     + " WHERE o.proc_time BETWEEN s.proc_time - INTERVAL '5' SECOND AND s.proc_time + INTERVAL '5' SECOND;")
                     .build();
 
+    static final TableTestProgram INTERVAL_JOIN_PROC_TIME_UPDATING_SOURCE =
+            TableTestProgram.of(
+                            "interval-join-proc-time-updating-source",
+                            "validates interval join using processing time and updating source")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("orders_t")
+                                    .addOption("changelog-mode", "I,UA,UB")
+                                    .addSchema(ORDERS_PROC_TIME_SCHEMA)
+                                    .producedBeforeRestore(ORDER_BEFORE_DATA)
+                                    .producedAfterRestore(ORDER_AFTER_DATA)
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("shipments_t")
+                                    .addSchema(SHIPMENTS_PROC_TIME_SCHEMA)
+                                    .producedBeforeRestore(SHIPMENT_BEFORE_DATA)
+                                    .producedAfterRestore(SHIPMENT_AFTER_DATA)
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(SINK_SCHEMA)
+                                    .consumedBeforeRestore(
+                                            "+I[1, 2020-04-15 08:00:01, 2020-04-15 08:00:02]",
+                                            "+I[2, 2020-04-15 08:00:02, 2020-04-15 08:00:05]",
+                                            "+I[4, 2020-04-15 08:00:04, 2020-04-15 08:00:15]",
+                                            "+I[5, 2020-04-15 08:00:05, 2020-04-15 08:00:06]")
+                                    .consumedAfterRestore(
+                                            "+I[3, 2020-04-15 08:00:03, 2020-04-15 08:00:15]",
+                                            "+I[7, 2020-04-15 08:00:09, 2020-04-15 08:00:16]",
+                                            "+I[10, 2020-04-15 08:00:11, 2020-04-15 08:00:16]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT\n"
+                                    + "     o.id AS order_id,\n"
+                                    + "     o.order_ts_str,\n"
+                                    + "     s.shipment_ts_str\n"
+                                    + " FROM orders_t o\n"
+                                    + " JOIN shipments_t s ON o.id = s.order_id\n"
+                                    + " WHERE o.proc_time BETWEEN s.proc_time - INTERVAL '5' SECOND AND s.proc_time + INTERVAL '5' SECOND;")
+                    .build();
+
     static final TableTestProgram INTERVAL_JOIN_NEGATIVE_INTERVAL =
             TableTestProgram.of(
                             "interval-join-negative-interval",
@@ -189,5 +335,93 @@ public class IntervalJoinTestPrograms {
                                     + " FROM orders_t o LEFT OUTER JOIN shipments_t s\n"
                                     + " ON o.id = s.order_id\n"
                                     + " AND o.order_ts BETWEEN s.shipment_ts + INTERVAL '10' SECOND AND s.shipment_ts + INTERVAL '5' SECOND;")
+                    .build();
+
+    static final TableTestProgram INTERVAL_JOIN_NEGATIVE_INTERVAL_UPDATING_SOURCE =
+            TableTestProgram.of(
+                            "interval-join-negative-interval-updating-source",
+                            "validates interval join using negative interval with updating source")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("orders_t")
+                                    .addOption("changelog-mode", "I,UA,UB")
+                                    .addSchema(ORDERS_EVENT_TIME_SCHEMA)
+                                    .producedBeforeRestore(ORDER_BEFORE_DATA)
+                                    .producedAfterRestore(ORDER_AFTER_DATA)
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("shipments_t")
+                                    .addSchema(SHIPMENTS_EVENT_TIME_SCHEMA)
+                                    .producedBeforeRestore(SHIPMENT_BEFORE_DATA)
+                                    .producedAfterRestore(SHIPMENT_AFTER_DATA)
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(SINK_SCHEMA)
+                                    .consumedBeforeRestore(
+                                            "+I[1, 2020-04-15 08:00:01, null]",
+                                            "-D[1, 2020-04-15 08:00:01, null]",
+                                            "+I[1, 2020-04-15 08:00:01, 2020-04-15 08:00:02]",
+                                            "+I[2, 2020-04-15 08:00:02, null]",
+                                            "-D[2, 2020-04-15 08:00:02, null]",
+                                            "+I[2, 2020-04-15 08:00:02, 2020-04-15 08:00:05]",
+                                            "+I[4, 2020-04-15 08:00:04, null]",
+                                            "+I[5, 2020-04-15 08:00:05, 2020-04-15 08:00:06]",
+                                            "-D[4, 2020-04-15 08:00:04, null]",
+                                            "+I[4, 2020-04-15 08:00:04, 2020-04-15 08:00:15]",
+                                            "+I[3, 2020-04-15 08:00:03, null]")
+                                    .consumedAfterRestore(
+                                            "+I[7, 2020-04-15 08:00:09, null]",
+                                            "-D[3, 2020-04-15 08:00:03, null]",
+                                            "+I[3, 2020-04-15 08:00:03, 2020-04-15 08:00:15]",
+                                            "+I[10, 2020-04-15 08:00:11, null]",
+                                            "-D[7, 2020-04-15 08:00:09, null]",
+                                            "+I[7, 2020-04-15 08:00:09, 2020-04-15 08:00:16]",
+                                            "-D[10, 2020-04-15 08:00:11, null]",
+                                            "+I[10, 2020-04-15 08:00:11, 2020-04-15 08:00:16]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT\n"
+                                    + "     o.id AS order_id,\n"
+                                    + "     o.order_ts_str,\n"
+                                    + "     s.shipment_ts_str\n"
+                                    + " FROM orders_t o LEFT OUTER JOIN shipments_t s\n"
+                                    + " ON o.id = s.order_id\n"
+                                    + " AND o.order_ts BETWEEN s.shipment_ts + INTERVAL '10' SECOND AND s.shipment_ts + INTERVAL '5' SECOND;")
+                    .build();
+
+    static final TableTestProgram INTERVAL_JOIN_NON_TIME_ATTRIBUTE =
+            TableTestProgram.of(
+                            "interval-join-non-time-attribute",
+                            "validates interval join using non time attribute")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("orders_t")
+                                    .addSchema(ORDERS_NON_TIME_SCHEMA)
+                                    .producedBeforeRestore(ORDER_BEFORE_DATA)
+                                    .producedAfterRestore(ORDER_AFTER_DATA)
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("shipments_t")
+                                    .addSchema(SHIPMENTS_NON_TIME_SCHEMA)
+                                    .producedBeforeRestore(SHIPMENT_BEFORE_DATA)
+                                    .producedAfterRestore(SHIPMENT_AFTER_DATA)
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(SINK_SCHEMA)
+                                    .consumedBeforeRestore(
+                                            "+I[1, 2020-04-15 08:00:01, 2020-04-15 08:00:02]",
+                                            "+I[2, 2020-04-15 08:00:02, 2020-04-15 08:00:05]",
+                                            "+I[5, 2020-04-15 08:00:05, 2020-04-15 08:00:06]")
+                                    .consumedAfterRestore(
+                                            "+I[10, 2020-04-15 08:00:11, 2020-04-15 08:00:16]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT\n"
+                                    + "     o.id AS order_id,\n"
+                                    + "     o.order_ts_str,\n"
+                                    + "     s.shipment_ts_str\n"
+                                    + " FROM orders_t o\n"
+                                    + " JOIN shipments_t s ON o.id = s.order_id\n"
+                                    + " WHERE o.order_ts BETWEEN s.shipment_ts - INTERVAL '5' SECOND AND s.shipment_ts + INTERVAL '5' SECOND;")
                     .build();
 }
