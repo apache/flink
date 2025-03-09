@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.state.forst.fs.cache.FileBasedCache;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -61,9 +62,10 @@ public class FileMappingManager {
     }
 
     /** Create a new file in the mapping table. */
-    public MappingEntry createNewFile(Path filePath, boolean overwrite) {
+    public MappingEntry createNewFile(Path filePath, boolean overwrite, FileBasedCache cache) {
         String key = filePath.toString();
-        if (FileOwnershipDecider.shouldAlwaysBeLocal(filePath)) {
+        boolean isLocal = FileOwnershipDecider.shouldAlwaysBeLocal(filePath);
+        if (isLocal) {
             filePath = forceLocalPath(filePath);
         }
 
@@ -71,23 +73,27 @@ public class FileMappingManager {
                 key,
                 toUUIDPath(filePath),
                 FileOwnershipDecider.decideForNewFile(filePath),
+                isLocal ? null : cache,
                 true,
                 overwrite);
     }
 
     /** Register a file restored from checkpoints to the mapping table. */
     public MappingEntry registerReusedRestoredFile(
-            String key, StreamStateHandle stateHandle, Path dbFilePath) {
+            String key, StreamStateHandle stateHandle, Path dbFilePath, FileBasedCache cache) {
         // The checkpoint file may contain only the UUID without the file extension, so we：
         //  - Decide file ownership based on dbFilePath, so we can know the real file type.
         //  - Add to mapping table based on cpFilePath, so we can access the real file.
         LOG.trace("decide restored file ownership based on dbFilePath: {}", dbFilePath);
         return addHandleBackedFileToMappingTable(
-                key, stateHandle, FileOwnershipDecider.decideForRestoredFile(dbFilePath));
+                key, stateHandle, FileOwnershipDecider.decideForRestoredFile(dbFilePath), cache);
     }
 
     private MappingEntry addHandleBackedFileToMappingTable(
-            String key, StreamStateHandle stateHandle, FileOwnership fileOwnership) {
+            String key,
+            StreamStateHandle stateHandle,
+            FileOwnership fileOwnership,
+            FileBasedCache cache) {
         MappingEntrySource source = new HandleBackedMappingEntrySource(stateHandle);
         MappingEntry existingEntry = mappingTable.getOrDefault(key, null);
         if (existingEntry != null) {
@@ -105,7 +111,8 @@ public class FileMappingManager {
             LOG.trace("Skip adding a file that already exists in mapping table: {}", key);
         }
         return existingEntry == null
-                ? addMappingEntry(key, new MappingEntry(1, source, fileOwnership, false, false))
+                ? addMappingEntry(
+                        key, new MappingEntry(1, source, fileOwnership, cache, false, false))
                 : existingEntry;
     }
 
@@ -113,6 +120,7 @@ public class FileMappingManager {
             String key,
             Path filePath,
             FileOwnership fileOwnership,
+            FileBasedCache cache,
             boolean writing,
             boolean overwrite) {
         MappingEntrySource source = new FileBackedMappingEntrySource(filePath);
@@ -144,7 +152,8 @@ public class FileMappingManager {
             }
         }
         return existingEntry == null
-                ? addMappingEntry(key, new MappingEntry(1, source, fileOwnership, false, writing))
+                ? addMappingEntry(
+                        key, new MappingEntry(1, source, fileOwnership, cache, false, writing))
                 : existingEntry;
     }
 
