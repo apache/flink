@@ -276,9 +276,15 @@ public class FileMappingManager {
             }
         }
 
+        // We always treat parentEntry not owned for now, to avoid deleting directory.
+        // This is a safety guard but no good reason to keep it if we have a better solution.
+        // TODO: Reconsider the directory deletion strategy in FLINK-37442.
+        parentEntry.setFileOwnership(FileOwnership.NOT_OWNED);
+
         boolean status = true;
         // step 2.2: release file under directory
-        if (parentEntry.getReferenceCount() == 0) {
+        if (parentEntry.getReferenceCount() == 0
+                && parentEntry.getFileOwnership() != FileOwnership.NOT_OWNED) {
             // an empty directory
             status = fileSystem.delete(file, recursive);
         }
