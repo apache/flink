@@ -53,9 +53,9 @@ public class FileMappingManagerTest {
     private MappingEntry registerFile(FileMappingManager manager, Path filePath) {
         if (reuseCp) {
             return manager.registerReusedRestoredFile(
-                    filePath.toString(), new FileStateHandle(filePath, 0), filePath);
+                    filePath.toString(), new FileStateHandle(filePath, 0), filePath, null);
         } else {
-            return manager.createNewFile(filePath, false);
+            return manager.createNewFile(filePath, false, null);
         }
     }
 
