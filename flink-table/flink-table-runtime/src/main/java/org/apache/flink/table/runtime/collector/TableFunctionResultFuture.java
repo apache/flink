@@ -20,6 +20,9 @@ package org.apache.flink.table.runtime.collector;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
+import org.apache.flink.util.function.SupplierWithException;
+
+import java.util.Collection;
 
 /** The basic implementation of collector for {@link ResultFuture} in table joining. */
 public abstract class TableFunctionResultFuture<T> extends AbstractRichFunction
@@ -59,5 +62,10 @@ public abstract class TableFunctionResultFuture<T> extends AbstractRichFunction
     @Override
     public void completeExceptionally(Throwable error) {
         this.resultFuture.completeExceptionally(error);
+    }
+
+    @Override
+    public void complete(SupplierWithException<Collection<T>, Exception> supplier) {
+        throw new UnsupportedOperationException();
     }
 }
