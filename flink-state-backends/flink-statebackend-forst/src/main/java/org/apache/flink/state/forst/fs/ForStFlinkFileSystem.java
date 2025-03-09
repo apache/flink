@@ -158,7 +158,11 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
             return null;
         }
         return new FileBasedCache(
-                config, cacheLimitPolicy, cacheBase.getFileSystem(), cacheBase, metricGroup);
+                config,
+                cacheLimitPolicy,
+                getUnguardedFileSystem(cacheBase),
+                cacheBase,
+                metricGroup);
     }
 
     public FileSystem getDelegateFS() {
@@ -195,7 +199,10 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
         Path sourceRealPath = source.getFilePath();
 
         // Create the actual file output stream
-        FileSystem fileSystem = sourceRealPath.getFileSystem();
+        // Should use the one WITHOUT safety net protection. The reason is that the ForSt LOG file
+        // might be created by any thread but share among all the threads, so we cannot let the LOG
+        // file auto-closed by one thread's quit.
+        FileSystem fileSystem = getUnguardedFileSystem(sourceRealPath);
         FSDataOutputStream outputStream = fileSystem.create(sourceRealPath, overwriteMode);
         // Bundle the output stream with the mapping entry, to close the entry when the stream is
         // closed.
@@ -396,6 +403,10 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
 
     public synchronized void giveUpOwnership(Path path, StreamStateHandle stateHandle) {
         fileMappingManager.giveUpOwnership(path, stateHandle);
+    }
+
+    private static FileSystem getUnguardedFileSystem(Path path) throws IOException {
+        return FileSystem.getUnguardedFileSystem(path.toUri());
     }
 
     private @Nullable CachedDataOutputStream createCachedDataOutputStream(
