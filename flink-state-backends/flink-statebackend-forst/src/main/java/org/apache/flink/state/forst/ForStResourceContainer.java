@@ -435,6 +435,12 @@ public final class ForStResourceContainer implements AutoCloseable {
         }
     }
 
+    public void forceClearRemoteDirectories() throws Exception {
+        if (remoteBasePath != null) {
+            clearDirectories(remoteBasePath);
+        }
+    }
+
     private static void clearDirectories(Path basePath) throws IOException {
         FileSystem fileSystem = basePath.getFileSystem();
         if (fileSystem.exists(basePath)) {
