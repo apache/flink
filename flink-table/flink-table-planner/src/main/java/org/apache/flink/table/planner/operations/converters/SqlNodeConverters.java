@@ -69,6 +69,48 @@ public class SqlNodeConverters {
         register(new SqlShowViewsConverter());
         register(new SqlShowCatalogsConverter());
         register(new SqlDescribeFunctionConverter());
+        register(new SqlDropCatalogConverter());
+        register(new SqlLoadModuleConverter());
+        register(new SqlShowCurrentCatalogConverter());
+        register(new SqlShowModulesConverter());
+        register(new SqlUnloadModuleConverter());
+        register(new SqlUseCatalogConverter());
+        register(new SqlUseModulesConverter());
+        register(new SqlCreateDatabaseConverter());
+        register(new SqlDropDatabaseConverter());
+        register(new SqlAlterDatabaseConverter());
+        register(new SqlShowCurrentDatabaseConverter());
+        register(new SqlUseDatabaseConverter());
+        register(new SqlCreateTableConverter());
+        register(new SqlDropTableConverter());
+        register(new SqlAlterTableConverter());
+        register(new SqlShowColumnsConverter());
+        register(new SqlDropViewConverter());
+        register(new SqlCreateFunctionConverter());
+        register(new SqlDropFunctionConverter());
+        register(new SqlAlterFunctionConverter());
+        register(new SqlShowCreateTableConverter());
+        register(new SqlShowCreateViewConverter());
+        register(new SqlRichExplainConverter());
+        register(new SqlRichDescribeTableConverter());
+        register(new SqlAddJarConverter());
+        register(new SqlRemoveJarConverter());
+        register(new SqlShowJarsConverter());
+        register(new SqlShowJobsConverter());
+        register(new RichSqlInsertConverter());
+        register(new SqlBeginStatementSetConverter());
+        register(new SqlEndStatementSetConverter());
+        register(new SqlSetConverter());
+        register(new SqlResetConverter());
+        register(new SqlStatementSetConverter());
+        register(new SqlExecuteConverter());
+        register(new SqlExecutePlanConverter());
+        register(new SqlCompilePlanConverter());
+        register(new SqlCompileAndExecutePlanConverter());
+        register(new SqlAnalyzeTableConverter());
+        register(new SqlStopJobConverter());
+        register(new SqlDeleteConverter());
+        register(new SqlUpdateConverter());
     }
 
     /**
@@ -83,7 +125,15 @@ public class SqlNodeConverters {
         if (classConverter != null) {
             return Optional.of(classConverter.convertSqlNode(validatedSqlNode, context));
         }
-
+        // try to match by super classes
+        Class<?> superClass = validatedSqlNode.getClass().getSuperclass();
+        while (superClass != null) {
+            classConverter = CLASS_CONVERTERS.get(superClass);
+            if (classConverter != null) {
+                return Optional.of(classConverter.convertSqlNode(validatedSqlNode, context));
+            }
+            superClass = superClass.getSuperclass();
+        }
         // match by kind if no matching items in class converters
         SqlNodeConverter sqlKindConverter = SQLKIND_CONVERTERS.get(validatedSqlNode.getKind());
         if (sqlKindConverter != null) {
