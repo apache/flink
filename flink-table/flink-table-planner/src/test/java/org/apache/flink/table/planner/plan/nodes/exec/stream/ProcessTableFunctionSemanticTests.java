@@ -47,6 +47,19 @@ public class ProcessTableFunctionSemanticTests extends SemanticTestBase {
                 ProcessTableFunctionTestPrograms.PROCESS_MULTI_STATE,
                 ProcessTableFunctionTestPrograms.PROCESS_CLEARING_STATE,
                 ProcessTableFunctionTestPrograms.PROCESS_STATE_TTL,
-                ProcessTableFunctionTestPrograms.PROCESS_DESCRIPTOR);
+                ProcessTableFunctionTestPrograms.PROCESS_DESCRIPTOR,
+                ProcessTableFunctionTestPrograms.PROCESS_TIME_CONVERSIONS,
+                ProcessTableFunctionTestPrograms.PROCESS_REGULAR_TIMESTAMP,
+                ProcessTableFunctionTestPrograms.PROCESS_NAMED_TIMERS,
+                ProcessTableFunctionTestPrograms.PROCESS_UNNAMED_TIMERS,
+                ProcessTableFunctionTestPrograms.PROCESS_LATE_EVENTS,
+                ProcessTableFunctionTestPrograms.PROCESS_SCALAR_ARGS_TIME,
+                ProcessTableFunctionTestPrograms.PROCESS_OPTIONAL_PARTITION_BY_TIME,
+                ProcessTableFunctionTestPrograms.PROCESS_OPTIONAL_ON_TIME,
+                ProcessTableFunctionTestPrograms.PROCESS_POJO_STATE_TIME,
+                ProcessTableFunctionTestPrograms.PROCESS_CHAINED_TIME,
+                ProcessTableFunctionTestPrograms.PROCESS_INVALID_TABLE_AS_ROW_TIMERS,
+                ProcessTableFunctionTestPrograms.PROCESS_INVALID_PASS_THROUGH_TIMERS,
+                ProcessTableFunctionTestPrograms.PROCESS_INVALID_UPDATING_TIMERS);
     }
 }

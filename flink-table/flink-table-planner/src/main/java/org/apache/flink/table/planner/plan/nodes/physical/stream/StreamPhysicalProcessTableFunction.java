@@ -45,6 +45,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
@@ -53,6 +54,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig;
@@ -140,13 +143,15 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
                         .map(JavaScalaConversionUtil::toJava)
                         .map(optional -> optional.orElseThrow(IllegalStateException::new))
                         .collect(Collectors.toList());
+        final RexCall call = (RexCall) scan.getCall();
+        verifyTimeAttributes(getInputs(), call);
         return new StreamExecProcessTableFunction(
                 unwrapTableConfig(this),
                 getInputs().stream().map(i -> InputProperty.DEFAULT).collect(Collectors.toList()),
                 FlinkTypeFactory.toLogicalRowType(rowType),
                 getRelDetailedDescription(),
                 uid,
-                (RexCall) scan.getCall(),
+                call,
                 inputChangelogModes);
     }
 
@@ -212,6 +217,31 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
         return RexLiteral.stringValue(uidRexNode);
     }
 
+    private static void verifyTimeAttributes(List<RelNode> inputs, RexCall call) {
+        final Set<String> onTimeFields = deriveOnTimeFields(call.getOperands());
+        inputs.stream()
+                .map(RelNode::getRowType)
+                .forEach(rowType -> verifyTimeAttribute(rowType, onTimeFields));
+    }
+
+    private static void verifyTimeAttribute(RelDataType rowType, Set<String> onTimeFields) {
+        onTimeFields.stream()
+                .map(onTimeField -> rowType.getField(onTimeField, true, false))
+                .filter(Objects::nonNull)
+                .forEach(StreamPhysicalProcessTableFunction::verifyTimeAttribute);
+    }
+
+    private static void verifyTimeAttribute(RelDataTypeField timeColumn) {
+        if (!FlinkTypeFactory.isTimeIndicatorType(timeColumn.getType())) {
+            throw new ValidationException(
+                    String.format(
+                            "Column '%s' is not a valid time attribute. "
+                                    + "Only columns with a watermark declaration qualify for the `on_time` argument. "
+                                    + "Also, make sure that the watermarked column is forwarded without any modification.",
+                            timeColumn.getName()));
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
     // Shared utilities
     // --------------------------------------------------------------------------------------------
@@ -230,5 +260,15 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
                 .filter(arg -> arg.e.is(StaticArgumentTrait.TABLE))
                 .filter(arg -> operands.get(arg.i) instanceof RexTableArgCall)
                 .collect(Collectors.toList());
+    }
+
+    public static Set<String> deriveOnTimeFields(List<RexNode> operands) {
+        final RexCall onTimeOperand = (RexCall) operands.get(operands.size() - 2);
+        if (onTimeOperand.getKind() == SqlKind.DEFAULT) {
+            return Set.of();
+        }
+        return onTimeOperand.getOperands().stream()
+                .map(RexLiteral::stringValue)
+                .collect(Collectors.toSet());
     }
 }
