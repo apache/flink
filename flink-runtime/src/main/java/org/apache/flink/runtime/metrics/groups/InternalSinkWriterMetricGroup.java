@@ -53,6 +53,7 @@ public class InternalSinkWriterMetricGroup extends ProxyMetricGroup<MetricGroup>
         numBytesWritten =
                 parentMetricGroup.counter(
                         MetricNames.NUM_BYTES_SEND, operatorIOMetricGroup.getNumBytesOutCounter());
+        operatorIOMetricGroup.reuseOutputMetricsForTask();
         this.operatorIOMetricGroup = operatorIOMetricGroup;
     }
 
