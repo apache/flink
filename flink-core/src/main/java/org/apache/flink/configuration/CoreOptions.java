@@ -471,7 +471,7 @@ public class CoreOptions {
                     .intType()
                     .defaultValue(1)
                     .withDescription(
-                            "Default parallelism for jobs. There are two special case. The first case is when creating a StreamExecutioneEnvironment, if the value of parallelism.default is not explicitly specified, the number of processors available to the Java virtual machine will be used as the default parallelism. The second case is when creating mini cluster, the number of slots will be used as the default parallelism");
+                            "Default parallelism for jobs. There are two special cases. In the first case, when creating a StreamExecutioneEnvironment without specifying parallelism.default, the number of processors available to the Java virtual machine will be used. In the second case, when creating mini cluster without specifying parallelism.default, the total number of slots in mini cluster will be used.");
 
     // ------------------------------------------------------------------------
     //  file systems
