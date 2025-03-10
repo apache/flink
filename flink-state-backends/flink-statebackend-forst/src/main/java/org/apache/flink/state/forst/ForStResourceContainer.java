@@ -620,27 +620,7 @@ public final class ForStResourceContainer implements AutoCloseable {
                 String relocatedDbLogDir = logFile.getParent();
                 this.relocatedDbLogBaseDir = new File(relocatedDbLogDir).toPath();
                 dbOptions.setDbLogDir(relocatedDbLogDir);
-            } else {
-                setLocalForStPathAsLogDir(dbOptions);
             }
-        } else {
-            setLocalForStPathAsLogDir(dbOptions);
-        }
-    }
-
-    private void setLocalForStPathAsLogDir(DBOptions dbOptions) {
-        // Currently, ForStDB does not support mixing local-dir and remote-dir, and ForStDB will
-        // concatenates the dfs directory with the local directory as working dir when using flink
-        // env. We expect to directly use the dfs directory in flink env or local directory as
-        // working dir. We will implement this in ForStDB later, but before that, we achieved this
-        // by setting the dbPath to "/" when the dfs directory existed. Another problem is that when
-        // the system property "log.file" is not set, ForSt directly uses the instance path as the
-        // log dir, which results in "/" being used as the log directory. This often has permission
-        // issues, so the db log dir is temporarily set explicitly here.
-        // TODO: remove this method after ForSt deal log dir well
-        if (localForStPath != null) {
-            this.relocatedDbLogBaseDir = java.nio.file.Path.of(localForStPath.toUri().toString());
-            dbOptions.setDbLogDir(localForStPath.getPath());
         }
     }
 
