@@ -17,7 +17,7 @@
 ################################################################################
 from typing import List
 
-from pyflink.table import Expression
+from pyflink.table.expression import Expression
 from pyflink.table.types import DataType, _from_java_data_type
 
 __all__ = ["ResolvedExpression"]

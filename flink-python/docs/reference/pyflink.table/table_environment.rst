@@ -42,7 +42,7 @@ Example:
 :func:`~EnvironmentSettings.in_streaming_mode` or :func:`~EnvironmentSettings.in_batch_mode`
 might be convenient as shortcuts.
 
-.. currentmodule:: pyflink.table.environment_settings
+.. currentmodule:: pyflink.table
 
 .. autosummary::
     :toctree: api/
@@ -144,13 +144,14 @@ keyword, thus must be escaped) in a catalog named 'cat.1' and database named 'db
     other Flink APIs, it might be necessary to use one of the available language-specific table
     environments in the corresponding bridging modules.
 
-.. currentmodule:: pyflink.table.table_environment
+.. currentmodule:: pyflink.table
 
 .. autosummary::
     :toctree: api/
 
     TableEnvironment.add_python_archive
     TableEnvironment.add_python_file
+    TableEnvironment.compile_plan_sql
     TableEnvironment.create
     TableEnvironment.create_java_function
     TableEnvironment.create_java_temporary_function
@@ -169,6 +170,7 @@ keyword, thus must be escaped) in a catalog named 'cat.1' and database named 'db
     TableEnvironment.drop_temporary_table
     TableEnvironment.drop_temporary_view
     TableEnvironment.drop_view
+    TableEnvironment.execute_plan
     TableEnvironment.execute_sql
     TableEnvironment.explain_sql
     TableEnvironment.from_descriptor
@@ -190,6 +192,7 @@ keyword, thus must be escaped) in a catalog named 'cat.1' and database named 'db
     TableEnvironment.list_user_defined_functions
     TableEnvironment.list_views
     TableEnvironment.load_module
+    TableEnvironment.load_plan
     TableEnvironment.create_catalog
     TableEnvironment.register_catalog
     TableEnvironment.set_python_requirements
@@ -202,7 +205,7 @@ keyword, thus must be escaped) in a catalog named 'cat.1' and database named 'db
 StreamTableEnvironment
 ----------------------
 
-.. currentmodule:: pyflink.table.table_environment
+.. currentmodule:: pyflink.table
 
 .. autosummary::
     :toctree: api/

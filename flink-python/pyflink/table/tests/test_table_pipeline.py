@@ -82,6 +82,22 @@ class TablePipelineTest(PyFlinkStreamTableTestCase):
             "default_catalog.default_database.RegisteredSinkForExecute",
         )
 
+    def test_table_pipeline_compile(self):
+        schema = Schema.new_builder().column("f0", DataTypes.STRING()).build()
+        table = self.t_env.from_descriptor(
+            TableDescriptor.for_connector("datagen")
+            .option("number-of-rows", "10")
+            .schema(schema)
+            .build()
+        )
+        self.t_env.create_temporary_table(
+            "RegisteredSinkForPlanCompile",
+            TableDescriptor.for_connector("blackhole").schema(schema).build(),
+        )
+        table_pipeline = table.insert_into("RegisteredSinkForPlanCompile")
+        compiled_plan = table_pipeline.compile_plan()
+        self.assertIsNotNone(compiled_plan.as_json_string())
+
 
 if __name__ == "__main__":
     import unittest

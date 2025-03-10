@@ -15,36 +15,44 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-
+from pyflink.table import TableEnvironment
 from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase, PyFlinkTestCase
-from pyflink.table.table_pipeline import TablePipeline
 
 
-class TablePipelineAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
+class TableEnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
     """
-    Tests whether the Python :class:`TablePipeline` is consistent with
-    Java `org.apache.flink.table.api.TablePipeline`.
+    Tests whether the Python :class:`TableEnvironment` is consistent with
+    Java `org.apache.flink.table.api.TableEnvironment`.
     """
 
     @classmethod
     def python_class(cls):
-        return TablePipeline
+        return TableEnvironment
 
     @classmethod
     def java_class(cls):
-        return "org.apache.flink.table.api.TablePipeline"
+        return "org.apache.flink.table.api.TableEnvironment"
 
     @classmethod
     def excluded_methods(cls):
-        return {'printExplain'}
+        return {
+            "fromValues",
+            "createFunction",
+            "getCompletionHints",
+            "scan",
+            "registerTable",
+            "from",
+            "registerFunction",
+        }
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import unittest
 
     try:
         import xmlrunner
-        testRunner = xmlrunner.XMLTestRunner(output='target/test-reports')
+
+        testRunner = xmlrunner.XMLTestRunner(output="target/test-reports")
     except ImportError:
         testRunner = None
     unittest.main(testRunner=testRunner, verbosity=2)
