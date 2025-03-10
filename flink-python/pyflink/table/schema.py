@@ -18,8 +18,7 @@
 from typing import Union, List, TYPE_CHECKING
 
 from pyflink.java_gateway import get_gateway
-from pyflink.table import Expression
-from pyflink.table.expression import _get_java_expression
+from pyflink.table.expression import Expression, _get_java_expression
 from pyflink.table.types import DataType, _to_java_data_type
 from pyflink.util.java_utils import to_jarray
 

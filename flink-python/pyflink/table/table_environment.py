@@ -34,6 +34,8 @@ from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table import Table, EnvironmentSettings, Expression, ExplainDetail, \
     Module, ModuleEntry, Schema, ChangelogMode
 from pyflink.table.catalog import Catalog, CatalogDescriptor
+from pyflink.table.compiled_plan import CompiledPlan
+from pyflink.table.plan_reference import PlanReference
 from pyflink.table.serializers import ArrowSerializer
 from pyflink.table.statement_set import StatementSet
 from pyflink.table.table_config import TableConfig
@@ -1408,6 +1410,68 @@ class TableEnvironment(object):
             return Table(getattr(self._j_tenv, "from")(j_arrow_table_source_descriptor), self)
         finally:
             os.unlink(temp_file.name)
+
+    def load_plan(self, plan_reference: PlanReference) -> CompiledPlan:
+        """
+        Loads a plan from a :class:`~pyflink.table.PlanReference` into a
+        :class:`~pyflink.table.CompiledPlan`.
+
+        Compiled plans can be persisted and reloaded across Flink versions. They describe static
+        pipelines to ensure backwards compatibility and enable stateful streaming job upgrades. See
+        :class:`~pyflink.table.CompiledPlan` and the website documentation for more information.
+
+        This method will parse the input reference and will validate the plan. The returned
+        instance can be executed via :func:`~pyflink.table.CompiledPlan.execute`.
+
+        .. note::
+            The compiled plan feature is not supported in batch mode.
+
+        :raises TableException: if the plan cannot be loaded from the filesystem, or if the plan
+            is invalid.
+
+        .. versionadded:: 2.1.0
+        """
+        return CompiledPlan(
+            j_compiled_plan=self._j_tenv.loadPlan(plan_reference._j_plan_reference),
+            t_env=self._j_tenv
+        )
+
+    def compile_plan_sql(self, stmt: str) -> CompiledPlan:
+        """
+        Compiles a SQL DML statement into a :class:`~pyflink.table.CompiledPlan`.
+
+        Compiled plans can be persisted and reloaded across Flink versions. They describe static
+        pipelines to ensure backwards compatibility and enable stateful streaming job upgrades. See
+        :class:`~pyflink.table.CompiledPlan` and the website documentation for more information.
+
+        .. note::
+            Only ``INSERT INTO`` is supported at the moment.
+
+        .. note::
+            The compiled plan feature is not supported in batch mode.
+
+        .. seealso::
+            :func:`~pyflink.table.TableEnvironment.load_plan`
+            :func:`~pyflink.table.CompiledPlan.execute`
+
+        :raises TableException: if the SQL statement is invalid or if the plan cannot be
+            persisted.
+
+        .. versionadded:: 2.1.0
+        """
+        return CompiledPlan(j_compiled_plan=self._j_tenv.compilePlanSql(stmt), t_env=self._j_tenv)
+
+    def execute_plan(self, plan_reference: PlanReference) -> TableResult:
+        """
+        Shorthand for ``tEnv.load_plan(plan_reference).execute()``.
+
+        .. seealso::
+            :func:`~pyflink.table.TableEnvironment.load_plan`
+            :func:`~pyflink.table.CompiledPlan.execute`
+
+        .. versionadded:: 2.1.0
+        """
+        return self.load_plan(plan_reference).execute()
 
     def _set_python_executable_for_local_executor(self):
         jvm = get_gateway().jvm
