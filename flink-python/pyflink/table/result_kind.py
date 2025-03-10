@@ -19,7 +19,10 @@ from pyflink.java_gateway import get_gateway
 
 __all__ = ['ResultKind']
 
+from pyflink.util.api_stability_decorators import PublicEvolving
 
+
+@PublicEvolving()
 class ResultKind(object):
     """
     ResultKind defines the types of the result.
