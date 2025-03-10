@@ -1641,6 +1641,7 @@ under the License.
 						<exclude>flink-runtime-web/web-dashboard/dev/notice-template</exclude>
 						<exclude>flink-examples/flink-examples-streaming/src/main/resources/datas/**</exclude>
 						<exclude>flink-examples/flink-examples-streaming/src/test/resources/datas/**</exclude>
+						<exclude>flink-python/pyflink/table/tests/jsonplan/*</exclude>
 						<!-- ArchUnit violation stores  -->
 						<exclude>**/archunit-violations/**</exclude>
 
