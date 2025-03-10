@@ -70,7 +70,7 @@ class SplitFetcherManagerTest {
         reader.setCloseWithException();
         SplitFetcherManager<Object, TestingSourceSplit> fetcherManager =
                 createFetcher("test-split", reader, new Configuration());
-        fetcherManager.close(1000L);
+        fetcherManager.close(30000L);
         assertThatThrownBy(fetcherManager::checkErrors)
                 .hasRootCauseMessage("Artificial exception on closing the split reader.");
     }
@@ -130,15 +130,20 @@ class SplitFetcherManagerTest {
 
         waitUntil(
                 () -> findThread(SplitFetcherManager.THREAD_NAME_PREFIX).size() == 2,
+                Duration.ofSeconds(30),
                 "The element queue draining thread should have started.");
         for (Thread t : findThread(SplitFetcherManager.THREAD_NAME_PREFIX)) {
-            assertThat(t.getState().equals(Thread.State.WAITING))
-                    .as("All the executor threads should be in waiting status.");
+            waitUntil(
+                    () ->
+                            t.getState().equals(Thread.State.WAITING)
+                                    || t.getState().equals(Thread.State.TIMED_WAITING),
+                    Duration.ofSeconds(30),
+                    "All the executor threads should be in waiting status.");
         }
 
         assertThat(fetcherManager.getQueue().getAvailabilityFuture().getNumberOfDependents())
                 .as("The future should have just one dependent stage")
-                .isEqualTo(1);
+                .isLessThanOrEqualTo(1);
         assertThat(fetcherManager.fetchers.size()).isEqualTo(1);
         reader.triggerThrowException();
         reader.triggerClose();

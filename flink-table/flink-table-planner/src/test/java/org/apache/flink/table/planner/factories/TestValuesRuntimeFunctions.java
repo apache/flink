@@ -289,8 +289,6 @@ final class TestValuesRuntimeFunctions {
                 RowData next;
                 try {
                     next = serializer.deserialize(input);
-                    generator.onEvent(next, Long.MIN_VALUE, output);
-                    generator.onPeriodicEmit(output);
                 } catch (Exception e) {
                     throw new IOException(
                             "Failed to deserialize an element from the source. "
@@ -303,6 +301,8 @@ final class TestValuesRuntimeFunctions {
                 synchronized (lock) {
                     ctx.collect(next);
                     numElementsEmitted++;
+                    generator.onEvent(next, Long.MIN_VALUE, output);
+                    generator.onPeriodicEmit(output);
                 }
             }
         }

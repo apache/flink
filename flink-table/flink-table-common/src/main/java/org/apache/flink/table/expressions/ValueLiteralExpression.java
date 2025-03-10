@@ -303,11 +303,12 @@ public final class ValueLiteralExpression implements ResolvedExpression {
                         "Constructed type literals are not SQL serializable. Please use respective"
                                 + " constructor functions");
             case TIMESTAMP_WITH_TIME_ZONE:
+            case DISTINCT_TYPE:
             case STRUCTURED_TYPE:
             case RAW:
-            case DISTINCT_TYPE:
-            case UNRESOLVED:
             case SYMBOL:
+            case UNRESOLVED:
+            case DESCRIPTOR:
             default:
                 throw new TableException(
                         "Literals with "

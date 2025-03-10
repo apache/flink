@@ -53,9 +53,11 @@ import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
 import static java.util.Collections.emptyList;
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTest.assertStatsMetrics;
+import static org.apache.flink.runtime.state.ChannelStateHelper.collectUniqueDisposableInChannelState;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
@@ -174,9 +176,18 @@ class CheckpointCoordinatorFailureTest {
         verify(operatorSubtaskState.getRawOperatorState().iterator().next()).discardState();
         verify(operatorSubtaskState.getManagedKeyedState().iterator().next()).discardState();
         verify(operatorSubtaskState.getRawKeyedState().iterator().next()).discardState();
-        verify(operatorSubtaskState.getInputChannelState().iterator().next().getDelegate())
+        verify(
+                        collectUniqueDisposableInChannelState(
+                                        Stream.of(operatorSubtaskState.getInputChannelState()))
+                                .iterator()
+                                .next())
                 .discardState();
-        verify(operatorSubtaskState.getResultSubpartitionState().iterator().next().getDelegate())
+        verify(
+                        collectUniqueDisposableInChannelState(
+                                        Stream.of(
+                                                operatorSubtaskState.getResultSubpartitionState()))
+                                .iterator()
+                                .next())
                 .discardState();
     }
 

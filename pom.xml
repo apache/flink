@@ -120,9 +120,9 @@ under the License.
 		<flink.forkCountUnitTest>4</flink.forkCountUnitTest>
 		<flink.reuseForks>true</flink.reuseForks>
 		<flink.surefire.baseArgLine>-XX:+UseG1GC -Xms256m -XX:+IgnoreUnrecognizedVMOptions ${surefire.module.config}</flink.surefire.baseArgLine>
-		<flink.shaded.version>19.0</flink.shaded.version>
-		<flink.shaded.jackson.version>2.15.3</flink.shaded.jackson.version>
-		<flink.shaded.jsonpath.version>2.7.0</flink.shaded.jsonpath.version>
+		<flink.shaded.version>20.0</flink.shaded.version>
+		<flink.shaded.jackson.version>2.18.2</flink.shaded.jackson.version>
+		<flink.shaded.jsonpath.version>2.9.0</flink.shaded.jsonpath.version>
 		<flink.markBundledAsOptional>true</flink.markBundledAsOptional>
 		<source.java.version>11</source.java.version>
 		<target.java.version>17</target.java.version>
@@ -136,7 +136,6 @@ under the License.
 		<scala.macros.version>2.1.1</scala.macros.version>
 		<scala.version>2.12.20</scala.version>
 		<scala.binary.version>2.12</scala.binary.version>
-		<chill.version>0.7.6</chill.version>
 		<!-- keep FlinkTestcontainersConfigurator.configureZookeeperContainer in sync -->
 		<zookeeper.version>3.7.2</zookeeper.version>
 		<!-- Project `flink-benchmarks` uses zk testing server in `curator-test` for performance
@@ -342,7 +341,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-guava</artifactId>
-				<version>32.1.3-jre-${flink.shaded.version}</version>
+				<version>33.4.0-jre-${flink.shaded.version}</version>
 			</dependency>
 
 			<dependency>
@@ -524,6 +523,12 @@ under the License.
 			</dependency>
 
 			<dependency>
+				<groupId>org.apache.logging.log4j</groupId>
+				<artifactId>log4j-layout-template-json</artifactId>
+				<version>${log4j.version}</version>
+			</dependency>
+
+			<dependency>
 				<!-- API bridge between log4j 1 and 2 -->
 				<groupId>org.apache.logging.log4j</groupId>
 				<artifactId>log4j-1.2-api</artifactId>
@@ -605,7 +610,7 @@ under the License.
 			<dependency>
 				<groupId>org.objenesis</groupId>
 				<artifactId>objenesis</artifactId>
-				<version>2.1</version>
+				<version>3.4</version>
 			</dependency>
 
 			<!-- For dependency convergence -->
@@ -753,11 +758,10 @@ under the License.
 				<version>1.7</version>
 			</dependency>
 
-			<!-- kryo used in different versions by Flink an chill -->
 			<dependency>
-				<groupId>com.esotericsoftware.kryo</groupId>
+				<groupId>com.esotericsoftware</groupId>
 				<artifactId>kryo</artifactId>
-				<version>2.24.0</version>
+				<version>5.6.2</version>
 			</dependency>
 
 			<dependency>
@@ -1399,7 +1403,7 @@ under the License.
 				</property>
 			</activation>
 			<properties>
-				<target.java.version>17</target.java.version>
+				<target.java.version>11</target.java.version>
 			</properties>
 			<build>
 				<plugins>
@@ -2334,24 +2338,11 @@ under the License.
 								<exclude>org.apache.flink.api.common.functions.RichMapFunction</exclude>
 								<exclude>org.apache.flink.api.common.functions.RichMapPartitionFunction</exclude>
 								<exclude>org.apache.flink.api.common.functions.RichReduceFunction</exclude>
-								<!-- FLINK-34085 Deprecated string config should be removed in 2.0 -->
-								<exclude>org.apache.flink.configuration.ConfigConstants</exclude>
 								<!-- FLINK-35886: WatermarksWithIdleness constructor was marked as deprecated -->
 								<exclude>org.apache.flink.api.common.eventtime.WatermarksWithIdleness</exclude>
 								<!-- FLINK-35812 move tuple interfaces into flink-core-api, should be removed in 2.0 -->
 								<exclude>org.apache.flink.api.java.tuple.*</exclude>
 								<exclude>org.apache.flink.types.NullFieldException</exclude>
-								<!-- FLINK-36225 Remove deprecated methods marked in FLIP-382 -->
-								<exclude>org.apache.flink.api.common.functions.RuntimeContext#getAttemptNumber()</exclude>
-								<exclude>org.apache.flink.api.common.functions.RuntimeContext#getIndexOfThisSubtask()</exclude>
-								<exclude>org.apache.flink.api.common.functions.RuntimeContext#getJobId()</exclude>
-								<exclude>org.apache.flink.api.common.functions.RuntimeContext#getNumberOfParallelSubtasks()</exclude>
-								<exclude>org.apache.flink.api.common.functions.RuntimeContext#getTaskName()</exclude>
-								<exclude>org.apache.flink.api.common.functions.RuntimeContext#getTaskNameWithSubtasks()</exclude>
-								<exclude>org.apache.flink.api.connector.sink2.Sink$InitContextWrapper#getAttemptNumber()</exclude>
-								<exclude>org.apache.flink.api.connector.sink2.Sink$InitContextWrapper#getJobId()</exclude>
-								<exclude>org.apache.flink.api.connector.sink2.Sink$InitContextWrapper#getNumberOfParallelSubtasks()</exclude>
-								<exclude>org.apache.flink.api.connector.sink2.Sink$InitContextWrapper#getSubtaskId()</exclude>
 								<!-- The following exclusions are due to classes being relocated from the flink-streaming-java
 									module to the flink-runtime module. -->
 								<exclude>org.apache.flink.streaming.api.functions.windowing.AllWindowFunction</exclude>
@@ -2382,10 +2373,6 @@ under the License.
 								<exclude>org.apache.flink.streaming.api.functions.source.RichSourceFunction</exclude>
 								<exclude>org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction</exclude>
 								<exclude>org.apache.flink.streaming.api.functions.source.ParallelSourceFunction</exclude>
-								<!-- FLINK-33712 deprecated the RuntimeContext#getExecutionConfig; this will be removed in Flink 2.0. -->
-								<exclude>
-									org.apache.flink.api.common.functions.RuntimeContext#getExecutionConfig()
-								</exclude>
 								<!-- FLINK-3992 Do not implement deprecated Key interface in flink 2.0 -->
 								<exclude>org.apache.flink.types.DoubleValue</exclude>
 								<exclude>org.apache.flink.types.FloatValue</exclude>

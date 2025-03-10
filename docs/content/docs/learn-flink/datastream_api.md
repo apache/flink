@@ -33,7 +33,7 @@ Flink's DataStream APIs will let you stream anything they can serialize. Flink's
 own serializer is used for
 
 - basic types, i.e., String, Long, Integer, Boolean, Array
-- composite types: Tuples, POJOs, and Scala case classes
+- composite types: Tuples, POJOs
 
 and Flink falls back to Kryo for other types. It is also possible to use other serializers with
 Flink. Avro, in particular, is well supported.
@@ -80,18 +80,6 @@ Person person = new Person("Fred Flintstone", 35);
 ```
 
 Flink's serializer [supports schema evolution for POJO types]({{< ref "docs/dev/datastream/fault-tolerance/serialization/schema_evolution" >}}#pojo-types).
-
-### Scala tuples and case classes
-
-These work just as you'd expect.
-
-{{< hint warning >}}
-All Flink Scala APIs are deprecated and will be removed in a future Flink version. You can still build your application in Scala, but you should move to the Java version of either the DataStream and/or Table API.
-
-See <a href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-265+Deprecate+and+remove+Scala+API+support">FLIP-265 Deprecate and remove Scala API support</a>
-{{< /hint >}}
-
-{{< top >}}
 
 ## A Complete Example
 

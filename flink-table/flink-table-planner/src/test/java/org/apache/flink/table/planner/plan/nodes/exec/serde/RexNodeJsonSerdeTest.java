@@ -84,12 +84,12 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.createJsonObjectReader;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.createJsonObjectWriter;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.assertThatJsonContains;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.assertThatJsonDoesNotContain;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.testJsonRoundTrip;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.toJson;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.createObjectReader;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.createObjectWriter;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_CLASS;
 import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_CATALOG;
 import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_DATABASE;
@@ -778,15 +778,15 @@ public class RexNodeJsonSerdeTest {
 
     private JsonNode serializePermanentFunction(SerdeContext serdeContext) throws Exception {
         final byte[] actualSerialized =
-                createObjectWriter(serdeContext)
+                createJsonObjectWriter(serdeContext)
                         .writeValueAsBytes(createFunctionCall(serdeContext, PERMANENT_FUNCTION));
-        return createObjectReader(serdeContext).readTree(actualSerialized);
+        return createJsonObjectReader(serdeContext).readTree(actualSerialized);
     }
 
     private ContextResolvedFunction deserialize(SerdeContext serdeContext, JsonNode node)
             throws IOException {
         final RexNode actualDeserialized =
-                createObjectReader(serdeContext).readValue(node, RexNode.class);
+                createJsonObjectReader(serdeContext).readValue(node, RexNode.class);
         return ((BridgingSqlFunction) ((RexCall) actualDeserialized).getOperator())
                 .getResolvedFunction();
     }

@@ -25,6 +25,7 @@ import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.DescriptorFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarArgsFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsRowFunction;
@@ -132,6 +133,16 @@ public class ProcessTableFunctionTest extends TableTestBase {
     void testTableAsRowPassThroughColumns() {
         util.addTemporarySystemFunction("f", TableAsRowPassThroughFunction.class);
         util.verifyRelPlan("SELECT * FROM f(r => TABLE t, i => 1)");
+    }
+
+    @Test
+    void testDescriptors() {
+        util.addTemporarySystemFunction("f", DescriptorFunction.class);
+        util.verifyRelPlan(
+                "SELECT * FROM f("
+                        + "columnList1 => DESCRIPTOR(a), "
+                        + "columnList2 => DESCRIPTOR(b, c), "
+                        + "columnList3 => DESCRIPTOR())");
     }
 
     @Test
@@ -292,7 +303,12 @@ public class ProcessTableFunctionTest extends TableTestBase {
                         "no updates and pass through",
                         UpdatingPassThrough.class,
                         "SELECT * FROM f(r => TABLE t PARTITION BY name)",
-                        "Signatures with updating inputs must not pass columns through."));
+                        "Signatures with updating inputs must not pass columns through."),
+                ErrorSpec.of(
+                        "invalid descriptor",
+                        DescriptorFunction.class,
+                        "SELECT * FROM f(columnList1 => NULL, columnList3 => DESCRIPTOR(b.INVALID))",
+                        "column alias must be a simple identifier"));
     }
 
     /** Testing function. */

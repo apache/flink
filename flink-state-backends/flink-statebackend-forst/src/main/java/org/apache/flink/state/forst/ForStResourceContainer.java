@@ -91,9 +91,10 @@ public final class ForStResourceContainer implements AutoCloseable {
     @Nullable private final Path localForStPath;
 
     @Nullable private Path cacheBasePath;
-    private long cacheCapacity;
 
-    private long cacheReservedSize;
+    private final long cacheCapacity;
+
+    private final long cacheReservedSize;
 
     /** The configurations from file. */
     private final ReadableConfig configuration;
@@ -386,6 +387,7 @@ public final class ForStResourceContainer implements AutoCloseable {
                             remoteForStPath.toUri(),
                             localForStPath,
                             ForStFlinkFileSystem.getFileBasedCache(
+                                    configuration,
                                     cacheBasePath,
                                     remoteForStPath,
                                     cacheCapacity,
@@ -433,6 +435,12 @@ public final class ForStResourceContainer implements AutoCloseable {
         }
     }
 
+    public void forceClearRemoteDirectories() throws Exception {
+        if (remoteBasePath != null) {
+            clearDirectories(remoteBasePath);
+        }
+    }
+
     private static void clearDirectories(Path basePath) throws IOException {
         FileSystem fileSystem = basePath.getFileSystem();
         if (fileSystem.exists(basePath)) {
@@ -456,6 +464,9 @@ public final class ForStResourceContainer implements AutoCloseable {
             sharedResources.close();
         }
         cleanRelocatedDbLogs();
+        if (forStFileSystem != null) {
+            forStFileSystem.close();
+        }
     }
 
     /**

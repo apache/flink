@@ -32,9 +32,12 @@ import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.types.ColumnList;
 
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexCallBinding;
+import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
@@ -45,6 +48,7 @@ import javax.annotation.Nullable;
 import java.util.AbstractList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
@@ -102,7 +106,9 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
 
     @Override
     public boolean isArgumentLiteral(int pos) {
-        return binding.isOperandLiteral(pos, false);
+        // Semantically a descriptor can be considered a literal,
+        // however, Calcite represents them as a call
+        return binding.isOperandLiteral(pos, false) || isDescriptor(pos);
     }
 
     @Override
@@ -114,9 +120,15 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
         if (isArgumentNull(pos)) {
             return Optional.empty();
+        }
+        // Semantically a descriptor can be considered a literal,
+        // Calcite represents them as a call
+        if (isDescriptor(pos) && clazz == ColumnList.class) {
+            return Optional.ofNullable((T) convertColumnList(pos));
         }
         try {
             return Optional.ofNullable(
@@ -162,6 +174,15 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
         return Optional.ofNullable(outputDataType);
     }
 
+    private boolean isDescriptor(int pos) {
+        if (binding instanceof RexCallBinding) {
+            final List<RexNode> operands = ((RexCallBinding) binding).operands();
+            final RexNode operand = operands.get(pos);
+            return operand.getKind() == SqlKind.DESCRIPTOR;
+        }
+        return false;
+    }
+
     private boolean isDefault(int pos) {
         if (binding instanceof RexCallBinding) {
             final List<RexNode> operands = ((RexCallBinding) binding).operands();
@@ -176,6 +197,19 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
             final List<RexNode> operands = ((RexCallBinding) binding).operands();
             final RexNode operand = operands.get(pos);
             return (RexTableArgCall) operand;
+        }
+        return null;
+    }
+
+    private ColumnList convertColumnList(int pos) {
+        if (binding instanceof RexCallBinding) {
+            final List<RexNode> operands = ((RexCallBinding) binding).operands();
+            final RexCall call = (RexCall) operands.get(pos);
+            final List<String> names =
+                    call.getOperands().stream()
+                            .map(RexLiteral::stringValue)
+                            .collect(Collectors.toList());
+            return ColumnList.of(names);
         }
         return null;
     }

@@ -43,7 +43,7 @@ import org.apache.calcite.rel.{BiRel, RelNode, RelVisitor}
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeFamily
-import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.sql.{SqlKind, SqlUtil}
 import org.apache.calcite.util.{ImmutableBitSet, Util}
 
 import java.time.Duration
@@ -177,7 +177,7 @@ object WindowUtil {
   }
 
   def validateTimeFieldWithTimeAttribute(windowCall: RexCall, inputRowType: RelDataType): Unit = {
-    val timeIndex = getTimeAttributeIndex(windowCall.operands(1))
+    val timeIndex = getTimeAttributeIndex(windowCall)
     val fieldType = inputRowType.getFieldList.get(timeIndex).getType
     if (!FlinkTypeFactory.isTimeIndicatorType(fieldType)) {
       throw new ValidationException(
@@ -198,8 +198,8 @@ object WindowUtil {
           "function, can't convert it into WindowingStrategy")
     }
 
-    val timeIndex = getTimeAttributeIndex(windowCall.operands(1))
     val inputRowType = scanInput.getRowType
+    val timeIndex = getTimeAttributeIndex(windowCall)
     val fieldType = inputRowType.getFieldList.get(timeIndex).getType
     val timeAttributeType = FlinkTypeFactory.toLogicalType(fieldType)
     if (!canBeTimeAttributeType(timeAttributeType)) {
@@ -395,21 +395,20 @@ object WindowUtil {
   // Private Helpers
   // ------------------------------------------------------------------------------------------
 
-  private def getTimeAttributeIndex(operand: RexNode): Int = {
-    val timeAttributeIndex = operand match {
-      case call: RexCall if call.getKind == SqlKind.DESCRIPTOR =>
-        call.operands(0) match {
-          case inputRef: RexInputRef => inputRef.getIndex
-          case _ => -1
-        }
-      case _ => -1
-    }
-    if (timeAttributeIndex == -1) {
+  private def getTimeAttributeIndex(windowCall: RexNode): Int = {
+    val call = windowCall.asInstanceOf[RexCall]
+    val tableArg = call.operands(0)
+    val onTimeArg = call.operands(1)
+
+    val fieldName = RexLiteral.stringValue(onTimeArg.asInstanceOf[RexCall].operands(0))
+    val timeAttributeIndex = tableArg.getType.getField(fieldName, true, false)
+
+    if (timeAttributeIndex == null) {
       throw new TableException(
-        s"Failed to get time attribute index from $operand. " +
+        s"Failed to get time attribute index from $onTimeArg. " +
           "This is a bug, please file a JIRA issue.")
     }
-    timeAttributeIndex
+    timeAttributeIndex.getIndex
   }
 
   private def getOperandAsLong(operand: RexNode): Long = {

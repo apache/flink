@@ -46,6 +46,7 @@ public class ProcessTableFunctionSemanticTests extends SemanticTestBase {
                 ProcessTableFunctionTestPrograms.PROCESS_DEFAULT_POJO_STATE,
                 ProcessTableFunctionTestPrograms.PROCESS_MULTI_STATE,
                 ProcessTableFunctionTestPrograms.PROCESS_CLEARING_STATE,
-                ProcessTableFunctionTestPrograms.PROCESS_STATE_TTL);
+                ProcessTableFunctionTestPrograms.PROCESS_STATE_TTL,
+                ProcessTableFunctionTestPrograms.PROCESS_DESCRIPTOR);
     }
 }

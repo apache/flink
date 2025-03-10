@@ -85,8 +85,14 @@ public class ForStOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "The size-based capacity limit of cache."
-                                                    + "The default value is '%s', which means that the cache size is not limited by size.",
+                                            "An upper-bound of the size that can be used for cache. User "
+                                                    + "should specify at least one cache size limit to enable the cache, "
+                                                    + "either this option or the '%s' option. "
+                                                    + "They can be set simultaneously, and in this case, cache "
+                                                    + "will grow if meet the requirements of both two options. "
+                                                    + "The default value is '%s', meaning that this option is disabled. ",
+                                            // can not ref the static member before definition.
+                                            text("state.backend.forst.cache.reserve-size"),
                                             text(MemorySize.ZERO.toString()))
                                     .build());
 
@@ -94,18 +100,50 @@ public class ForStOptions {
     public static final ConfigOption<MemorySize> CACHE_RESERVED_SIZE =
             ConfigOptions.key("state.backend.forst.cache.reserve-size")
                     .memoryType()
-                    .defaultValue(MemorySize.ZERO)
+                    .defaultValue(MemorySize.ofMebiBytes(256))
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "The reserved size of cache, when set to a positive number. Meaning that "
-                                                    + "the cache will reserve the specified size of disk space. "
-                                                    + "This option and the '%s' option can be set simultaneously, the "
-                                                    + "smaller cache limit will be used as the upper limit. "
-                                                    + "The default value is '%s', meaning the cache will not reserve any disk space.",
+                                            "The amount of reserved size on disk space, and remaining space can be "
+                                                    + "leveraged by the cache. The cache will evict the oldest files when "
+                                                    + "the reserved space on disk (the disk where cache directory is) is not "
+                                                    + "enough. User should specify at least one cache size limit to enable the cache, "
+                                                    + "either this option or the '%s' option. "
+                                                    + "They can be set simultaneously, and in this case, "
+                                                    + "cache will grow if meet the requirements of both two options. "
+                                                    + "If the specified file system of the cache directory does not support "
+                                                    + "reading the remaining space, the cache will not be able to reserve "
+                                                    + "the specified space, hence this option will be ignored. "
+                                                    + "The default value is '%s', meaning the disk will be reserved that much space, "
+                                                    + "and the remaining of the disk can be used for cache. "
+                                                    + "A configured value of '%s' means that this option is disabled.",
                                             text(CACHE_SIZE_BASE_LIMIT.key()),
+                                            text(MemorySize.ofMebiBytes(256).toString()),
                                             text(MemorySize.ZERO.toString()))
                                     .build());
+
+    @Documentation.Section(Documentation.Sections.EXPERT_FORST)
+    public static final ConfigOption<Integer> CACHE_LRU_ACCESS_BEFORE_PROMOTION =
+            ConfigOptions.key("state.backend.forst.cache.lru.access-before-promote")
+                    .intType()
+                    .defaultValue(6)
+                    .withDescription(
+                            "When the number of accesses to "
+                                    + "a block in cold link reaches this value, the block will "
+                                    + "be promoted to the head of the LRU list and become a hot link. "
+                                    + "The evicted file in cache will be reloaded as well. "
+                                    + "The default value is '5'.");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_FORST)
+    public static final ConfigOption<Integer> CACHE_LRU_PROMOTION_LIMIT =
+            ConfigOptions.key("state.backend.forst.cache.lru.promote-limit")
+                    .intType()
+                    .defaultValue(3)
+                    .withDescription(
+                            "When the number of eviction that a block in hot link "
+                                    + "is moved to cold link reaches this value, the block will be blocked "
+                                    + "from being promoted to the head of the LRU list. "
+                                    + "The default value is '3'.");
 
     /** The options factory class for ForSt to create DBOptions and ColumnFamilyOptions. */
     @Documentation.Section(Documentation.Sections.EXPERT_FORST)

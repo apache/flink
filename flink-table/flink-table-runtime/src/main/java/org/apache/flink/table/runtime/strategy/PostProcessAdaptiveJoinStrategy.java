@@ -61,7 +61,7 @@ public class PostProcessAdaptiveJoinStrategy extends BaseAdaptiveJoinOperatorOpt
             ImmutableStreamNode adaptiveJoinNode,
             List<ImmutableStreamEdge> upstreamStreamEdges,
             AdaptiveJoin adaptiveJoin) {
-        if (context.areAllUpstreamNodesFinished(adaptiveJoinNode)) {
+        if (context.checkUpstreamNodesFinished(adaptiveJoinNode, null)) {
             // For hash join, reorder the join node inputs so the build side is read first.
             if (adaptiveJoin.shouldReorderInputs()) {
                 if (!context.modifyStreamEdge(

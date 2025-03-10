@@ -63,7 +63,7 @@ import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -907,6 +907,7 @@ class AsyncWaitOperatorTest {
             harness.processAll();
             assertThat(harness.getOutput()).containsOnly(new StreamRecord<>(1));
             assertThat(TimeoutAfterCompletionTestFunction.TIMED_OUT).isFalse();
+            harness.waitForTaskCompletion();
         }
     }
 
@@ -1246,6 +1247,7 @@ class AsyncWaitOperatorTest {
                         testHarness.getOutput(),
                         new StreamRecordComparator());
             }
+            testHarness.waitForTaskCompletion();
         }
     }
 
@@ -1318,6 +1320,7 @@ class AsyncWaitOperatorTest {
             // case when test machine under high load)
             assertThat(asyncFunction.getTryCount(1)).isLessThanOrEqualTo(2);
             assertThat(asyncFunction.getTryCount(2)).isLessThanOrEqualTo(2);
+            testHarness.waitForTaskCompletion();
         }
     }
 

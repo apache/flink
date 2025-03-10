@@ -31,6 +31,7 @@ import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.types.ColumnList;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCall;
@@ -48,6 +49,7 @@ import javax.annotation.Nullable;
 import java.util.AbstractList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * A {@link CallContext} backed by {@link SqlCallBinding}. Compared to {@link
@@ -93,25 +95,33 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
 
     @Override
     public boolean isArgumentLiteral(int pos) {
-        return SqlUtil.isLiteral(adaptedArguments.get(pos), false);
+        final SqlNode sqlNode = adaptedArguments.get(pos);
+        // Semantically a descriptor can be considered a literal,
+        // however, Calcite represents them as a call
+        return SqlUtil.isLiteral(sqlNode, false) || sqlNode.getKind() == SqlKind.DESCRIPTOR;
     }
 
     @Override
     public boolean isArgumentNull(int pos) {
+        final SqlNode sqlNode = adaptedArguments.get(pos);
         // Default values are passed as NULL into functions.
         // We can introduce a dedicated CallContext.isDefault() method in the future if fine-grained
         // information is required.
-        return SqlUtil.isNullLiteral(adaptedArguments.get(pos), false)
-                || adaptedArguments.get(pos).getKind() == SqlKind.DEFAULT;
+        return SqlUtil.isNullLiteral(sqlNode, false) || sqlNode.getKind() == SqlKind.DEFAULT;
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
         if (isArgumentNull(pos)) {
             return Optional.empty();
         }
         try {
-            final SqlLiteral literal = SqlLiteral.unchain(adaptedArguments.get(pos));
+            final SqlNode sqlNode = adaptedArguments.get(pos);
+            if (sqlNode.getKind() == SqlKind.DESCRIPTOR && clazz == ColumnList.class) {
+                return Optional.of((T) convertColumnList(((SqlCall) sqlNode).getOperandList()));
+            }
+            final SqlLiteral literal = SqlLiteral.unchain(sqlNode);
             return Optional.ofNullable(getLiteralValueAs(literal::getValueAs, clazz));
         } catch (IllegalArgumentException e) {
             return Optional.empty();
@@ -267,5 +277,13 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
 
     private static boolean noSetSemantics(SqlNode sqlNode) {
         return sqlNode.getKind() != SqlKind.SET_SEMANTICS_TABLE;
+    }
+
+    private static ColumnList convertColumnList(List<SqlNode> operands) {
+        final List<String> names =
+                operands.stream()
+                        .map(operand -> ((SqlIdentifier) operand).getSimple())
+                        .collect(Collectors.toList());
+        return ColumnList.of(names);
     }
 }

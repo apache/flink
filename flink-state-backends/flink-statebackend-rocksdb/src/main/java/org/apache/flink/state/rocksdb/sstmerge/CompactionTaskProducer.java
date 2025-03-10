@@ -18,7 +18,7 @@
 
 package org.apache.flink.state.rocksdb.sstmerge;
 
-import org.apache.flink.shaded.guava32.com.google.common.primitives.UnsignedBytes;
+import org.apache.flink.shaded.guava33.com.google.common.primitives.UnsignedBytes;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.LiveFileMetaData;

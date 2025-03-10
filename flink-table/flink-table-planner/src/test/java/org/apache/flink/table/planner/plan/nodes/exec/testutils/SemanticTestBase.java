@@ -39,7 +39,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -94,19 +93,14 @@ public abstract class SemanticTestBase implements TableTestProgramRunner {
                         final String id =
                                 TestValuesTableFactory.registerData(
                                         sourceTestStep.dataBeforeRestore);
-                        final Map<String, String> options = new HashMap<>();
-                        options.put("connector", "values");
-                        options.put("data-id", id);
-                        options.put("runtime-source", "NewSource");
+                        final Map<String, String> options = createSourceOptions(id);
                         sourceTestStep.apply(env, options);
                     }
                     break;
                 case SINK_WITH_DATA:
                     {
                         final SinkTestStep sinkTestStep = (SinkTestStep) testStep;
-                        final Map<String, String> options = new HashMap<>();
-                        options.put("connector", "values");
-                        options.put("sink-insert-only", "false");
+                        final Map<String, String> options = createSinkOptions();
                         sinkTestStep.apply(env, options);
                     }
                     break;
@@ -133,6 +127,22 @@ public abstract class SemanticTestBase implements TableTestProgramRunner {
                     .containsExactlyInAnyOrder(
                             sinkTestStep.getExpectedAsStrings().toArray(new String[0]));
         }
+    }
+
+    private static Map<String, String> createSourceOptions(String id) {
+        return Map.ofEntries(
+                Map.entry("connector", "values"),
+                Map.entry("data-id", id),
+                Map.entry("runtime-source", "NewSource"),
+                // Enforce per-record watermarks for testing
+                Map.entry("disable-lookup", "true"),
+                Map.entry("enable-watermark-push-down", "true"),
+                Map.entry("scan.watermark.emit.strategy", "on-event"));
+    }
+
+    private static Map<String, String> createSinkOptions() {
+        return Map.ofEntries(
+                Map.entry("connector", "values"), Map.entry("sink-insert-only", "false"));
     }
 
     private static List<String> getActualResults(SinkTestStep sinkTestStep, String tableName) {

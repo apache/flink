@@ -292,7 +292,7 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
                 });
         executors.shutdown();
         long timeElapsed = System.currentTimeMillis() - startTime;
-        if (!executors.awaitTermination(timeoutMs - timeElapsed, TimeUnit.NANOSECONDS)) {
+        if (!executors.awaitTermination(timeoutMs - timeElapsed, TimeUnit.MILLISECONDS)) {
             LOG.warn(
                     "Failed to close the split fetchers in {} ms. There are still {} split fetchers running",
                     timeoutMs,

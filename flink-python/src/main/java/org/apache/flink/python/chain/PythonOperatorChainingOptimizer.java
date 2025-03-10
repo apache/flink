@@ -59,9 +59,9 @@ import org.apache.flink.streaming.api.transformations.python.PythonBroadcastStat
 import org.apache.flink.streaming.api.transformations.python.PythonKeyedBroadcastStateTransformation;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
-import org.apache.flink.shaded.guava32.com.google.common.collect.Queues;
-import org.apache.flink.shaded.guava32.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Queues;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Sets;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;

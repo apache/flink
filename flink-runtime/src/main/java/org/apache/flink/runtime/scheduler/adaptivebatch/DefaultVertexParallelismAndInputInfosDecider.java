@@ -41,6 +41,7 @@ import java.util.Map;
 import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.calculateDataVolumePerTaskForInputsGroup;
 import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.checkAndGetParallelism;
 import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.getNonBroadcastInputInfos;
+import static org.apache.flink.runtime.scheduler.adaptivebatch.util.VertexParallelismAndInputInfosDeciderUtils.logBalancedDataDistributionOptimizationResult;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -125,11 +126,12 @@ public class DefaultVertexParallelismAndInputInfosDecider
             return new ParallelismAndInputInfos(parallelism, Collections.emptyMap());
         }
 
+        checkArgument(vertexInitialParallelism == ExecutionConfig.PARALLELISM_DEFAULT);
+
         int minParallelism = Math.max(globalMinParallelism, vertexMinParallelism);
         int maxParallelism = globalMaxParallelism;
 
-        if (vertexInitialParallelism == ExecutionConfig.PARALLELISM_DEFAULT
-                && vertexMaxParallelism < minParallelism) {
+        if (vertexMaxParallelism < minParallelism) {
             LOG.info(
                     "The vertex maximum parallelism {} is smaller than the minimum parallelism {}. "
                             + "Use {} as the lower bound to decide parallelism of job vertex {}.",
@@ -139,8 +141,7 @@ public class DefaultVertexParallelismAndInputInfosDecider
                     jobVertexId);
             minParallelism = vertexMaxParallelism;
         }
-        if (vertexInitialParallelism == ExecutionConfig.PARALLELISM_DEFAULT
-                && vertexMaxParallelism < maxParallelism) {
+        if (vertexMaxParallelism < maxParallelism) {
             LOG.info(
                     "The vertex maximum parallelism {} is smaller than the global maximum parallelism {}. "
                             + "Use {} as the upper bound to decide parallelism of job vertex {}.",
@@ -153,11 +154,7 @@ public class DefaultVertexParallelismAndInputInfosDecider
         checkState(maxParallelism >= minParallelism);
 
         return decideParallelismAndInputInfosForNonSource(
-                jobVertexId,
-                consumedResults,
-                vertexInitialParallelism,
-                minParallelism,
-                maxParallelism);
+                jobVertexId, consumedResults, minParallelism, maxParallelism);
     }
 
     @Override
@@ -184,14 +181,10 @@ public class DefaultVertexParallelismAndInputInfosDecider
     private ParallelismAndInputInfos decideParallelismAndInputInfosForNonSource(
             JobVertexID jobVertexId,
             List<BlockingInputInfo> consumedResults,
-            int vertexInitialParallelism,
             int minParallelism,
             int maxParallelism) {
         int parallelism =
-                vertexInitialParallelism > 0
-                        ? vertexInitialParallelism
-                        : decideParallelism(
-                                jobVertexId, consumedResults, minParallelism, maxParallelism);
+                decideParallelism(jobVertexId, consumedResults, minParallelism, maxParallelism);
 
         List<BlockingInputInfo> pointwiseInputs = new ArrayList<>();
 
@@ -206,22 +199,38 @@ public class DefaultVertexParallelismAndInputInfosDecider
                     }
                 });
 
-        // For AllToAll like inputs, we derive parallelism as a whole, while for Pointwise inputs,
-        // we derive parallelism separately for each input, and our goal is ensured that the final
-        // parallelisms of those inputs are consistent and meet expectations.
-        // Since AllToAll supports deriving parallelism within a flexible range, this might
-        // interfere with the target parallelism. Therefore, in the following cases, we need to
-        // reset the minimum and maximum parallelism to limit the flexibility of parallelism
-        // derivation to achieve the goal:
-        // 1.  Vertex has a specified parallelism, we should follow it.
-        // 2.  There are pointwise inputs, which means that there may be inputs whose parallelism is
-        // derived one-by-one, we need to reset the min and max parallelism.
-        if (vertexInitialParallelism > 0 || !pointwiseInputs.isEmpty()) {
+        // Currently, we decide parallelism separately for AllToAll and Pointwise. In order to make
+        // their data distribution as balanced as possible, we need to reset max and min parallelism
+        // to a pre-computed parallelism (which uses all inputs statistics) to limit their
+        // parallelism deciding flexibility to avoid the parallelism being decided too small.
+        // Specifically, if either of them is empty or all AllToAll inputs are the Broadcast type,
+        // this section will be skipped to enable more flexible parallelism deciding.
+        if (!pointwiseInputs.isEmpty()
+                && !allToAllInputs.isEmpty()
+                && !getNonBroadcastInputInfos(allToAllInputs).isEmpty()) {
             minParallelism = parallelism;
             maxParallelism = parallelism;
         }
 
         Map<IntermediateDataSetID, JobVertexInputInfo> vertexInputInfos = new HashMap<>();
+
+        if (!pointwiseInputs.isEmpty()) {
+            vertexInputInfos.putAll(
+                    pointwiseVertexInputInfoComputer.compute(
+                            pointwiseInputs,
+                            parallelism,
+                            minParallelism,
+                            maxParallelism,
+                            calculateDataVolumePerTaskForInputsGroup(
+                                    dataVolumePerTask, pointwiseInputs, consumedResults)));
+            // We need to reset the minimum and maximum parallelism to limit the flexibility of
+            // parallelism derivation to make final parallelisms of all inputs are consistent
+            if (!allToAllInputs.isEmpty()) {
+                parallelism = checkAndGetParallelism(vertexInputInfos.values());
+                minParallelism = parallelism;
+                maxParallelism = parallelism;
+            }
+        }
 
         if (!allToAllInputs.isEmpty()) {
             vertexInputInfos.putAll(
@@ -235,13 +244,9 @@ public class DefaultVertexParallelismAndInputInfosDecider
                                     dataVolumePerTask, allToAllInputs, consumedResults)));
         }
 
-        if (!pointwiseInputs.isEmpty()) {
-            vertexInputInfos.putAll(
-                    pointwiseVertexInputInfoComputer.compute(
-                            pointwiseInputs,
-                            parallelism,
-                            calculateDataVolumePerTaskForInputsGroup(
-                                    dataVolumePerTask, pointwiseInputs, consumedResults)));
+        for (BlockingInputInfo inputInfo : consumedResults) {
+            logBalancedDataDistributionOptimizationResult(
+                    LOG, jobVertexId, inputInfo, vertexInputInfos.get(inputInfo.getResultId()));
         }
 
         return new ParallelismAndInputInfos(

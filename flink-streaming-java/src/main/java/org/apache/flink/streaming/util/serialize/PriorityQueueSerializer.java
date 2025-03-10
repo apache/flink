@@ -22,8 +22,6 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import com.twitter.chill.IKryoRegistrar;
-import com.twitter.chill.SingleRegistrar;
 
 import java.lang.reflect.Field;
 import java.util.Comparator;
@@ -39,10 +37,6 @@ checks in our code base.
 
 class PriorityQueueSerializer extends Serializer<PriorityQueue<?>> {
     private Field compField;
-
-    public static IKryoRegistrar registrar() {
-        return new SingleRegistrar(PriorityQueue.class, new PriorityQueueSerializer());
-    }
 
     public PriorityQueueSerializer() {
         try {
@@ -70,7 +64,8 @@ class PriorityQueueSerializer extends Serializer<PriorityQueue<?>> {
         }
     }
 
-    public PriorityQueue<?> read(Kryo k, Input i, Class<PriorityQueue<?>> c) {
+    @Override
+    public PriorityQueue<?> read(Kryo k, Input i, Class<? extends PriorityQueue<?>> c) {
         Comparator<Object> comp = (Comparator<Object>) k.readClassAndObject(i);
         int sz = i.readInt(true);
         // can't create with size 0:

@@ -309,7 +309,8 @@ public class ExecutionConfigTest {
         public void write(Kryo kryo, Output output, ExecutionConfigTest object) {}
 
         @Override
-        public ExecutionConfigTest read(Kryo kryo, Input input, Class<ExecutionConfigTest> type) {
+        public ExecutionConfigTest read(
+                Kryo kryo, Input input, Class<? extends ExecutionConfigTest> type) {
             return null;
         }
     }
@@ -320,7 +321,7 @@ public class ExecutionConfigTest {
         public void write(Kryo kryo, Output output, TestSerializer1 object) {}
 
         @Override
-        public TestSerializer1 read(Kryo kryo, Input input, Class<TestSerializer1> type) {
+        public TestSerializer1 read(Kryo kryo, Input input, Class<? extends TestSerializer1> type) {
             return null;
         }
     }

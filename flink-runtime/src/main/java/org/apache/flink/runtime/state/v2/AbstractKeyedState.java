@@ -45,6 +45,8 @@ public abstract class AbstractKeyedState<K, N, V> implements InternalKeyedState<
 
     private final StateDescriptor<V> stateDescriptor;
 
+    private final ThreadLocal<TypeSerializer<V>> valueSerializer;
+
     /**
      * Creates a new AbstractKeyedState with the given asyncExecutionController and stateDescriptor.
      */
@@ -52,6 +54,7 @@ public abstract class AbstractKeyedState<K, N, V> implements InternalKeyedState<
             StateRequestHandler stateRequestHandler, StateDescriptor<V> stateDescriptor) {
         this.stateRequestHandler = stateRequestHandler;
         this.stateDescriptor = stateDescriptor;
+        this.valueSerializer = ThreadLocal.withInitial(stateDescriptor::getSerializer);
     }
 
     /**
@@ -91,7 +94,7 @@ public abstract class AbstractKeyedState<K, N, V> implements InternalKeyedState<
 
     /** Return related value serializer. */
     public TypeSerializer<V> getValueSerializer() {
-        return stateDescriptor.getSerializer();
+        return valueSerializer.get();
     }
 
     public StateRequestHandler getStateRequestHandler() {

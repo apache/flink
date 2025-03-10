@@ -2489,7 +2489,7 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, qmt, day]
    +- GroupAggregate(groupBy=[a, day], select=[a, day, SUM_RETRACT(b) AS qmt])
       +- Exchange(distribution=[hash[a, day]])
          +- Calc(select=[a, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd') AS day, b])
-            +- Deduplicate(keep=[LastRow], key=[a], order=[PROCTIME])
+            +- Deduplicate(keep=[LastRow], key=[a], order=[PROCTIME], outputInsertOnly=[false])
                +- Exchange(distribution=[hash[a]])
                   +- Calc(select=[a, b, PROCTIME() AS $4])
                      +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[a, b, c, d])

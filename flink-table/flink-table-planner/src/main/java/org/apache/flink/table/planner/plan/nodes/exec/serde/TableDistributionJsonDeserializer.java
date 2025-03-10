@@ -31,8 +31,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.deserializeOptionalField;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.traverse;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.deserializeOptionalField;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.traverse;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.TableDistributionJsonSerializer.BUCKET_COUNT;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.TableDistributionJsonSerializer.BUCKET_KEYS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.TableDistributionJsonSerializer.KIND;
