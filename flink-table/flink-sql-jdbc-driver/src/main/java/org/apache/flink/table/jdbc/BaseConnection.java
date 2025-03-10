@@ -255,12 +255,15 @@ abstract class BaseConnection implements Connection {
 
     @Override
     public <T> T unwrap(Class<T> iface) throws SQLException {
-        throw new SQLFeatureNotSupportedException("FlinkConnection#unwrap is not supported yet.");
+        try {
+            return iface.cast(this);
+        } catch (ClassCastException cce) {
+            throw new SQLException("Unable to unwrap to " + iface);
+        }
     }
 
     @Override
-    public boolean isWrapperFor(Class<?> iface) throws SQLException {
-        throw new SQLFeatureNotSupportedException(
-                "FlinkConnection#isWrapperFor is not supported yet.");
+    public boolean isWrapperFor(Class<?> iface) {
+        return iface.isInstance(this);
     }
 }

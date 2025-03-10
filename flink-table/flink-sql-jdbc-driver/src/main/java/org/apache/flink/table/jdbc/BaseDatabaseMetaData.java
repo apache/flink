@@ -379,6 +379,15 @@ public abstract class BaseDatabaseMetaData implements DatabaseMetaData {
 
     @Override
     public <T> T unwrap(Class<T> iface) throws SQLException {
-        throw new SQLFeatureNotSupportedException("FlinkDatabaseMetaData#unwrap is not supported");
+        try {
+            return iface.cast(this);
+        } catch (ClassCastException cce) {
+            throw new SQLException("Unable to unwrap to " + iface);
+        }
+    }
+
+    @Override
+    public boolean isWrapperFor(Class<?> iface) {
+        return iface.isInstance(this);
     }
 }
