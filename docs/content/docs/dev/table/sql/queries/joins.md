@@ -117,7 +117,7 @@ The temporal table contains one or more versioned table snapshots, it can be a c
 Event Time temporal joins allow joining against a [versioned table]({{< ref "docs/dev/table/concepts/versioned_tables" >}}).
 This means a table can be enriched with changing metadata and retrieve its value at a certain point in time. 
 
-Temporal joins take an arbitrary table (left input/probe site) and correlate each row to the corresponding row's relevant version in the versioned table (right input/build side). 
+Temporal joins take an arbitrary table (left input/probe side) and correlate each row to the corresponding row's relevant version in the versioned table (right input/build side). 
 Flink uses the SQL syntax of `FOR SYSTEM_TIME AS OF` to perform this operation from the SQL:2011 standard. 
 The syntax of a temporal join is as follows;
 
