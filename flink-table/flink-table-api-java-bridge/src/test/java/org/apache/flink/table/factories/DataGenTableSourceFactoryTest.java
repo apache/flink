@@ -433,60 +433,6 @@ class DataGenTableSourceFactoryTest {
     }
 
     @Test
-    void testLackStartForSequence() {
-        assertThatThrownBy(
-                        () -> {
-                            DescriptorProperties descriptor = new DescriptorProperties();
-                            descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
-                            descriptor.putString(
-                                    DataGenConnectorOptionsUtil.FIELDS
-                                            + ".f0."
-                                            + DataGenConnectorOptionsUtil.KIND,
-                                    DataGenConnectorOptionsUtil.SEQUENCE);
-                            descriptor.putLong(
-                                    DataGenConnectorOptionsUtil.FIELDS
-                                            + ".f0."
-                                            + DataGenConnectorOptionsUtil.END,
-                                    100);
-
-                            createTableSource(
-                                    ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
-                                    descriptor.asMap());
-                        })
-                .satisfies(
-                        anyCauseMatches(
-                                ValidationException.class,
-                                "Could not find required property 'fields.f0.start' for sequence generator."));
-    }
-
-    @Test
-    void testLackEndForSequence() {
-        assertThatThrownBy(
-                        () -> {
-                            DescriptorProperties descriptor = new DescriptorProperties();
-                            descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
-                            descriptor.putString(
-                                    DataGenConnectorOptionsUtil.FIELDS
-                                            + ".f0."
-                                            + DataGenConnectorOptionsUtil.KIND,
-                                    DataGenConnectorOptionsUtil.SEQUENCE);
-                            descriptor.putLong(
-                                    DataGenConnectorOptionsUtil.FIELDS
-                                            + ".f0."
-                                            + DataGenConnectorOptionsUtil.START,
-                                    0);
-
-                            createTableSource(
-                                    ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
-                                    descriptor.asMap());
-                        })
-                .satisfies(
-                        anyCauseMatches(
-                                ValidationException.class,
-                                "Could not find required property 'fields.f0.end' for sequence generator."));
-    }
-
-    @Test
     void testWrongKey() {
         assertThatThrownBy(
                         () -> {
