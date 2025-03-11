@@ -18,6 +18,7 @@
 
 package org.apache.flink.datastream.impl.stream;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.dsv2.Sink;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
@@ -50,6 +51,12 @@ public class ProcessConfigurableAndNonKeyedPartitionStreamImpl<T>
     public <OUT> ProcessConfigurableAndNonKeyedPartitionStream<OUT> process(
             OneInputStreamProcessFunction<T, OUT> processFunction) {
         return stream.process(processFunction);
+    }
+
+    @Override
+    public NonKeyedPartitionStream<T> returns(TypeInformation<T> typeInfo) {
+        this.transformation.setOutputType(typeInfo);
+        return this;
     }
 
     @Override

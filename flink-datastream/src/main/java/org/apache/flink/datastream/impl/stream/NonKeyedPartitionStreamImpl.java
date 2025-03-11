@@ -57,6 +57,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 
+import static java.util.Objects.requireNonNull;
 import static org.apache.flink.datastream.impl.utils.StreamUtils.validateStates;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -109,6 +110,14 @@ public class NonKeyedPartitionStreamImpl<T> extends AbstractDataStream<T>
         environment.addOperator(outputTransform);
         return StreamUtils.wrapWithConfigureHandle(
                 new NonKeyedPartitionStreamImpl<>(environment, outputTransform));
+    }
+
+    @Override
+    public NonKeyedPartitionStream<T> returns(TypeInformation<T> typeInfo) {
+        requireNonNull(typeInfo, "TypeInformation must not be null");
+
+        transformation.setOutputType(typeInfo);
+        return this;
     }
 
     @Override
