@@ -497,8 +497,7 @@ void initializeState(FunctionInitializationContext context) throws Exception;
     比如说，算子 A 的并发读为 1，包含两个元素 `element1` 和 `element2`，当并发读增加为 2 时，`element1` 会被分到并发 0 上，`element2` 则会被分到并发 1 上。
 
   - **Union redistribution:** 每个算子保存一个列表形式的状态集合。整个状态由所有的列表拼接而成。当作业恢复或重新分配时，每个算子都将获得所有的状态数据。
-    Do not use this feature if your list may have high cardinality. Checkpoint metadata will store an offset to each list entry, which could lead to RPC framesize or out-of-memory errors.
-
+    在列表基数很大时不要使用此功能，因为 Checkpoint metadata 会为每个列表条目存储一个偏移量， 可能会超过 RPC framesize 限制或导致 out-of-memory 错误。
 下面的例子中的 `SinkFunction` 在 `CheckpointedFunction` 中进行数据缓存，然后统一发送到下游，这个例子演示了列表状态数据的 event-split redistribution。 
 
 {{< tabs "03fecab3-b48b-4d06-86ed-8769708ae7ca" >}}
