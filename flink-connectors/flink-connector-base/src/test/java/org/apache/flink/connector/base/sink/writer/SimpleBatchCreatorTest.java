@@ -25,9 +25,17 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /** Unit test for SimpleBatchCreator. */
 public class SimpleBatchCreatorTest {
+
+    /** If no MaxBatchSizeInBytes is configured error should be thrown. */
+    @Test
+    public void testInvalidBatchCreator() {
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> new SimpleBatchCreator.Builder<String>().build());
+    }
 
     /** Ensures no entries are returned when the buffer is empty. */
     @Test
