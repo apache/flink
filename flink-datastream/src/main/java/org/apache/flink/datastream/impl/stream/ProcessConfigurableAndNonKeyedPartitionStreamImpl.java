@@ -18,6 +18,8 @@
 
 package org.apache.flink.datastream.impl.stream;
 
+import static java.util.Objects.requireNonNull;
+
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.dsv2.Sink;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -55,6 +57,7 @@ public class ProcessConfigurableAndNonKeyedPartitionStreamImpl<T>
 
     @Override
     public NonKeyedPartitionStream<T> returns(TypeInformation<T> typeInfo) {
+        requireNonNull(typeInfo, "TypeInformation must not be null");
         this.transformation.setOutputType(typeInfo);
         return this;
     }

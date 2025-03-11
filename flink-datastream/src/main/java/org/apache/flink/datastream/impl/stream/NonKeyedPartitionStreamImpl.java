@@ -115,7 +115,6 @@ public class NonKeyedPartitionStreamImpl<T> extends AbstractDataStream<T>
     @Override
     public NonKeyedPartitionStream<T> returns(TypeInformation<T> typeInfo) {
         requireNonNull(typeInfo, "TypeInformation must not be null");
-
         transformation.setOutputType(typeInfo);
         return this;
     }
