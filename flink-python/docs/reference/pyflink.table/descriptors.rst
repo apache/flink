@@ -155,4 +155,5 @@ Describes a complete pipeline from one or more source tables to a sink table.
     TablePipeline.compile_plan
     TablePipeline.execute
     TablePipeline.explain
+    TablePipeline.print_explain
     TablePipeline.get_sink_identifier

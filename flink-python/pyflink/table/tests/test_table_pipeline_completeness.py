@@ -34,10 +34,6 @@ class TablePipelineAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTe
     def java_class(cls):
         return "org.apache.flink.table.api.TablePipeline"
 
-    @classmethod
-    def excluded_methods(cls):
-        return {'printExplain'}
-
 
 if __name__ == '__main__':
     import unittest

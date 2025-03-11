@@ -38,6 +38,7 @@ The added statements will be cleared when calling the :func:`~StatementSet.execu
     StatementSet.add_insert
     StatementSet.compile_plan
     StatementSet.explain
+    StatementSet.print_explain
     StatementSet.execute
 
 

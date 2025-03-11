@@ -67,8 +67,10 @@ format representation of the compiled plan.
     CompiledPlan.as_smile_bytes
     CompiledPlan.write_to_file
     CompiledPlan.get_flink_version
+    CompiledPlan.print_json_string
     CompiledPlan.execute
     CompiledPlan.explain
+    CompiledPlan.print_explain
 
 PlanReference
 -------------

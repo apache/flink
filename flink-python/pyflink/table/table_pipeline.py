@@ -64,6 +64,15 @@ class TablePipeline(object):
             gateway.jvm.org.apache.flink.table.api.ExplainFormat.TEXT, j_extra_details
         )
 
+    def print_explain(self, *extra_details: ExplainDetail):
+        """
+        Like :func:`~pyflink.table.TablePipeline.explain`, but prints the result to the client
+        console.
+
+        .. versionadded:: 2.1.0
+        """
+        print(self.explain(*extra_details))
+
     def get_sink_identifier(self) -> Optional[ObjectIdentifier]:
         """
         Returns the sink table's :class:`~pyflink.table.catalog.ObjectIdentifier`, if any.

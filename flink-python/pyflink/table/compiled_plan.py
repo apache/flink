@@ -100,6 +100,15 @@ class CompiledPlan(object):
         """
         return str(self._j_compiled_plan.getFlinkVersion())
 
+    def print_json_string(self):
+        """
+        Like :func:`~pyflink.table.CompiledPlan.as_json_string`, but prints the result to the
+        client console.
+
+        .. versionadded:: 2.1.0
+        """
+        self._j_compiled_plan.printJsonString()
+
     def execute(self) -> TableResult:
         """
         Executes the compiled plan.
@@ -120,3 +129,12 @@ class CompiledPlan(object):
         return self._j_compiled_plan.explain(
             gateway.jvm.org.apache.flink.table.api.ExplainFormat.TEXT, j_extra_details
         )
+
+    def print_explain(self, *extra_details: ExplainDetail):
+        """
+        Like :func:`~pyflink.table.CompiledPlan.explain`, but prints the result to the client
+        console.
+
+        .. versionadded:: 2.1.0
+        """
+        print(self.explain(*extra_details))

@@ -33,10 +33,6 @@ class StatementSetAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTes
     def java_class(cls):
         return "org.apache.flink.table.api.StatementSet"
 
-    @classmethod
-    def excluded_methods(cls):
-        return {"printExplain"}
-
 
 if __name__ == "__main__":
     import unittest

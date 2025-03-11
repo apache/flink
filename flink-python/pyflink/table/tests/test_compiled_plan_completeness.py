@@ -33,10 +33,6 @@ class CompiledPlanAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTes
     def java_class(cls):
         return "org.apache.flink.table.api.CompiledPlan"
 
-    @classmethod
-    def excluded_methods(cls):
-        return {"printJsonString", "printExplain"}
-
 
 if __name__ == "__main__":
     import unittest

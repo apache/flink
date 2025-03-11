@@ -157,6 +157,15 @@ class StatementSet(object):
         j_extra_details = to_j_explain_detail_arr(extra_details)
         return self._j_statement_set.explain(TEXT, j_extra_details)
 
+    def print_explain(self, *extra_details: ExplainDetail):
+        """
+        Like :func:`~pyflink.table.StatementSet.explain`, but prints the result to the client
+        console.
+
+        .. versionadded:: 2.1.0
+        """
+        print(self.explain(*extra_details))
+
     def execute(self) -> TableResult:
         """
         execute all statements and Tables as a batch.
