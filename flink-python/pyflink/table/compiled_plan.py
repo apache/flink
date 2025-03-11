@@ -52,6 +52,11 @@ class CompiledPlan(object):
     For temporary objects, only the identifier is part of the plan and the object needs to be
     present in the session context during a restore.
 
+    JSON encoding is assumed to be the default representation of a compiled plan in all API
+    endpoints, and is the format used to persist the plan to files by default.
+    For advanced use cases, :func:`~pyflink.table.CompiledPlan.as_smile_bytes` provides a binary
+    format representation of the compiled plan.
+
     .. note::
         Plan restores assume a stable session context. Configuration, loaded modules and
         catalogs, and temporary objects must not change. Schema evolution and changes of function

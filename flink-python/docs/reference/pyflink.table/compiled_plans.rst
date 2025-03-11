@@ -17,9 +17,9 @@
    ################################################################################
 
 
-=====
-Plans
-=====
+==============
+Compiled Plans
+==============
 
 CompiledPlan
 ------------
@@ -28,7 +28,7 @@ Represents an immutable, fully optimized, and executable entity that has been co
 Table & SQL API pipeline definition. It encodes operators, expressions, functions, data types,
 and table connectors.
 
-very new Flink version might introduce improved optimizer rules, more efficient operators,
+Every new Flink version might introduce improved optimizer rules, more efficient operators,
 and other changes that impact the behavior of previously defined pipelines. In order to ensure
 backwards compatibility and enable stateful streaming job upgrades, compiled plans can be
 persisted and reloaded across Flink versions. See the website documentation for more
@@ -47,6 +47,11 @@ and functions) will be persisted in the plan as well. Anonymous/inline objects w
 persisted (including schema and options) if possible or fail the compilation otherwise.
 For temporary objects, only the identifier is part of the plan and the object needs to be
 present in the session context during a restore.
+
+JSON encoding is assumed to be the default representation of a compiled plan in all API
+endpoints, and is the format used to persist the plan to files by default.
+For advanced use cases, :func:`~pyflink.table.CompiledPlan.as_smile_bytes` provides a binary
+format representation of the compiled plan.
 
 .. note::
     Plan restores assume a stable session context. Configuration, loaded modules and

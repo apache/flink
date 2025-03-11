@@ -1424,7 +1424,7 @@ class TableEnvironment(object):
         instance can be executed via :func:`~pyflink.table.CompiledPlan.execute`.
 
         .. note::
-            The compiled plan feature is not supported in batch mode.
+            The compiled plan feature is experimental in batch mode.
 
         :raises TableException: if the plan cannot be loaded from the filesystem, or if the plan
             is invalid.
@@ -1448,7 +1448,7 @@ class TableEnvironment(object):
             Only ``INSERT INTO`` is supported at the moment.
 
         .. note::
-            The compiled plan feature is not supported in batch mode.
+            The compiled plan feature is experimental in batch mode.
 
         .. seealso::
             :func:`~pyflink.table.TableEnvironment.load_plan`

@@ -182,7 +182,7 @@ class StatementSet(object):
         documentation for more information.
 
         .. note::
-            The compiled plan feature is not supported in batch mode.
+            The compiled plan feature is experimental in batch mode.
 
         :raises TableException: if any of the statements is invalid or if the plan cannot be
             persisted.

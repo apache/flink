@@ -168,7 +168,7 @@ public abstract class PlanReference {
         }
     }
 
-    /** Plan reference to a string containing the serialized persisted plan in Smile. */
+    /** Plan reference to binary bytes containing the serialized persisted plan in Smile. */
     @PublicEvolving
     public static class BytesContentPlanReference extends PlanReference {
 

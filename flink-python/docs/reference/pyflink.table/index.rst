@@ -34,4 +34,4 @@ This page gives an overview of all public PyFlink Table API.
     descriptors
     statement_set
     catalog
-    plans
+    compiled_plans

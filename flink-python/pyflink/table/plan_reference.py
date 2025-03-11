@@ -120,7 +120,7 @@ class JsonContentPlanReference(PlanReference):
 
 class BytesContentPlanReference(PlanReference):
     """
-    Plan reference to a string containing the serialized persisted plan in Smile.
+    Plan reference to binary bytes containing the serialized persisted plan in Smile.
     """
 
     def get_content(self) -> bytes:
