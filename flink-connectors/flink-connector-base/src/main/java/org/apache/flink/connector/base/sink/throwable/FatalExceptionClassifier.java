@@ -44,13 +44,13 @@ public class FatalExceptionClassifier {
     public boolean isFatal(Throwable err, Consumer<Exception> throwableConsumer) {
         if (validator.test(err)) {
             throwableConsumer.accept(throwableMapper.apply(err));
-            return false;
+            return true;
         }
 
         if (chainedClassifier != null) {
             return chainedClassifier.isFatal(err, throwableConsumer);
         } else {
-            return true;
+            return false;
         }
     }
 
