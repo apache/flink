@@ -43,5 +43,9 @@ public final class ExpressionUtils {
         return Optional.empty();
     }
 
+    public static String stringValue(Expression expression) {
+        return ((ValueLiteralExpression) expression).getValueAs(String.class).orElse(null);
+    }
+
     private ExpressionUtils() {}
 }

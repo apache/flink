@@ -26,7 +26,7 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.utils.AdaptedCallContext;
+import org.apache.flink.table.types.inference.utils.CastCallContext;
 import org.apache.flink.table.types.inference.utils.UnknownCallContext;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
@@ -46,28 +46,27 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.suppor
 /**
  * Utility for performing type inference.
  *
- * <p>The following steps summarize the envisioned type inference process. Not all features are
- * implemented or exposed through the API yet (*).
+ * <p>It assumes that argument assignments have been applied by argument reordering and inserting
+ * values for optional arguments.
+ *
+ * <p>The following steps summarize the type inference process.
  *
  * <ul>
  *   <li>1. Validate number of arguments.
- *   <li>2. (*) Apply assignment operators on the call by permuting operands and adding default
- *       values. These are preparations for {@link CallContext}.
- *   <li>3. For resolving unknown (NULL) operands: Access the outer wrapping call and try to get its
+ *   <li>2. For resolving unknown (NULL) operands: Access the outer wrapping call and try to get its
  *       operand type for the return type of the actual call. E.g. for {@code
  *       takes_string(this_function(NULL))} infer operands from {@code takes_string(NULL)} and use
  *       the inferred string type as the return type of {@code this_function(NULL)}.
- *   <li>4. Try infer unknown operands, fail if not possible.
- *   <li>5. (*) Check the usage of DEFAULT operands are correct using validator.isOptional().
- *   <li>6. Perform input type validation.
- *   <li>7. (Optional) Infer accumulator type.
- *   <li>8. Infer return type.
- *   <li>9. (*) In the planner: Call the strategies again at any point in time to enrich a DataType
- *       that has been created from a logical type with a conversion class.
- *   <li>10. (*) In the planner: Check for an implementation evaluation method matching the
- *       operands. The matching happens class-based. Thus, for example, eval(Object) is valid for
- *       (INT). Or eval(Object...) is valid for (INT, STRING). We rely on the conversion classes
- *       specified by DataType.
+ *   <li>3. Try infer unknown operands, fail if not possible.
+ *   <li>4. Perform input type validation.
+ *   <li>5. Infer return type.
+ *   <li>6. (Optional) Infer state types.
+ *   <li>7. In the planner: Call the strategies again at any point in time to enrich a DataType that
+ *       has been created from a logical type with a conversion class.
+ *   <li>8. In the planner: Check for an implementation evaluation method matching the operands. The
+ *       matching happens class-based. Thus, for example, eval(Object) is valid for (INT). Or
+ *       eval(Object...) is valid for (INT, STRING). We rely on the conversion classes specified by
+ *       DataType.
  * </ul>
  */
 @Internal
@@ -94,18 +93,13 @@ public final class TypeInferenceUtil {
         }
     }
 
-    /**
-     * Adapts the call's argument if necessary.
-     *
-     * <p>This includes casts that need to be inserted, reordering of arguments (*), or insertion of
-     * default values (*) where (*) is future work.
-     */
-    public static CallContext adaptArguments(
+    /** Casts the call's argument if necessary. */
+    public static CallContext castArguments(
             TypeInference typeInference, CallContext callContext, @Nullable DataType outputType) {
-        return adaptArguments(typeInference, callContext, outputType, true);
+        return castArguments(typeInference, callContext, outputType, true);
     }
 
-    private static CallContext adaptArguments(
+    private static CallContext castArguments(
             TypeInference typeInference,
             CallContext callContext,
             @Nullable DataType outputType,
@@ -124,11 +118,11 @@ public final class TypeInferenceUtil {
                             }
                         });
 
-        final AdaptedCallContext adaptedCallContext =
+        final CastCallContext castCallContext =
                 inferInputTypes(typeInference, callContext, outputType, throwOnInferInputFailure);
 
         // final check if the call is valid after casting
-        final List<DataType> expectedTypes = adaptedCallContext.getArgumentDataTypes();
+        final List<DataType> expectedTypes = castCallContext.getArgumentDataTypes();
         for (int pos = 0; pos < actualTypes.size(); pos++) {
             final DataType expectedType = expectedTypes.get(pos);
             final DataType actualType = actualTypes.get(pos);
@@ -144,7 +138,7 @@ public final class TypeInferenceUtil {
             }
         }
 
-        return adaptedCallContext;
+        return castCallContext;
     }
 
     /**
@@ -316,7 +310,7 @@ public final class TypeInferenceUtil {
                 // We might not be able to infer the input types at this moment, if the surrounding
                 // function does not provide an explicit input type strategy.
                 final CallContext adaptedContext =
-                        adaptArguments(typeInference, callContext, null, false);
+                        castArguments(typeInference, callContext, null, false);
                 return typeInference
                         .getInputTypeStrategy()
                         .inferInputTypes(adaptedContext, false)
@@ -418,7 +412,7 @@ public final class TypeInferenceUtil {
                 outputType = null;
             }
 
-            adaptedCallContext = adaptArguments(typeInference, callContext, outputType);
+            adaptedCallContext = castArguments(typeInference, callContext, outputType);
         } catch (ValidationException e) {
             throw createInvalidInputException(typeInference, callContext, e);
         }
@@ -457,14 +451,13 @@ public final class TypeInferenceUtil {
         return stringBuilder.toString();
     }
 
-    private static AdaptedCallContext inferInputTypes(
+    private static CastCallContext inferInputTypes(
             TypeInference typeInference,
             CallContext callContext,
             @Nullable DataType outputType,
             boolean throwOnFailure) {
 
-        final AdaptedCallContext adaptedCallContext =
-                new AdaptedCallContext(callContext, outputType);
+        final CastCallContext castCallContext = new CastCallContext(callContext, outputType);
 
         // Static arguments have the highest priority
         final List<StaticArgument> staticArgs = typeInference.getStaticArguments().orElse(null);
@@ -493,7 +486,7 @@ public final class TypeInferenceUtil {
                                     })
                             .collect(Collectors.toList());
             if (fromStaticArgs.stream().allMatch(Objects::nonNull)) {
-                adaptedCallContext.setExpectedArguments(fromStaticArgs);
+                castCallContext.setExpectedArguments(fromStaticArgs);
             } else if (throwOnFailure) {
                 throw new ValidationException("Invalid input arguments.");
             }
@@ -504,15 +497,15 @@ public final class TypeInferenceUtil {
         final List<DataType> inferredDataTypes =
                 typeInference
                         .getInputTypeStrategy()
-                        .inferInputTypes(adaptedCallContext, throwOnFailure)
+                        .inferInputTypes(castCallContext, throwOnFailure)
                         .orElse(null);
         if (inferredDataTypes != null) {
-            adaptedCallContext.setExpectedArguments(inferredDataTypes);
+            castCallContext.setExpectedArguments(inferredDataTypes);
         } else if (throwOnFailure) {
             throw new ValidationException("Invalid input arguments.");
         }
 
-        return adaptedCallContext;
+        return castCallContext;
     }
 
     private static StateInfo inferStateInfo(

@@ -2460,7 +2460,7 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(
                             callContext -> {
                                 throw new UnsupportedOperationException(
-                                        "FLATTEN should be resolved to GET expressions");
+                                        "FLATTEN should be resolved to GET expressions.");
                             })
                     .build();
 
@@ -2895,6 +2895,19 @@ public final class BuiltInFunctionDefinitions {
                                             InputTypeStrategies.LITERAL,
                                             logical(LogicalTypeFamily.CHARACTER_STRING))))
                     .outputTypeStrategy(TypeStrategies.argument(0))
+                    .build();
+
+    public static final BuiltInFunctionDefinition ASSIGNMENT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ASSIGNMENT")
+                    .kind(OTHER)
+                    .inputTypeStrategy(
+                            sequence(
+                                    and(
+                                            InputTypeStrategies.LITERAL,
+                                            logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                    or(OUTPUT_IF_NULL, InputTypeStrategies.ANY)))
+                    .outputTypeStrategy(TypeStrategies.argument(1))
                     .build();
 
     public static final BuiltInFunctionDefinition STREAM_RECORD_TIMESTAMP =
