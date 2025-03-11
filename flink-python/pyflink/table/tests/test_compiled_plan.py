@@ -47,14 +47,14 @@ class CompiledPlanTest(PyFlinkStreamTableTestCase, PyFlinkTestCase):
 
     def test_compile_plan_sql(self):
         src = """
-        CREATE TABLE MyTable (a bigint, b int, c varchar)
-        with ('connector' = 'datagen', 'number-of-rows' = '5')
+        CREATE TABLE MyTable (a BIGINT, b INT, c VARCHAR)
+        WITH ('connector' = 'datagen', 'number-of-rows' = '5')
         """
         self.t_env.execute_sql(src)
 
         sink = """
-        CREATE TABLE MySink (a bigint, b int, c varchar)
-        with ('connector' = 'blackhole')
+        CREATE TABLE MySink (a BIGINT, b INT, c VARCHAR)
+        WITH ('connector' = 'blackhole')
         """
         self.t_env.execute_sql(sink)
 
