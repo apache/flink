@@ -30,6 +30,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateBackendOptions;
+import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -38,6 +39,7 @@ import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.state.api.functions.BroadcastStateBootstrapFunction;
 import org.apache.flink.state.api.functions.KeyedStateBootstrapFunction;
 import org.apache.flink.state.api.functions.StateBootstrapFunction;
+import org.apache.flink.state.api.runtime.SavepointLoader;
 import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -65,6 +67,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT test for writing savepoints. */
 public class SavepointWriterITCase extends AbstractTestBaseJUnit4 {
+
+    private static final long CHECKPOINT_ID = 42;
 
     private static final String ACCOUNT_UID = "accounts";
 
@@ -120,18 +124,18 @@ public class SavepointWriterITCase extends AbstractTestBaseJUnit4 {
         env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
 
         StateBootstrapTransformation<Account> transformation =
-                OperatorTransformation.bootstrapWith(env.fromData(accounts))
+                OperatorTransformation.bootstrapWith(env.fromData(accounts), CHECKPOINT_ID)
                         .keyBy(acc -> acc.id)
                         .transform(new AccountBootstrapper());
 
         StateBootstrapTransformation<CurrencyRate> broadcastTransformation =
-                OperatorTransformation.bootstrapWith(env.fromData(currencyRates))
+                OperatorTransformation.bootstrapWith(env.fromData(currencyRates), CHECKPOINT_ID)
                         .transform(new CurrencyBootstrapFunction());
 
         SavepointWriter writer =
                 backend == null
-                        ? SavepointWriter.newSavepoint(env, 128)
-                        : SavepointWriter.newSavepoint(env, backend, 128);
+                        ? SavepointWriter.newSavepoint(env, CHECKPOINT_ID, 128)
+                        : SavepointWriter.newSavepoint(env, backend, CHECKPOINT_ID, 128);
 
         writer.withOperator(OperatorIdentifier.forUid(ACCOUNT_UID), transformation)
                 .withOperator(getUidHashFromUid(CURRENCY_UID), broadcastTransformation)
@@ -142,6 +146,9 @@ public class SavepointWriterITCase extends AbstractTestBaseJUnit4 {
 
     private void validateBootstrap(Configuration configuration, String savepointPath)
             throws Exception {
+        CheckpointMetadata metadata = SavepointLoader.loadSavepointMetadata(savepointPath);
+        assertThat(metadata.getCheckpointId()).isEqualTo(CHECKPOINT_ID);
+
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
 
@@ -192,6 +199,9 @@ public class SavepointWriterITCase extends AbstractTestBaseJUnit4 {
 
     private void validateModification(Configuration configuration, String savepointPath)
             throws Exception {
+        CheckpointMetadata metadata = SavepointLoader.loadSavepointMetadata(savepointPath);
+        assertThat(metadata.getCheckpointId()).isEqualTo(CHECKPOINT_ID);
+
         StreamExecutionEnvironment sEnv =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
 
