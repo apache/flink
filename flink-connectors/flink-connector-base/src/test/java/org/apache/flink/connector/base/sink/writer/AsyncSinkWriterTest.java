@@ -1135,10 +1135,8 @@ class AsyncSinkWriterTest {
                                             .build())
                             .build(),
                     bufferedState,
-                    new SimpleBatchCreator.Builder<Integer>()
-                            .setMaxBatchSizeInBytes(maxBatchSizeInBytes)
-                            .build(),
-                    new DequeBufferWrapper.Builder<Integer>().build());
+                    null,
+                    null);
             this.simulateFailures = simulateFailures;
             this.delay = delay;
         }

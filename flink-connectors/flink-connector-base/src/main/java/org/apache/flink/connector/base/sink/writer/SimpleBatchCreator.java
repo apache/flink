@@ -19,6 +19,7 @@ package org.apache.flink.connector.base.sink.writer;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.base.sink.writer.strategy.RequestInfo;
+import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -48,6 +49,7 @@ public class SimpleBatchCreator<RequestEntryT extends Serializable>
      * @param maxBatchSizeInBytes the maximum cumulative size in bytes allowed for any single batch
      */
     private SimpleBatchCreator(long maxBatchSizeInBytes) {
+        Preconditions.checkArgument(maxBatchSizeInBytes > 0);
         this.maxBatchSizeInBytes = maxBatchSizeInBytes;
     }
 
