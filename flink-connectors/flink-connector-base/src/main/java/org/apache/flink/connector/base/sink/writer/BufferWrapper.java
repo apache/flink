@@ -32,10 +32,11 @@ import java.util.Collection;
 public interface BufferWrapper<RequestEntryT extends Serializable> {
 
     /**
-     * Adds a request entry to the buffer. Implementations can decide how to store the entry.
+     * Adds an entry (RequestEntryWrapper<RequestEntryT>) to the buffer. Implementations can decide
+     * how to store the entry.
      *
      * @param entry The request entry to add.
-     * @param prioritize If true, the entry should be prioritized (e.g., retried before others).
+     * @param prioritize If true, the entry should be prioritized (e.g. retried before others).
      */
     void add(RequestEntryWrapper<RequestEntryT> entry, boolean prioritize);
 
