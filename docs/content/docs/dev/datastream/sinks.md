@@ -93,36 +93,36 @@ The `Sink` needs to be serializable. All configuration should be validated eager
 
 ### Custom sink topology
 
-For advanced developers, they may want to specify their own sink operator topology(A structure composed of a series of operators), such as collecting `committables` to one subtask and processing them together, or performing operations such as merging small files after `Committer`. Flink provides the following interfaces to allow expert users to customize the sink operator topology.
+For advanced developers and expert users, they may want to specify their own sink operator topology (A structure composed of a series of operators), such as collecting `committables` to one subtask and processing them together, or performing operations such as merging small files after `Committer`. Flink provides the following interfaces to allow expert users to customize the sink operator topology.
 
 #### SupportsPreWriteTopology
 
-`SupportsPreWriteTopology` interface Allows expert users to implement a custom operator topology before `SinkWriter`, which can be used to process or redistribute the input data. For example, sending data of the same partition to the same SinkWriter of Kafka or Iceberg.
+`SupportsPreWriteTopology` interface allows expert users to implement a custom operator topology before `SinkWriter`, which can be used to process or redistribute the input data. For example, sending data of the same partition to the same Kafka or Iceberg SinkWriter.
 
-The following figure shows the operator topology of using {{< gh_link file="flink-runtime/src/main/java/org/apache/flink/streaming/api/connector/sink2/SupportsPreWriteTopology.java" name="SupportsPreWriteTopology" >}}:
+The following figure shows the operator topology using {{< gh_link file="flink-runtime/src/main/java/org/apache/flink/streaming/api/connector/sink2/SupportsPreWriteTopology.java" name="SupportsPreWriteTopology" >}}:
 
 {{< img src="/fig/dev/datastream/SupportsPreWriteTopology.png" class="center" >}}
 
-In the figure above, user add a `PrePartition` and `PostPartition` operator in the `SupportsPreWriteTopology` topology, and redistribute the input data to the `SinkWriter`.
+In the figure above, users add a `PrePartition` and `PostPartition` operator in the `SupportsPreWriteTopology` topology, and redistribute the input data to the `SinkWriter`.
 
 #### SupportsPreCommitTopology
 
-`SupportsPreCommitTopology` interface Allows expert users to implement a custom operator topology after `SinkWriter` and before `Committer`, which can be used to process or redistribute the commit messages.
+`SupportsPreCommitTopology` interface allows expert users to implement a custom operator topology after `SinkWriter` and before `Committer`, which can be used to process or redistribute the commit messages.
 
 The following figure shows the operator topology of using {{< gh_link file="flink-runtime/src/main/java/org/apache/flink/streaming/api/connector/sink2/SupportsPreCommitTopology.java" name="SupportsPreCommitTopology" >}}:
 
 {{< img src="/fig/dev/datastream/SupportsPreWriteTopology.png" class="center" >}}
 
-In the figure above, user add a `CollectCommit` operator in the `SupportsPreCommitTopology` topology, and collect all the commit messages from the `SinkWriter` to one subtask, then send to the `Committer` to process them centrally, this can reduce the number of interactions with the server.
+In the figure above, users add a `CollectCommit` operator in the `SupportsPreCommitTopology` topology, and collect all the commit messages from the `SinkWriter` to one subtask, then send to the `Committer` to process them centrally, this can reduce the number of interactions with external system.
 
 Please note that the parallelism has only been modified here for display purposes. In fact, the parallelism can be set by user.
 
 #### SupportsPostCommitTopology
 
-`SupportsPostCommitTopology` interface Allows expert users to implement a custom operator topology after `Committer`.
+`SupportsPostCommitTopology` interface allows expert users to implement a custom operator topology after `Committer`.
 
 The following figure shows the operator topology of using {{< gh_link file="flink-runtime/src/main/java/org/apache/flink/streaming/api/connector/sink2/SupportsPostCommitTopology.java" name="SupportsPostCommitTopology" >}}:
 
 {{< img src="/fig/dev/datastream/SupportsPostCommitTopology.png" class="center" >}}
 
-In the figure above, users add a `MergeFile` operator in the `SupportsPostCommitTopology` topology, the `MergeFile` operator can merge small files into larger files to speed up the reading of file system. 
+In the figure above, users add a `MergeFile` operator in the `SupportsPostCommitTopology` topology. The `MergeFile` operator can merge small files into larger files to speed up reading of file system. 
