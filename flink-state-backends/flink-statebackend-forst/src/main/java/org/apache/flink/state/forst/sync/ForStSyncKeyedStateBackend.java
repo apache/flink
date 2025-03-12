@@ -608,7 +608,8 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
     @Nonnull
     @Override
     public SavepointResources<K> savepoint() throws Exception {
-        throw new UnsupportedOperationException("This method is not supported.");
+        throw new UnsupportedOperationException(
+                "Canonical savepoints are not supported by ForSt State Backend.");
     }
 
     @Override
