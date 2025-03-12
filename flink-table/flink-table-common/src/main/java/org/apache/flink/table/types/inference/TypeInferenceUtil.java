@@ -64,9 +64,9 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.suppor
  *   <li>7. In the planner: Call the strategies again at any point in time to enrich a DataType that
  *       has been created from a logical type with a conversion class.
  *   <li>8. In the planner: Check for an implementation evaluation method matching the operands. The
- *       matching happens class-based. Thus, for example, eval(Object) is valid for (INT). Or
- *       eval(Object...) is valid for (INT, STRING). We rely on the conversion classes specified by
- *       DataType.
+ *       matching happens class-based. Thus, for example, {@code eval(Object)} is valid for (INT).
+ *       Or {@code eval(Object...)} is valid for (INT, STRING). We rely on the conversion classes
+ *       specified by {@link DataType}.
  * </ul>
  */
 @Internal
