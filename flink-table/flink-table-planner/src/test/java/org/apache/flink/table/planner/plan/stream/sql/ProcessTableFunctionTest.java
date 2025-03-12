@@ -342,7 +342,12 @@ public class ProcessTableFunctionTest extends TableTestBase {
                         "SELECT * FROM f(r => TABLE t_watermarked, i => 1, on_time => DESCRIPTOR(ts, INVALID))",
                         "Invalid time attribute declaration. Each column in the `on_time` argument must "
                                 + "reference at least one column in one of the table arguments. "
-                                + "Unknown references: [INVALID]"));
+                                + "Unknown references: [INVALID]"),
+                ErrorSpec.of(
+                        "invalid optional table argument",
+                        OptionalUntypedTable.class,
+                        "SELECT * FROM f()",
+                        "Untyped table arguments must not be optional."));
     }
 
     /** Testing function. */
@@ -390,6 +395,12 @@ public class ProcessTableFunctionTest extends TableTestBase {
         @SuppressWarnings("unused")
         public void eval(
                 @ArgumentHint({TABLE_AS_SET, SUPPORT_UPDATES, PASS_COLUMNS_THROUGH}) Row r) {}
+    }
+
+    /** Testing function. */
+    public static class OptionalUntypedTable extends ProcessTableFunction<String> {
+        @SuppressWarnings("unused")
+        public void eval(@ArgumentHint(value = TABLE_AS_ROW, isOptional = true) Row r) {}
     }
 
     private static class ErrorSpec {

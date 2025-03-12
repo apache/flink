@@ -2901,13 +2901,16 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("ASSIGNMENT")
                     .kind(OTHER)
-                    .inputTypeStrategy(
-                            sequence(
-                                    and(
-                                            InputTypeStrategies.LITERAL,
-                                            logical(LogicalTypeFamily.CHARACTER_STRING)),
-                                    or(OUTPUT_IF_NULL, InputTypeStrategies.ANY)))
-                    .outputTypeStrategy(TypeStrategies.argument(1))
+                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .build();
+
+    public static final BuiltInFunctionDefinition DEFAULT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("DEFAULT")
+                    .callSyntax(SqlCallSyntax.NO_PARENTHESIS)
+                    .kind(SCALAR)
+                    .inputTypeStrategy(NO_ARGS)
+                    .outputTypeStrategy(TypeStrategies.MISSING)
                     .build();
 
     public static final BuiltInFunctionDefinition STREAM_RECORD_TIMESTAMP =
