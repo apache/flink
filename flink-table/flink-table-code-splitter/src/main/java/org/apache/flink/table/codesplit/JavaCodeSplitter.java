@@ -30,19 +30,22 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 @Internal
 public class JavaCodeSplitter {
 
-    public static String split(String code, int maxMethodLength, int maxClassMemberCount) {
+    public static String split(
+            String code, int maxMethodLength, int maxClassMemberCount, int fieldsPerInitMethod) {
         try {
-            return splitImpl(code, maxMethodLength, maxClassMemberCount);
+            return splitImpl(code, maxMethodLength, maxClassMemberCount, fieldsPerInitMethod);
         } catch (Throwable t) {
             throw new RuntimeException(
                     "JavaCodeSplitter failed. This is a bug. Please file an issue.", t);
         }
     }
 
-    private static String splitImpl(String code, int maxMethodLength, int maxClassMemberCount) {
+    private static String splitImpl(
+            String code, int maxMethodLength, int maxClassMemberCount, int fieldsPerInitMethod) {
         checkArgument(code != null && !code.isEmpty(), "code cannot be empty");
         checkArgument(maxMethodLength > 0, "maxMethodLength must be greater than 0");
         checkArgument(maxClassMemberCount > 0, "maxClassMemberCount must be greater than 0");
+        checkArgument(fieldsPerInitMethod > 0, "fieldsPerInitMethod must be greater than 0");
 
         if (code.length() <= maxMethodLength) {
             return code;
@@ -54,7 +57,11 @@ public class JavaCodeSplitter {
                                 .rewrite())
                 .map(text -> new BlockStatementRewriter(text, maxMethodLength).rewrite())
                 .map(text -> new FunctionSplitter(text, maxMethodLength).rewrite())
-                .map(text -> new MemberFieldRewriter(text, maxClassMemberCount).rewrite())
+                .map(
+                        text ->
+                                new MemberFieldRewriter(
+                                                text, maxClassMemberCount, fieldsPerInitMethod)
+                                        .rewrite())
                 .orElse(code);
     }
 }
