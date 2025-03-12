@@ -129,36 +129,30 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
                             .map(FunctionIdentifier::toString)
                             .orElseGet(definition::toString);
 
-            final Optional<TypeInference> typeInference = getOptionalTypeInference(definition);
+            final TypeInference typeInference = getTypeInferenceOrNull(definition);
 
             // Reorder named arguments and add replacements for optional ones
-            if (definition == BuiltInFunctionDefinitions.ASSIGNMENT) {
-                throw new ValidationException(
-                        "Named arguments via asArgument() can only be used within function calls.");
-            }
             final UnresolvedCallExpression adaptedCall =
-                    typeInference
-                            .map(i -> executeAssignment(functionName, i, unresolvedCall))
-                            .orElse(unresolvedCall);
+                    executeAssignment(functionName, definition, typeInference, unresolvedCall);
 
             // resolve the children with information from the current call
             final List<ResolvedExpression> resolvedArgs = new ArrayList<>();
             final int argCount = adaptedCall.getChildren().size();
 
             for (int i = 0; i < argCount; i++) {
-                final int currentPos = i;
-                final SurroundingInfo surroundingInfo =
-                        typeInference
-                                .map(
-                                        inference ->
-                                                SurroundingInfo.of(
-                                                        functionName,
-                                                        definition,
-                                                        inference,
-                                                        argCount,
-                                                        currentPos,
-                                                        resolutionContext.isGroupedAggregation()))
-                                .orElse(null);
+                final SurroundingInfo surroundingInfo;
+                if (typeInference == null) {
+                    surroundingInfo = null;
+                } else {
+                    surroundingInfo =
+                            SurroundingInfo.of(
+                                    functionName,
+                                    definition,
+                                    typeInference,
+                                    argCount,
+                                    i,
+                                    resolutionContext.isGroupedAggregation());
+                }
                 final ResolvingCallVisitor childResolver =
                         new ResolvingCallVisitor(resolutionContext, surroundingInfo);
                 resolvedArgs.addAll(adaptedCall.getChildren().get(i).accept(childResolver));
@@ -169,20 +163,12 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
             }
 
             return Collections.singletonList(
-                    typeInference
-                            .map(
-                                    newInference ->
-                                            runTypeInference(
-                                                    functionName,
-                                                    adaptedCall,
-                                                    newInference,
-                                                    resolvedArgs,
-                                                    surroundingInfo))
-                            .orElseThrow(
-                                    () ->
-                                            new TableException(
-                                                    "Could not get a type inference for function: "
-                                                            + functionName)));
+                    runTypeInference(
+                            functionName,
+                            adaptedCall,
+                            typeInference,
+                            resolvedArgs,
+                            surroundingInfo));
         }
 
         @Override
@@ -255,23 +241,34 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
         }
 
         /** Temporary method until all calls define a type inference. */
-        private Optional<TypeInference> getOptionalTypeInference(FunctionDefinition definition) {
+        private @Nullable TypeInference getTypeInferenceOrNull(FunctionDefinition definition) {
             final TypeInference inference =
                     definition.getTypeInference(resolutionContext.typeFactory());
             if (inference.getOutputTypeStrategy() != TypeStrategies.MISSING) {
-                return Optional.of(inference);
+                return inference;
             } else {
-                return Optional.empty();
+                return null;
             }
         }
 
         private UnresolvedCallExpression executeAssignment(
                 String functionName,
-                TypeInference inference,
+                FunctionDefinition definition,
+                @Nullable TypeInference inference,
                 UnresolvedCallExpression unresolvedCall) {
+            // Assignment cannot be a top-level expression,
+            // it must be located within a function call
+            if (definition == BuiltInFunctionDefinitions.ASSIGNMENT) {
+                throw new ValidationException(
+                        "Named arguments via asArgument() can only be used within function calls.");
+            }
+            // Skip assignment for special calls
+            if (inference == null) {
+                return unresolvedCall;
+            }
+
             final List<Expression> actualArgs = unresolvedCall.getChildren();
             final Map<String, Expression> namedArgs = new HashMap<>();
-
             actualArgs.stream()
                     .map(this::extractAssignment)
                     .filter(Objects::nonNull)
@@ -286,7 +283,6 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
                                 }
                                 namedArgs.put(assignment.getKey(), assignment.getValue());
                             });
-
             if (namedArgs.isEmpty()) {
                 // Use position-based call
                 return unresolvedCall;
@@ -313,16 +309,29 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 
             if (declaredArgs.size() != namedArgs.size()) {
                 final Set<String> providedArgs = namedArgs.keySet();
-                final List<StaticArgument> missingArgs =
+                final Set<String> knownArgs =
                         declaredArgs.stream()
-                                .filter(arg -> !providedArgs.contains(arg.getName()))
-                                .collect(Collectors.toList());
+                                .map(StaticArgument::getName)
+                                .collect(Collectors.toSet());
+                final Set<String> unknownArgs =
+                        providedArgs.stream()
+                                .filter(arg -> !knownArgs.contains(arg))
+                                .collect(Collectors.toSet());
+                final String cause;
+                if (!unknownArgs.isEmpty()) {
+                    cause = "Unknown argument names: " + unknownArgs;
+                } else {
+                    final List<StaticArgument> missingArgs =
+                            declaredArgs.stream()
+                                    .filter(arg -> !providedArgs.contains(arg.getName()))
+                                    .collect(Collectors.toList());
+                    cause = "Missing required arguments: " + missingArgs;
+                }
                 throw new ValidationException(
                         String.format(
-                                "Invalid call to function '%s'. "
-                                        + "If the call uses named arguments, a name has to be provided for all arguments. "
-                                        + "Missing required arguments are: %s",
-                                functionName, missingArgs));
+                                "Invalid call to function '%s'. If the call uses named arguments, "
+                                        + "a valid name has to be provided for all passed arguments. %s",
+                                functionName, cause));
             }
 
             final List<Expression> reorderedArgs =
@@ -345,18 +354,22 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
         }
 
         private ResolvedExpression runTypeInference(
-                String name,
+                String functionName,
                 UnresolvedCallExpression unresolvedCall,
                 TypeInference inference,
                 List<ResolvedExpression> resolvedArgs,
                 @Nullable SurroundingInfo surroundingInfo) {
+            if (inference == null) {
+                throw new TableException(
+                        "Could not get a type inference for function: " + functionName);
+            }
 
             final Result inferenceResult =
                     TypeInferenceUtil.runTypeInference(
                             inference,
                             new TableApiCallContext(
                                     resolutionContext.typeFactory(),
-                                    name,
+                                    functionName,
                                     unresolvedCall.getFunctionDefinition(),
                                     resolvedArgs,
                                     resolutionContext.isGroupedAggregation()),

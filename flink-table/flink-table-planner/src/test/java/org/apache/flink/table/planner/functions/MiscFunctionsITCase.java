@@ -155,8 +155,24 @@ class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                                         StaticSignatureFunction.class,
                                         nullOf(DataTypes.BOOLEAN()).asArgument("b"),
                                         $("f2").asArgument("s")),
-                                "If the call uses named arguments, a name has to be provided for all arguments. "
-                                        + "Missing required arguments are: [i => INT NOT NULL, l => BIGINT]"),
+                                "If the call uses named arguments, a valid name has to be provided for all passed arguments. "
+                                        + "Missing required arguments: [i => INT NOT NULL, l => BIGINT]"),
+                TestSetSpec.forExpression("assignment with invalid arguments")
+                        .onFieldsWithData(null, 12, "Hello World")
+                        .andDataTypes(
+                                DataTypes.INT().nullable(),
+                                DataTypes.INT().notNull(),
+                                DataTypes.STRING().notNull())
+                        .testTableApiValidationError(
+                                call(
+                                        StaticSignatureFunction.class,
+                                        $("f1").asArgument("INVALID"),
+                                        $("f1").asArgument("i"),
+                                        lit(42L).asArgument("l"),
+                                        nullOf(DataTypes.BOOLEAN()).asArgument("b"),
+                                        $("f2").asArgument("s")),
+                                "If the call uses named arguments, a valid name has to be provided for all passed arguments. "
+                                        + "Unknown argument names: [INVALID]"),
                 TestSetSpec.forExpression("invalid assignment")
                         .onFieldsWithData("Hello World")
                         .testTableApiValidationError(
@@ -181,8 +197,8 @@ class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                                         $("f1").asArgument("i"),
                                         lit(42L).asArgument("l"),
                                         nullOf(DataTypes.BOOLEAN()).asArgument("b"),
-                                        $("f0").asArgument("s"),
-                                        $("f1").asArgument("s")),
+                                        $("f2").asArgument("s"),
+                                        $("f2").asArgument("s")),
                                 "Duplicate named argument found: s"));
     }
 

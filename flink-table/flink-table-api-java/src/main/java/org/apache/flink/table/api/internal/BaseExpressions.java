@@ -266,7 +266,7 @@ public abstract class BaseExpressions<InType, OutType> {
      * table.select(
      *   Expressions.call(
      *     "MyFunction",
-     *     $("my_column").asArgument("input")
+     *     $("my_column").asArgument("input"),
      *     lit(42).asArgument("threshold")
      *   )
      * )
