@@ -1329,37 +1329,39 @@ class AsyncWaitOperatorTest {
 
     @Test
     public void testProcessingTimeWithMailboxThreadOrdered() throws Exception {
-        testProcessingTimeWithCallThread(AsyncDataStream.OutputMode.ORDERED, NO_RETRY_STRATEGY);
+        testProcessingTimeWithCollectFromMailboxThread(
+                AsyncDataStream.OutputMode.ORDERED, NO_RETRY_STRATEGY);
     }
 
     @Test
     public void testProcessingTimeWithMailboxThreadUnordered() throws Exception {
-        testProcessingTimeWithCallThread(AsyncDataStream.OutputMode.UNORDERED, NO_RETRY_STRATEGY);
+        testProcessingTimeWithCollectFromMailboxThread(
+                AsyncDataStream.OutputMode.UNORDERED, NO_RETRY_STRATEGY);
     }
 
     @Test
     public void testProcessingTimeWithMailboxThreadOrderedWithRetry() throws Exception {
-        testProcessingTimeWithCallThread(
+        testProcessingTimeWithCollectFromMailboxThread(
                 AsyncDataStream.OutputMode.ORDERED, exceptionRetryStrategy);
     }
 
     @Test
     public void testProcessingTimeWithMailboxThreadUnorderedWithRetry() throws Exception {
-        testProcessingTimeWithCallThread(
+        testProcessingTimeWithCollectFromMailboxThread(
                 AsyncDataStream.OutputMode.UNORDERED, exceptionRetryStrategy);
     }
 
     @Test
-    public void testProcessingTimeWithMailboxThreadError() throws Exception {
-        testProcessingTimeWithMailboxThreadError(NO_RETRY_STRATEGY);
+    public void testProcessingTimeWithErrorFromMailboxThread() throws Exception {
+        testProcessingTimeWithErrorFromMailboxThread(NO_RETRY_STRATEGY);
     }
 
     @Test
     public void testProcessingTimeWithMailboxThreadErrorWithRetry() throws Exception {
-        testProcessingTimeWithMailboxThreadError(exceptionRetryStrategy);
+        testProcessingTimeWithErrorFromMailboxThread(exceptionRetryStrategy);
     }
 
-    private void testProcessingTimeWithMailboxThreadError(
+    private void testProcessingTimeWithErrorFromMailboxThread(
             @Nullable AsyncRetryStrategy<Integer> asyncRetryStrategy) throws Exception {
         StreamTaskMailboxTestHarnessBuilder<Integer> builder =
                 new StreamTaskMailboxTestHarnessBuilder<>(
@@ -1396,7 +1398,7 @@ class AsyncWaitOperatorTest {
         }
     }
 
-    private void testProcessingTimeWithCallThread(
+    private void testProcessingTimeWithCollectFromMailboxThread(
             AsyncDataStream.OutputMode mode,
             @Nullable AsyncRetryStrategy<Integer> asyncRetryStrategy)
             throws Exception {
@@ -1575,10 +1577,12 @@ class AsyncWaitOperatorTest {
         @Override
         public void asyncInvoke(final Integer input, final ResultFuture<Integer> resultFuture)
                 throws Exception {
+            Thread callThread = Thread.currentThread();
             executorService.submit(
                     () ->
                             resultFuture.complete(
                                     () -> {
+                                        assertEquals(callThread, Thread.currentThread());
                                         throw new ExpectedTestException();
                                     }));
         }

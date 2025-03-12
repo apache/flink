@@ -19,14 +19,12 @@
 package org.apache.flink.streaming.api.operators.async.queue;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.functions.async.CollectionSupplier;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
-import org.apache.flink.util.function.SupplierWithException;
 
 import javax.annotation.Nonnull;
-
-import java.util.Collection;
 
 /**
  * An entry for the {@link StreamElementQueue}. The stream element queue entry stores the {@link
@@ -66,7 +64,7 @@ interface StreamElementQueueEntry<OUT> extends ResultFuture<OUT> {
                 "This result future should only be used to set completed results.");
     }
 
-    default void complete(SupplierWithException<Collection<OUT>, Exception> supplier) {
+    default void complete(CollectionSupplier<OUT> supplier) {
         throw new UnsupportedOperationException();
     }
 }

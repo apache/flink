@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream.OutputMode;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.AsyncRetryStrategy;
+import org.apache.flink.streaming.api.functions.async.CollectionSupplier;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
@@ -47,7 +48,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import javax.annotation.Nonnull;
@@ -507,14 +507,14 @@ public class AsyncWaitOperator<IN, OUT>
         }
 
         @Override
-        public void complete(SupplierWithException<Collection<OUT>, Exception> runnable) {
+        public void complete(CollectionSupplier<OUT> supplier) {
             Preconditions.checkNotNull(
-                    runnable, "Runnable must not be null, return empty collection to emit nothing");
+                    supplier, "Runnable must not be null, return empty collection to emit nothing");
             if (!retryDisabledOnFinish.get() && resultHandler.inputRecord.isRecord()) {
                 mailboxExecutor.submit(
                         () -> {
                             try {
-                                processRetry(runnable.get(), null);
+                                processRetry(supplier.get(), null);
                             } catch (Throwable t) {
                                 processRetry(null, t);
                             }
@@ -523,7 +523,7 @@ public class AsyncWaitOperator<IN, OUT>
             } else {
                 cancelRetryTimer();
 
-                resultHandler.complete(runnable);
+                resultHandler.complete(supplier);
             }
         }
 
@@ -623,7 +623,7 @@ public class AsyncWaitOperator<IN, OUT>
         }
 
         @Override
-        public void complete(SupplierWithException<Collection<OUT>, Exception> runnable) {
+        public void complete(CollectionSupplier<OUT> supplier) {
             // already completed (exceptionally or with previous complete call from ill-written
             // AsyncFunction), so ignore additional result
             if (!completed.compareAndSet(false, true)) {
@@ -632,7 +632,7 @@ public class AsyncWaitOperator<IN, OUT>
             mailboxExecutor.execute(
                     () -> {
                         // If there is an exception, let it bubble up and fail the job.
-                        processResults(runnable.get());
+                        processResults(supplier.get());
                     },
                     "ResultHandler#complete");
         }
