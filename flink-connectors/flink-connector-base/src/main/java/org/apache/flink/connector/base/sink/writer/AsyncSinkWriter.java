@@ -109,7 +109,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      *
      * <p>The buffer stores {@link RequestEntryWrapper} objects rather than raw {@link
      * RequestEntryT} instances, as buffering wrapped entries allows for better tracking of size and
-     * metadata. This also makes it easier to handle retries by reinserting failed entries back into
+     * metadata. This also makes it easier to handle retries by prioritising failed entries back into
      * the buffer.
      */
     private final BufferWrapper<RequestEntryT> bufferedRequestEntries;
