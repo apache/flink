@@ -586,8 +586,8 @@ object AggregateUtil extends Enumeration {
     val inference = udf.getTypeInference(dataTypeFactory)
 
     // enrich argument types with conversion class
-    val adaptedCallContext = TypeInferenceUtil.adaptArguments(inference, callContext, null)
-    val enrichedArgumentDataTypes = toScala(adaptedCallContext.getArgumentDataTypes)
+    val castCallContext = TypeInferenceUtil.castArguments(inference, callContext, null)
+    val enrichedArgumentDataTypes = toScala(castCallContext.getArgumentDataTypes)
 
     // derive accumulator type with conversion class
     val stateStrategies = inference.getStateTypeStrategies
@@ -597,11 +597,11 @@ object AggregateUtil extends Enumeration {
     }
     val accumulatorStrategy = stateStrategies.values().head
     val enrichedAccumulatorDataType =
-      TypeInferenceUtil.inferOutputType(adaptedCallContext, accumulatorStrategy)
+      TypeInferenceUtil.inferOutputType(castCallContext, accumulatorStrategy)
 
     // enrich output types with conversion class
     val enrichedOutputDataType =
-      TypeInferenceUtil.inferOutputType(adaptedCallContext, inference.getOutputTypeStrategy)
+      TypeInferenceUtil.inferOutputType(castCallContext, inference.getOutputTypeStrategy)
 
     createImperativeAggregateInfo(
       call,

@@ -41,7 +41,7 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.suppor
  * literal before is not a literal anymore in this call context.
  */
 @Internal
-public final class AdaptedCallContext implements CallContext {
+public final class CastCallContext implements CallContext {
 
     private final CallContext originalContext;
 
@@ -49,7 +49,7 @@ public final class AdaptedCallContext implements CallContext {
 
     private List<DataType> expectedArguments;
 
-    public AdaptedCallContext(CallContext originalContext, @Nullable DataType outputDataType) {
+    public CastCallContext(CallContext originalContext, @Nullable DataType outputDataType) {
         this.originalContext = originalContext;
         this.expectedArguments = originalContext.getArgumentDataTypes();
         this.outputDataType = outputDataType;
@@ -72,7 +72,7 @@ public final class AdaptedCallContext implements CallContext {
 
     @Override
     public boolean isArgumentLiteral(int pos) {
-        if (isCasted(pos)) {
+        if (isCast(pos)) {
             return false;
         }
         return originalContext.isArgumentLiteral(pos);
@@ -86,7 +86,7 @@ public final class AdaptedCallContext implements CallContext {
 
     @Override
     public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
-        if (isCasted(pos)) {
+        if (isCast(pos)) {
             return Optional.empty();
         }
         return originalContext.getArgumentValue(pos, clazz);
@@ -118,7 +118,7 @@ public final class AdaptedCallContext implements CallContext {
         return originalContext.isGroupedAggregation();
     }
 
-    private boolean isCasted(int pos) {
+    private boolean isCast(int pos) {
         final LogicalType originalType =
                 originalContext.getArgumentDataTypes().get(pos).getLogicalType();
         final LogicalType expectedType = expectedArguments.get(pos).getLogicalType();

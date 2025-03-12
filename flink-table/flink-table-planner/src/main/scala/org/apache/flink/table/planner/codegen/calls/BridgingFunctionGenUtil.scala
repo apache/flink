@@ -99,13 +99,13 @@ object BridgingFunctionGenUtil {
       skipIfArgsNull: Boolean): (GeneratedExpression, DataType) = {
 
     // enrich argument types with conversion class
-    val adaptedCallContext = TypeInferenceUtil.adaptArguments(inference, callContext, null)
-    val enrichedArgumentDataTypes = toScala(adaptedCallContext.getArgumentDataTypes)
+    val castCallContext = TypeInferenceUtil.castArguments(inference, callContext, null)
+    val enrichedArgumentDataTypes = toScala(castCallContext.getArgumentDataTypes)
     verifyArgumentTypes(operands.map(_.resultType), enrichedArgumentDataTypes)
 
     // enrich output types with conversion class
     val enrichedOutputDataType =
-      TypeInferenceUtil.inferOutputType(adaptedCallContext, inference.getOutputTypeStrategy)
+      TypeInferenceUtil.inferOutputType(castCallContext, inference.getOutputTypeStrategy)
     verifyFunctionAwareOutputType(returnType, enrichedOutputDataType, udf)
 
     // find runtime method and generate call
