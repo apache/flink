@@ -21,7 +21,6 @@ package org.apache.flink.table.expressions.resolver.rules;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
@@ -51,7 +50,6 @@ import org.apache.flink.table.types.inference.TypeInferenceUtil.SurroundingInfo;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
-import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -68,6 +66,7 @@ import java.util.stream.IntStream;
 
 import static java.util.Collections.singletonList;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.isFunction;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasLegacyTypes;
@@ -302,8 +301,18 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
             declaredArgs.forEach(
                     declaredArg -> {
                         if (declaredArg.isOptional()) {
+                            // All optional arguments have a type.
+                            // This is checked in StaticArgument.
+                            final DataType dataType =
+                                    declaredArg
+                                            .getDataType()
+                                            .orElseThrow(IllegalStateException::new);
                             namedArgs.putIfAbsent(
-                                    declaredArg.getName(), valueLiteral(null, DataTypes.NULL()));
+                                    declaredArg.getName(),
+                                    CallExpression.permanent(
+                                            BuiltInFunctionDefinitions.DEFAULT,
+                                            List.of(),
+                                            dataType));
                         }
                     });
 
@@ -490,32 +499,32 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 
         @Override
         public boolean isArgumentNull(int pos) {
-            Preconditions.checkArgument(
-                    isArgumentLiteral(pos), "Argument at position %s is not a literal.", pos);
             final ResolvedExpression arg = getArgument(pos);
-            // special case for type literals in Table API only
-            if (arg instanceof TypeLiteralExpression) {
-                return false;
+            if (isFunction(arg, BuiltInFunctionDefinitions.DEFAULT)) {
+                return true;
             }
-            final ValueLiteralExpression literal = (ValueLiteralExpression) getArgument(pos);
-            return literal.isNull();
+            if (arg instanceof ValueLiteralExpression) {
+                final ValueLiteralExpression literal = (ValueLiteralExpression) arg;
+                return literal.isNull();
+            }
+            return false;
         }
 
         @Override
         @SuppressWarnings("unchecked")
         public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
-            Preconditions.checkArgument(
-                    isArgumentLiteral(pos), "Argument at position %s is not a literal.", pos);
             final ResolvedExpression arg = getArgument(pos);
-            // special case for type literals in Table API only
             if (arg instanceof TypeLiteralExpression) {
                 if (!DataType.class.isAssignableFrom(clazz)) {
                     return Optional.empty();
                 }
                 return Optional.of((T) arg.getOutputDataType());
             }
-            final ValueLiteralExpression literal = (ValueLiteralExpression) getArgument(pos);
-            return literal.getValueAs(clazz);
+            if (arg instanceof ValueLiteralExpression) {
+                final ValueLiteralExpression literal = (ValueLiteralExpression) arg;
+                return literal.getValueAs(clazz);
+            }
+            return Optional.empty();
         }
 
         @Override
