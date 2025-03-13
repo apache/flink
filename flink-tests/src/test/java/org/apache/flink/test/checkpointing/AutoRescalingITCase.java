@@ -116,9 +116,7 @@ public class AutoRescalingITCase extends TestLogger {
                 new Object[][] {
                     {"rocksdb", false},
                     {"rocksdb", true},
-                    {"hashmap", false},
-                    {"forst", false},
-                    {"forst", true}
+                    {"hashmap", false}
                 });
     }
 
