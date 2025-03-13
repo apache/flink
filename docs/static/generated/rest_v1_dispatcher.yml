@@ -6,7 +6,7 @@ info:
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
-  version: v1/2.0-SNAPSHOT
+  version: v1/2.1-SNAPSHOT
 paths:
   /cluster:
     delete:
@@ -2149,6 +2149,22 @@ components:
       enum:
       - IN_PROGRESS
       - COMPLETED
+    Input:
+      type: object
+      properties:
+        caching:
+          type: string
+        exchange:
+          type: string
+        id:
+          type: string
+        local_strategy:
+          type: string
+        num:
+          type: integer
+          format: int64
+        ship_strategy:
+          type: string
     IntermediateDataSetID:
       pattern: "[0-9a-f]{32}"
       type: string
@@ -2337,7 +2353,7 @@ components:
           type: integer
           format: int32
         plan:
-          $ref: '#/components/schemas/RawJson'
+          $ref: '#/components/schemas/Plan'
         start-time:
           type: integer
           format: int64
@@ -2436,7 +2452,7 @@ components:
       type: object
       properties:
         plan:
-          $ref: '#/components/schemas/RawJson'
+          $ref: '#/components/schemas/Plan'
     JobResourceRequirementsBody:
       type: object
       additionalProperties:
@@ -2663,6 +2679,39 @@ components:
       type: object
       allOf:
       - $ref: '#/components/schemas/SubtaskCheckpointStatistics'
+    Plan:
+      type: object
+      properties:
+        jid:
+          type: string
+        name:
+          type: string
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlanNode'
+        type:
+          type: string
+    PlanNode:
+      type: object
+      properties:
+        description:
+          type: string
+        id:
+          type: string
+        inputs:
+          type: array
+          items:
+            $ref: '#/components/schemas/Input'
+        operator:
+          type: string
+        operator_strategy:
+          type: string
+        optimizer_properties:
+          type: string
+        parallelism:
+          type: integer
+          format: int64
     ProcessingMode:
       type: string
       enum:

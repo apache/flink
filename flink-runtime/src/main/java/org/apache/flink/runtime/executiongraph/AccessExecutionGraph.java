@@ -26,6 +26,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TernaryBoolean;
@@ -41,11 +42,11 @@ import java.util.Optional;
  */
 public interface AccessExecutionGraph extends JobStatusProvider {
     /**
-     * Returns the job plan as a JSON string.
+     * Returns the job plan as a JobPlanInfo.Plan.
      *
-     * @return job plan as a JSON string
+     * @return job plan as a JobPlanInfo.Plan
      */
-    String getJsonPlan();
+    JobPlanInfo.Plan getPlan();
 
     /**
      * Returns the stream graph as a JSON string.

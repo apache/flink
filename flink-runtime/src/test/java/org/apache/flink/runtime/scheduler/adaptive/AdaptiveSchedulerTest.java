@@ -121,7 +121,6 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
-import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -459,12 +458,7 @@ public class AdaptiveSchedulerTest {
         assertThat(executionGraph.getJobVertex(JOB_VERTEX.getID()).getParallelism())
                 .isEqualTo(numAvailableSlots);
 
-        assertThat(
-                        JacksonMapperFactory.createObjectMapper()
-                                .readTree(executionGraph.getJsonPlan())
-                                .get("nodes")
-                                .size())
-                .isOne();
+        assertThat(executionGraph.getPlan().getNodes().size()).isOne();
     }
 
     @Test
