@@ -58,7 +58,6 @@ class ExpressionCompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase
             'times',
             'mod',
             'power',
-            'asArgument',
         }
 
     @classmethod
