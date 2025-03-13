@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api.functions.async;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.Collection;
 
 /**
@@ -25,6 +27,7 @@ import java.util.Collection;
  *
  * @param <OUT> The type of the output.
  */
+@PublicEvolving
 public interface CollectionSupplier<OUT> {
     /**
      * Returns the collection of results.
