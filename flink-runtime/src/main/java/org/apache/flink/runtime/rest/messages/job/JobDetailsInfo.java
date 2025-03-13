@@ -131,7 +131,7 @@ public class JobDetailsInfo implements ResponseBody {
     private final Map<ExecutionState, Integer> jobVerticesPerState;
 
     @JsonProperty(FIELD_NAME_JSON_PLAN)
-    private final JobPlanInfo.RawJson jsonPlan;
+    private final JobPlanInfo.Plan plan;
 
     @JsonProperty(FIELD_NAME_STREAM_GRAPH_JSON)
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -159,7 +159,7 @@ public class JobDetailsInfo implements ResponseBody {
                     Collection<JobVertexDetailsInfo> jobVertexInfos,
             @JsonProperty(FIELD_NAME_JOB_VERTICES_PER_STATE)
                     Map<ExecutionState, Integer> jobVerticesPerState,
-            @JsonProperty(FIELD_NAME_JSON_PLAN) JobPlanInfo.RawJson jsonPlan,
+            @JsonProperty(FIELD_NAME_JSON_PLAN) JobPlanInfo.Plan plan,
             @JsonProperty(FIELD_NAME_STREAM_GRAPH_JSON) @Nullable
                     JobPlanInfo.RawJson streamGraphJson,
             @JsonProperty(FIELD_NAME_PENDING_OPERATORS) int pendingOperators) {
@@ -176,7 +176,7 @@ public class JobDetailsInfo implements ResponseBody {
         this.timestamps = Preconditions.checkNotNull(timestamps);
         this.jobVertexInfos = Preconditions.checkNotNull(jobVertexInfos);
         this.jobVerticesPerState = Preconditions.checkNotNull(jobVerticesPerState);
-        this.jsonPlan = Preconditions.checkNotNull(jsonPlan);
+        this.plan = Preconditions.checkNotNull(plan);
         this.streamGraphJson = streamGraphJson;
         this.pendingOperators = pendingOperators;
     }
@@ -203,7 +203,7 @@ public class JobDetailsInfo implements ResponseBody {
                 && Objects.equals(timestamps, that.timestamps)
                 && Objects.equals(jobVertexInfos, that.jobVertexInfos)
                 && Objects.equals(jobVerticesPerState, that.jobVerticesPerState)
-                && Objects.equals(jsonPlan, that.jsonPlan)
+                && Objects.equals(plan, that.plan)
                 && Objects.equals(streamGraphJson, that.streamGraphJson)
                 && Objects.equals(pendingOperators, that.pendingOperators);
     }
@@ -224,7 +224,7 @@ public class JobDetailsInfo implements ResponseBody {
                 timestamps,
                 jobVertexInfos,
                 jobVerticesPerState,
-                jsonPlan,
+                plan,
                 streamGraphJson,
                 pendingOperators);
     }
@@ -295,8 +295,8 @@ public class JobDetailsInfo implements ResponseBody {
     }
 
     @JsonIgnore
-    public String getJsonPlan() {
-        return jsonPlan.toString();
+    public JobPlanInfo.Plan getPlan() {
+        return plan;
     }
 
     @JsonIgnore
