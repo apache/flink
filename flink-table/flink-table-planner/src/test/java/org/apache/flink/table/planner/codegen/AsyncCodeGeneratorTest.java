@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.codegen;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
+import org.apache.flink.streaming.api.functions.async.CollectionSupplier;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -34,7 +35,6 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
-import org.apache.flink.util.function.SupplierWithException;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
@@ -201,7 +201,7 @@ public class AsyncCodeGeneratorTest {
         }
 
         @Override
-        public void complete(SupplierWithException<Collection<RowData>, Exception> supplier) {
+        public void complete(CollectionSupplier<RowData> supplier) {
             try {
                 data.complete(supplier.get());
             } catch (Exception e) {
