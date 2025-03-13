@@ -18,8 +18,6 @@
 
 package org.apache.flink.datastream.api.stream;
 
-import static java.util.Objects.requireNonNull;
-
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.dsv2.Sink;
@@ -57,7 +55,6 @@ public interface NonKeyedPartitionStream<T> extends DataStream {
      * @return This operator with a given return type hint.
      */
     NonKeyedPartitionStream<T> returns(TypeInformation<T> typeInfo);
-
 
     /**
      * Apply a two output operation to this {@link NonKeyedPartitionStream}.

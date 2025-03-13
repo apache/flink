@@ -17,10 +17,6 @@
 
 package org.apache.flink.streaming.examples.dsv2.wordcount;
 
-import java.time.Duration;
-import java.util.Arrays;
-import java.util.Set;
-
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.common.state.StateDeclaration;
@@ -49,6 +45,10 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.
 import org.apache.flink.streaming.examples.wordcount.util.WordCountData;
 import org.apache.flink.util.ParameterTool;
 import org.apache.flink.util.TimeUtils;
+
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.Set;
 
 /**
  * Implements the "WordCount" program by DataStream API V2 that computes a simple word occurrence
@@ -155,19 +155,21 @@ public class WordCountUsingLambda {
                 // The text lines read from the source are split into words
                 // using a user-defined process function. The tokenizer, implemented below,
                 // will output each word as a (2-tuple) containing (word, 1)
-                //(OneInputStreamProcessFunction<String, Tuple2<<String, Integer>
-                text.process((OneInputStreamProcessFunction<String, Tuple2<String, Integer>>) (record, output, ctx) -> {
-                            // normalize and split the line
-                            String[] tokens = record.toLowerCase().split("\\W+");
+                // (OneInputStreamProcessFunction<String, Tuple2<<String, Integer>
+                text.process(
+                                (OneInputStreamProcessFunction<String, Tuple2<String, Integer>>)
+                                        (record, output, ctx) -> {
+                                            // normalize and split the line
+                                            String[] tokens = record.toLowerCase().split("\\W+");
 
-                            // emit the pairs
-                            for (String token : tokens) {
-                                if (!token.isEmpty()) {
-                                    output.collect(new Tuple2<>(token, 1));
-                                }
-                            }
-
-                }).withName("tokenizer")
+                                            // emit the pairs
+                                            for (String token : tokens) {
+                                                if (!token.isEmpty()) {
+                                                    output.collect(new Tuple2<>(token, 1));
+                                                }
+                                            }
+                                        })
+                        .withName("tokenizer")
                         .returns(TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {}))
 
                         // keyBy groups tuples based on the first field, the word.
@@ -217,7 +219,6 @@ public class WordCountUsingLambda {
     // *************************************************************************
     // USER PROCESS FUNCTIONS
     // *************************************************************************
-
 
     /**
      * Implements a word counter as a user-defined ProcessFunction that counts received words in
