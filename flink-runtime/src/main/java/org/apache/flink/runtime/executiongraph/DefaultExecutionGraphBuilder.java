@@ -44,6 +44,7 @@ import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.adaptivebatch.ExecutionPlanSchedulingContext;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
@@ -175,11 +176,11 @@ public class DefaultExecutionGraphBuilder {
         // set the basic properties
 
         try {
-            executionGraph.setJsonPlan(JsonPlanGenerator.generatePlan(jobGraph));
+            executionGraph.setPlan(JsonPlanGenerator.generatePlan(jobGraph));
         } catch (Throwable t) {
-            log.warn("Cannot create JSON plan for job", t);
+            log.warn("Cannot create plan for job", t);
             // give the graph an empty plan
-            executionGraph.setJsonPlan("{}");
+            executionGraph.setPlan(new JobPlanInfo.Plan("", "", "", new ArrayList<>()));
         }
 
         initJobVerticesOnMaster(

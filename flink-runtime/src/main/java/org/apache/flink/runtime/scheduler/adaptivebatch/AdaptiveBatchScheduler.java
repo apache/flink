@@ -64,6 +64,7 @@ import org.apache.flink.runtime.jobgraph.topology.DefaultLogicalTopology;
 import org.apache.flink.runtime.jobgraph.topology.DefaultLogicalVertex;
 import org.apache.flink.runtime.jobmaster.event.ExecutionJobVertexFinishedEvent;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.scheduler.DefaultExecutionDeployer;
 import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
@@ -274,7 +275,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
         logicalTopology = DefaultLogicalTopology.fromJobGraph(getJobGraph());
 
         // 4. update json plan
-        getExecutionGraph().setJsonPlan(JsonPlanGenerator.generatePlan(getJobGraph()));
+        getExecutionGraph().setPlan(JsonPlanGenerator.generatePlan(getJobGraph()));
 
         // 5. In broadcast join optimization, results might be written first with a hash
         // method and then read with a broadcast method. Therefore, we need to update the
@@ -837,11 +838,11 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
         // job vertices
         jobVertex.getJobVertex().setDynamicParallelism(parallelism);
         try {
-            getExecutionGraph().setJsonPlan(JsonPlanGenerator.generatePlan(getJobGraph()));
+            getExecutionGraph().setPlan(JsonPlanGenerator.generatePlan(getJobGraph()));
         } catch (Throwable t) {
-            log.warn("Cannot create JSON plan for job", t);
+            log.warn("Cannot create plan for job", t);
             // give the graph an empty plan
-            getExecutionGraph().setJsonPlan("{}");
+            getExecutionGraph().setPlan(new JobPlanInfo.Plan("", "", "", new ArrayList<>()));
         }
 
         jobVertex.setParallelism(parallelism);

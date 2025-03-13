@@ -31,6 +31,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.util.OptionalFailure;
@@ -95,7 +96,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
     @Nullable private final ErrorInfo failureCause;
 
     // ------ Fields that are only relevant for archived execution graphs ------------
-    private final String jsonPlan;
+    private final JobPlanInfo.Plan plan;
     private final StringifiedAccumulatorResult[] archivedUserAccumulators;
     private final ArchivedExecutionConfig archivedExecutionConfig;
     private final boolean isStoppable;
@@ -126,7 +127,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
             JobStatus state,
             @Nullable JobType jobType,
             @Nullable ErrorInfo failureCause,
-            String jsonPlan,
+            JobPlanInfo.Plan plan,
             StringifiedAccumulatorResult[] archivedUserAccumulators,
             Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators,
             ArchivedExecutionConfig executionConfig,
@@ -148,7 +149,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
         this.state = Preconditions.checkNotNull(state);
         this.jobType = jobType;
         this.failureCause = failureCause;
-        this.jsonPlan = Preconditions.checkNotNull(jsonPlan);
+        this.plan = Preconditions.checkNotNull(plan);
         this.archivedUserAccumulators = Preconditions.checkNotNull(archivedUserAccumulators);
         this.serializedUserAccumulators = Preconditions.checkNotNull(serializedUserAccumulators);
         this.archivedExecutionConfig = Preconditions.checkNotNull(executionConfig);
@@ -166,8 +167,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
     // --------------------------------------------------------------------------------------------
 
     @Override
-    public String getJsonPlan() {
-        return jsonPlan;
+    public JobPlanInfo.Plan getPlan() {
+        return plan;
     }
 
     @Override
@@ -374,7 +375,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 statusOverride == null ? executionGraph.getState() : statusOverride,
                 executionGraph.getJobType(),
                 executionGraph.getFailureInfo(),
-                executionGraph.getJsonPlan(),
+                executionGraph.getPlan(),
                 executionGraph.getAccumulatorResultsStringified(),
                 serializedUserAccumulators,
                 executionGraph.getArchivedExecutionConfig(),
@@ -473,7 +474,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
         final long[] timestamps = new long[JobStatus.values().length];
         timestamps[JobStatus.INITIALIZING.ordinal()] = initializationTimestamp;
 
-        String jsonPlan = "{}";
+        JobPlanInfo.Plan plan = new JobPlanInfo.Plan("", "", "", new ArrayList<>());
 
         ErrorInfo failureInfo = null;
         if (throwable != null) {
@@ -493,7 +494,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 jobStatus,
                 jobType,
                 failureInfo,
-                jsonPlan,
+                plan,
                 archivedUserAccumulators,
                 serializedUserAccumulators,
                 new ExecutionConfig().archive(),
