@@ -187,6 +187,32 @@ class ChangelogModeInferenceTest extends TableTestBase {
   }
 
   @Test
+  def testIntervalJoin(): Unit = {
+    // Verifies if plan contains an interval join
+    val sql =
+      """
+        |SELECT * FROM Orders AS o
+        | JOIN ratesHistory AS r
+        | ON o.currency = r.currency
+        | WHERE o.rowtime BETWEEN r.rowtime - INTERVAL '5' SECOND AND r.rowtime + INTERVAL '5' SECOND
+      """.stripMargin
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testIntervalJoinToRegularJoin(): Unit = {
+    // Verifies if plan contains a regular join instead of an interval join
+    val sql =
+      """
+        |SELECT * FROM Orders AS o
+        | JOIN ratesChangelogStream AS r
+        | ON o.currency = r.currency
+        | WHERE o.rowtime BETWEEN r.rowtime - INTERVAL '5' SECOND AND r.rowtime + INTERVAL '5' SECOND
+      """.stripMargin
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
   def testGroupByWithUnion(): Unit = {
     util.addTable("""
                     |CREATE TABLE MyTable2 (
