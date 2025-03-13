@@ -18,13 +18,8 @@
 
 package org.apache.flink.test.operators.util;
 
-import org.apache.flink.api.connector.dsv2.DataStreamV2SourceUtils;
-import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.datastream.api.ExecutionEnvironment;
-import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream;
-import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
@@ -88,32 +83,6 @@ public class CollectionDataStreams {
         Collections.shuffle(data);
 
         return env.fromData(data);
-    }
-
-    public static NonKeyedPartitionStream<Tuple3<Integer, Long, String>> getSmall3TupleDataSet(
-            ExecutionEnvironment env) {
-
-        List<Tuple3<Integer, Long, String>> data = new ArrayList<>();
-        data.add(new Tuple3<>(1, 1L, "Hi"));
-        data.add(new Tuple3<>(2, 2L, "Hello"));
-        data.add(new Tuple3<>(3, 2L, "Hello world"));
-
-        Collections.shuffle(data);
-
-        return env.fromSource(DataStreamV2SourceUtils.fromData(data), "source");
-    }
-
-    public static NonKeyedPartitionStream<String> getStringSet(
-            ExecutionEnvironment env) {
-
-        List<String> data = new ArrayList<>();
-        data.add("Hi");
-        data.add("Hello");
-        data.add("Hello world");
-
-        Collections.shuffle(data);
-
-        return env.fromSource(DataStreamV2SourceUtils.fromData(data), "source");
     }
 
     /** POJO. */

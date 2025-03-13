@@ -28,17 +28,11 @@ import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
-import org.apache.flink.api.connector.dsv2.DataStreamV2SinkUtils;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.datastream.api.ExecutionEnvironment;
-import org.apache.flink.datastream.api.context.PartitionedContext;
-import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
-import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.PrintSink;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.test.operators.util.CollectionDataStreams;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
@@ -60,91 +54,15 @@ public class TypeHintITCase extends AbstractTestBaseJUnit4 {
 
         DataStreamSource<Tuple3<Integer, Long, String>> ds =
                 CollectionDataStreams.getSmall3TupleDataSet(env);
-//        DataStream<Tuple3<Integer, Long, String>> identityMapDs =
-//                ds.map(new Mapper<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>>())
-//                        .returns(new TypeHint<Tuple3<Integer, Long, String>>() {})
-//                ;
-
         DataStream<Tuple3<Integer, Long, String>> identityMapDs =
-                ds.map((MapFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>>) value -> value)
-                        .returns(new TypeHint<>() {
-
-                        })
-                ;
+                ds.map(new Mapper<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>>())
+                        .returns(new TypeHint<Tuple3<Integer, Long, String>>() {});
         List<Tuple3<Integer, Long, String>> result =
                 CollectionUtil.iteratorToList(identityMapDs.executeAndCollect());
 
         String expectedResult = "(2,2,Hello)\n" + "(3,2,Hello world)\n" + "(1,1,Hi)\n";
 
         compareResultAsText(result, expectedResult);
-    }
-
-    @Test
-    public void testIdentityMapWithMissingTypesAndStringTypeHintExecutionEnv() throws Exception {
-        final ExecutionEnvironment env = ExecutionEnvironment.getInstance();
-
-        NonKeyedPartitionStream<String> ds =
-                CollectionDataStreams.getStringSet(env);
-//        DataStream<Tuple3<Integer, Long, String>> identityMapDs =
-//                ds.map(new Mapper<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>>())
-//                        .returns(new TypeHint<Tuple3<Integer, Long, String>>() {})
-//                ;
-
-
-        /*
-        NonKeyedPartitionStream<Integer> parsed = input.process(
-        new OneInputStreamProcessFunction<String, Integer>() {
-          @Override
-          public void processRecord(String record, Collector<Integer> output,
-              PartitionedContext<Integer> ctx) throws Exception {
-            output.collect(Integer.parseInt(record));
-          }
-        }
-
-          NonKeyedPartitionStream<Integer> parsed = input.process(
-        (OneInputStreamProcessFunction<String, Integer>) (record, output, ctx) -> output.collect(record)
-    );
-    );
-         */
-        NonKeyedPartitionStream<String> identityMapDs =
-                //ds.process(new  SerializableProcessFunction())
-                //ds.process((SerializableProcessFunction<String>) (record, output, ctx) -> output.collect(record))
-                ds.process(new SerializableProcessFunction<>())
-//                ds.process(new OneInputStreamProcessFunction<>() {
-//                    private static final long serialVersionUID = 1L;
-//
-//                    @Override
-//                    public void processRecord(
-//                            String record,
-//                            org.apache.flink.datastream.api.common.Collector<String> output,
-//                            PartitionedContext<String> ctx) {
-//                        output.collect(record);
-//                    }
-//                })
-
-//                        .returns(new TypeHint<>() {
-//
-//                        })
-                ;
-
-        identityMapDs.toSink(DataStreamV2SinkUtils.wrapSink(new PrintSink<>()));
-
-
-        String expectedResult = "(2,2,Hello)\n" + "(3,2,Hello world)\n" + "(1,1,Hi)\n";
-        env.execute("source");
-        //compareResultAsText(result, expectedResult);
-    }
-
-    private static class SerializableProcessFunction<S>
-            implements OneInputStreamProcessFunction<S, S>{
-        private static final long serialVersionUID = 1L;
-        @Override
-        public void processRecord(
-                S record,
-                org.apache.flink.datastream.api.common.Collector<S> output,
-                PartitionedContext<S> ctx) {
-            output.collect(record);
-        }
     }
 
     @Test
@@ -164,9 +82,7 @@ public class TypeHintITCase extends AbstractTestBaseJUnit4 {
                                 new TupleTypeInfo<Tuple3<Integer, Long, String>>(
                                         BasicTypeInfo.INT_TYPE_INFO,
                                         BasicTypeInfo.LONG_TYPE_INFO,
-                                        BasicTypeInfo.STRING_TYPE_INFO)
-                        )
-                ;
+                                        BasicTypeInfo.STRING_TYPE_INFO));
         List<Tuple3<Integer, Long, String>> result =
                 CollectionUtil.iteratorToList(identityMapDs.executeAndCollect());
 
