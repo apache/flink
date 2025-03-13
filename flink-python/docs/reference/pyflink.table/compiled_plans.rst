@@ -31,8 +31,9 @@ and table connectors.
 Every new Flink version might introduce improved optimizer rules, more efficient operators,
 and other changes that impact the behavior of previously defined pipelines. In order to ensure
 backwards compatibility and enable stateful streaming job upgrades, compiled plans can be
-persisted and reloaded across Flink versions. See the website documentation for more
-information about provided guarantees during stateful pipeline upgrades.
+persisted and reloaded across Flink versions. See the
+`website documentation <https://flink.apache.org/documentation/>`_ for more information about
+provided guarantees during stateful pipeline upgrades.
 
 A plan can be compiled from a SQL query using
 :func:`~pyflink.table.TableEnvironment.compile_plan_sql`.
