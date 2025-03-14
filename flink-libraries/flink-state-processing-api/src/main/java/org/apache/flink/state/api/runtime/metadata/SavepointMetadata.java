@@ -41,6 +41,8 @@ import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.UPPER_BOUND
 @Deprecated
 public class SavepointMetadata {
 
+    private final long checkpointId;
+
     private final int maxParallelism;
 
     private final Collection<MasterState> masterStates;
@@ -48,6 +50,7 @@ public class SavepointMetadata {
     private final Map<OperatorID, OperatorStateSpec> operatorStateIndex;
 
     public SavepointMetadata(
+            long checkpointId,
             int maxParallelism,
             Collection<MasterState> masterStates,
             Collection<OperatorState> initialStates) {
@@ -57,6 +60,7 @@ public class SavepointMetadata {
                         + UPPER_BOUND_MAX_PARALLELISM
                         + ". Found: "
                         + maxParallelism);
+        this.checkpointId = checkpointId;
         this.maxParallelism = maxParallelism;
 
         this.masterStates = Preconditions.checkNotNull(masterStates);
@@ -67,6 +71,10 @@ public class SavepointMetadata {
                         operatorStateIndex.put(
                                 existingState.getOperatorID(),
                                 OperatorStateSpec.existing(existingState)));
+    }
+
+    public long getCheckpointId() {
+        return checkpointId;
     }
 
     public int getMaxParallelism() {

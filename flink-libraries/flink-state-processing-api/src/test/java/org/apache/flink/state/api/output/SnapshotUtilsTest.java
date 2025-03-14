@@ -77,7 +77,7 @@ public class SnapshotUtilsTest {
         Path path = new Path(folder.newFolder().getAbsolutePath());
 
         SnapshotUtils.snapshot(
-                operator, 0, 0L, true, false, new Configuration(), path, savepointFormatType);
+                0L, operator, 0, 0L, true, false, new Configuration(), path, savepointFormatType);
 
         Assert.assertEquals(SavepointType.savepoint(savepointFormatType), actualSnapshotType);
         Assert.assertEquals(EXPECTED_CALL_OPERATOR_SNAPSHOT, ACTUAL_ORDER_TRACKING);

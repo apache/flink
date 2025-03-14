@@ -72,6 +72,22 @@ public final class OperatorTransformation {
     }
 
     /**
+     * Create a new {@link OperatorTransformation} from a {@link DataSet}.
+     *
+     * @param dataSet A dataset of elements.
+     * @param checkpointId checkpoint ID.
+     * @param <T> The type of the input.
+     * @return A {@link OneInputOperatorTransformation}.
+     * @deprecated use {@link #bootstrapWith(DataStream)} to bootstrap a savepoint using the data
+     *     stream api under batch execution.
+     */
+    @Deprecated
+    public static <T> OneInputOperatorTransformation<T> bootstrapWith(
+            DataSet<T> dataSet, long checkpointId) {
+        return new OneInputOperatorTransformation<>(dataSet, checkpointId);
+    }
+
+    /**
      * Create a new {@link OneInputStateTransformation} from a {@link DataStream}.
      *
      * @param stream A data stream of elements.
@@ -80,5 +96,18 @@ public final class OperatorTransformation {
      */
     public static <T> OneInputStateTransformation<T> bootstrapWith(DataStream<T> stream) {
         return new OneInputStateTransformation<>(stream);
+    }
+
+    /**
+     * Create a new {@link OneInputStateTransformation} from a {@link DataStream}.
+     *
+     * @param stream A data stream of elements.
+     * @param checkpointId checkpoint ID.
+     * @param <T> The type of the input.
+     * @return A {@link OneInputStateTransformation}.
+     */
+    public static <T> OneInputStateTransformation<T> bootstrapWith(
+            DataStream<T> stream, long checkpointId) {
+        return new OneInputStateTransformation<>(stream, checkpointId);
     }
 }

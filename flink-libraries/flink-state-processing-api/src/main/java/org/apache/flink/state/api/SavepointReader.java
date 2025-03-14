@@ -82,7 +82,10 @@ public class SavepointReader {
 
         SavepointMetadataV2 savepointMetadata =
                 new SavepointMetadataV2(
-                        maxParallelism, metadata.getMasterStates(), metadata.getOperatorStates());
+                        metadata.getCheckpointId(),
+                        maxParallelism,
+                        metadata.getMasterStates(),
+                        metadata.getOperatorStates());
         return new SavepointReader(env, savepointMetadata, null);
     }
 
@@ -111,7 +114,10 @@ public class SavepointReader {
 
         SavepointMetadataV2 savepointMetadata =
                 new SavepointMetadataV2(
-                        maxParallelism, metadata.getMasterStates(), metadata.getOperatorStates());
+                        metadata.getCheckpointId(),
+                        maxParallelism,
+                        metadata.getMasterStates(),
+                        metadata.getOperatorStates());
         return new SavepointReader(env, savepointMetadata, stateBackend);
     }
 
