@@ -1315,15 +1315,13 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
     @VisibleForTesting
     void setTokensFor(ContainerLaunchContext containerLaunchContext, boolean fetchToken)
             throws Exception {
-        Credentials credentials = new Credentials();
 
         LOG.info("Loading delegation tokens available locally to add to the AM container");
         // for user
         UserGroupInformation currUsr = UserGroupInformation.getCurrentUser();
 
-        Collection<Token<? extends TokenIdentifier>> usrTok =
-                currUsr.getCredentials().getAllTokens();
-        for (Token<? extends TokenIdentifier> token : usrTok) {
+        Credentials credentials = new Credentials(currUsr.getCredentials());
+        for (Token<? extends TokenIdentifier> token : credentials.getAllTokens()) {
             LOG.info("Adding user token " + token.getService() + " with " + token);
             credentials.addToken(token.getService(), token);
         }
