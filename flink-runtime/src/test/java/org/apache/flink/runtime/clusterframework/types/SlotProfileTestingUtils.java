@@ -53,7 +53,7 @@ public class SlotProfileTestingUtils {
 
         return SlotProfile.priorAllocation(
                 resourceProfile,
-                resourceProfile,
+                resourceProfile.toEmptyLoadable(),
                 preferredLocations,
                 Collections.emptyList(),
                 Collections.emptySet());
