@@ -34,6 +34,7 @@ under the License.
 
 	<modules>
 		<module>flink-external-resource-gpu</module>
+		<module>flink-external-logging</module>
 	</modules>
 
 </project>
