@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.codegen;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
+import org.apache.flink.streaming.api.functions.async.CollectionSupplier;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -197,6 +198,15 @@ public class AsyncCodeGeneratorTest {
 
         public CompletableFuture<Collection<RowData>> getResult() {
             return data;
+        }
+
+        @Override
+        public void complete(CollectionSupplier<RowData> supplier) {
+            try {
+                data.complete(supplier.get());
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 }

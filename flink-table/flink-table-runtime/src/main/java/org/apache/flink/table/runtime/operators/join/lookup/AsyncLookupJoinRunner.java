@@ -24,6 +24,7 @@ import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
+import org.apache.flink.streaming.api.functions.async.CollectionSupplier;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.table.data.GenericRowData;
@@ -274,6 +275,15 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
             realOutput.completeExceptionally(error);
         }
 
+        /**
+         * Unsupported, because the containing classes are AsyncFunctions which don't have access to
+         * the mailbox to invoke from the caller thread.
+         */
+        @Override
+        public void complete(CollectionSupplier<Object> supplier) {
+            throw new UnsupportedOperationException();
+        }
+
         public void close() throws Exception {
             joinConditionResultFuture.close();
         }
@@ -294,6 +304,15 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
             @Override
             public void completeExceptionally(Throwable error) {
                 JoinedRowResultFuture.this.completeExceptionally(error);
+            }
+
+            /**
+             * Unsupported, because the containing classes are AsyncFunctions which don't have
+             * access to the mailbox to invoke from the caller thread.
+             */
+            @Override
+            public void complete(CollectionSupplier<RowData> supplier) {
+                throw new UnsupportedOperationException();
             }
         }
     }
