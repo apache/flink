@@ -43,6 +43,9 @@ public class KeyedStateTransformation<K, T> {
     /** The data set containing the data to bootstrap the operator state with. */
     private final DataStream<T> stream;
 
+    /** Checkpoint ID. */
+    private final long checkpointId;
+
     /** Local max parallelism for the bootstrapped operator. */
     private final OptionalInt operatorMaxParallelism;
 
@@ -54,10 +57,12 @@ public class KeyedStateTransformation<K, T> {
 
     KeyedStateTransformation(
             DataStream<T> stream,
+            long checkpointId,
             OptionalInt operatorMaxParallelism,
             KeySelector<T, K> keySelector,
             TypeInformation<K> keyType) {
         this.stream = stream;
+        this.checkpointId = checkpointId;
         this.operatorMaxParallelism = operatorMaxParallelism;
         this.keySelector = keySelector;
         this.keyType = keyType;
@@ -77,7 +82,8 @@ public class KeyedStateTransformation<K, T> {
             KeyedStateBootstrapFunction<K, T> processFunction) {
         SavepointWriterOperatorFactory factory =
                 (timestamp, path) ->
-                        new KeyedStateBootstrapOperator<>(timestamp, path, processFunction);
+                        new KeyedStateBootstrapOperator<>(
+                                checkpointId, timestamp, path, processFunction);
         return transform(factory);
     }
 
@@ -109,6 +115,6 @@ public class KeyedStateTransformation<K, T> {
     public <W extends Window> WindowedStateTransformation<T, K, W> window(
             WindowAssigner<? super T, W> assigner) {
         return new WindowedStateTransformation<>(
-                stream, operatorMaxParallelism, keySelector, keyType, assigner);
+                stream, checkpointId, operatorMaxParallelism, keySelector, keyType, assigner);
     }
 }

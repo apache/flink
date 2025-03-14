@@ -57,6 +57,8 @@ public class WindowedStateTransformation<T, K, W extends Window> {
 
     private final WindowOperatorBuilder<T, K, W> builder;
 
+    private final long checkpointId;
+
     private final OptionalInt operatorMaxParallelism;
 
     private final KeySelector<T, K> keySelector;
@@ -65,11 +67,13 @@ public class WindowedStateTransformation<T, K, W extends Window> {
 
     WindowedStateTransformation(
             DataStream<T> input,
+            long checkpointId,
             OptionalInt operatorMaxParallelism,
             KeySelector<T, K> keySelector,
             TypeInformation<K> keyType,
             WindowAssigner<? super T, W> windowAssigner) {
         this.input = input;
+        this.checkpointId = checkpointId;
         this.operatorMaxParallelism = operatorMaxParallelism;
         this.keySelector = keySelector;
         this.keyType = keyType;
@@ -156,7 +160,9 @@ public class WindowedStateTransformation<T, K, W extends Window> {
         WindowOperator<K, T, ?, R, W> operator = builder.reduce(reduceFunction, function);
 
         SavepointWriterOperatorFactory factory =
-                (timestamp, path) -> new StateBootstrapWrapperOperator<>(timestamp, path, operator);
+                (timestamp, path) ->
+                        new StateBootstrapWrapperOperator<>(
+                                checkpointId, timestamp, path, operator);
         return new StateBootstrapTransformation<>(
                 input, operatorMaxParallelism, factory, keySelector, keyType);
     }
@@ -182,7 +188,9 @@ public class WindowedStateTransformation<T, K, W extends Window> {
         WindowOperator<K, T, ?, R, W> operator = builder.reduce(reduceFunction, function);
 
         SavepointWriterOperatorFactory factory =
-                (timestamp, path) -> new StateBootstrapWrapperOperator<>(timestamp, path, operator);
+                (timestamp, path) ->
+                        new StateBootstrapWrapperOperator<>(
+                                checkpointId, timestamp, path, operator);
         return new StateBootstrapTransformation<>(
                 input, operatorMaxParallelism, factory, keySelector, keyType);
     }
@@ -317,7 +325,9 @@ public class WindowedStateTransformation<T, K, W extends Window> {
                 builder.aggregate(aggregateFunction, windowFunction, accumulatorType);
 
         SavepointWriterOperatorFactory factory =
-                (timestamp, path) -> new StateBootstrapWrapperOperator<>(timestamp, path, operator);
+                (timestamp, path) ->
+                        new StateBootstrapWrapperOperator<>(
+                                checkpointId, timestamp, path, operator);
         return new StateBootstrapTransformation<>(
                 input, operatorMaxParallelism, factory, keySelector, keyType);
     }
@@ -394,7 +404,9 @@ public class WindowedStateTransformation<T, K, W extends Window> {
                 builder.aggregate(aggregateFunction, windowFunction, accumulatorType);
 
         SavepointWriterOperatorFactory factory =
-                (timestamp, path) -> new StateBootstrapWrapperOperator<>(timestamp, path, operator);
+                (timestamp, path) ->
+                        new StateBootstrapWrapperOperator<>(
+                                checkpointId, timestamp, path, operator);
         return new StateBootstrapTransformation<>(
                 input, operatorMaxParallelism, factory, keySelector, keyType);
     }
@@ -418,7 +430,9 @@ public class WindowedStateTransformation<T, K, W extends Window> {
         WindowOperator<K, T, ?, R, W> operator = builder.apply(function);
 
         SavepointWriterOperatorFactory factory =
-                (timestamp, path) -> new StateBootstrapWrapperOperator<>(timestamp, path, operator);
+                (timestamp, path) ->
+                        new StateBootstrapWrapperOperator<>(
+                                checkpointId, timestamp, path, operator);
         return new StateBootstrapTransformation<>(
                 input, operatorMaxParallelism, factory, keySelector, keyType);
     }
@@ -442,7 +456,9 @@ public class WindowedStateTransformation<T, K, W extends Window> {
         WindowOperator<K, T, ?, R, W> operator = builder.apply(function);
 
         SavepointWriterOperatorFactory factory =
-                (timestamp, path) -> new StateBootstrapWrapperOperator<>(timestamp, path, operator);
+                (timestamp, path) ->
+                        new StateBootstrapWrapperOperator<>(
+                                checkpointId, timestamp, path, operator);
         return new StateBootstrapTransformation<>(
                 input, operatorMaxParallelism, factory, keySelector, keyType);
     }
@@ -463,7 +479,9 @@ public class WindowedStateTransformation<T, K, W extends Window> {
         WindowOperator<K, T, ?, R, W> operator = builder.process(function);
 
         SavepointWriterOperatorFactory factory =
-                (timestamp, path) -> new StateBootstrapWrapperOperator<>(timestamp, path, operator);
+                (timestamp, path) ->
+                        new StateBootstrapWrapperOperator<>(
+                                checkpointId, timestamp, path, operator);
         return new StateBootstrapTransformation<>(
                 input, operatorMaxParallelism, factory, keySelector, keyType);
     }
