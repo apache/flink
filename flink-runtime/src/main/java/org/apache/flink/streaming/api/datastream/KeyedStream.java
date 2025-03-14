@@ -301,6 +301,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
     }
 
     @Override
+    @Deprecated
     public DataStreamSink<T> addSink(SinkFunction<T> sinkFunction) {
         DataStreamSink<T> result = super.addSink(sinkFunction);
         result.getLegacyTransformation().setStateKeySelector(keySelector);

@@ -864,7 +864,11 @@ public class DataStream<T> {
      *
      * @param sinkFunction The object containing the sink's invoke function.
      * @return The closed DataStream.
+     * @deprecated This method relies on the {@link SinkFunction} API, which is due to be removed.
+     *     Use the {@link #sinkTo(Sink)} method based on the new {@link
+     *     org.apache.flink.api.connector.sink2.Sink} API instead.
      */
+    @Deprecated
     public DataStreamSink<T> addSink(SinkFunction<T> sinkFunction) {
 
         // read the output type of the input Transform to coax out errors about MissingTypeInfo
