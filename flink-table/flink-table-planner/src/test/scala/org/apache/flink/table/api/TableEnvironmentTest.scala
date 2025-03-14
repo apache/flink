@@ -17,8 +17,6 @@
  */
 package org.apache.flink.table.api
 
-import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.configuration.{Configuration, CoreOptions, ExecutionOptions}
@@ -36,13 +34,18 @@ import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.runtime.stream.sql.FunctionITCase.TestUDF
 import org.apache.flink.table.planner.runtime.stream.table.FunctionITCase.SimpleScalarFunction
 import org.apache.flink.table.planner.runtime.utils.StreamingEnvUtil
-import org.apache.flink.table.planner.utils.TableTestUtil.{replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
+import org.apache.flink.table.planner.utils.TableTestUtil.{replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.UserDefinedFunctions.{GENERATED_LOWER_UDF_CLASS, GENERATED_LOWER_UDF_CODE}
 import org.apache.flink.testutils.junit.utils.TempDirUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.UserClassLoaderJarTestUtils
+
+import _root_.java.util
+import _root_.scala.collection.JavaConverters._
+import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.sql.SqlExplainLevel
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
 import org.junit.jupiter.api.Assertions.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.jupiter.api.Test
@@ -50,11 +53,9 @@ import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 
-import _root_.java.util
 import java.io.File
 import java.nio.file.Path
 import java.util.{Collections, UUID}
-import _root_.scala.collection.JavaConverters._
 
 class TableEnvironmentTest {
 
