@@ -293,8 +293,8 @@ public static Table report(Table transactions) {
 在 `table-walkthrough` 目录下启动 docker-compose 脚本。
 
 ```bash
-$ docker-compose build
-$ docker-compose up -d
+$ docker compose build
+$ docker compose up -d
 ```
 
 运行中的作业信息可以通过 [Flink console](http://localhost:8082/) 查看。
@@ -304,7 +304,7 @@ $ docker-compose up -d
 结果数据在 MySQL 中查看。
 
 ```bash
-$ docker-compose exec mysql mysql -Dsql-demo -usql-demo -pdemo-sql
+$ docker compose exec mysql mysql -Dsql-demo -usql-demo -pdemo-sql
 
 mysql> use sql-demo;
 Database changed
