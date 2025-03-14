@@ -28,6 +28,7 @@ import java.util.Iterator;
  *     Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
 @Internal
+@Deprecated
 public class FromIteratorFunction<T> implements SourceFunction<T> {
 
     private static final long serialVersionUID = 1L;

@@ -40,6 +40,7 @@ import org.apache.flink.util.FlinkException;
  *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
 @Internal
+@Deprecated
 public interface ExternallyInducedSource<T, CD>
         extends SourceFunction<T>, WithMasterCheckpointHook<CD> {
 

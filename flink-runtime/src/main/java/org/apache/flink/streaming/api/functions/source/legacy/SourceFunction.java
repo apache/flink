@@ -100,6 +100,7 @@ import java.io.Serializable;
  *     FLINK-28045 must be closed before this API can be completely removed.
  */
 @Internal
+@Deprecated
 public interface SourceFunction<T> extends Function, Serializable {
 
     /**

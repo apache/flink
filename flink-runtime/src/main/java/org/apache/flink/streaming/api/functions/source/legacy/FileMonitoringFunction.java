@@ -42,6 +42,7 @@ import java.util.Map;
  *     Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
 @Internal
+@Deprecated
 public class FileMonitoringFunction implements SourceFunction<Tuple3<String, Long, Long>> {
     private static final long serialVersionUID = 1L;
 

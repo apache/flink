@@ -46,6 +46,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
  *     Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
 @Internal
+@Deprecated
 public abstract class RichSourceFunction<OUT> extends AbstractRichFunction
         implements SourceFunction<OUT> {
 

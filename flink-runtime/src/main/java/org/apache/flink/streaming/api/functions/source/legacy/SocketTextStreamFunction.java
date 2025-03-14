@@ -47,6 +47,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *     Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
 @Internal
+@Deprecated
 public class SocketTextStreamFunction implements SourceFunction<String> {
 
     private static final long serialVersionUID = 1L;

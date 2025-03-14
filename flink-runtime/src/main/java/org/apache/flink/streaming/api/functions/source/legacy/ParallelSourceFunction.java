@@ -33,4 +33,5 @@ import org.apache.flink.annotation.Internal;
  *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
 @Internal
+@Deprecated
 public interface ParallelSourceFunction<OUT> extends SourceFunction<OUT> {}

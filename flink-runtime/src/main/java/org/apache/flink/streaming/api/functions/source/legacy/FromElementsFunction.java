@@ -69,6 +69,7 @@ import java.util.Objects;
  *     Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
 @Internal
+@Deprecated
 public class FromElementsFunction<T>
         implements SourceFunction<T>,
                 CheckpointedFunction,
