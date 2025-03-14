@@ -51,7 +51,7 @@ public class SavepointTest {
                         .transform(new ExampleStateBootstrapFunction());
 
         SavepointMetadata metadata =
-                new SavepointMetadata(1, Collections.emptyList(), Collections.emptyList());
+                new SavepointMetadata(0L, 1, Collections.emptyList(), Collections.emptyList());
 
         new NewSavepoint(metadata, new MemoryStateBackend())
                 .withOperator(UID, transformation)
@@ -74,7 +74,7 @@ public class SavepointTest {
                         new OperatorState(OperatorIDGenerator.fromUid(UID), 1, 4));
 
         SavepointMetadata metadata =
-                new SavepointMetadata(4, Collections.emptyList(), operatorStates);
+                new SavepointMetadata(0L, 4, Collections.emptyList(), operatorStates);
 
         new ExistingSavepoint(env, metadata, new MemoryStateBackend())
                 .withOperator(UID, transformation)
@@ -97,7 +97,7 @@ public class SavepointTest {
                         new OperatorState(OperatorIDGenerator.fromUid(UID), 1, 4));
 
         SavepointMetadata metadata =
-                new SavepointMetadata(4, Collections.emptyList(), operatorStates);
+                new SavepointMetadata(0L, 4, Collections.emptyList(), operatorStates);
 
         new ExistingSavepoint(env, metadata, new MemoryStateBackend())
                 .withOperator(UID, transformation)

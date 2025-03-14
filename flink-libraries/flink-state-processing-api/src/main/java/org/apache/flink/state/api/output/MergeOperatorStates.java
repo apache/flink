@@ -39,11 +39,14 @@ public class MergeOperatorStates implements GroupReduceFunction<OperatorState, C
 
     private static final long serialVersionUID = 1L;
 
+    private final long checkpointId;
+
     private final Collection<MasterState> masterStates;
 
-    public MergeOperatorStates(Collection<MasterState> masterStates) {
+    public MergeOperatorStates(long checkpointId, Collection<MasterState> masterStates) {
         Preconditions.checkNotNull(masterStates, "Master state metadata must not be null");
 
+        this.checkpointId = checkpointId;
         this.masterStates = masterStates;
     }
 
@@ -51,7 +54,7 @@ public class MergeOperatorStates implements GroupReduceFunction<OperatorState, C
     public void reduce(Iterable<OperatorState> values, Collector<CheckpointMetadata> out) {
         CheckpointMetadata metadata =
                 new CheckpointMetadata(
-                        SnapshotUtils.CHECKPOINT_ID,
+                        checkpointId,
                         StreamSupport.stream(values.spliterator(), false)
                                 .collect(Collectors.toList()),
                         masterStates);

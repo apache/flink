@@ -55,6 +55,8 @@ public final class StateBootstrapWrapperOperator<
 
     private static final long serialVersionUID = 1L;
 
+    private final long checkpointId;
+
     private final long timestamp;
 
     private final Path savepointPath;
@@ -63,8 +65,9 @@ public final class StateBootstrapWrapperOperator<
 
     private final OP operator;
 
-    public StateBootstrapWrapperOperator(long timestamp, Path savepointPath, OP operator) {
-
+    public StateBootstrapWrapperOperator(
+            long checkpointId, long timestamp, Path savepointPath, OP operator) {
+        this.checkpointId = checkpointId;
         this.timestamp = timestamp;
         this.savepointPath = savepointPath;
         this.operator = operator;
@@ -185,6 +188,7 @@ public final class StateBootstrapWrapperOperator<
     public void endInput() throws Exception {
         TaggedOperatorSubtaskState state =
                 SnapshotUtils.snapshot(
+                        checkpointId,
                         this,
                         operator.getContainingTask()
                                 .getEnvironment()

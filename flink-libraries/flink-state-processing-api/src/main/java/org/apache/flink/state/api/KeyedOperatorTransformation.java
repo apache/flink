@@ -47,6 +47,9 @@ public class KeyedOperatorTransformation<K, T> {
     /** The data set containing the data to bootstrap the operator state with. */
     private final DataSet<T> dataSet;
 
+    /** Checkpoint ID. */
+    private final long checkpointId;
+
     /** Local max parallelism for the bootstrapped operator. */
     private final OptionalInt operatorMaxParallelism;
 
@@ -60,11 +63,13 @@ public class KeyedOperatorTransformation<K, T> {
 
     KeyedOperatorTransformation(
             DataSet<T> dataSet,
+            long checkpointId,
             OptionalInt operatorMaxParallelism,
             @Nullable Timestamper<T> timestamper,
             KeySelector<T, K> keySelector,
             TypeInformation<K> keyType) {
         this.dataSet = dataSet;
+        this.checkpointId = checkpointId;
         this.operatorMaxParallelism = operatorMaxParallelism;
         this.timestamper = timestamper;
         this.keySelector = keySelector;
@@ -84,7 +89,8 @@ public class KeyedOperatorTransformation<K, T> {
     public BootstrapTransformation<T> transform(KeyedStateBootstrapFunction<K, T> processFunction) {
         SavepointWriterOperatorFactory factory =
                 (timestamp, path) ->
-                        new KeyedStateBootstrapOperator<>(timestamp, path, processFunction);
+                        new KeyedStateBootstrapOperator<>(
+                                checkpointId, timestamp, path, processFunction);
         return transform(factory);
     }
 
@@ -116,6 +122,12 @@ public class KeyedOperatorTransformation<K, T> {
     public <W extends Window> WindowedOperatorTransformation<T, K, W> window(
             WindowAssigner<? super T, W> assigner) {
         return new WindowedOperatorTransformation<>(
-                dataSet, operatorMaxParallelism, timestamper, keySelector, keyType, assigner);
+                dataSet,
+                checkpointId,
+                operatorMaxParallelism,
+                timestamper,
+                keySelector,
+                keyType,
+                assigner);
     }
 }
