@@ -45,8 +45,8 @@ import java.io.IOException;
 public class PrintSink<IN> implements Sink<IN>, SupportsConcurrentExecutionAttempts {
 
     private static final long serialVersionUID = 1L;
-    private final String sinkIdentifier;
-    private final boolean stdErr;
+
+    private final PrintSinkOutputWriter<IN> writer;
 
     /** Instantiates a print sink function that prints to STDOUT. */
     public PrintSink() {
@@ -80,14 +80,11 @@ public class PrintSink<IN> implements Sink<IN>, SupportsConcurrentExecutionAttem
      * @param stdErr True if the sink should print to STDERR instead of STDOUT.
      */
     public PrintSink(final String sinkIdentifier, final boolean stdErr) {
-        this.sinkIdentifier = sinkIdentifier;
-        this.stdErr = stdErr;
+        this.writer = new PrintSinkOutputWriter<>(sinkIdentifier, stdErr);
     }
 
     @Override
     public SinkWriter<IN> createWriter(WriterInitContext context) throws IOException {
-        final PrintSinkOutputWriter<IN> writer =
-                new PrintSinkOutputWriter<>(sinkIdentifier, stdErr);
         writer.open(
                 context.getTaskInfo().getIndexOfThisSubtask(),
                 context.getTaskInfo().getNumberOfParallelSubtasks());
@@ -96,6 +93,6 @@ public class PrintSink<IN> implements Sink<IN>, SupportsConcurrentExecutionAttem
 
     @Override
     public String toString() {
-        return "Print to " + (stdErr ? "System.err" : "System.out");
+        return writer.toString();
     }
 }
