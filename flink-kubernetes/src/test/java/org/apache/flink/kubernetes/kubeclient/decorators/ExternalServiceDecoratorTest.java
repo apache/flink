@@ -50,12 +50,21 @@ class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
                 }
             };
 
+    private Map<String, String> customizedLabels =
+            new HashMap<String, String>() {
+                {
+                    put("label1", "label-value1");
+                    put("label2", "label-value2");
+                }
+            };
+
     @Override
     protected void onSetup() throws Exception {
         super.onSetup();
 
         this.flinkConfig.set(
                 KubernetesConfigOptions.REST_SERVICE_ANNOTATIONS, customizedAnnotations);
+        this.flinkConfig.set(KubernetesConfigOptions.REST_SERVICE_LABELS, customizedLabels);
         this.externalServiceDecorator =
                 new ExternalServiceDecorator(this.kubernetesJobManagerParameters);
     }
@@ -74,6 +83,7 @@ class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
                 .isEqualTo(ExternalServiceDecorator.getExternalServiceName(CLUSTER_ID));
 
         final Map<String, String> expectedLabels = getCommonLabels();
+        expectedLabels.putAll(customizedLabels);
         assertThat(restService.getMetadata().getLabels()).isEqualTo(expectedLabels);
 
         assertThat(restService.getSpec().getType())
