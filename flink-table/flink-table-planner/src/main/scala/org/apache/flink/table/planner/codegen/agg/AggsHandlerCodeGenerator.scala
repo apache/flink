@@ -230,7 +230,7 @@ class AggsHandlerCodeGenerator(
     val aggCodeGens = aggInfoList.aggInfos.map {
       aggInfo =>
         val filterExpr =
-          createFilterExpression(aggInfo.agg.filterArg, aggInfo.agg.name)
+          createFilterExpression(aggInfo.agg.filterArg, aggInfo.aggIndex, aggInfo.agg.name)
 
         val codegen = aggInfo.function match {
           case _: DeclarativeAggregateFunction =>
@@ -282,8 +282,9 @@ class AggsHandlerCodeGenerator(
     val distinctCodeGens = aggInfoList.distinctInfos.zipWithIndex.map {
       case (distinctInfo, index) =>
         val innerCodeGens = distinctInfo.aggIndexes.map(aggCodeGens(_)).toArray
-        val filterExpr =
-          distinctInfo.filterArgs.map(createFilterExpression(_, "distinct aggregate"))
+        val distinctIndex = aggCodeGens.length + index
+        val filterExpr = distinctInfo.filterArgs.map(
+          createFilterExpression(_, distinctIndex, "distinct aggregate"))
         val codegen = new DistinctAggCodeGen(
           ctx,
           distinctInfo,
@@ -324,7 +325,10 @@ class AggsHandlerCodeGenerator(
   }
 
   /** Creates filter argument access expression, none if no filter */
-  private def createFilterExpression(filterArg: Int, aggName: String): Option[Expression] = {
+  private def createFilterExpression(
+      filterArg: Int,
+      aggIndex: Int,
+      aggName: String): Option[Expression] = {
 
     if (filterArg >= 0) {
       val filterType = inputFieldTypes(filterArg)
