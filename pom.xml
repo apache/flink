@@ -2293,7 +2293,7 @@ under the License.
 				<plugin>
 					<groupId>com.github.siom79.japicmp</groupId>
 					<artifactId>japicmp-maven-plugin</artifactId>
-					<version>0.17.1</version>
+					<version>0.18.5</version>
 					<configuration>
 						<oldVersion>
 							<dependency>
