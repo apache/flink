@@ -1224,6 +1224,11 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     checkResult(sql, Seq(row("11, 11"), row("12, 12"), row("null, null")))
   }
 
+  @Test
+  def testAggFilterReferenceFirstColumn(): Unit = {
+    checkResult("select count(*) filter (where a < 10) from Table3", Seq(row(9)))
+  }
+
   // TODO support csv
 //  @Test
 //  def testMultiGroupBys(): Unit = {

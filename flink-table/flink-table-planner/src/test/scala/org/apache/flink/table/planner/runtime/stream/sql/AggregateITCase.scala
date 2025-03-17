@@ -1645,6 +1645,26 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
   }
 
   @TestTemplate
+  def testAggFilterReferenceFirstColumn(): Unit = {
+    val t = failingDataSource(TestData.tupleData3).toTable(tEnv).as("a", "b", "c")
+    tEnv.createTemporaryView("MyTable", t)
+
+    val sqlQuery =
+      s"""
+         |SELECT
+         |  COUNT(*) filter (where a < 10)
+         |FROM MyTable
+       """.stripMargin
+
+    val sink = new TestingRetractSink
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(sink).setParallelism(1)
+    env.execute()
+    val expected = List("9")
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
   def testPruneUselessAggCall(): Unit = {
     val data = new mutable.MutableList[(Int, Long, String)]
     data.+=((1, 1L, "Hi"))
