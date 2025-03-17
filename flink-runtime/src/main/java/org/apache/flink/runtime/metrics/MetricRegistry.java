@@ -41,7 +41,7 @@ public interface MetricRegistry {
     int getNumberReporters();
 
     /** Add and log a {@link Span}. */
-    void addSpan(SpanBuilder spanBuilder);
+    void addSpan(SpanBuilder spanBuilder, AbstractMetricGroup<?> group);
 
     /**
      * Registers a new {@link Metric} with this registry.

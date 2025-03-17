@@ -75,6 +75,7 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.ReporterSetupBuilder;
+import org.apache.flink.runtime.metrics.filter.DefaultReporterFilters;
 import org.apache.flink.runtime.metrics.groups.ProcessMetricGroup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
@@ -1185,9 +1186,13 @@ public class MiniCluster implements AutoCloseableAsync {
         return new MetricRegistryImpl(
                 MetricRegistryConfiguration.fromConfiguration(config, maximumMessageSizeInBytes),
                 ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
-                        config, miniClusterConfiguration.getPluginManager()),
+                        config,
+                        DefaultReporterFilters::metricsFromConfiguration,
+                        miniClusterConfiguration.getPluginManager()),
                 ReporterSetupBuilder.TRACE_SETUP_BUILDER.fromConfiguration(
-                        config, miniClusterConfiguration.getPluginManager()));
+                        config,
+                        DefaultReporterFilters::tracesFromConfiguration,
+                        miniClusterConfiguration.getPluginManager()));
     }
 
     /**

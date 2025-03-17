@@ -53,6 +53,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.ReporterSetupBuilder;
+import org.apache.flink.runtime.metrics.filter.DefaultReporterFilters;
 import org.apache.flink.runtime.metrics.groups.ProcessMetricGroup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
@@ -465,9 +466,13 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                 MetricRegistryConfiguration.fromConfiguration(
                         configuration, rpcSystemUtils.getMaximumMessageSizeInBytes(configuration)),
                 ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
-                        configuration, pluginManager),
+                        configuration,
+                        DefaultReporterFilters::metricsFromConfiguration,
+                        pluginManager),
                 ReporterSetupBuilder.TRACE_SETUP_BUILDER.fromConfiguration(
-                        configuration, pluginManager));
+                        configuration,
+                        DefaultReporterFilters::tracesFromConfiguration,
+                        pluginManager));
     }
 
     @Override

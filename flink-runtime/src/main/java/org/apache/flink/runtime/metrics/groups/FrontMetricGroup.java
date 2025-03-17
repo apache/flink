@@ -43,9 +43,9 @@ public class FrontMetricGroup<P extends AbstractMetricGroup<?>> extends ProxyMet
     @VisibleForTesting static final char DEFAULT_REPLACEMENT = '_';
     @VisibleForTesting static final char DEFAULT_REPLACEMENT_ALTERNATIVE = '-';
 
-    private final ReporterScopedSettings settings;
+    private final ReporterScopedSettings<?> settings;
 
-    public FrontMetricGroup(ReporterScopedSettings settings, P reference) {
+    public FrontMetricGroup(ReporterScopedSettings<?> settings, P reference) {
         super(reference);
         this.settings = settings;
     }
@@ -101,7 +101,8 @@ public class FrontMetricGroup<P extends AbstractMetricGroup<?>> extends ProxyMet
     }
 
     private static CharacterFilter getDelimiterFilter(
-            ReporterScopedSettings reporterScopedSettings, CharacterFilter generalCharacterFilter) {
+            ReporterScopedSettings<?> reporterScopedSettings,
+            CharacterFilter generalCharacterFilter) {
 
         if (reporterScopedSettings.getDelimiter() != DEFAULT_REPLACEMENT) {
             return input ->

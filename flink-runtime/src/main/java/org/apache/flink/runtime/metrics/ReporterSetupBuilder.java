@@ -26,13 +26,14 @@ import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.TraceOptions;
 import org.apache.flink.core.plugin.PluginManager;
+import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.Reporter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
-import org.apache.flink.runtime.metrics.filter.DefaultMetricFilter;
-import org.apache.flink.runtime.metrics.filter.MetricFilter;
+import org.apache.flink.runtime.metrics.filter.ReporterFilter;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
+import org.apache.flink.traces.SpanBuilder;
 import org.apache.flink.traces.reporter.TraceReporter;
 import org.apache.flink.traces.reporter.TraceReporterFactory;
 import org.apache.flink.util.CollectionUtil;
@@ -55,6 +56,7 @@ import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -64,13 +66,15 @@ import java.util.stream.StreamSupport;
 /**
  * Builder class for {@link Reporter}.
  *
+ * @param <REPORTED> Generic type of what's reported.
  * @param <REPORTER> Generic type of the reporter.
  * @param <SETUP> Generic type of the created setup.
  * @param <REPORTER_FACTORY> Generic type of the reporter factory.
  */
 public class ReporterSetupBuilder<
+        REPORTED,
         REPORTER extends Reporter,
-        SETUP extends AbstractReporterSetup<REPORTER>,
+        SETUP extends AbstractReporterSetup<REPORTER, REPORTED>,
         REPORTER_FACTORY> {
 
     private static final Logger LOG = LoggerFactory.getLogger(ReporterSetupBuilder.class);
@@ -83,7 +87,8 @@ public class ReporterSetupBuilder<
     }
 
     /** Builder for metric reporter. */
-    public static final ReporterSetupBuilder<MetricReporter, ReporterSetup, MetricReporterFactory>
+    public static final ReporterSetupBuilder<
+                    Metric, MetricReporter, ReporterSetup, MetricReporterFactory>
             METRIC_SETUP_BUILDER =
                     new ReporterSetupBuilder<>(
                             new ReporterSetupInfo<>(
@@ -106,13 +111,13 @@ public class ReporterSetupBuilder<
 
     /** Builder for span/trace reporter. */
     public static final ReporterSetupBuilder<
-                    TraceReporter, TraceReporterSetup, TraceReporterFactory>
+                    SpanBuilder, TraceReporter, TraceReporterSetup, TraceReporterFactory>
             TRACE_SETUP_BUILDER =
                     new ReporterSetupBuilder<>(
                             new ReporterSetupInfo<>(
                                     TraceReporter.class,
                                     TraceReporterFactory.class,
-                                    ConfigConstants.EVENTS_REPORTER_PREFIX,
+                                    ConfigConstants.TRACES_REPORTER_PREFIX,
                                     TraceOptions.REPORTER_FACTORY_CLASS,
                                     TraceOptions.TRACE_REPORTERS_LIST,
                                     TraceOptions.REPORTER_ADDITIONAL_VARIABLES,
@@ -122,16 +127,7 @@ public class ReporterSetupBuilder<
                                                     TraceOptions.REPORTER_FACTORY_CLASS.key())),
                                     LIST_PATTERN,
                                     TraceReporterFactory::createTraceReporter,
-                                    (reporterName,
-                                            metricConfig,
-                                            traceReporter,
-                                            metricFilter,
-                                            additionalVariables) ->
-                                            new TraceReporterSetup(
-                                                    reporterName,
-                                                    metricConfig,
-                                                    traceReporter,
-                                                    additionalVariables)));
+                                    TraceReporterSetup::new));
 
     /**
      * Functional interface to unify access to different reporter factories that don't have a proper
@@ -151,12 +147,12 @@ public class ReporterSetupBuilder<
      * @param <SETUP> type of the created setup.
      * @param <REPORTER> type of the reporter.
      */
-    interface ReporterSetupFactory<SETUP, REPORTER> {
+    interface ReporterSetupFactory<SETUP, REPORTER, REPORTED> {
         SETUP createReporterSetup(
                 String reporterName,
                 MetricConfig metricConfig,
                 REPORTER reporter,
-                MetricFilter metricFilter,
+                ReporterFilter<REPORTED> reporterFilter,
                 Map<String, String> additionalVariables);
     }
 
@@ -169,8 +165,9 @@ public class ReporterSetupBuilder<
      * @param <REPORTER_FACTORY> type of the reporter factory.
      */
     static class ReporterSetupInfo<
+            REPORTED,
             REPORTER extends Reporter,
-            SETUP extends AbstractReporterSetup<REPORTER>,
+            SETUP extends AbstractReporterSetup<REPORTER, REPORTED>,
             REPORTER_FACTORY> {
         ReporterSetupInfo(
                 Class<REPORTER> reporterTypeClass,
@@ -182,7 +179,7 @@ public class ReporterSetupBuilder<
                 Pattern reporterClassPattern,
                 Pattern reporterListPattern,
                 ReporterFactoryAdapter<REPORTER_FACTORY, REPORTER> reporterFactoryAdapter,
-                ReporterSetupFactory<SETUP, REPORTER> reporterSetupFactory) {
+                ReporterSetupFactory<SETUP, REPORTER, REPORTED> reporterSetupFactory) {
             this.reporterTypeClass = reporterTypeClass;
             this.factoryTypeClass = factoryTypeClass;
             this.reporterPrefix = reporterPrefix;
@@ -235,15 +232,16 @@ public class ReporterSetupBuilder<
         ReporterFactoryAdapter<REPORTER_FACTORY, REPORTER> reporterFactoryAdapter;
 
         /** Factory for the specific setup object. */
-        ReporterSetupFactory<SETUP, REPORTER> reporterSetupFactory;
+        ReporterSetupFactory<SETUP, REPORTER, REPORTED> reporterSetupFactory;
     }
 
     /**
      * Information with specific for the type of reporter for which this builder can create a setup.
      */
-    private final ReporterSetupInfo<REPORTER, SETUP, REPORTER_FACTORY> reporterSetupInfo;
+    private final ReporterSetupInfo<REPORTED, REPORTER, SETUP, REPORTER_FACTORY> reporterSetupInfo;
 
-    ReporterSetupBuilder(ReporterSetupInfo<REPORTER, SETUP, REPORTER_FACTORY> reporterSetupInfo) {
+    ReporterSetupBuilder(
+            ReporterSetupInfo<REPORTED, REPORTER, SETUP, REPORTER_FACTORY> reporterSetupInfo) {
         this.reporterSetupInfo = reporterSetupInfo;
     }
 
@@ -253,9 +251,10 @@ public class ReporterSetupBuilder<
     }
 
     @VisibleForTesting
-    public SETUP forReporter(String reporterName, REPORTER reporter, MetricFilter metricFilter) {
+    public SETUP forReporter(
+            String reporterName, REPORTER reporter, ReporterFilter<REPORTED> reporterFilter) {
         return createReporterSetup(
-                reporterName, new MetricConfig(), reporter, metricFilter, Collections.emptyMap());
+                reporterName, new MetricConfig(), reporter, reporterFilter, Collections.emptyMap());
     }
 
     @VisibleForTesting
@@ -264,7 +263,7 @@ public class ReporterSetupBuilder<
                 reporterName,
                 metricConfig,
                 reporter,
-                MetricFilter.NO_OP_FILTER,
+                ReporterFilter.getNoOpFilter(),
                 Collections.emptyMap());
     }
 
@@ -273,24 +272,37 @@ public class ReporterSetupBuilder<
             String reporterName,
             MetricConfig metricConfig,
             REPORTER reporter,
-            MetricFilter metricFilter) {
+            ReporterFilter<REPORTED> reporterFilter,
+            Map<String, String> additionalVariables) {
         return createReporterSetup(
-                reporterName, metricConfig, reporter, metricFilter, Collections.emptyMap());
+                reporterName, metricConfig, reporter, reporterFilter, additionalVariables);
+    }
+
+    @VisibleForTesting
+    public SETUP forReporter(
+            String reporterName,
+            MetricConfig metricConfig,
+            REPORTER reporter,
+            ReporterFilter<REPORTED> reporterFilter) {
+        return createReporterSetup(
+                reporterName, metricConfig, reporter, reporterFilter, Collections.emptyMap());
     }
 
     private SETUP createReporterSetup(
             String reporterName,
             MetricConfig metricConfig,
             REPORTER reporter,
-            MetricFilter metricFilter,
+            ReporterFilter<REPORTED> reporterFilter,
             Map<String, String> additionalVariables) {
         reporter.open(metricConfig);
         return reporterSetupInfo.reporterSetupFactory.createReporterSetup(
-                reporterName, metricConfig, reporter, metricFilter, additionalVariables);
+                reporterName, metricConfig, reporter, reporterFilter, additionalVariables);
     }
 
     public List<SETUP> fromConfiguration(
-            final Configuration configuration, @Nullable final PluginManager pluginManager) {
+            final Configuration configuration,
+            Function<Configuration, ReporterFilter<REPORTED>> filterFactory,
+            @Nullable final PluginManager pluginManager) {
 
         Set<String> namedReporters = findEnabledReportersInConfiguration(configuration);
 
@@ -304,7 +316,7 @@ public class ReporterSetupBuilder<
         final Map<String, REPORTER_FACTORY> reporterFactories =
                 loadAvailableReporterFactories(pluginManager);
 
-        return setupReporters(reporterFactories, reporterConfigurations);
+        return setupReporters(reporterFactories, filterFactory, reporterConfigurations);
     }
 
     private Map<String, REPORTER_FACTORY> loadAvailableReporterFactories(
@@ -370,6 +382,7 @@ public class ReporterSetupBuilder<
 
     private List<SETUP> setupReporters(
             Map<String, REPORTER_FACTORY> reporterFactories,
+            Function<Configuration, ReporterFilter<REPORTED>> filterFactory,
             List<Tuple2<String, Configuration>> reporterConfigurations) {
         List<SETUP> reporterSetups = new ArrayList<>(reporterConfigurations.size());
         for (Tuple2<String, Configuration> reporterConfiguration : reporterConfigurations) {
@@ -380,13 +393,14 @@ public class ReporterSetupBuilder<
                 Optional<REPORTER> metricReporterOptional =
                         loadReporter(reporterName, reporterConfig, reporterFactories);
 
-                final MetricFilter metricFilter =
-                        DefaultMetricFilter.fromConfiguration(reporterConfig);
+                final ReporterFilter<REPORTED> reporterFilter = filterFactory.apply(reporterConfig);
 
                 // massage user variables keys into scope format for parity to variable
                 // exclusion
                 Map<String, String> additionalVariables =
-                        reporterConfig.get(reporterSetupInfo.reporterAdditionalVariables).entrySet()
+                        reporterConfig
+                                .get(reporterSetupInfo.reporterAdditionalVariables)
+                                .entrySet()
                                 .stream()
                                 .collect(
                                         Collectors.toMap(
@@ -402,7 +416,7 @@ public class ReporterSetupBuilder<
                                             reporterName,
                                             metricConfig,
                                             reporter,
-                                            metricFilter,
+                                            reporterFilter,
                                             additionalVariables));
                         });
             } catch (Throwable t) {
@@ -479,8 +493,7 @@ public class ReporterSetupBuilder<
     }
 
     private Set<String> findEnabledReportersInConfiguration(Configuration configuration) {
-        String includedReportersString =
-                configuration.get(reporterSetupInfo.reportersList, "");
+        String includedReportersString = configuration.get(reporterSetupInfo.reportersList, "");
         Set<String> includedReporters =
                 reporterSetupInfo
                         .reporterListPattern

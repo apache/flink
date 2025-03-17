@@ -20,11 +20,16 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.configuration.description.Description;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.LineBreakElement.linebreak;
+import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /** Configuration options for traces and trace reporters. */
 @Experimental
@@ -32,6 +37,12 @@ public class TraceOptions {
 
     private static final String NAMED_REPORTER_CONFIG_PREFIX =
             ConfigConstants.TRACES_REPORTER_PREFIX + "<name>";
+
+    @Experimental
+    public static Configuration forReporter(Configuration configuration, String reporterName) {
+        return new DelegatingConfiguration(
+                configuration, ConfigConstants.TRACES_REPORTER_PREFIX + reporterName + ".");
+    }
 
     /**
      * An optional list of reporter names. If configured, only reporters whose name matches any of
@@ -101,7 +112,7 @@ public class TraceOptions {
                             "The reporter factory class to use for the reporter named <name>.");
 
     @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
-    @Documentation.Section(value = Documentation.Sections.TRACE_REPORTERS, position = 6)
+    @Documentation.Section(value = Documentation.Sections.TRACE_REPORTERS, position = 5)
     public static final ConfigOption<String> REPORTER_CONFIG_PARAMETER =
             key("<parameter>")
                     .stringType()
@@ -110,13 +121,97 @@ public class TraceOptions {
                             "Configures the parameter <parameter> for the reporter named <name>.");
 
     @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
-    @Documentation.Section(value = Documentation.Sections.TRACE_REPORTERS, position = 3)
+    @Documentation.Section(value = Documentation.Sections.TRACE_REPORTERS, position = 4)
     public static final ConfigOption<Map<String, String>> REPORTER_ADDITIONAL_VARIABLES =
             key("scope.variables.additional")
                     .mapType()
                     .defaultValue(Collections.emptyMap())
                     .withDescription(
                             "The map of additional variables that should be included for the reporter named <name>.");
+
+    @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
+    @Documentation.Section(value = Documentation.Sections.TRACE_REPORTERS, position = 2)
+    public static final ConfigOption<String> REPORTER_SCOPE_DELIMITER =
+            key("scope.delimiter")
+                    .stringType()
+                    .defaultValue(".")
+                    .withDescription(
+                            "The delimiter used to assemble the metric identifier for the reporter named <name>.");
+
+    @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
+    @Documentation.Section(value = Documentation.Sections.TRACE_REPORTERS, position = 3)
+    public static final ConfigOption<String> REPORTER_EXCLUDED_VARIABLES =
+            key("scope.variables.excludes")
+                    .stringType()
+                    .defaultValue(".")
+                    .withDescription(
+                            "The set of variables that should be excluded for the reporter named <name>. Only applicable to tag-based reporters.");
+
+    @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
+    @Documentation.Section(value = Documentation.Sections.TRACE_REPORTERS, position = 6)
+    public static final ConfigOption<List<String>> REPORTER_INCLUDES =
+            key("filter.includes")
+                    .stringType()
+                    .asList()
+                    .defaultValues("*:*:*")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The spans that should be included for the reporter named <name>."
+                                                    + " Filters are specified as a list, with each filter following this format:")
+                                    .linebreak()
+                                    .text("%s", code("<scope>[:<name>[,<name>]]"))
+                                    .linebreak()
+                                    .text(
+                                            "A span matches a filter if the scope pattern and at least one of the name patterns match.")
+                                    .linebreak()
+                                    .list(
+                                            text(
+                                                    "scope: Filters based on the logical scope.%s"
+                                                            + "Specified as a pattern where %s matches any sequence of characters and %s separates scope components.%s%s"
+                                                            + "For example:%s"
+                                                            + " \"%s\" matches any job-related spans on the JobManager,%s"
+                                                            + " \"%s\" matches all job-related spans and%s"
+                                                            + " \"%s\" matches all spans below the job-level (i.e., task/operator spans etc.).%s%s",
+                                                    linebreak(),
+                                                    code("*"),
+                                                    code("."),
+                                                    linebreak(),
+                                                    linebreak(),
+                                                    linebreak(),
+                                                    code("jobmanager.job"),
+                                                    linebreak(),
+                                                    code("*.job"),
+                                                    linebreak(),
+                                                    code("*.job.*"),
+                                                    linebreak(),
+                                                    linebreak()),
+                                            text(
+                                                    "name: Filters based on the span name.%s"
+                                                            + "Specified as a comma-separate list of patterns where %s matches any sequence of characters.%s%s"
+                                                            + "For example, \"%s\" matches any span where the name contains %s.",
+                                                    linebreak(),
+                                                    code("*"),
+                                                    linebreak(),
+                                                    linebreak(),
+                                                    code("*Records*,*Bytes*"),
+                                                    code("\"Records\" or \"Bytes\"")))
+                                    .build());
+
+    @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
+    @Documentation.Section(value = Documentation.Sections.TRACE_REPORTERS, position = 7)
+    public static final ConfigOption<List<String>> REPORTER_EXCLUDES =
+            key("filter.excludes")
+                    .stringType()
+                    .asList()
+                    .defaultValues()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The spans that should be excluded for the reporter named <name>. The format is identical to %s",
+                                            code(REPORTER_INCLUDES.key()))
+                                    .linebreak()
+                                    .build());
 
     private TraceOptions() {}
 }

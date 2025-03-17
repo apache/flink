@@ -50,7 +50,7 @@ public class NoOpMetricRegistry implements MetricRegistry {
     public void unregister(Metric metric, String metricName, AbstractMetricGroup<?> group) {}
 
     @Override
-    public void addSpan(SpanBuilder spanBuilder) {}
+    public void addSpan(SpanBuilder spanBuilder, AbstractMetricGroup<?> group) {}
 
     @Override
     public ScopeFormats getScopeFormats() {
