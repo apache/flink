@@ -31,8 +31,8 @@ public class SimpleSpan implements Span {
     private final String name;
 
     private final HashMap<String, Object> attributes = new HashMap<>();
-    private long startTsMillis;
-    private long endTsMillis;
+    private final long startTsMillis;
+    private final long endTsMillis;
 
     public SimpleSpan(
             String scope,
