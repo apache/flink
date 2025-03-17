@@ -132,7 +132,8 @@ class MetricRegistryImplTest {
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Collections.singletonList(
-                                ReporterSetup.forReporter("test", config, reporter)));
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
+                                        "test", config, reporter)));
 
         long start = System.currentTimeMillis();
 
@@ -175,7 +176,7 @@ class MetricRegistryImplTest {
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Collections.singletonList(
-                                ReporterSetup.forReporter(
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
                                         "test", config, new ReportCountingReporter())),
                         manuallyTriggeredScheduledExecutorService);
         try {
@@ -217,8 +218,10 @@ class MetricRegistryImplTest {
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Arrays.asList(
-                                ReporterSetup.forReporter("test1", reporter1),
-                                ReporterSetup.forReporter("test2", reporter2)));
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
+                                        "test1", reporter1),
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
+                                        "test2", reporter2)));
 
         TaskManagerMetricGroup root =
                 TaskManagerMetricGroup.createTaskManagerMetricGroup(
@@ -309,7 +312,7 @@ class MetricRegistryImplTest {
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.fromConfiguration(config),
-                        ReporterSetup.fromConfiguration(config, null));
+                        ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(config, null));
 
         TaskManagerMetricGroup tmGroup =
                 TaskManagerMetricGroup.createTaskManagerMetricGroup(
@@ -334,9 +337,12 @@ class MetricRegistryImplTest {
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Arrays.asList(
-                                ReporterSetup.forReporter("test1", config1, new TestReporter()),
-                                ReporterSetup.forReporter("test2", config2, new TestReporter()),
-                                ReporterSetup.forReporter("test3", config3, new TestReporter())));
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
+                                        "test1", config1, new TestReporter()),
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
+                                        "test2", config2, new TestReporter()),
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
+                                        "test3", config3, new TestReporter())));
 
         assertThat(registry.getDelimiter()).isEqualTo(GLOBAL_DEFAULT_DELIMITER);
         assertThat(registry.getDelimiter(0)).isEqualTo('_');
@@ -365,13 +371,14 @@ class MetricRegistryImplTest {
 
         List<ReporterSetup> reporterConfigurations =
                 Arrays.asList(
-                        ReporterSetup.forReporter(
+                        ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
                                 "test1", config1, new CollectingMetricsReporter()),
-                        ReporterSetup.forReporter(
+                        ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
                                 "test2", config2, new CollectingMetricsReporter()),
-                        ReporterSetup.forReporter(
+                        ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
                                 "test3", config3, new CollectingMetricsReporter()),
-                        ReporterSetup.forReporter("test4", new CollectingMetricsReporter()));
+                        ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
+                                "test4", new CollectingMetricsReporter()));
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.fromConfiguration(config), reporterConfigurations);
@@ -431,8 +438,10 @@ class MetricRegistryImplTest {
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Arrays.asList(
-                                ReporterSetup.forReporter("test1", new FailingReporter()),
-                                ReporterSetup.forReporter("test2", reporter1)));
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
+                                        "test1", new FailingReporter()),
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
+                                        "test2", reporter1)));
 
         Counter metric = new SimpleCounter();
         registry.register(
@@ -477,10 +486,10 @@ class MetricRegistryImplTest {
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Arrays.asList(
-                                ReporterSetup.forReporter(
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
                                         "test",
-                                        DefaultMetricFilter.fromConfiguration(reporterConfig),
-                                        reporter)));
+                                        reporter,
+                                        DefaultMetricFilter.fromConfiguration(reporterConfig))));
 
         registry.register(
                 new TestMeter(), "", new MetricGroupTest.DummyAbstractMetricGroup(registry));
