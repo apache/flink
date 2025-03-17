@@ -77,7 +77,7 @@ public class ExternalResourceUtils {
             Configuration config, String suffix) {
         final Set<String> resourceSet = getExternalResourceSet(config);
         final Map<String, String> configKeysToResourceNameMap = new HashMap<>();
-        LOG.info("Enabled external resources: {}", resourceSet);
+        LOG.debug("External resources to be requested: {}", resourceSet);
 
         if (resourceSet.isEmpty()) {
             return Collections.emptyMap();
@@ -94,7 +94,7 @@ public class ExternalResourceUtils {
 
             if (StringUtils.isNullOrWhitespaceOnly(configKey)) {
                 LOG.warn(
-                        "Could not find valid {} for {}. Will ignore that resource.",
+                        "Could not find valid {} for {}. Will not request that resource.",
                         configKeyOption.key(),
                         resourceName);
             } else {
@@ -125,7 +125,6 @@ public class ExternalResourceUtils {
 
         final Map<String, Long> externalResourceAmountMap =
                 getExternalResourceAmountMap(configuration);
-        LOG.info("Enabled external resources: {}", externalResourceAmountMap.keySet());
 
         return createStaticExternalResourceInfoProvider(
                 externalResourceAmountMap,
@@ -154,7 +153,7 @@ public class ExternalResourceUtils {
                         resourceName);
             } else if (amountOpt.get() <= 0) {
                 LOG.warn(
-                        "The amount of the {} should be positive while finding {}. Will ignore that resource.",
+                        "The amount of the {} should be positive, finding {}. Will ignore that resource.",
                         amountOpt.get(),
                         resourceName);
             } else {
@@ -215,8 +214,8 @@ public class ExternalResourceUtils {
                             .noDefaultValue();
             final String driverFactoryClassName = config.get(driverClassOption);
             if (StringUtils.isNullOrWhitespaceOnly(driverFactoryClassName)) {
-                LOG.warn(
-                        "Could not find driver class name for {}. Please make sure {} is configured.",
+                LOG.debug(
+                        "Do not find driver class name for {}. You can configure it by {}.",
                         resourceName,
                         driverClassOption.key());
                 continue;
@@ -236,7 +235,7 @@ public class ExternalResourceUtils {
                             resourceName,
                             externalResourceDriverFactory.createExternalResourceDriver(
                                     delegatingConfiguration));
-                    LOG.info("Add external resources driver for {}.", resourceName);
+                    LOG.debug("Add external resources driver for {}.", resourceName);
                 } catch (Exception e) {
                     LOG.warn(
                             "Could not instantiate driver with factory {} for {}. {}",
@@ -285,6 +284,7 @@ public class ExternalResourceUtils {
                 LOG.warn("Could not found legal amount configuration for {}.", resourceName);
             }
         }
+        LOG.info("Retrieve information of external resources: {}", externalResources.keySet());
         return new StaticExternalResourceInfoProvider(externalResources);
     }
 }
