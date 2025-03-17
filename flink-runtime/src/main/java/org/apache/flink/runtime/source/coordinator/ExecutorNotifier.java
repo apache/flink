@@ -117,14 +117,15 @@ public class ExecutorNotifier {
      * @param callable the callable to execute before notifying the executor to notify.
      * @param handler the handler that handles the result from the callable.
      * @param initialDelayMs the initial delay in ms before invoking the given callable.
-     * @param periodMs the interval in ms to invoke the callable.
+     * @param periodMs the interval between the termination of one execution and the commencement of
+     *     the next, in ms.
      */
     public <T> void notifyReadyAsync(
             Callable<T> callable,
             BiConsumer<T, Throwable> handler,
             long initialDelayMs,
             long periodMs) {
-        workerExecutor.scheduleAtFixedRate(
+        workerExecutor.scheduleWithFixedDelay(
                 () -> {
                     try {
                         T result = callable.call();
