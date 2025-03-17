@@ -455,8 +455,15 @@ public class MetricGroupTest {
     public static class DummyAbstractMetricGroup
             extends AbstractMetricGroup<DummyAbstractMetricGroup> {
 
+        final String groupName;
+
         public DummyAbstractMetricGroup(MetricRegistry registry) {
+            this(registry, "foo");
+        }
+
+        public DummyAbstractMetricGroup(MetricRegistry registry, String groupName) {
             super(registry, new String[0], null);
+            this.groupName = groupName;
         }
 
         @Override
@@ -466,7 +473,7 @@ public class MetricGroupTest {
 
         @Override
         protected String getGroupName(CharacterFilter filter) {
-            return "foo";
+            return groupName;
         }
 
         @Override

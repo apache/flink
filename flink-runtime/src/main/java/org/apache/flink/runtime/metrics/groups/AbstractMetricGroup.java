@@ -358,7 +358,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
                 return;
             }
 
-            registry.addSpan(spanBuilder);
+            registry.addSpan(spanBuilder, this);
         }
     }
 

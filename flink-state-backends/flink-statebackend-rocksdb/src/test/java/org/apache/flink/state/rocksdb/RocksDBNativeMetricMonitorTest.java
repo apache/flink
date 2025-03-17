@@ -223,7 +223,7 @@ class RocksDBNativeMetricMonitorTest {
         }
 
         @Override
-        public void addSpan(SpanBuilder spanBuilder) {}
+        public void addSpan(SpanBuilder spanBuilder, AbstractMetricGroup<?> group) {}
 
         @Override
         public void register(Metric metric, String metricName, AbstractMetricGroup<?> group) {
