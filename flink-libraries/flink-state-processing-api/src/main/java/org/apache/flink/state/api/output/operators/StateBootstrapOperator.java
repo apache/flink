@@ -40,6 +40,8 @@ public class StateBootstrapOperator<IN>
 
     private static final long serialVersionUID = 1L;
 
+    private final long checkpointId;
+
     private final long timestamp;
 
     private final Path savepointPath;
@@ -47,9 +49,13 @@ public class StateBootstrapOperator<IN>
     private transient ContextImpl context;
 
     public StateBootstrapOperator(
-            long timestamp, Path savepointPath, StateBootstrapFunction<IN> function) {
+            long checkpointId,
+            long timestamp,
+            Path savepointPath,
+            StateBootstrapFunction<IN> function) {
         super(function);
 
+        this.checkpointId = checkpointId;
         this.timestamp = timestamp;
         this.savepointPath = savepointPath;
     }
@@ -69,6 +75,7 @@ public class StateBootstrapOperator<IN>
     public void endInput() throws Exception {
         TaggedOperatorSubtaskState state =
                 SnapshotUtils.snapshot(
+                        checkpointId,
                         this,
                         getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
                         timestamp,

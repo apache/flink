@@ -534,6 +534,14 @@ public class ProcessTableFunctionTestUtils {
         }
     }
 
+    /** Testing function. */
+    public static class OptionalFunction extends TestProcessTableFunctionBase {
+        public void eval(
+                Context ctx, @ArgumentHint(value = TABLE_AS_ROW, isOptional = true) Row r) {
+            collectObjects(r);
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
     // Helpers
     // --------------------------------------------------------------------------------------------

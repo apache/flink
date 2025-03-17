@@ -1090,6 +1090,15 @@ class Table(object):
         j_extra_details = to_j_explain_detail_arr(extra_details)
         return self._j_table.explain(TEXT, j_extra_details)
 
+    def print_explain(self, *extra_details: ExplainDetail):
+        """
+        Like :func:`~pyflink.table.Table.explain`, but prints the result to the client
+        console.
+
+        .. versionadded:: 2.1.0
+        """
+        print(self.explain(*extra_details))
+
     def insert_into(
         self, table_path_or_descriptor: Union[str, TableDescriptor], overwrite: bool = False
     ) -> TablePipeline:

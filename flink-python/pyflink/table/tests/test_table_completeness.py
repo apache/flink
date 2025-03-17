@@ -36,7 +36,7 @@ class TableAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
 
     @classmethod
     def excluded_methods(cls):
-        return {'createTemporalTableFunction', 'getQueryOperation', 'printExplain'}
+        return {'createTemporalTableFunction', 'getQueryOperation'}
 
     @classmethod
     def java_method_name(cls, python_method_name):

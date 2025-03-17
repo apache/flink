@@ -111,7 +111,7 @@ TableSchema
 
 A table schema that represents a table's structure with field names and data types.
 
-.. currentmodule:: pyflink.table.table_schema
+.. currentmodule:: pyflink.table
 
 .. autosummary::
     :toctree: api/
@@ -132,7 +132,7 @@ ChangelogMode
 
 The set of changes contained in a changelog.
 
-.. currentmodule:: pyflink.table.changelog_mode
+.. currentmodule:: pyflink.table
 
 .. autosummary::
     :toctree: api/
@@ -147,11 +147,13 @@ TablePipeline
 
 Describes a complete pipeline from one or more source tables to a sink table.
 
-.. currentmodule:: pyflink.table.table_pipeline
+.. currentmodule:: pyflink.table
 
 .. autosummary::
     :toctree: api/
 
+    TablePipeline.compile_plan
     TablePipeline.execute
     TablePipeline.explain
+    TablePipeline.print_explain
     TablePipeline.get_sink_identifier

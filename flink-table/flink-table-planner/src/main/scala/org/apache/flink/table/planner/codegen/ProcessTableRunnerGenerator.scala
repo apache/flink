@@ -95,21 +95,21 @@ object ProcessTableRunnerGenerator {
     )
     val functionTerm = ctx.addReusableFunction(udf)
     val inference = udf.getTypeInference(dataTypeFactory)
-    val adaptedCallContext = TypeInferenceUtil.adaptArguments(inference, callContext, null)
+    val castCallContext = TypeInferenceUtil.castArguments(inference, callContext, null)
 
     // Enrich argument types with conversion class
-    val enrichedArgumentDataTypes = toScala(adaptedCallContext.getArgumentDataTypes)
+    val enrichedArgumentDataTypes = toScala(castCallContext.getArgumentDataTypes)
 
     // Enrich output types with conversion class
     val enrichedOutputDataType =
-      TypeInferenceUtil.inferOutputType(adaptedCallContext, inference.getOutputTypeStrategy)
+      TypeInferenceUtil.inferOutputType(castCallContext, inference.getOutputTypeStrategy)
     verifyFunctionAwareOutputType(returnType, enrichedOutputDataType, udf)
 
     // Derive state type with conversion class.
     // This happens after specialization such that the state entries can be highly
     // specialized to the call.
     val stateInfos =
-      TypeInferenceUtil.inferStateInfos(adaptedCallContext, inference.getStateTypeStrategies)
+      TypeInferenceUtil.inferStateInfos(castCallContext, inference.getStateTypeStrategies)
     val stateDataTypes = stateInfos.asScala.values.map(_.getDataType).toSeq
     stateDataTypes.foreach(ExtractionUtils.checkStateDataType)
 
