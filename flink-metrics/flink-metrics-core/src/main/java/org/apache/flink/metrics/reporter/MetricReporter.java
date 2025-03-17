@@ -20,8 +20,8 @@ package org.apache.flink.metrics.reporter;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.metrics.Metric;
-import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.Reporter;
 
 /**
  * Metric reporters are used to export {@link Metric Metrics} to an external backend.
@@ -29,27 +29,7 @@ import org.apache.flink.metrics.MetricGroup;
  * <p>Metric reporters are instantiated via a {@link MetricReporterFactory}.
  */
 @Public
-public interface MetricReporter {
-
-    // ------------------------------------------------------------------------
-    //  life cycle
-    // ------------------------------------------------------------------------
-
-    /**
-     * Configures this reporter.
-     *
-     * <p>If the reporter was instantiated generically and hence parameter-less, this method is the
-     * place where the reporter sets it's basic fields based on configuration values. Otherwise,
-     * this method will typically be a no-op since resources can be acquired in the constructor.
-     *
-     * <p>This method is always called first on a newly instantiated reporter.
-     *
-     * @param config A properties object that contains all parameters set for this reporter.
-     */
-    void open(MetricConfig config);
-
-    /** Closes this reporter. Should be used to close channels, streams and release resources. */
-    void close();
+public interface MetricReporter extends Reporter {
 
     // ------------------------------------------------------------------------
     //  adding / removing metrics
