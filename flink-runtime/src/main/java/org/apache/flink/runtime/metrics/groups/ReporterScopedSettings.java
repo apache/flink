@@ -17,14 +17,14 @@
 
 package org.apache.flink.runtime.metrics.groups;
 
-import org.apache.flink.runtime.metrics.filter.MetricFilter;
+import org.apache.flink.runtime.metrics.filter.ReporterFilter;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Map;
 import java.util.Set;
 
 /** Encapsulates all settings that are defined per reporter. */
-public class ReporterScopedSettings {
+public class ReporterScopedSettings<REPORTED> {
 
     private final int reporterIndex;
 
@@ -32,14 +32,14 @@ public class ReporterScopedSettings {
 
     private final Set<String> excludedVariables;
 
-    private final MetricFilter filter;
+    private final ReporterFilter<REPORTED> filter;
 
     private final Map<String, String> additionalVariables;
 
     public ReporterScopedSettings(
             int reporterIndex,
             char delimiter,
-            MetricFilter filter,
+            ReporterFilter<REPORTED> filter,
             Set<String> excludedVariables,
             Map<String, String> additionalVariables) {
         this.excludedVariables = excludedVariables;
@@ -58,7 +58,7 @@ public class ReporterScopedSettings {
         return delimiter;
     }
 
-    public MetricFilter getFilter() {
+    public ReporterFilter<REPORTED> getFilter() {
         return filter;
     }
 
