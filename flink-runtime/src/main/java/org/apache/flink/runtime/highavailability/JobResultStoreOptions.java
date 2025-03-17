@@ -67,4 +67,11 @@ public class JobResultStoreOptions {
                                     + "are, instead, marked as clean to indicate their state. In this "
                                     + "case, Flink no longer has ownership and the resources need to "
                                     + "be cleaned up by the user.");
+
+    @Documentation.Section(Documentation.Sections.COMMON_HIGH_AVAILABILITY_JOB_RESULT_STORE)
+    public static final ConfigOption<Integer> TIME_TO_REMOVE_CLEAN_JOB_RESULT =
+            ConfigOptions.key("job-result-store.ttl-clean-job-result")
+                    .intType()
+                    .defaultValue(10)
+                    .withDescription("Provide ttl for the clean job result in minutes");
 }
