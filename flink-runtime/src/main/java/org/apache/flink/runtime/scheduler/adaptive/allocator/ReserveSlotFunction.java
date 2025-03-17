@@ -20,6 +20,7 @@ package org.apache.flink.runtime.scheduler.adaptive.allocator;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 
 /** A function for reserving slots. */
 @FunctionalInterface
@@ -29,7 +30,11 @@ public interface ReserveSlotFunction {
      *
      * @param allocationId identifies the slot
      * @param resourceProfile resource profile the slot must be able to fulfill
+     * @param loadingWeight loading weight.
      * @return reserved slot
      */
-    PhysicalSlot reserveSlot(AllocationID allocationId, ResourceProfile resourceProfile);
+    PhysicalSlot reserveSlot(
+            AllocationID allocationId,
+            ResourceProfile resourceProfile,
+            LoadingWeight loadingWeight);
 }
