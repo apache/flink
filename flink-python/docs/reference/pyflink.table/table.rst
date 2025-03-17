@@ -88,6 +88,7 @@ Example:
     Table.execute
     Table.execute_insert
     Table.explain
+    Table.print_explain
     Table.fetch
     Table.filter
     Table.flat_aggregate

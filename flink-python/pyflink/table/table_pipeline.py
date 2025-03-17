@@ -20,6 +20,7 @@ from typing import Optional
 from pyflink.java_gateway import get_gateway
 from pyflink.table import ExplainDetail
 from pyflink.table.catalog import ObjectIdentifier
+from pyflink.table.compiled_plan import CompiledPlan
 from pyflink.table.table_result import TableResult
 from pyflink.util.java_utils import to_j_explain_detail_arr
 
@@ -63,6 +64,15 @@ class TablePipeline(object):
             gateway.jvm.org.apache.flink.table.api.ExplainFormat.TEXT, j_extra_details
         )
 
+    def print_explain(self, *extra_details: ExplainDetail):
+        """
+        Like :func:`~pyflink.table.TablePipeline.explain`, but prints the result to the client
+        console.
+
+        .. versionadded:: 2.1.0
+        """
+        print(self.explain(*extra_details))
+
     def get_sink_identifier(self) -> Optional[ObjectIdentifier]:
         """
         Returns the sink table's :class:`~pyflink.table.catalog.ObjectIdentifier`, if any.
@@ -79,3 +89,23 @@ class TablePipeline(object):
             if optional_result.isPresent()
             else None
         )
+
+    def compile_plan(self) -> CompiledPlan:
+        """
+        Compiles this :class:`TablePipeline` into a :class:`~pyflink.table.CompiledPlan` that can
+        be executed as one job.
+
+        :class:`~pyflink.table.CompiledPlan`s can be persisted and reloaded across Flink versions.
+        They describe static pipelines to ensure backwards compatibility and enable stateful
+        streaming job upgrades. See :class:`~pyflink.table.CompiledPlan` and the website
+        documentation for more information.
+
+        .. note::
+            The compiled plan feature is experimental in batch mode.
+
+        :raises TableException: if any of the statements is invalid or if the plan cannot be
+            persisted.
+
+        .. versionadded:: 2.1.0
+        """
+        return CompiledPlan(j_compiled_plan=self._j_table_pipeline.compilePlan(), t_env=self._t_env)
