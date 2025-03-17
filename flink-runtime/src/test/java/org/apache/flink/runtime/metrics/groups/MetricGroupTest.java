@@ -32,7 +32,7 @@ import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
-import org.apache.flink.runtime.metrics.ReporterSetup;
+import org.apache.flink.runtime.metrics.ReporterSetupBuilder;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
@@ -281,7 +281,9 @@ public class MetricGroupTest {
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
-                        Arrays.asList(ReporterSetup.forReporter("test", new TestReporter())));
+                        Arrays.asList(
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
+                                        "test", new TestReporter())));
         try {
             GenericMetricGroup root =
                     new GenericMetricGroup(
