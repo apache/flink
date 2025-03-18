@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.metrics.util;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.events.Event;
+import org.apache.flink.events.EventBuilder;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
@@ -37,6 +39,7 @@ public class TestingMetricRegistry implements MetricRegistry {
     private final TriConsumer<Metric, String, AbstractMetricGroup<?>> registerConsumer;
     private final TriConsumer<Metric, String, AbstractMetricGroup<?>> unregisterConsumer;
     private final BiConsumer<Span, AbstractMetricGroup<?>> spanConsumer;
+    private final BiConsumer<Event, AbstractMetricGroup<?>> eventConsumer;
     private final ScopeFormats scopeFormats;
 
     private TestingMetricRegistry(
@@ -45,12 +48,14 @@ public class TestingMetricRegistry implements MetricRegistry {
             TriConsumer<Metric, String, AbstractMetricGroup<?>> registerConsumer,
             TriConsumer<Metric, String, AbstractMetricGroup<?>> unregisterConsumer,
             BiConsumer<Span, AbstractMetricGroup<?>> spanConsumer,
+            BiConsumer<Event, AbstractMetricGroup<?>> eventConsumer,
             ScopeFormats scopeFormats) {
         this.delimiter = delimiter;
         this.numberReporters = numberReporters;
         this.registerConsumer = registerConsumer;
         this.unregisterConsumer = unregisterConsumer;
         this.spanConsumer = spanConsumer;
+        this.eventConsumer = eventConsumer;
         this.scopeFormats = scopeFormats;
     }
 
@@ -67,6 +72,11 @@ public class TestingMetricRegistry implements MetricRegistry {
     @Override
     public void addSpan(SpanBuilder spanBuilder, AbstractMetricGroup<?> group) {
         spanConsumer.accept(spanBuilder.build(), group);
+    }
+
+    @Override
+    public void addEvent(EventBuilder eventBuilder, AbstractMetricGroup<?> group) {
+        eventConsumer.accept(eventBuilder.build(), group);
     }
 
     @Override
@@ -98,6 +108,7 @@ public class TestingMetricRegistry implements MetricRegistry {
         private TriConsumer<Metric, String, AbstractMetricGroup<?>> unregisterConsumer =
                 (ignoreMetric, ignoreMetricName, ignoreGroup) -> {};
         private BiConsumer<Span, AbstractMetricGroup<?>> spanConsumer = (span, group) -> {};
+        private BiConsumer<Event, AbstractMetricGroup<?>> eventConsumer = (event, group) -> {};
         private ScopeFormats scopeFormats = ScopeFormats.fromConfig(new Configuration());
 
         private TestingMetricRegistryBuilder() {}
@@ -130,6 +141,12 @@ public class TestingMetricRegistry implements MetricRegistry {
             return this;
         }
 
+        public TestingMetricRegistryBuilder setEventConsumer(
+                BiConsumer<Event, AbstractMetricGroup<?>> eventConsumer) {
+            this.eventConsumer = eventConsumer;
+            return this;
+        }
+
         public TestingMetricRegistryBuilder setScopeFormats(ScopeFormats scopeFormats) {
             this.scopeFormats = scopeFormats;
             return this;
@@ -142,6 +159,7 @@ public class TestingMetricRegistry implements MetricRegistry {
                     registerConsumer,
                     unregisterConsumer,
                     spanConsumer,
+                    eventConsumer,
                     scopeFormats);
         }
     }

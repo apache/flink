@@ -110,6 +110,8 @@ public final class Documentation {
 
         public static final String TRACE_REPORTERS = "trace_reporters";
 
+        public static final String EVENT_REPORTERS = "event_reporters";
+
         public static final String CHECKPOINT_FILE_MERGING = "checkpoint_file_merging";
 
         private Sections() {}

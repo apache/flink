@@ -21,8 +21,10 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.EventOptions;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.TraceOptions;
+import org.apache.flink.events.EventBuilder;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricType;
 import org.apache.flink.traces.SpanBuilder;
@@ -104,6 +106,30 @@ public class DefaultReporterFilters {
         }
     }
 
+    static class EventReporterFilter extends AbstractReporterFilter<EventBuilder> {
+
+        EventReporterFilter(List<FilterSpec> includes, List<FilterSpec> excludes) {
+            super(includes, excludes);
+        }
+
+        @Override
+        public boolean filter(EventBuilder reported, String name, String logicalScope) {
+            for (FilterSpec exclude : excludes) {
+                if (exclude.namePattern.matcher(name).matches()
+                        && exclude.scopePattern.matcher(logicalScope).matches()) {
+                    return false;
+                }
+            }
+            for (FilterSpec include : includes) {
+                if (include.namePattern.matcher(name).matches()
+                        && include.scopePattern.matcher(logicalScope).matches()) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
     public static ReporterFilter<Metric> metricsFromConfiguration(Configuration configuration) {
         return fromConfiguration(
                 configuration,
@@ -118,6 +144,15 @@ public class DefaultReporterFilters {
                 TraceOptions.REPORTER_INCLUDES,
                 TraceOptions.REPORTER_EXCLUDES,
                 TraceReporterFilter::new);
+    }
+
+    public static ReporterFilter<EventBuilder> eventsFromConfiguration(
+            Configuration configuration) {
+        return fromConfiguration(
+                configuration,
+                EventOptions.REPORTER_INCLUDES,
+                EventOptions.REPORTER_EXCLUDES,
+                EventReporterFilter::new);
     }
 
     private static <REPORTED> ReporterFilter<REPORTED> fromConfiguration(
