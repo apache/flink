@@ -33,6 +33,12 @@
             <td>Determines the maximum interval time after which a scaling operation is forced even if the <code class="highlighter-rouge">jobmanager.adaptive-scheduler.min-parallelism-increase</code> aren't met. The scaling operation will be ignored when the resource hasn't changed. This option is disabled by default.</td>
         </tr>
         <tr>
+            <td><h5>jobmanager.adaptive-scheduler.resource.minimal-taskmanagers-preferred</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>This parameter defines whether the adaptive scheduler prioritizes using the minimum number of <code class="highlighter-rouge">TaskManagers</code> when scheduling tasks.<br />Note, this parameter is introduced exclusively in Flink 1.x(1.1x &amp; 1.2x) LTS versions and suitable for non-enabling <code class="highlighter-rouge">execution.state-recovery.from-local</code>. More detail about the parameter could be viewed in <a href="https://issues.apache.org/jira/browse/FLINK-33977">FLINK-33977</a>.</td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.adaptive-scheduler.scaling-interval.min</h5></td>
             <td style="word-wrap: break-word;">30 s</td>
             <td>Duration</td>
