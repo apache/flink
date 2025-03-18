@@ -1192,6 +1192,10 @@ public class MiniCluster implements AutoCloseableAsync {
                 ReporterSetupBuilder.TRACE_SETUP_BUILDER.fromConfiguration(
                         config,
                         DefaultReporterFilters::tracesFromConfiguration,
+                        miniClusterConfiguration.getPluginManager()),
+                ReporterSetupBuilder.EVENT_SETUP_BUILDER.fromConfiguration(
+                        config,
+                        DefaultReporterFilters::eventsFromConfiguration,
                         miniClusterConfiguration.getPluginManager()));
     }
 

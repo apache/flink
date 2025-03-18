@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.metrics;
 
+import org.apache.flink.events.EventBuilder;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
@@ -42,6 +43,9 @@ public interface MetricRegistry {
 
     /** Add and log a {@link Span}. */
     void addSpan(SpanBuilder spanBuilder, AbstractMetricGroup<?> group);
+
+    /** Add and log an {@link org.apache.flink.events.Event}. */
+    void addEvent(EventBuilder eventBuilder, AbstractMetricGroup<?> group);
 
     /**
      * Registers a new {@link Metric} with this registry.

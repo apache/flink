@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.events.EventBuilder;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
@@ -51,6 +52,9 @@ public class NoOpMetricRegistry implements MetricRegistry {
 
     @Override
     public void addSpan(SpanBuilder spanBuilder, AbstractMetricGroup<?> group) {}
+
+    @Override
+    public void addEvent(EventBuilder eventBuilder, AbstractMetricGroup<?> group) {}
 
     @Override
     public ScopeFormats getScopeFormats() {

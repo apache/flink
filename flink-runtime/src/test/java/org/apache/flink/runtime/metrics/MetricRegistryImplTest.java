@@ -19,8 +19,12 @@
 package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.EventOptions;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.TraceOptions;
+import org.apache.flink.events.Event;
+import org.apache.flink.events.EventBuilder;
+import org.apache.flink.events.reporter.EventReporter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
@@ -39,6 +43,7 @@ import org.apache.flink.runtime.metrics.groups.MetricGroupTest;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
+import org.apache.flink.runtime.metrics.util.TestEventReporter;
 import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.apache.flink.runtime.metrics.util.TestTraceReporter;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -221,6 +226,10 @@ class MetricRegistryImplTest {
                 new NotificationCapturingMetricReporter();
         final NotificationCapturingMetricReporter reporter2 =
                 new NotificationCapturingMetricReporter();
+        final NotificationCapturingEventReporter eventReporter1 =
+                new NotificationCapturingEventReporter();
+        final NotificationCapturingEventReporter eventReporter2 =
+                new NotificationCapturingEventReporter();
         final NotificationCapturingSpanReporter spanReporter1 =
                 new NotificationCapturingSpanReporter();
         final NotificationCapturingSpanReporter spanReporter2 =
@@ -238,20 +247,28 @@ class MetricRegistryImplTest {
                                 ReporterSetupBuilder.TRACE_SETUP_BUILDER.forReporter(
                                         "trace_test1", spanReporter1),
                                 ReporterSetupBuilder.TRACE_SETUP_BUILDER.forReporter(
-                                        "trace_test2", spanReporter2)));
+                                        "trace_test2", spanReporter2)),
+                        Arrays.asList(
+                                ReporterSetupBuilder.EVENT_SETUP_BUILDER.forReporter(
+                                        "event_test1", eventReporter1),
+                                ReporterSetupBuilder.EVENT_SETUP_BUILDER.forReporter(
+                                        "event_test2", eventReporter2)));
 
         TaskManagerMetricGroup root =
                 TaskManagerMetricGroup.createTaskManagerMetricGroup(
                         registry, "host", new ResourceID("id"));
         root.counter("rootCounter");
+        root.addEvent(Event.builder(getClass(), "TestEvent"));
         root.addSpan(Span.builder(getClass(), "TestSpan"));
 
         assertThat(reporter1.getLastAddedMetric()).containsInstanceOf(Counter.class);
         assertThat(reporter1.getLastAddedMetricName()).hasValue("rootCounter");
+        assertThat(eventReporter1.getLastAddedEvent().map(Event::getName)).hasValue("TestEvent");
         assertThat(spanReporter1.getLastAddedSpan().map(Span::getName)).hasValue("TestSpan");
 
         assertThat(reporter2.getLastAddedMetric()).containsInstanceOf(Counter.class);
         assertThat(reporter2.getLastAddedMetricName()).hasValue("rootCounter");
+        assertThat(eventReporter2.getLastAddedEvent().map(Event::getName)).hasValue("TestEvent");
         assertThat(spanReporter2.getLastAddedSpan().map(Span::getName)).hasValue("TestSpan");
 
         root.close();
@@ -302,6 +319,19 @@ class MetricRegistryImplTest {
 
         public Optional<String> getLastRemovedMetricName() {
             return Optional.ofNullable(removedMetricName);
+        }
+    }
+
+    private static class NotificationCapturingEventReporter extends TestEventReporter {
+        @Nullable private Event addedEvent;
+
+        @Override
+        public void notifyOfAddedEvent(Event event) {
+            this.addedEvent = event;
+        }
+
+        public Optional<Event> getLastAddedEvent() {
+            return Optional.ofNullable(addedEvent);
         }
     }
 
@@ -376,6 +406,15 @@ class MetricRegistryImplTest {
         MetricConfig traceConfig3 = new MetricConfig();
         traceConfig3.setProperty(TraceOptions.REPORTER_SCOPE_DELIMITER.key(), "AA");
 
+        MetricConfig eventConfig1 = new MetricConfig();
+        eventConfig1.setProperty(EventOptions.REPORTER_SCOPE_DELIMITER.key(), "_");
+
+        MetricConfig eventConfig2 = new MetricConfig();
+        eventConfig2.setProperty(EventOptions.REPORTER_SCOPE_DELIMITER.key(), "-");
+
+        MetricConfig eventConfig3 = new MetricConfig();
+        eventConfig3.setProperty(EventOptions.REPORTER_SCOPE_DELIMITER.key(), "AA");
+
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
@@ -392,7 +431,14 @@ class MetricRegistryImplTest {
                                 ReporterSetupBuilder.TRACE_SETUP_BUILDER.forReporter(
                                         "traceTest2", traceConfig2, new TestTraceReporter()),
                                 ReporterSetupBuilder.TRACE_SETUP_BUILDER.forReporter(
-                                        "traceTest3", traceConfig3, new TestTraceReporter())));
+                                        "traceTest3", traceConfig3, new TestTraceReporter())),
+                        Arrays.asList(
+                                ReporterSetupBuilder.EVENT_SETUP_BUILDER.forReporter(
+                                        "eventTest1", eventConfig1, new TestEventReporter()),
+                                ReporterSetupBuilder.EVENT_SETUP_BUILDER.forReporter(
+                                        "eventTest2", eventConfig2, new TestEventReporter()),
+                                ReporterSetupBuilder.EVENT_SETUP_BUILDER.forReporter(
+                                        "eventTest3", eventConfig3, new TestEventReporter())));
 
         assertThat(registry.getDelimiter()).isEqualTo(GLOBAL_DEFAULT_DELIMITER);
         assertThat(registry.getDelimiter(0)).isEqualTo('_');
@@ -403,6 +449,13 @@ class MetricRegistryImplTest {
 
         List<MetricRegistryImpl.ReporterAndSettings<TraceReporter, SpanBuilder>> traceReporters =
                 registry.getTraceReporters();
+        assertThat(traceReporters.get(0).getSettings().getDelimiter()).isEqualTo('_');
+        assertThat(traceReporters.get(1).getSettings().getDelimiter()).isEqualTo('-');
+        assertThat(traceReporters.get(2).getSettings().getDelimiter())
+                .isEqualTo(GLOBAL_DEFAULT_DELIMITER);
+
+        List<MetricRegistryImpl.ReporterAndSettings<EventReporter, EventBuilder>> eventReporters =
+                registry.getEventReporters();
         assertThat(traceReporters.get(0).getSettings().getDelimiter()).isEqualTo('_');
         assertThat(traceReporters.get(1).getSettings().getDelimiter()).isEqualTo('-');
         assertThat(traceReporters.get(2).getSettings().getDelimiter())
@@ -591,7 +644,8 @@ class MetricRegistryImplTest {
                                         "test",
                                         reporter,
                                         DefaultReporterFilters.tracesFromConfiguration(
-                                                reporterConfig))));
+                                                reporterConfig))),
+                        Collections.emptyList());
 
         registry.addSpan(
                 Span.builder(getClass(), "testSpan"),
@@ -613,6 +667,51 @@ class MetricRegistryImplTest {
     }
 
     @Test
+    void testEventFiltering() {
+        final String includedGroupName = "foo";
+        final String excludedSpanName = "excluded";
+        final NotificationCapturingEventReporter reporter =
+                new NotificationCapturingEventReporter();
+
+        final Configuration reporterConfig = new Configuration();
+        reporterConfig.set(
+                EventOptions.REPORTER_INCLUDES,
+                Collections.singletonList(includedGroupName + ":*"));
+        reporterConfig.set(
+                EventOptions.REPORTER_EXCLUDES, Collections.singletonList("*:" + excludedSpanName));
+
+        MetricRegistryImpl registry =
+                new MetricRegistryImpl(
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
+                        Collections.emptyList(),
+                        Collections.emptyList(),
+                        Collections.singletonList(
+                                ReporterSetupBuilder.EVENT_SETUP_BUILDER.forReporter(
+                                        "test",
+                                        reporter,
+                                        DefaultReporterFilters.eventsFromConfiguration(
+                                                reporterConfig))));
+
+        registry.addEvent(
+                Event.builder(getClass(), "testEvent"),
+                new MetricGroupTest.DummyAbstractMetricGroup(registry, "bar"));
+
+        assertThat(reporter.getLastAddedEvent()).isEmpty();
+
+        registry.addEvent(
+                Event.builder(getClass(), excludedSpanName),
+                new MetricGroupTest.DummyAbstractMetricGroup(registry, includedGroupName));
+
+        assertThat(reporter.getLastAddedEvent()).isEmpty();
+
+        registry.addEvent(
+                Event.builder(getClass(), "foo"),
+                new MetricGroupTest.DummyAbstractMetricGroup(registry, includedGroupName));
+
+        assertThat(reporter.getLastAddedEvent()).isNotEmpty();
+    }
+
+    @Test
     void testSpanAdditionalVariables() {
         final NotificationCapturingSpanReporter reporter = new NotificationCapturingSpanReporter();
 
@@ -631,7 +730,8 @@ class MetricRegistryImplTest {
                                         reporter,
                                         DefaultReporterFilters.tracesFromConfiguration(
                                                 reporterConfig),
-                                        additionalVariables)));
+                                        additionalVariables)),
+                        Collections.emptyList());
 
         registry.addSpan(
                 Span.builder(getClass(), "testEvent"),
@@ -641,6 +741,40 @@ class MetricRegistryImplTest {
 
         assertThat(lastAddedSpan.get().getName()).isEqualTo("testEvent");
         assertThat(lastAddedSpan.get().getAttributes())
+                .containsExactlyInAnyOrderEntriesOf(additionalVariables);
+    }
+
+    @Test
+    void testEventAdditionalVariables() {
+        final NotificationCapturingEventReporter reporter =
+                new NotificationCapturingEventReporter();
+
+        final Configuration reporterConfig = new Configuration();
+
+        Map<String, String> additionalVariables = Collections.singletonMap("foo", "bar");
+
+        MetricRegistryImpl registry =
+                new MetricRegistryImpl(
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
+                        Collections.emptyList(),
+                        Collections.emptyList(),
+                        Collections.singletonList(
+                                ReporterSetupBuilder.EVENT_SETUP_BUILDER.forReporter(
+                                        "test",
+                                        new MetricConfig(),
+                                        reporter,
+                                        DefaultReporterFilters.eventsFromConfiguration(
+                                                reporterConfig),
+                                        additionalVariables)));
+
+        registry.addEvent(
+                Event.builder(getClass(), "testEvent"),
+                new MetricGroupTest.DummyAbstractMetricGroup(registry, "testGroup"));
+
+        Optional<Event> lastAddedEvent = reporter.getLastAddedEvent();
+
+        assertThat(lastAddedEvent.get().getName()).isEqualTo("testEvent");
+        assertThat(lastAddedEvent.get().getAttributes())
                 .containsExactlyInAnyOrderEntriesOf(additionalVariables);
     }
 }
