@@ -48,7 +48,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 public class KeyGroupPartitionedPriorityQueue<
                 T, PQ extends InternalPriorityQueue<T> & HeapPriorityQueueElement>
-        implements InternalPriorityQueue<T>, KeyGroupedInternalPriorityQueue<T> {
+        implements KeyGroupedInternalPriorityQueue<T> {
 
     /** A heap of heap sets. Each sub-heap represents the partition for a key-group. */
     @Nonnull private final HeapPriorityQueue<PQ> heapOfKeyGroupedHeaps;
