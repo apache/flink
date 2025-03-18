@@ -43,6 +43,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateInitializationContext;
@@ -72,6 +73,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.concurrent.RunnableFuture;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -420,6 +422,20 @@ public abstract class AbstractStreamOperator<OUT>
                 factory,
                 isUsingCustomRawKeyedState(),
                 isAsyncStateProcessingEnabled());
+    }
+
+    /**
+     * Stream operators with state, which want to participate in an asynchronous snapshot need to
+     * override this hook method.
+     *
+     * @param context context that provides information and means required for taking a snapshot
+     * @throws Exception Thrown and task will be failed, if state could not be created ot restored.
+     *     If you don't want to task fail, can throw a RetriableAsyncOperateException, this will
+     *     only cause the failure of Checkpoint.
+     */
+    @Override
+    public RunnableFuture<Void> asyncOperate(StateSnapshotContext context) throws Exception {
+        return DoneFuture.of(null);
     }
 
     /**

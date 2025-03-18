@@ -40,6 +40,7 @@ import org.apache.flink.runtime.state.OutputStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
+import org.apache.flink.runtime.state.StateSnapshotContextAsynchronousImpl;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
@@ -140,6 +141,12 @@ class StreamOperatorStateHandlerTest {
                         public void snapshotState(StateSnapshotContext context) throws Exception {
                             throw new ExpectedTestException();
                         }
+
+                        @Override
+                        public FutureTask<Void> asyncOperate(StateSnapshotContext context)
+                                throws Exception {
+                            throw new ExpectedTestException();
+                        }
                     };
 
             stateHandler.setCurrentKey("44");
@@ -163,6 +170,8 @@ class StreamOperatorStateHandlerTest {
                                             new MemCheckpointStreamFactory(1024),
                                             operatorSnapshotResult,
                                             context,
+                                            new StateSnapshotContextAsynchronousImpl(
+                                                    checkpointId, timestamp),
                                             false,
                                             false))
                     .isInstanceOfSatisfying(
