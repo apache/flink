@@ -28,6 +28,7 @@ import java.util.Iterator;
 
 /** Validate memory release under concurrent modification exceptions. */
 class MemoryManagerConcurrentModReleaseTest {
+    private static long testTimeoutMs = 5000;
 
     @Test
     void testConcurrentModificationOnce() throws MemoryAllocationException {
@@ -61,7 +62,7 @@ class MemoryManagerConcurrentModReleaseTest {
         memMan.allocatePages(this, segs, numSegments);
 
         // start a thread that performs concurrent modifications
-        Modifier mod = new Modifier(segs);
+        Modifier mod = new Modifier(segs, System.currentTimeMillis());
         Thread modRunner = new Thread(mod);
         modRunner.start();
 
@@ -80,11 +81,16 @@ class MemoryManagerConcurrentModReleaseTest {
     private static class Modifier implements Runnable {
 
         private final ArrayList<MemorySegment> toModify;
+        private final long startTimeMs;
+        private final int multiplier = 2;
+        private int exp = 0;
 
         private volatile boolean running = true;
+        private volatile boolean timeout = false;
 
-        private Modifier(ArrayList<MemorySegment> toModify) {
+        private Modifier(ArrayList<MemorySegment> toModify, long startTimeMs) {
             this.toModify = toModify;
+            this.startTimeMs = startTimeMs;
         }
 
         public void cancel() {
@@ -97,7 +103,15 @@ class MemoryManagerConcurrentModReleaseTest {
                 try {
                     MemorySegment seg = toModify.remove(0);
                     toModify.add(seg);
-                } catch (IndexOutOfBoundsException e) {
+                    // if the test running time reaches TEST_TIMEOUT_MS, we can have exponential
+                    // sleep to let it complete segment release sooner.
+                    if (timeout || System.currentTimeMillis() - startTimeMs > testTimeoutMs) {
+                        timeout = true;
+                        // exponential sleep
+                        Thread.sleep((long) Math.pow(multiplier, exp));
+                        exp++;
+                    }
+                } catch (IndexOutOfBoundsException | InterruptedException e) {
                     // may happen, just retry
                 }
             }
