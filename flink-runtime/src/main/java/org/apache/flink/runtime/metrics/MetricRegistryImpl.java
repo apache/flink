@@ -20,6 +20,8 @@ package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.events.EventBuilder;
+import org.apache.flink.events.reporter.EventReporter;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
@@ -76,6 +78,7 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
 
     private final List<ReporterAndSettings<MetricReporter, Metric>> reporters;
     private final List<ReporterAndSettings<TraceReporter, SpanBuilder>> traceReporters;
+    private final List<ReporterAndSettings<EventReporter, EventBuilder>> eventReporters;
     private final ScheduledExecutorService reporterScheduledExecutor;
     private final ScheduledExecutorService viewUpdaterScheduledExecutor;
 
@@ -95,23 +98,25 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
     private boolean isShutdown;
 
     public MetricRegistryImpl(MetricRegistryConfiguration config) {
-        this(config, Collections.emptyList(), Collections.emptyList());
+        this(config, Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
     }
 
     public MetricRegistryImpl(
             MetricRegistryConfiguration config, Collection<ReporterSetup> reporterConfigurations) {
-        this(config, reporterConfigurations, Collections.emptyList());
+        this(config, reporterConfigurations, Collections.emptyList(), Collections.emptyList());
     }
 
     /** Creates a new MetricRegistry and starts the configured reporter. */
     public MetricRegistryImpl(
             MetricRegistryConfiguration config,
             Collection<ReporterSetup> reporterConfigurations,
-            Collection<TraceReporterSetup> traceReporterConfigurations) {
+            Collection<TraceReporterSetup> traceReporterConfigurations,
+            Collection<EventReporterSetup> eventReporterConfigurations) {
         this(
                 config,
                 reporterConfigurations,
                 traceReporterConfigurations,
+                eventReporterConfigurations,
                 Executors.newSingleThreadScheduledExecutor(
                         new ExecutorThreadFactory("Flink-Metric-Reporter")),
                 Executors.newSingleThreadScheduledExecutor(
@@ -123,7 +128,12 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
             MetricRegistryConfiguration config,
             Collection<ReporterSetup> reporterConfigurations,
             ScheduledExecutorService scheduledExecutor) {
-        this(config, reporterConfigurations, Collections.emptyList(), scheduledExecutor);
+        this(
+                config,
+                reporterConfigurations,
+                Collections.emptyList(),
+                Collections.emptyList(),
+                scheduledExecutor);
     }
 
     @VisibleForTesting
@@ -131,11 +141,13 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
             MetricRegistryConfiguration config,
             Collection<ReporterSetup> reporterConfigurations,
             Collection<TraceReporterSetup> traceReporterConfigurations,
+            Collection<EventReporterSetup> eventReporterConfigurations,
             ScheduledExecutorService scheduledExecutor) {
         this(
                 config,
                 reporterConfigurations,
                 traceReporterConfigurations,
+                eventReporterConfigurations,
                 scheduledExecutor,
                 scheduledExecutor);
     }
@@ -144,6 +156,7 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
             MetricRegistryConfiguration config,
             Collection<ReporterSetup> reporterConfigurations,
             Collection<TraceReporterSetup> traceReporterConfigurations,
+            Collection<EventReporterSetup> eventReporterConfigurations,
             ScheduledExecutorService reporterScheduledExecutor,
             ScheduledExecutorService viewUpdaterScheduledExecutor) {
         this.maximumFramesize = config.getQueryServiceMessageSizeLimit();
@@ -155,6 +168,7 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
         // second, instantiate any custom configured reporters
         this.reporters = new ArrayList<>(4);
         this.traceReporters = new ArrayList<>(4);
+        this.eventReporters = new ArrayList<>(4);
 
         this.reporterScheduledExecutor = reporterScheduledExecutor;
         this.viewUpdaterScheduledExecutor = viewUpdaterScheduledExecutor;
@@ -164,6 +178,7 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
 
         initMetricReporters(reporterConfigurations, reporterScheduledExecutor);
         initTraceReporters(traceReporterConfigurations);
+        initEventReporters(eventReporterConfigurations);
     }
 
     private void initMetricReporters(
@@ -244,6 +259,34 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
             } catch (Throwable t) {
                 LOG.error(
                         "Could not instantiate trace reporter {}. Traces might not be exposed/reported.",
+                        namedReporter,
+                        t);
+            }
+        }
+    }
+
+    private void initEventReporters(Collection<EventReporterSetup> eventReporterConfigurations) {
+        if (eventReporterConfigurations.isEmpty()) {
+            // no reporters defined by default, don't report anything
+            LOG.info("No event reporter configured, no events will be exposed/reported.");
+            return;
+        }
+        for (EventReporterSetup reporterSetup : eventReporterConfigurations) {
+            final String namedReporter = reporterSetup.getName();
+
+            try {
+                eventReporters.add(
+                        new ReporterAndSettings<>(
+                                reporterSetup.getReporter(),
+                                new ReporterScopedSettings<>(
+                                        eventReporters.size(),
+                                        getDelimiter(reporterSetup).charAt(0),
+                                        reporterSetup.getFilter(),
+                                        reporterSetup.getExcludedVariables(),
+                                        reporterSetup.getAdditionalVariables())));
+            } catch (Throwable t) {
+                LOG.error(
+                        "Could not instantiate event reporter {}. Events might not be exposed/reported.",
                         namedReporter,
                         t);
             }
@@ -362,6 +405,11 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
         return traceReporters;
     }
 
+    @VisibleForTesting
+    public List<ReporterAndSettings<EventReporter, EventBuilder>> getEventReporters() {
+        return eventReporters;
+    }
+
     /**
      * Returns whether this registry has been shutdown.
      *
@@ -473,6 +521,30 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
     }
 
     // ------------------------------------------------------------------------
+    //  Events
+    // ------------------------------------------------------------------------
+
+    @Override
+    public void addEvent(EventBuilder eventBuilder, AbstractMetricGroup<?> group) {
+        synchronized (lock) {
+            if (isShutdown()) {
+                LOG.warn(
+                        "Cannot add event, because the MetricRegistry has already been shut down.");
+                return;
+            }
+            if (eventReporters != null) {
+
+                forAllEventReporters(
+                        (eventReporter, evtBuilder, name, metricGroup) ->
+                                eventReporter.notifyOfAddedEvent(
+                                        evtBuilder.build(metricGroup.getAllVariables())),
+                        eventBuilder,
+                        group);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------------
     //  Metrics (de)registration
     // ------------------------------------------------------------------------
 
@@ -560,6 +632,15 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
             AbstractMetricGroup<?> group) {
         forAllReportersGeneric(
                 operation, traceReporters, spanBuilder, spanBuilder.getName(), group);
+    }
+
+    @GuardedBy("lock")
+    private void forAllEventReporters(
+            QuadConsumer<EventReporter, EventBuilder, String, MetricGroup> operation,
+            EventBuilder eventBuilder,
+            AbstractMetricGroup<?> group) {
+        forAllReportersGeneric(
+                operation, eventReporters, eventBuilder, eventBuilder.getName(), group);
     }
 
     @GuardedBy("lock")

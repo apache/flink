@@ -20,6 +20,7 @@ package org.apache.flink.state.forst;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.events.EventBuilder;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
@@ -238,6 +239,9 @@ class ForStNativeMetricMonitorTest {
 
         @Override
         public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {}
+
+        @Override
+        public void addEvent(EventBuilder eventBuilder, AbstractMetricGroup<?> group) {}
 
         @Override
         public ScopeFormats getScopeFormats() {

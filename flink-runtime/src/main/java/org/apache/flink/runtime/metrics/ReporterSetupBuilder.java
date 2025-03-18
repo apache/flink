@@ -23,9 +23,13 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
+import org.apache.flink.configuration.EventOptions;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.TraceOptions;
 import org.apache.flink.core.plugin.PluginManager;
+import org.apache.flink.events.EventBuilder;
+import org.apache.flink.events.reporter.EventReporter;
+import org.apache.flink.events.reporter.EventReporterFactory;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.Reporter;
@@ -128,6 +132,26 @@ public class ReporterSetupBuilder<
                                     LIST_PATTERN,
                                     TraceReporterFactory::createTraceReporter,
                                     TraceReporterSetup::new));
+
+    /** Builder for event reporter. */
+    public static final ReporterSetupBuilder<
+                    EventBuilder, EventReporter, EventReporterSetup, EventReporterFactory>
+            EVENT_SETUP_BUILDER =
+                    new ReporterSetupBuilder<>(
+                            new ReporterSetupInfo<>(
+                                    EventReporter.class,
+                                    EventReporterFactory.class,
+                                    ConfigConstants.EVENTS_REPORTER_PREFIX,
+                                    EventOptions.REPORTER_FACTORY_CLASS,
+                                    EventOptions.REPORTERS_LIST,
+                                    EventOptions.REPORTER_ADDITIONAL_VARIABLES,
+                                    createReporterClassPattern(
+                                            Pattern.quote(ConfigConstants.EVENTS_REPORTER_PREFIX),
+                                            Pattern.quote(
+                                                    EventOptions.REPORTER_FACTORY_CLASS.key())),
+                                    LIST_PATTERN,
+                                    EventReporterFactory::createEventReporter,
+                                    EventReporterSetup::new));
 
     /**
      * Functional interface to unify access to different reporter factories that don't have a proper

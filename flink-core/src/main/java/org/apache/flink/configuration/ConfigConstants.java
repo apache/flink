@@ -49,6 +49,12 @@ public final class ConfigConstants {
      */
     public static final String TRACES_REPORTER_PREFIX = "traces.reporter.";
 
+    /**
+     * The prefix for per-event reporter configs. Has to be combined with a reporter name and the
+     * configs mentioned below.
+     */
+    public static final String EVENTS_REPORTER_PREFIX = "events.reporter.";
+
     // ------------------------------------------------------------------------
     //                            Default Values
     // ------------------------------------------------------------------------

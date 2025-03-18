@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.events.EventBuilder;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -359,6 +360,26 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
             }
 
             registry.addSpan(spanBuilder, this);
+        }
+    }
+
+    // -----------------------------------------------------------------------------------------------------------------
+    //  Events
+    // -----------------------------------------------------------------------------------------------------------------
+
+    @Override
+    public void addEvent(EventBuilder eventBuilder) {
+        if (eventBuilder == null) {
+            LOG.warn("Ignoring attempted addition of a event due to being null");
+            return;
+        }
+        // add the span only if the group is still open
+        synchronized (this) {
+            if (closed) {
+                return;
+            }
+
+            registry.addEvent(eventBuilder, this);
         }
     }
 
