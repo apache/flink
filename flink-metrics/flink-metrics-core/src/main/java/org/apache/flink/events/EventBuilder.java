@@ -18,6 +18,7 @@
 
 package org.apache.flink.events;
 
+import org.apache.flink.AttributeBuilder;
 import org.apache.flink.annotation.Experimental;
 
 import java.util.Collections;
@@ -26,7 +27,7 @@ import java.util.Map;
 
 /** Builder used to construct {@link Event}. See {@link Event#builder(Class, String)}. */
 @Experimental
-public class EventBuilder {
+public class EventBuilder implements AttributeBuilder {
     private long observedTsMillis;
     private String name;
     private String classScope;
@@ -86,24 +87,28 @@ public class EventBuilder {
     }
 
     /** Additional attribute to be attached to this {@link Event}. */
+    @Override
     public EventBuilder setAttribute(String key, String value) {
         attributes.put(key, value);
         return this;
     }
 
     /** Additional attribute to be attached to this {@link Event}. */
+    @Override
     public EventBuilder setAttribute(String key, long value) {
         attributes.put(key, value);
         return this;
     }
 
     /** Additional attribute to be attached to this {@link Event}. */
+    @Override
     public EventBuilder setAttribute(String key, double value) {
         attributes.put(key, value);
         return this;
     }
 
     /** Additional attribute to be attached to this {@link Event}. */
+    @Override
     public EventBuilder setAttribute(String key, boolean value) {
         attributes.put(key, value);
         return this;
