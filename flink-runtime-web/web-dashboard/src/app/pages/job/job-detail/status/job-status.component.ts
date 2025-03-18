@@ -20,7 +20,7 @@ import { DatePipe, NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, Input, OnDestroy, OnInit } from '@angular/core';
 import { RouterLinkWithHref } from '@angular/router';
 import { merge, Subject } from 'rxjs';
-import { distinctUntilKeyChanged, mergeMap, take, takeUntil, tap } from 'rxjs/operators';
+import { distinctUntilKeyChanged, takeUntil, tap } from 'rxjs/operators';
 
 import { HumanizeDurationPipe } from '@flink-runtime-web/components/humanize-duration.pipe';
 import { JobBadgeComponent } from '@flink-runtime-web/components/job-badge/job-badge.component';
@@ -83,21 +83,6 @@ export class JobStatusComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    if (this.isHistoryServer) {
-      this.jobLocalService
-        .jobDetailChanges()
-        .pipe(
-          take(1),
-          mergeMap(job => this.jobManagerService.loadHistoryServerJobManagerLogUrl(job.jid)),
-          takeUntil(this.destroy$)
-        )
-        .subscribe(url => {
-          this.urlLoading = false;
-          this.jmLogUrl = url;
-          this.cdr.markForCheck();
-        });
-    }
-
     const updateList$ = this.jobLocalService.jobDetailChanges().pipe(tap(data => this.handleJobDetailChanged(data)));
     const updateTip$ = this.jobLocalService.jobDetailChanges().pipe(
       distinctUntilKeyChanged('state'),
@@ -128,6 +113,13 @@ export class JobStatusComponent implements OnInit, OnDestroy {
 
   private handleJobDetailChanged(data: JobDetailCorrect): void {
     this.jobDetail = data;
+    if (this.isHistoryServer) {
+      this.jobManagerService.loadHistoryServerJobManagerLogUrl(this.jobDetail.jid).subscribe(url => {
+        this.urlLoading = false;
+        this.jmLogUrl = url;
+        this.cdr.markForCheck();
+      });
+    }
     const index = this.checkpointIndexOfNav();
     if (data.plan.type == 'STREAMING' && index == -1) {
       this.listOfNavigation.splice(this.checkpointIndexOfNavigation, 0, {
