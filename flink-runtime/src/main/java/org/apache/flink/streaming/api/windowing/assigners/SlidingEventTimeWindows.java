@@ -59,6 +59,11 @@ public class SlidingEventTimeWindows extends WindowAssigner<Object, TimeWindow> 
                     "SlidingEventTimeWindows parameters must satisfy "
                             + "abs(offset) < slide and size > 0");
         }
+        if (size / slide > 10000000) {
+            throw new IllegalArgumentException(
+                    "SlidingEventTimeWindows parameters must satisfy "
+                            + "size / slide <= 10000000");
+        }
 
         this.size = size;
         this.slide = slide;
