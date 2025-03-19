@@ -18,19 +18,24 @@
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-class TestJobInformation implements JobInformation {
+public class TestJobInformation implements JobInformation {
 
     private final Map<JobVertexID, VertexInformation> vertexIdToInformation;
-    private final Collection<SlotSharingGroup> slotSharingGroups;
+    private final Set<SlotSharingGroup> slotSharingGroups;
+    private final Set<CoLocationGroup> coLocationGroups;
 
-    TestJobInformation(Collection<? extends VertexInformation> vertexIdToInformation) {
+    public TestJobInformation(Collection<? extends VertexInformation> vertexIdToInformation) {
         this.vertexIdToInformation =
                 vertexIdToInformation.stream()
                         .collect(
@@ -40,11 +45,22 @@ class TestJobInformation implements JobInformation {
                 vertexIdToInformation.stream()
                         .map(VertexInformation::getSlotSharingGroup)
                         .collect(Collectors.toSet());
+        this.coLocationGroups =
+                Collections.unmodifiableSet(
+                        vertexIdToInformation.stream()
+                                .map(VertexInformation::getCoLocationGroup)
+                                .filter(Objects::nonNull)
+                                .collect(Collectors.toSet()));
     }
 
     @Override
     public Collection<SlotSharingGroup> getSlotSharingGroups() {
         return slotSharingGroups;
+    }
+
+    @Override
+    public Collection<CoLocationGroup> getCoLocationGroups() {
+        return coLocationGroups;
     }
 
     @Override
