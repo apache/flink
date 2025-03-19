@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream.OutputMode;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.AsyncRetryStrategy;
+import org.apache.flink.streaming.api.functions.async.CollectionSupplier;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
@@ -505,6 +506,27 @@ public class AsyncWaitOperator<IN, OUT>
             }
         }
 
+        @Override
+        public void complete(CollectionSupplier<OUT> supplier) {
+            Preconditions.checkNotNull(
+                    supplier, "Runnable must not be null, return empty collection to emit nothing");
+            if (!retryDisabledOnFinish.get() && resultHandler.inputRecord.isRecord()) {
+                mailboxExecutor.submit(
+                        () -> {
+                            try {
+                                processRetry(supplier.get(), null);
+                            } catch (Throwable t) {
+                                processRetry(null, t);
+                            }
+                        },
+                        "RetryableResultHandlerDelegator#complete");
+            } else {
+                cancelRetryTimer();
+
+                resultHandler.complete(supplier);
+            }
+        }
+
         private void processRetryInMailBox(Collection<OUT> results, Throwable error) {
             mailboxExecutor.execute(
                     () -> processRetry(results, error), "delayed retry or complete");
@@ -598,6 +620,21 @@ public class AsyncWaitOperator<IN, OUT>
             }
 
             processInMailbox(results);
+        }
+
+        @Override
+        public void complete(CollectionSupplier<OUT> supplier) {
+            // already completed (exceptionally or with previous complete call from ill-written
+            // AsyncFunction), so ignore additional result
+            if (!completed.compareAndSet(false, true)) {
+                return;
+            }
+            mailboxExecutor.execute(
+                    () -> {
+                        // If there is an exception, let it bubble up and fail the job.
+                        processResults(supplier.get());
+                    },
+                    "ResultHandler#complete");
         }
 
         private void processInMailbox(Collection<OUT> results) {
