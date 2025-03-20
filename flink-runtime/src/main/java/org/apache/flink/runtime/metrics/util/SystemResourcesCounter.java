@@ -54,8 +54,8 @@ public class SystemResourcesCounter extends Thread {
 
     private long[] previousCpuTicks;
     private long[][] previousProcCpuTicks;
-    private long[] bytesReceivedPerInterface;
-    private AtomicLongArray bytesSentPerInterface;
+    private AtomicLongArray bytesReceivedPerInterface;
+    private long[] bytesSentPerInterface;
 
     private volatile double cpuUser;
     private volatile double cpuNice;
@@ -89,8 +89,8 @@ public class SystemResourcesCounter extends Thread {
                         hardwareAbstractionLayer.getProcessor().getLogicalProcessorCount());
 
         List<NetworkIF> networkIFs = hardwareAbstractionLayer.getNetworkIFs();
-        bytesReceivedPerInterface = new long[networkIFs.size()];
-        bytesSentPerInterface = new AtomicLongArray(networkIFs.size());
+        bytesReceivedPerInterface = new AtomicLongArray(networkIFs.size());
+        bytesSentPerInterface = new long[networkIFs.size()];
         receiveRatePerInterface = new AtomicLongArray(networkIFs.size());
         sendRatePerInterface = new AtomicLongArray(networkIFs.size());
         networkInterfaceNames = new String[networkIFs.size()];
@@ -269,15 +269,15 @@ public class SystemResourcesCounter extends Thread {
 
             receiveRatePerInterface.set(
                     i,
-                    (networkIF.getBytesRecv() - bytesReceivedPerInterface[i])
+                    (networkIF.getBytesRecv() - bytesReceivedPerInterface.get(i))
                             * 1000
                             / probeIntervalMs);
             sendRatePerInterface.set(
                     i,
-                    (networkIF.getBytesSent() - bytesSentPerInterface.get(i)) * 1000 / probeIntervalMs);
+                    (networkIF.getBytesSent() - bytesSentPerInterface[i]) * 1000 / probeIntervalMs);
 
-            bytesReceivedPerInterface[i] = networkIF.getBytesRecv();
-            bytesSentPerInterface.get(i) = networkIF.getBytesSent();
+            bytesReceivedPerInterface.set(i, networkIF.getBytesRecv());
+            bytesSentPerInterface[i] = networkIF.getBytesSent();
         }
     }
 }
