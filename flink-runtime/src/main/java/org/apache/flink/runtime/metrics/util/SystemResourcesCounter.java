@@ -55,7 +55,7 @@ public class SystemResourcesCounter extends Thread {
     private long[] previousCpuTicks;
     private long[][] previousProcCpuTicks;
     private long[] bytesReceivedPerInterface;
-    private long[] bytesSentPerInterface;
+    private AtomicLongArray bytesSentPerInterface;
 
     private volatile double cpuUser;
     private volatile double cpuNice;
@@ -90,7 +90,7 @@ public class SystemResourcesCounter extends Thread {
 
         List<NetworkIF> networkIFs = hardwareAbstractionLayer.getNetworkIFs();
         bytesReceivedPerInterface = new long[networkIFs.size()];
-        bytesSentPerInterface = new long[networkIFs.size()];
+        bytesSentPerInterface = new AtomicLongArray(networkIFs.size());
         receiveRatePerInterface = new AtomicLongArray(networkIFs.size());
         sendRatePerInterface = new AtomicLongArray(networkIFs.size());
         networkInterfaceNames = new String[networkIFs.size()];
@@ -274,10 +274,10 @@ public class SystemResourcesCounter extends Thread {
                             / probeIntervalMs);
             sendRatePerInterface.set(
                     i,
-                    (networkIF.getBytesSent() - bytesSentPerInterface[i]) * 1000 / probeIntervalMs);
+                    (networkIF.getBytesSent() - bytesSentPerInterface.get(i)) * 1000 / probeIntervalMs);
 
             bytesReceivedPerInterface[i] = networkIF.getBytesRecv();
-            bytesSentPerInterface[i] = networkIF.getBytesSent();
+            bytesSentPerInterface.get(i) = networkIF.getBytesSent();
         }
     }
 }
