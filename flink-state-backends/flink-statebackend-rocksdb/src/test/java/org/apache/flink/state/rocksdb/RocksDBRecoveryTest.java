@@ -52,6 +52,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RunnableFuture;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.core.fs.Path.fromLocalFile;
 import static org.apache.flink.core.fs.local.LocalFileSystem.getSharedInstance;
@@ -222,9 +223,13 @@ public class RocksDBRecoveryTest {
 
                     int count = 0;
                     for (RocksDBKeyedStateBackend<Integer> backend : backends) {
-                        count += backend.getKeys(stateName, VoidNamespace.INSTANCE).count();
-                        IOUtils.closeQuietly(backend);
-                        backend.dispose();
+                        try (Stream<Integer> keyStream =
+                                backend.getKeys(stateName, VoidNamespace.INSTANCE)) {
+                            count += keyStream.count();
+                        } finally {
+                            IOUtils.closeQuietly(backend);
+                            backend.dispose();
+                        }
                     }
                     Assertions.assertEquals(numKeys, count);
                     backends.clear();
@@ -242,9 +247,13 @@ public class RocksDBRecoveryTest {
 
                     count = 0;
                     for (RocksDBKeyedStateBackend<Integer> backend : backends) {
-                        count += backend.getKeys(stateName, VoidNamespace.INSTANCE).count();
-                        IOUtils.closeQuietly(backend);
-                        backend.dispose();
+                        try (Stream<Integer> keyStream =
+                                backend.getKeys(stateName, VoidNamespace.INSTANCE)) {
+                            count += keyStream.count();
+                        } finally {
+                            IOUtils.closeQuietly(backend);
+                            backend.dispose();
+                        }
                     }
                     Assertions.assertEquals(numKeys, count);
                     rescaleSnapshotResult.clear();
