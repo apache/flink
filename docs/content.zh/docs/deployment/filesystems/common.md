@@ -50,9 +50,9 @@ fs.default-scheme: <default-fs>
 要限制文件系统的连接数，可将下列配置添加至 Flink 配置中。设置限制的文件系统由其 scheme 指定：
 
 ```yaml
-fs.<scheme>.limit.total: (数量，0/-1 表示无限制)
-fs.<scheme>.limit.input: (数量，0/-1 表示无限制)
-fs.<scheme>.limit.output: (数量，0/-1 表示无限制)
+fs.<scheme>.limit.total: (数量，0/-1 表示无连接限制)
+fs.<scheme>.limit.input: (数量，0/-1 表示无输入连接限制)
+fs.<scheme>.limit.output: (数量，0/-1 表示无输出连接限制)
 fs.<scheme>.limit.timeout: (毫秒，0 表示无穷)
 fs.<scheme>.limit.stream-timeout: (毫秒，0 表示无穷)
 ```
