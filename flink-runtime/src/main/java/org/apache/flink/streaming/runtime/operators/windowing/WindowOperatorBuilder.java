@@ -58,6 +58,7 @@ import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows.EndOfStreamTrigger;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
+import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
@@ -122,6 +123,17 @@ public class WindowOperatorBuilder<T, K, W extends Window> {
             TypeInformation<T> inputType,
             KeySelector<T, K> keySelector,
             TypeInformation<K> keyType) {
+        if (windowAssigner instanceof SlidingEventTimeWindows) {
+            SlidingEventTimeWindows slidingEventTimeWindows =
+                    ((SlidingEventTimeWindows) windowAssigner);
+            if (slidingEventTimeWindows.getSize() / slidingEventTimeWindows.getSlide()
+                    > config.getMaxWindowNum()) {
+                throw new IllegalArgumentException(
+                        "SlidingEventTimeWindows parameters must satisfy "
+                                + "size / slide <= 10000000");
+            }
+        }
+
         this.windowAssigner = windowAssigner;
         this.config = config;
         this.inputType = inputType;

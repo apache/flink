@@ -472,6 +472,12 @@ public class CoreOptions {
                     .defaultValue(1)
                     .withDescription("Default parallelism for jobs.");
 
+    public static final ConfigOption<Integer> MAX_WINDOW_NUM =
+            ConfigOptions.key("max.window.num")
+                    .intType()
+                    .defaultValue(10000000)
+                    .withDescription("The maximum number of windows for jobs.");
+
     // ------------------------------------------------------------------------
     //  file systems
     // ------------------------------------------------------------------------
