@@ -566,11 +566,10 @@ class StreamExecutionEnvironment(object):
         jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
         env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
             .getEnvironmentConfig(self._j_stream_execution_environment)
-        old_jar_paths = env_config.getString(jars_key, None)
-        joined_jars_path = ';'.join(jars_path)
-        if old_jar_paths and old_jar_paths.strip():
-            joined_jars_path = ';'.join([old_jar_paths, joined_jars_path])
-        env_config.setString(jars_key, joined_jars_path)
+        old_jars_path = env_config.getString(jars_key, None)
+        old_jars_list = Configuration.parse_list_value(old_jars_path)
+        joined_jars_list = [*old_jars_list, *jars_path]
+        env_config.setString(jars_key, str(joined_jars_list))
 
     def add_classpaths(self, *classpaths: str):
         """
@@ -585,10 +584,9 @@ class StreamExecutionEnvironment(object):
         env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
             .getEnvironmentConfig(self._j_stream_execution_environment)
         old_classpaths = env_config.getString(classpaths_key, None)
-        joined_classpaths = ';'.join(list(classpaths))
-        if old_classpaths and old_classpaths.strip():
-            joined_classpaths = ';'.join([old_classpaths, joined_classpaths])
-        env_config.setString(classpaths_key, joined_classpaths)
+        old_classpaths_list = Configuration.parse_list_value(old_classpaths)
+        joined_classpaths_list = [*old_classpaths_list, *classpaths]
+        env_config.setString(classpaths_key, str(joined_classpaths_list))
 
     def get_default_local_parallelism(self) -> int:
         """
