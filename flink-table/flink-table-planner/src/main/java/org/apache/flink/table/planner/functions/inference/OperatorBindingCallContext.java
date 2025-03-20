@@ -60,6 +60,7 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
     private final SqlOperatorBinding binding;
     private final List<DataType> argumentDataTypes;
     private final @Nullable DataType outputDataType;
+    private final @Nullable List<Integer> inputTimeColumns;
     private final @Nullable List<ChangelogMode> inputChangelogModes;
 
     public OperatorBindingCallContext(
@@ -67,7 +68,7 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
             FunctionDefinition definition,
             SqlOperatorBinding binding,
             RelDataType returnRelDataType) {
-        this(dataTypeFactory, definition, binding, returnRelDataType, null);
+        this(dataTypeFactory, definition, binding, returnRelDataType, null, null);
     }
 
     public OperatorBindingCallContext(
@@ -75,6 +76,7 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
             FunctionDefinition definition,
             SqlOperatorBinding binding,
             RelDataType returnRelDataType,
+            @Nullable List<Integer> inputTimeColumns,
             @Nullable List<ChangelogMode> inputChangelogModes) {
         super(
                 dataTypeFactory,
@@ -101,6 +103,7 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
                 returnRelDataType != null
                         ? fromLogicalToDataType(toLogicalType(returnRelDataType))
                         : null;
+        this.inputTimeColumns = inputTimeColumns;
         this.inputChangelogModes = inputChangelogModes;
     }
 
@@ -116,7 +119,7 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
         // Default values are passed as NULL into functions.
         // We can introduce a dedicated CallContext.isDefault() method in the future if fine-grained
         // information is required.
-        return binding.isOperandNull(pos, false) || isDefault(pos);
+        return binding.isOperandNull(pos, true) || isDefault(pos);
     }
 
     @Override
@@ -155,13 +158,21 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
         if (tableArgCall == null) {
             return Optional.empty();
         }
+        final Integer timeColumn =
+                Optional.ofNullable(inputTimeColumns)
+                        .map(m -> m.get(tableArgCall.getInputIndex()))
+                        .orElse(-1);
         final ChangelogMode changelogMode =
                 Optional.ofNullable(inputChangelogModes)
                         .map(m -> m.get(tableArgCall.getInputIndex()))
                         .orElse(null);
         return Optional.of(
                 OperatorBindingTableSemantics.create(
-                        argumentDataTypes.get(pos), staticArg, tableArgCall, changelogMode));
+                        argumentDataTypes.get(pos),
+                        staticArg,
+                        tableArgCall,
+                        timeColumn,
+                        changelogMode));
     }
 
     @Override
@@ -234,26 +245,31 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
 
         private final DataType dataType;
         private final int[] partitionByColumns;
+        private final int timeColumn;
         private final @Nullable ChangelogMode changelogMode;
 
         public static OperatorBindingTableSemantics create(
                 DataType tableDataType,
                 StaticArgument staticArg,
                 RexTableArgCall tableArgCall,
+                int timeColumn,
                 @Nullable ChangelogMode changelogMode) {
             checkNoOrderBy(tableArgCall);
             return new OperatorBindingTableSemantics(
                     createDataType(tableDataType, staticArg),
                     tableArgCall.getPartitionKeys(),
+                    timeColumn,
                     changelogMode);
         }
 
         private OperatorBindingTableSemantics(
                 DataType dataType,
                 int[] partitionByColumns,
+                int timeColumn,
                 @Nullable ChangelogMode changelogMode) {
             this.dataType = dataType;
             this.partitionByColumns = partitionByColumns;
+            this.timeColumn = timeColumn;
             this.changelogMode = changelogMode;
         }
 
@@ -290,7 +306,7 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
 
         @Override
         public int timeColumn() {
-            return -1;
+            return timeColumn;
         }
 
         @Override

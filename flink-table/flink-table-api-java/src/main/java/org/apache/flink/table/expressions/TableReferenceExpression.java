@@ -19,13 +19,22 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.operations.OperationUtils;
+import org.apache.flink.table.operations.PartitionQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Expression that references another table.
@@ -37,10 +46,22 @@ public final class TableReferenceExpression implements ResolvedExpression {
 
     private final String name;
     private final QueryOperation queryOperation;
+    // The environment is optional but serves validation purposes
+    // to ensure that all referenced tables belong to the same
+    // environment.
+    private final @Nullable TableEnvironment env;
 
+    @Deprecated
     TableReferenceExpression(String name, QueryOperation queryOperation) {
         this.name = Preconditions.checkNotNull(name);
         this.queryOperation = Preconditions.checkNotNull(queryOperation);
+        this.env = null;
+    }
+
+    TableReferenceExpression(String name, QueryOperation queryOperation, TableEnvironment env) {
+        this.name = Preconditions.checkNotNull(name);
+        this.queryOperation = Preconditions.checkNotNull(queryOperation);
+        this.env = Preconditions.checkNotNull(env);
     }
 
     public String getName() {
@@ -51,14 +72,38 @@ public final class TableReferenceExpression implements ResolvedExpression {
         return queryOperation;
     }
 
+    public @Nullable TableEnvironment getTableEnvironment() {
+        return env;
+    }
+
     @Override
     public DataType getOutputDataType() {
-        return queryOperation.getResolvedSchema().toSourceRowDataType();
+        // Make sure time attributes are not erased
+        final ResolvedSchema resolvedSchema = queryOperation.getResolvedSchema();
+        final List<String> fieldNames = resolvedSchema.getColumnNames();
+        final List<DataType> fieldTypes = resolvedSchema.getColumnDataTypes();
+        return DataTypes.ROW(
+                        IntStream.range(0, fieldNames.size())
+                                .mapToObj(
+                                        pos ->
+                                                DataTypes.FIELD(
+                                                        fieldNames.get(pos), fieldTypes.get(pos)))
+                                .collect(Collectors.toList()))
+                .notNull();
     }
 
     @Override
     public List<ResolvedExpression> getResolvedChildren() {
         return Collections.emptyList();
+    }
+
+    @Override
+    public String asSerializableString() {
+        if (queryOperation instanceof PartitionQueryOperation) {
+            return OperationUtils.indent(queryOperation.asSerializableString());
+        }
+        return String.format(
+                "(%s\n)", OperationUtils.indent(queryOperation.asSerializableString()));
     }
 
     @Override
@@ -86,12 +131,14 @@ public final class TableReferenceExpression implements ResolvedExpression {
         }
         TableReferenceExpression that = (TableReferenceExpression) o;
         return Objects.equals(name, that.name)
-                && Objects.equals(queryOperation, that.queryOperation);
+                && Objects.equals(queryOperation, that.queryOperation)
+                // Effectively means reference equality
+                && Objects.equals(env, that.env);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, queryOperation);
+        return Objects.hash(name, queryOperation, env);
     }
 
     @Override

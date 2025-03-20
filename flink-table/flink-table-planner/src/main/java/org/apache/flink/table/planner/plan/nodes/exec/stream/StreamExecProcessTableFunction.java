@@ -183,12 +183,17 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
                                             tabledArg, tableArgCall, onTimeFields);
                                 })
                         .collect(Collectors.toList());
+        final List<Integer> timeColumns =
+                runtimeTableSemantics.stream()
+                        .map(RuntimeTableSemantics::timeColumn)
+                        .collect(Collectors.toList());
 
         final CodeGeneratorContext ctx =
                 new CodeGeneratorContext(config, planner.getFlinkContext().getClassLoader());
 
         final GeneratedRunnerResult generated =
-                ProcessTableRunnerGenerator.generate(ctx, invocation, inputChangelogModes);
+                ProcessTableRunnerGenerator.generate(
+                        ctx, invocation, timeColumns, inputChangelogModes);
         final GeneratedProcessTableRunner generatedRunner = generated.runner();
         final LinkedHashMap<String, StateInfo> stateInfos = generated.stateInfos();
 

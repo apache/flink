@@ -19,27 +19,30 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.expressions.TableReferenceExpression;
+import org.apache.flink.table.types.DataType;
 
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
-/** Describes a relational operation that was created from applying a {@link TableFunction}. */
+/** Describes a relational operation that was created from applying a (process) table function. */
 @Internal
-public class CalculatedQueryOperation implements QueryOperation {
+public class FunctionQueryOperation implements QueryOperation {
 
-    public static final String INPUT_ALIAS = "$$T_LAT";
+    private static final String INPUT_ALIAS = "$$T_FUNC";
 
     private final ContextResolvedFunction resolvedFunction;
     private final List<ResolvedExpression> arguments;
     private final ResolvedSchema resolvedSchema;
 
-    public CalculatedQueryOperation(
+    public FunctionQueryOperation(
             ContextResolvedFunction resolvedFunction,
             List<ResolvedExpression> arguments,
             ResolvedSchema resolvedSchema) {
@@ -56,41 +59,58 @@ public class CalculatedQueryOperation implements QueryOperation {
         return arguments;
     }
 
+    public DataType getOutputDataType() {
+        // Make sure time attributes are not erased
+        final List<String> fieldNames = resolvedSchema.getColumnNames();
+        final List<DataType> fieldTypes = resolvedSchema.getColumnDataTypes();
+        return DataTypes.ROW(
+                        IntStream.range(0, fieldNames.size())
+                                .mapToObj(
+                                        pos ->
+                                                DataTypes.FIELD(
+                                                        fieldNames.get(pos), fieldTypes.get(pos)))
+                                .collect(Collectors.toList()))
+                .notNull();
+    }
+
+    @Override
+    public String asSummaryString() {
+        final Map<String, Object> args = new LinkedHashMap<>();
+        args.put("function", resolvedFunction);
+        args.put("arguments", arguments);
+
+        return OperationUtils.formatWithChildren(
+                "Function", args, getChildren(), Operation::asSummaryString);
+    }
+
     @Override
     public ResolvedSchema getResolvedSchema() {
         return resolvedSchema;
     }
 
     @Override
-    public String asSummaryString() {
-        Map<String, Object> args = new LinkedHashMap<>();
-        args.put("function", resolvedFunction);
-        args.put("arguments", arguments);
-
-        return OperationUtils.formatWithChildren(
-                "CalculatedTable", args, getChildren(), Operation::asSummaryString);
-    }
-
-    @Override
     public String asSerializableString() {
-        // if we ever add multi-way join in JoinQueryOperation we need to sort out uniqueness of the
-        // table name
         return String.format(
-                "LATERAL TABLE(%s) %s(%s)",
-                resolvedFunction
-                        .toCallExpression(arguments, resolvedSchema.toPhysicalRowDataType())
-                        .asSerializableString(),
-                INPUT_ALIAS,
-                OperationUtils.formatSelectColumns(resolvedSchema, null));
+                "SELECT %s FROM TABLE(%s\n) %s",
+                OperationUtils.formatSelectColumns(getResolvedSchema(), INPUT_ALIAS),
+                OperationUtils.indent(
+                        resolvedFunction
+                                .toCallExpression(arguments, resolvedSchema.toPhysicalRowDataType())
+                                .asSerializableString()),
+                INPUT_ALIAS);
     }
 
     @Override
     public List<QueryOperation> getChildren() {
-        return Collections.emptyList();
+        return arguments.stream()
+                .filter(TableReferenceExpression.class::isInstance)
+                .map(TableReferenceExpression.class::cast)
+                .map(TableReferenceExpression::getQueryOperation)
+                .collect(Collectors.toList());
     }
 
     @Override
-    public <U> U accept(QueryOperationVisitor<U> visitor) {
+    public <T> T accept(QueryOperationVisitor<T> visitor) {
         return visitor.visit(this);
     }
 }
