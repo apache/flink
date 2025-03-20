@@ -1545,7 +1545,10 @@ class TableEnvironment(object):
         if jar_urls:
             jvm = get_gateway().jvm
             jar_urls_list = []
-            parsed_jar_urls = Configuration.parse_jars_value(jar_urls, jvm)
+            parsed_jar_urls = Configuration.parse_list_value(
+                jar_urls,
+                jvm.org.apache.flink.configuration.GlobalConfiguration.isStandardYaml()
+            )
             url_strings = [
                 jvm.java.net.URL(url).toString() if url else ""
                 for url in parsed_jar_urls
@@ -1553,9 +1556,9 @@ class TableEnvironment(object):
             self._parse_urls(url_strings, jar_urls_list)
 
             j_configuration = get_j_env_configuration(self._get_j_env())
-            parsed_jar_urls = Configuration.parse_jars_value(
+            parsed_jar_urls = Configuration.parse_list_value(
                 j_configuration.getString(config_key, ""),
-                jvm
+                jvm.org.apache.flink.configuration.GlobalConfiguration.isStandardYaml()
             )
             self._parse_urls(parsed_jar_urls, jar_urls_list)
 
