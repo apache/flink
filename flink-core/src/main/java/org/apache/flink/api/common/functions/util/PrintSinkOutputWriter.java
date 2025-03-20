@@ -30,16 +30,13 @@ public class PrintSinkOutputWriter<IN> implements Serializable, SinkWriter<IN> {
 
     private static final long serialVersionUID = 1L;
 
-    private static final boolean STD_OUT = false;
-    private static final boolean STD_ERR = true;
-
     private final boolean isStdErr;
     private transient PrintStream stream;
     private final String sinkIdentifier;
     private transient String completedPrefix;
 
     public PrintSinkOutputWriter() {
-        this("", STD_OUT);
+        this("", false);
     }
 
     public PrintSinkOutputWriter(final boolean isStdErr) {
