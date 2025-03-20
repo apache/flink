@@ -145,6 +145,12 @@ public class UnregisteredMetricsGroup implements MetricGroup {
         public Counter getNumBytesOutCounter() {
             return new SimpleCounter();
         }
+
+        @Override
+        public void reuseInputMetricsForTask() {}
+
+        @Override
+        public void reuseOutputMetricsForTask() {}
     }
 
     private static class UnregisteredSourceReaderMetricGroup extends UnregisteredMetricsGroup
