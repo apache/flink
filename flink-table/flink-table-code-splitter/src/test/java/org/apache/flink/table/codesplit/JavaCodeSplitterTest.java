@@ -33,12 +33,12 @@ class JavaCodeSplitterTest {
 
     @Test
     void testSplitJavaCode() {
-        runTest("TestSplitJavaCode", 100, 3);
+        runTest("TestSplitJavaCode", 100, 3, 1);
     }
 
     @Test
     void testNotSplitJavaCode() {
-        runTest("TestNotSplitJavaCode", 4000, 10000);
+        runTest("TestNotSplitJavaCode", 4000, 10000, 1000);
     }
 
     @Test
@@ -47,21 +47,24 @@ class JavaCodeSplitterTest {
         assertThatThrownBy(
                         () ->
                                 JavaCodeSplitter.split(
-                                        "public class InvalidClass { return 1; }", 4000, 10000))
+                                        "public class InvalidClass { return 1; }",
+                                        4000,
+                                        10000,
+                                        1000))
                 .hasMessageContaining(
                         "JavaCodeSplitter failed. This is a bug. Please file an issue.");
     }
 
     @Test
     public void testNullCode() {
-        assertThatThrownBy(() -> JavaCodeSplitter.split(null, 4000, 10000))
+        assertThatThrownBy(() -> JavaCodeSplitter.split(null, 4000, 10000, 1000))
                 .cause()
                 .hasMessage("code cannot be empty");
     }
 
     @Test
     public void testEmptyCode() {
-        assertThatThrownBy(() -> JavaCodeSplitter.split("", 4000, 10000))
+        assertThatThrownBy(() -> JavaCodeSplitter.split("", 4000, 10000, 1000))
                 .cause()
                 .hasMessage("code cannot be empty");
     }
@@ -71,7 +74,7 @@ class JavaCodeSplitterTest {
         assertThatThrownBy(
                         () ->
                                 JavaCodeSplitter.split(
-                                        "public interface DummyInterface {}", 0, 10000))
+                                        "public interface DummyInterface {}", 0, 10000, 1000))
                 .cause()
                 .hasMessage("maxMethodLength must be greater than 0");
     }
@@ -79,9 +82,21 @@ class JavaCodeSplitterTest {
     @Test
     public void testWrongMaxClassMemberCount() {
         assertThatThrownBy(
-                        () -> JavaCodeSplitter.split("public interface DummyInterface {}", 10, 0))
+                        () ->
+                                JavaCodeSplitter.split(
+                                        "public interface DummyInterface {}", 10, 0, 1000))
                 .cause()
                 .hasMessage("maxClassMemberCount must be greater than 0");
+    }
+
+    @Test
+    public void testWrongFieldsPerInitMethod() {
+        assertThatThrownBy(
+                        () ->
+                                JavaCodeSplitter.split(
+                                        "public interface DummyInterface {}", 10, 10000, 0))
+                .getCause()
+                .hasMessage("fieldsPerInitMethod must be greater than 0");
     }
 
     /**
@@ -95,7 +110,7 @@ class JavaCodeSplitterTest {
         CodeSplitTestUtil.tryCompile("splitter/expected/");
     }
 
-    private void runTest(String filename, int maxLength, int maxMembers) {
+    private void runTest(String filename, int maxLength, int maxMembers, int fieldsPerInitMethod) {
         try {
             String code =
                     FileUtils.readFileUtf8(
@@ -116,7 +131,8 @@ class JavaCodeSplitterTest {
             // trim every line of the "class". Before this change, code-splitter test could fail on
             // Windows machines while passing on Unix.
             expected = trimLines(expected);
-            String actual = JavaCodeSplitter.split(code, maxLength, maxMembers);
+            String actual =
+                    JavaCodeSplitter.split(code, maxLength, maxMembers, fieldsPerInitMethod);
 
             assertThat(trimLines(actual)).isEqualTo(expected);
         } catch (Exception e) {
