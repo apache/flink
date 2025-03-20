@@ -73,7 +73,10 @@ public final class Savepoint {
 
         SavepointMetadata savepointMetadata =
                 new SavepointMetadata(
-                        maxParallelism, metadata.getMasterStates(), metadata.getOperatorStates());
+                        metadata.getCheckpointId(),
+                        maxParallelism,
+                        metadata.getMasterStates(),
+                        metadata.getOperatorStates());
         return new ExistingSavepoint(env, savepointMetadata, null);
     }
 
@@ -102,7 +105,10 @@ public final class Savepoint {
 
         SavepointMetadata savepointMetadata =
                 new SavepointMetadata(
-                        maxParallelism, metadata.getMasterStates(), metadata.getOperatorStates());
+                        metadata.getCheckpointId(),
+                        maxParallelism,
+                        metadata.getMasterStates(),
+                        metadata.getOperatorStates());
         return new ExistingSavepoint(env, savepointMetadata, stateBackend);
     }
 
@@ -124,7 +130,7 @@ public final class Savepoint {
 
         SavepointMetadata metadata =
                 new SavepointMetadata(
-                        maxParallelism, Collections.emptyList(), Collections.emptyList());
+                        0L, maxParallelism, Collections.emptyList(), Collections.emptyList());
         return new NewSavepoint(metadata, null);
     }
 
@@ -147,7 +153,7 @@ public final class Savepoint {
 
         SavepointMetadata metadata =
                 new SavepointMetadata(
-                        maxParallelism, Collections.emptyList(), Collections.emptyList());
+                        0L, maxParallelism, Collections.emptyList(), Collections.emptyList());
         return new NewSavepoint(metadata, stateBackend);
     }
 }

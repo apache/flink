@@ -61,7 +61,7 @@ public class KeyedStateBootstrapOperatorTest {
 
         OperatorSubtaskState state;
         KeyedStateBootstrapOperator<Long, Long> bootstrapOperator =
-                new KeyedStateBootstrapOperator<>(0L, path, new TimerBootstrapFunction());
+                new KeyedStateBootstrapOperator<>(0L, 0L, path, new TimerBootstrapFunction());
         try (KeyedOneInputStreamOperatorTestHarness<Long, Long, TaggedOperatorSubtaskState>
                 harness = getHarness(bootstrapOperator)) {
             processElements(harness, 1L, 2L, 3L);
@@ -92,7 +92,7 @@ public class KeyedStateBootstrapOperatorTest {
 
         OperatorSubtaskState state;
         KeyedStateBootstrapOperator<Long, Long> bootstrapOperator =
-                new KeyedStateBootstrapOperator<>(0L, path, new SimpleBootstrapFunction());
+                new KeyedStateBootstrapOperator<>(0L, 0L, path, new SimpleBootstrapFunction());
         try (KeyedOneInputStreamOperatorTestHarness<Long, Long, TaggedOperatorSubtaskState>
                 harness = getHarness(bootstrapOperator)) {
             processElements(harness, 1L, 2L, 3L);

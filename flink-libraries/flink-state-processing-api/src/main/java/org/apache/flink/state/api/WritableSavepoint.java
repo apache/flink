@@ -140,7 +140,9 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
             finalOperatorStates = newOperatorStates.union(existingOperatorStates);
         }
         finalOperatorStates
-                .reduceGroup(new MergeOperatorStates(metadata.getMasterStates()))
+                .reduceGroup(
+                        new MergeOperatorStates(
+                                metadata.getCheckpointId(), metadata.getMasterStates()))
                 .name("reduce(OperatorState)")
                 .output(new SavepointOutputFormat(savepointPath))
                 .name(path);
