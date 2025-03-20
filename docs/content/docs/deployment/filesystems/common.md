@@ -52,9 +52,9 @@ To limit a specific file system's connections, add the following entries to the 
 its scheme.
 
 ```yaml
-fs.<scheme>.limit.total: (number, 0/-1 mean no limit)
-fs.<scheme>.limit.input: (number, 0/-1 mean no limit)
-fs.<scheme>.limit.output: (number, 0/-1 mean no limit)
+fs.<scheme>.limit.total: (number, 0/-1 means there is no connection limit)
+fs.<scheme>.limit.input: (number, 0/-1 means there is no input connection limit)
+fs.<scheme>.limit.output: (number, 0/-1 means there is no output connection limit)
 fs.<scheme>.limit.timeout: (milliseconds, 0 means infinite)
 fs.<scheme>.limit.stream-timeout: (milliseconds, 0 means infinite)
 ```
