@@ -27,6 +27,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogView;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
@@ -110,12 +111,14 @@ class SqlNodeConvertUtils {
             schema = ResolvedSchema.physical(aliasFieldNames, schema.getColumnDataTypes());
         }
 
-        return CatalogView.of(
-                Schema.newBuilder().fromResolvedSchema(schema).build(),
-                viewComment,
-                originalQuery,
-                expandedQuery,
-                viewOptions);
+        return new ResolvedCatalogView(
+                CatalogView.of(
+                        Schema.newBuilder().fromResolvedSchema(schema).build(),
+                        viewComment,
+                        originalQuery,
+                        expandedQuery,
+                        viewOptions),
+                schema);
     }
 
     /**
