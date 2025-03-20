@@ -35,6 +35,7 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.dialect.AnsiSqlDialect;
+import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.validate.SqlValidator;
 
@@ -43,6 +44,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig;
 
@@ -75,6 +77,23 @@ public class SqlNodeConvertContext implements SqlNodeConverter.ConvertContext {
     @Override
     public FlinkPlannerImpl getFlinkPlanner() {
         return flinkPlanner;
+    }
+
+    @Override
+    public Function<SqlNode, String> getEscapeExpression() {
+        return this::getQuotedSqlString;
+    }
+
+    private String getQuotedSqlString(SqlNode sqlNode) {
+        SqlParser.Config parserConfig = flinkPlanner.config().getParserConfig();
+        SqlDialect dialect =
+                new CalciteSqlDialect(
+                        SqlDialect.EMPTY_CONTEXT
+                                .withQuotedCasing(parserConfig.unquotedCasing())
+                                .withConformance(parserConfig.conformance())
+                                .withUnquotedCasing(parserConfig.unquotedCasing())
+                                .withIdentifierQuoteString(parserConfig.quoting().string));
+        return sqlNode.toSqlString(dialect).getSql();
     }
 
     @Override
