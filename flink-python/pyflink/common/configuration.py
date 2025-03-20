@@ -69,20 +69,24 @@ class Configuration:
         jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
         classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
         if key in [jars_key, classpaths_key]:
-            jar_urls = Configuration.parse_jars_value(value, jvm)
+            jar_urls = Configuration.parse_list_value(
+                value,
+                jvm.org.apache.flink.configuration.GlobalConfiguration.isStandardYaml()
+            )
             add_jars_to_context_class_loader(jar_urls)
         self._j_configuration.setString(key, value)
         return self
 
     @staticmethod
-    def parse_jars_value(value: str, jvm):
-        is_standard_yaml = jvm.org.apache.flink.configuration.GlobalConfiguration.isStandardYaml()
-        if is_standard_yaml:
+    def parse_list_value(value: str, standard_yaml: bool = True):
+        if not value:
+            return []
+        if standard_yaml:
             from ruamel.yaml import YAML
             yaml = YAML(typ='safe')
-            jar_urls_list = yaml.load(value)
-            if isinstance(jar_urls_list, list):
-                return jar_urls_list
+            value_list = yaml.load(value)
+            if isinstance(value_list, list):
+                return value_list
         return value.split(";")
 
     def get_integer(self, key: str, default_value: int) -> int:
