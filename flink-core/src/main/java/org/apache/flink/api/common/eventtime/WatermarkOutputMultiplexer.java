@@ -49,11 +49,13 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public class WatermarkOutputMultiplexer {
     /** A callback for propagating changes to split based watermarks. */
-    @FunctionalInterface
     @Internal
     public interface WatermarkUpdateListener {
         /** Called when the watermark increases. */
         void onWatermarkUpdate(long watermark);
+
+        /** Called when the idle state changes. */
+        void onIdleUpdate(boolean idle);
     }
 
     /**
@@ -93,6 +95,11 @@ public class WatermarkOutputMultiplexer {
         checkState(previouslyRegistered == null, "Already contains an output for ID %s", id);
 
         combinedWatermarkStatus.add(outputState);
+    }
+
+    /** Registers a new multiplexed output with a no-op listener. */
+    public void registerNewOutput(String id) {
+        registerNewOutput(id, new NoOpWatermarkUpdateListener());
     }
 
     public boolean unregisterOutput(String id) {
@@ -222,5 +229,15 @@ public class WatermarkOutputMultiplexer {
         public void markActive() {
             state.setIdle(false);
         }
+    }
+
+    /** A No-op implementation of {@link WatermarkUpdateListener}. */
+    @Internal
+    public static class NoOpWatermarkUpdateListener implements WatermarkUpdateListener {
+        @Override
+        public void onWatermarkUpdate(long watermark) {}
+
+        @Override
+        public void onIdleUpdate(boolean idle) {}
     }
 }
