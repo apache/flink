@@ -19,18 +19,17 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /** Describes a relational operation that was created from applying a (process) table function. */
 @Internal
@@ -60,17 +59,7 @@ public class FunctionQueryOperation implements QueryOperation {
     }
 
     public DataType getOutputDataType() {
-        // Make sure time attributes are not erased
-        final List<String> fieldNames = resolvedSchema.getColumnNames();
-        final List<DataType> fieldTypes = resolvedSchema.getColumnDataTypes();
-        return DataTypes.ROW(
-                        IntStream.range(0, fieldNames.size())
-                                .mapToObj(
-                                        pos ->
-                                                DataTypes.FIELD(
-                                                        fieldNames.get(pos), fieldTypes.get(pos)))
-                                .collect(Collectors.toList()))
-                .notNull();
+        return DataTypeUtils.fromResolvedSchemaPreservingTimeAttributes(resolvedSchema);
     }
 
     @Override

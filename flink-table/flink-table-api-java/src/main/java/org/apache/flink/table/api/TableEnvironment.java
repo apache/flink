@@ -974,7 +974,7 @@ public interface TableEnvironment {
      * function kind for Flink SQL and Table API. They enable implementing user-defined operators
      * that can be as feature-rich as built-in operations. PTFs have access to Flink's managed
      * state, event-time and timer services, underlying table changelogs, and can take multiple
-     * ordered and/or partitioned tables to produce a new table.
+     * partitioned tables to produce a new table.
      *
      * <p>This method assumes a call to a previously registered function.
      *
@@ -1010,7 +1010,7 @@ public interface TableEnvironment {
      * function kind for Flink SQL and Table API. They enable implementing user-defined operators
      * that can be as feature-rich as built-in operations. PTFs have access to Flink's managed
      * state, event-time and timer services, underlying table changelogs, and can take multiple
-     * ordered and/or partitioned tables to produce a new table.
+     * partitioned tables to produce a new table.
      *
      * <p>This method assumes a call to an unregistered, inline function.
      *
