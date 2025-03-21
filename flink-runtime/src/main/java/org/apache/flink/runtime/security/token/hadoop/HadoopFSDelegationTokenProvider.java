@@ -110,7 +110,10 @@ public class HadoopFSDelegationTokenProvider implements DelegationTokenProvider 
         return freshUGI.doAs(
                 (PrivilegedExceptionAction<ObtainedDelegationTokens>)
                         () -> {
-                            Credentials credentials = new Credentials();
+                            LOG.debug("Loading delegation tokens available to UGI current user");
+                            Credentials credentials =
+                                    new Credentials(
+                                            UserGroupInformation.getCurrentUser().getCredentials());
                             Clock clock = Clock.systemDefaultZone();
                             Set<FileSystem> fileSystemsToAccess = getFileSystemsToAccess();
 
@@ -216,7 +219,9 @@ public class HadoopFSDelegationTokenProvider implements DelegationTokenProvider 
         // So create new tokens with the logged in user as renewer
         String renewer = UserGroupInformation.getCurrentUser().getUserName();
 
-        Credentials credentials = new Credentials();
+        LOG.debug("Loading delegation tokens available to UGI current user for renewal interval");
+        Credentials credentials =
+                new Credentials(UserGroupInformation.getCurrentUser().getCredentials());
         obtainDelegationTokens(renewer, fileSystemsToAccess, credentials);
 
         Optional<Long> result =
