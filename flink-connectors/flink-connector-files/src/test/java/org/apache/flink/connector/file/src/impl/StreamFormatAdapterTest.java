@@ -29,6 +29,7 @@ import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
@@ -103,6 +104,48 @@ class StreamFormatAdapterTest extends AdapterTestBase<StreamFormat<Integer>> {
         readNumbers(reader, result, 0);
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void testSkipMissingFileIsEnabled() throws IOException {
+        final Configuration config = new Configuration();
+        config.set(StreamFormat.SKIP_MISSING_FILES, true);
+        final StreamFormatAdapter<Integer> format =
+                new StreamFormatAdapter<>(new CheckpointedIntFormat());
+
+        final File maybeMissingFile = new File(tmpDir.toFile(), "testFile-missing");
+        maybeMissingFile.createNewFile();
+        Path maybeMissingFilePath = Path.fromLocalFile(maybeMissingFile);
+        maybeMissingFile.delete();
+
+        final BulkFormat.Reader<Integer> reader =
+                format.createReader(
+                        config,
+                        new FileSourceSplit("test-id", maybeMissingFilePath, 0L, 0, 0L, 0));
+
+        final List<Integer> result = new ArrayList<>();
+        readNumbers(reader, result, 0);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void testSkipMissingFileIsNotEnabled() throws IOException {
+        final StreamFormatAdapter<Integer> format =
+                new StreamFormatAdapter<>(new CheckpointedIntFormat());
+
+        final File maybeMissingFile = new File(tmpDir.toFile(), "testFile-missing");
+        maybeMissingFile.createNewFile();
+        Path maybeMissingFilePath = Path.fromLocalFile(maybeMissingFile);
+        maybeMissingFile.delete();
+
+        Assertions.assertThatExceptionOfType(java.io.FileNotFoundException.class).isThrownBy(
+                () ->
+                        format.createReader(
+                                new Configuration(),
+                                new FileSourceSplit("test-id", maybeMissingFilePath, 0L, 0, 0L, 0))
+
+        );
     }
 
     private void simpleReadTest(int batchSize) throws IOException {
