@@ -298,8 +298,8 @@ The environment contains a Kafka topic, a continuous data generator, MySql, and 
 From within the `table-walkthrough` folder start the docker-compose script.
 
 ```bash
-$ docker-compose build
-$ docker-compose up -d
+$ docker compose build
+$ docker compose up -d
 ```
 
 You can see information on the running job via the [Flink console](http://localhost:8082/).
@@ -309,7 +309,7 @@ You can see information on the running job via the [Flink console](http://localh
 Explore the results from inside MySQL.
 
 ```bash
-$ docker-compose exec mysql mysql -Dsql-demo -usql-demo -pdemo-sql
+$ docker compose exec mysql mysql -Dsql-demo -usql-demo -pdemo-sql
 
 mysql> use sql-demo;
 Database changed
