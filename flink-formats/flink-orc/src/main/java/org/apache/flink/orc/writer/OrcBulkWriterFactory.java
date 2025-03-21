@@ -28,8 +28,10 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.orc.OrcFile;
 import org.apache.orc.impl.WriterImpl;
+import org.apache.orc.impl.writer.WriterEncryptionVariant;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -96,14 +98,29 @@ public class OrcBulkWriterFactory<T> implements BulkWriter.Factory<T> {
     @Override
     public BulkWriter<T> create(FSDataOutputStream out) throws IOException {
         OrcFile.WriterOptions opts = getWriterOptions();
-        opts.physicalWriter(new PhysicalWriterImpl(out, opts));
-
+        PhysicalWriterImpl physicalWriter = new PhysicalWriterImpl(out, opts);
+        opts.physicalWriter(physicalWriter);
         // The path of the Writer is not used to indicate the destination file
         // in this case since we have used a dedicated physical writer to write
         // to the give output stream directly. However, the path would be used as
         // the key of writer in the ORC memory manager, thus we need to make it unique.
         Path unusedPath = new Path(UUID.randomUUID().toString());
-        return new OrcBulkWriter<>(vectorizer, new WriterImpl(null, unusedPath, opts));
+        WriterImpl writer = new WriterImpl(null, unusedPath, opts);
+
+        // Obtaining encryption variant from Writer, and setting encryption variant for
+        // physicalWriter.
+        try {
+            Field encryptionFiled = WriterImpl.class.getDeclaredField("encryption");
+            encryptionFiled.setAccessible(true);
+            WriterEncryptionVariant[] encryption =
+                    (WriterEncryptionVariant[]) encryptionFiled.get(writer);
+            physicalWriter.setEncryptionVariant(encryption);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            throw new RuntimeException(
+                    "Can not access to the encryption field in Class org.apache.orc.impl.WriterImpl",
+                    e);
+        }
+        return new OrcBulkWriter<>(vectorizer, writer);
     }
 
     @VisibleForTesting
