@@ -19,7 +19,10 @@ from pyflink.java_gateway import get_gateway
 
 __all__ = ['HiveModule', 'Module', 'ModuleEntry']
 
+from pyflink.util.api_stability_decorators import PublicEvolving
 
+
+@PublicEvolving()
 class Module(object):
     """
     Modules define a set of metadata, including functions, user defined types, operators, rules,
@@ -34,6 +37,7 @@ class Module(object):
         self._j_module = j_module
 
 
+@PublicEvolving()
 class HiveModule(Module):
     """
     Module to provide Hive built-in metadata.
@@ -51,6 +55,7 @@ class HiveModule(Module):
         super(HiveModule, self).__init__(j_hive_module)
 
 
+@PublicEvolving()
 class ModuleEntry(object):
     """
     A POJO to represent a module's name and use status.
