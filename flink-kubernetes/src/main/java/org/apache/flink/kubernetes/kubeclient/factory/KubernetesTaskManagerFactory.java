@@ -23,6 +23,7 @@ import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.decorators.CmdTaskManagerDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.EnvSecretsDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.FlinkConfMountDecorator;
+import org.apache.flink.kubernetes.kubeclient.decorators.FlinkLogDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.HadoopConfMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.InitTaskManagerDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.KerberosMountDecorator;
@@ -41,6 +42,7 @@ import java.util.List;
 
 import static org.apache.flink.kubernetes.configuration.KubernetesConfigOptions.KUBERNETES_HADOOP_CONF_MOUNT_DECORATOR_ENABLED;
 import static org.apache.flink.kubernetes.configuration.KubernetesConfigOptions.KUBERNETES_KERBEROS_MOUNT_DECORATOR_ENABLED;
+import static org.apache.flink.kubernetes.configuration.KubernetesConfigOptions.KUBERNETES_LOG_MOUNT_DECORATOR_ENABLED;
 
 /** Utility class for constructing the TaskManager Pod on the JobManager. */
 public class KubernetesTaskManagerFactory {
@@ -63,6 +65,10 @@ public class KubernetesTaskManagerFactory {
         }
         if (configuration.get(KUBERNETES_KERBEROS_MOUNT_DECORATOR_ENABLED)) {
             stepDecorators.add(new KerberosMountDecorator(kubernetesTaskManagerParameters));
+        }
+
+        if (configuration.get(KUBERNETES_LOG_MOUNT_DECORATOR_ENABLED)) {
+            stepDecorators.add(new FlinkLogDecorator(kubernetesTaskManagerParameters));
         }
 
         stepDecorators.add(new FlinkConfMountDecorator(kubernetesTaskManagerParameters));
