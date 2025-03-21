@@ -40,6 +40,7 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.JsonNodeType;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.TextNode;
 
@@ -50,6 +51,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.TemporalAccessor;
 import java.time.temporal.TemporalQueries;
@@ -218,13 +220,42 @@ public class JsonToRowDataConverters implements Serializable {
     }
 
     private TimestampData convertToTimestamp(JsonNode jsonNode) {
+
+        if (jsonNode.getNodeType() == JsonNodeType.NUMBER) {
+            int length = jsonNode.asText().length();
+            long value = jsonNode.asLong();
+            if (length == 13) {
+                return TimestampData.fromEpochMillis(value);
+            } else if (length == 16) {
+                return TimestampData.fromEpochMillis(value / 1000, (int) (value % 1000 * 1000));
+            } else if (length == 19) {
+                return TimestampData.fromEpochMillis(value / 1000_000, (int) (value % 1000_000));
+            }
+        }
         TemporalAccessor parsedTimestamp;
         switch (timestampFormat) {
             case SQL:
                 parsedTimestamp = SQL_TIMESTAMP_FORMAT.parse(jsonNode.asText());
                 break;
             case ISO_8601:
-                parsedTimestamp = ISO8601_TIMESTAMP_FORMAT.parse(jsonNode.asText());
+                String str = jsonNode.asText();
+                if (!str.endsWith("Z")) {
+                    parsedTimestamp = ISO8601_TIMESTAMP_FORMAT.parse(jsonNode.asText());
+                } else {
+                    parsedTimestamp =
+                            ISO8601_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT.parse(jsonNode.asText());
+                    LocalTime localTime = parsedTimestamp.query(TemporalQueries.localTime());
+                    LocalDate localDate = parsedTimestamp.query(TemporalQueries.localDate());
+
+                    return TimestampData.fromInstant(
+                            LocalDateTime.of(localDate, localTime)
+                                    .toInstant(
+                                            ZoneOffset.ofTotalSeconds(
+                                                    0
+                                                            - OffsetDateTime.now()
+                                                                    .getOffset()
+                                                                    .getTotalSeconds())));
+                }
                 break;
             default:
                 throw new TableException(
