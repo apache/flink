@@ -21,6 +21,9 @@ package org.apache.flink.table.planner.calcite;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate;
@@ -46,13 +49,16 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalValues;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWatermarkAssigner;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWindowAggregate;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWindowTableAggregate;
+import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType;
 import org.apache.flink.table.planner.plan.trait.RelWindowProperties;
+import org.apache.flink.table.planner.plan.utils.IntervalJoinUtil;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.plan.RelOptUtil;
@@ -108,9 +114,11 @@ import static org.apache.flink.table.planner.plan.utils.WindowUtil.groupingConta
 public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
 
     private final RexBuilder rexBuilder;
+    private Set<RowKind> srcChangelogModeRowKinds;
 
     private RelTimeIndicatorConverter(RexBuilder rexBuilder) {
         this.rexBuilder = rexBuilder;
+        this.srcChangelogModeRowKinds = new HashSet<>();
     }
 
     public static RelNode convert(
@@ -128,9 +136,27 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
         return converter.materializeProcTime(convertedRoot);
     }
 
+    private ChangelogMode extractChangelogModeFromSource(RelNode scan) {
+        if (scan.getTable() instanceof TableSourceTable) {
+            TableSourceTable tableSourceTable = (TableSourceTable) scan.getTable();
+            DynamicTableSource tableSource = tableSourceTable.tableSource();
+            if (tableSource instanceof ScanTableSource) {
+                ScanTableSource scanSource = (ScanTableSource) tableSource;
+                return scanSource.getChangelogMode();
+            } else {
+                return ChangelogMode.insertOnly();
+            }
+        }
+
+        // Default to insert-only
+        return ChangelogMode.insertOnly();
+    }
+
     @Override
     public RelNode visit(RelNode node) {
         if (node instanceof FlinkLogicalValues || node instanceof TableScan) {
+            final ChangelogMode changelogMode = extractChangelogModeFromSource(node);
+            this.srcChangelogModeRowKinds.addAll(changelogMode.getContainedKinds());
             return node;
         } else if (node instanceof FlinkLogicalIntersect
                 || node instanceof FlinkLogicalUnion
@@ -288,6 +314,15 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                 // materialize time attribute fields of regular join's inputs
                 newLeft = materializeTimeIndicators(newLeft);
                 newRight = materializeTimeIndicators(newRight);
+            } else if (IntervalJoinUtil.satisfyIntervalJoin(join, newLeft, newRight)) {
+                // if source contains updates, we need to materialize time attributes
+                boolean containsInsertOnly =
+                        srcChangelogModeRowKinds.size() == 1
+                                && srcChangelogModeRowKinds.contains(RowKind.INSERT);
+                if (!containsInsertOnly) {
+                    newLeft = materializeTimeIndicators(newLeft);
+                    newRight = materializeTimeIndicators(newRight);
+                }
             }
             List<RelDataTypeField> leftRightFields = new ArrayList<>();
             leftRightFields.addAll(newLeft.getRowType().getFieldList());
