@@ -57,6 +57,7 @@ import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.mutable
 
 import java.nio.file.Files
+import java.util.Collections
 
 object TestTableSourceSinks {
   def createPersonCsvTemporaryTable(tEnv: TableEnvironment, tableName: String): Unit = {
@@ -329,10 +330,25 @@ class TestPartitionableTableSource(
 
   override def explainSource(): String = {
     if (remainingPartitions != null) {
-      s"partitions=${remainingPartitions.mkString(", ")}"
+      s"partitions=${remainingPartitions.map(sortMapKeys).mkString(", ")}"
     } else {
       ""
     }
+  }
+
+  private def sortMapKeys(m: JMap[String, String]): String = {
+    val keys = new JArrayList[String](m.keySet())
+    Collections.sort(keys)
+    val sb = new StringBuilder("{")
+    for (i <- 0 until keys.size()) {
+      if (i > 0) {
+        sb.append(", ")
+      }
+      val key = keys.get(i)
+      sb.append(key).append("=").append(m.get(key))
+    }
+    sb.append("}")
+    sb.toString()
   }
 
   override def getReturnType: TypeInformation[Row] = returnType
