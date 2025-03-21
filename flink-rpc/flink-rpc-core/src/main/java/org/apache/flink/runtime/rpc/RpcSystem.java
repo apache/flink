@@ -25,6 +25,7 @@ import javax.annotation.Nullable;
 
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.ServiceLoader;
 
@@ -66,7 +67,7 @@ public interface RpcSystem extends RpcSystemUtils, AutoCloseable {
 
         RpcServiceBuilder withBindAddress(String bindAddress);
 
-        RpcServiceBuilder withBindPort(int bindPort);
+        RpcServiceBuilder withBindPort(Optional<Integer> bindPort);
 
         RpcServiceBuilder withExecutorConfiguration(
                 FixedThreadPoolExecutorConfiguration executorConfiguration);

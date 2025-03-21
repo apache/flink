@@ -1206,7 +1206,7 @@ public class MiniCluster implements AutoCloseableAsync {
         return rpcSystem
                 .remoteServiceBuilder(configuration, bindAddress, String.valueOf(bindPort))
                 .withBindAddress(bindAddress)
-                .withBindPort(bindPort)
+                .withBindPort(Optional.of(bindPort))
                 .withExecutorConfiguration(RpcUtils.getTestForkJoinExecutorConfiguration())
                 .createAndStart();
     }
