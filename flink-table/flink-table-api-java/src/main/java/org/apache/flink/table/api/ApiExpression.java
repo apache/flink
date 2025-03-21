@@ -40,7 +40,7 @@ public final class ApiExpression extends BaseExpressions<Object, ApiExpression>
         return wrappedExpression.asSummaryString();
     }
 
-    ApiExpression(Expression wrappedExpression) {
+    public ApiExpression(Expression wrappedExpression) {
         if (wrappedExpression instanceof ApiExpression) {
             throw new UnsupportedOperationException("This is a bug. Please file an issue.");
         }

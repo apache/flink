@@ -101,7 +101,8 @@ public interface TableSemantics {
      * semantics.
      *
      * @return Position of the "ON_TIME" column. Returns -1 in case no time attribute has been
-     *     passed.
+     *     passed. Returns an actual value when called during runtime. Returns empty during type
+     *     inference phase as the time attribute is still unknown.
      */
     int timeColumn();
 

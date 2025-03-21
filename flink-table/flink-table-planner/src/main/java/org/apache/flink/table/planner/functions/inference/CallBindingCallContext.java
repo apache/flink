@@ -107,7 +107,7 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
         // Default values are passed as NULL into functions.
         // We can introduce a dedicated CallContext.isDefault() method in the future if fine-grained
         // information is required.
-        return SqlUtil.isNullLiteral(sqlNode, false) || sqlNode.getKind() == SqlKind.DEFAULT;
+        return SqlUtil.isNullLiteral(sqlNode, true) || sqlNode.getKind() == SqlKind.DEFAULT;
     }
 
     @Override
@@ -119,7 +119,15 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
         try {
             final SqlNode sqlNode = adaptedArguments.get(pos);
             if (sqlNode.getKind() == SqlKind.DESCRIPTOR && clazz == ColumnList.class) {
-                return Optional.of((T) convertColumnList(((SqlCall) sqlNode).getOperandList()));
+                final List<SqlNode> columns = ((SqlCall) sqlNode).getOperandList();
+                if (columns.stream()
+                        .anyMatch(
+                                column ->
+                                        !(column instanceof SqlIdentifier)
+                                                || !((SqlIdentifier) column).isSimple())) {
+                    return Optional.empty();
+                }
+                return Optional.of((T) convertColumnList(columns));
             }
             final SqlLiteral literal = SqlLiteral.unchain(sqlNode);
             return Optional.ofNullable(getLiteralValueAs(literal::getValueAs, clazz));

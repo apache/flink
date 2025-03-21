@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.AtomicTypeWrappingFunction;
@@ -48,7 +49,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetOptionalPartitionFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetPassThroughFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetUpdatingArgFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TestProcessTableFunctionBase;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TimeConversionsFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TimeToLiveStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedTableAsRowFunction;
@@ -60,73 +60,24 @@ import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.time.LocalDateTime;
+
+import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.descriptor;
+import static org.apache.flink.table.api.Expressions.lit;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.BASE_SINK_SCHEMA;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.BASIC_VALUES;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.KEYED_BASE_SINK_SCHEMA;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.KEYED_TIMED_BASE_SINK_SCHEMA;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MULTI_VALUES;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PASS_THROUGH_BASE_SINK_SCHEMA;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_BASE_SINK_SCHEMA;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_SOURCE;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_SOURCE_LATE_EVENTS;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UPDATING_VALUES;
 
 /** {@link TableTestProgram} definitions for testing {@link StreamExecProcessTableFunction}. */
 public class ProcessTableFunctionTestPrograms {
-
-    private static final String BASIC_VALUES =
-            "CREATE VIEW t AS SELECT * FROM "
-                    + "(VALUES ('Bob', 12), ('Alice', 42)) AS T(name, score)";
-
-    private static final String MULTI_VALUES =
-            "CREATE VIEW t AS SELECT * FROM "
-                    + "(VALUES ('Bob', 12), ('Alice', 42), ('Bob', 99), ('Bob', 100), ('Alice', 400)) AS T(name, score)";
-
-    private static final String UPDATING_VALUES =
-            "CREATE VIEW t AS SELECT name, COUNT(*) FROM "
-                    + "(VALUES ('Bob', 12), ('Alice', 42), ('Bob', 14)) AS T(name, score) "
-                    + "GROUP BY name";
-
-    private static final SourceTestStep TIMED_SOURCE =
-            SourceTestStep.newBuilder("t")
-                    .addSchema(
-                            "name STRING",
-                            "score INT",
-                            "ts TIMESTAMP_LTZ(3)",
-                            "WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND")
-                    .producedValues(
-                            Row.of("Bob", 1, Instant.ofEpochMilli(0)),
-                            Row.of("Alice", 1, Instant.ofEpochMilli(1)),
-                            Row.of("Bob", 2, Instant.ofEpochMilli(2)),
-                            Row.of("Bob", 3, Instant.ofEpochMilli(3)),
-                            Row.of("Bob", 4, Instant.ofEpochMilli(4)),
-                            Row.of("Bob", 5, Instant.ofEpochMilli(5)),
-                            Row.of("Bob", 6, Instant.ofEpochMilli(6)))
-                    .build();
-
-    private static final SourceTestStep TIMED_SOURCE_LATE_EVENTS =
-            SourceTestStep.newBuilder("t")
-                    .addSchema(
-                            "name STRING",
-                            "score INT",
-                            "ts TIMESTAMP_LTZ(3)",
-                            "WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND")
-                    .producedValues(
-                            Row.of("Bob", 1, Instant.ofEpochMilli(0)),
-                            Row.of("Alice", 1, Instant.ofEpochMilli(1)),
-                            Row.of("Bob", 2, Instant.ofEpochMilli(99999)),
-                            Row.of("Bob", 3, Instant.ofEpochMilli(3)),
-                            Row.of("Bob", 4, Instant.ofEpochMilli(4)))
-                    .build();
-
-    /** Corresponds to {@link TestProcessTableFunctionBase}. */
-    private static final String BASE_SINK_SCHEMA = "`out` STRING";
-
-    /** Corresponds to {@link TestProcessTableFunctionBase}. */
-    private static final String TIMED_BASE_SINK_SCHEMA = "`out` STRING, `rowtime` TIMESTAMP_LTZ(3)";
-
-    /** Corresponds to {@link TestProcessTableFunctionBase}. */
-    private static final String KEYED_TIMED_BASE_SINK_SCHEMA =
-            "`name` STRING, `out` STRING, `rowtime` TIMESTAMP_LTZ(3)";
-
-    /** Corresponds to {@link TestProcessTableFunctionBase}. */
-    private static final String KEYED_BASE_SINK_SCHEMA = "`name` STRING, `out` STRING";
-
-    /** Corresponds to {@link TestProcessTableFunctionBase}. */
-    private static final String PASS_THROUGH_BASE_SINK_SCHEMA =
-            "`name` STRING, `score` INT, `out` STRING";
 
     public static final TableTestProgram PROCESS_SCALAR_ARGS =
             TableTestProgram.of("process-scalar-args", "no table as input")
@@ -138,6 +89,22 @@ public class ProcessTableFunctionTestPrograms {
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT * FROM f(i => 42, b => CAST('TRUE' AS BOOLEAN))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_SCALAR_ARGS_TABLE_API =
+            TableTestProgram.of("process-scalar-args-table-api", "no table as input")
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(BASE_SINK_SCHEMA)
+                                    .consumedValues("+I[{42, true}]")
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.fromCall(
+                                            ScalarArgsFunction.class,
+                                            lit(42).asArgument("i"),
+                                            lit(true).asArgument("b")),
+                            "sink")
                     .build();
 
     public static final TableTestProgram PROCESS_TABLE_AS_ROW =
@@ -153,6 +120,58 @@ public class ProcessTableFunctionTestPrograms {
                     .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t, i => 1)")
                     .build();
 
+    public static final TableTestProgram PROCESS_TABLE_AS_ROW_TABLE_API =
+            TableTestProgram.of("process-row-table-api", "table with row semantics")
+                    .setupSql(BASIC_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[{+I[Bob, 12], 1}]", "+I[{+I[Alice, 42], 1}]")
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.fromCall(
+                                            TableAsRowFunction.class,
+                                            env.from("t").asArgument("r"),
+                                            lit(1).asArgument("i")),
+                            "sink")
+                    .build();
+
+    public static final TableTestProgram PROCESS_TABLE_AS_ROW_TABLE_API_INLINE =
+            TableTestProgram.of(
+                            "process-row-table-api-inline",
+                            "tests the inline Table.process() position-based")
+                    .setupSql(BASIC_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[{+I[Bob, 12], 1}]", "+I[{+I[Alice, 42], 1}]")
+                                    .build())
+                    .runTableApi(env -> env.from("t").process(TableAsRowFunction.class, 1), "sink")
+                    .build();
+
+    public static final TableTestProgram PROCESS_TABLE_AS_ROW_TABLE_API_INLINE_NAMED =
+            TableTestProgram.of(
+                            "process-row-table-api-inline-named",
+                            "tests the inline Table.process() name-based")
+                    .setupSql(BASIC_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[{+I[Bob, 12], 1}]", "+I[{+I[Alice, 42], 1}]")
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.from("t")
+                                            .process(
+                                                    TableAsRowFunction.class,
+                                                    lit(1).asArgument("i")),
+                            "sink")
+                    .build();
+
     public static final TableTestProgram PROCESS_TYPED_TABLE_AS_ROW =
             TableTestProgram.of("process-typed-row", "typed table with row semantics")
                     .setupTemporarySystemFunction("f", TypedTableAsRowFunction.class)
@@ -165,6 +184,25 @@ public class ProcessTableFunctionTestPrograms {
                                             "+I[{User(s='Alice', i=42), 1}]")
                                     .build())
                     .runSql("INSERT INTO sink SELECT * FROM f(u => TABLE t, i => 1)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_TYPED_TABLE_AS_ROW_TABLE_API =
+            TableTestProgram.of("process-typed-row-table-api", "typed table with row semantics")
+                    .setupSql(BASIC_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[{User(s='Bob', i=12), 1}]",
+                                            "+I[{User(s='Alice', i=42), 1}]")
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.fromCall(
+                                            TypedTableAsRowFunction.class,
+                                            env.from("t").asArgument("u"),
+                                            lit(1).asArgument("i")),
+                            "sink")
                     .build();
 
     public static final TableTestProgram PROCESS_TABLE_AS_SET =
@@ -182,6 +220,67 @@ public class ProcessTableFunctionTestPrograms {
                             "INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name, i => 1)")
                     .build();
 
+    public static final TableTestProgram PROCESS_TABLE_AS_SET_TABLE_API =
+            TableTestProgram.of("process-set-table-api", "table with set semantics")
+                    .setupSql(BASIC_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {+I[Bob, 12], 1}]",
+                                            "+I[Alice, {+I[Alice, 42], 1}]")
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.fromCall(
+                                            TableAsSetFunction.class,
+                                            env.from("t").partitionBy($("name")).asArgument("r"),
+                                            lit(1).asArgument("i")),
+                            "sink")
+                    .build();
+
+    public static final TableTestProgram PROCESS_TABLE_AS_SET_TABLE_API_INLINE =
+            TableTestProgram.of(
+                            "process-set-table-api-inline",
+                            "tests the inline Table.process() position-based")
+                    .setupSql(BASIC_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {+I[Bob, 12], 1}]",
+                                            "+I[Alice, {+I[Alice, 42], 1}]")
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.from("t")
+                                            .partitionBy($("name"))
+                                            .process(TableAsSetFunction.class, 1),
+                            "sink")
+                    .build();
+
+    public static final TableTestProgram PROCESS_TABLE_AS_SET_TABLE_API_INLINE_NAMED =
+            TableTestProgram.of(
+                            "process-set-table-api-inline-named",
+                            "tests the inline Table.process() name-based")
+                    .setupSql(BASIC_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {+I[Bob, 12], 1}]",
+                                            "+I[Alice, {+I[Alice, 42], 1}]")
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.from("t")
+                                            .partitionBy($("name"))
+                                            .process(
+                                                    TableAsSetFunction.class,
+                                                    lit(1).asArgument("i")),
+                            "sink")
+                    .build();
+
     public static final TableTestProgram PROCESS_TYPED_TABLE_AS_SET =
             TableTestProgram.of("process-typed-set", "typed table with set semantics")
                     .setupTemporarySystemFunction("f", TypedTableAsSetFunction.class)
@@ -195,6 +294,25 @@ public class ProcessTableFunctionTestPrograms {
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT * FROM f(u => TABLE t PARTITION BY name, i => 1)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_TYPED_TABLE_AS_SET_TABLE_API =
+            TableTestProgram.of("process-typed-set-table-api", "typed table with set semantics")
+                    .setupSql(BASIC_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {User(s='Bob', i=12), 1}]",
+                                            "+I[Alice, {User(s='Alice', i=42), 1}]")
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.fromCall(
+                                            TypedTableAsSetFunction.class,
+                                            env.from("t").partitionBy($("name")).asArgument("u"),
+                                            lit(1).asArgument("i")),
+                            "sink")
                     .build();
 
     public static final TableTestProgram PROCESS_POJO_ARGS =
@@ -282,6 +400,24 @@ public class ProcessTableFunctionTestPrograms {
                                             "+I[{+I[Bob, 12], 1}]", "+I[{+I[Alice, 42], 1}]")
                                     .build())
                     .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t, i => 1)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_OPTIONAL_PARTITION_BY_TABLE_API =
+            TableTestProgram.of("process-optional-partition-by-table-api", "no partition by")
+                    .setupSql(BASIC_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[{+I[Bob, 12], 1}]", "+I[{+I[Alice, 42], 1}]")
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.fromCall(
+                                            TableAsSetOptionalPartitionFunction.class,
+                                            env.from("t").asArgument("r"),
+                                            lit(1).asArgument("i")),
+                            "sink")
                     .build();
 
     public static final TableTestProgram PROCESS_ATOMIC_WRAPPING =
@@ -444,6 +580,39 @@ public class ProcessTableFunctionTestPrograms {
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT * FROM f(r => TABLE t, on_time => DESCRIPTOR(ts))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_TIME_CONVERSIONS_TABLE_API =
+            TableTestProgram.of(
+                            "process-time-conversions-table-api",
+                            "test all support conversion classes for both time and watermarks")
+                    .setupTableSource(TIMED_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(TIMED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[{Time (Long: 0, Instant: 1970-01-01T00:00:00Z, LocalDateTime: 1970-01-01T00:00), "
+                                                    + "Watermark (Long: null, Instant: null, LocalDateTime: null)}, 1970-01-01T00:00:00Z]",
+                                            "+I[{Time (Long: 1, Instant: 1970-01-01T00:00:00.001Z, LocalDateTime: 1970-01-01T00:00:00.001), "
+                                                    + "Watermark (Long: -1, Instant: 1969-12-31T23:59:59.999Z, LocalDateTime: 1969-12-31T23:59:59.999)}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[{Time (Long: 2, Instant: 1970-01-01T00:00:00.002Z, LocalDateTime: 1970-01-01T00:00:00.002), "
+                                                    + "Watermark (Long: 0, Instant: 1970-01-01T00:00:00Z, LocalDateTime: 1970-01-01T00:00)}, 1970-01-01T00:00:00.002Z]",
+                                            "+I[{Time (Long: 3, Instant: 1970-01-01T00:00:00.003Z, LocalDateTime: 1970-01-01T00:00:00.003), "
+                                                    + "Watermark (Long: 1, Instant: 1970-01-01T00:00:00.001Z, LocalDateTime: 1970-01-01T00:00:00.001)}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[{Time (Long: 4, Instant: 1970-01-01T00:00:00.004Z, LocalDateTime: 1970-01-01T00:00:00.004), "
+                                                    + "Watermark (Long: 2, Instant: 1970-01-01T00:00:00.002Z, LocalDateTime: 1970-01-01T00:00:00.002)}, 1970-01-01T00:00:00.004Z]",
+                                            "+I[{Time (Long: 5, Instant: 1970-01-01T00:00:00.005Z, LocalDateTime: 1970-01-01T00:00:00.005),"
+                                                    + " Watermark (Long: 3, Instant: 1970-01-01T00:00:00.003Z, LocalDateTime: 1970-01-01T00:00:00.003)}, 1970-01-01T00:00:00.005Z]",
+                                            "+I[{Time (Long: 6, Instant: 1970-01-01T00:00:00.006Z, LocalDateTime: 1970-01-01T00:00:00.006), "
+                                                    + "Watermark (Long: 4, Instant: 1970-01-01T00:00:00.004Z, LocalDateTime: 1970-01-01T00:00:00.004)}, 1970-01-01T00:00:00.006Z]")
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.fromCall(
+                                            TimeConversionsFunction.class,
+                                            env.from("t").asArgument("r"),
+                                            descriptor("ts").asArgument("on_time")),
+                            "sink")
                     .build();
 
     public static final TableTestProgram PROCESS_REGULAR_TIMESTAMP =
@@ -711,6 +880,51 @@ public class ProcessTableFunctionTestPrograms {
                                     + "SELECT * FROM ptf2")
                     .build();
 
+    public static final TableTestProgram PROCESS_CHAINED_TIME_TABLE_API =
+            TableTestProgram.of(
+                            "process-chained-time-table-api",
+                            "test two chained PTFs where the second (receiving) PTF wraps the events of the first (sending) PTF")
+                    .setupTableSource(TIMED_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_TIMED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {Processing input row +I[Bob, {Processing input row +I[Bob, 1, 1970-01-01T00:00:00Z] at time 0 watermark null}, 1970-01-01T00:00:00Z] at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Registering timer t for 1 at time 0 watermark null}, 1970-01-01T00:00:00Z] at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Alice, {Processing input row +I[Alice, {Processing input row +I[Alice, 1, 1970-01-01T00:00:00.001Z] at time 1 watermark -1}, 1970-01-01T00:00:00.001Z] at time 1 watermark -1}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Alice, {Processing input row +I[Alice, {Registering timer t for 2 at time 1 watermark -1}, 1970-01-01T00:00:00.001Z] at time 1 watermark -1}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Processing input row +I[Bob, 2, 1970-01-01T00:00:00.002Z] at time 2 watermark 0}, 1970-01-01T00:00:00.002Z] at time 2 watermark 0}, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Registering timer t for 3 at time 2 watermark 0}, 1970-01-01T00:00:00.002Z] at time 2 watermark 0}, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Processing input row +I[Bob, 3, 1970-01-01T00:00:00.003Z] at time 3 watermark 1}, 1970-01-01T00:00:00.003Z] at time 3 watermark 1}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Registering timer t for 4 at time 3 watermark 1}, 1970-01-01T00:00:00.003Z] at time 3 watermark 1}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Alice, {Processing input row +I[Alice, {Timer t fired at time 2 watermark 2}, 1970-01-01T00:00:00.002Z] at time 2 watermark 1}, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Alice, {Processing input row +I[Alice, {2}, 1970-01-01T00:00:00.002Z] at time 2 watermark 1}, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Processing input row +I[Bob, 4, 1970-01-01T00:00:00.004Z] at time 4 watermark 2}, 1970-01-01T00:00:00.004Z] at time 4 watermark 2}, 1970-01-01T00:00:00.004Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Registering timer t for 5 at time 4 watermark 2}, 1970-01-01T00:00:00.004Z] at time 4 watermark 2}, 1970-01-01T00:00:00.004Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Processing input row +I[Bob, 5, 1970-01-01T00:00:00.005Z] at time 5 watermark 3}, 1970-01-01T00:00:00.005Z] at time 5 watermark 3}, 1970-01-01T00:00:00.005Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Registering timer t for 6 at time 5 watermark 3}, 1970-01-01T00:00:00.005Z] at time 5 watermark 3}, 1970-01-01T00:00:00.005Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Processing input row +I[Bob, 6, 1970-01-01T00:00:00.006Z] at time 6 watermark 4}, 1970-01-01T00:00:00.006Z] at time 6 watermark 4}, 1970-01-01T00:00:00.006Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Registering timer t for 7 at time 6 watermark 4}, 1970-01-01T00:00:00.006Z] at time 6 watermark 4}, 1970-01-01T00:00:00.006Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Timer t fired at time 7 watermark 9223372036854775807}, 1970-01-01T00:00:00.007Z] at time 7 watermark 5}, 1970-01-01T00:00:00.007Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {7}, 1970-01-01T00:00:00.007Z] at time 7 watermark 5}, 1970-01-01T00:00:00.007Z]")
+                                    .build())
+                    .runTableApi(
+                            env -> {
+                                final Table ptf1 =
+                                        env.fromCall(
+                                                ChainedSendingFunction.class,
+                                                env.from("t")
+                                                        .partitionBy($("name"))
+                                                        .asArgument("r"),
+                                                descriptor("ts").asArgument("on_time"));
+                                return env.fromCall(
+                                        ChainedReceivingFunction.class,
+                                        ptf1.partitionBy($("name")).asArgument("r"),
+                                        descriptor("rowtime").asArgument("on_time"));
+                            },
+                            "sink")
+                    .build();
+
     public static final TableTestProgram PROCESS_INVALID_TABLE_AS_ROW_TIMERS =
             TableTestProgram.of(
                             "process-invalid-table-as-row-timers",
@@ -742,7 +956,7 @@ public class ProcessTableFunctionTestPrograms {
                     .setupTemporarySystemFunction("f", InvalidUpdatingTimersFunction.class)
                     .setupSql(UPDATING_VALUES)
                     .runFailingSql(
-                            "SELECT * FROM f(r => TABLE t PARTITION BY name)",
+                            "SELECT * FROM f(r => TABLE t PARTITION BY name, uid => DEFAULT)",
                             TableRuntimeException.class,
                             "Timers are not supported in the current PTF declaration.")
                     .build();

@@ -66,7 +66,7 @@ import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConf
  * <p>A process table function (PTF) maps zero, one, or multiple tables to zero, one, or multiple
  * rows. PTFs enable implementing user-defined operators that can be as feature-rich as built-in
  * operations. PTFs have access to Flink's managed state, event-time and timer services, underlying
- * table changelogs, and can take multiple ordered and/or partitioned tables to produce a new table.
+ * table changelogs, and can take multiple partitioned tables to produce a new table.
  */
 public class StreamPhysicalProcessTableFunction extends AbstractRelNode
         implements StreamPhysicalRel {

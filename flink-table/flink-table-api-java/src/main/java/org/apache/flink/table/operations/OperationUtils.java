@@ -48,7 +48,7 @@ public class OperationUtils {
      * @param item result of {@link Operation#asSummaryString()}
      * @return string with increased indentation
      */
-    static String indent(String item) {
+    public static String indent(String item) {
 
         // '([^']|'')*': Matches the escape sequence "'...'" where the content between "'"
         // characters can contain anything except "'" unless its doubled ('').

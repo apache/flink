@@ -104,7 +104,13 @@ public interface CallContext {
      * exception.
      */
     default ValidationException newValidationError(String message, Object... args) {
-        return new ValidationException(String.format(message, args));
+        final String formatted;
+        if (args.length > 0) {
+            formatted = String.format(message, args);
+        } else {
+            formatted = message;
+        }
+        return new ValidationException(formatted);
     }
 
     /**

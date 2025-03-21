@@ -852,7 +852,7 @@ public final class DataTypes {
     }
 
     /**
-     * Data type for describing a list of columns.
+     * Data type for describing an arbitrary, unvalidated list of columns.
      *
      * <p>This type is the return type of calls to {@code DESCRIPTOR(`c0`, `c1`)}. The type is
      * intended to be used in arguments of {@link ProcessTableFunction}s.

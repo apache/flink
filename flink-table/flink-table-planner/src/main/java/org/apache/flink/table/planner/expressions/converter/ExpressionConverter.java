@@ -35,8 +35,11 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexFieldVariable;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
 import org.apache.flink.table.planner.expressions.converter.CallExpressionConvertRule.ConvertContext;
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.TimeType;
+import org.apache.flink.types.ColumnList;
 
 import org.apache.calcite.avatica.util.ByteString;
 import org.apache.calcite.rel.RelNode;
@@ -114,7 +117,19 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
             return rexBuilder.makeNullLiteral(relDataType);
         }
 
-        Object value = null;
+        if (type.is(LogicalTypeRoot.DESCRIPTOR)) {
+            final ColumnList columnList =
+                    valueLiteral
+                            .getValueAs(ColumnList.class)
+                            .orElseThrow(IllegalStateException::new);
+            return rexBuilder.makeCall(
+                    FlinkSqlOperatorTable.DESCRIPTOR,
+                    columnList.getNames().stream()
+                            .map(rexBuilder::makeLiteral)
+                            .collect(Collectors.toList()));
+        }
+
+        Object value;
         switch (type.getTypeRoot()) {
             case DECIMAL:
             case TINYINT:

@@ -121,7 +121,7 @@ class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.STRING().notNull())
                         .testTableApiResult(
                                 call(
-                                        StaticSignatureFunction.class,
+                                        OptionalArgInMiddleFunction.class,
                                         nullOf(DataTypes.BOOLEAN()).asArgument("b"),
                                         $("f2").asArgument("s"),
                                         lit("value").asArgument("optional"),
@@ -137,7 +137,7 @@ class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.STRING().notNull())
                         .testTableApiResult(
                                 call(
-                                        StaticSignatureFunction.class,
+                                        OptionalArgInMiddleFunction.class,
                                         nullOf(DataTypes.BOOLEAN()).asArgument("b"),
                                         $("f2").asArgument("s"),
                                         lit(42L).asArgument("l"),
@@ -152,7 +152,7 @@ class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.STRING().notNull())
                         .testTableApiValidationError(
                                 call(
-                                        StaticSignatureFunction.class,
+                                        OptionalArgInMiddleFunction.class,
                                         nullOf(DataTypes.BOOLEAN()).asArgument("b"),
                                         $("f2").asArgument("s")),
                                 "If the call uses named arguments, a valid name has to be provided for all passed arguments. "
@@ -165,9 +165,8 @@ class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.STRING().notNull())
                         .testTableApiValidationError(
                                 call(
-                                        StaticSignatureFunction.class,
+                                        OptionalArgInMiddleFunction.class,
                                         $("f1").asArgument("INVALID"),
-                                        $("f1").asArgument("i"),
                                         lit(42L).asArgument("l"),
                                         nullOf(DataTypes.BOOLEAN()).asArgument("b"),
                                         $("f2").asArgument("s")),
@@ -193,13 +192,20 @@ class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.STRING().notNull())
                         .testTableApiValidationError(
                                 call(
-                                        StaticSignatureFunction.class,
+                                        OptionalArgInMiddleFunction.class,
                                         $("f1").asArgument("i"),
                                         lit(42L).asArgument("l"),
                                         nullOf(DataTypes.BOOLEAN()).asArgument("b"),
                                         $("f2").asArgument("s"),
                                         $("f2").asArgument("s")),
-                                "Duplicate named argument found: s"));
+                                "Duplicate named argument found: s"),
+                TestSetSpec.forExpression("position-based optional argument")
+                        .onFieldsWithData(12)
+                        .andDataTypes(DataTypes.INT().notNull())
+                        .testTableApiResult(
+                                call(OptionalArgAtEndFunction.class, $("f0")),
+                                "i=12,optional=null",
+                                DataTypes.STRING()));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -212,7 +218,7 @@ class MiscFunctionsITCase extends BuiltInFunctionTestBase {
     }
 
     /** Function that uses a static signature. */
-    public static class StaticSignatureFunction extends ScalarFunction {
+    public static class OptionalArgInMiddleFunction extends ScalarFunction {
         public String eval(
                 int i,
                 @ArgumentHint(isOptional = true) String optional,
@@ -220,6 +226,13 @@ class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                 Boolean b,
                 String s) {
             return String.format("i=%s,optional=%s,l=%s,b=%s,s=%s", i, optional, l, b, s);
+        }
+    }
+
+    /** Function that uses a static signature with optionals at the end. */
+    public static class OptionalArgAtEndFunction extends ScalarFunction {
+        public String eval(int i, @ArgumentHint(isOptional = true) String optional) {
+            return String.format("i=%s,optional=%s", i, optional);
         }
     }
 }

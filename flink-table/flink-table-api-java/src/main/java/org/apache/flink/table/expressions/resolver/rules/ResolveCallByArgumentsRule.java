@@ -24,10 +24,12 @@ import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
@@ -35,14 +37,20 @@ import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
+import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
+import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
+import org.apache.flink.table.operations.PartitionQueryOperation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.StaticArgument;
+import org.apache.flink.table.types.inference.StaticArgumentTrait;
+import org.apache.flink.table.types.inference.SystemTypeInference;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeInferenceUtil;
 import org.apache.flink.table.types.inference.TypeInferenceUtil.Result;
@@ -66,7 +74,6 @@ import java.util.stream.IntStream;
 
 import static java.util.Collections.singletonList;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.isFunction;
-import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasLegacyTypes;
@@ -244,7 +251,7 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
             final TypeInference inference =
                     definition.getTypeInference(resolutionContext.typeFactory());
             if (inference.getOutputTypeStrategy() != TypeStrategies.MISSING) {
-                return inference;
+                return SystemTypeInference.of(definition.getKind(), inference);
             } else {
                 return null;
             }
@@ -267,6 +274,51 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
             }
 
             final List<Expression> actualArgs = unresolvedCall.getChildren();
+            final List<StaticArgument> declaredArgs = inference.getStaticArguments().orElse(null);
+
+            final Map<String, Expression> namedArgs = collectAssignments(functionName, actualArgs);
+            if (namedArgs.isEmpty()) {
+                // Use position-based call but append defaults for
+                // optional arguments at the end if necessary.
+                final List<Expression> reorderedArgs =
+                        appendDefaultPositionedArguments(declaredArgs, actualArgs);
+                fillInPtfSpecificPositionedArguments(
+                        functionName, definition, declaredArgs, reorderedArgs);
+                return unresolvedCall.replaceArgs(reorderedArgs);
+            }
+
+            if (declaredArgs == null) {
+                throw new ValidationException(
+                        String.format(
+                                "Invalid call to function '%s'. "
+                                        + "The function does not support named arguments. "
+                                        + "Please pass the arguments based on positions (i.e. without asArgument()).",
+                                functionName));
+            }
+
+            fillInDefaultNamedArguments(declaredArgs, namedArgs);
+            fillInPtfSpecificNamedArguments(
+                    functionName, definition, declaredArgs, namedArgs, actualArgs);
+
+            try {
+                validateAssignments(declaredArgs, namedArgs);
+            } catch (ValidationException e) {
+                throw new ValidationException(
+                        String.format(
+                                "Invalid call to function '%s'. If the call uses named arguments, "
+                                        + "a valid name has to be provided for all passed arguments. %s",
+                                functionName, e.getMessage()));
+            }
+
+            final List<Expression> reorderedArgs =
+                    declaredArgs.stream()
+                            .map(arg -> namedArgs.get(arg.getName()))
+                            .collect(Collectors.toList());
+            return unresolvedCall.replaceArgs(reorderedArgs);
+        }
+
+        private Map<String, Expression> collectAssignments(
+                String functionName, List<Expression> actualArgs) {
             final Map<String, Expression> namedArgs = new HashMap<>();
             actualArgs.stream()
                     .map(this::extractAssignment)
@@ -282,72 +334,7 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
                                 }
                                 namedArgs.put(assignment.getKey(), assignment.getValue());
                             });
-            if (namedArgs.isEmpty()) {
-                // Use position-based call
-                return unresolvedCall;
-            }
-
-            final List<StaticArgument> declaredArgs = inference.getStaticArguments().orElse(null);
-            if (declaredArgs == null) {
-                throw new ValidationException(
-                        String.format(
-                                "Invalid call to function '%s'. "
-                                        + "The function does not support named arguments. "
-                                        + "Please pass the arguments based on positions (i.e. without asArgument()).",
-                                functionName));
-            }
-
-            // Fill optional arguments
-            declaredArgs.forEach(
-                    declaredArg -> {
-                        if (declaredArg.isOptional()) {
-                            // All optional arguments have a type.
-                            // This is checked in StaticArgument.
-                            final DataType dataType =
-                                    declaredArg
-                                            .getDataType()
-                                            .orElseThrow(IllegalStateException::new);
-                            namedArgs.putIfAbsent(
-                                    declaredArg.getName(),
-                                    CallExpression.permanent(
-                                            BuiltInFunctionDefinitions.DEFAULT,
-                                            List.of(),
-                                            dataType));
-                        }
-                    });
-
-            if (declaredArgs.size() != namedArgs.size()) {
-                final Set<String> providedArgs = namedArgs.keySet();
-                final Set<String> knownArgs =
-                        declaredArgs.stream()
-                                .map(StaticArgument::getName)
-                                .collect(Collectors.toSet());
-                final Set<String> unknownArgs =
-                        providedArgs.stream()
-                                .filter(arg -> !knownArgs.contains(arg))
-                                .collect(Collectors.toSet());
-                final String cause;
-                if (!unknownArgs.isEmpty()) {
-                    cause = "Unknown argument names: " + unknownArgs;
-                } else {
-                    final List<StaticArgument> missingArgs =
-                            declaredArgs.stream()
-                                    .filter(arg -> !providedArgs.contains(arg.getName()))
-                                    .collect(Collectors.toList());
-                    cause = "Missing required arguments: " + missingArgs;
-                }
-                throw new ValidationException(
-                        String.format(
-                                "Invalid call to function '%s'. If the call uses named arguments, "
-                                        + "a valid name has to be provided for all passed arguments. %s",
-                                functionName, cause));
-            }
-
-            final List<Expression> reorderedArgs =
-                    declaredArgs.stream()
-                            .map(arg -> namedArgs.get(arg.getName()))
-                            .collect(Collectors.toList());
-            return unresolvedCall.replaceArgs(reorderedArgs);
+            return namedArgs;
         }
 
         private Map.Entry<String, Expression> extractAssignment(Expression e) {
@@ -360,6 +347,123 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
                 return null;
             }
             return Map.entry(name, children.get(1));
+        }
+
+        private void fillInPtfSpecificNamedArguments(
+                String functionName,
+                FunctionDefinition definition,
+                List<StaticArgument> declaredArgs,
+                Map<String, Expression> namedArgs,
+                List<Expression> actualArgs) {
+            // Since functions can be unregistered (i.e. inline in Table API), the API helps PTFs in
+            // finding arguments.
+            if (definition.getKind() != FunctionKind.PROCESS_TABLE) {
+                return;
+            }
+
+            // The 'uid' argument will be derived from the toString of FunctionDefinition.
+            // For UDFs, this is the simple class name.
+            final Expression uid =
+                    namedArgs.get(SystemTypeInference.PROCESS_TABLE_FUNCTION_ARG_UID);
+            if (isFunction(uid, BuiltInFunctionDefinitions.DEFAULT)
+                    && !SystemTypeInference.isInvalidUidForProcessTableFunction(functionName)) {
+                namedArgs.put(
+                        SystemTypeInference.PROCESS_TABLE_FUNCTION_ARG_UID,
+                        valueLiteral(functionName));
+            }
+
+            // For Table.process() automatically make the table argument named
+            final List<StaticArgument> declaredTableArgs =
+                    declaredArgs.stream()
+                            .filter(declaredArg -> declaredArg.is(StaticArgumentTrait.TABLE))
+                            .collect(Collectors.toList());
+            final List<Expression> actualTableArgs =
+                    actualArgs.stream()
+                            .filter(TableReferenceExpression.class::isInstance)
+                            .collect(Collectors.toList());
+            if (declaredTableArgs.size() == 1 && actualTableArgs.size() == 1) {
+                namedArgs.put(declaredTableArgs.get(0).getName(), actualTableArgs.get(0));
+            }
+        }
+
+        private void fillInPtfSpecificPositionedArguments(
+                String functionName,
+                FunctionDefinition definition,
+                List<StaticArgument> declaredArgs,
+                List<Expression> actualArgs) {
+            // Since functions can be unregistered (i.e. inline in Table API), the API helps PTFs in
+            // finding arguments.
+            if (definition.getKind() != FunctionKind.PROCESS_TABLE
+                    || declaredArgs.size() != actualArgs.size()) {
+                return;
+            }
+            final int uidPos =
+                    actualArgs.size()
+                            - 1
+                            - SystemTypeInference.PROCESS_TABLE_FUNCTION_ARG_UID_OFFSET;
+            final Expression uidArg = actualArgs.get(uidPos);
+            if (isFunction(uidArg, BuiltInFunctionDefinitions.DEFAULT)
+                    && !SystemTypeInference.isInvalidUidForProcessTableFunction(functionName)) {
+                actualArgs.set(uidPos, valueLiteral(functionName));
+            }
+        }
+
+        private List<Expression> appendDefaultPositionedArguments(
+                @Nullable List<StaticArgument> declaredArgs, List<Expression> actualArgs) {
+            if (declaredArgs == null || actualArgs.size() >= declaredArgs.size()) {
+                return actualArgs;
+            }
+            final List<Expression> enrichedArgs = new ArrayList<>(actualArgs);
+            IntStream.range(actualArgs.size() - 1, declaredArgs.size())
+                    .forEach(
+                            pos -> {
+                                final StaticArgument declaredArg = declaredArgs.get(pos);
+                                if (declaredArgs.get(pos).isOptional()) {
+                                    enrichedArgs.add(createDefaultExpression(declaredArg));
+                                }
+                            });
+            return enrichedArgs;
+        }
+
+        private void fillInDefaultNamedArguments(
+                List<StaticArgument> declaredArgs, Map<String, Expression> namedArgs) {
+            declaredArgs.forEach(
+                    declaredArg -> {
+                        if (declaredArg.isOptional()) {
+                            namedArgs.putIfAbsent(
+                                    declaredArg.getName(), createDefaultExpression(declaredArg));
+                        }
+                    });
+        }
+
+        private Expression createDefaultExpression(StaticArgument declaredArg) {
+            // All optional arguments have a type.
+            // This is checked in StaticArgument.
+            final DataType dataType =
+                    declaredArg.getDataType().orElseThrow(IllegalStateException::new);
+            return CallExpression.permanent(
+                    BuiltInFunctionDefinitions.DEFAULT, List.of(), dataType);
+        }
+
+        private void validateAssignments(
+                List<StaticArgument> declaredArgs, Map<String, Expression> namedArgs) {
+            final Set<String> providedArgs = namedArgs.keySet();
+            final Set<String> knownArgs =
+                    declaredArgs.stream().map(StaticArgument::getName).collect(Collectors.toSet());
+            final Set<String> unknownArgs =
+                    providedArgs.stream()
+                            .filter(arg -> !knownArgs.contains(arg))
+                            .collect(Collectors.toSet());
+            if (!unknownArgs.isEmpty()) {
+                throw new ValidationException("Unknown argument names: " + unknownArgs);
+            }
+            final List<StaticArgument> missingArgs =
+                    declaredArgs.stream()
+                            .filter(arg -> !providedArgs.contains(arg.getName()))
+                            .collect(Collectors.toList());
+            if (!missingArgs.isEmpty()) {
+                throw new ValidationException("Missing required arguments: " + missingArgs);
+            }
         }
 
         private ResolvedExpression runTypeInference(
@@ -381,7 +485,8 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
                                     functionName,
                                     unresolvedCall.getFunctionDefinition(),
                                     resolvedArgs,
-                                    resolutionContext.isGroupedAggregation()),
+                                    resolutionContext.isGroupedAggregation(),
+                                    inference.getStaticArguments().orElse(null)),
                             surroundingInfo);
 
             final List<ResolvedExpression> adaptedArguments =
@@ -459,26 +564,25 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
     private static class TableApiCallContext implements CallContext {
 
         private final DataTypeFactory typeFactory;
-
-        private final String name;
-
+        private final String functionName;
         private final FunctionDefinition definition;
-
         private final List<ResolvedExpression> resolvedArgs;
-
         private final boolean isGroupedAggregation;
+        private final @Nullable List<StaticArgument> staticArguments;
 
         public TableApiCallContext(
                 DataTypeFactory typeFactory,
-                String name,
+                String functionName,
                 FunctionDefinition definition,
                 List<ResolvedExpression> resolvedArgs,
-                boolean isGroupedAggregation) {
+                boolean isGroupedAggregation,
+                @Nullable List<StaticArgument> staticArguments) {
             this.typeFactory = typeFactory;
-            this.name = name;
+            this.functionName = functionName;
             this.definition = definition;
             this.resolvedArgs = resolvedArgs;
             this.isGroupedAggregation = isGroupedAggregation;
+            this.staticArguments = staticArguments;
         }
 
         @Override
@@ -528,8 +632,28 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
         }
 
         @Override
+        public Optional<TableSemantics> getTableSemantics(int pos) {
+            final StaticArgument staticArg =
+                    Optional.ofNullable(staticArguments).map(args -> args.get(pos)).orElse(null);
+            if (staticArg == null || !staticArg.is(StaticArgumentTrait.TABLE)) {
+                return Optional.empty();
+            }
+            final ResolvedExpression arg = getArgument(pos);
+            if (!(arg instanceof TableReferenceExpression)) {
+                return Optional.empty();
+            }
+            final TableReferenceExpression tableRef = (TableReferenceExpression) arg;
+            final TableSemantics semantics =
+                    new TableApiTableSemantics(
+                            tableRef.getQueryOperation(),
+                            DataTypeUtils.removeTimeAttribute(tableRef.getOutputDataType()),
+                            staticArg);
+            return Optional.of(semantics);
+        }
+
+        @Override
         public String getName() {
-            return name;
+            return functionName;
         }
 
         @Override
@@ -554,9 +678,63 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
                 throw new IndexOutOfBoundsException(
                         String.format(
                                 "Not enough arguments to access literal at position %d for function '%s'.",
-                                pos, name));
+                                pos, functionName));
             }
             return resolvedArgs.get(pos);
+        }
+    }
+
+    private static class TableApiTableSemantics implements TableSemantics {
+
+        private final QueryOperation operation;
+        private final DataType dataType;
+        private final StaticArgument staticArg;
+
+        private TableApiTableSemantics(
+                QueryOperation operation, DataType dataType, StaticArgument staticArg) {
+            this.operation = operation;
+            this.dataType = dataType;
+            this.staticArg = staticArg;
+        }
+
+        @Override
+        public DataType dataType() {
+            final DataType typed = staticArg.getDataType().orElse(null);
+            if (typed != null) {
+                // Typed table argument
+                return typed;
+            }
+            // Untyped table arguments
+            return dataType;
+        }
+
+        @Override
+        public int[] partitionByColumns() {
+            if (!(operation instanceof PartitionQueryOperation)) {
+                return new int[0];
+            }
+            final PartitionQueryOperation partitionOperation = (PartitionQueryOperation) operation;
+            return partitionOperation.getPartitionKeys();
+        }
+
+        @Override
+        public int[] orderByColumns() {
+            return new int[0];
+        }
+
+        @Override
+        public int timeColumn() {
+            return -1;
+        }
+
+        @Override
+        public List<String> coPartitionArgs() {
+            return List.of();
+        }
+
+        @Override
+        public Optional<ChangelogMode> changelogMode() {
+            return Optional.empty();
         }
     }
 }

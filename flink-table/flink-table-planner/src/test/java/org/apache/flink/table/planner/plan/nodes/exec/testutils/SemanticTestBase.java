@@ -27,6 +27,7 @@ import org.apache.flink.table.test.program.FunctionTestStep;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.SqlTestStep;
+import org.apache.flink.table.test.program.TableApiTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.table.test.program.TableTestProgramRunner;
 import org.apache.flink.table.test.program.TestStep;
@@ -40,6 +41,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -66,7 +68,7 @@ public abstract class SemanticTestBase implements TableTestProgramRunner {
 
     @Override
     public EnumSet<TestKind> supportedRunSteps() {
-        return EnumSet.of(TestKind.SQL, TestKind.FAILING_SQL);
+        return EnumSet.of(TestKind.SQL, TestKind.FAILING_SQL, TestKind.TABLE_API);
     }
 
     @AfterEach
@@ -76,65 +78,15 @@ public abstract class SemanticTestBase implements TableTestProgramRunner {
 
     @ParameterizedTest
     @MethodSource("supportedPrograms")
-    void runTests(TableTestProgram program) throws Exception {
+    void runSteps(TableTestProgram program) throws Exception {
         final TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
         for (TestStep testStep : program.setupSteps) {
-            switch (testStep.getKind()) {
-                case CONFIG:
-                    {
-                        final ConfigOptionTestStep<?> configTestStep =
-                                (ConfigOptionTestStep<?>) testStep;
-                        configTestStep.apply(env);
-                    }
-                    break;
-                case SOURCE_WITH_DATA:
-                    {
-                        final SourceTestStep sourceTestStep = (SourceTestStep) testStep;
-                        final String id =
-                                TestValuesTableFactory.registerData(
-                                        sourceTestStep.dataBeforeRestore);
-                        final Map<String, String> options = createSourceOptions(id);
-                        sourceTestStep.apply(env, options);
-                    }
-                    break;
-                case SINK_WITH_DATA:
-                    {
-                        final SinkTestStep sinkTestStep = (SinkTestStep) testStep;
-                        final Map<String, String> options = createSinkOptions();
-                        sinkTestStep.apply(env, options);
-                    }
-                    break;
-                case FUNCTION:
-                    {
-                        final FunctionTestStep functionTestStep = (FunctionTestStep) testStep;
-                        functionTestStep.apply(env);
-                        break;
-                    }
-                case SQL:
-                    {
-                        final SqlTestStep sqlTestStep = (SqlTestStep) testStep;
-                        sqlTestStep.apply(env).await();
-                    }
-                    break;
-            }
+            runStep(testStep, env);
         }
 
         for (TestStep testStep : program.runSteps) {
-            switch (testStep.getKind()) {
-                case SQL:
-                    {
-                        final SqlTestStep sqlTestStep = (SqlTestStep) testStep;
-                        sqlTestStep.apply(env).await();
-                    }
-                    break;
-                case FAILING_SQL:
-                    {
-                        final FailingSqlTestStep sqlTestStep = (FailingSqlTestStep) testStep;
-                        sqlTestStep.apply(env);
-                    }
-                    break;
-            }
+            runStep(testStep, env);
         }
 
         for (SinkTestStep sinkTestStep : program.getSetupSinkTestSteps()) {
@@ -145,15 +97,71 @@ public abstract class SemanticTestBase implements TableTestProgramRunner {
         }
     }
 
-    private static Map<String, String> createSourceOptions(String id) {
-        return Map.ofEntries(
-                Map.entry("connector", "values"),
-                Map.entry("data-id", id),
-                Map.entry("runtime-source", "NewSource"),
-                // Enforce per-record watermarks for testing
-                Map.entry("disable-lookup", "true"),
-                Map.entry("enable-watermark-push-down", "true"),
-                Map.entry("scan.watermark.emit.strategy", "on-event"));
+    protected void runStep(TestStep testStep, TableEnvironment env) throws Exception {
+        switch (testStep.getKind()) {
+            case CONFIG:
+                {
+                    final ConfigOptionTestStep<?> configTestStep =
+                            (ConfigOptionTestStep<?>) testStep;
+                    configTestStep.apply(env);
+                }
+                break;
+            case SOURCE_WITH_DATA:
+                {
+                    final SourceTestStep sourceTestStep = (SourceTestStep) testStep;
+                    final String id =
+                            TestValuesTableFactory.registerData(sourceTestStep.dataBeforeRestore);
+                    final Map<String, String> options = createSourceOptions(sourceTestStep, id);
+                    sourceTestStep.apply(env, options);
+                }
+                break;
+            case SINK_WITH_DATA:
+                {
+                    final SinkTestStep sinkTestStep = (SinkTestStep) testStep;
+                    final Map<String, String> options = createSinkOptions();
+                    sinkTestStep.apply(env, options);
+                }
+                break;
+            case FUNCTION:
+                {
+                    final FunctionTestStep functionTestStep = (FunctionTestStep) testStep;
+                    functionTestStep.apply(env);
+                    break;
+                }
+            case SQL:
+                {
+                    final SqlTestStep sqlTestStep = (SqlTestStep) testStep;
+                    sqlTestStep.apply(env).await();
+                }
+                break;
+            case FAILING_SQL:
+                {
+                    final FailingSqlTestStep sqlTestStep = (FailingSqlTestStep) testStep;
+                    sqlTestStep.apply(env);
+                }
+                break;
+            case TABLE_API:
+                {
+                    final TableApiTestStep apiTestStep = (TableApiTestStep) testStep;
+                    apiTestStep.apply(env).await();
+                }
+                break;
+        }
+    }
+
+    private static Map<String, String> createSourceOptions(
+            SourceTestStep sourceTestStep, String id) {
+        final Map<String, String> options = new HashMap<>();
+        options.put("connector", "values");
+        options.put("data-id", id);
+        options.put("runtime-source", "NewSource");
+        // Enforce per-record watermarks for testing
+        if (sourceTestStep.schemaComponents.stream().anyMatch(c -> c.startsWith("WATERMARK FOR"))) {
+            options.put("disable-lookup", "true");
+            options.put("enable-watermark-push-down", "true");
+            options.put("scan.watermark.emit.strategy", "on-event");
+        }
+        return options;
     }
 
     private static Map<String, String> createSinkOptions() {

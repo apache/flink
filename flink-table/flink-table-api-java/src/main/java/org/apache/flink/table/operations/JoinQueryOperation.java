@@ -115,7 +115,8 @@ public class JoinQueryOperation implements QueryOperation {
 
         Map<Integer, String> inputAliases = new HashMap<>();
         inputAliases.put(0, INPUT_1_ALIAS);
-        inputAliases.put(1, correlated ? CalculatedQueryOperation.INPUT_ALIAS : INPUT_2_ALIAS);
+        inputAliases.put(
+                1, correlated ? CorrelatedFunctionQueryOperation.INPUT_ALIAS : INPUT_2_ALIAS);
 
         return String.format(
                 "SELECT %s FROM (%s\n) %s %s JOIN %s ON %s",
@@ -134,7 +135,7 @@ public class JoinQueryOperation implements QueryOperation {
         String rightColumns =
                 OperationUtils.formatSelectColumns(
                         right.getResolvedSchema(),
-                        correlated ? CalculatedQueryOperation.INPUT_ALIAS : INPUT_2_ALIAS);
+                        correlated ? CorrelatedFunctionQueryOperation.INPUT_ALIAS : INPUT_2_ALIAS);
         return leftColumns + ", " + rightColumns;
     }
 

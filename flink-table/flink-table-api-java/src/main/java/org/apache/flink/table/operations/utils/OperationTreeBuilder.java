@@ -46,6 +46,7 @@ import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.operations.DistinctQueryOperation;
 import org.apache.flink.table.operations.FilterQueryOperation;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
+import org.apache.flink.table.operations.PartitionQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ValuesQueryOperation;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow;
@@ -94,7 +95,8 @@ public final class OperationTreeBuilder {
     private final ProjectionOperationFactory projectionOperationFactory;
 
     private final SortOperationFactory sortOperationFactory;
-    private final CalculatedTableFactory calculatedTableFactory;
+    private final FunctionTableFactory functionTableFactory;
+    private final CorrelatedFunctionTableFactory correlatedFunctionTableFactory;
     private final SetOperationFactory setOperationFactory;
     private final AggregateOperationFactory aggregateOperationFactory;
     private final JoinOperationFactory joinOperationFactory;
@@ -109,7 +111,8 @@ public final class OperationTreeBuilder {
             SqlExpressionResolver sqlExpressionResolver,
             ProjectionOperationFactory projectionOperationFactory,
             SortOperationFactory sortOperationFactory,
-            CalculatedTableFactory calculatedTableFactory,
+            FunctionTableFactory functionTableFactory,
+            CorrelatedFunctionTableFactory correlatedFunctionTableFactory,
             SetOperationFactory setOperationFactory,
             AggregateOperationFactory aggregateOperationFactory,
             JoinOperationFactory joinOperationFactory,
@@ -122,7 +125,8 @@ public final class OperationTreeBuilder {
         this.sqlExpressionResolver = sqlExpressionResolver;
         this.projectionOperationFactory = projectionOperationFactory;
         this.sortOperationFactory = sortOperationFactory;
-        this.calculatedTableFactory = calculatedTableFactory;
+        this.functionTableFactory = functionTableFactory;
+        this.correlatedFunctionTableFactory = correlatedFunctionTableFactory;
         this.setOperationFactory = setOperationFactory;
         this.aggregateOperationFactory = aggregateOperationFactory;
         this.joinOperationFactory = joinOperationFactory;
@@ -147,7 +151,8 @@ public final class OperationTreeBuilder {
                 sqlExpressionResolver,
                 new ProjectionOperationFactory(),
                 new SortOperationFactory(),
-                new CalculatedTableFactory(),
+                new FunctionTableFactory(),
+                new CorrelatedFunctionTableFactory(),
                 new SetOperationFactory(isStreamingMode),
                 new AggregateOperationFactory(isStreamingMode),
                 new JoinOperationFactory(),
@@ -381,13 +386,14 @@ public final class OperationTreeBuilder {
         ResolvedExpression resolvedFunction = resolveSingleExpression(tableFunction, resolver);
 
         QueryOperation temporalTable =
-                calculatedTableFactory.create(
+                correlatedFunctionTableFactory.create(
                         resolvedFunction, left.getResolvedSchema().getColumnNames());
 
         return join(left, temporalTable, joinType, condition, true);
     }
 
-    public Expression resolveExpression(Expression expression, QueryOperation... tableOperation) {
+    public ResolvedExpression resolveExpression(
+            Expression expression, QueryOperation... tableOperation) {
         final ExpressionResolver resolver = getResolver(tableOperation);
         return resolveSingleExpression(expression, resolver);
     }
@@ -596,6 +602,18 @@ public final class OperationTreeBuilder {
 
     public QueryOperation values(Expression... expressions) {
         return valuesInternal(null, expressions);
+    }
+
+    public QueryOperation tableFunction(Expression call) {
+        final ExpressionResolver resolver = getResolverBuilder().build();
+        final ResolvedExpression resolvedCall = resolveSingleExpression(call, resolver);
+        return functionTableFactory.create(resolvedCall);
+    }
+
+    public QueryOperation partition(List<Expression> partitionKeys, QueryOperation child) {
+        final ExpressionResolver resolver = getResolverBuilder(child).build();
+        final List<ResolvedExpression> resolvedPartitionKeys = resolver.resolve(partitionKeys);
+        return new PartitionQueryOperation(resolvedPartitionKeys, child);
     }
 
     private QueryOperation valuesInternal(
