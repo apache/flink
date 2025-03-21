@@ -17,21 +17,24 @@
 
 package org.apache.flink.runtime.metrics.filter;
 
-import org.apache.flink.metrics.Metric;
+/** A filter for metrics, spans, or events. */
+public interface ReporterFilter<T> {
 
-/** A filter for metrics. */
-public interface MetricFilter {
+    /** Filter that accepts every reported. */
+    ReporterFilter<?> NO_OP_FILTER = (metric, name, scope) -> true;
 
-    /** Filter that accepts every metric. */
-    MetricFilter NO_OP_FILTER = (metric, name, scope) -> true;
+    @SuppressWarnings("unchecked")
+    static <T> ReporterFilter<T> getNoOpFilter() {
+        return (ReporterFilter<T>) NO_OP_FILTER;
+    }
 
     /**
-     * Filters a given metric.
+     * Filters a given reported.
      *
-     * @param metric the metric to filter
-     * @param name the name of the metric
-     * @param logicalScope the logical scope of the metric
-     * @return true, if the metric matches, false otherwise
+     * @param reported the reported to filter
+     * @param name the name of the reported
+     * @param logicalScope the logical scope of the reported
+     * @return true, if the reported matches, false otherwise
      */
-    boolean filter(Metric metric, String name, String logicalScope);
+    boolean filter(T reported, String name, String logicalScope);
 }

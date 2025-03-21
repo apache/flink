@@ -126,7 +126,7 @@ public class TaskManagerMetricGroup extends ComponentMetricGroup<TaskManagerMetr
     }
 
     @Override
-    protected Iterable<? extends ComponentMetricGroup> subComponents() {
+    protected Iterable<? extends ComponentMetricGroup<?>> subComponents() {
         return jobs.values();
     }
 
