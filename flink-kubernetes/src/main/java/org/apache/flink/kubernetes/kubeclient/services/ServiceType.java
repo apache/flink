@@ -53,6 +53,7 @@ public abstract class ServiceType {
                 .withNewMetadata()
                 .withName(serviceName)
                 .withLabels(kubernetesJobManagerParameters.getCommonLabels())
+                .addToLabels(kubernetesJobManagerParameters.getRestServiceLabels())
                 .withAnnotations(kubernetesJobManagerParameters.getRestServiceAnnotations())
                 .endMetadata()
                 .withNewSpec()
