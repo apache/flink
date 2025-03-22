@@ -66,6 +66,7 @@ import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
+import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
@@ -1087,6 +1088,52 @@ class DataStreamTest {
                                             }
                                         }))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void testSlidingEventTimeWindows() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStream<Long> dataStream1 =
+                env.fromSequence(0, 0)
+                        .keyBy(value -> value)
+                        .window(
+                                SlidingEventTimeWindows.of(
+                                        Duration.ofMillis(10000000), Duration.ofMillis(1)))
+                        .trigger(PurgingTrigger.of(CountTrigger.of(10)))
+                        .reduce(
+                                new ReduceFunction<Long>() {
+                                    private static final long serialVersionUID = 1L;
+
+                                    @Override
+                                    public Long reduce(Long value1, Long value2) throws Exception {
+                                        return null;
+                                    }
+                                });
+
+        assertThat(dataStream1.getTransformation().getName()).isEqualTo("SlidingEventTimeWindows");
+
+        env.getConfig().setMaxWindowNum(10000000 - 1);
+        assertThatThrownBy(
+                        () ->
+                                env.fromSequence(0, 0)
+                                        .keyBy(value -> value)
+                                        .window(
+                                                SlidingEventTimeWindows.of(
+                                                        Duration.ofMillis(10000000),
+                                                        Duration.ofMillis(1)))
+                                        .trigger(PurgingTrigger.of(CountTrigger.of(10)))
+                                        .reduce(
+                                                new ReduceFunction<Long>() {
+                                                    private static final long serialVersionUID = 1L;
+
+                                                    @Override
+                                                    public Long reduce(Long value1, Long value2)
+                                                            throws Exception {
+                                                        return null;
+                                                    }
+                                                }))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("size / slide <= 10000000");
     }
 
     /** Tests that verifies window operator has different name and description. */

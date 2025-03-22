@@ -272,6 +272,14 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         return configuration.get(CoreOptions.DEFAULT_PARALLELISM);
     }
 
+    public int getMaxWindowNum() {
+        return configuration.get(CoreOptions.MAX_WINDOW_NUM);
+    }
+
+    public void setMaxWindowNum(int maxWindowNum) {
+        configuration.set(CoreOptions.MAX_WINDOW_NUM, maxWindowNum);
+    }
+
     /**
      * Sets the parallelism for operations executed through this environment. Setting a parallelism
      * of x here will cause all operators (such as join, map, reduce) to run with x parallel
