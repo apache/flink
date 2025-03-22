@@ -275,8 +275,8 @@ EXECUTE INSERT INTO students
 ### 语法
 
 ```sql
-EXECUTE STATEMENT SET
-BEGIN
+BEGIN STATEMENT SET;
+
 insert_statement;
 ...
 insert_statement;
@@ -292,8 +292,8 @@ insert_statement:
 
 CREATE TABLE students (name STRING, age INT, gpa DECIMAL(3, 2)) WITH (...);
 
-EXECUTE STATEMENT SET
-BEGIN
+BEGIN STATEMENT SET;
+
 INSERT INTO students
   VALUES ('fred flintstone', 35, 1.28), ('barney rubble', 32, 2.32);
 INSERT INTO students
