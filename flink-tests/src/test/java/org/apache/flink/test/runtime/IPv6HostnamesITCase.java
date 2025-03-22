@@ -50,6 +50,7 @@ import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.Assert.fail;
 
@@ -165,7 +166,7 @@ public class IPv6HostnamesITCase extends TestLogger {
                                             // conflicts) since we explicitly provide a bind port
                                             .remoteServiceBuilder(new Configuration(), null, "8081")
                                             .withBindAddress(addr.getHostAddress())
-                                            .withBindPort(0)
+                                            .withBindPort(Optional.of(0))
                                             .createAndStart();
                             rpcService.closeAsync().get();
 

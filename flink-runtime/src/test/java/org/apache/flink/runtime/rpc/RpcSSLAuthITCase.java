@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -89,13 +90,13 @@ class RpcSSLAuthITCase {
                     RpcSystem.load()
                             .localServiceBuilder(sslConfig1)
                             .withBindAddress("localhost")
-                            .withBindPort(0)
+                            .withBindPort(Optional.of(0))
                             .createAndStart();
             rpcService2 =
                     RpcSystem.load()
                             .localServiceBuilder(sslConfig2)
                             .withBindAddress("localhost")
-                            .withBindPort(0)
+                            .withBindPort(Optional.of(0))
                             .createAndStart();
 
             TestEndpoint endpoint = new TestEndpoint(rpcService1);

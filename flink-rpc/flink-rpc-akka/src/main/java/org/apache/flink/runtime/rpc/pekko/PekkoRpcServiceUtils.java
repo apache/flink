@@ -78,13 +78,9 @@ public class PekkoRpcServiceUtils {
             throws Exception {
         final PekkoRpcServiceBuilder rpcServiceBuilder =
                 PekkoRpcServiceUtils.remoteServiceBuilder(
-                        configuration, externalAddress, externalPortRange);
-
-        if (bindAddress != null) {
-            rpcServiceBuilder.withBindAddress(bindAddress);
-        }
-
-        bindPort.ifPresent(rpcServiceBuilder::withBindPort);
+                                configuration, externalAddress, externalPortRange)
+                        .withBindAddress(bindAddress)
+                        .withBindPort(bindPort);
 
         return rpcServiceBuilder.createAndStart();
     }
@@ -294,15 +290,20 @@ public class PekkoRpcServiceUtils {
 
         @Override
         public PekkoRpcServiceBuilder withBindAddress(final String bindAddress) {
-            this.bindAddress = Preconditions.checkNotNull(bindAddress);
+            if (bindAddress != null) {
+                this.bindAddress = bindAddress;
+            }
             return this;
         }
 
         @Override
-        public PekkoRpcServiceBuilder withBindPort(int bindPort) {
-            Preconditions.checkArgument(
-                    NetUtils.isValidHostPort(bindPort), "Invalid port number: " + bindPort);
-            this.bindPort = bindPort;
+        public PekkoRpcServiceBuilder withBindPort(Optional<Integer> bindPort) {
+            if (bindPort.isPresent()) {
+                Preconditions.checkArgument(
+                        NetUtils.isValidHostPort(bindPort.get()),
+                        "Invalid port number: " + bindPort);
+                this.bindPort = bindPort.get();
+            }
             return this;
         }
 

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -48,7 +49,7 @@ class RpcConnectionTest {
                     rpcSystem
                             .remoteServiceBuilder(configuration, null, "8000-9000")
                             .withBindAddress("localhost")
-                            .withBindPort(0)
+                            .withBindPort(Optional.of(0))
                             .createAndStart();
 
             final String invalidAddress =

@@ -147,15 +147,11 @@ public class RpcUtils {
             @Nullable String bindAddress,
             @SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<Integer> bindPort)
             throws Exception {
-        RpcSystem.RpcServiceBuilder rpcServiceBuilder =
-                rpcSystem.remoteServiceBuilder(configuration, externalAddress, externalPortRange);
-        if (bindAddress != null) {
-            rpcServiceBuilder = rpcServiceBuilder.withBindAddress(bindAddress);
-        }
-        if (bindPort.isPresent()) {
-            rpcServiceBuilder = rpcServiceBuilder.withBindPort(bindPort.get());
-        }
-        return rpcServiceBuilder.createAndStart();
+        return rpcSystem
+                .remoteServiceBuilder(configuration, externalAddress, externalPortRange)
+                .withBindAddress(bindAddress)
+                .withBindPort(bindPort)
+                .createAndStart();
     }
 
     // We don't want this class to be instantiable

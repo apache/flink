@@ -194,27 +194,21 @@ public class MetricUtils {
             RpcSystem rpcSystem)
             throws Exception {
         final String portRange = configuration.get(MetricOptions.QUERY_SERVICE_PORT);
-
-        final RpcSystem.RpcServiceBuilder rpcServiceBuilder =
-                rpcSystem.remoteServiceBuilder(configuration, externalAddress, portRange);
-        if (bindAddress != null) {
-            rpcServiceBuilder.withBindAddress(bindAddress);
-        }
-
-        return startMetricRpcService(configuration, rpcServiceBuilder);
+        final int threadPriority = configuration.get(MetricOptions.QUERY_SERVICE_THREAD_PRIORITY);
+        return rpcSystem
+                .remoteServiceBuilder(configuration, externalAddress, portRange)
+                .withBindAddress(bindAddress)
+                .withComponentName(METRICS_ACTOR_SYSTEM_NAME)
+                .withExecutorConfiguration(
+                        new RpcSystem.FixedThreadPoolExecutorConfiguration(1, 1, threadPriority))
+                .createAndStart();
     }
 
     public static RpcService startLocalMetricsRpcService(
             Configuration configuration, RpcSystem rpcSystem) throws Exception {
-        return startMetricRpcService(configuration, rpcSystem.localServiceBuilder(configuration));
-    }
-
-    private static RpcService startMetricRpcService(
-            Configuration configuration, RpcSystem.RpcServiceBuilder rpcServiceBuilder)
-            throws Exception {
         final int threadPriority = configuration.get(MetricOptions.QUERY_SERVICE_THREAD_PRIORITY);
-
-        return rpcServiceBuilder
+        return rpcSystem
+                .localServiceBuilder(configuration)
                 .withComponentName(METRICS_ACTOR_SYSTEM_NAME)
                 .withExecutorConfiguration(
                         new RpcSystem.FixedThreadPoolExecutorConfiguration(1, 1, threadPriority))
