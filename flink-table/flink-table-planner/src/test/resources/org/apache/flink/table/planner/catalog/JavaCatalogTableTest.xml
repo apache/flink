@@ -187,19 +187,19 @@ Calc(select=[EXPR$0, window_start])
       <![CDATA[
 LogicalProject(order_id=[$0], customer_id=[$1], product_id=[$2], ts=[$3])
 +- LogicalProject(order_id=[$0], customer_id=[$1], product_id=[$5], ts=[$4])
-   +- LogicalCorrelate(correlation=[$cor3], joinType=[inner], requiredColumns=[{3}])
+   +- LogicalCorrelate(correlation=[$cor2], joinType=[inner], requiredColumns=[{3}])
       :- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$4])
       :  +- LogicalTableScan(table=[[cat, default, t]])
       +- LogicalProject(product_id=[$0])
          +- Uncollect
-            +- LogicalProject(product_ids=[$cor3.product_ids])
+            +- LogicalProject(product_ids=[$cor2.product_ids])
                +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[order_id, customer_id, f0 AS product_id, ts])
-+- Correlate(invocation=[$UNNEST_ROWS$1($cor3.product_ids)], correlate=[table($UNNEST_ROWS$1($cor3.product_ids))], select=[order_id,customer_id,product_id,product_ids,ts,f0], rowType=[RecordType(INTEGER order_id, INTEGER customer_id, INTEGER product_id, INTEGER ARRAY product_ids, TIMESTAMP_LTZ(3) *ROWTIME* ts, INTEGER f0)], joinType=[INNER])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor2.product_ids)], correlate=[table($UNNEST_ROWS$1($cor2.product_ids))], select=[order_id,customer_id,product_id,product_ids,ts,f0], rowType=[RecordType(INTEGER order_id, INTEGER customer_id, INTEGER product_id, INTEGER ARRAY product_ids, TIMESTAMP_LTZ(3) *ROWTIME* ts, INTEGER f0)], joinType=[INNER])
    +- WatermarkAssigner(rowtime=[ts], watermark=[ts])
       +- TableSourceScan(table=[[cat, default, t]], fields=[order_id, customer_id, product_id, product_ids, ts])
 ]]>
