@@ -25,20 +25,25 @@ import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.UnpooledByteBufAllocator;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.ClientAuth;
-import org.apache.flink.shaded.netty4.io.netty.handler.ssl.JdkSslContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.OpenSsl;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.ServerSocket;
 import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.MessageDigest;
@@ -49,6 +54,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslProvider.JDK;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -62,6 +69,10 @@ public class SSLUtilsTest {
             checkNotNull(SSLUtilsTest.class.getResource("/local127.truststore")).getFile();
     private static final String KEY_STORE_PATH =
             checkNotNull(SSLUtilsTest.class.getResource("/local127.keystore")).getFile();
+    private static final String TRUST_STORE_PATH_UPDATE =
+            checkNotNull(SSLUtilsTest.class.getResource("/local127.2.truststore")).getFile();
+    private static final String KEY_STORE_PATH_UPDATE =
+            checkNotNull(SSLUtilsTest.class.getResource("/local127.2.keystore")).getFile();
 
     private static final String TRUST_STORE_PASSWORD = "password";
     private static final String KEY_STORE_PASSWORD = "password";
@@ -167,12 +178,103 @@ public class SSLUtilsTest {
         Configuration config = createRestSslConfigWithTrustStore(sslProvider);
         config.set(SecurityOptions.SSL_REST_ENABLED, true);
         config.setString(SecurityOptions.SSL_ALGORITHMS.key(), testSSLAlgorithms);
-        JdkSslContext nettySSLContext =
-                (JdkSslContext)
+        ReloadableSslContext nettySSLContext =
+                (ReloadableSslContext)
                         SSLUtils.createRestNettySSLContext(config, true, ClientAuth.NONE, JDK);
         List<String> cipherSuites = checkNotNull(nettySSLContext).cipherSuites();
         assertThat(cipherSuites).hasSize(2);
         assertThat(cipherSuites).containsExactlyInAnyOrder(testSSLAlgorithms.split(","));
+    }
+
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testRESTSSLWellReloadedOnFileChange(String sslProvider) throws Exception {
+        Configuration serverConfig = createRestSslConfigWithKeyAndTrustStores(sslProvider);
+
+        String tmpdir = Files.createTempDirectory("tmpDirPrefix").toFile().getAbsolutePath();
+        String tmpKeyStorePath =
+                Paths.get(tmpdir, Paths.get(KEY_STORE_PATH).getFileName().toString()).toString();
+        String tmpTrustStorePath =
+                Paths.get(tmpdir, Paths.get(TRUST_STORE_PATH).getFileName().toString()).toString();
+
+        Files.copy(
+                Paths.get(KEY_STORE_PATH),
+                Paths.get(tmpKeyStorePath),
+                StandardCopyOption.REPLACE_EXISTING);
+        Files.copy(
+                Paths.get(TRUST_STORE_PATH),
+                Paths.get(tmpTrustStorePath),
+                StandardCopyOption.REPLACE_EXISTING);
+
+        serverConfig.set(SecurityOptions.SSL_REST_KEYSTORE, tmpKeyStorePath);
+        serverConfig.set(SecurityOptions.SSL_REST_TRUSTSTORE, tmpTrustStorePath);
+
+        ReloadableSslContext serverReloadableSslContext =
+                (ReloadableSslContext)
+                        SSLUtils.createRestNettySSLContext(
+                                serverConfig, false, ClientAuth.NONE, JDK);
+        ReloadableSslContext clientReloadableSslContext =
+                (ReloadableSslContext)
+                        SSLUtils.createRestNettySSLContext(
+                                serverConfig, true, ClientAuth.REQUIRE, JDK);
+
+        CountDownLatch watchCertificate = new CountDownLatch(1);
+        testLoadedCertificate(
+                serverReloadableSslContext,
+                clientReloadableSslContext,
+                "Validity: [From: Tue Feb 26 11:58:09 CET 2019",
+                watchCertificate);
+        Assertions.assertTrue(watchCertificate.await(10, TimeUnit.SECONDS));
+
+        Files.copy(
+                Paths.get(KEY_STORE_PATH_UPDATE),
+                Paths.get(tmpKeyStorePath),
+                StandardCopyOption.REPLACE_EXISTING);
+        Files.copy(
+                Paths.get(TRUST_STORE_PATH_UPDATE),
+                Paths.get(tmpTrustStorePath),
+                StandardCopyOption.REPLACE_EXISTING);
+
+        watchCertificate = new CountDownLatch(1);
+        testLoadedCertificate(
+                serverReloadableSslContext,
+                clientReloadableSslContext,
+                "Validity: [From: Tue Mar 18 15:08:24 CET 2025",
+                watchCertificate);
+        Assertions.assertTrue(watchCertificate.await(10, TimeUnit.SECONDS));
+    }
+
+    void testLoadedCertificate(
+            ReloadableSslContext serverReloadableSslContext,
+            ReloadableSslContext clientReloadableSslContext,
+            String validity,
+            CountDownLatch watchCertificate)
+            throws Exception {
+        while (true) {
+            SSLSocketServerTest sslSocketServerTest =
+                    new SSLSocketServerTest(serverReloadableSslContext);
+            sslSocketServerTest.start();
+            SSLSocketFactory factoryClient =
+                    clientReloadableSslContext.getSSLContext().getSocketFactory();
+            SSLSocket socket =
+                    (SSLSocket)
+                            factoryClient.createSocket(
+                                    "localhost", sslSocketServerTest.getLocalPort());
+            try {
+                socket.startHandshake();
+            } catch (IOException ignored) {
+            }
+            if (!socket.getSession().isValid()) {
+                continue;
+            }
+            if (!socket.getSession().getPeerCertificates()[0].toString().contains(validity)) {
+                continue;
+            }
+            socket.close();
+            sslSocketServerTest.close();
+            watchCertificate.countDown();
+            break;
+        }
     }
 
     // ------------------------ server --------------------------
