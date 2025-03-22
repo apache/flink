@@ -53,6 +53,7 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.StateSnapshotContext;
+import org.apache.flink.runtime.state.StateSnapshotContextAsynchronousImpl;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.util.CloseableIterable;
 import org.apache.flink.util.IOUtils;
@@ -69,6 +70,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.concurrent.RunnableFuture;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -199,6 +201,9 @@ public class StreamOperatorStateHandler {
                 new StateSnapshotContextSynchronousImpl(
                         checkpointId, timestamp, factory, keyGroupRange, closeableRegistry);
 
+        StateSnapshotContextAsynchronousImpl asyncSnapshotContext =
+                new StateSnapshotContextAsynchronousImpl(checkpointId, timestamp);
+
         snapshotState(
                 streamOperator,
                 timeServiceManager,
@@ -209,6 +214,7 @@ public class StreamOperatorStateHandler {
                 factory,
                 snapshotInProgress,
                 snapshotContext,
+                asyncSnapshotContext,
                 isUsingCustomRawKeyedState,
                 useAsyncState);
 
@@ -226,6 +232,7 @@ public class StreamOperatorStateHandler {
             CheckpointStreamFactory factory,
             OperatorSnapshotFutures snapshotInProgress,
             StateSnapshotContextSynchronousImpl snapshotContext,
+            StateSnapshotContextAsynchronousImpl asyncSnapshotContext,
             boolean isUsingCustomRawKeyedState,
             boolean useAsyncState)
             throws CheckpointException {
@@ -262,6 +269,9 @@ public class StreamOperatorStateHandler {
                 }
             }
             streamOperator.snapshotState(snapshotContext);
+
+            snapshotInProgress.setAsyncOperateFuture(
+                    streamOperator.asyncOperate(asyncSnapshotContext));
 
             snapshotInProgress.setKeyedStateRawFuture(snapshotContext.getKeyedStateStreamFuture());
             snapshotInProgress.setOperatorStateRawFuture(
@@ -486,5 +496,7 @@ public class StreamOperatorStateHandler {
         void initializeState(StateInitializationContext context) throws Exception;
 
         void snapshotState(StateSnapshotContext context) throws Exception;
+
+        RunnableFuture<Void> asyncOperate(StateSnapshotContext context) throws Exception;
     }
 }

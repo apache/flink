@@ -169,4 +169,15 @@ public interface CheckpointedFunction {
      * @throws Exception Thrown, if state could not be created ot restored.
      */
     void initializeState(FunctionInitializationContext context) throws Exception;
+
+    /**
+     * This method is called when a snapshot for a checkpoint is requested. Execution of this method
+     * does not block the main thread, is performed in an asynchronous thread pool.
+     *
+     * @param context the context for drawing a snapshot of the operator
+     * @throws Exception Thrown and task will be failed, if state could not be created ot restored.
+     *     If you don't want to task fail, can throw a RetriableAsyncOperateException, this will
+     *     only cause the failure of Checkpoint.
+     */
+    default void asyncOperate(FunctionSnapshotContext context) throws Exception {}
 }
