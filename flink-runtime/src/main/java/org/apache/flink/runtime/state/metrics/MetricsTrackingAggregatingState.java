@@ -71,11 +71,11 @@ class MetricsTrackingAggregatingState<K, N, IN, ACC, OUT>
 
     @Override
     public OUT get() throws Exception {
-        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackLatencyOnGet()) {
+        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackMetricsOnGet()) {
             sizeTrackingStateMetric.updateMetrics(
                     AggregatingStateMetrics.AGGREGATING_STATE_GET_KEY_SIZE, super.sizeOfKey());
         }
-        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackLatencyOnGet()) {
+        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackMetricsOnGet()) {
             return trackLatencyWithException(
                     () -> original.get(), AggregatingStateMetrics.AGGREGATING_STATE_GET_LATENCY);
         } else {
@@ -85,11 +85,11 @@ class MetricsTrackingAggregatingState<K, N, IN, ACC, OUT>
 
     @Override
     public void add(IN value) throws Exception {
-        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackLatencyOnAdd()) {
+        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackMetricsOnAdd()) {
             sizeTrackingStateMetric.updateMetrics(
                     AggregatingStateMetrics.AGGREGATING_STATE_ADD_KEY_SIZE, super.sizeOfKey());
         }
-        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackLatencyOnAdd()) {
+        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackMetricsOnAdd()) {
             trackLatencyWithException(
                     () -> original.add(value),
                     AggregatingStateMetrics.AGGREGATING_STATE_ADD_LATENCY);
@@ -111,7 +111,7 @@ class MetricsTrackingAggregatingState<K, N, IN, ACC, OUT>
     @Override
     public void mergeNamespaces(N target, Collection<N> sources) throws Exception {
         if (latencyTrackingStateMetric != null
-                && latencyTrackingStateMetric.trackLatencyOnMergeNamespace()) {
+                && latencyTrackingStateMetric.trackMetricsOnMergeNamespace()) {
             trackLatencyWithException(
                     () -> original.mergeNamespaces(target, sources),
                     AggregatingStateMetrics.AGGREGATING_STATE_MERGE_NAMESPACES_LATENCY);
@@ -153,17 +153,17 @@ class MetricsTrackingAggregatingState<K, N, IN, ACC, OUT>
             return mergeNamespaceCount;
         }
 
-        private boolean trackLatencyOnGet() {
+        private boolean trackMetricsOnGet() {
             getCount = loopUpdateCounter(getCount);
             return getCount == 1;
         }
 
-        private boolean trackLatencyOnAdd() {
+        private boolean trackMetricsOnAdd() {
             addCount = loopUpdateCounter(addCount);
             return addCount == 1;
         }
 
-        private boolean trackLatencyOnMergeNamespace() {
+        private boolean trackMetricsOnMergeNamespace() {
             mergeNamespaceCount = loopUpdateCounter(mergeNamespaceCount);
             return mergeNamespaceCount == 1;
         }

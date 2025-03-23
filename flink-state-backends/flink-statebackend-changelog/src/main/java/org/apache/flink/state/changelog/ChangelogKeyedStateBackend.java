@@ -680,7 +680,7 @@ public class ChangelogKeyedStateBackend<K>
                 stateDescriptor.initializeSerializerUnlessSet(executionConfig);
             }
             kvState =
-                    MetricsTrackingStateFactory.createStateAndWrapWithLatencyTrackingIfEnabled(
+                    MetricsTrackingStateFactory.createStateAndWrapWithMetricsTrackingIfEnabled(
                             TtlStateFactory.createStateAndWrapWithTtlIfEnabled(
                                     namespaceSerializer, stateDescriptor, this, ttlTimeProvider),
                             keyedStateBackend,

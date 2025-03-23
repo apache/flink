@@ -75,14 +75,13 @@ class AbstractMetricsTrackState<
 
     private void initStateSize() {
         if (keySerializer != null) {
-            this.keySize = keySerializer.getLength() == -1 ? -1L : keySerializer.getLength();
+            this.keySize = keySerializer.getLength();
         }
         if (valueSerializer != null) {
-            this.valueSize = valueSerializer.getLength() == -1 ? -1L : valueSerializer.getLength();
+            this.valueSize = valueSerializer.getLength();
         }
         if (namespaceSerializer != null) {
-            this.namespaceSize =
-                    namespaceSerializer.getLength() == -1 ? -1L : namespaceSerializer.getLength();
+            this.namespaceSize = namespaceSerializer.getLength();
         }
     }
 
@@ -130,7 +129,7 @@ class AbstractMetricsTrackState<
     @Override
     public void clear() {
         if (latencyTrackingStateMetric != null
-                && latencyTrackingStateMetric.trackLatencyOnClear()) {
+                && latencyTrackingStateMetric.trackMetricsOnClear()) {
             trackLatency(original::clear, StateMetricBase.STATE_CLEAR_LATENCY);
         } else {
             original.clear();
@@ -219,9 +218,8 @@ class AbstractMetricsTrackState<
 
     protected long sizeOfValue(V value) throws IOException {
         if (valueSerializer == null || value == null) {
-            return 0;
-        }
-        if (valueSerializer.getLength() == -1) {
+            valueSize = 0;
+        } else if (valueSerializer.getLength() == -1) {
             try {
                 valueSerializer.serialize(value, outputSerializer);
                 valueSize = outputSerializer.length();

@@ -390,7 +390,7 @@ public abstract class AbstractKeyedStateBackend<K>
                 stateDescriptor.initializeSerializerUnlessSet(executionConfig);
             }
             kvState =
-                    MetricsTrackingStateFactory.createStateAndWrapWithLatencyTrackingIfEnabled(
+                    MetricsTrackingStateFactory.createStateAndWrapWithMetricsTrackingIfEnabled(
                             TtlStateFactory.createStateAndWrapWithTtlIfEnabled(
                                     namespaceSerializer, stateDescriptor, this, ttlTimeProvider),
                             this,
