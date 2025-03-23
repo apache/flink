@@ -31,7 +31,7 @@ public class StateSizeTrackOptions {
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Whether to track size of keyed state operations, e.g value state put/get/clear.");
+                            "Whether to track size of keyed state operations, e.g value state put/get/clear. Please note that if state.ttl is enabled, the size of the value will include the size of the TTL-related timestamp.");
 
     @Documentation.Section(Documentation.Sections.STATE_SIZE_TRACKING)
     public static final ConfigOption<Integer> SIZE_TRACK_SAMPLE_INTERVAL =

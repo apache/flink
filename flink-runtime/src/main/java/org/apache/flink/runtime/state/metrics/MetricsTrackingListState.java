@@ -80,13 +80,13 @@ class MetricsTrackingListState<K, N, T>
 
     @Override
     public Iterable<T> get() throws Exception {
-        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackLatencyOnGet()) {
+        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackMetricsOnGet()) {
             sizeTrackingStateMetric.updateMetrics(
                     ListStateMetrics.LIST_STATE_GET_KEY_SIZE, super.sizeOfKey());
             sizeTrackingStateMetric.updateMetrics(
                     ListStateMetrics.LIST_STATE_GET_VALUE_SIZE, sizeOfValueList(original.get()));
         }
-        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackLatencyOnGet()) {
+        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackMetricsOnGet()) {
             return trackLatencyWithException(
                     () -> original.get(), ListStateMetrics.LIST_STATE_GET_LATENCY);
         } else {
@@ -96,14 +96,14 @@ class MetricsTrackingListState<K, N, T>
 
     @Override
     public void add(T value) throws Exception {
-        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackLatencyOnAdd()) {
+        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackMetricsOnAdd()) {
             sizeTrackingStateMetric.updateMetrics(
                     ListStateMetrics.LIST_STATE_ADD_KEY_SIZE, super.sizeOfKey());
             sizeTrackingStateMetric.updateMetrics(
                     ListStateMetrics.LIST_STATE_ADD_VALUE_SIZE,
                     sizeOfValueList(Collections.singletonList(value)));
         }
-        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackLatencyOnAdd()) {
+        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackMetricsOnAdd()) {
             trackLatencyWithException(
                     () -> original.add(value), ListStateMetrics.LIST_STATE_ADD_LATENCY);
         } else {
@@ -123,14 +123,14 @@ class MetricsTrackingListState<K, N, T>
 
     @Override
     public void update(List<T> values) throws Exception {
-        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackLatencyOnUpdate()) {
+        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackMetricsOnUpdate()) {
             sizeTrackingStateMetric.updateMetrics(
                     ListStateMetrics.LIST_STATE_UPDATE_KEY_SIZE, super.sizeOfKey());
             sizeTrackingStateMetric.updateMetrics(
                     ListStateMetrics.LIST_STATE_UPDATE_VALUE_SIZE, sizeOfValueList(values));
         }
         if (latencyTrackingStateMetric != null
-                && latencyTrackingStateMetric.trackLatencyOnUpdate()) {
+                && latencyTrackingStateMetric.trackMetricsOnUpdate()) {
             trackLatencyWithException(
                     () -> original.update(values), ListStateMetrics.LIST_STATE_UPDATE_LATENCY);
         } else {
@@ -140,14 +140,14 @@ class MetricsTrackingListState<K, N, T>
 
     @Override
     public void addAll(List<T> values) throws Exception {
-        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackLatencyOnAddAll()) {
+        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackMetricsOnAddAll()) {
             sizeTrackingStateMetric.updateMetrics(
                     ListStateMetrics.LIST_STATE_ADD_ALL_KEY_SIZE, super.sizeOfKey());
             sizeTrackingStateMetric.updateMetrics(
                     ListStateMetrics.LIST_STATE_ADD_ALL_VALUE_SIZE, sizeOfValueList(values));
         }
         if (latencyTrackingStateMetric != null
-                && latencyTrackingStateMetric.trackLatencyOnAddAll()) {
+                && latencyTrackingStateMetric.trackMetricsOnAddAll()) {
             trackLatencyWithException(
                     () -> original.addAll(values), ListStateMetrics.LIST_STATE_ADD_ALL_LATENCY);
         } else {
@@ -158,7 +158,7 @@ class MetricsTrackingListState<K, N, T>
     @Override
     public void mergeNamespaces(N target, Collection<N> sources) throws Exception {
         if (latencyTrackingStateMetric != null
-                && latencyTrackingStateMetric.trackLatencyOnMergeNamespace()) {
+                && latencyTrackingStateMetric.trackMetricsOnMergeNamespace()) {
             trackLatencyWithException(
                     () -> original.mergeNamespaces(target, sources),
                     ListStateMetrics.LIST_STATE_MERGE_NAMESPACES_LATENCY);
@@ -242,27 +242,27 @@ class MetricsTrackingListState<K, N, T>
             return mergeNamespaceCount;
         }
 
-        private boolean trackLatencyOnGet() {
+        private boolean trackMetricsOnGet() {
             getCount = loopUpdateCounter(getCount);
             return getCount == 1;
         }
 
-        private boolean trackLatencyOnAdd() {
+        private boolean trackMetricsOnAdd() {
             addCount = loopUpdateCounter(addCount);
             return addCount == 1;
         }
 
-        private boolean trackLatencyOnAddAll() {
+        private boolean trackMetricsOnAddAll() {
             addAllCount = loopUpdateCounter(addAllCount);
             return addAllCount == 1;
         }
 
-        private boolean trackLatencyOnUpdate() {
+        private boolean trackMetricsOnUpdate() {
             updateCount = loopUpdateCounter(updateCount);
             return updateCount == 1;
         }
 
-        private boolean trackLatencyOnMergeNamespace() {
+        private boolean trackMetricsOnMergeNamespace() {
             mergeNamespaceCount = loopUpdateCounter(mergeNamespaceCount);
             return mergeNamespaceCount == 1;
         }

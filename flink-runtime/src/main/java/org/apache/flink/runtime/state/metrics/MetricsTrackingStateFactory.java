@@ -62,7 +62,7 @@ public class MetricsTrackingStateFactory<
 
     /** Create latency tracking state if enabled. */
     public static <K, N, V, S extends State>
-            InternalKvState<K, N, ?> createStateAndWrapWithLatencyTrackingIfEnabled(
+            InternalKvState<K, N, ?> createStateAndWrapWithMetricsTrackingIfEnabled(
                     InternalKvState<K, N, ?> kvState,
                     KeyedStateBackend<K> keyedStateBackend,
                     StateDescriptor<S, V> stateDescriptor,

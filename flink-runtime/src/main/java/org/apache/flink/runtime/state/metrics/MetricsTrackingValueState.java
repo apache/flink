@@ -65,14 +65,14 @@ class MetricsTrackingValueState<K, N, T>
 
     @Override
     public T value() throws IOException {
-        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackLatencyOnGet()) {
+        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackMetricsOnGet()) {
             sizeTrackingStateMetric.updateMetrics(
                     ValueStateMetrics.VALUE_STATE_GET_KEY_SIZE, super.sizeOfKey());
             sizeTrackingStateMetric.updateMetrics(
                     ValueStateMetrics.VALUE_STATE_GET_VALUE_SIZE,
                     super.sizeOfValue(original.value()));
         }
-        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackLatencyOnGet()) {
+        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackMetricsOnGet()) {
             return trackLatencyWithIOException(
                     () -> original.value(), ValueStateMetrics.VALUE_STATE_GET_LATENCY);
         } else {
@@ -82,14 +82,14 @@ class MetricsTrackingValueState<K, N, T>
 
     @Override
     public void update(T value) throws IOException {
-        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackLatencyOnUpdate()) {
+        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackMetricsOnUpdate()) {
             sizeTrackingStateMetric.updateMetrics(
                     ValueStateMetrics.VALUE_STATE_UPDATE_KEY_SIZE, super.sizeOfKey());
             sizeTrackingStateMetric.updateMetrics(
                     ValueStateMetrics.VALUE_STATE_UPDATE_VALUE_SIZE, super.sizeOfValue(value));
         }
         if (latencyTrackingStateMetric != null
-                && latencyTrackingStateMetric.trackLatencyOnUpdate()) {
+                && latencyTrackingStateMetric.trackMetricsOnUpdate()) {
             trackLatencyWithIOException(
                     () -> original.update(value), ValueStateMetrics.VALUE_STATE_UPDATE_LATENCY);
         } else {
@@ -125,12 +125,12 @@ class MetricsTrackingValueState<K, N, T>
             return updateCount;
         }
 
-        private boolean trackLatencyOnGet() {
+        private boolean trackMetricsOnGet() {
             getCount = loopUpdateCounter(getCount);
             return getCount == 1;
         }
 
-        private boolean trackLatencyOnUpdate() {
+        private boolean trackMetricsOnUpdate() {
             updateCount = loopUpdateCounter(updateCount);
             return updateCount == 1;
         }

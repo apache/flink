@@ -55,7 +55,7 @@ class StateMetricBase implements AutoCloseable {
         return clearCount;
     }
 
-    protected boolean trackLatencyOnClear() {
+    protected boolean trackMetricsOnClear() {
         clearCount = loopUpdateCounter(clearCount);
         return clearCount == 1;
     }

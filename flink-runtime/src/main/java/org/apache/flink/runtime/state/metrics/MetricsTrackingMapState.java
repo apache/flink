@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalMapState;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -48,6 +49,9 @@ class MetricsTrackingMapState<K, N, UK, UV>
 
     private TypeSerializer<UK> userKeySerializer;
     private TypeSerializer<UV> userValueSerializer;
+    private ThrowingConsumer<UK, IOException> trackIteratorKeySizeConsumer;
+    private ThrowingConsumer<UV, IOException> trackIteratorValueSizeConsumer;
+    private ThrowingConsumer<Map.Entry<UK, UV>, IOException> trackIteratorKeyAndValueSizeConsumer;
 
     MetricsTrackingMapState(
             String stateName,
@@ -79,17 +83,39 @@ class MetricsTrackingMapState<K, N, UK, UV>
             userKeySerializer = castedMapSerializer.getKeySerializer();
             userValueSerializer = castedMapSerializer.getValueSerializer();
         }
+        if (sizeTrackingStateConfig.isEnabled()) {
+            trackIteratorKeySizeConsumer =
+                    uk -> {
+                        sizeTrackingStateMetric.updateMetrics(
+                                MapStateMetrics.MAP_STATE_ITERATOR_KEY_SIZE,
+                                sizeOfKeyAndUserKey(uk));
+                    };
+            trackIteratorValueSizeConsumer =
+                    uv -> {
+                        sizeTrackingStateMetric.updateMetrics(
+                                MapStateMetrics.MAP_STATE_ITERATOR_VALUE_SIZE, sizeOfUserValue(uv));
+                    };
+            trackIteratorKeyAndValueSizeConsumer =
+                    entry -> {
+                        sizeTrackingStateMetric.updateMetrics(
+                                MapStateMetrics.MAP_STATE_ITERATOR_KEY_SIZE,
+                                sizeOfKeyAndUserKey(entry.getKey()));
+                        sizeTrackingStateMetric.updateMetrics(
+                                MapStateMetrics.MAP_STATE_ITERATOR_VALUE_SIZE,
+                                sizeOfUserValue(entry.getValue()));
+                    };
+        }
     }
 
     @Override
     public UV get(UK key) throws Exception {
-        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackLatencyOnGet()) {
+        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackMetricsOnGet()) {
             sizeTrackingStateMetric.updateMetrics(
                     MapStateMetrics.MAP_STATE_GET_KEY_SIZE, sizeOfKeyAndUserKey(key));
             sizeTrackingStateMetric.updateMetrics(
                     MapStateMetrics.MAP_STATE_GET_VALUE_SIZE, sizeOfUserValue(original.get(key)));
         }
-        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackLatencyOnGet()) {
+        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackMetricsOnGet()) {
             return trackLatencyWithException(
                     () -> original.get(key), MapStateMetrics.MAP_STATE_GET_LATENCY);
         } else {
@@ -99,13 +125,13 @@ class MetricsTrackingMapState<K, N, UK, UV>
 
     @Override
     public void put(UK key, UV value) throws Exception {
-        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackLatencyOnPut()) {
+        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackMetricsOnPut()) {
             sizeTrackingStateMetric.updateMetrics(
                     MapStateMetrics.MAP_STATE_PUT_KEY_SIZE, sizeOfKeyAndUserKey(key));
             sizeTrackingStateMetric.updateMetrics(
                     MapStateMetrics.MAP_STATE_PUT_VALUE_SIZE, sizeOfUserValue(value));
         }
-        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackLatencyOnPut()) {
+        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackMetricsOnPut()) {
             trackLatencyWithException(
                     () -> original.put(key, value), MapStateMetrics.MAP_STATE_PUT_LATENCY);
         } else {
@@ -115,7 +141,7 @@ class MetricsTrackingMapState<K, N, UK, UV>
 
     @Override
     public void putAll(Map<UK, UV> map) throws Exception {
-        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackLatencyOnPutAll()) {
+        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackMetricsOnPutAll()) {
             for (Map.Entry<UK, UV> entry : map.entrySet()) {
                 sizeTrackingStateMetric.updateMetrics(
                         MapStateMetrics.MAP_STATE_PUT_KEY_SIZE,
@@ -127,7 +153,7 @@ class MetricsTrackingMapState<K, N, UK, UV>
         }
 
         if (latencyTrackingStateMetric != null
-                && latencyTrackingStateMetric.trackLatencyOnPutAll()) {
+                && latencyTrackingStateMetric.trackMetricsOnPutAll()) {
             trackLatencyWithException(
                     () -> original.putAll(map), MapStateMetrics.MAP_STATE_PUT_ALL_LATENCY);
         } else {
@@ -137,8 +163,12 @@ class MetricsTrackingMapState<K, N, UK, UV>
 
     @Override
     public void remove(UK key) throws Exception {
+        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackMetricsOnRemove()) {
+            sizeTrackingStateMetric.updateMetrics(
+                    MapStateMetrics.MAP_STATE_REMOVE_KEY_SIZE, sizeOfKeyAndUserKey(key));
+        }
         if (latencyTrackingStateMetric != null
-                && latencyTrackingStateMetric.trackLatencyOnRemove()) {
+                && latencyTrackingStateMetric.trackMetricsOnRemove()) {
             trackLatencyWithException(
                     () -> original.remove(key), MapStateMetrics.MAP_STATE_REMOVE_LATENCY);
         } else {
@@ -148,8 +178,12 @@ class MetricsTrackingMapState<K, N, UK, UV>
 
     @Override
     public boolean contains(UK key) throws Exception {
+        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackMetricsOnContains()) {
+            sizeTrackingStateMetric.updateMetrics(
+                    MapStateMetrics.MAP_STATE_CONTAINS_KEY_SIZE, sizeOfKeyAndUserKey(key));
+        }
         if (latencyTrackingStateMetric != null
-                && latencyTrackingStateMetric.trackLatencyOnContains()) {
+                && latencyTrackingStateMetric.trackMetricsOnContains()) {
             return trackLatencyWithException(
                     () -> original.contains(key), MapStateMetrics.MAP_STATE_CONTAINS_LATENCY);
         } else {
@@ -160,55 +194,59 @@ class MetricsTrackingMapState<K, N, UK, UV>
     @Override
     public Iterable<Map.Entry<UK, UV>> entries() throws Exception {
         if (latencyTrackingStateMetric != null
-                && latencyTrackingStateMetric.trackLatencyOnEntriesInit()) {
+                && latencyTrackingStateMetric.trackMetricsOnEntriesInit()) {
             return trackLatencyWithException(
-                    () -> new IterableWrapper<>(original.entries()),
+                    () ->
+                            new IterableWrapper<>(
+                                    original.entries(), trackIteratorKeyAndValueSizeConsumer),
                     MapStateMetrics.MAP_STATE_ENTRIES_INIT_LATENCY);
         } else {
-            return new IterableWrapper<>(original.entries());
+            return new IterableWrapper<>(original.entries(), trackIteratorKeyAndValueSizeConsumer);
         }
     }
 
     @Override
     public Iterable<UK> keys() throws Exception {
         if (latencyTrackingStateMetric != null
-                && latencyTrackingStateMetric.trackLatencyOnKeysInit()) {
+                && latencyTrackingStateMetric.trackMetricsOnKeysInit()) {
             return trackLatencyWithException(
-                    () -> new IterableWrapper<>(original.keys()),
+                    () -> new IterableWrapper<>(original.keys(), trackIteratorKeySizeConsumer),
                     MapStateMetrics.MAP_STATE_KEYS_INIT_LATENCY);
         } else {
-            return new IterableWrapper<>(original.keys());
+            return new IterableWrapper<>(original.keys(), trackIteratorKeySizeConsumer);
         }
     }
 
     @Override
     public Iterable<UV> values() throws Exception {
         if (latencyTrackingStateMetric != null
-                && latencyTrackingStateMetric.trackLatencyOnValuesInit()) {
+                && latencyTrackingStateMetric.trackMetricsOnValuesInit()) {
             return trackLatencyWithException(
-                    () -> new IterableWrapper<>(original.values()),
+                    () -> new IterableWrapper<>(original.values(), trackIteratorValueSizeConsumer),
                     MapStateMetrics.MAP_STATE_VALUES_INIT_LATENCY);
         } else {
-            return new IterableWrapper<>(original.values());
+            return new IterableWrapper<>(original.values(), trackIteratorValueSizeConsumer);
         }
     }
 
     @Override
     public Iterator<Map.Entry<UK, UV>> iterator() throws Exception {
         if (latencyTrackingStateMetric != null
-                && latencyTrackingStateMetric.trackLatencyOnIteratorInit()) {
+                && latencyTrackingStateMetric.trackMetricsOnIteratorInit()) {
             return trackLatencyWithException(
-                    () -> new IteratorWrapper<>(original.iterator()),
+                    () ->
+                            new IteratorWrapper<>(
+                                    original.iterator(), trackIteratorKeyAndValueSizeConsumer),
                     MapStateMetrics.MAP_STATE_ITERATOR_INIT_LATENCY);
         } else {
-            return new IteratorWrapper<>(original.iterator());
+            return new IteratorWrapper<>(original.iterator(), trackIteratorKeyAndValueSizeConsumer);
         }
     }
 
     @Override
     public boolean isEmpty() throws Exception {
         if (latencyTrackingStateMetric != null
-                && latencyTrackingStateMetric.trackLatencyOnIsEmpty()) {
+                && latencyTrackingStateMetric.trackMetricsOnIsEmpty()) {
             return trackLatencyWithException(
                     () -> original.isEmpty(), MapStateMetrics.MAP_STATE_IS_EMPTY_LATENCY);
         } else {
@@ -256,28 +294,33 @@ class MetricsTrackingMapState<K, N, UK, UV>
 
     private class IterableWrapper<E> implements Iterable<E> {
         private final Iterable<E> iterable;
+        private final ThrowingConsumer<E, IOException> trackElementSizeConsumer;
 
-        IterableWrapper(Iterable<E> iterable) {
+        IterableWrapper(
+                Iterable<E> iterable, ThrowingConsumer<E, IOException> trackElementSizeConsumer) {
             this.iterable = iterable;
+            this.trackElementSizeConsumer = trackElementSizeConsumer;
         }
 
         @Override
         public Iterator<E> iterator() {
-            return new IteratorWrapper<>(iterable.iterator());
+            return new IteratorWrapper<>(iterable.iterator(), trackElementSizeConsumer);
         }
     }
 
     private class IteratorWrapper<E> implements Iterator<E> {
         private final Iterator<E> iterator;
+        private final ThrowingConsumer<E, IOException> trackElementSizeConsumer;
 
-        IteratorWrapper(Iterator<E> iterator) {
+        IteratorWrapper(Iterator<E> iterator, ThrowingConsumer<E, IOException> trackElementSize) {
             this.iterator = iterator;
+            this.trackElementSizeConsumer = trackElementSize;
         }
 
         @Override
         public boolean hasNext() {
             if (latencyTrackingStateMetric != null
-                    && latencyTrackingStateMetric.trackLatencyOnIteratorHasNext()) {
+                    && latencyTrackingStateMetric.trackMetricsOnIteratorHasNext()) {
                 return trackLatency(
                         iterator::hasNext, MapStateMetrics.MAP_STATE_ITERATOR_HAS_NEXT_LATENCY);
             } else {
@@ -287,19 +330,30 @@ class MetricsTrackingMapState<K, N, UK, UV>
 
         @Override
         public E next() {
+            E result;
             if (latencyTrackingStateMetric != null
-                    && latencyTrackingStateMetric.trackLatencyOnIteratorNext()) {
-                return trackLatency(
-                        iterator::next, MapStateMetrics.MAP_STATE_ITERATOR_NEXT_LATENCY);
+                    && latencyTrackingStateMetric.trackMetricsOnIteratorNext()) {
+                result =
+                        trackLatency(
+                                iterator::next, MapStateMetrics.MAP_STATE_ITERATOR_NEXT_LATENCY);
             } else {
-                return iterator.next();
+                result = iterator.next();
             }
+            if (sizeTrackingStateMetric != null
+                    && sizeTrackingStateMetric.trackMetricsOnIteratorNext()) {
+                try {
+                    trackElementSizeConsumer.accept(result);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            return result;
         }
 
         @Override
         public void remove() {
             if (latencyTrackingStateMetric != null
-                    && latencyTrackingStateMetric.trackLatencyOnIteratorRemove()) {
+                    && latencyTrackingStateMetric.trackMetricsOnIteratorRemove()) {
                 trackLatency(iterator::remove, MapStateMetrics.MAP_STATE_ITERATOR_REMOVE_LATENCY);
             } else {
                 iterator.remove();
@@ -327,6 +381,10 @@ class MetricsTrackingMapState<K, N, UK, UV>
         private static final String MAP_STATE_GET_VALUE_SIZE = "mapStateGetValueSize";
         private static final String MAP_STATE_PUT_KEY_SIZE = "mapStatePutKeySize";
         private static final String MAP_STATE_PUT_VALUE_SIZE = "mapStatePutValueSize";
+        private static final String MAP_STATE_ITERATOR_KEY_SIZE = "mapStateIteratorKeySize";
+        private static final String MAP_STATE_ITERATOR_VALUE_SIZE = "mapStateIteratorValueSize";
+        private static final String MAP_STATE_REMOVE_KEY_SIZE = "mapStateRemoveKeySize";
+        private static final String MAP_STATE_CONTAINS_KEY_SIZE = "mapStateContainsKeySize";
 
         private int getCount = 0;
         private int iteratorRemoveCount = 0;
@@ -408,67 +466,67 @@ class MetricsTrackingMapState<K, N, UK, UV>
             return iteratorNextCount;
         }
 
-        private boolean trackLatencyOnGet() {
+        private boolean trackMetricsOnGet() {
             getCount = loopUpdateCounter(getCount);
             return getCount == 1;
         }
 
-        private boolean trackLatencyOnPut() {
+        private boolean trackMetricsOnPut() {
             putCount = loopUpdateCounter(putCount);
             return putCount == 1;
         }
 
-        private boolean trackLatencyOnPutAll() {
+        private boolean trackMetricsOnPutAll() {
             putAllCount = loopUpdateCounter(putAllCount);
             return putAllCount == 1;
         }
 
-        private boolean trackLatencyOnRemove() {
+        private boolean trackMetricsOnRemove() {
             removeCount = loopUpdateCounter(removeCount);
             return removeCount == 1;
         }
 
-        private boolean trackLatencyOnContains() {
+        private boolean trackMetricsOnContains() {
             containsCount = loopUpdateCounter(containsCount);
             return containsCount == 1;
         }
 
-        private boolean trackLatencyOnEntriesInit() {
+        private boolean trackMetricsOnEntriesInit() {
             entriesInitCount = loopUpdateCounter(entriesInitCount);
             return entriesInitCount == 1;
         }
 
-        private boolean trackLatencyOnKeysInit() {
+        private boolean trackMetricsOnKeysInit() {
             keysInitCount = loopUpdateCounter(keysInitCount);
             return keysInitCount == 1;
         }
 
-        private boolean trackLatencyOnValuesInit() {
+        private boolean trackMetricsOnValuesInit() {
             valuesInitCount = loopUpdateCounter(valuesInitCount);
             return valuesInitCount == 1;
         }
 
-        private boolean trackLatencyOnIteratorInit() {
+        private boolean trackMetricsOnIteratorInit() {
             iteratorInitCount = loopUpdateCounter(iteratorInitCount);
             return iteratorInitCount == 1;
         }
 
-        private boolean trackLatencyOnIsEmpty() {
+        private boolean trackMetricsOnIsEmpty() {
             isEmptyCount = loopUpdateCounter(isEmptyCount);
             return isEmptyCount == 1;
         }
 
-        private boolean trackLatencyOnIteratorHasNext() {
+        private boolean trackMetricsOnIteratorHasNext() {
             iteratorHasNextCount = loopUpdateCounter(iteratorHasNextCount);
             return iteratorHasNextCount == 1;
         }
 
-        private boolean trackLatencyOnIteratorNext() {
+        private boolean trackMetricsOnIteratorNext() {
             iteratorNextCount = loopUpdateCounter(iteratorNextCount);
             return iteratorNextCount == 1;
         }
 
-        private boolean trackLatencyOnIteratorRemove() {
+        private boolean trackMetricsOnIteratorRemove() {
             iteratorRemoveCount = loopUpdateCounter(iteratorRemoveCount);
             return iteratorRemoveCount == 1;
         }
