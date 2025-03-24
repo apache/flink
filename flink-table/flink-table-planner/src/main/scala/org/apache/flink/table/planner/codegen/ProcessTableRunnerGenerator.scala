@@ -33,6 +33,7 @@ import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.{ver
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext
+import org.apache.flink.table.planner.plan.utils.RexLiteralUtil
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.generated.{GeneratedProcessTableRunner, ProcessTableRunner}
 import org.apache.flink.table.types.DataType
@@ -42,7 +43,7 @@ import org.apache.flink.table.types.inference.TypeInferenceUtil.StateInfo
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.types.Row
 
-import org.apache.calcite.rex.{RexCall, RexCallBinding, RexNode}
+import org.apache.calcite.rex.{RexCall, RexCallBinding, RexLiteral, RexNode, RexUtil}
 import org.apache.calcite.sql.SqlKind
 
 import java.util
@@ -60,6 +61,7 @@ object ProcessTableRunnerGenerator {
   def generate(
       ctx: CodeGeneratorContext,
       invocation: RexCall,
+      inputTimeColumns: java.util.List[Integer],
       inputChangelogModes: java.util.List[ChangelogMode]): GeneratedRunnerResult = {
     val function: BridgingSqlFunction = invocation.getOperator.asInstanceOf[BridgingSqlFunction]
     val definition: FunctionDefinition = function.getDefinition
@@ -82,6 +84,7 @@ object ProcessTableRunnerGenerator {
       definition,
       RexCallBinding.create(typeFactory, call, Collections.emptyList()),
       call.getType,
+      inputTimeColumns,
       inputChangelogModes)
 
     // Create the final UDF for runtime
@@ -218,11 +221,14 @@ object ProcessTableRunnerGenerator {
         }
       case _ => 0
     }.sum
-    val suffixOutputSystemFields = if (operands(operands.size - 2).getKind != SqlKind.DEFAULT) {
-      1
-    } else {
-      0
-    }
+    val onTimeArg = operands(
+      operands.size - 1 - SystemTypeInference.PROCESS_TABLE_FUNCTION_ARG_ON_TIME_OFFSET)
+    val suffixOutputSystemFields =
+      if (onTimeArg.getKind == SqlKind.DEFAULT || RexUtil.isNullLiteral(onTimeArg, true)) {
+        0
+      } else {
+        1
+      }
     val projectedFields = invocation.getType.getFieldList.asScala
       .drop(prefixOutputSystemFields)
       .dropRight(suffixOutputSystemFields)

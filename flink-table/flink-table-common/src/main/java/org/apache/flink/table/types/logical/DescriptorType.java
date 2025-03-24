@@ -26,7 +26,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Logical type for describing a list of columns.
+ * Logical type for describing an arbitrary, unvalidated list of columns.
  *
  * <p>This type is the return type of calls to {@code DESCRIPTOR(`c0` INT, `c1` STRING)} (not
  * supported by Calcite yet) or {@code DESCRIPTOR(`c0`, `c1`)}. The type is intended to be used in

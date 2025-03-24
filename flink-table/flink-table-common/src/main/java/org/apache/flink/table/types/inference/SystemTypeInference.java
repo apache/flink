@@ -37,6 +37,7 @@ import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.types.ColumnList;
 
 import javax.annotation.Nullable;
@@ -68,10 +69,17 @@ import java.util.stream.Stream;
 @Internal
 public class SystemTypeInference {
 
+    public static final int PROCESS_TABLE_FUNCTION_ARG_UID_OFFSET = 0;
+    public static final String PROCESS_TABLE_FUNCTION_ARG_UID = "uid";
+    public static final int PROCESS_TABLE_FUNCTION_ARG_ON_TIME_OFFSET = 1;
+    public static final String PROCESS_TABLE_FUNCTION_ARG_ON_TIME = "on_time";
+
     public static final List<StaticArgument> PROCESS_TABLE_FUNCTION_SYSTEM_ARGS =
             List.of(
-                    StaticArgument.scalar("on_time", DataTypes.DESCRIPTOR(), true),
-                    StaticArgument.scalar("uid", DataTypes.STRING(), true));
+                    StaticArgument.scalar(
+                            PROCESS_TABLE_FUNCTION_ARG_ON_TIME, DataTypes.DESCRIPTOR(), true),
+                    StaticArgument.scalar(
+                            PROCESS_TABLE_FUNCTION_ARG_UID, DataTypes.STRING(), true));
 
     public static final String PROCESS_TABLE_FUNCTION_RESULT_ROWTIME = "rowtime";
 
@@ -271,9 +279,11 @@ public class SystemTypeInference {
                                         callContext
                                                 .getTableSemantics(pos)
                                                 .orElseThrow(IllegalStateException::new);
+                                final DataType rowDataType =
+                                        DataTypes.ROW(DataType.getFields(argDataTypes.get(pos)));
                                 final DataType projectedRow =
                                         Projection.of(semantics.partitionByColumns())
-                                                .project(argDataTypes.get(pos));
+                                                .project(rowDataType);
                                 return DataType.getFields(projectedRow).stream();
                             })
                     .flatMap(s -> s)
@@ -303,7 +313,7 @@ public class SystemTypeInference {
             final List<DataType> args = callContext.getArgumentDataTypes();
 
             // Check if on_time is defined and non-empty
-            final int onTimePos = args.size() - 2;
+            final int onTimePos = args.size() - 1 - PROCESS_TABLE_FUNCTION_ARG_ON_TIME_OFFSET;
             final Set<String> onTimeFields =
                     callContext
                             .getArgumentValue(onTimePos, ColumnList.class)
@@ -322,7 +332,8 @@ public class SystemTypeInference {
                                             return null;
                                         }
                                         final RowType rowType =
-                                                (RowType) args.get(pos).getLogicalType();
+                                                LogicalTypeUtils.toRowType(
+                                                        args.get(pos).getLogicalType());
                                         final int onTimeColumn =
                                                 findUniqueOnTimeColumn(
                                                         staticArg.getName(), rowType, onTimeFields);
@@ -476,13 +487,18 @@ public class SystemTypeInference {
 
             // Check that the input type strategy doesn't influence the static arguments
             if (inferredDataTypes == null || !inferredDataTypes.equals(args)) {
-                throw new ValidationException(
+                return callContext.fail(
+                        throwOnFailure,
                         "Process table functions must declare a static signature "
                                 + "that is not overloaded and doesn't contain varargs.");
             }
 
-            checkTableArgTraits(staticArgs, callContext);
-            checkUidArg(callContext);
+            try {
+                checkTableArgTraits(staticArgs, callContext);
+                checkUidArg(callContext);
+            } catch (ValidationException e) {
+                return callContext.fail(throwOnFailure, e.getMessage());
+            }
 
             return Optional.of(inferredDataTypes);
         }
@@ -498,7 +514,7 @@ public class SystemTypeInference {
             final List<DataType> args = callContext.getArgumentDataTypes();
 
             // Verify the uid format if provided
-            final int uidPos = args.size() - 1;
+            final int uidPos = args.size() - 1 - PROCESS_TABLE_FUNCTION_ARG_UID_OFFSET;
             if (!callContext.isArgumentNull(uidPos)) {
                 final String uid = callContext.getArgumentValue(uidPos, String.class).orElse("");
                 if (isInvalidUidForProcessTableFunction(uid)) {

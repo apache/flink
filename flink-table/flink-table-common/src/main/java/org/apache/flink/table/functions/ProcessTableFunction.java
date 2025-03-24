@@ -41,7 +41,7 @@ import java.time.LocalDateTime;
  * <p>PTFs are the most powerful function kind for Flink SQL and Table API. They enable implementing
  * user-defined operators that can be as feature-rich as built-in operations. PTFs have access to
  * Flink's managed state, event-time and timer services, underlying table changelogs, and can take
- * multiple ordered and/or partitioned tables to produce a new table.
+ * multiple partitioned tables to produce a new table.
  *
  * <h1>Table Semantics and Virtual Processors</h1>
  *
