@@ -28,6 +28,8 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.utils.ValueDataTypeConverter;
+import org.apache.flink.table.utils.EncodingUtils;
+import org.apache.flink.types.ColumnList;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -295,6 +297,17 @@ public final class ValueLiteralExpression implements ResolvedExpression {
                         duration.toMinutes() % 60,
                         duration.getSeconds() % 60,
                         duration.getNano() / 1_000_000);
+            case DESCRIPTOR:
+                final ColumnList columnList = getValueAs(ColumnList.class).get();
+                if (!columnList.getDataTypes().isEmpty()) {
+                    throw new TableException("Data types in DESCRIPTOR are not supported yet.");
+                }
+                return String.format(
+                        "DESCRIPTOR(%s)",
+                        columnList.getNames().stream()
+                                .map(EncodingUtils::escapeBackticks)
+                                .map(c -> String.format("`%s`", c))
+                                .collect(Collectors.joining()));
             case ARRAY:
             case MULTISET:
             case MAP:
@@ -308,7 +321,6 @@ public final class ValueLiteralExpression implements ResolvedExpression {
             case RAW:
             case SYMBOL:
             case UNRESOLVED:
-            case DESCRIPTOR:
             default:
                 throw new TableException(
                         "Literals with "

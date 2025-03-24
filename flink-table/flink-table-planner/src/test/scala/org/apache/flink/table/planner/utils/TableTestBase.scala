@@ -90,8 +90,10 @@ import org.apache.calcite.sql.{SqlExplainLevel, SqlIntervalQualifier}
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.assertj.core.api.Assertions.{assertThat, assertThatExceptionOfType, fail}
 import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
+import org.junit.jupiter.api.TestTemplate
 import org.junit.jupiter.api.extension.{BeforeEachCallback, ExtendWith, ExtensionContext, RegisterExtension}
 import org.junit.jupiter.api.io.TempDir
+import org.junit.jupiter.params.ParameterizedTest
 import org.junit.platform.commons.support.AnnotationSupport
 
 import java.io.{File, IOException}
@@ -155,7 +157,14 @@ class TestName extends BeforeEachCallback {
       }
       methodName = s"${context.getTestMethod.get().getName}$displayName"
     } else {
-      methodName = context.getTestMethod.get().getName
+      if (
+        AnnotationSupport.isAnnotated(context.getTestMethod, classOf[ParameterizedTest])
+        || AnnotationSupport.isAnnotated(context.getTestMethod, classOf[TestTemplate])
+      ) {
+        methodName = s"${context.getTestMethod.get().getName}[${context.getDisplayName}]"
+      } else {
+        methodName = context.getTestMethod.get().getName
+      }
     }
   }
 

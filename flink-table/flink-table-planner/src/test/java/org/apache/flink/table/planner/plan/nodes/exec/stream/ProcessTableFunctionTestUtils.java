@@ -26,6 +26,7 @@ import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.runtime.operators.process.ProcessTableOperator;
+import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.Row;
 
@@ -42,6 +43,68 @@ import static org.apache.flink.table.annotation.ArgumentTrait.TABLE_AS_SET;
 /** Testing functions for {@link ProcessTableFunction}. */
 @SuppressWarnings("unused")
 public class ProcessTableFunctionTestUtils {
+
+    public static final String BASIC_VALUES =
+            "CREATE VIEW t AS SELECT * FROM "
+                    + "(VALUES ('Bob', 12), ('Alice', 42)) AS T(name, score)";
+
+    public static final String MULTI_VALUES =
+            "CREATE VIEW t AS SELECT * FROM "
+                    + "(VALUES ('Bob', 12), ('Alice', 42), ('Bob', 99), ('Bob', 100), ('Alice', 400)) AS T(name, score)";
+
+    public static final String UPDATING_VALUES =
+            "CREATE VIEW t AS SELECT name, COUNT(*) FROM "
+                    + "(VALUES ('Bob', 12), ('Alice', 42), ('Bob', 14)) AS T(name, score) "
+                    + "GROUP BY name";
+
+    public static final SourceTestStep TIMED_SOURCE =
+            SourceTestStep.newBuilder("t")
+                    .addSchema(
+                            "name STRING",
+                            "score INT",
+                            "ts TIMESTAMP_LTZ(3)",
+                            "WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND")
+                    .producedValues(
+                            Row.of("Bob", 1, Instant.ofEpochMilli(0)),
+                            Row.of("Alice", 1, Instant.ofEpochMilli(1)),
+                            Row.of("Bob", 2, Instant.ofEpochMilli(2)),
+                            Row.of("Bob", 3, Instant.ofEpochMilli(3)),
+                            Row.of("Bob", 4, Instant.ofEpochMilli(4)),
+                            Row.of("Bob", 5, Instant.ofEpochMilli(5)),
+                            Row.of("Bob", 6, Instant.ofEpochMilli(6)))
+                    .build();
+
+    public static final SourceTestStep TIMED_SOURCE_LATE_EVENTS =
+            SourceTestStep.newBuilder("t")
+                    .addSchema(
+                            "name STRING",
+                            "score INT",
+                            "ts TIMESTAMP_LTZ(3)",
+                            "WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND")
+                    .producedValues(
+                            Row.of("Bob", 1, Instant.ofEpochMilli(0)),
+                            Row.of("Alice", 1, Instant.ofEpochMilli(1)),
+                            Row.of("Bob", 2, Instant.ofEpochMilli(99999)),
+                            Row.of("Bob", 3, Instant.ofEpochMilli(3)),
+                            Row.of("Bob", 4, Instant.ofEpochMilli(4)))
+                    .build();
+
+    /** Corresponds to {@link TestProcessTableFunctionBase}. */
+    public static final String BASE_SINK_SCHEMA = "`out` STRING";
+
+    /** Corresponds to {@link TestProcessTableFunctionBase}. */
+    public static final String TIMED_BASE_SINK_SCHEMA = "`out` STRING, `rowtime` TIMESTAMP_LTZ(3)";
+
+    /** Corresponds to {@link TestProcessTableFunctionBase}. */
+    public static final String KEYED_TIMED_BASE_SINK_SCHEMA =
+            "`name` STRING, `out` STRING, `rowtime` TIMESTAMP_LTZ(3)";
+
+    /** Corresponds to {@link TestProcessTableFunctionBase}. */
+    public static final String KEYED_BASE_SINK_SCHEMA = "`name` STRING, `out` STRING";
+
+    /** Corresponds to {@link TestProcessTableFunctionBase}. */
+    public static final String PASS_THROUGH_BASE_SINK_SCHEMA =
+            "`name` STRING, `score` INT, `out` STRING";
 
     /** Testing function. */
     public static class AtomicTypeWrappingFunction extends ProcessTableFunction<Integer> {

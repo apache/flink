@@ -86,7 +86,7 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFi
  * <p>A process table function (PTF) maps zero, one, or multiple tables to zero, one, or multiple
  * rows. PTFs enable implementing user-defined operators that can be as feature-rich as built-in
  * operations. PTFs have access to Flink's managed state, event-time and timer services, underlying
- * table changelogs, and can take multiple ordered and/or partitioned tables to produce a new table.
+ * table changelogs, and can take multiple partitioned tables to produce a new table.
  */
 @ExecNodeMetadata(
         name = "stream-exec-process-table-function",
@@ -183,12 +183,17 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
                                             tabledArg, tableArgCall, onTimeFields);
                                 })
                         .collect(Collectors.toList());
+        final List<Integer> timeColumns =
+                runtimeTableSemantics.stream()
+                        .map(RuntimeTableSemantics::timeColumn)
+                        .collect(Collectors.toList());
 
         final CodeGeneratorContext ctx =
                 new CodeGeneratorContext(config, planner.getFlinkContext().getClassLoader());
 
         final GeneratedRunnerResult generated =
-                ProcessTableRunnerGenerator.generate(ctx, invocation, inputChangelogModes);
+                ProcessTableRunnerGenerator.generate(
+                        ctx, invocation, timeColumns, inputChangelogModes);
         final GeneratedProcessTableRunner generatedRunner = generated.runner();
         final LinkedHashMap<String, StateInfo> stateInfos = generated.stateInfos();
 

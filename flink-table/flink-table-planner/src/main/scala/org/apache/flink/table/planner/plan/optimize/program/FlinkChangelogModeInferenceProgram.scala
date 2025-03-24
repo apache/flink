@@ -23,9 +23,11 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.config.ExecutionConfigOptions.UpsertMaterialize
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.planner.plan.`trait`._
+import org.apache.flink.table.planner.plan.`trait`.DeleteKindTrait.{deleteOnKeyOrNone, fullDeleteOrNone, DELETE_BY_KEY, FULL_DELETE}
 import org.apache.flink.table.planner.plan.`trait`.UpdateKindTrait.{beforeAfterOrNone, onlyAfterOrNone, BEFORE_AND_AFTER, ONLY_UPDATE_AFTER}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
+import org.apache.flink.table.planner.plan.optimize.ChangelogNormalizeRequirementResolver
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.plan.utils.RankProcessStrategy.{AppendFastStrategy, RetractStrategy, UpdateFastStrategy}
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
@@ -70,12 +72,33 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     }
 
     val updateKindTraitVisitor = new SatisfyUpdateKindTraitVisitor(context)
-    val finalRoot = requiredUpdateKindTraits.flatMap {
+    val updateRoot = requiredUpdateKindTraits.flatMap {
       requiredUpdateKindTrait =>
         updateKindTraitVisitor.visit(rootWithModifyKindSet, requiredUpdateKindTrait)
     }
 
-    // step3: sanity check and return non-empty root
+    // step3: satisfy DeleteKind trait
+    val requiredDeleteKindTraits = if (rootModifyKindSet.contains(ModifyKind.DELETE)) {
+      root match {
+        case _: StreamPhysicalSink =>
+          // try DELETE_BY_KEY first, and then FULL_DELETE
+          Seq(DeleteKindTrait.DELETE_BY_KEY, DeleteKindTrait.FULL_DELETE)
+        case _ =>
+          // for non-sink nodes prefer full deletes
+          Seq(DeleteKindTrait.FULL_DELETE)
+      }
+    } else {
+      // there is no deletes
+      Seq(DeleteKindTrait.NONE)
+    }
+
+    val deleteKindTraitVisitor = new SatisfyDeleteKindTraitVisitor(context)
+    val finalRoot = requiredDeleteKindTraits.flatMap {
+      requiredDeleteKindTrait =>
+        deleteKindTraitVisitor.visit(updateRoot.head, requiredDeleteKindTrait)
+    }
+
+    // step4: sanity check and return non-empty root
     if (finalRoot.isEmpty) {
       val plan = FlinkRelOptUtil.toString(root, withChangelogTraits = true)
       throw new TableException(
@@ -489,13 +512,15 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
      *
      * @param rel
      *   the node who should satisfy the requiredTrait
-     * @param requiredTrait
+     * @param requiredUpdateTrait
      *   the required UpdateKindTrait
      * @return
      *   A converted node which satisfies required traits by input nodes of current node. Or None if
      *   required traits cannot be satisfied.
      */
-    def visit(rel: StreamPhysicalRel, requiredTrait: UpdateKindTrait): Option[StreamPhysicalRel] =
+    def visit(
+        rel: StreamPhysicalRel,
+        requiredUpdateTrait: UpdateKindTrait): Option[StreamPhysicalRel] =
       rel match {
         case sink: StreamPhysicalSink =>
           val sinkRequiredTraits = inferSinkRequiredTraits(sink)
@@ -534,10 +559,10 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             _: StreamPhysicalWindowAggregate =>
           // Aggregate, TableAggregate, Limit, GroupWindowAggregate, WindowAggregate,
           // and WindowTableAggregate requires update_before if there are updates
-          val requiredChildTrait = beforeAfterOrNone(getModifyKindSet(rel.getInput(0)))
-          val children = visitChildren(rel, requiredChildTrait)
+          val requiredChildUpdateTrait = beforeAfterOrNone(getModifyKindSet(rel.getInput(0)))
+          val children = visitChildren(rel, requiredChildUpdateTrait)
           // use requiredTrait as providedTrait, because they should support all kinds of UpdateKind
-          createNewNode(rel, children, requiredTrait)
+          createNewNode(rel, children, requiredUpdateTrait)
 
         case _: StreamPhysicalWindowRank | _: StreamPhysicalWindowDeduplicate |
             _: StreamPhysicalTemporalSort | _: StreamPhysicalMatch |
@@ -546,14 +571,14 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           // WindowRank, WindowDeduplicate, Deduplicate, TemporalSort, CEP, OverAggregate,
           // and IntervalJoin, WindowJoin require nothing about UpdateKind.
           val children = visitChildren(rel, UpdateKindTrait.NONE)
-          createNewNode(rel, children, requiredTrait)
+          createNewNode(rel, children, requiredUpdateTrait)
 
         case rank: StreamPhysicalRank =>
           val rankStrategies =
             RankProcessStrategy.analyzeRankProcessStrategies(rank, rank.partitionKey, rank.orderKey)
           visitRankStrategies(
             rankStrategies,
-            requiredTrait,
+            requiredUpdateTrait,
             rankStrategy => rank.copy(rankStrategy))
 
         case sortLimit: StreamPhysicalSortLimit =>
@@ -563,16 +588,16 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             sortLimit.getCollation)
           visitRankStrategies(
             rankStrategies,
-            requiredTrait,
+            requiredUpdateTrait,
             rankStrategy => sortLimit.copy(rankStrategy))
 
         case sort: StreamPhysicalSort =>
           val requiredChildTrait = beforeAfterOrNone(getModifyKindSet(sort.getInput))
           val children = visitChildren(sort, requiredChildTrait)
-          createNewNode(sort, children, requiredTrait)
+          createNewNode(sort, children, requiredUpdateTrait)
 
         case join: StreamPhysicalJoin =>
-          val onlyAfterByParent = requiredTrait.updateKind == UpdateKind.ONLY_UPDATE_AFTER
+          val onlyAfterByParent = requiredUpdateTrait.updateKind == UpdateKind.ONLY_UPDATE_AFTER
           val children = join.getInputs.zipWithIndex.map {
             case (child, childOrdinal) =>
               val physicalChild = child.asInstanceOf[StreamPhysicalRel]
@@ -592,7 +617,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           if (children.exists(_.isEmpty)) {
             None
           } else {
-            createNewNode(join, Some(children.flatten.toList), requiredTrait)
+            createNewNode(join, Some(children.flatten.toList), requiredUpdateTrait)
           }
 
         case temporalJoin: StreamPhysicalTemporalJoin =>
@@ -601,7 +626,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
           // the left input required trait depends on it's parent in temporal join
           // the left input will send message to parent
-          val requiredUpdateBeforeByParent = requiredTrait.updateKind == UpdateKind.BEFORE_AND_AFTER
+          val requiredUpdateBeforeByParent =
+            requiredUpdateTrait.updateKind == UpdateKind.BEFORE_AND_AFTER
           val leftInputModifyKindSet = getModifyKindSet(left)
           val leftRequiredTrait = if (requiredUpdateBeforeByParent) {
             beforeAfterOrNone(leftInputModifyKindSet)
@@ -630,7 +656,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
         case calc: StreamPhysicalCalcBase =>
           if (
-            requiredTrait == UpdateKindTrait.ONLY_UPDATE_AFTER &&
+            requiredUpdateTrait == UpdateKindTrait.ONLY_UPDATE_AFTER &&
             calc.getProgram.getCondition != null
           ) {
             // we don't expect filter to satisfy ONLY_UPDATE_AFTER update kind,
@@ -639,7 +665,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             None
           } else {
             // otherwise, forward UpdateKind requirement
-            visitChildren(rel, requiredTrait) match {
+            visitChildren(rel, requiredUpdateTrait) match {
               case None => None
               case Some(children) =>
                 val childTrait = children.head.getTraitSet.getTrait(UpdateKindTraitDef.INSTANCE)
@@ -652,7 +678,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             _: StreamPhysicalMiniBatchAssigner | _: StreamPhysicalWatermarkAssigner |
             _: StreamPhysicalWindowTableFunction =>
           // transparent forward requiredTrait to children
-          visitChildren(rel, requiredTrait) match {
+          visitChildren(rel, requiredUpdateTrait) match {
             case None => None
             case Some(children) =>
               val childTrait = children.head.getTraitSet.getTrait(UpdateKindTraitDef.INSTANCE)
@@ -666,7 +692,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
               val requiredChildTrait = if (childModifyKindSet.isInsertOnly) {
                 UpdateKindTrait.NONE
               } else {
-                requiredTrait
+                requiredUpdateTrait
               }
               this.visit(child, requiredChildTrait)
           }.toList
@@ -704,7 +730,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           val children = visitChildren(normalize, UpdateKindTrait.ONLY_UPDATE_AFTER)
           // use requiredTrait as providedTrait,
           // because changelog normalize supports all kinds of UpdateKind
-          createNewNode(rel, children, requiredTrait)
+          createNewNode(rel, children, requiredUpdateTrait)
 
         case ts: StreamPhysicalTableSourceScan =>
           // currently only support BEFORE_AND_AFTER if source produces updates
@@ -712,11 +738,11 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           val newSource = createNewNode(rel, Some(List()), providedTrait)
           if (
             providedTrait.equals(UpdateKindTrait.BEFORE_AND_AFTER) &&
-            requiredTrait.equals(UpdateKindTrait.ONLY_UPDATE_AFTER)
+            requiredUpdateTrait.equals(UpdateKindTrait.ONLY_UPDATE_AFTER)
           ) {
             // requiring only-after, but the source is CDC source, then drop update_before manually
             val dropUB = new StreamPhysicalDropUpdateBefore(rel.getCluster, rel.getTraitSet, rel)
-            createNewNode(dropUB, newSource.map(s => List(s)), requiredTrait)
+            createNewNode(dropUB, newSource.map(s => List(s)), requiredUpdateTrait)
           } else {
             newSource
           }
@@ -730,9 +756,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             // we can't drop UPDATE_BEFORE if it is required by other parent blocks
             UpdateKindTrait.BEFORE_AND_AFTER
           } else {
-            requiredTrait
+            requiredUpdateTrait
           }
-          if (!providedTrait.satisfies(requiredTrait)) {
+          if (!providedTrait.satisfies(requiredUpdateTrait)) {
             // require ONLY_AFTER but can only provide BEFORE_AND_AFTER
             None
           } else {
@@ -744,12 +770,13 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           val children = process.getInputs.map {
             case child: StreamPhysicalRel =>
               val childModifyKindSet = getModifyKindSet(child)
-              val requiredChildTrait = if (childModifyKindSet.isInsertOnly) {
-                UpdateKindTrait.NONE
-              } else {
-                UpdateKindTrait.BEFORE_AND_AFTER
-              }
-              this.visit(child, requiredChildTrait)
+              val requiredUpdateChildTrait =
+                if (childModifyKindSet.isInsertOnly) {
+                  UpdateKindTrait.NONE
+                } else {
+                  UpdateKindTrait.BEFORE_AND_AFTER
+                }
+              this.visit(child, requiredUpdateChildTrait)
           }.toList
           createNewNode(rel, Some(children.flatten), UpdateKindTrait.NONE)
 
@@ -761,15 +788,15 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
     private def visitChildren(
         parent: StreamPhysicalRel,
-        requiredChildrenTrait: UpdateKindTrait): Option[List[StreamPhysicalRel]] = {
+        requiredChildrenUpdateTrait: UpdateKindTrait): Option[List[StreamPhysicalRel]] = {
       val newChildren = for (child <- parent.getInputs) yield {
-        this.visit(child.asInstanceOf[StreamPhysicalRel], requiredChildrenTrait) match {
+        this.visit(child.asInstanceOf[StreamPhysicalRel], requiredChildrenUpdateTrait) match {
           case None =>
             // return None if one of the children can't satisfy
             return None
           case Some(newChild) =>
-            val providedTrait = newChild.getTraitSet.getTrait(UpdateKindTraitDef.INSTANCE)
-            if (!providedTrait.satisfies(requiredChildrenTrait)) {
+            val providedUpdateTrait = newChild.getTraitSet.getTrait(UpdateKindTraitDef.INSTANCE)
+            if (!providedUpdateTrait.satisfies(requiredChildrenUpdateTrait)) {
               // the provided trait can't satisfy required trait, thus we should return None.
               return None
             }
@@ -782,13 +809,13 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     private def createNewNode(
         node: StreamPhysicalRel,
         childrenOption: Option[List[StreamPhysicalRel]],
-        providedTrait: UpdateKindTrait): Option[StreamPhysicalRel] = childrenOption match {
+        providedUpdateTrait: UpdateKindTrait): Option[StreamPhysicalRel] = childrenOption match {
       case None =>
         None
       case Some(children) =>
         val modifyKindSetTrait = node.getTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
         val nodeDescription = node.getRelDetailedDescription
-        val isUpdateKindValid = providedTrait.updateKind match {
+        val isUpdateKindValid = providedUpdateTrait.updateKind match {
           case UpdateKind.NONE =>
             !modifyKindSetTrait.modifyKindSet.contains(ModifyKind.UPDATE)
           case UpdateKind.BEFORE_AND_AFTER | UpdateKind.ONLY_UPDATE_AFTER =>
@@ -796,17 +823,19 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         }
         if (!isUpdateKindValid) {
           throw new TableException(
-            s"UpdateKindTrait $providedTrait conflicts with " +
+            s"UpdateKindTrait $providedUpdateTrait conflicts with " +
               s"ModifyKindSetTrait $modifyKindSetTrait. " +
               s"This is a bug in planner, please file an issue. \n" +
               s"Current node is $nodeDescription.")
         }
-        val newTraitSet = node.getTraitSet.plus(providedTrait)
+
+        val newTraitSet = node.getTraitSet.plus(providedUpdateTrait)
         Some(node.copy(newTraitSet, children).asInstanceOf[StreamPhysicalRel])
     }
 
     /**
      * Try all possible rank strategies and return the first viable new node.
+     *
      * @param rankStrategies
      *   all possible supported rank strategy by current node
      * @param requiredUpdateKindTrait
@@ -932,10 +961,324 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     }
   }
 
-  // -------------------------------------------------------------------------------------------
+  /**
+   * A visitor which will try to satisfy the required [[DeleteKindTrait]] from root.
+   *
+   * <p>After traversed by this visitor, every node should have a correct [[DeleteKindTrait]] or
+   * returns None if the planner doesn't support to satisfy the required [[DeleteKindTrait]].
+   */
+  private class SatisfyDeleteKindTraitVisitor(private val context: StreamOptimizeContext) {
+
+    /**
+     * Try to satisfy the required [[DeleteKindTrait]] from root.
+     *
+     * <p>Each node will first require a DeleteKindTrait to its children. The required
+     * DeleteKindTrait may come from the node's parent, or come from the node itself, depending on
+     * whether the node will destroy the trait provided by children or pass the trait from children.
+     *
+     * <p>If the node will pass the children's DeleteKindTrait without destroying it, then return a
+     * new node with new inputs and forwarded DeleteKindTrait.
+     *
+     * <p>If the node will destroy the children's UpdateKindTrait, then the node itself needs to be
+     * converted, or a new node should be generated to satisfy the required trait, such as marking
+     * itself not to generate UPDATE_BEFORE, or generating a new node to filter UPDATE_BEFORE.
+     *
+     * @param rel
+     *   the node who should satisfy the requiredTrait
+     * @param requiredTrait
+     *   the required DeleteKindTrait
+     * @return
+     *   A converted node which satisfies required traits by input nodes of current node. Or None if
+     *   required traits cannot be satisfied.
+     */
+    def visit(rel: StreamPhysicalRel, requiredTrait: DeleteKindTrait): Option[StreamPhysicalRel] =
+      rel match {
+        case sink: StreamPhysicalSink =>
+          val sinkRequiredTraits = inferSinkRequiredTraits(sink)
+          visitSink(sink, sinkRequiredTraits)
+
+        case sink: StreamPhysicalLegacySink[_] =>
+          val childModifyKindSet = getModifyKindSet(sink.getInput)
+          val fullDelete = fullDeleteOrNone(childModifyKindSet)
+          visitSink(sink, Seq(fullDelete))
+
+        case _: StreamPhysicalGroupAggregate | _: StreamPhysicalGroupTableAggregate |
+            _: StreamPhysicalLimit | _: StreamPhysicalPythonGroupAggregate |
+            _: StreamPhysicalPythonGroupTableAggregate | _: StreamPhysicalGroupWindowAggregateBase |
+            _: StreamPhysicalWindowAggregate | _: StreamPhysicalSort | _: StreamPhysicalRank |
+            _: StreamPhysicalSortLimit | _: StreamPhysicalTemporalJoin |
+            _: StreamPhysicalCorrelateBase | _: StreamPhysicalLookupJoin |
+            _: StreamPhysicalWatermarkAssigner | _: StreamPhysicalWindowTableFunction |
+            _: StreamPhysicalWindowRank | _: StreamPhysicalWindowDeduplicate |
+            _: StreamPhysicalTemporalSort | _: StreamPhysicalMatch |
+            _: StreamPhysicalOverAggregate | _: StreamPhysicalIntervalJoin |
+            _: StreamPhysicalPythonOverAggregate | _: StreamPhysicalWindowJoin |
+            _: StreamPhysicalProcessTableFunction =>
+          // if not explicitly supported, all operators require full deletes if there are updates
+          // ProcessTableFunction currently only consumes full deletes or insert-only
+          val children = rel.getInputs.map {
+            case child: StreamPhysicalRel =>
+              val childModifyKindSet = getModifyKindSet(child)
+              this.visit(child, fullDeleteOrNone(childModifyKindSet))
+          }.toList
+          createNewNode(rel, Some(children.flatten), fullDeleteOrNone(getModifyKindSet(rel)))
+
+        case join: StreamPhysicalJoin =>
+          val children = join.getInputs.zipWithIndex.map {
+            case (child, childOrdinal) =>
+              val physicalChild = child.asInstanceOf[StreamPhysicalRel]
+              val supportsDeleteByKey = join.inputUniqueKeyContainsJoinKey(childOrdinal)
+              val inputModifyKindSet = getModifyKindSet(physicalChild)
+              if (supportsDeleteByKey && requiredTrait == DELETE_BY_KEY) {
+                this
+                  .visit(physicalChild, deleteOnKeyOrNone(inputModifyKindSet))
+                  .orElse(this.visit(physicalChild, fullDeleteOrNone(inputModifyKindSet)))
+              } else {
+                this.visit(physicalChild, fullDeleteOrNone(inputModifyKindSet))
+              }
+          }
+          if (children.exists(_.isEmpty)) {
+            None
+          } else {
+            val childRels = children.flatten.toList
+            if (childRels.exists(r => getDeleteKind(r) == DeleteKind.DELETE_BY_KEY)) {
+              createNewNode(join, Some(childRels), deleteOnKeyOrNone(getModifyKindSet(rel)))
+            } else {
+              createNewNode(join, Some(childRels), fullDeleteOrNone(getModifyKindSet(rel)))
+            }
+          }
+
+        case calc: StreamPhysicalCalcBase =>
+          if (
+            requiredTrait == DeleteKindTrait.DELETE_BY_KEY &&
+            calc.getProgram.getCondition != null
+          ) {
+            // this can be further improved by checking if the filter condition is on the key
+            None
+          } else {
+            // otherwise, forward DeleteKind requirement
+            visitChildren(rel, requiredTrait) match {
+              case None => None
+              case Some(children) =>
+                val childTrait = children.head.getTraitSet.getTrait(DeleteKindTraitDef.INSTANCE)
+                createNewNode(rel, Some(children), childTrait)
+            }
+          }
+
+        case _: StreamPhysicalExchange | _: StreamPhysicalExpand |
+            _: StreamPhysicalMiniBatchAssigner | _: StreamPhysicalDropUpdateBefore =>
+          // transparent forward requiredTrait to children
+          visitChildren(rel, requiredTrait) match {
+            case None => None
+            case Some(children) =>
+              val childTrait = children.head.getTraitSet.getTrait(DeleteKindTraitDef.INSTANCE)
+              createNewNode(rel, Some(children), childTrait)
+          }
+
+        case union: StreamPhysicalUnion =>
+          val children = union.getInputs.map {
+            case child: StreamPhysicalRel =>
+              val childModifyKindSet = getModifyKindSet(child)
+              val requiredChildTrait = if (!childModifyKindSet.contains(ModifyKind.DELETE)) {
+                DeleteKindTrait.NONE
+              } else {
+                requiredTrait
+              }
+              this.visit(child, requiredChildTrait)
+          }.toList
+
+          if (children.exists(_.isEmpty)) {
+            None
+          } else {
+            val deleteKinds = children.flatten
+              .map(_.getTraitSet.getTrait(DeleteKindTraitDef.INSTANCE))
+            // union can just forward changes, can't actively satisfy to another changelog mode
+            val providedTrait = if (deleteKinds.forall(k => DeleteKindTrait.NONE == k)) {
+              // if all the children is NONE, union is NONE
+              DeleteKindTrait.NONE
+            } else {
+              // otherwise, merge update kinds.
+              val merged = deleteKinds
+                .map(_.deleteKind)
+                .reduce {
+                  (l, r) =>
+                    (l, r) match {
+                      case (DeleteKind.NONE, r: DeleteKind) => r
+                      case (l: DeleteKind, DeleteKind.NONE) => l
+                      case (l: DeleteKind, r: DeleteKind) =>
+                        if (l == r) {
+                          l
+                        } else {
+                          // if any of the union input produces DELETE_BY_KEY, the union produces
+                          // delete by key
+                          DeleteKind.DELETE_BY_KEY
+                        }
+                    }
+                }
+              new DeleteKindTrait(merged)
+            }
+            createNewNode(union, Some(children.flatten), providedTrait)
+          }
+
+        case normalize: StreamPhysicalChangelogNormalize =>
+          // if
+          // 1. we don't need to produce UPDATE_BEFORE,
+          // 2. children can satisfy the required delete trait,
+          // 3. the normalize doesn't have filter condition which we'd lose,
+          // 4. we don't use metadata columns
+          // we can skip ChangelogNormalize
+          if (!ChangelogNormalizeRequirementResolver.isRequired(normalize)) {
+            visitChildren(normalize, requiredTrait) match {
+              case Some(children) =>
+                val input = children.head match {
+                  case exchange: StreamPhysicalExchange =>
+                    exchange.getInput
+                  case _ =>
+                    normalize.getInput
+                }
+                return Some(input.asInstanceOf[StreamPhysicalRel])
+              case _ =>
+            }
+          }
+          val childModifyKindTrait = getModifyKindSet(rel.getInput(0))
+
+          // prefer delete by key, but accept both
+          val children = visitChildren(normalize, deleteOnKeyOrNone(childModifyKindTrait))
+            .orElse(visitChildren(normalize, fullDeleteOrNone(childModifyKindTrait)))
+
+          // changelog normalize produces full deletes
+          createNewNode(rel, children, fullDeleteOrNone(getModifyKindSet(rel)))
+
+        case ts: StreamPhysicalTableSourceScan =>
+          // currently only support BEFORE_AND_AFTER if source produces updates
+          val providedTrait = DeleteKindTrait.fromChangelogMode(ts.tableSource.getChangelogMode)
+          createNewNode(rel, Some(List()), providedTrait)
+
+        case _: StreamPhysicalDataStreamScan | _: StreamPhysicalLegacyTableSourceScan |
+            _: StreamPhysicalValues =>
+          createNewNode(rel, Some(List()), DeleteKindTrait.NONE)
+
+        case _: StreamPhysicalIntermediateTableScan =>
+          createNewNode(rel, Some(List()), fullDeleteOrNone(getModifyKindSet(rel)))
+
+        case _ =>
+          throw new UnsupportedOperationException(
+            s"Unsupported visit for ${rel.getClass.getSimpleName}")
+
+      }
+
+    private def visitChildren(
+        parent: StreamPhysicalRel,
+        requiredChildrenTrait: DeleteKindTrait): Option[List[StreamPhysicalRel]] = {
+      val newChildren = for (child <- parent.getInputs) yield {
+        this.visit(child.asInstanceOf[StreamPhysicalRel], requiredChildrenTrait) match {
+          case None =>
+            // return None if one of the children can't satisfy
+            return None
+          case Some(newChild) =>
+            val providedTrait = newChild.getTraitSet.getTrait(DeleteKindTraitDef.INSTANCE)
+            if (!providedTrait.satisfies(requiredChildrenTrait)) {
+              // the provided trait can't satisfy required trait, thus we should return None.
+              return None
+            }
+            newChild
+        }
+      }
+      Some(newChildren.toList)
+    }
+
+    private def createNewNode(
+        node: StreamPhysicalRel,
+        childrenOption: Option[List[StreamPhysicalRel]],
+        providedDeleteTrait: DeleteKindTrait): Option[StreamPhysicalRel] = childrenOption match {
+      case None =>
+        None
+      case Some(children) =>
+        val modifyKindSetTrait = node.getTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
+        val nodeDescription = node.getRelDetailedDescription
+        val isDeleteKindValid = providedDeleteTrait.deleteKind match {
+          case DeleteKind.NONE =>
+            !modifyKindSetTrait.modifyKindSet.contains(ModifyKind.DELETE)
+          case DeleteKind.DELETE_BY_KEY | DeleteKind.FULL_DELETE =>
+            modifyKindSetTrait.modifyKindSet.contains(ModifyKind.DELETE)
+        }
+        if (!isDeleteKindValid) {
+          throw new TableException(
+            s"DeleteKindTrait $providedDeleteTrait conflicts with " +
+              s"ModifyKindSetTrait $modifyKindSetTrait. " +
+              s"This is a bug in planner, please file an issue. \n" +
+              s"Current node is $nodeDescription.")
+        }
+        val newTraitSet = node.getTraitSet.plus(providedDeleteTrait)
+        Some(node.copy(newTraitSet, children).asInstanceOf[StreamPhysicalRel])
+    }
+
+    private def visitSink(
+        sink: StreamPhysicalRel,
+        sinkRequiredTraits: Seq[DeleteKindTrait]): Option[StreamPhysicalRel] = {
+      val children = sinkRequiredTraits.flatMap(t => visitChildren(sink, t))
+      if (children.isEmpty) {
+        None
+      } else {
+        val sinkTrait = sink.getTraitSet.plus(DeleteKindTrait.NONE)
+        Some(sink.copy(sinkTrait, children.head).asInstanceOf[StreamPhysicalRel])
+      }
+    }
+
+    /**
+     * Infer sink required traits by the sink node and its input. Sink required traits is based on
+     * the sink node's changelog mode, the only exception is when sink's pk(s) not exactly the same
+     * as the changeLogUpsertKeys and sink' changelog mode is DELETE_BY_KEY.
+     */
+    private def inferSinkRequiredTraits(sink: StreamPhysicalSink): Seq[DeleteKindTrait] = {
+      val childModifyKindSet = getModifyKindSet(sink.getInput)
+      val sinkChangelogMode = sink.tableSink.getChangelogMode(childModifyKindSet.toChangelogMode)
+
+      val sinkDeleteTrait = DeleteKindTrait.fromChangelogMode(sinkChangelogMode)
+
+      val fullDelete = fullDeleteOrNone(childModifyKindSet)
+      if (sinkDeleteTrait.equals(DeleteKindTrait.DELETE_BY_KEY)) {
+        if (areUpsertKeysDifferentFromPk(sink)) {
+          Seq(fullDelete)
+        } else {
+          Seq(sinkDeleteTrait, fullDelete)
+        }
+      } else {
+        Seq(fullDelete)
+      }
+    }
+
+    // -------------------------------------------------------------------------------------------
+
+    private def areUpsertKeysDifferentFromPk(sink: StreamPhysicalSink) = {
+      // if sink's pk(s) are not exactly match input changeLogUpsertKeys then it will fallback
+      // to beforeAndAfter mode for the correctness
+      var upsertKeyDifferentFromPk: Boolean = false
+      val sinkDefinedPks = sink.contextResolvedTable.getResolvedSchema.getPrimaryKeyIndexes
+
+      if (sinkDefinedPks.nonEmpty) {
+        val sinkPks = ImmutableBitSet.of(sinkDefinedPks: _*)
+        val fmq = FlinkRelMetadataQuery.reuseOrCreate(sink.getCluster.getMetadataQuery)
+        val changeLogUpsertKeys = fmq.getUpsertKeys(sink.getInput)
+        // if input is UA only, primary key != upsert key (upsert key can be null) we should
+        // fallback to beforeAndAfter.
+        // Notice: even sink pk(s) contains input upsert key we cannot optimize to UA only,
+        // this differs from batch job's unique key inference
+        if (changeLogUpsertKeys == null || !changeLogUpsertKeys.exists(_.equals(sinkPks))) {
+          upsertKeyDifferentFromPk = true
+        }
+      }
+      upsertKeyDifferentFromPk
+    }
+  }
 
   private def getModifyKindSet(node: RelNode): ModifyKindSet = {
     val modifyKindSetTrait = node.getTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
     modifyKindSetTrait.modifyKindSet
+  }
+
+  private def getDeleteKind(node: RelNode): DeleteKind = {
+    val deleteKindTrait = node.getTraitSet.getTrait(DeleteKindTraitDef.INSTANCE)
+    deleteKindTrait.deleteKind
   }
 }
