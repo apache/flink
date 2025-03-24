@@ -500,7 +500,7 @@ class BlobClientTest {
                 new TestBlobServer(
                         clientConfig,
                         tempDir.resolve("test_server").toFile(),
-                        new VoidBlobStore(),
+                        new NoOperationBlobStore(),
                         10_000L)) {
             testBlobServer.start();
             InetSocketAddress serverAddress =

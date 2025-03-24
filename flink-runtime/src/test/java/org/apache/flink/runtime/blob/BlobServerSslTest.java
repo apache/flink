@@ -48,7 +48,10 @@ class BlobServerSslTest {
         config.set(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
         config.set(SecurityOptions.SSL_ALGORITHMS, "TLSv1,TLSv1.1");
 
-        assertThatThrownBy(() -> new BlobServer(config, new File("foobar"), new VoidBlobStore()))
+        assertThatThrownBy(
+                        () ->
+                                new BlobServer(
+                                        config, new File("foobar"), new NoOperationBlobStore()))
                 .isInstanceOf(IOException.class)
                 .hasMessage("Unable to open BLOB Server in specified port range: 0");
     }
@@ -64,7 +67,10 @@ class BlobServerSslTest {
         config.set(SecurityOptions.SSL_TRUSTSTORE, "invalid.keystore");
         config.set(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
 
-        assertThatThrownBy(() -> new BlobServer(config, new File("foobar"), new VoidBlobStore()))
+        assertThatThrownBy(
+                        () ->
+                                new BlobServer(
+                                        config, new File("foobar"), new NoOperationBlobStore()))
                 .isInstanceOf(IOException.class)
                 .hasMessage("Failed to initialize SSL for the blob server");
     }
@@ -75,7 +81,10 @@ class BlobServerSslTest {
 
         config.set(SecurityOptions.SSL_INTERNAL_ENABLED, true);
 
-        assertThatThrownBy(() -> new BlobServer(config, new File("foobar"), new VoidBlobStore()))
+        assertThatThrownBy(
+                        () ->
+                                new BlobServer(
+                                        config, new File("foobar"), new NoOperationBlobStore()))
                 .isInstanceOf(IOException.class)
                 .hasMessage("Failed to initialize SSL for the blob server");
     }

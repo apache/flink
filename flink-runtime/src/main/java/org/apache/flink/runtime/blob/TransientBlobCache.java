@@ -90,7 +90,7 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
         super(
                 blobClientConfig,
                 storageDir,
-                new VoidBlobStore(),
+                new NoOperationBlobStore(),
                 LoggerFactory.getLogger(TransientBlobCache.class),
                 serverAddress);
 

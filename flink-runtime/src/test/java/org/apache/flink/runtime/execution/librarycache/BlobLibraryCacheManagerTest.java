@@ -23,10 +23,10 @@ import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.NoOperationBlobStore;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.PermanentBlobService;
-import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.OperatingSystem;
@@ -96,14 +96,15 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
             Configuration config = new Configuration();
             config.set(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
-            server = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
+            server =
+                    new BlobServer(config, temporaryFolder.newFolder(), new NoOperationBlobStore());
             server.start();
             InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
             cache =
                     new PermanentBlobCache(
                             config,
                             temporaryFolder.newFolder(),
-                            new VoidBlobStore(),
+                            new NoOperationBlobStore(),
                             serverAddress);
 
             keys1.add(server.putPermanent(jobId1, buf));
@@ -229,14 +230,15 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
             Configuration config = new Configuration();
             config.set(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
-            server = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
+            server =
+                    new BlobServer(config, temporaryFolder.newFolder(), new NoOperationBlobStore());
             server.start();
             InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
             cache =
                     new PermanentBlobCache(
                             config,
                             temporaryFolder.newFolder(),
-                            new VoidBlobStore(),
+                            new NoOperationBlobStore(),
                             serverAddress);
 
             keys.add(server.putPermanent(jobId, buf));
@@ -339,14 +341,15 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
             Configuration config = new Configuration();
             config.set(BlobServerOptions.CLEANUP_INTERVAL, 1_000_000L);
 
-            server = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
+            server =
+                    new BlobServer(config, temporaryFolder.newFolder(), new NoOperationBlobStore());
             server.start();
             InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
             cache =
                     new PermanentBlobCache(
                             config,
                             temporaryFolder.newFolder(),
-                            new VoidBlobStore(),
+                            new NoOperationBlobStore(),
                             serverAddress);
 
             // upload some meaningless data to the server
@@ -639,7 +642,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
                     new PermanentBlobCache(
                             blobClientConfig,
                             temporaryFolder.newFolder(),
-                            new VoidBlobStore(),
+                            new NoOperationBlobStore(),
                             null);
         }
 

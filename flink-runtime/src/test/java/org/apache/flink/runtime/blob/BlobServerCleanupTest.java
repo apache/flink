@@ -79,7 +79,8 @@ class BlobServerCleanupTest {
 
     private static BlobServer createTestInstance(String storageDirectoryPath, long cleanupInterval)
             throws IOException {
-        return createTestInstance(storageDirectoryPath, cleanupInterval, new VoidBlobStore());
+        return createTestInstance(
+                storageDirectoryPath, cleanupInterval, new NoOperationBlobStore());
     }
 
     private static BlobServer createTestInstance(

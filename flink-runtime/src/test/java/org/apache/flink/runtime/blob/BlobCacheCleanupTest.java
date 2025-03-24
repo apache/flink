@@ -220,7 +220,9 @@ class BlobCacheCleanupTest {
             Configuration config = new Configuration();
             config.set(BlobServerOptions.CLEANUP_INTERVAL, cleanupInterval);
 
-            server = new BlobServer(config, TempDirUtils.newFolder(tempDir), new VoidBlobStore());
+            server =
+                    new BlobServer(
+                            config, TempDirUtils.newFolder(tempDir), new NoOperationBlobStore());
             server.start();
 
             final BlobCacheSizeTracker tracker =

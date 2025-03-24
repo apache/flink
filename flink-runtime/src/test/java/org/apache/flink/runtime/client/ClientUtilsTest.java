@@ -24,8 +24,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.NoOperationBlobStore;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
-import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
@@ -57,7 +57,9 @@ public class ClientUtilsTest {
         Configuration config = new Configuration();
         blobServer =
                 new BlobServer(
-                        config, TempDirUtils.newFolder(temporaryFolder), new VoidBlobStore());
+                        config,
+                        TempDirUtils.newFolder(temporaryFolder),
+                        new NoOperationBlobStore());
         blobServer.start();
     }
 

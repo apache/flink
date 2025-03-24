@@ -21,7 +21,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.blob.NoOperationBlobStore;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.CheckpointResourcesCleanupRunnerFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -100,7 +100,8 @@ public class AbstractDispatcherTest extends TestLogger {
 
         configuration = new Configuration();
         blobServer =
-                new BlobServer(configuration, temporaryFolder.newFolder(), new VoidBlobStore());
+                new BlobServer(
+                        configuration, temporaryFolder.newFolder(), new NoOperationBlobStore());
     }
 
     protected TestingDispatcher.Builder createTestingDispatcherBuilder() {

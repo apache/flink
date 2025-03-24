@@ -71,12 +71,12 @@ class TestingBlobUtils {
 
     @Nonnull
     static BlobServer createServer(Path tempDir) throws IOException {
-        return createServer(tempDir, new Configuration(), new VoidBlobStore());
+        return createServer(tempDir, new Configuration(), new NoOperationBlobStore());
     }
 
     @Nonnull
     static BlobServer createServer(Path tempDir, Configuration config) throws IOException {
-        return createServer(tempDir, config, new VoidBlobStore());
+        return createServer(tempDir, config, new NoOperationBlobStore());
     }
 
     @Nonnull
@@ -127,24 +127,28 @@ class TestingBlobUtils {
             throws IOException {
         if (tracker == null) {
             return new PermanentBlobCache(
-                    config, getCacheDir(tempDir), new VoidBlobStore(), serverAddress);
+                    config, getCacheDir(tempDir), new NoOperationBlobStore(), serverAddress);
         }
 
         return new PermanentBlobCache(
-                config, getCacheDir(tempDir), new VoidBlobStore(), serverAddress, tracker);
+                config, getCacheDir(tempDir), new NoOperationBlobStore(), serverAddress, tracker);
     }
 
     @Nonnull
     static Tuple2<BlobServer, BlobCacheService> createServerAndCache(Path tempDir)
             throws IOException {
         return createServerAndCache(
-                tempDir, new Configuration(), new VoidBlobStore(), new VoidBlobStore());
+                tempDir,
+                new Configuration(),
+                new NoOperationBlobStore(),
+                new NoOperationBlobStore());
     }
 
     @Nonnull
     static Tuple2<BlobServer, BlobCacheService> createServerAndCache(
             Path tempDir, Configuration config) throws IOException {
-        return createServerAndCache(tempDir, config, new VoidBlobStore(), new VoidBlobStore());
+        return createServerAndCache(
+                tempDir, config, new NoOperationBlobStore(), new NoOperationBlobStore());
     }
 
     @Nonnull
@@ -191,7 +195,7 @@ class TestingBlobUtils {
                 new BlobCacheService(
                         config,
                         getCacheDir(tempDir),
-                        new VoidBlobStore(),
+                        new NoOperationBlobStore(),
                         new InetSocketAddress("localhost", server.getPort()));
 
         return Tuple2.of(server, cache);

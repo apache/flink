@@ -514,8 +514,8 @@ class BlobCacheGetTest {
             final JobID jobId, final BlobKey.BlobType blobType, final boolean cacheAccessesHAStore)
             throws IOException, InterruptedException, ExecutionException {
 
-        final BlobStore blobStoreServer = new VoidBlobStore();
-        final BlobStore blobStoreCache = new VoidBlobStore();
+        final BlobStore blobStoreServer = new NoOperationBlobStore();
+        final BlobStore blobStoreCache = new NoOperationBlobStore();
 
         final int numberConcurrentGetOperations = 3;
         final List<CompletableFuture<File>> getOperations =

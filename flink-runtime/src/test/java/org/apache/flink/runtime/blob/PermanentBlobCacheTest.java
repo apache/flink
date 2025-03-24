@@ -52,7 +52,7 @@ class PermanentBlobCacheTest {
                 new PermanentBlobCache(
                         new Configuration(),
                         storageDirectory.toFile(),
-                        new VoidBlobStore(),
+                        new NoOperationBlobStore(),
                         null)) {
             final File blob = permanentBlobCache.getFile(jobId, blobKey);
 
@@ -79,7 +79,7 @@ class PermanentBlobCacheTest {
                 new PermanentBlobCache(
                         new Configuration(),
                         storageDirectory.toFile(),
-                        new VoidBlobStore(),
+                        new NoOperationBlobStore(),
                         null)) {
             assertThatThrownBy(() -> permanentBlobCache.getFile(jobId, blobKey))
                     .isInstanceOf(IOException.class);
@@ -100,7 +100,10 @@ class PermanentBlobCacheTest {
 
         try (final PermanentBlobCache permanentBlobCache =
                 new PermanentBlobCache(
-                        configuration, storageDirectory.toFile(), new VoidBlobStore(), null)) {
+                        configuration,
+                        storageDirectory.toFile(),
+                        new NoOperationBlobStore(),
+                        null)) {
             CommonTestUtils.waitUntilCondition(() -> !blobFile.exists());
         }
     }

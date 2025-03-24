@@ -85,7 +85,7 @@ public class BlobUtils {
         if (HighAvailabilityMode.isHighAvailabilityModeActivated(config)) {
             return createFileSystemBlobStore(config);
         } else {
-            return new VoidBlobStore();
+            return new NoOperationBlobStore();
         }
     }
 

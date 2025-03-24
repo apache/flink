@@ -25,8 +25,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobWriter;
+import org.apache.flink.runtime.blob.NoOperationBlobStore;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
-import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -222,7 +222,9 @@ class TaskDeploymentDescriptorTest {
         config.set(BlobServerOptions.OFFLOAD_MINSIZE, 0);
         BlobServer blobServer =
                 new BlobServer(
-                        config, TempDirUtils.newFolder(temporaryFolder), new VoidBlobStore());
+                        config,
+                        TempDirUtils.newFolder(temporaryFolder),
+                        new NoOperationBlobStore());
         blobServer.start();
         return blobServer;
     }

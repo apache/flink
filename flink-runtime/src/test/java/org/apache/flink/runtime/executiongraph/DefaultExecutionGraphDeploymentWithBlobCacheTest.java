@@ -21,8 +21,8 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.NoOperationBlobStore;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
-import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
 import org.junit.jupiter.api.AfterEach;
@@ -46,7 +46,9 @@ class DefaultExecutionGraphDeploymentWithBlobCacheTest
         config.set(BlobServerOptions.OFFLOAD_MINSIZE, 0);
         blobServer =
                 new BlobServer(
-                        config, TempDirUtils.newFolder(temporaryFolder), new VoidBlobStore());
+                        config,
+                        TempDirUtils.newFolder(temporaryFolder),
+                        new NoOperationBlobStore());
         blobServer.start();
         blobWriter = blobServer;
 
@@ -55,7 +57,7 @@ class DefaultExecutionGraphDeploymentWithBlobCacheTest
                 new PermanentBlobCache(
                         config,
                         TempDirUtils.newFolder(temporaryFolder),
-                        new VoidBlobStore(),
+                        new NoOperationBlobStore(),
                         serverAddress);
     }
 

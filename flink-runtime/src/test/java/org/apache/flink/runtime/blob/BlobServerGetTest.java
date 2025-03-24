@@ -357,7 +357,9 @@ class BlobServerGetTest {
         final File storageDir = TempDirUtils.newFolder(tempDir);
         try (final BlobServer blobServer =
                 new BlobServer(
-                        new Configuration(), Reference.borrowed(storageDir), new VoidBlobStore())) {
+                        new Configuration(),
+                        Reference.borrowed(storageDir),
+                        new NoOperationBlobStore())) {
             final BlobKey blobKey = put(blobServer, jobId, data, blobType);
 
             blobServer.close();
@@ -370,7 +372,7 @@ class BlobServerGetTest {
                     new BlobServer(
                             new Configuration(),
                             Reference.borrowed(storageDir),
-                            new VoidBlobStore())) {
+                            new NoOperationBlobStore())) {
                 assertThatThrownBy(() -> get(restartedBlobServer, jobId, blobKey))
                         .isInstanceOf(IOException.class);
             }

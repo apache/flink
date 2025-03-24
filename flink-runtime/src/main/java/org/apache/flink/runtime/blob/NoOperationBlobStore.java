@@ -24,7 +24,7 @@ import java.io.File;
 import java.io.IOException;
 
 /** A blob store doing nothing. */
-public class VoidBlobStore implements BlobStoreService {
+public class NoOperationBlobStore implements BlobStoreService {
 
     @Override
     public boolean put(File localFile, JobID jobId, BlobKey blobKey) throws IOException {

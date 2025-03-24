@@ -23,8 +23,8 @@ import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobStore;
+import org.apache.flink.runtime.blob.NoOperationBlobStore;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
-import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
@@ -66,7 +66,9 @@ class DefaultExecutionGraphDeploymentWithBlobServerTest
         config.set(BlobServerOptions.OFFLOAD_MINSIZE, 0);
         blobServer =
                 new AssertBlobServer(
-                        config, TempDirUtils.newFolder(temporaryFolder), new VoidBlobStore());
+                        config,
+                        TempDirUtils.newFolder(temporaryFolder),
+                        new NoOperationBlobStore());
         blobWriter = blobServer;
         blobCache = blobServer;
 

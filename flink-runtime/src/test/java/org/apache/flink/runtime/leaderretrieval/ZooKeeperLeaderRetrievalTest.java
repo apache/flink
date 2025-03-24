@@ -21,7 +21,7 @@ package org.apache.flink.runtime.leaderretrieval;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.testutils.EachCallbackWrapper;
-import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.blob.NoOperationBlobStore;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperLeaderElectionHaServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
@@ -94,7 +94,7 @@ class ZooKeeperLeaderRetrievalTest {
                                 testingFatalErrorHandlerResource.getTestingFatalErrorHandler()),
                         config,
                         EXECUTOR_RESOURCE.getExecutor(),
-                        new VoidBlobStore());
+                        new NoOperationBlobStore());
     }
 
     @AfterEach

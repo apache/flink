@@ -49,7 +49,7 @@ class BlobCacheRetriesTest {
      */
     @Test
     void testBlobFetchRetries() throws IOException {
-        testBlobFetchRetries(new VoidBlobStore(), null, TRANSIENT_BLOB);
+        testBlobFetchRetries(new NoOperationBlobStore(), null, TRANSIENT_BLOB);
     }
 
     /**
@@ -58,7 +58,7 @@ class BlobCacheRetriesTest {
      */
     @Test
     void testBlobForJobFetchRetries() throws IOException {
-        testBlobFetchRetries(new VoidBlobStore(), new JobID(), TRANSIENT_BLOB);
+        testBlobFetchRetries(new NoOperationBlobStore(), new JobID(), TRANSIENT_BLOB);
     }
 
     /**
@@ -119,7 +119,7 @@ class BlobCacheRetriesTest {
      */
     @Test
     void testBlobNoJobFetchWithTooManyFailures() throws IOException {
-        testBlobFetchWithTooManyFailures(new VoidBlobStore(), null, TRANSIENT_BLOB);
+        testBlobFetchWithTooManyFailures(new NoOperationBlobStore(), null, TRANSIENT_BLOB);
     }
 
     /**
@@ -128,7 +128,7 @@ class BlobCacheRetriesTest {
      */
     @Test
     void testBlobForJobFetchWithTooManyFailures() throws IOException {
-        testBlobFetchWithTooManyFailures(new VoidBlobStore(), new JobID(), TRANSIENT_BLOB);
+        testBlobFetchWithTooManyFailures(new NoOperationBlobStore(), new JobID(), TRANSIENT_BLOB);
     }
 
     /**

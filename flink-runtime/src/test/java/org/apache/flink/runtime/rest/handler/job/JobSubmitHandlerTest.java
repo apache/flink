@@ -22,7 +22,7 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.blob.NoOperationBlobStore;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
@@ -96,7 +96,9 @@ public class JobSubmitHandlerTest {
 
         blobServer =
                 new BlobServer(
-                        config, TempDirUtils.newFolder(temporaryFolder), new VoidBlobStore());
+                        config,
+                        TempDirUtils.newFolder(temporaryFolder),
+                        new NoOperationBlobStore());
         blobServer.start();
     }
 

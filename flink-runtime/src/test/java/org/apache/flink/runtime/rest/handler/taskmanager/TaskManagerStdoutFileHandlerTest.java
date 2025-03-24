@@ -20,7 +20,7 @@ package org.apache.flink.runtime.rest.handler.taskmanager;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.blob.NoOperationBlobStore;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
@@ -71,7 +71,7 @@ class TaskManagerStdoutFileHandlerTest {
     static void setup() throws IOException, HandlerRequestException {
         final Configuration configuration = new Configuration();
 
-        blobServer = new BlobServer(configuration, temporaryFolder, new VoidBlobStore());
+        blobServer = new BlobServer(configuration, temporaryFolder, new NoOperationBlobStore());
 
         handlerRequest =
                 HandlerRequest.resolveParametersAndCreate(

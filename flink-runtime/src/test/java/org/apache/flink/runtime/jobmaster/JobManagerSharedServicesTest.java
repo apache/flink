@@ -22,7 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.blob.NoOperationBlobStore;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.function.ThrowingRunnable;
@@ -114,7 +114,7 @@ class JobManagerSharedServicesTest {
             throws Exception {
         return JobManagerSharedServices.fromConfiguration(
                 configuration,
-                new BlobServer(configuration, TEMPORARY_FOLDER, new VoidBlobStore()),
+                new BlobServer(configuration, TEMPORARY_FOLDER, new NoOperationBlobStore()),
                 new TestingFatalErrorHandler());
     }
 

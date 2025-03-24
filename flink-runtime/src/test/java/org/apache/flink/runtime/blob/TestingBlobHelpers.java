@@ -236,7 +236,7 @@ public final class TestingBlobHelpers {
                         new BlobCacheService(
                                 config,
                                 new File(blobStorage, "cache"),
-                                corruptOnHAStore ? blobStore : new VoidBlobStore(),
+                                corruptOnHAStore ? blobStore : new NoOperationBlobStore(),
                                 new InetSocketAddress("localhost", server.getPort()))) {
 
             server.start();
@@ -306,7 +306,7 @@ public final class TestingBlobHelpers {
                         new BlobCacheService(
                                 config,
                                 new File(blobStorage, "cache1"),
-                                new VoidBlobStore(),
+                                new NoOperationBlobStore(),
                                 new InetSocketAddress("localhost", server1.getPort()))) {
 
             server0.start();
@@ -390,13 +390,13 @@ public final class TestingBlobHelpers {
                         new BlobCacheService(
                                 config,
                                 new File(blobStorage, "cache0"),
-                                new VoidBlobStore(),
+                                new NoOperationBlobStore(),
                                 new InetSocketAddress("localhost", server0.getPort()));
                 BlobCacheService cache1 =
                         new BlobCacheService(
                                 config,
                                 new File(blobStorage, "cache1"),
-                                new VoidBlobStore(),
+                                new NoOperationBlobStore(),
                                 new InetSocketAddress("localhost", server1.getPort()))) {
 
             server0.start();

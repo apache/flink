@@ -198,7 +198,7 @@ class PermanentBlobCacheSizeLimitTest {
                 new PermanentBlobCache(
                         config,
                         tempDir.resolve("permanent_cache").toFile(),
-                        new VoidBlobStore(),
+                        new NoOperationBlobStore(),
                         serverAddress,
                         new BlobCacheSizeTracker(MAX_NUM_OF_ACCEPTED_BLOBS * BLOB_SIZE));
 

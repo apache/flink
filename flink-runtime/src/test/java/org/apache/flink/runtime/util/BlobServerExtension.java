@@ -21,7 +21,7 @@ package org.apache.flink.runtime.util;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CustomExtension;
 import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.blob.NoOperationBlobStore;
 
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.rules.TemporaryFolder;
@@ -46,7 +46,8 @@ public class BlobServerExtension implements CustomExtension {
 
         Configuration config = new Configuration();
 
-        blobServer = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
+        blobServer =
+                new BlobServer(config, temporaryFolder.newFolder(), new NoOperationBlobStore());
         blobServer.start();
     }
 
