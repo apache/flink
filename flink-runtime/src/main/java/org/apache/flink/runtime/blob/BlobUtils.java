@@ -161,7 +161,7 @@ public class BlobUtils {
             if (fallbackStorageDirectory != null) {
                 baseDir = fallbackStorageDirectory.deref();
 
-                if (baseDir.mkdirs() || baseDir.exists()) {
+                if (baseDir.exists() || baseDir.mkdirs()) {
                     return fallbackStorageDirectory;
                 }
             }
