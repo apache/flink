@@ -56,7 +56,46 @@ import java.util.List;
 
 import static org.apache.flink.table.runtime.util.StateConfigUtil.createTtlConfig;
 
-/** A basic implementation to support non-time range unbounded over aggregate with retract mode. */
+/**
+ * The NonTimeRangeUnboundedPrecedingFunction class is a specialized implementation for processing
+ * unbounded OVER window aggregations, particularly for non-time-based range queries in Apache
+ * Flink. It maintains strict ordering of rows within partitions and handles the full changelog
+ * lifecycle (inserts, updates, deletes).
+ *
+ * <p>Key Components and Assumptions
+ *
+ * <p>Data Structure Design: (1) Maintains a sorted list of tuples containing sort keys and lists of
+ * IDs for each key (2) Each incoming row is assigned a unique Long ID (starting from
+ * Long.MIN_VALUE) (3) Uses multiple state types to track rows, sort orders, and aggregations
+ *
+ * <p>State Management: (1) idState: Counter for generating unique row IDs (2) sortedListState:
+ * Ordered list of sort keys with their associated row IDs (3) valueMapState: Maps IDs to their
+ * corresponding input rows (4) accMapState: Maps sort keys to their accumulated values
+ *
+ * <p>Processing Model: (1) For inserts/updates: Adds rows to the appropriate position based on sort
+ * key (2) For deletes: Removes rows by matching both sort key and row content (3) Recalculates
+ * aggregates for affected rows and emits the appropriate events (4) Skips redundant events when
+ * accumulators haven't changed to reduce network traffic
+ *
+ * <p>Optimization Assumptions: (1) Skip emitting updates when accumulators haven't changed to
+ * reduce network traffic (2) Uses state TTL for automatic cleanup of stale data (3) Carefully
+ * manages row state to support incremental calculations
+ *
+ * <p>Retraction Handling: (1) Handles retraction mode (DELETE/UPDATE_BEFORE) events properly (2)
+ * Supports the proper processing of changelog streams
+ *
+ * <p>Limitations
+ *
+ * <p>Linear search performance: - The current implementation uses a linear search to find the
+ * correct position for each sort key. This can be optimized using a binary search for large state
+ * sizes.
+ *
+ * <p>State size and performance: - The implementation maintains multiple state types that could
+ * grow large with high cardinality data
+ *
+ * <p>Linear recalculation: - When processing updates, all subsequent elements need to be
+ * recalculated, which could be inefficient for large windows
+ */
 public class NonTimeRangeUnboundedPrecedingFunction<K>
         extends KeyedProcessFunction<K, RowData, RowData> {
     private static final long serialVersionUID = 1L;

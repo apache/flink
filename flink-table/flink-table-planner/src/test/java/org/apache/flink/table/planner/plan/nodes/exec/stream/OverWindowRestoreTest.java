@@ -36,6 +36,7 @@ public class OverWindowRestoreTest extends RestoreTestBase {
     @Override
     protected Stream<String> getSavepointPaths(
             TableTestProgram program, ExecNodeMetadata metadata) {
+        // Retrieves standard savepoints and v1.18 savepoints for LAG over function
         if (metadata.version() == 1 && program.equals(OverWindowTestPrograms.LAG_OVER_FUNCTION)) {
             return Stream.concat(
                     super.getSavepointPaths(program, metadata),

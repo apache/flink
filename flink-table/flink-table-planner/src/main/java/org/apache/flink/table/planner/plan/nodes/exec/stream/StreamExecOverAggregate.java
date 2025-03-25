@@ -198,7 +198,6 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
             timeAttribute = TimeAttribute.PROC_TIME;
         } else {
             timeAttribute = TimeAttribute.NON_TIME;
-            LOG.info("Non-time attribute window detected");
         }
 
         final List<RexLiteral> constants = overSpec.getConstants();
@@ -396,7 +395,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                 if (isRowsClause) {
                     // Non-Time Rows Unbounded Preceding Function
                     throw new TableException(
-                            "Non-Time Rows Unbounded Preceding Function not supported yet.");
+                            "OVER windows with UNBOUNDED PRECEDING are not supported when sorting on a non-time attribute column.");
                 }
 
                 final GeneratedRecordEqualiser generatedRecordEqualiser =
@@ -559,9 +558,9 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                 }
             case NON_TIME:
                 throw new TableException(
-                        "Non-time attribute sort is not supported for bounded over aggregate");
+                        "Non-time attribute sort is not supported for bounded OVER window.");
             default:
-                throw new TableException("Unsupported bounded operation");
+                throw new TableException("Unsupported bounded operation for OVER window.");
         }
     }
 }

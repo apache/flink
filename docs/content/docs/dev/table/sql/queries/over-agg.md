@@ -56,7 +56,7 @@ You can define multiple `OVER` window aggregates in a `SELECT` clause. However, 
 
 ### ORDER BY
 
-`OVER` windows are defined on an ordered sequence of rows. Since tables do not have an inherent order, the `ORDER BY` clause is mandatory. For streaming queries, Flink currently supports `OVER` windows that are defined with an ascending [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) order or ascending non-time attributes. Additional orderings are not supported.
+`OVER` windows are defined on an ordered sequence of rows. Since tables do not have an inherent order, the `ORDER BY` clause is mandatory. For streaming queries, Flink currently supports `OVER` windows that are defined with an ascending [time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}) or ascending non-time attribute. Additional orderings are not supported.
 
 ### PARTITION BY
 
@@ -70,7 +70,7 @@ There are two options to define the range, `ROWS` intervals and `RANGE` interval
 
 #### RANGE intervals
 
-A `RANGE` interval is defined on the values of the ORDER BY column, which is in case of Flink is either a time or non-time attribute.
+A `RANGE` interval is defined on the values of the ORDER BY column, which (in case of Flink) is either a time or non-time attribute.
 
 The following RANGE interval defines that all rows with a time attribute of at most 30 minutes less than the current row are included in the aggregate.
 
@@ -81,9 +81,6 @@ The following RANGE interval defines that all rows with a non-time attribute of 
 ```sql
 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
 ```
-
-
-
 
 #### ROW intervals
 

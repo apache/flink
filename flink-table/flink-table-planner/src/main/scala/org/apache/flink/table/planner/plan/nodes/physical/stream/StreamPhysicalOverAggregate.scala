@@ -17,9 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecOverAggregate
 import org.apache.flink.table.planner.plan.utils.OverAggregateUtil
@@ -29,11 +27,8 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.Window
-import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
-
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 /** Stream physical RelNode for time-based over [[Window]]. */
 class StreamPhysicalOverAggregate(
