@@ -43,7 +43,7 @@ import javax.naming.ConfigurationException;
 
 import java.util.List;
 
-/** State data stream scan provider. */
+/** Savepoint data stream scan provider. */
 public class SavepointDataStreamScanProvider implements DataStreamScanProvider {
     @Nullable private final String stateBackendType;
     private final String statePath;

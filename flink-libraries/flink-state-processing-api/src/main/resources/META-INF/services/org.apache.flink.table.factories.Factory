@@ -13,4 +13,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+org.apache.flink.state.table.module.StateModuleFactory
 org.apache.flink.state.table.SavepointDynamicTableSourceFactory

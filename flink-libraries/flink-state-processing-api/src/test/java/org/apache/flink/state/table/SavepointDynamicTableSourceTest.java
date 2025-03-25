@@ -37,7 +37,7 @@ import java.util.stream.LongStream;
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Unit tests for the state SQL reader. */
+/** Unit tests for the savepoint SQL reader. */
 public class SavepointDynamicTableSourceTest {
     @Test
     @SuppressWarnings("unchecked")

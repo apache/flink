@@ -515,6 +515,28 @@ Before you interrogate state using the table API, make sure to review our [Flink
 
 IMPORTANT NOTE: State Table API only supports keyed state.
 
+### Metadata
+
+The following SQL table function allows users to read the metadata of savepoints and checkpoints in the following way:
+```SQL
+LOAD MODULE state;
+SELECT * FROM savepoint_metadata('/root/dir/of/checkpoint-data/chk-1');
+```
+
+The new table function creates a table with the following fixed schema:
+
+| Key                                      | Data type       | Description                                                                                                                                                                                     |
+|------------------------------------------|-----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| checkpoint-id                            | BIGINT NOT NULL | Checkpoint ID.                                                                                                                                                                                  |
+| operator-name                            | STRING          | Operator Name.                                                                                                                                                                                  |
+| operator-uid                             | STRING          | Operator UID.                                                                                                                                                                                   |
+| operator-uid-hash                        | STRING NOT NULL | Operator UID hash.                                                                                                                                                                              |
+| operator-parallelism                     | INT NOT NULL    | Parallelism of the operator.                                                                                                                                                                    |
+| operator-max-parallelism                 | INT NOT NULL    | Maximum parallelism of the operator.                                                                                                                                                            |
+| operator-subtask-state-count             | INT NOT NULL    | Number of operator subtask states. It represents the state partition count divided by the operator's parallelism and might be 0 if the state is not partitioned (for example broadcast source). |
+| operator-coordinator-state-size-in-bytes | BIGINT NOT NULL | The operator’s coordinator state size in bytes, or zero if no coordinator state.                                                                                                                |
+| operator-total-size-in-bytes             | BIGINT NOT NULL | Total operator state size in bytes.                                                                                                                                                             |
+
 ### Keyed State
 
 [Keyed state]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}#keyed-state), also known as partitioned state, is any state that is partitioned relative to a key.
