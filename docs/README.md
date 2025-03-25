@@ -246,7 +246,7 @@ Will render a warning the current SQL feature may have unbounded state requireme
     {{< /tab >}}
     {{< tab "Scala" >}}
     ```scala
-    println("Hello World!");
+    println("Hello World!")
     ```
     {< /tab >}}
     {{< /tabs }}

@@ -278,7 +278,7 @@ Table table = tEnv.fromValues(
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-table = tEnv.fromValues(
+val table: Table = tEnv.fromValues(
    row(1, "ABC"),
    row(2L, "ABCDE")
 )
@@ -364,8 +364,8 @@ Table result = orders.select($("a"), $("c").as("d"));
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val orders = tableEnv.from("Orders")
-Table result = orders.select($"a", $"c" as "d")
+val orders: Table = tableEnv.from("Orders")
+val result: Table = orders.select($"a", $"c" as "d")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -386,7 +386,7 @@ Table result = orders.select($("*"));
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-Table result = orders.select($"*")
+val result: Table = orders.select($"*")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -412,7 +412,7 @@ Table result = orders.as("x, y, z, t");
 ```
 {{< /tab >}}
 {{< tab "scala" >}}
-```java
+```scala
 val orders: Table = tableEnv.from("Orders").as("x", "y", "z", "t")
 ```
 {{< /tab >}}
@@ -1131,8 +1131,9 @@ tableEnv.createTemporarySystemFunction("rates", rates);
 Table orders = tableEnv.from("Orders");
 Table result = orders
     .joinLateral(call("rates", $("o_proctime")), $("o_currency").isEqual($("r_currency")));
+```
 {{< /tab >}}
-{{< tabs "Scala" >}}
+{{< tab "Scala" >}}
 ```scala
 val ratesHistory = tableEnv.from("RatesHistory")
 
@@ -1144,7 +1145,7 @@ val orders = tableEnv.from("Orders")
 val result = orders
     .joinLateral(rates($"o_rowtime"), $"r_currency" === $"o_currency")
 ```
-{{< /tabs >}}
+{{< /tab >}}
 {{< tab "Python" >}}
 Currently not supported in Python Table API.
 {{< /tab >}}
