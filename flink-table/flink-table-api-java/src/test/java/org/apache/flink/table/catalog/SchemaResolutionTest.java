@@ -425,6 +425,20 @@ class SchemaResolutionTest {
                 .isFalse();
     }
 
+    @Test
+    void testPrimaryKeyIndices() {
+        final ResolvedSchema resolvedSchema =
+                resolveSchema(
+                        Schema.newBuilder()
+                                .columnByMetadata("orig_ts", DataTypes.TIMESTAMP(3), "timestamp")
+                                .column("id", DataTypes.INT().notNull())
+                                .column("counter", DataTypes.INT().notNull())
+                                .primaryKey("id")
+                                .build());
+
+        assertThat(resolvedSchema.getPrimaryKeyIndexes()).isEqualTo(new int[] {0});
+    }
+
     // --------------------------------------------------------------------------------------------
 
     private static void testError(Schema schema, String errorMessage) {
