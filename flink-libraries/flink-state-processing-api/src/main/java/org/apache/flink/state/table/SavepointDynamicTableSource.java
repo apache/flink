@@ -66,7 +66,7 @@ public class SavepointDynamicTableSource implements ScanTableSource {
 
     @Override
     public String asSummaryString() {
-        return "State Table Source";
+        return "Savepoint Table Source";
     }
 
     @Override

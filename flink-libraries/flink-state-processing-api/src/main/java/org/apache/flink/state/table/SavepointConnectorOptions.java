@@ -26,7 +26,7 @@ import org.apache.flink.configuration.description.TextElement;
 
 import static org.apache.flink.configuration.description.TextElement.code;
 
-/** Options for the state connector. */
+/** Options for the savepoint connector. */
 @PublicEvolving
 public class SavepointConnectorOptions {
 
