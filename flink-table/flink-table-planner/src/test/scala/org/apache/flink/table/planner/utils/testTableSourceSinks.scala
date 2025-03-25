@@ -329,19 +329,10 @@ class TestPartitionableTableSource(
 
   override def explainSource(): String = {
     if (remainingPartitions != null) {
-      s"partitions=${sortPartitionKeys(remainingPartitions).mkString(", ")}"
+      s"partitions=${PartitionUtils.sortPartitionsByKey(remainingPartitions)}"
     } else {
       ""
     }
-  }
-
-  private def sortPartitionKeys(partitions: JList[JMap[String, String]]): JList[String] = {
-    partitions
-      .map(_.toSeq.sortBy(_._1))
-      .map(
-        seq => {
-          seq.map { case (k, v) => s"$k=$v" }.mkString("{", ", ", "}")
-        })
   }
 
   override def getReturnType: TypeInformation[Row] = returnType
