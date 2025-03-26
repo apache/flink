@@ -463,7 +463,7 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
             if (LOG.isTraceEnabled()) {
                 LOG.trace("addSpan");
             }
-            if (reporters != null) {
+            if (traceReporters != null) {
                 notifyTraceReportersOfAddedSpan(spanBuilder.build());
             }
         }
