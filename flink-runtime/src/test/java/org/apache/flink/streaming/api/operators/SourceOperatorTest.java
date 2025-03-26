@@ -52,6 +52,7 @@ import org.junit.jupiter.api.Test;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -271,6 +272,40 @@ class SourceOperatorTest {
         assertEquals(
                 operator.getSplitMetricGroup(split.splitId()).getCurrentWatermark(),
                 expectedWatermark);
+    }
+
+    @Test
+    public void testMetricGroupReturnsDefaultIfNoSplitWatermark() throws Exception {
+        long expectedWatermark = Watermark.UNINITIALIZED.getTimestamp();
+        operator.initializeState(context.createStateContext());
+        operator.open();
+        MockSourceSplit split = new MockSourceSplit((2));
+        operator.handleOperatorEvent(
+                new AddSplitEvent<>(
+                        Collections.singletonList(split), new MockSourceSplitSerializer()));
+        assertEquals(
+                operator.getSplitMetricGroup(split.splitId()).getCurrentWatermark(),
+                expectedWatermark);
+    }
+
+    @Test
+    public void testMultipleMetricGroupsReturnsWatermarkOrDefaultWatermark() throws Exception {
+        long expectedWatermarkValueForSplit0 = Watermark.UNINITIALIZED.getTimestamp();
+        long expectedWatermarkValueForSplit1 = 1000;
+        operator.initializeState(context.createStateContext());
+        operator.open();
+        MockSourceSplit split0 = new MockSourceSplit((2));
+        MockSourceSplit split1 = new MockSourceSplit((2));
+        operator.handleOperatorEvent(
+                new AddSplitEvent<>(
+                        Arrays.asList(split0, split1), new MockSourceSplitSerializer()));
+        operator.updateCurrentSplitWatermark(split1.splitId(), expectedWatermarkValueForSplit1);
+        assertEquals(
+                operator.getSplitMetricGroup(split0.splitId()).getCurrentWatermark(),
+                expectedWatermarkValueForSplit0);
+        assertEquals(
+                operator.getSplitMetricGroup(split0.splitId()).getCurrentWatermark(),
+                expectedWatermarkValueForSplit1);
     }
 
     private static class DataOutputToOutput<T> implements PushingAsyncDataInput.DataOutput<T> {
