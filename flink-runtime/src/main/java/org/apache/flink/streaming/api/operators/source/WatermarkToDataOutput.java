@@ -55,6 +55,9 @@ public final class WatermarkToDataOutput implements WatermarkOutput {
                     public void updateCurrentSplitWatermark(String splitId, long watermark) {}
 
                     @Override
+                    public void updateCurrentSplitIdle(String splitId, boolean isIdle) {}
+
+                    @Override
                     public void splitFinished(String splitId) {}
                 });
     }

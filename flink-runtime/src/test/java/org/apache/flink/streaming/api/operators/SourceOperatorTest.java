@@ -57,6 +57,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 /** Unit test for {@link SourceOperator}. */
 @SuppressWarnings("serial")
@@ -233,6 +235,42 @@ class SourceOperatorTest {
                         new StreamRecord<>(1001, 1001),
                         new Watermark(1000),
                         new RecordAttributes(false));
+    }
+
+    @Test
+    public void testMetricGroupIsCreatedForNewSplit() throws Exception {
+        operator.initializeState(context.createStateContext());
+        operator.open();
+        MockSourceSplit newSplit = new MockSourceSplit((2));
+        operator.handleOperatorEvent(
+                new AddSplitEvent<>(
+                        Collections.singletonList(newSplit), new MockSourceSplitSerializer()));
+        assertNotNull(operator.getSplitMetricGroup(newSplit.splitId()));
+    }
+
+    @Test
+    public void testMetricGroupIsCreatedForRestoredSplit() throws Exception {
+        MockSourceSplit restoredSplit = new MockSourceSplit((2));
+        StateInitializationContext stateContext =
+                context.createStateContext(Collections.singletonList(restoredSplit));
+        operator.initializeState(stateContext);
+        operator.open();
+        assertNotNull(operator.getSplitMetricGroup(restoredSplit.splitId()));
+    }
+
+    @Test
+    public void testMetricGroupTracksSplitWatermark() throws Exception {
+        long expectedWatermark = 1000;
+        operator.initializeState(context.createStateContext());
+        operator.open();
+        MockSourceSplit split = new MockSourceSplit((2));
+        operator.handleOperatorEvent(
+                new AddSplitEvent<>(
+                        Collections.singletonList(split), new MockSourceSplitSerializer()));
+        operator.updateCurrentSplitWatermark(split.splitId(), expectedWatermark);
+        assertEquals(
+                operator.getSplitMetricGroup(split.splitId()).getCurrentWatermark(),
+                expectedWatermark);
     }
 
     private static class DataOutputToOutput<T> implements PushingAsyncDataInput.DataOutput<T> {

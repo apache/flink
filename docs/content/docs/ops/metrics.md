@@ -1741,6 +1741,56 @@ Note that the metrics are only available via reporters.
       <td>The total number of InputSplits this data source has processed (if the operator is a data source).</td>
       <td>Gauge</td>
     </tr>
+    <tr>
+      <th rowspan="7"><strong>Split</strong></th>
+      <td>watermark.currentWatermark</td>
+      <td>
+        The last watermark this split has received (in milliseconds).
+      </td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>watermark.activeTimeMsPerSecond</td>
+      <td>
+        The time (in milliseconds) this split has been active (i.e. not paused due to watermark alignment or idle due to idleness detection) per second.
+      </td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>watermark.pausedTimeMsPerSecond</td>
+      <td>
+        The time (in milliseconds) this split has been paused due to watermark alignment per second.
+      </td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>watermark.idleTimeMsPerSecond</td>
+      <td>
+        The time (in milliseconds) this split has been marked idle by idleness detection per second.
+      </td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>watermark.accumulatedActiveTimeMs</td>
+      <td>
+        Accumulated time (in milliseconds) this split was active since it was registered
+      </td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>watermark.accumulatedPausedTimeMs</td>
+      <td>
+        Accumulated time (in milliseconds) this split was paused since it was registered
+      </td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>watermark.accumulatedIdleTimeMs</td>
+      <td>
+        Accumulated time (in milliseconds) this split was idle since it was registered
+      </td>
+      <td>Gauge</td>
+    </tr>
   </tbody>
 </table>
 
