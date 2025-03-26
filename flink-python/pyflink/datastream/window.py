@@ -975,10 +975,11 @@ class CountTrigger(Trigger[T, CountWindow]):
     A Trigger that fires once the count of elements in a pane reaches the given count.
     """
 
-    def __init__(self, window_size: int):
+    def __init__(self, window_size: int, purge_on_fire: bool = False):
         self._window_size = window_size
         self._count_state_descriptor = ReducingStateDescriptor(
             "count", lambda a, b: a + b, Types.LONG())
+        self._purge_on_fire = purge_on_fire
 
     @staticmethod
     def of(window_size: int) -> 'CountTrigger':
@@ -993,9 +994,9 @@ class CountTrigger(Trigger[T, CountWindow]):
         count_state.add(1)
         if count_state.get() >= self._window_size:
             # On FIRE, the window is evaluated and results are emitted. The window is not purged
-            # though, all elements are retained.
+            # though, all elements are retained if _purge_on_fire is False.
             count_state.clear()
-            return TriggerResult.FIRE
+            return TriggerResult.FIRE_AND_PURGE if self._purge_on_fire else TriggerResult.FIRE
         else:
             # No action is taken on the window.
             return TriggerResult.CONTINUE
@@ -1091,7 +1092,7 @@ class CountTumblingWindowAssigner(WindowAssigner[T, CountWindow]):
         return [CountWindow(current_count // self._window_size)]
 
     def get_default_trigger(self, env) -> Trigger[T, CountWindow]:
-        return CountTrigger(self._window_size)
+        return CountTrigger(self._window_size, purge_on_fire=True)
 
     def get_window_serializer(self) -> TypeSerializer[CountWindow]:
         return CountWindowSerializer()
