@@ -1493,12 +1493,12 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
     </tr>
     <tr>
       <td>mapStateIteratorKeySize</td>
-      <td>The key size of Iterator.next operation for map state</td>
+      <td>The key size of iterator#next operation for map state</td>
       <td>Histogram</td>
     </tr>
     <tr>
       <td>mapStateIteratorValueSize</td>
-      <td>The value size of Iterator.next operation for map state</td>
+      <td>The value size of iterator#next operation for map state</td>
       <td>Histogram</td>
     </tr>
     <tr>
@@ -1509,6 +1509,11 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
     <tr>
       <td>mapStateContainsKeySize</td>
       <td>The key size of contains operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateIsEmptyKeySize</td>
+      <td>The key size of isEmpty operation for map state</td>
       <td>Histogram</td>
     </tr>
   </tbody>

@@ -170,6 +170,9 @@ class MetricsTrackingMapStateTest extends MetricsTrackingStateTestBase<Integer> 
 
                 sizeTrackingState.remove(random.nextLong());
                 assertThat(sizeTrackingStateMetric.getRemoveCount()).isEqualTo(expectedResult);
+
+                sizeTrackingState.isEmpty();
+                assertThat(sizeTrackingStateMetric.getIsEmptyCount()).isEqualTo(expectedResult);
             }
         } finally {
             if (keyedBackend != null) {

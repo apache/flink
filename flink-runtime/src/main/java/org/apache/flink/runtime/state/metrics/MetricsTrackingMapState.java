@@ -245,6 +245,10 @@ class MetricsTrackingMapState<K, N, UK, UV>
 
     @Override
     public boolean isEmpty() throws Exception {
+        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackMetricsOnIsEmpty()) {
+            sizeTrackingStateMetric.updateMetrics(
+                    MapStateMetrics.MAP_STATE_IS_EMPTY_KEY_SIZE, super.sizeOfKey());
+        }
         if (latencyTrackingStateMetric != null
                 && latencyTrackingStateMetric.trackMetricsOnIsEmpty()) {
             return trackLatencyWithException(
@@ -385,6 +389,7 @@ class MetricsTrackingMapState<K, N, UK, UV>
         private static final String MAP_STATE_ITERATOR_VALUE_SIZE = "mapStateIteratorValueSize";
         private static final String MAP_STATE_REMOVE_KEY_SIZE = "mapStateRemoveKeySize";
         private static final String MAP_STATE_CONTAINS_KEY_SIZE = "mapStateContainsKeySize";
+        private static final String MAP_STATE_IS_EMPTY_KEY_SIZE = "mapStateIsEmptyKeySize";
 
         private int getCount = 0;
         private int iteratorRemoveCount = 0;
