@@ -83,9 +83,9 @@ public class InternalSourceSplitMetricGroup extends ProxyMetricGroup<MetricGroup
 
     @VisibleForTesting
     public static InternalSourceSplitMetricGroup mock(
-            MetricGroup metricGroup, String splitId, Gauge<Long> currentWatermakr) {
+            MetricGroup metricGroup, String splitId, Gauge<Long> currentWatermark) {
         return new InternalSourceSplitMetricGroup(
-                metricGroup, SystemClock.getInstance(), splitId, currentWatermakr);
+                metricGroup, SystemClock.getInstance(), splitId, currentWatermark);
     }
 
     @VisibleForTesting
