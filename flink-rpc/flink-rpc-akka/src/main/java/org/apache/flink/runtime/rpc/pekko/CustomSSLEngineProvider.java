@@ -54,7 +54,7 @@ public class CustomSSLEngineProvider implements SSLEngineProvider {
         sslProtocol = securityConfig.getString("protocol");
         sslRequireMutualAuthentication = securityConfig.getBoolean("require-mutual-authentication");
 
-        sslContextLoader = new SSLContextLoader(sslTrustStore, sslKeyStore, securityConfig);
+        sslContextLoader = new SSLContextLoader(sslTrustStore, sslProtocol, securityConfig);
         FileSystemCertificateWatchService fileSystemWatchService =
                 new FileSystemCertificateWatchService(
                         new HashSet<>(
