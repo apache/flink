@@ -32,7 +32,8 @@ under the License.
 	<name>Flink : Metrics : OpenTelemetry</name>
 
 	<properties>
-		<opentelemetry.version>1.30.0</opentelemetry.version>
+		<opentelemetry.version>1.30.1</opentelemetry.version>
+		<opentelemetry.test.version>1.30.0</opentelemetry.test.version>
 	</properties>
 
 	<dependencies>
@@ -98,14 +99,14 @@ under the License.
 		<dependency>
 			<groupId>io.opentelemetry.javaagent</groupId>
 			<artifactId>opentelemetry-testing-common</artifactId>
-			<version>${opentelemetry.version}-alpha</version>
+			<version>${opentelemetry.test.version}-alpha</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>io.opentelemetry.javaagent</groupId>
 			<artifactId>opentelemetry-agent-for-testing</artifactId>
-			<version>${opentelemetry.version}-alpha</version>
+			<version>${opentelemetry.test.version}-alpha</version>
 			<scope>test</scope>
 		</dependency>
 
