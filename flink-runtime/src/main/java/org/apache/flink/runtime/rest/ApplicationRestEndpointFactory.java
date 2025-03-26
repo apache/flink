@@ -34,7 +34,7 @@ import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 import java.util.concurrent.ScheduledExecutorService;
 
 /** {@link RestEndpointFactory} which creates a {@link MiniDispatcherRestEndpoint}. */
-public enum JobRestEndpointFactory implements RestEndpointFactory<RestfulGateway> {
+public enum ApplicationRestEndpointFactory implements RestEndpointFactory<RestfulGateway> {
     INSTANCE;
 
     @Override
