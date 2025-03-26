@@ -98,8 +98,9 @@ class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
                                 .build());
         assertThat(restService.getSpec().getPorts()).isEqualTo(expectedServicePorts);
 
-        expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
-        assertThat(restService.getSpec().getSelector()).isEqualTo(expectedLabels);
+        final Map<String, String> expectedSelectors = getCommonLabels();
+        expectedSelectors.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
+        assertThat(restService.getSpec().getSelector()).isEqualTo(expectedSelectors);
 
         final Map<String, String> resultAnnotations = restService.getMetadata().getAnnotations();
         assertThat(resultAnnotations).isEqualTo(customizedAnnotations);
