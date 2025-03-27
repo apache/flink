@@ -25,6 +25,7 @@ import org.apache.flink.api.connector.source.mocks.MockSourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.runtime.execution.Environment;
@@ -66,6 +67,7 @@ public class SourceOperatorTestContext implements AutoCloseable {
         return new Builder();
     }
 
+    /** Builder to construct {@link SourceOperatorTestContext}. */
     public static class Builder {
         private boolean idle = false;
         private boolean usePerSplitOutputs = false;
@@ -74,6 +76,8 @@ public class SourceOperatorTestContext implements AutoCloseable {
         private boolean supportsSplitReassignmentOnRecovery = false;
         private boolean pauseSourcesUntilFirstCheckpoint = false;
         private BiConsumer<TestTaskStateManager, OperatorID> preInit = (ign0, ign1) -> {};
+        private int watermarkBufferSize =
+                PipelineOptions.WATERMARK_ALIGNMENT_BUFFER_SIZE.defaultValue();
 
         public Builder setIdle(boolean idle) {
             this.idle = idle;
@@ -95,7 +99,8 @@ public class SourceOperatorTestContext implements AutoCloseable {
             return this;
         }
 
-        public Builder setSupportsSplitReassignmentOnRecovery(boolean supportsSplitReassignmentOnRecovery) {
+        public Builder setSupportsSplitReassignmentOnRecovery(
+                boolean supportsSplitReassignmentOnRecovery) {
             this.supportsSplitReassignmentOnRecovery = supportsSplitReassignmentOnRecovery;
             return this;
         }
@@ -111,7 +116,14 @@ public class SourceOperatorTestContext implements AutoCloseable {
             return this;
         }
 
+        public Builder setWatermarkBufferSize(int watermarkBufferSize) {
+            this.watermarkBufferSize = watermarkBufferSize;
+            return this;
+        }
+
         public SourceOperatorTestContext build() throws Exception {
+            Configuration configuration = new Configuration();
+            configuration.set(PipelineOptions.WATERMARK_ALIGNMENT_BUFFER_SIZE, watermarkBufferSize);
             return new SourceOperatorTestContext(
                     idle,
                     usePerSplitOutputs,
@@ -119,7 +131,8 @@ public class SourceOperatorTestContext implements AutoCloseable {
                     output,
                     supportsSplitReassignmentOnRecovery,
                     pauseSourcesUntilFirstCheckpoint,
-                    preInit);
+                    preInit,
+                    configuration);
         }
     }
 
@@ -136,7 +149,8 @@ public class SourceOperatorTestContext implements AutoCloseable {
             Output<StreamRecord<Integer>> output,
             boolean supportsSplitReassignmentOnRecovery,
             boolean pauseSourcesUntilFirstCheckpoint,
-            BiConsumer<TestTaskStateManager, OperatorID> preInit)
+            BiConsumer<TestTaskStateManager, OperatorID> preInit,
+            Configuration configuration)
             throws Exception {
         mockSourceReader =
                 new MockSourceReader(
@@ -161,6 +175,7 @@ public class SourceOperatorTestContext implements AutoCloseable {
                         mockSourceReader,
                         watermarkStrategy,
                         timeService,
+                        configuration,
                         mockGateway,
                         SUBTASK_INDEX,
                         5,

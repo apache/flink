@@ -70,6 +70,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.PipelineOptions.WATERMARK_ALIGNMENT_BUFFER_SIZE;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -78,15 +79,23 @@ class SourceOperatorSplitWatermarkAlignmentTest {
 
     private static final int updateIntervalMillis = 1;
 
-    @Test
-    void testSplitWatermarkAlignment() throws Exception {
+    @ParameterizedTest
+    @ValueSource(ints = {0, 1, 3})
+    public void testSplitWatermarkAlignment(int watermarkRingBufferCapacity) throws Exception {
+        // how many steps to advance before all watermark samples are overwritten
+        int sampleWatermarksStep1 = Math.max(watermarkRingBufferCapacity - 1, 0);
+        // advance one more step for the final sample to be overwritten (or don't advance if
+        // buffering is disabled)
+        int sampleWatermarksStep2 = Math.min(1, watermarkRingBufferCapacity);
 
+        TestProcessingTimeService timeService = new TestProcessingTimeService();
         MockSourceReader sourceReader =
                 new MockSourceReader(WaitingForSplits.DO_NOT_WAIT_FOR_SPLITS, false, true);
-        Environment env = getTestingEnvironment();
+        Configuration configuration = new Configuration();
+        configuration.set(WATERMARK_ALIGNMENT_BUFFER_SIZE, watermarkRingBufferCapacity);
         SourceOperator<Integer, MockSourceSplit> operator =
-                createAndOpenSourceOperatorWithIdleness(
-                        sourceReader, new TestProcessingTimeService(), 0);
+                createAndOpenSourceOperatorWithIdlenessAndEnv(
+                        sourceReader, timeService, configuration, 0, getTestingEnvironment());
 
         MockSourceSplit split1 = new MockSourceSplit(0, 0, 10);
         MockSourceSplit split2 = new MockSourceSplit(1, 10, 20);
@@ -101,9 +110,17 @@ class SourceOperatorSplitWatermarkAlignmentTest {
         CollectingDataOutput<Integer> dataOutput = new CollectingDataOutput<>();
 
         operator.emitNext(dataOutput); // split 1 emits 5
+        assertThat(sourceReader.getPausedSplits()).doesNotContain("0");
 
         operator.handleOperatorEvent(
                 new WatermarkAlignmentEvent(4)); // pause by coordinator message
+
+        if (sampleWatermarksStep1 > 0) {
+            sampleWatermarks(timeService, sampleWatermarksStep1);
+            assertThat(sourceReader.getPausedSplits()).doesNotContain("0");
+        }
+
+        sampleWatermarks(timeService, sampleWatermarksStep2);
         assertThat(sourceReader.getPausedSplits()).containsExactly("0");
 
         operator.handleOperatorEvent(new WatermarkAlignmentEvent(5));
@@ -112,10 +129,22 @@ class SourceOperatorSplitWatermarkAlignmentTest {
         operator.emitNext(dataOutput); // split 1 emits 11
         operator.emitNext(dataOutput); // split 2 emits 3
 
+        if (sampleWatermarksStep1 > 0) {
+            sampleWatermarks(timeService, sampleWatermarksStep1);
+            assertThat(sourceReader.getPausedSplits()).doesNotContain("0");
+        }
+
+        sampleWatermarks(timeService, sampleWatermarksStep2);
         assertThat(sourceReader.getPausedSplits()).containsExactly("0");
 
-        operator.emitNext(dataOutput); // split 2 emits 6
+        operator.emitNext(dataOutput); // split 2 emits 12
 
+        if (sampleWatermarksStep1 > 0) {
+            sampleWatermarks(timeService, sampleWatermarksStep1);
+            assertThat(sourceReader.getPausedSplits()).containsExactly("0");
+        }
+
+        sampleWatermarks(timeService, sampleWatermarksStep2);
         assertThat(sourceReader.getPausedSplits()).containsExactly("0", "1");
     }
 
@@ -251,6 +280,7 @@ class SourceOperatorSplitWatermarkAlignmentTest {
         CollectingDataOutput<Integer> dataOutput = new CollectingDataOutput<>();
 
         operator.emitNext(dataOutput); // split0 emits first (and only) record (maxEmittedWatermark)
+        sampleAllWatermarks(processingTimeService);
 
         operator.handleOperatorEvent(
                 new WatermarkAlignmentEvent(maxAllowedWatermark)); // blocks split0
@@ -370,9 +400,11 @@ class SourceOperatorSplitWatermarkAlignmentTest {
 
         operator.emitNext(dataOutput); // split0 emits 5
         operator.emitNext(dataOutput); // split1 emits 3
+        sampleAllWatermarks(processingTimeService);
 
         operator.handleOperatorEvent(
                 new WatermarkAlignmentEvent(allowedWatermark4)); // blocks split0
+
         assertThat(operator.getSplitMetricGroup(split0.splitId()).isPaused()).isTrue();
         assertThat(operator.getSplitMetricGroup(split1.splitId()).isActive()).isTrue();
 
@@ -390,6 +422,7 @@ class SourceOperatorSplitWatermarkAlignmentTest {
         assertThat(operator.getSplitMetricGroup(split1.splitId()).isIdle()).isTrue();
 
         operator.emitNext(dataOutput); // split1 emits 8
+        sampleAllWatermarks(processingTimeService);
         assertThat(operator.getSplitMetricGroup(split1.splitId()).isPaused()).isTrue();
 
         operator.handleOperatorEvent(
@@ -420,6 +453,7 @@ class SourceOperatorSplitWatermarkAlignmentTest {
         CollectingDataOutput<Integer> actualOutput = new CollectingDataOutput<>();
 
         operator.emitNext(actualOutput);
+        sampleAllWatermarks(processingTimeService);
         assertOutput(actualOutput, Arrays.asList(5));
         assertThat(operator.getSplitMetricGroup(split0.splitId()).isActive()).isTrue();
 
@@ -447,6 +481,8 @@ class SourceOperatorSplitWatermarkAlignmentTest {
 
         // testing transition idle -> paused
         operator.emitNext(actualOutput);
+        sampleAllWatermarks(processingTimeService);
+
         assertOutput(actualOutput, Arrays.asList(5, 6));
         assertThat(operator.getSplitMetricGroup(split0.splitId()).isPaused()).isTrue();
         assertThat(operator.getSplitMetricGroup(split0.splitId()).isIdle()).isFalse();
@@ -463,6 +499,17 @@ class SourceOperatorSplitWatermarkAlignmentTest {
         operator.emitNext(actualOutput);
         assertOutput(actualOutput, Arrays.asList(5, 6, 7));
         assertThat(operator.getSplitMetricGroup(split0.splitId()).isActive()).isTrue();
+    }
+
+    private void sampleAllWatermarks(TestProcessingTimeService timeService) throws Exception {
+        sampleWatermarks(timeService, WATERMARK_ALIGNMENT_BUFFER_SIZE.defaultValue());
+    }
+
+    private void sampleWatermarks(TestProcessingTimeService timeService, int times)
+            throws Exception {
+        for (int i = 0; i < times; i++) {
+            timeService.advance(updateIntervalMillis);
+        }
     }
 
     private void assertOutput(
@@ -483,7 +530,11 @@ class SourceOperatorSplitWatermarkAlignmentTest {
             throws Exception {
 
         return createAndOpenSourceOperatorWithIdlenessAndEnv(
-                sourceReader, processingTimeService, idleTimeout, getTestingEnvironment());
+                sourceReader,
+                processingTimeService,
+                new Configuration(),
+                idleTimeout,
+                getTestingEnvironment());
     }
 
     private SourceOperator<Integer, MockSourceSplit>
@@ -504,12 +555,13 @@ class SourceOperatorSplitWatermarkAlignmentTest {
                         .addTask(createExecutionAttemptId(), "test");
         env.setTaskMetricGroup(metricGroup);
         return createAndOpenSourceOperatorWithIdlenessAndEnv(
-                sourceReader, processingTimeService, idleTimeout, env);
+                sourceReader, processingTimeService, new Configuration(), idleTimeout, env);
     }
 
     private SourceOperator<Integer, MockSourceSplit> createAndOpenSourceOperatorWithIdlenessAndEnv(
             MockSourceReader sourceReader,
             TestProcessingTimeService processingTimeService,
+            Configuration configuration,
             long idleTimeout,
             Environment env)
             throws Exception {
@@ -536,6 +588,7 @@ class SourceOperatorSplitWatermarkAlignmentTest {
                         sourceReader,
                         watermarkStrategy,
                         processingTimeService,
+                        configuration,
                         new MockOperatorEventGateway(),
                         1,
                         5,

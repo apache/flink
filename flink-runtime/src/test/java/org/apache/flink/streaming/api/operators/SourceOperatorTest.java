@@ -49,7 +49,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.CollectorOutput;
-import org.apache.flink.streaming.util.MockOutput;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
@@ -127,12 +126,11 @@ class SourceOperatorTest {
     void testOpen() throws Exception {
         for (boolean supportsSplitReassignmentOnRecovery : new boolean[] {true, false}) {
             try (SourceOperatorTestContext context =
-                    new SourceOperatorTestContext(
-                            false,
-                            false,
-                            WatermarkStrategy.noWatermarks(),
-                            new MockOutput<>(new ArrayList<>()),
-                            supportsSplitReassignmentOnRecovery)) {
+                    SourceOperatorTestContext.builder()
+                            .setPauseSourcesUntilFirstCheckpoint(pauseSourcesUntilCheckpoint)
+                            .setSupportsSplitReassignmentOnRecovery(
+                                    supportsSplitReassignmentOnRecovery)
+                            .build()) {
                 SourceOperator<Integer, MockSourceSplit> operator = context.getOperator();
                 // Initialize the operator.
                 operator.initializeState(context.createStateContext());
@@ -260,7 +258,8 @@ class SourceOperatorTest {
                         .setOutput(new CollectorOutput<>(out))
                         .setPauseSourcesUntilFirstCheckpoint(pauseSourcesUntilCheckpoint)
                         .setPreInit(
-                                // recover with some state, so the source will pause until a checkpoint
+                                // recover with some state, so the source will pause until a
+                                // checkpoint
                                 // to speedup recovery (if pauseSourcesUntilCheckpoint)
                                 (stateManager, operatorID) -> {
                                     long checkpointID = 1L;
