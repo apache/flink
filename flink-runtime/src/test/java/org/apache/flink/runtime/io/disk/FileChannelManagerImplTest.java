@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assumptions.assumeThat;
 class FileChannelManagerImplTest {
     private static final Logger LOG = LoggerFactory.getLogger(FileChannelManagerImplTest.class);
 
-    private static final String DIR_NAME_PREFIX = "manager-test";
+    private static final String DIR_NAME_TAG = "manager-test";
 
     /**
      * Marker file indicating the test process is ready to be killed. We could not simply kill the
@@ -150,7 +150,7 @@ class FileChannelManagerImplTest {
                     .isFalse();
 
             // Checks if the directories are cleared.
-            assertThat(fileOrDirExists(fileChannelDir, DIR_NAME_PREFIX))
+            assertThat(fileOrDirExists(fileChannelDir, DIR_NAME_TAG))
                     .withFailMessage(
                             "The file channel manager test process does not remove the tmp shuffle directories after termination, its output is \n%s",
                             fileChannelManagerTestProcess.getProcessOutput())
@@ -206,7 +206,7 @@ class FileChannelManagerImplTest {
             LOG.info("The FileChannelManagerCleanupRunner process has started");
 
             FileChannelManager manager =
-                    new FileChannelManagerImpl(new String[] {tmpDirectory}, DIR_NAME_PREFIX);
+                    new FileChannelManagerImpl(new String[] {tmpDirectory}, DIR_NAME_TAG);
 
             if (callerHasHook) {
                 // Verifies the case that both FileChannelManager and its upper component
