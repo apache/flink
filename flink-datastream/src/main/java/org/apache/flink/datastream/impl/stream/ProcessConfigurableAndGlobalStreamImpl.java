@@ -18,6 +18,9 @@
 
 package org.apache.flink.datastream.impl.stream;
 
+import static java.util.Objects.requireNonNull;
+
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.dsv2.Sink;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
@@ -48,6 +51,13 @@ public class ProcessConfigurableAndGlobalStreamImpl<T>
     public <OUT> ProcessConfigurableAndGlobalStream<OUT> process(
             OneInputStreamProcessFunction<T, OUT> processFunction) {
         return stream.process(processFunction);
+    }
+
+    @Override
+    public GlobalStream<T> returns(TypeInformation<T> typeInfo) {
+        requireNonNull(typeInfo, "TypeInformation must not be null");
+        transformation.setOutputType(typeInfo);
+        return this;
     }
 
     @Override
