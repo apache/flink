@@ -57,6 +57,7 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.source.TimestampsAndWatermarks;
+import org.apache.flink.streaming.api.operators.source.WatermarkSampler;
 import org.apache.flink.streaming.api.operators.util.PausableRelativeClock;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -87,6 +88,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.configuration.PipelineOptions.ALLOW_UNALIGNED_SOURCE_SPLITS;
+import static org.apache.flink.configuration.PipelineOptions.WATERMARK_ALIGNMENT_BUFFER_SIZE;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -154,8 +156,6 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private DataOutput<OUT> lastInvokedOutput;
 
-    private long latestWatermark = Watermark.UNINITIALIZED.getTimestamp();
-
     private boolean idle = false;
 
     /** The state that holds the currently assigned splits. */
@@ -176,8 +176,6 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             new SourceOperatorAvailabilityHelper();
 
     private final List<SplitT> splitsToInitializeOutput = new ArrayList<>();
-
-    private final Map<String, Long> splitCurrentWatermarks = new HashMap<>();
 
     private final Set<String> currentlyPausedSplits = new HashSet<>();
 
@@ -200,6 +198,14 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private long currentMaxDesiredWatermark = Watermark.MAX_WATERMARK.getTimestamp();
 
+    /**
+     * {@link #currentMaxDesiredWatermark} is checked against the minimum of sample split
+     * watermarks.
+     */
+    private final Map<String, WatermarkSampler> sampledSplitWatermarks = new HashMap<>();
+
+    private final WatermarkSampler sampledLatestWatermark;
+
     /** Can be not completed only in {@link OperatingMode#WAITING_FOR_ALIGNMENT} mode. */
     private CompletableFuture<Void> waitingForAlignmentFuture =
             CompletableFuture.completedFuture(null);
@@ -207,6 +213,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private @Nullable LatencyMarkerEmitter<OUT> latencyMarkerEmitter;
 
     private final boolean allowUnalignedSourceSplits;
+
+    private final int watermarkBufferSize;
 
     private final CanEmitBatchOfRecordsChecker canEmitBatchOfRecords;
 
@@ -237,6 +245,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             boolean supportsSplitReassignmentOnRecovery,
             boolean pauseSourcesUntilFirstCheckpoint) {
         super(parameters);
+        this.watermarkBufferSize = configuration.get(WATERMARK_ALIGNMENT_BUFFER_SIZE);
+        this.sampledLatestWatermark = new WatermarkSampler(watermarkBufferSize);
         this.readerFactory = checkNotNull(readerFactory);
         this.operatorEventGateway = checkNotNull(operatorEventGateway);
         this.splitSerializer = checkNotNull(splitSerializer);
@@ -379,14 +389,14 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     }
 
     protected InternalSourceSplitMetricGroup getOrCreateSplitMetricGroup(String splitId) {
+        sampledSplitWatermarks.computeIfAbsent(
+                splitId, k -> new WatermarkSampler(watermarkBufferSize));
         if (!this.splitMetricGroups.containsKey(splitId)) {
             InternalSourceSplitMetricGroup splitMetricGroup =
                     InternalSourceSplitMetricGroup.wrap(
                             getMetricGroup(),
                             splitId,
-                            () ->
-                                    splitCurrentWatermarks.getOrDefault(
-                                            splitId, Watermark.UNINITIALIZED.getTimestamp()));
+                            () -> sampledSplitWatermarks.get(splitId).getLatest());
             splitMetricGroup.markSplitStart();
             this.splitMetricGroups.put(splitId, splitMetricGroup);
         }
@@ -535,7 +545,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                     // introduces a small performance regression (probably because of an extra
                     // virtual call)
                     processingTimeService.scheduleWithFixedDelay(
-                            time -> emitLatestWatermark(),
+                            time -> sampleAndEmitLatestWatermark(),
                             watermarkAlignmentParams.getUpdateInterval(),
                             watermarkAlignmentParams.getUpdateInterval());
                 }
@@ -551,8 +561,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                 return DataInputStatus.END_OF_DATA;
             case DATA_FINISHED:
                 if (watermarkAlignmentParams.isEnabled()) {
-                    latestWatermark = Watermark.MAX_WATERMARK.getTimestamp();
-                    emitLatestWatermark();
+                    this.sampledLatestWatermark.addLatest(Watermark.MAX_WATERMARK.getTimestamp());
+                    sampleAndEmitLatestWatermark();
                 }
                 sourceMetricGroup.idlingStarted();
                 return DataInputStatus.END_OF_INPUT;
@@ -612,14 +622,29 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         }
     }
 
+    private void sampleAndEmitLatestWatermark() {
+        sampleLatestWatermark();
+        emitLatestWatermark();
+    }
+
     private void emitLatestWatermark() {
         checkState(currentMainOutput != null);
+        long latestWatermark = sampledLatestWatermark.getLatest();
         if (latestWatermark == Watermark.UNINITIALIZED.getTimestamp()) {
             return;
         }
         operatorEventGateway.sendEventToCoordinator(
                 new ReportedWatermarkEvent(
                         idle ? Watermark.MAX_WATERMARK.getTimestamp() : latestWatermark));
+    }
+
+    private void sampleLatestWatermark() {
+        sampledSplitWatermarks.values().forEach(WatermarkSampler::sample);
+        sampledLatestWatermark.sample();
+
+        // as we updated sampled latest watermarks, we should check watermark alignment status
+        checkWatermarkAlignment();
+        checkSplitWatermarkAlignment();
     }
 
     @Override
@@ -748,14 +773,19 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     @Override
     public void updateCurrentEffectiveWatermark(long watermark) {
-        latestWatermark = watermark;
+        sampledLatestWatermark.addLatest(watermark);
         checkWatermarkAlignment();
     }
 
     @Override
     public void updateCurrentSplitWatermark(String splitId, long watermark) {
-        splitCurrentWatermarks.put(splitId, watermark);
-        if (watermark > currentMaxDesiredWatermark && !currentlyPausedSplits.contains(splitId)) {
+        WatermarkSampler splitWatermarkSampler = checkNotNull(sampledSplitWatermarks.get(splitId));
+        splitWatermarkSampler.addLatest(watermark);
+        long oldestSampledWatermark = splitWatermarkSampler.getOldestSample();
+        // oldestSampledWatermark can be only updated after adding new latest if sampling capacity
+        // is 0, but we still need to handle that
+        if (oldestSampledWatermark > currentMaxDesiredWatermark
+                && !currentlyPausedSplits.contains(splitId)) {
             pauseOrResumeSplits(Collections.singletonList(splitId), Collections.emptyList());
             currentlyPausedSplits.add(splitId);
         }
@@ -772,9 +802,9 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     @Override
     public void splitFinished(String splitId) {
-        splitCurrentWatermarks.remove(splitId);
         getOrCreateSplitMetricGroup(splitId).onSplitFinished();
         this.splitMetricGroups.remove(splitId);
+        sampledSplitWatermarks.remove(splitId);
     }
 
     /**
@@ -786,9 +816,9 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private void checkSplitWatermarkAlignment() {
         Collection<String> splitsToPause = new ArrayList<>();
         Collection<String> splitsToResume = new ArrayList<>();
-        splitCurrentWatermarks.forEach(
-                (splitId, splitWatermark) -> {
-                    if (splitWatermark > currentMaxDesiredWatermark) {
+        sampledSplitWatermarks.forEach(
+                (splitId, splitWatermarks) -> {
+                    if (splitWatermarks.getOldestSample() > currentMaxDesiredWatermark) {
                         splitsToPause.add(splitId);
                     } else if (currentlyPausedSplits.contains(splitId)) {
                         splitsToResume.add(splitId);
@@ -805,6 +835,14 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private void pauseOrResumeSplits(
             Collection<String> splitsToPause, Collection<String> splitsToResume) {
         try {
+            LOG.info(
+                    "pauseOrResumeSplits [splitsToPause={}][splitsToResume={}]"
+                            + "[currentMaxDesiredWatermark={}][latestWatermark={}][oldestWatermark={}]",
+                    splitsToPause,
+                    splitsToResume,
+                    currentMaxDesiredWatermark,
+                    sampledLatestWatermark.getLatest(),
+                    sampledLatestWatermark.getOldestSample());
             sourceReader.pauseOrResumeSplits(splitsToPause, splitsToResume);
             eventTimeLogic.pauseOrResumeSplits(splitsToPause, splitsToResume);
             reportPausedOrResumed(splitsToPause, splitsToResume);
@@ -844,7 +882,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     }
 
     private boolean shouldWaitForAlignment() {
-        return currentMaxDesiredWatermark < latestWatermark;
+        return currentMaxDesiredWatermark < sampledLatestWatermark.getOldestSample();
     }
 
     private void registerReader(List<SplitT> splits) throws Exception {
