@@ -30,6 +30,7 @@ import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.Map;
@@ -41,24 +42,36 @@ import java.util.Objects;
  *
  * @param <S> Type of state value
  */
-public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStateMetaInfoBase {
+public class RegisteredKeyValueStateBackendMetaInfo<N, UK, S> extends RegisteredStateMetaInfoBase {
 
     @Nonnull private final StateDescriptor.Type stateType;
     @Nonnull private final StateSerializerProvider<N> namespaceSerializerProvider;
     @Nonnull private final StateSerializerProvider<S> stateSerializerProvider;
+    @Nonnull private StateSerializerProvider<UK> userKeySerializerProvider;
     @Nonnull private StateSnapshotTransformFactory<S> stateSnapshotTransformFactory;
 
     public RegisteredKeyValueStateBackendMetaInfo(
             @Nonnull String name,
             @Nonnull StateDescriptor.Type stateType,
             @Nonnull TypeSerializer<N> namespaceSerializer,
-            @Nonnull TypeSerializer<S> stateSerializer) {
+            @Nonnull TypeSerializer<S> stateSerializerProvider) {
+        this(name, stateType, namespaceSerializer, stateSerializerProvider, null);
+    }
 
+    public RegisteredKeyValueStateBackendMetaInfo(
+            @Nonnull String name,
+            @Nonnull StateDescriptor.Type stateType,
+            @Nonnull TypeSerializer<N> namespaceSerializer,
+            @Nonnull TypeSerializer<S> stateSerializerProvider,
+            @Nullable TypeSerializer<UK> userKeySerializer) {
         this(
                 name,
                 stateType,
                 StateSerializerProvider.fromNewRegisteredSerializer(namespaceSerializer),
-                StateSerializerProvider.fromNewRegisteredSerializer(stateSerializer),
+                StateSerializerProvider.fromNewRegisteredSerializer(stateSerializerProvider),
+                userKeySerializer == null
+                        ? null
+                        : StateSerializerProvider.fromNewRegisteredSerializer(userKeySerializer),
                 StateSnapshotTransformFactory.noTransform());
     }
 
@@ -67,6 +80,7 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
             @Nonnull StateDescriptor.Type stateType,
             @Nonnull TypeSerializer<N> namespaceSerializer,
             @Nonnull TypeSerializer<S> stateSerializer,
+            @Nullable TypeSerializer<UK> userKeySerializer,
             @Nonnull StateSnapshotTransformFactory<S> stateSnapshotTransformFactory) {
 
         this(
@@ -74,6 +88,9 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
                 stateType,
                 StateSerializerProvider.fromNewRegisteredSerializer(namespaceSerializer),
                 StateSerializerProvider.fromNewRegisteredSerializer(stateSerializer),
+                userKeySerializer == null
+                        ? null
+                        : StateSerializerProvider.fromNewRegisteredSerializer(userKeySerializer),
                 stateSnapshotTransformFactory);
     }
 
@@ -96,6 +113,17 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
                                         snapshot.getTypeSerializerSnapshot(
                                                 StateMetaInfoSnapshot.CommonSerializerKeys
                                                         .VALUE_SERIALIZER))),
+                snapshot.getTypeSerializerSnapshot(
+                                        StateMetaInfoSnapshot.CommonSerializerKeys
+                                                .USER_KEY_SERIALIZER)
+                                == null
+                        ? null
+                        : StateSerializerProvider.fromPreviousSerializerSnapshot(
+                                (TypeSerializerSnapshot<UK>)
+                                        Preconditions.checkNotNull(
+                                                snapshot.getTypeSerializerSnapshot(
+                                                        StateMetaInfoSnapshot.CommonSerializerKeys
+                                                                .USER_KEY_SERIALIZER))),
                 StateSnapshotTransformFactory.noTransform());
 
         Preconditions.checkState(
@@ -108,12 +136,14 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
             @Nonnull StateDescriptor.Type stateType,
             @Nonnull StateSerializerProvider<N> namespaceSerializerProvider,
             @Nonnull StateSerializerProvider<S> stateSerializerProvider,
+            @Nullable StateSerializerProvider<UK> userKeySerializerProvider,
             @Nonnull StateSnapshotTransformFactory<S> stateSnapshotTransformFactory) {
 
         super(name);
         this.stateType = stateType;
         this.namespaceSerializerProvider = namespaceSerializerProvider;
         this.stateSerializerProvider = stateSerializerProvider;
+        this.userKeySerializerProvider = userKeySerializerProvider;
         this.stateSnapshotTransformFactory = stateSnapshotTransformFactory;
     }
 
@@ -132,10 +162,32 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
         return stateSerializerProvider.currentSchemaSerializer();
     }
 
+    @Nullable
+    public TypeSerializer<UK> getUserKeySerializer() {
+        return userKeySerializerProvider == null
+                ? null
+                : userKeySerializerProvider.currentSchemaSerializer();
+    }
+
     @Nonnull
     public TypeSerializerSchemaCompatibility<S> updateStateSerializer(
             TypeSerializer<S> newStateSerializer) {
         return stateSerializerProvider.registerNewSerializerForRestoredState(newStateSerializer);
+    }
+
+    @Nonnull
+    public TypeSerializerSchemaCompatibility<UK> updateUserKeySerializer(
+            TypeSerializer<UK> newStateSerializer) {
+        if (userKeySerializerProvider == null) {
+            // This means that there is no userKeySerializerProvider in the previous StateMetaInfo,
+            // which may be restored from an old version.
+            this.userKeySerializerProvider =
+                    StateSerializerProvider.fromNewRegisteredSerializer(newStateSerializer);
+            return TypeSerializerSchemaCompatibility.compatibleAsIs();
+        } else {
+            return userKeySerializerProvider.registerNewSerializerForRestoredState(
+                    newStateSerializer);
+        }
     }
 
     @Override
@@ -148,8 +200,8 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
             return false;
         }
 
-        RegisteredKeyValueStateBackendMetaInfo<?, ?> that =
-                (RegisteredKeyValueStateBackendMetaInfo<?, ?>) o;
+        RegisteredKeyValueStateBackendMetaInfo<?, ?, ?> that =
+                (RegisteredKeyValueStateBackendMetaInfo<?, ?, ?>) o;
 
         if (!stateType.equals(that.stateType)) {
             return false;
@@ -184,6 +236,9 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
         result = 31 * result + getStateType().hashCode();
         result = 31 * result + getNamespaceSerializer().hashCode();
         result = 31 * result + getStateSerializer().hashCode();
+        if (getUserKeySerializer() != null) {
+            result = 31 * result + getUserKeySerializer().hashCode();
+        }
         return result;
     }
 
@@ -195,7 +250,7 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 
     @Nonnull
     @Override
-    public RegisteredKeyValueStateBackendMetaInfo<N, S> withSerializerUpgradesAllowed() {
+    public RegisteredKeyValueStateBackendMetaInfo<N, UK, S> withSerializerUpgradesAllowed() {
         return new RegisteredKeyValueStateBackendMetaInfo<>(snapshot());
     }
 
@@ -246,6 +301,15 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
         serializerMap.put(valueSerializerKey, stateSerializer.duplicate());
         serializerConfigSnapshotsMap.put(
                 valueSerializerKey, stateSerializer.snapshotConfiguration());
+
+        TypeSerializer<UK> userKeySerializer = getUserKeySerializer();
+        if (userKeySerializer != null) {
+            String userKeySerializerKey =
+                    StateMetaInfoSnapshot.CommonSerializerKeys.USER_KEY_SERIALIZER.toString();
+            serializerMap.put(userKeySerializerKey, userKeySerializer.duplicate());
+            serializerConfigSnapshotsMap.put(
+                    userKeySerializerKey, userKeySerializer.snapshotConfiguration());
+        }
 
         return new StateMetaInfoSnapshot(
                 name,

@@ -64,7 +64,7 @@ class StateMetaInfoSnapshotEnumConstantsTest {
 
     @Test
     void testFixedSerializerEnumConstants() {
-        assertThat(StateMetaInfoSnapshot.CommonSerializerKeys.values()).hasSize(3);
+        assertThat(StateMetaInfoSnapshot.CommonSerializerKeys.values()).hasSize(4);
         assertThat(StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER.ordinal()).isZero();
         assertThat(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.ordinal())
                 .isOne();
@@ -76,5 +76,7 @@ class StateMetaInfoSnapshotEnumConstantsTest {
                 .isEqualTo("NAMESPACE_SERIALIZER");
         assertThat(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString())
                 .isEqualTo("VALUE_SERIALIZER");
+        assertThat(StateMetaInfoSnapshot.CommonSerializerKeys.USER_KEY_SERIALIZER.toString())
+                .isEqualTo("USER_KEY_SERIALIZER");
     }
 }

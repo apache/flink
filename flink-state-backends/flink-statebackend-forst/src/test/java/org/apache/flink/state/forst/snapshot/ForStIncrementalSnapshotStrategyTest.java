@@ -143,7 +143,7 @@ class ForStIncrementalSnapshotStrategyTest {
         byte[] val = "incrementalTest".getBytes();
         db.put(columnFamilyHandle, key, val);
 
-        RegisteredKeyValueStateBackendMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+        RegisteredKeyValueStateBackendMetaInfo<Integer, ?, ArrayList<Integer>> metaInfo =
                 new RegisteredKeyValueStateBackendMetaInfo<>(
                         "test",
                         StateDescriptor.Type.VALUE,
@@ -176,7 +176,7 @@ class ForStIncrementalSnapshotStrategyTest {
         byte[] val = "incrementalTest".getBytes();
         db.put(columnFamilyHandle, key, val);
 
-        RegisteredKeyValueStateBackendMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+        RegisteredKeyValueStateBackendMetaInfo<Integer, ?, ArrayList<Integer>> metaInfo =
                 new RegisteredKeyValueStateBackendMetaInfo<>(
                         "test",
                         StateDescriptor.Type.VALUE,
