@@ -18,8 +18,6 @@
 
 package org.apache.flink.datastream.impl.stream;
 
-import static java.util.Objects.requireNonNull;
-
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.dsv2.Sink;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -32,6 +30,8 @@ import org.apache.flink.datastream.api.stream.GlobalStream.ProcessConfigurableAn
 import org.apache.flink.datastream.api.stream.KeyedPartitionStream;
 import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream;
 import org.apache.flink.datastream.api.stream.ProcessConfigurable;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * The implementation of {@link ProcessConfigurableAndGlobalStream}. This forwarding all process
