@@ -105,7 +105,7 @@ We only focus on the asynchronous ones here.
 First of all, we should get familiar with the return value of those asynchronous state access methods.
 
 `StateFuture<T>` is a future that will be completed with the result of the state access.
-The return bype is T. It provides multiple methods to handle the result, listed as:
+The return type is T. It provides multiple methods to handle the result, listed as:
 * `StateFuture<Void> thenAccept(Consumer<T>)`: This method takes a `Consumer` that will be called with the result
   when the state access is done. It returns a `StateFuture<Void>`, which will be finished when the
   `Consumer` is done.
@@ -496,6 +496,8 @@ for doing this redistribution.
 In a typical stateful Flink Application you don't need operators state. It is
 mostly a special type of state that is used in source/sink implementations and
 scenarios where you don't have a key by which state can be partitioned.
+
+**Notes:** Operator state is still not supported in the Python DataStream API.
 
 ## Broadcast State
 
