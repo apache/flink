@@ -33,6 +33,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /** Plan tests for removal of redundant changelog normalize. */
 public class ChangelogNormalizeOptimizationTest extends TableTestBase {
@@ -86,7 +88,13 @@ public class ChangelogNormalizeOptimizationTest extends TableTestBase {
                         SourceTable.UPSERT_SOURCE_PARTIAL_DELETES_METADATA,
                         SinkTable.UPSERT_SINK_METADATA),
                 TestSpec.selectWithoutMetadata(
-                        SourceTable.UPSERT_SOURCE_PARTIAL_DELETES_METADATA, SinkTable.UPSERT_SINK));
+                        SourceTable.UPSERT_SOURCE_PARTIAL_DELETES_METADATA, SinkTable.UPSERT_SINK),
+                TestSpec.select(
+                        SourceTable.UPSERT_SOURCE_PARTIAL_DELETES_METADATA_NO_PUSHDOWN,
+                        SinkTable.UPSERT_SINK_METADATA),
+                TestSpec.selectWithoutMetadata(
+                        SourceTable.UPSERT_SOURCE_PARTIAL_DELETES_METADATA_NO_PUSHDOWN,
+                        SinkTable.UPSERT_SINK));
     }
 
     @AfterEach
@@ -133,19 +141,23 @@ public class ChangelogNormalizeOptimizationTest extends TableTestBase {
     public enum SourceTable implements TableProperties {
         UPSERT_SOURCE_PARTIAL_DELETES(
                 "upsert_table_partial_deletes",
-                "'connector' = 'values'",
                 "'changelog-mode' = 'UA,D'",
                 "'source.produces-delete-by-key'='true'"),
         UPSERT_SOURCE_PARTIAL_DELETES_METADATA(
                 "upsert_table_partial_deletes_metadata",
                 List.of("`offset` BIGINT METADATA"),
-                "'connector' = 'values'",
                 "'changelog-mode' = 'UA,D'",
                 "'source.produces-delete-by-key'='true'",
                 "'readable-metadata' = 'offset:BIGINT'"),
+        UPSERT_SOURCE_PARTIAL_DELETES_METADATA_NO_PUSHDOWN(
+                "upsert_table_partial_deletes_metadata_no_pushdown",
+                List.of("`offset` BIGINT METADATA"),
+                "'changelog-mode' = 'UA,D'",
+                "'source.produces-delete-by-key'='true'",
+                "'enable-projection-push-down'='false'",
+                "'readable-metadata' = 'offset:BIGINT'"),
         UPSERT_SOURCE_FULL_DELETES(
                 "upsert_table_full_deletes",
-                "'connector' = 'values'",
                 "'changelog-mode' = 'UA,D'",
                 "'source.produces-delete-by-key'='false'");
 
@@ -160,7 +172,14 @@ public class ChangelogNormalizeOptimizationTest extends TableTestBase {
         SourceTable(String tableName, List<String> additionalColumns, String... options) {
             this.tableName = tableName;
             this.additionalColumns = additionalColumns;
-            this.options = Arrays.asList(options);
+            this.options =
+                    Stream.concat(
+                                    Stream.of(options),
+                                    Stream.of(
+                                            "'connector' = 'values'",
+                                            "'disable-lookup'='true'",
+                                            "'runtime-source'='NewSource'"))
+                            .collect(Collectors.toList());
         }
 
         @Override

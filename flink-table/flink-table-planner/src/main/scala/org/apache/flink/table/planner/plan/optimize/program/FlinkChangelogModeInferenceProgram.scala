@@ -31,6 +31,7 @@ import org.apache.flink.table.planner.plan.optimize.ChangelogNormalizeRequiremen
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.plan.utils.RankProcessStrategy.{AppendFastStrategy, RetractStrategy, UpdateFastStrategy}
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 import org.apache.flink.table.types.inference.StaticArgumentTrait
@@ -93,9 +94,13 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     }
 
     val deleteKindTraitVisitor = new SatisfyDeleteKindTraitVisitor(context)
-    val finalRoot = requiredDeleteKindTraits.flatMap {
-      requiredDeleteKindTrait =>
-        deleteKindTraitVisitor.visit(updateRoot.head, requiredDeleteKindTrait)
+    val finalRoot = if (updateRoot.isEmpty) {
+      updateRoot
+    } else {
+      requiredDeleteKindTraits.flatMap {
+        requiredDeleteKindTrait =>
+          deleteKindTraitVisitor.visit(updateRoot.head, requiredDeleteKindTrait)
+      }
     }
 
     // step4: sanity check and return non-empty root
@@ -654,10 +659,12 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
               None
           }
 
+        // if the condition is applied on the upsert key, we can emit whatever the requiredTrait
+        // is, because we will filter all records based on the condition that applies to that key
         case calc: StreamPhysicalCalcBase =>
           if (
             requiredUpdateTrait == UpdateKindTrait.ONLY_UPDATE_AFTER &&
-            calc.getProgram.getCondition != null
+            isNonUpsertKeyCondition(calc)
           ) {
             // we don't expect filter to satisfy ONLY_UPDATE_AFTER update kind,
             // to solve the bad case like a single 'cnt < 10' condition after aggregation.
@@ -1048,12 +1055,13 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             }
           }
 
+        // if the condition is applied on the upsert key, we can emit whatever the requiredTrait
+        // is, because we will filter all records based on the condition that applies to that key
         case calc: StreamPhysicalCalcBase =>
           if (
             requiredTrait == DeleteKindTrait.DELETE_BY_KEY &&
-            calc.getProgram.getCondition != null
+            isNonUpsertKeyCondition(calc)
           ) {
-            // this can be further improved by checking if the filter condition is on the key
             None
           } else {
             // otherwise, forward DeleteKind requirement
@@ -1269,6 +1277,26 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         }
       }
       upsertKeyDifferentFromPk
+    }
+  }
+
+  private def isNonUpsertKeyCondition(calc: StreamPhysicalCalcBase): Boolean = {
+    val program = calc.getProgram
+    if (program.getCondition == null) {
+      return false
+    }
+
+    val condition = program.expandLocalRef(calc.getProgram.getCondition)
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(calc.getCluster.getMetadataQuery)
+    val upsertKeys = fmq.getUpsertKeys(calc.getInput())
+    if (upsertKeys == null || upsertKeys.isEmpty) {
+      // there are no upsert keys, so all columns are non-primary key columns
+      true
+    } else {
+      val upsertKey = upsertKeys.head
+      RexNodeExtractor
+        .extractRefInputFields(JavaScalaConversionUtil.toJava(Seq(condition)))
+        .exists(i => !upsertKey.get(i))
     }
   }
 
