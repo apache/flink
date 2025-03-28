@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.asyncprocessing.operators;
+package org.apache.flink.runtime.asyncprocessing.operators.co;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
@@ -28,6 +28,8 @@ import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclaredVariable;
+import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateUdfStreamOperator;
+import org.apache.flink.runtime.asyncprocessing.operators.TimestampedCollectorWithDeclaredVariable;
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
@@ -417,12 +419,12 @@ public class AsyncIntervalJoinOperator<K, T1, T2, OUT>
     }
 
     @VisibleForTesting
-    MapState<Long, List<IntervalJoinOperator.BufferEntry<T1>>> getLeftBuffer() {
+    public MapState<Long, List<IntervalJoinOperator.BufferEntry<T1>>> getLeftBuffer() {
         return leftBuffer;
     }
 
     @VisibleForTesting
-    MapState<Long, List<IntervalJoinOperator.BufferEntry<T2>>> getRightBuffer() {
+    public MapState<Long, List<IntervalJoinOperator.BufferEntry<T2>>> getRightBuffer() {
         return rightBuffer;
     }
 }
