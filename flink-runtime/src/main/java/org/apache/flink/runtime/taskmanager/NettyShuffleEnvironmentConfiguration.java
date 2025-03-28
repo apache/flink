@@ -304,7 +304,8 @@ public class NettyShuffleEnvironmentConfiguration {
                         configuration,
                         localTaskManagerCommunication,
                         taskManagerAddress,
-                        dataBindPortRange);
+                        dataBindPortRange,
+                        pageSize);
 
         final int numberOfNetworkBuffers =
                 calculateNumberOfNetworkBuffers(networkMemorySize, pageSize);
@@ -454,6 +455,8 @@ public class NettyShuffleEnvironmentConfiguration {
      * @param taskManagerAddress identifying the IP address under which the TaskManager will be
      *     accessible
      * @param dataPortRange data port range for communication and data exchange
+     * @param memorySegmentSize size of memory buffers used by the network stack and the memory
+     *     manager
      * @return the netty configuration or {@code null} if communication is in the same task manager
      */
     @Nullable
@@ -461,7 +464,8 @@ public class NettyShuffleEnvironmentConfiguration {
             Configuration configuration,
             boolean localTaskManagerCommunication,
             InetAddress taskManagerAddress,
-            PortRange dataPortRange) {
+            PortRange dataPortRange,
+            int memorySegmentSize) {
 
         final NettyConfig nettyConfig;
         if (!localTaskManagerCommunication) {
@@ -472,7 +476,7 @@ public class NettyShuffleEnvironmentConfiguration {
                     new NettyConfig(
                             taskManagerInetSocketAddress.getAddress(),
                             dataPortRange,
-                            ConfigurationParserUtils.getPageSize(configuration),
+                            memorySegmentSize,
                             ConfigurationParserUtils.getSlot(configuration),
                             configuration);
         } else {
