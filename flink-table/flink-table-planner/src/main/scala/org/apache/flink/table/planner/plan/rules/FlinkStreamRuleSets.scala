@@ -487,9 +487,11 @@ object FlinkStreamRuleSets {
   )
 
   /** RuleSet related to transpose watermark to be close to source */
-  val WATERMARK_TRANSPOSE_RULES: RuleSet = RuleSets.ofList(
+  val CHANGELOG_NORMALIZE_TRANSPOSE_RULES: RuleSet = RuleSets.ofList(
     WatermarkAssignerChangelogNormalizeTransposeRule.WITH_CALC,
-    WatermarkAssignerChangelogNormalizeTransposeRule.WITHOUT_CALC
+    WatermarkAssignerChangelogNormalizeTransposeRule.WITHOUT_CALC,
+    // optimize ChangelogNormalize
+    PushCalcPastChangelogNormalizeRule.INSTANCE
   )
 
   /** RuleSet related to mini-batch. */
@@ -505,9 +507,7 @@ object FlinkStreamRuleSets {
     // incremental agg rule
     IncrementalAggregateRule.INSTANCE,
     // optimize window agg rule
-    TwoStageOptimizedWindowAggregateRule.INSTANCE,
-    // optimize ChangelogNormalize
-    PushCalcPastChangelogNormalizeRule.INSTANCE
+    TwoStageOptimizedWindowAggregateRule.INSTANCE
   )
 
 }

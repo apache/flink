@@ -95,8 +95,8 @@ LogicalProject(a=[$1], b=[$2], c=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a, b, c], changelogMode=[I,UB,UA,D])
-+- ChangelogNormalize(key=[id], condition=[>(a, 1)], changelogMode=[I,UB,UA,D])
+Calc(select=[a, b, c], changelogMode=[I,UA,D])
++- ChangelogNormalize(key=[id], condition=[>(a, 1)], changelogMode=[I,UA,D])
    +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
       +- Calc(select=[id, a, b, c], changelogMode=[I,UA,D])
          +- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1000:INTERVAL SECOND)], changelogMode=[I,UA,D])
@@ -718,8 +718,8 @@ LogicalProject(a=[$1], b=[$2], c=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a, b, c], changelogMode=[I,UB,UA,D])
-+- ChangelogNormalize(key=[id], condition=[>(a, 1)], changelogMode=[I,UB,UA,D])
+Calc(select=[a, b, c], changelogMode=[I,UA,D])
++- ChangelogNormalize(key=[id], condition=[>(a, 1)], changelogMode=[I,UA,D])
    +- Exchange(distribution=[hash[id]], changelogMode=[UA,D])
       +- Calc(select=[id, a, b, c], changelogMode=[UA,D])
          +- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1000:INTERVAL SECOND)], changelogMode=[UA,D])
