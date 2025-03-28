@@ -453,9 +453,9 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
             TypeSerializer<UK> previousUserValueStateSerializer =
                     restoredKvStateMetaInfo.getUserKeySerializer();
             TypeSerializerSchemaCompatibility<UK> userKeySerializerCompatibility =
-                    restoredKvStateMetaInfo.updateUserKeySerializer(
-                            previousUserValueStateSerializer);
-            if (!userKeySerializerCompatibility.isCompatibleAsIs()) {
+                    restoredKvStateMetaInfo.updateUserKeySerializer(userKeySerializer);
+            if (!previousUserValueStateSerializer.equals(userKeySerializer)
+                    && !userKeySerializerCompatibility.isCompatibleAsIs()) {
                 throw new StateMigrationException(
                         "The new serializer for a MapState requires state migration in order for the job to proceed. State migration not support yet.");
             }
