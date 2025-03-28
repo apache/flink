@@ -30,6 +30,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler;
 import org.apache.flink.runtime.scheduler.adaptivebatch.OperatorsFinished;
 import org.apache.flink.runtime.scheduler.adaptivebatch.StreamGraphOptimizationStrategy;
@@ -43,6 +44,7 @@ import org.apache.flink.streaming.api.graph.util.ImmutableStreamEdge;
 import org.apache.flink.streaming.api.graph.util.StreamEdgeUpdateRequestInfo;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
+import org.apache.flink.test.runtime.JobGraphRunningUtil;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -86,6 +88,39 @@ class AdaptiveBatchSchedulerITCase {
     @Test
     void testScheduling() throws Exception {
         testSchedulingBase(false);
+    }
+
+    @Test
+    void testSubmitJobGraphWithBroadcastEdge() throws Exception {
+        final Configuration configuration = createConfiguration();
+        // make sure the map operator has two sub-tasks
+        configuration.set(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MIN_PARALLELISM, 2);
+        configuration.set(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM, 2);
+
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.createLocalEnvironment(configuration);
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+
+        env.fromSequence(0, NUMBERS_TO_PRODUCE - 1)
+                .setParallelism(1)
+                .broadcast()
+                .map(new NumberCounter());
+
+        JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+        JobGraphRunningUtil.execute(jobGraph, configuration, 1, 2);
+
+        Map<Long, Long> numberCountResultMap =
+                numberCountResults.stream()
+                        .flatMap(map -> map.entrySet().stream())
+                        .collect(
+                                Collectors.toMap(
+                                        Map.Entry::getKey, Map.Entry::getValue, Long::sum));
+
+        Map<Long, Long> expectedResult =
+                LongStream.range(0, NUMBERS_TO_PRODUCE)
+                        .boxed()
+                        .collect(Collectors.toMap(Function.identity(), i -> 2L));
+        assertThat(numberCountResultMap).isEqualTo(expectedResult);
     }
 
     @Test
