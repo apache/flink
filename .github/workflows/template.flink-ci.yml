@@ -316,7 +316,7 @@ jobs:
           maven_repo_folder: ${{ env.MAVEN_REPO_FOLDER }}
 
       - name: "Install missing packages"
-        run: sudo apt-get install -y net-tools docker-compose zip
+        run: sudo apt-get install -y net-tools docker zip
 
       # netty-tcnative requires OpenSSL v1.0.0
       - name: "Install OpenSSL"
