@@ -31,6 +31,7 @@ import org.apache.flink.runtime.state.OutputStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.jupiter.api.Test;
 
@@ -38,6 +39,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.Future;
+import java.util.concurrent.RunnableFuture;
 import java.util.function.Function;
 
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.deepDummyCopy;
@@ -80,6 +82,7 @@ class OperatorSnapshotFinalizerTest {
                         singleton(deepDummyCopy(resultSubpartitionTemplate)),
                         singleton(deepDummyCopy(resultSubpartitionTemplate)));
 
+        RunnableFuture<Void> asyncOperateFuture = new PseudoNotDoneFuture<>(null);
         OperatorSnapshotFutures snapshotFutures =
                 new OperatorSnapshotFutures(
                         new PseudoNotDoneFuture<>(manKeyed),
@@ -87,13 +90,15 @@ class OperatorSnapshotFinalizerTest {
                         new PseudoNotDoneFuture<>(manOper),
                         new PseudoNotDoneFuture<>(rawOper),
                         new PseudoNotDoneFuture<>(inputChannel),
-                        new PseudoNotDoneFuture<>(resultSubpartition));
+                        new PseudoNotDoneFuture<>(resultSubpartition),
+                        asyncOperateFuture);
 
         for (Future<?> f : snapshotFutures.getAllFutures()) {
             assertThat(f).isNotDone();
         }
 
         OperatorSnapshotFinalizer finalizer = new OperatorSnapshotFinalizer(snapshotFutures);
+        FutureUtils.runIfNotDoneAndGet(asyncOperateFuture);
 
         for (Future<?> f : snapshotFutures.getAllFutures()) {
             assertThat(f).isDone();
