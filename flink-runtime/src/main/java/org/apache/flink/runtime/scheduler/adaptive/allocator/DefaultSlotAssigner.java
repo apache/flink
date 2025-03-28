@@ -19,16 +19,17 @@
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
+import org.apache.flink.runtime.jobmaster.slotpool.TaskExecutorsLoadInformation;
 import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan.SlotAssignment;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator.ExecutionSlotSharingGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -37,23 +38,26 @@ import java.util.stream.Collectors;
 /** Simple {@link SlotAssigner} that treats all slots and slot sharing groups equally. */
 public class DefaultSlotAssigner implements SlotAssigner {
 
+    private final RequestSlotMatchingStrategy requestSlotMatchingStrategy;
+
+    public DefaultSlotAssigner(RequestSlotMatchingStrategy requestSlotMatchingStrategy) {
+        this.requestSlotMatchingStrategy = Preconditions.checkNotNull(requestSlotMatchingStrategy);
+    }
+
     @Override
     public Collection<SlotAssignment> assignSlots(
             JobInformation jobInformation,
-            Collection<? extends SlotInfo> freeSlots,
+            Collection<PhysicalSlot> freeSlots,
             VertexParallelism vertexParallelism,
+            TaskExecutorsLoadInformation taskExecutorsLoadInformation,
             JobAllocationsInformation previousAllocations) {
         List<ExecutionSlotSharingGroup> allGroups = new ArrayList<>();
         for (SlotSharingGroup slotSharingGroup : jobInformation.getSlotSharingGroups()) {
             allGroups.addAll(createExecutionSlotSharingGroups(vertexParallelism, slotSharingGroup));
         }
 
-        Iterator<? extends SlotInfo> iterator = freeSlots.iterator();
-        Collection<SlotAssignment> assignments = new ArrayList<>();
-        for (ExecutionSlotSharingGroup group : allGroups) {
-            assignments.add(new SlotAssignment(iterator.next(), group));
-        }
-        return assignments;
+        return requestSlotMatchingStrategy.matchRequestsWithSlots(
+                allGroups, freeSlots, taskExecutorsLoadInformation);
     }
 
     static List<ExecutionSlotSharingGroup> createExecutionSlotSharingGroups(
