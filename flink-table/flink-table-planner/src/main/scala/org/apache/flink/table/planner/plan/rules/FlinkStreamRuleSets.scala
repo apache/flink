@@ -486,11 +486,16 @@ object FlinkStreamRuleSets {
     StreamPhysicalLegacySinkRule.INSTANCE
   )
 
-  /** RuleSet related to transpose watermark to be close to source */
+  /**
+   * RuleSet related to optimizing ChangelogNormalize:
+   * 1. transpose watermark to be close to source
+   * 2. transpose projections
+   * 3. push filter either inside of a changelog normalize or past it
+   */
   val CHANGELOG_NORMALIZE_TRANSPOSE_RULES: RuleSet = RuleSets.ofList(
     WatermarkAssignerChangelogNormalizeTransposeRule.WITH_CALC,
     WatermarkAssignerChangelogNormalizeTransposeRule.WITHOUT_CALC,
-    // optimize ChangelogNormalize
+    // reduce state size in ChangelogNormalize
     PushCalcPastChangelogNormalizeRule.INSTANCE
   )
 
