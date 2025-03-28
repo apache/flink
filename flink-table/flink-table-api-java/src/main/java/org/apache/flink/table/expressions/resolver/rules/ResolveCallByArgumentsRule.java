@@ -414,7 +414,7 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
                 return actualArgs;
             }
             final List<Expression> enrichedArgs = new ArrayList<>(actualArgs);
-            IntStream.range(actualArgs.size() - 1, declaredArgs.size())
+            IntStream.range(actualArgs.size(), declaredArgs.size())
                     .forEach(
                             pos -> {
                                 final StaticArgument declaredArg = declaredArgs.get(pos);
