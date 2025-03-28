@@ -29,6 +29,7 @@ import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptionsInternal;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
 import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
@@ -91,6 +92,10 @@ public class TaskManagerServicesConfiguration {
 
     private final TaskExecutorResourceSpec taskExecutorResourceSpec;
 
+    private final ResourceProfile totalAvailableResourceProfile;
+
+    private final ResourceProfile defaultSlotResourceProfile;
+
     private final FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder;
 
     private final String[] alwaysParentFirstLoaderPatterns;
@@ -136,6 +141,12 @@ public class TaskManagerServicesConfiguration {
         this.pageSize = pageSize;
 
         this.taskExecutorResourceSpec = taskExecutorResourceSpec;
+        this.totalAvailableResourceProfile =
+                TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(
+                        taskExecutorResourceSpec);
+        this.defaultSlotResourceProfile =
+                TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(
+                        taskExecutorResourceSpec, numberOfSlots);
         this.classLoaderResolveOrder = classLoaderResolveOrder;
         this.alwaysParentFirstLoaderPatterns = alwaysParentFirstLoaderPatterns;
         this.numIoThreads = numIoThreads;
@@ -211,6 +222,14 @@ public class TaskManagerServicesConfiguration {
 
     public TaskExecutorResourceSpec getTaskExecutorResourceSpec() {
         return taskExecutorResourceSpec;
+    }
+
+    public ResourceProfile getTotalAvailableResourceProfile() {
+        return totalAvailableResourceProfile;
+    }
+
+    public ResourceProfile getDefaultSlotResourceProfile() {
+        return defaultSlotResourceProfile;
     }
 
     public MemorySize getNetworkMemorySize() {

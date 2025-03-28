@@ -55,6 +55,7 @@ import org.apache.flink.runtime.rpc.TestingRpcServiceExtension;
 import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
+import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
 import org.apache.flink.testutils.TestFileUtils;
 import org.apache.flink.testutils.TestingUtils;
@@ -234,12 +235,17 @@ class TaskExecutorExecutionDeploymentReconciliationTest {
     private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices)
             throws IOException {
         final Configuration configuration = new Configuration();
+        final TaskExecutorResourceSpec taskExecutorResourceSpec =
+                TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(configuration);
         return new TestingTaskExecutor(
                 RPC_SERVICE_EXTENSION_WRAPPER.getCustomExtension().getTestingRpcService(),
                 TaskManagerConfiguration.fromConfiguration(
                         configuration,
-                        TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(
-                                configuration),
+                        TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(
+                                taskExecutorResourceSpec,
+                                ConfigurationParserUtils.getSlot(configuration)),
+                        TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(
+                                taskExecutorResourceSpec),
                         InetAddress.getLoopbackAddress().getHostAddress(),
                         TestFileUtils.createTempDir()),
                 haServices,

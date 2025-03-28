@@ -23,7 +23,10 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceSpec;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
+import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -42,7 +45,6 @@ import java.util.stream.Stream;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
-import static org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution;
 import static org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend.ensureRocksDBIsLoaded;
 import static org.apache.flink.state.rocksdb.RocksDBMemoryControllerUtils.calculateWriteBufferManagerCapacity;
 import static org.apache.flink.state.rocksdb.RocksDBOptions.FIX_PER_SLOT_MEMORY_SIZE;
@@ -151,11 +153,17 @@ public class RocksDBSharedResourcesFactoryTest {
     }
 
     private static Environment getEnv(Configuration tmConfig) throws IOException {
+        final TaskExecutorResourceSpec taskExecutorResourceSpec =
+                TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(tmConfig);
         return MockEnvironment.builder()
                 .setTaskManagerRuntimeInfo(
                         TaskManagerConfiguration.fromConfiguration(
                                 tmConfig,
-                                resourceSpecFromConfigForLocalExecution(tmConfig),
+                                TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(
+                                        taskExecutorResourceSpec,
+                                        ConfigurationParserUtils.getSlot(tmConfig)),
+                                TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(
+                                        taskExecutorResourceSpec),
                                 "localhost",
                                 File.createTempFile("prefix", "suffix")))
                 .build();

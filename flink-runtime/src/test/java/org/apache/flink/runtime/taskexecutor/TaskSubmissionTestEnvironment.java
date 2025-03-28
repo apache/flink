@@ -255,13 +255,18 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
             Configuration configuration)
             throws IOException {
         final Configuration copiedConf = new Configuration(configuration);
+        final TaskExecutorResourceSpec taskExecutorResourceSpec =
+                TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(copiedConf);
 
         return new TestingTaskExecutor(
                 testingRpcService,
                 TaskManagerConfiguration.fromConfiguration(
                         copiedConf,
-                        TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(
-                                copiedConf),
+                        TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(
+                                taskExecutorResourceSpec,
+                                ConfigurationParserUtils.getSlot(copiedConf)),
+                        TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(
+                                taskExecutorResourceSpec),
                         InetAddress.getLoopbackAddress().getHostAddress(),
                         TestFileUtils.createTempDir()),
                 haServices,

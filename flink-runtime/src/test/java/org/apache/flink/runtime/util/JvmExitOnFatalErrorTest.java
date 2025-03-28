@@ -61,6 +61,7 @@ import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.NoOpPartitionProducerStateChecker;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceSpec;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
@@ -192,12 +193,18 @@ class JvmExitOnFatalErrorTest {
                         new NettyShuffleEnvironmentBuilder().build();
 
                 final Configuration copiedConf = new Configuration(taskManagerConfig);
+                final TaskExecutorResourceSpec taskExecutorResourceSpec =
+                        TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(
+                                copiedConf);
                 final File tmpWorkingDirectory = new File(args[0]);
                 final TaskManagerRuntimeInfo tmInfo =
                         TaskManagerConfiguration.fromConfiguration(
                                 taskManagerConfig,
-                                TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(
-                                        copiedConf),
+                                TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(
+                                        taskExecutorResourceSpec,
+                                        ConfigurationParserUtils.getSlot(copiedConf)),
+                                TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(
+                                        taskExecutorResourceSpec),
                                 InetAddress.getLoopbackAddress().getHostAddress(),
                                 tmpWorkingDirectory);
 

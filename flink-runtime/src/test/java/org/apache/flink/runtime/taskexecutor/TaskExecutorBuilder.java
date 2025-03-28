@@ -37,6 +37,7 @@ import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository;
+import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.util.concurrent.Executors;
 
 import javax.annotation.Nullable;
@@ -115,7 +116,11 @@ public class TaskExecutorBuilder {
             resolvedTaskManagerConfiguration =
                     TaskManagerConfiguration.fromConfiguration(
                             configuration,
-                            taskExecutorResourceSpec,
+                            TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(
+                                    taskExecutorResourceSpec,
+                                    ConfigurationParserUtils.getSlot(configuration)),
+                            TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(
+                                    taskExecutorResourceSpec),
                             rpcService.getAddress(),
                             workingDirectory.getTmpDirectory());
         } else {

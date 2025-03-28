@@ -653,7 +653,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
         TaskManagerConfiguration taskManagerConfiguration =
                 TaskManagerConfiguration.fromConfiguration(
                         configuration,
-                        taskExecutorResourceSpec,
+                        taskManagerServicesConfiguration.getDefaultSlotResourceProfile(),
+                        taskManagerServicesConfiguration.getTotalAvailableResourceProfile(),
                         externalAddress,
                         workingDirectory.getTmpDirectory());
 

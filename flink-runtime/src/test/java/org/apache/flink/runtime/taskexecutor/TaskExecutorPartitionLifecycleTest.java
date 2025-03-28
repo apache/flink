@@ -66,6 +66,7 @@ import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.Task;
+import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.TestFileUtils;
 import org.apache.flink.testutils.TestingUtils;
@@ -679,12 +680,17 @@ class TaskExecutorPartitionLifecycleTest {
     private TestingTaskExecutor createTestingTaskExecutor(
             TaskManagerServices taskManagerServices, TaskExecutorPartitionTracker partitionTracker)
             throws IOException {
+        final TaskExecutorResourceSpec taskExecutorResourceSpec =
+                TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(configuration);
         return new TestingTaskExecutor(
                 rpc,
                 TaskManagerConfiguration.fromConfiguration(
                         configuration,
-                        TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(
-                                configuration),
+                        TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(
+                                taskExecutorResourceSpec,
+                                ConfigurationParserUtils.getSlot(configuration)),
+                        TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(
+                                taskExecutorResourceSpec),
                         InetAddress.getLoopbackAddress().getHostAddress(),
                         TestFileUtils.createTempDir()),
                 haServices,

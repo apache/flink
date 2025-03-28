@@ -103,6 +103,7 @@ import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.TestFileUtils;
 import org.apache.flink.testutils.TestingUtils;
@@ -2783,7 +2784,10 @@ class TaskExecutorTest {
                 rpc,
                 TaskManagerConfiguration.fromConfiguration(
                         configuration,
-                        TM_RESOURCE_SPEC,
+                        TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(
+                                TM_RESOURCE_SPEC, ConfigurationParserUtils.getSlot(configuration)),
+                        TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(
+                                TM_RESOURCE_SPEC),
                         InetAddress.getLoopbackAddress().getHostAddress(),
                         TestFileUtils.createTempDir()),
                 haServices,
@@ -2819,7 +2823,10 @@ class TaskExecutorTest {
                 rpc,
                 TaskManagerConfiguration.fromConfiguration(
                         configuration,
-                        TM_RESOURCE_SPEC,
+                        TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(
+                                TM_RESOURCE_SPEC, ConfigurationParserUtils.getSlot(configuration)),
+                        TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(
+                                TM_RESOURCE_SPEC),
                         InetAddress.getLoopbackAddress().getHostAddress(),
                         TestFileUtils.createTempDir()),
                 haServices,
