@@ -44,6 +44,7 @@ Currently, Flink distinguishes between the following kinds of functions:
 - *Aggregate functions* map scalar values of multiple rows to a new scalar value.
 - *Table aggregate functions* map scalar values of multiple rows to new rows.
 - *Async table functions* are special functions for table sources that perform a lookup.
+- *Process table functions* map tables to new rows. Enabling user-defined operators with state and timers.
 
 The following example shows how to create a simple scalar function and how to call the function in both Table API and SQL.
 
@@ -240,7 +241,7 @@ env.from("MyTable").select(call(classOf[MyConcatFunction], $"a", $"b", $"c"));
 It is recommended to use `functionClass` over `functionInstance` as far as user-defined functions provide no args constructor, 
 because Flink as the framework underneath can add more logic to control the process of creating new instance.
 Current built-in standard logic in `TableEnvironmentImpl` will validate the class and methods in the class 
-based on different subclass types of `UserDefinedFunction`, e.g. `ScalaFunction`, `TableFunction`. 
+based on different subclass types of `UserDefinedFunction`, e.g. `ScalarFunction`, `TableFunction`.
 More logic or optimization could be added in the framework in the future with no need to change any users' existing code. 
 {{< /hint >}}
 
@@ -2069,5 +2070,27 @@ class Top2WithRetract
 ```
 {{< /tab >}}
 {{< /tabs >}}
+
+{{< top >}}
+
+Process Table Functions
+-----------------------
+
+Process Table Functions (PTFs) are the most powerful function kind for Flink SQL and Table API. They enable implementing
+user-defined operators that can be as feature-rich as built-in operations. PTFs can take (partitioned) tables to produce
+a new table. They have access to Flink's managed state, event-time and timer services, and underlying table changelogs.
+
+Conceptually, a PTF is a superset of all other user-defined functions. It maps zero, one, or multiple tables to zero, one,
+or multiple rows (or structured types). Scalar arguments are supported. Due to its stateful nature, implementing aggregating
+behavior is possible as well.
+
+A PTF enables the following tasks:
+- Apply transformations on each row of a table.
+- Logically partition the table into distinct sets and apply transformations per set.
+- Store seen events for repeated access.
+- Continue the processing at a later point in time enabling waiting, synchronization, or timeouts.
+- Buffer and aggregate events using complex state machines or rule-based conditional logic.
+
+See the [dedicated page for PTFs]({{< ref "docs/dev/table/functions/ptfs" >}}) for more details.
 
 {{< top >}}
