@@ -69,7 +69,7 @@ public class TaskManagerServicesConfiguration {
 
     private final boolean localCommunicationOnly;
 
-    private final String[] tmpDirPaths;
+    private final String[] tmpDirs;
 
     private final Reference<File[]> localRecoveryStateDirectories;
 
@@ -104,7 +104,7 @@ public class TaskManagerServicesConfiguration {
             InetAddress bindAddress,
             int externalDataPort,
             boolean localCommunicationOnly,
-            String[] tmpDirPaths,
+            String[] tmpDirs,
             Reference<File[]> localRecoveryStateDirectories,
             boolean localRecoveryEnabled,
             boolean localBackupEnabled,
@@ -126,7 +126,7 @@ public class TaskManagerServicesConfiguration {
         this.bindAddress = checkNotNull(bindAddress);
         this.externalDataPort = externalDataPort;
         this.localCommunicationOnly = localCommunicationOnly;
-        this.tmpDirPaths = checkNotNull(tmpDirPaths);
+        this.tmpDirs = checkNotNull(tmpDirs);
         this.localRecoveryStateDirectories = checkNotNull(localRecoveryStateDirectories);
         this.localRecoveryEnabled = localRecoveryEnabled;
         this.localBackupEnabled = localBackupEnabled;
@@ -180,8 +180,8 @@ public class TaskManagerServicesConfiguration {
         return localCommunicationOnly;
     }
 
-    public String[] getTmpDirPaths() {
-        return tmpDirPaths;
+    public String[] getTmpDirs() {
+        return tmpDirs;
     }
 
     Reference<File[]> getLocalRecoveryStateDirectories() {
