@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state.metrics;
 
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 
 import java.util.Collection;
@@ -32,35 +33,51 @@ import java.util.Collection;
  * @param <ACC> The type of the accumulator (intermediate aggregate state).
  * @param <OUT> Type of the value extracted from the state
  */
-class LatencyTrackingAggregatingState<K, N, IN, ACC, OUT>
-        extends AbstractLatencyTrackState<
+class MetricsTrackingAggregatingState<K, N, IN, ACC, OUT>
+        extends AbstractMetricsTrackState<
                 K,
                 N,
                 ACC,
                 InternalAggregatingState<K, N, IN, ACC, OUT>,
-                LatencyTrackingAggregatingState.AggregatingStateLatencyMetrics>
+                MetricsTrackingAggregatingState.AggregatingStateMetrics>
         implements InternalAggregatingState<K, N, IN, ACC, OUT> {
 
-    LatencyTrackingAggregatingState(
+    MetricsTrackingAggregatingState(
             String stateName,
             InternalAggregatingState<K, N, IN, ACC, OUT> original,
-            LatencyTrackingStateConfig latencyTrackingStateConfig) {
+            KeyedStateBackend<K> keyedStateBackend,
+            LatencyTrackingStateConfig latencyTrackingStateConfig,
+            SizeTrackingStateConfig sizeTrackingStateConfig) {
         super(
                 original,
-                new AggregatingStateLatencyMetrics(
-                        stateName,
-                        latencyTrackingStateConfig.getMetricGroup(),
-                        latencyTrackingStateConfig.getSampleInterval(),
-                        latencyTrackingStateConfig.getHistorySize(),
-                        latencyTrackingStateConfig.isStateNameAsVariable()));
+                keyedStateBackend,
+                latencyTrackingStateConfig.isEnabled()
+                        ? new AggregatingStateMetrics(
+                                stateName,
+                                latencyTrackingStateConfig.getMetricGroup(),
+                                latencyTrackingStateConfig.getSampleInterval(),
+                                latencyTrackingStateConfig.getHistorySize(),
+                                latencyTrackingStateConfig.isStateNameAsVariable())
+                        : null,
+                sizeTrackingStateConfig.isEnabled()
+                        ? new AggregatingStateMetrics(
+                                stateName,
+                                sizeTrackingStateConfig.getMetricGroup(),
+                                sizeTrackingStateConfig.getSampleInterval(),
+                                sizeTrackingStateConfig.getHistorySize(),
+                                sizeTrackingStateConfig.isStateNameAsVariable())
+                        : null);
     }
 
     @Override
     public OUT get() throws Exception {
-        if (latencyTrackingStateMetric.trackLatencyOnGet()) {
+        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackMetricsOnGet()) {
+            sizeTrackingStateMetric.updateMetrics(
+                    AggregatingStateMetrics.AGGREGATING_STATE_GET_KEY_SIZE, super.sizeOfKey());
+        }
+        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackMetricsOnGet()) {
             return trackLatencyWithException(
-                    () -> original.get(),
-                    AggregatingStateLatencyMetrics.AGGREGATING_STATE_GET_LATENCY);
+                    () -> original.get(), AggregatingStateMetrics.AGGREGATING_STATE_GET_LATENCY);
         } else {
             return original.get();
         }
@@ -68,10 +85,14 @@ class LatencyTrackingAggregatingState<K, N, IN, ACC, OUT>
 
     @Override
     public void add(IN value) throws Exception {
-        if (latencyTrackingStateMetric.trackLatencyOnAdd()) {
+        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackMetricsOnAdd()) {
+            sizeTrackingStateMetric.updateMetrics(
+                    AggregatingStateMetrics.AGGREGATING_STATE_ADD_KEY_SIZE, super.sizeOfKey());
+        }
+        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackMetricsOnAdd()) {
             trackLatencyWithException(
                     () -> original.add(value),
-                    AggregatingStateLatencyMetrics.AGGREGATING_STATE_ADD_LATENCY);
+                    AggregatingStateMetrics.AGGREGATING_STATE_ADD_LATENCY);
         } else {
             original.add(value);
         }
@@ -89,26 +110,29 @@ class LatencyTrackingAggregatingState<K, N, IN, ACC, OUT>
 
     @Override
     public void mergeNamespaces(N target, Collection<N> sources) throws Exception {
-        if (latencyTrackingStateMetric.trackLatencyOnMergeNamespace()) {
+        if (latencyTrackingStateMetric != null
+                && latencyTrackingStateMetric.trackMetricsOnMergeNamespace()) {
             trackLatencyWithException(
                     () -> original.mergeNamespaces(target, sources),
-                    AggregatingStateLatencyMetrics.AGGREGATING_STATE_MERGE_NAMESPACES_LATENCY);
+                    AggregatingStateMetrics.AGGREGATING_STATE_MERGE_NAMESPACES_LATENCY);
         } else {
             original.mergeNamespaces(target, sources);
         }
     }
 
-    static class AggregatingStateLatencyMetrics extends StateLatencyMetricBase {
+    static class AggregatingStateMetrics extends StateMetricBase {
         private static final String AGGREGATING_STATE_GET_LATENCY = "aggregatingStateGetLatency";
         private static final String AGGREGATING_STATE_ADD_LATENCY = "aggregatingStateAddLatency";
         private static final String AGGREGATING_STATE_MERGE_NAMESPACES_LATENCY =
                 "aggregatingStateMergeNamespacesLatency";
+        private static final String AGGREGATING_STATE_GET_KEY_SIZE = "aggregatingStateGetKeySize";
+        private static final String AGGREGATING_STATE_ADD_KEY_SIZE = "aggregatingStateAddKeySize";
 
         private int getCount = 0;
         private int addCount = 0;
         private int mergeNamespaceCount = 0;
 
-        private AggregatingStateLatencyMetrics(
+        private AggregatingStateMetrics(
                 String stateName,
                 MetricGroup metricGroup,
                 int sampleInterval,
@@ -129,17 +153,17 @@ class LatencyTrackingAggregatingState<K, N, IN, ACC, OUT>
             return mergeNamespaceCount;
         }
 
-        private boolean trackLatencyOnGet() {
+        private boolean trackMetricsOnGet() {
             getCount = loopUpdateCounter(getCount);
             return getCount == 1;
         }
 
-        private boolean trackLatencyOnAdd() {
+        private boolean trackMetricsOnAdd() {
             addCount = loopUpdateCounter(addCount);
             return addCount == 1;
         }
 
-        private boolean trackLatencyOnMergeNamespace() {
+        private boolean trackMetricsOnMergeNamespace() {
             mergeNamespaceCount = loopUpdateCounter(mergeNamespaceCount);
             return mergeNamespaceCount == 1;
         }

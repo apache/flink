@@ -35,8 +35,8 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for {@link LatencyTrackingMapState}. */
-class LatencyTrackingMapStateTest extends LatencyTrackingStateTestBase<Integer> {
+/** Tests for {@link MetricsTrackingMapState}. */
+class MetricsTrackingMapStateTest extends MetricsTrackingStateTestBase<Integer> {
     @Override
     @SuppressWarnings("unchecked")
     MapStateDescriptor<Integer, Double> getStateDescriptor() {
@@ -58,11 +58,11 @@ class LatencyTrackingMapStateTest extends LatencyTrackingStateTestBase<Integer> 
     void testLatencyTrackingMapState() throws Exception {
         AbstractKeyedStateBackend<Integer> keyedBackend = createKeyedBackend(getKeySerializer());
         try {
-            LatencyTrackingMapState<Integer, VoidNamespace, Long, Double> latencyTrackingState =
-                    (LatencyTrackingMapState)
-                            createLatencyTrackingState(keyedBackend, getStateDescriptor());
+            MetricsTrackingMapState<Integer, VoidNamespace, Long, Double> latencyTrackingState =
+                    (MetricsTrackingMapState)
+                            createMetricsTrackingState(keyedBackend, getStateDescriptor());
             latencyTrackingState.setCurrentNamespace(VoidNamespace.INSTANCE);
-            LatencyTrackingMapState.MapStateLatencyMetrics latencyTrackingStateMetric =
+            MetricsTrackingMapState.MapStateMetrics latencyTrackingStateMetric =
                     latencyTrackingState.getLatencyTrackingStateMetric();
 
             assertThat(latencyTrackingStateMetric.getContainsCount()).isZero();
@@ -127,34 +127,91 @@ class LatencyTrackingMapStateTest extends LatencyTrackingStateTestBase<Integer> 
 
     @Test
     @SuppressWarnings({"unchecked", "rawtypes"})
+    void testSizeTrackingMapState() throws Exception {
+        AbstractKeyedStateBackend<Integer> keyedBackend = createKeyedBackend(getKeySerializer());
+        try {
+            MetricsTrackingMapState<Integer, VoidNamespace, Long, Double> sizeTrackingState =
+                    (MetricsTrackingMapState)
+                            createMetricsTrackingState(keyedBackend, getStateDescriptor());
+            sizeTrackingState.setCurrentNamespace(VoidNamespace.INSTANCE);
+            MetricsTrackingMapState.MapStateMetrics sizeTrackingStateMetric =
+                    sizeTrackingState.getSizeTrackingStateMetric();
+
+            assertThat(sizeTrackingStateMetric.getContainsCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getEntriesInitCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getGetCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getIsEmptyCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getIteratorInitCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getIteratorHasNextCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getIteratorNextCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getKeysInitCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getValuesInitCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getIteratorRemoveCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getPutAllCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getPutCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getRemoveCount()).isZero();
+
+            setCurrentKey(keyedBackend);
+            ThreadLocalRandom random = ThreadLocalRandom.current();
+            for (int index = 1; index <= SAMPLE_INTERVAL; index++) {
+                int expectedResult = index == SAMPLE_INTERVAL ? 0 : index;
+                sizeTrackingState.put(random.nextLong(), random.nextDouble());
+                assertThat(sizeTrackingStateMetric.getPutCount()).isEqualTo(expectedResult);
+
+                sizeTrackingState.putAll(
+                        Collections.singletonMap(random.nextLong(), random.nextDouble()));
+                assertThat(sizeTrackingStateMetric.getPutAllCount()).isEqualTo(expectedResult);
+
+                sizeTrackingState.get(random.nextLong());
+                assertThat(sizeTrackingStateMetric.getGetCount()).isEqualTo(expectedResult);
+
+                sizeTrackingState.contains(random.nextLong());
+                assertThat(sizeTrackingStateMetric.getContainsCount()).isEqualTo(expectedResult);
+
+                sizeTrackingState.remove(random.nextLong());
+                assertThat(sizeTrackingStateMetric.getRemoveCount()).isEqualTo(expectedResult);
+
+                sizeTrackingState.isEmpty();
+                assertThat(sizeTrackingStateMetric.getIsEmptyCount()).isEqualTo(expectedResult);
+            }
+        } finally {
+            if (keyedBackend != null) {
+                keyedBackend.close();
+                keyedBackend.dispose();
+            }
+        }
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
     void testLatencyTrackingMapStateIterator() throws Exception {
         AbstractKeyedStateBackend<Integer> keyedBackend = createKeyedBackend(getKeySerializer());
         try {
-            LatencyTrackingMapState<Integer, VoidNamespace, Long, Double> latencyTrackingState =
-                    (LatencyTrackingMapState)
-                            createLatencyTrackingState(keyedBackend, getStateDescriptor());
+            MetricsTrackingMapState<Integer, VoidNamespace, Long, Double> latencyTrackingState =
+                    (MetricsTrackingMapState)
+                            createMetricsTrackingState(keyedBackend, getStateDescriptor());
             latencyTrackingState.setCurrentNamespace(VoidNamespace.INSTANCE);
-            LatencyTrackingMapState.MapStateLatencyMetrics latencyTrackingStateMetric =
+            MetricsTrackingMapState.MapStateMetrics latencyTrackingStateMetric =
                     latencyTrackingState.getLatencyTrackingStateMetric();
 
             setCurrentKey(keyedBackend);
 
-            verifyIterator(
+            verifyLatencyTrackingIterator(
                     latencyTrackingState,
                     latencyTrackingStateMetric,
                     latencyTrackingState::iterator,
                     true);
-            verifyIterator(
+            verifyLatencyTrackingIterator(
                     latencyTrackingState,
                     latencyTrackingStateMetric,
                     () -> latencyTrackingState.entries().iterator(),
                     true);
-            verifyIterator(
+            verifyLatencyTrackingIterator(
                     latencyTrackingState,
                     latencyTrackingStateMetric,
                     () -> latencyTrackingState.keys().iterator(),
                     false);
-            verifyIterator(
+            verifyLatencyTrackingIterator(
                     latencyTrackingState,
                     latencyTrackingStateMetric,
                     () -> latencyTrackingState.values().iterator(),
@@ -167,9 +224,48 @@ class LatencyTrackingMapStateTest extends LatencyTrackingStateTestBase<Integer> 
         }
     }
 
-    private <E> void verifyIterator(
-            LatencyTrackingMapState<Integer, VoidNamespace, Long, Double> latencyTrackingState,
-            LatencyTrackingMapState.MapStateLatencyMetrics latencyTrackingStateMetric,
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void testSizeTrackingMapStateIterator() throws Exception {
+        AbstractKeyedStateBackend<Integer> keyedBackend = createKeyedBackend(getKeySerializer());
+        try {
+            MetricsTrackingMapState<Integer, VoidNamespace, Long, Double> sizeTrackingState =
+                    (MetricsTrackingMapState)
+                            createMetricsTrackingState(keyedBackend, getStateDescriptor());
+            sizeTrackingState.setCurrentNamespace(VoidNamespace.INSTANCE);
+            MetricsTrackingMapState.MapStateMetrics sizeTrackingStateMetric =
+                    sizeTrackingState.getSizeTrackingStateMetric();
+
+            setCurrentKey(keyedBackend);
+
+            verifySizeTrackingIterator(
+                    sizeTrackingState, sizeTrackingStateMetric, sizeTrackingState::iterator, true);
+            verifySizeTrackingIterator(
+                    sizeTrackingState,
+                    sizeTrackingStateMetric,
+                    () -> sizeTrackingState.entries().iterator(),
+                    true);
+            verifySizeTrackingIterator(
+                    sizeTrackingState,
+                    sizeTrackingStateMetric,
+                    () -> sizeTrackingState.keys().iterator(),
+                    false);
+            verifySizeTrackingIterator(
+                    sizeTrackingState,
+                    sizeTrackingStateMetric,
+                    () -> sizeTrackingState.values().iterator(),
+                    false);
+        } finally {
+            if (keyedBackend != null) {
+                keyedBackend.close();
+                keyedBackend.dispose();
+            }
+        }
+    }
+
+    private <E> void verifyLatencyTrackingIterator(
+            MetricsTrackingMapState<Integer, VoidNamespace, Long, Double> latencyTrackingState,
+            MetricsTrackingMapState.MapStateMetrics latencyTrackingStateMetric,
             SupplierWithException<Iterator<E>, Exception> iteratorSupplier,
             boolean removeIterator)
             throws Exception {
@@ -198,5 +294,34 @@ class LatencyTrackingMapStateTest extends LatencyTrackingStateTestBase<Integer> 
         // counter in the end.
         latencyTrackingStateMetric.resetIteratorHasNextCount();
         latencyTrackingState.clear();
+    }
+
+    private <E> void verifySizeTrackingIterator(
+            MetricsTrackingMapState<Integer, VoidNamespace, Long, Double> sizeTrackingState,
+            MetricsTrackingMapState.MapStateMetrics sizeTrackingStateMetric,
+            SupplierWithException<Iterator<E>, Exception> iteratorSupplier,
+            boolean removeIterator)
+            throws Exception {
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+        for (int index = 1; index <= SAMPLE_INTERVAL; index++) {
+            sizeTrackingState.put((long) index, random.nextDouble());
+        }
+        int count = 1;
+        Iterator<E> iterator = iteratorSupplier.get();
+        while (iterator.hasNext()) {
+            int expectedResult = count == SAMPLE_INTERVAL ? 0 : count;
+
+            iterator.next();
+            assertThat(sizeTrackingStateMetric.getIteratorNextCount()).isEqualTo(expectedResult);
+
+            if (removeIterator) {
+                iterator.remove();
+            }
+            count += 1;
+        }
+        // as we call #hasNext on more time than #next, to avoid complex check, just reset hasNext
+        // counter in the end.
+        sizeTrackingStateMetric.resetIteratorHasNextCount();
+        sizeTrackingState.clear();
     }
 }
