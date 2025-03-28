@@ -27,6 +27,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.scheduler.DefaultOperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.GlobalFailureHandler;
@@ -123,7 +124,7 @@ public class CreatingExecutionGraph extends StateWithoutExecutionGraph {
                         operatorCoordinatorHandlerFactory.create(executionGraph, context);
                 operatorCoordinatorHandler.initializeOperatorCoordinators(
                         context.getMainThreadExecutor());
-                final String updatedPlan =
+                final JobPlanInfo.Plan updatedPlan =
                         JsonPlanGenerator.generatePlan(
                                 executionGraph.getJobID(),
                                 executionGraph.getJobName(),
@@ -135,7 +136,7 @@ public class CreatingExecutionGraph extends StateWithoutExecutionGraph {
                                                 .map(ExecutionJobVertex::getJobVertex)
                                                 .iterator(),
                                 executionGraphWithVertexParallelism.getVertexParallelism());
-                executionGraph.setJsonPlan(updatedPlan);
+                executionGraph.setPlan(updatedPlan);
 
                 executionGraph.transitionToRunning();
                 operatorCoordinatorHandler.startAllOperatorCoordinators();

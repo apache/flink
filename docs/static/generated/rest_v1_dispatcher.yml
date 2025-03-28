@@ -2149,6 +2149,22 @@ components:
       enum:
       - IN_PROGRESS
       - COMPLETED
+    Input:
+      type: object
+      properties:
+        caching:
+          type: string
+        exchange:
+          type: string
+        id:
+          type: string
+        local_strategy:
+          type: string
+        num:
+          type: integer
+          format: int64
+        ship_strategy:
+          type: string
     IntermediateDataSetID:
       pattern: "[0-9a-f]{32}"
       type: string
@@ -2337,7 +2353,7 @@ components:
           type: integer
           format: int32
         plan:
-          $ref: '#/components/schemas/RawJson'
+          $ref: '#/components/schemas/Plan'
         start-time:
           type: integer
           format: int64
@@ -2436,7 +2452,7 @@ components:
       type: object
       properties:
         plan:
-          $ref: '#/components/schemas/RawJson'
+          $ref: '#/components/schemas/Plan'
     JobResourceRequirementsBody:
       type: object
       additionalProperties:
@@ -2663,6 +2679,19 @@ components:
       type: object
       allOf:
       - $ref: '#/components/schemas/SubtaskCheckpointStatistics'
+    Plan:
+      type: object
+      properties:
+        jid:
+          type: string
+        name:
+          type: string
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Node'
+        type:
+          type: string
     ProcessingMode:
       type: string
       enum:
