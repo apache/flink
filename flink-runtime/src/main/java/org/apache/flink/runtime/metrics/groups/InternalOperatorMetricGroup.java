@@ -101,7 +101,7 @@ public class InternalOperatorMetricGroup extends ComponentMetricGroup<TaskMetric
     }
 
     @Override
-    protected Iterable<? extends ComponentMetricGroup> subComponents() {
+    protected Iterable<? extends ComponentMetricGroup<?>> subComponents() {
         return Collections.emptyList();
     }
 

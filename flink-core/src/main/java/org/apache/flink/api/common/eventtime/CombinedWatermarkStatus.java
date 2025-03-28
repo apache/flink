@@ -118,7 +118,7 @@ final class CombinedWatermarkStatus {
          * <p>Setting a watermark will clear the idleness flag.
          */
         public boolean setWatermark(long watermark) {
-            this.idle = false;
+            setIdle(false);
             final boolean updated = watermark > this.watermark;
             if (updated) {
                 this.onWatermarkUpdate.onWatermarkUpdate(watermark);
@@ -133,6 +133,7 @@ final class CombinedWatermarkStatus {
 
         public void setIdle(boolean idle) {
             this.idle = idle;
+            this.onWatermarkUpdate.onIdleUpdate(idle);
         }
     }
 }

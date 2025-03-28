@@ -24,6 +24,7 @@ import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
+import org.apache.flink.runtime.metrics.filter.DefaultReporterFilters;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.apache.flink.testutils.junit.extensions.ContextClassLoaderExtension;
@@ -68,7 +69,9 @@ class ReporterSetupTest {
 
         configureReporter1(config);
 
-        final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
+        final List<ReporterSetup> reporterSetups =
+                ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
+                        config, DefaultReporterFilters::metricsFromConfiguration, null);
 
         assertThat(reporterSetups).hasSize(1);
 
@@ -86,7 +89,9 @@ class ReporterSetupTest {
         configureReporter1(config);
         configureReporter2(config);
 
-        final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
+        final List<ReporterSetup> reporterSetups =
+                ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
+                        config, DefaultReporterFilters::metricsFromConfiguration, null);
 
         assertThat(reporterSetups).hasSize(2);
 
@@ -116,7 +121,9 @@ class ReporterSetupTest {
 
         config.set(MetricOptions.REPORTERS_LIST, "reporter2");
 
-        final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
+        final List<ReporterSetup> reporterSetups =
+                ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
+                        config, DefaultReporterFilters::metricsFromConfiguration, null);
 
         assertThat(reporterSetups).hasSize(1);
 
@@ -131,7 +138,9 @@ class ReporterSetupTest {
         MetricOptions.forReporter(config, "reporter1")
                 .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporter1.class.getName());
 
-        final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
+        final List<ReporterSetup> reporterSetups =
+                ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
+                        config, DefaultReporterFilters::metricsFromConfiguration, null);
 
         assertThat(reporterSetups).hasSize(1);
 
@@ -152,7 +161,9 @@ class ReporterSetupTest {
         MetricOptions.forReporter(config, "test3")
                 .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporter13.class.getName());
 
-        List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
+        List<ReporterSetup> reporterSetups =
+                ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
+                        config, DefaultReporterFilters::metricsFromConfiguration, null);
 
         assertThat(reporterSetups).hasSize(3);
 
@@ -238,7 +249,9 @@ class ReporterSetupTest {
                         MetricOptions.REPORTER_EXCLUDED_VARIABLES,
                         excludedVariable1 + ";" + excludedVariable2);
 
-        final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
+        final List<ReporterSetup> reporterSetups =
+                ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
+                        config, DefaultReporterFilters::metricsFromConfiguration, null);
 
         assertThat(reporterSetups).hasSize(1);
 
@@ -257,7 +270,9 @@ class ReporterSetupTest {
         MetricOptions.forReporter(config, "test")
                 .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporterFactory.class.getName());
 
-        final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
+        final List<ReporterSetup> reporterSetups =
+                ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
+                        config, DefaultReporterFilters::metricsFromConfiguration, null);
 
         assertThat(reporterSetups).hasSize(1);
 
@@ -281,7 +296,9 @@ class ReporterSetupTest {
                         + MetricOptions.REPORTER_FACTORY_CLASS.key(),
                 FailingFactory.class.getName());
 
-        final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
+        final List<ReporterSetup> reporterSetups =
+                ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
+                        config, DefaultReporterFilters::metricsFromConfiguration, null);
 
         assertThat(reporterSetups).hasSize(1);
     }
@@ -296,7 +313,8 @@ class ReporterSetupTest {
                 ConfigExposingReporterFactory.class.getName());
         config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.arg", "hello");
 
-        ReporterSetup.fromConfiguration(config, null);
+        ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
+                config, DefaultReporterFilters::metricsFromConfiguration, null);
 
         Properties passedConfig = ConfigExposingReporterFactory.lastConfig;
         assertThat(passedConfig.getProperty("arg")).isEqualTo("hello");
@@ -316,7 +334,9 @@ class ReporterSetupTest {
                         MetricOptions.REPORTER_ADDITIONAL_VARIABLES.key(),
                         String.join(",", tag1 + ":" + tagValue1, tag2 + ":" + tagValue2));
 
-        final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
+        final List<ReporterSetup> reporterSetups =
+                ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
+                        config, DefaultReporterFilters::metricsFromConfiguration, null);
 
         assertThat(reporterSetups).hasSize(1);
 
