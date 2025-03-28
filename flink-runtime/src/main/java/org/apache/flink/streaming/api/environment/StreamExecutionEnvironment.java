@@ -727,10 +727,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         configuration
                 .getOptional(PipelineOptions.CACHED_FILES)
                 .ifPresent(
-                        f -> {
-                            this.cacheFile.clear();
-                            this.cacheFile.addAll(DistributedCache.parseCachedFilesFromString(f));
-                        });
+                        f -> this.cacheFile.addAll(DistributedCache.parseCachedFilesFromString(f)));
 
         config.configure(configuration, classLoader);
         checkpointCfg.configure(configuration);
