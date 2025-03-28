@@ -41,7 +41,7 @@ import java.util.stream.Collectors;
 public abstract class IOManager implements AutoCloseable {
     protected static final Logger LOG = LoggerFactory.getLogger(IOManager.class);
 
-    private static final String DIR_NAME_TAG = "io";
+    private static final String COMPONENT_DIR_NAME = "io";
 
     private final FileChannelManager fileChannelManager;
 
@@ -58,7 +58,8 @@ public abstract class IOManager implements AutoCloseable {
      */
     protected IOManager(String[] tempDirs, ExecutorService executorService) {
         this.fileChannelManager =
-                new FileChannelManagerImpl(Preconditions.checkNotNull(tempDirs), DIR_NAME_TAG);
+                new FileChannelManagerImpl(
+                        Preconditions.checkNotNull(tempDirs), COMPONENT_DIR_NAME);
         if (LOG.isInfoEnabled()) {
             LOG.info(
                     "Created a new {} for spilling of task related data to disk (joins, sorting, ...). Used directories:\n\t{}",
