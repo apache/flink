@@ -182,7 +182,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
     public static TaskManagerConfiguration fromConfiguration(
             Configuration configuration,
-            TaskExecutorResourceSpec taskExecutorResourceSpec,
+            final ResourceProfile defaultSlotResourceProfile,
+            final ResourceProfile totalAvailableResourceProfile,
             String externalAddress,
             File tmpWorkingDirectory) {
         int numberSlots = configuration.get(TaskManagerOptions.NUM_TASK_SLOTS, 1);
@@ -235,10 +236,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
         return new TaskManagerConfiguration(
                 numberSlots,
-                TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(
-                        taskExecutorResourceSpec, numberSlots),
-                TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(
-                        taskExecutorResourceSpec),
+                defaultSlotResourceProfile,
+                totalAvailableResourceProfile,
                 tmpDirPaths,
                 rpcTimeout,
                 slotTimeout,

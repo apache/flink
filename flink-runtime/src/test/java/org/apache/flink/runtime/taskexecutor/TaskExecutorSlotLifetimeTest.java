@@ -50,6 +50,7 @@ import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
 import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
 import org.apache.flink.testutils.TestFileUtils;
 import org.apache.flink.testutils.TestingUtils;
@@ -216,12 +217,17 @@ class TaskExecutorSlotLifetimeTest {
             TestingHighAvailabilityServices haServices,
             LocalUnresolvedTaskManagerLocation unresolvedTaskManagerLocation)
             throws IOException {
+        final TaskExecutorResourceSpec taskExecutorResourceSpec =
+                TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(configuration);
         return new TaskExecutor(
                 rpcService,
                 TaskManagerConfiguration.fromConfiguration(
                         configuration,
-                        TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(
-                                configuration),
+                        TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(
+                                taskExecutorResourceSpec,
+                                ConfigurationParserUtils.getSlot(configuration)),
+                        TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(
+                                taskExecutorResourceSpec),
                         InetAddress.getLoopbackAddress().getHostAddress(),
                         TestFileUtils.createTempDir()),
                 haServices,
