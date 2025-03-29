@@ -74,6 +74,7 @@ public class AllToAllBlockingResultInfo extends AbstractBlockingResultInfo {
             Map<Integer, long[]> subpartitionBytesByPartitionIndex) {
         super(resultId, numOfPartitions, numOfSubpartitions, subpartitionBytesByPartitionIndex);
         this.singleSubpartitionContainsAllData = singleSubpartitionContainsAllData;
+        this.isBroadcast = singleSubpartitionContainsAllData;
     }
 
     @Override
