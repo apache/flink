@@ -24,15 +24,21 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 
 /** Test utils for the ForSt state backend. */
 public final class ForStTestUtils {
+
     public static <K> ForStKeyedStateBackend<K> createKeyedStateBackend(
-            ForStStateBackend forStStateBackend, Environment env, TypeSerializer<K> keySerializer)
+            ForStStateBackend forStStateBackend,
+            Environment env,
+            TypeSerializer<K> keySerializer,
+            Collection<KeyedStateHandle> stateHandles)
             throws IOException {
 
         return forStStateBackend.createAsyncKeyedStateBackend(
@@ -47,8 +53,15 @@ public final class ForStTestUtils {
                         TtlTimeProvider.DEFAULT,
                         new UnregisteredMetricsGroup(),
                         (name, value) -> {},
-                        Collections.emptyList(),
+                        stateHandles,
                         new CloseableRegistry(),
                         1.0));
+    }
+
+    public static <K> ForStKeyedStateBackend<K> createKeyedStateBackend(
+            ForStStateBackend forStStateBackend, Environment env, TypeSerializer<K> keySerializer)
+            throws IOException {
+        return createKeyedStateBackend(
+                forStStateBackend, env, keySerializer, Collections.emptyList());
     }
 }
