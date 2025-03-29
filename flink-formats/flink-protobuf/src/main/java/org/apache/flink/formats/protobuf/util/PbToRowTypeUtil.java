@@ -35,28 +35,93 @@ import org.apache.flink.table.types.logical.VarCharType;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor.JavaType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /** Generate Row type information according to pb descriptors. */
 public class PbToRowTypeUtil {
+    private static final Logger LOG = LoggerFactory.getLogger(PbToRowTypeUtil.class);
+
     public static RowType generateRowType(Descriptors.Descriptor root) {
-        return generateRowType(root, false);
+        return generateRowType(root, false, 0);
     }
 
     public static RowType generateRowType(Descriptors.Descriptor root, boolean enumAsInt) {
+        return generateRowType(root, enumAsInt, 0);
+    }
+
+    public static RowType generateRowType(Descriptors.Descriptor root, int recursiveFieldMaxDepth) {
+        return generateRowType(root, false, recursiveFieldMaxDepth);
+    }
+
+    /**
+     * Generates RowType for a specified generated protobuf class.
+     *
+     * @param recursiveFieldMaxDepth controls the depth for recursive schema. Default value is 0.
+     *     The next occurrence of recursive field after `recursiveFieldMaxDepth` level will be
+     *     omitted.
+     */
+    public static RowType generateRowType(
+            Descriptors.Descriptor root, boolean enumAsInt, int recursiveFieldMaxDepth) {
+        Map<String, Integer> existingRecordNames = new HashMap<>();
+        existingRecordNames.put(root.getFullName(), 1);
+        return generateRowTypeHelper(root, enumAsInt, recursiveFieldMaxDepth, existingRecordNames);
+    }
+
+    private static RowType generateRowTypeHelper(
+            Descriptors.Descriptor root,
+            boolean enumAsInt,
+            int recursiveFieldMaxDepth,
+            Map<String, Integer> existingRecordNames) {
         int size = root.getFields().size();
-        LogicalType[] types = new LogicalType[size];
-        String[] rowFieldNames = new String[size];
+        List<LogicalType> types = new ArrayList<>();
+        List<String> rowFieldNames = new ArrayList<>();
 
         for (int i = 0; i < size; i++) {
             FieldDescriptor field = root.getFields().get(i);
-            rowFieldNames[i] = field.getName();
-            types[i] = generateFieldTypeInformation(field, enumAsInt);
+            String fieldName = field.getName();
+            JavaType fieldType = field.getJavaType();
+
+            Map<String, Integer> updatedRecordNames = new HashMap<>(existingRecordNames);
+            if (fieldType.equals(JavaType.MESSAGE)) {
+
+                String fieldFullName = field.getMessageType().getFullName();
+
+                if (existingRecordNames.getOrDefault(fieldFullName, 0) > recursiveFieldMaxDepth) {
+                    LOG.info(
+                            "Skipping a recursive field {} of type {} on level {}",
+                            fieldName,
+                            fieldFullName,
+                            recursiveFieldMaxDepth + 1);
+                    continue;
+                }
+
+                int count =
+                        updatedRecordNames.containsKey(fieldFullName)
+                                ? updatedRecordNames.get(fieldFullName)
+                                : 0;
+                updatedRecordNames.put(fieldFullName, count + 1);
+            }
+            rowFieldNames.add(fieldName);
+            types.add(
+                    generateFieldTypeInformation(
+                            field, enumAsInt, recursiveFieldMaxDepth, updatedRecordNames));
         }
-        return RowType.of(types, rowFieldNames);
+        return RowType.of(
+                types.toArray(new LogicalType[types.size()]),
+                rowFieldNames.toArray(new String[rowFieldNames.size()]));
     }
 
     private static LogicalType generateFieldTypeInformation(
-            FieldDescriptor field, boolean enumAsInt) {
+            FieldDescriptor field,
+            boolean enumAsInt,
+            int recursiveFieldMaxDepth,
+            Map<String, Integer> existingRecordNames) {
         JavaType fieldType = field.getJavaType();
         LogicalType type;
         if (fieldType.equals(JavaType.MESSAGE)) {
@@ -66,16 +131,29 @@ public class PbToRowTypeUtil {
                                 generateFieldTypeInformation(
                                         field.getMessageType()
                                                 .findFieldByName(PbConstant.PB_MAP_KEY_NAME),
-                                        enumAsInt),
+                                        enumAsInt,
+                                        recursiveFieldMaxDepth,
+                                        existingRecordNames),
                                 generateFieldTypeInformation(
                                         field.getMessageType()
                                                 .findFieldByName(PbConstant.PB_MAP_VALUE_NAME),
-                                        enumAsInt));
+                                        enumAsInt,
+                                        recursiveFieldMaxDepth,
+                                        existingRecordNames));
                 return mapType;
             } else if (field.isRepeated()) {
-                return new ArrayType(generateRowType(field.getMessageType()));
+                return new ArrayType(
+                        generateRowTypeHelper(
+                                field.getMessageType(),
+                                enumAsInt,
+                                recursiveFieldMaxDepth,
+                                existingRecordNames));
             } else {
-                return generateRowType(field.getMessageType());
+                return generateRowTypeHelper(
+                        field.getMessageType(),
+                        enumAsInt,
+                        recursiveFieldMaxDepth,
+                        existingRecordNames);
             }
         } else {
             if (fieldType.equals(JavaType.STRING)) {
