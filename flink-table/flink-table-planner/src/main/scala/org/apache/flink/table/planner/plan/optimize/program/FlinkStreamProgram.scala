@@ -291,7 +291,7 @@ object FlinkStreamProgram {
           FlinkHepRuleSetProgramBuilder.newBuilder
             .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
             .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-            .add(FlinkStreamRuleSets.WATERMARK_TRANSPOSE_RULES)
+            .add(FlinkStreamRuleSets.CHANGELOG_NORMALIZE_TRANSPOSE_RULES)
             .build(),
           "watermark transpose"
         )
