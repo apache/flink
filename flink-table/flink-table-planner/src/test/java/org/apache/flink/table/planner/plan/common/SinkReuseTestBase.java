@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.common;
 
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.plan.reuse.SinkReuser;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
@@ -35,8 +34,6 @@ public abstract class SinkReuseTestBase extends TableTestBase {
     @BeforeEach
     protected void setup() {
         TableConfig tableConfig = TableConfig.getDefault();
-        tableConfig.set(OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true);
-        tableConfig.set(OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SINK_ENABLED, true);
         util = getTableTestUtil(tableConfig);
 
         util.tableEnv()
@@ -153,11 +150,22 @@ public abstract class SinkReuseTestBase extends TableTestBase {
     }
 
     @Test
-    public void testSinkReuseWithPartialColumns() {
+    public void testSinkReuseWithPartialColumnsNotSupportsTargetColumnWriting() {
         StatementSet statementSet = util.tableEnv().createStatementSet();
+        // sink1 has not implemented the SupportsTargetColumnWriting sink ability
         statementSet.addInsertSql("INSERT INTO sink1(`x`) (SELECT x FROM source1)");
         statementSet.addInsertSql("INSERT INTO sink1(`y`) (SELECT y FROM source1)");
         statementSet.addInsertSql("INSERT INTO sink1(`x`) (SELECT x FROM source3)");
+        util.verifyExecPlan(statementSet);
+    }
+
+    @Test
+    public void testSinkReuseWithPartialColumnsAndSupportsTargetColumnWriting() {
+        StatementSet statementSet = util.tableEnv().createStatementSet();
+        // sink2 has implemented the SupportsTargetColumnWriting sink ability
+        statementSet.addInsertSql("INSERT INTO sink2(`x`) (SELECT x FROM source1)");
+        statementSet.addInsertSql("INSERT INTO sink2(`y`) (SELECT y FROM source1)");
+        statementSet.addInsertSql("INSERT INTO sink2(`x`) (SELECT x FROM source3)");
         util.verifyExecPlan(statementSet);
     }
 
