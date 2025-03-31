@@ -46,9 +46,17 @@ class StreamPhysicalSink(
     contextResolvedTable: ContextResolvedTable,
     tableSink: DynamicTableSink,
     targetColumns: Array[Array[Int]],
-    val abilitySpecs: Array[SinkAbilitySpec],
+    abilitySpecs: Array[SinkAbilitySpec],
     val upsertMaterialize: Boolean = false)
-  extends Sink(cluster, traitSet, inputRel, hints, targetColumns, contextResolvedTable, tableSink)
+  extends Sink(
+    cluster,
+    traitSet,
+    inputRel,
+    hints,
+    targetColumns,
+    contextResolvedTable,
+    tableSink,
+    abilitySpecs)
   with StreamPhysicalRel {
 
   override def requireWatermark: Boolean = false
