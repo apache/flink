@@ -89,8 +89,8 @@ output of the Flink job should show 1000 views per page and window.
 The playground environment is set up in just a few steps. We will walk you through the necessary 
 commands and show how to validate that everything is running correctly.
 
-We assume that you have [Docker](https://docs.docker.com/) (1.12+) and
-[docker-compose](https://docs.docker.com/compose/) (2.1+) installed on your machine.
+We assume that you have [Docker](https://docs.docker.com/) (20.10+) and
+[docker compose](https://docs.docker.com/compose/) (2.1+) installed on your machine.
 
 The required configuration files are available in the 
 [flink-playgrounds](https://github.com/apache/flink-playgrounds) repository. First checkout the code and build the docker image:
@@ -98,19 +98,19 @@ The required configuration files are available in the
 ```bash
 git clone https://github.com/apache/flink-playgrounds.git
 cd flink-playgrounds/operations-playground
-docker-compose build
+docker compose build
 ```
 
 Then start the playground:
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 Afterwards, you can inspect the running Docker containers with the following command:
 
 ```bash
-docker-compose ps
+docker compose ps
 
                     Name                                  Command               State                   Ports                
 -----------------------------------------------------------------------------------------------------------------------------
@@ -128,7 +128,7 @@ cluster components as well as the data generator are running (`Up`).
 You can stop the playground environment by calling:
 
 ```bash
-docker-compose down -v
+docker compose down -v
 ```
 
 ## Entering the Playground
@@ -151,10 +151,10 @@ its Jobs (JobGraph, Metrics, Checkpointing Statistics, TaskManager Status,...).
 
 **JobManager**
 
-The JobManager logs can be tailed via `docker-compose`.
+The JobManager logs can be tailed via `docker compose`.
 
 ```bash
-docker-compose logs -f jobmanager
+docker compose logs -f jobmanager
 ```
 
 After the initial startup you should mainly see log messages for every checkpoint completion.
@@ -163,7 +163,7 @@ After the initial startup you should mainly see log messages for every checkpoin
 
 The TaskManager log can be tailed in the same way.
 ```bash
-docker-compose logs -f taskmanager
+docker compose logs -f taskmanager
 ```
 
 After the initial startup you should mainly see log messages for every checkpoint completion.
@@ -173,7 +173,7 @@ After the initial startup you should mainly see log messages for every checkpoin
 The [Flink CLI]({{< ref "docs/deployment/cli" >}}) can be used from within the client container. For example, to print the `help` message of the Flink CLI you can run
 
 ```bash
-docker-compose run --no-deps client flink --help
+docker compose run --no-deps client flink --help
 ```
 
 ### Flink REST API
@@ -190,7 +190,7 @@ curl localhost:8081/jobs
   **Note**: If the _curl_ command is not available on your machine, you can run it from the client container (similar to the Flink CLI):
 
 ```bash
-docker-compose run --no-deps client curl jobmanager:8081/jobs 
+docker compose run --no-deps client curl jobmanager:8081/jobs 
 ```  
 {{< /hint >}}
 {{< /unstable >}}
@@ -201,11 +201,11 @@ You can look at the records that are written to the Kafka Topics by running
 
 ```bash
 //input topic (1000 records/s)
-docker-compose exec kafka kafka-console-consumer.sh \
+docker compose exec kafka kafka-console-consumer.sh \
   --bootstrap-server localhost:9092 --topic input
 
 //output topic (24 records/min)
-docker-compose exec kafka kafka-console-consumer.sh \
+docker compose exec kafka kafka-console-consumer.sh \
   --bootstrap-server localhost:9092 --topic output
 ```
 
@@ -224,7 +224,7 @@ Most tasks can be executed via the [CLI](#flink-cli) and the [REST API](#flink-r
 {{< tab "CLI" >}}
 **Command**
 ```bash
-docker-compose run --no-deps client flink list
+docker compose run --no-deps client flink list
 ```
 **Expected Output**
 ```plain
@@ -273,7 +273,7 @@ For this, start reading from the *output* topic and leave this command running u
 recovery (Step 3).
 
 ```bash
-docker-compose exec kafka kafka-console-consumer.sh \
+docker compose exec kafka kafka-console-consumer.sh \
   --bootstrap-server localhost:9092 --topic output
 ```
 
@@ -285,7 +285,7 @@ exception being thrown from the framework or user code (e.g. due to the temporar
 an external resource).   
 
 ```bash
-docker-compose kill taskmanager
+docker compose kill taskmanager
 ```
 
 After a few seconds, the JobManager will notice the loss of the TaskManager, cancel the affected Job, and immediately resubmit it for recovery.
@@ -309,7 +309,7 @@ similar to a real production setup where data is produced while the Job to proce
 Once you restart the TaskManager, it reconnects to the JobManager.
 
 ```bash
-docker-compose up -d taskmanager
+docker compose up -d taskmanager
 ```
 
 When the JobManager is notified about the new TaskManager, it schedules the tasks of the 
@@ -344,7 +344,7 @@ Before starting with the upgrade you might want to start tailing the *output* to
 observe that no data is lost or corrupted in the course the upgrade. 
 
 ```bash
-docker-compose exec kafka kafka-console-consumer.sh \
+docker compose exec kafka kafka-console-consumer.sh \
   --bootstrap-server localhost:9092 --topic output
 ```
 
@@ -359,7 +359,7 @@ to stopping the Job:
 {{< tab "CLI" >}}
 **Command**
 ```bash
-docker-compose run --no-deps client flink stop <job-id>
+docker compose run --no-deps client flink stop <job-id>
 ```
 **Expected Output**
 ```bash
@@ -416,7 +416,7 @@ restarting it without any changes.
 {{< tab "CLI" >}}
 **Command**
 ```bash
-docker-compose run --no-deps client flink run -s <savepoint-path> \
+docker compose run --no-deps client flink run -s <savepoint-path> \
   -d /opt/ClickCountJob.jar \
   --bootstrap.servers kafka:9092 --checkpointing --event-time
 ```
@@ -430,7 +430,7 @@ Job has been submitted with JobID <job-id>
 **Request**
 ```bash
 # Uploading the JAR from the Client container
-docker-compose run --no-deps client curl -X POST -H "Expect:" \
+docker compose run --no-deps client curl -X POST -H "Expect:" \
   -F "jarfile=@/opt/ClickCountJob.jar" http://jobmanager:8081/jars/upload
 ```
 
@@ -472,7 +472,7 @@ during resubmission.
 {{< tab "CLI" >}}
 **Command**
 ```bash
-docker-compose run --no-deps client flink run -p 3 -s <savepoint-path> \
+docker compose run --no-deps client flink run -p 3 -s <savepoint-path> \
   -d /opt/ClickCountJob.jar \
   --bootstrap.servers kafka:9092 --checkpointing --event-time
 ```
@@ -487,7 +487,7 @@ Job has been submitted with JobID <job-id>
 **Request**
 ```bash
 # Uploading the JAR from the Client container
-docker-compose run --no-deps client curl -X POST -H "Expect:" \
+docker compose run --no-deps client curl -X POST -H "Expect:" \
   -F "jarfile=@/opt/ClickCountJob.jar" http://jobmanager:8081/jars/upload
 ```
 
@@ -517,7 +517,7 @@ curl -X POST http://localhost:8081/jars/<jar-id>/run \
 Now, the Job has been resubmitted, but it will not start as there are not enough TaskSlots to
 execute it with the increased parallelism (2 available, 3 needed). With
 ```bash
-docker-compose scale taskmanager=2
+docker compose scale taskmanager=2
 ```
 you can add a second TaskManager with two TaskSlots to the Flink Cluster, which will automatically register with the 
 JobManager. Shortly after adding the TaskManager the Job should start running again.
