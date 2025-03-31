@@ -28,6 +28,7 @@ import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
+import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 
 import org.junit.jupiter.api.Test;
@@ -56,7 +57,8 @@ public class RegisteredKeyValueStateBackendMetaInfoV2Test {
                                 stateSerializer)
                         .snapshot());
         stateMetaInfoList.add(
-                new org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo<>(
+                new org.apache.flink.runtime.state.v2
+                                .RegisteredKeyAndUserKeyValueStateBackendMetaInfo<>(
                                 "b",
                                 org.apache.flink.api.common.state.v2.StateDescriptor.Type.MAP,
                                 namespaceSerializer,
@@ -115,7 +117,8 @@ public class RegisteredKeyValueStateBackendMetaInfoV2Test {
                         .snapshot();
 
         StateMetaInfoSnapshot oldStateMetaWithUserKey =
-                new org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo<>(
+                new org.apache.flink.runtime.state.v2
+                                .RegisteredKeyAndUserKeyValueStateBackendMetaInfo<>(
                                 "test2",
                                 org.apache.flink.api.common.state.v2.StateDescriptor.Type.MAP,
                                 namespaceSerializer,
@@ -164,18 +167,34 @@ public class RegisteredKeyValueStateBackendMetaInfoV2Test {
                 serializationProxy.getStateMetaInfoSnapshots();
 
         org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo restoredMetaInfo =
-                new org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo<>(
-                        stateMetaInfoSnapshots.get(0));
+                (RegisteredKeyValueStateBackendMetaInfo)
+                        RegisteredStateMetaInfoBase.fromMetaInfoSnapshot(
+                                stateMetaInfoSnapshots.get(0));
+        assertThat(restoredMetaInfo.getClass())
+                .isEqualTo(
+                        org.apache.flink.runtime.state.v2
+                                .RegisteredKeyAndUserKeyValueStateBackendMetaInfo.class);
         assertThat(restoredMetaInfo.getName()).isEqualTo("test1");
-        assertThat(restoredMetaInfo.getUserKeySerializer()).isNull();
+        assertThat(
+                        ((RegisteredKeyAndUserKeyValueStateBackendMetaInfo) restoredMetaInfo)
+                                .getUserKeySerializer())
+                .isNull();
         assertThat(restoredMetaInfo.getStateSerializer()).isEqualTo(DoubleSerializer.INSTANCE);
         assertThat(restoredMetaInfo.getNamespaceSerializer()).isEqualTo(LongSerializer.INSTANCE);
 
         org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo restoredMetaInfo1 =
-                new org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo<>(
-                        stateMetaInfoSnapshots.get(1));
+                (RegisteredKeyValueStateBackendMetaInfo)
+                        RegisteredStateMetaInfoBase.fromMetaInfoSnapshot(
+                                stateMetaInfoSnapshots.get(1));
+        assertThat(restoredMetaInfo1.getClass())
+                .isEqualTo(
+                        org.apache.flink.runtime.state.v2
+                                .RegisteredKeyAndUserKeyValueStateBackendMetaInfo.class);
         assertThat(restoredMetaInfo1.getName()).isEqualTo("test2");
-        assertThat(restoredMetaInfo1.getUserKeySerializer()).isEqualTo(StringSerializer.INSTANCE);
+        assertThat(
+                        ((RegisteredKeyAndUserKeyValueStateBackendMetaInfo) restoredMetaInfo1)
+                                .getUserKeySerializer())
+                .isEqualTo(StringSerializer.INSTANCE);
         assertThat(restoredMetaInfo1.getStateSerializer()).isEqualTo(DoubleSerializer.INSTANCE);
         assertThat(restoredMetaInfo1.getNamespaceSerializer()).isEqualTo(LongSerializer.INSTANCE);
     }
