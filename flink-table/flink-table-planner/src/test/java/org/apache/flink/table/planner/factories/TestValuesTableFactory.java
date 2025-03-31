@@ -2373,14 +2373,13 @@ public final class TestValuesTableFactory
                 assertThat(runtimeSink.equals("SinkFunction")).isTrue();
                 // check the contract of the context.getTargetColumns method returns the expected
                 // empty Option or non-empty Option with a non-empty array
-                assertThat(
-                                !context.getTargetColumns().isPresent()
-                                        || context.getTargetColumns().get().length > 0)
-                        .isTrue();
+                assertThat(this.targetColumns == null || this.targetColumns.length > 0).isTrue();
                 SinkFunction<RowData> sinkFunction;
                 if (primaryKeyIndices.length > 0) {
                     // TODO FLINK-31301 currently partial-insert composite columns are not supported
-                    int[][] targetColumns = context.getTargetColumns().orElse(new int[0][]);
+                    int[][] targetColumns =
+                            this.targetColumns != null ? this.targetColumns : new int[0][];
+
                     checkArgument(
                             Arrays.stream(targetColumns).allMatch(subArr -> subArr.length <= 1),
                             "partial-insert composite columns are not supported yet!");
