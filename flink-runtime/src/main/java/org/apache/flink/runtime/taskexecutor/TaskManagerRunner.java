@@ -614,6 +614,13 @@ public class TaskManagerRunner implements FatalErrorHandler {
         final TaskExecutorResourceSpec taskExecutorResourceSpec =
                 TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
 
+        TaskManagerConfiguration taskManagerConfiguration =
+                TaskManagerConfiguration.fromConfiguration(
+                        configuration,
+                        taskExecutorResourceSpec,
+                        externalAddress,
+                        workingDirectory.getTmpDirectory());
+
         TaskManagerServicesConfiguration taskManagerServicesConfiguration =
                 TaskManagerServicesConfiguration.fromConfiguration(
                         configuration,
@@ -621,6 +628,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
                         externalAddress,
                         localCommunicationOnly,
                         taskExecutorResourceSpec,
+                        taskManagerConfiguration.getDefaultSlotResourceProfile(),
+                        taskManagerConfiguration.getTotalResourceProfile(),
                         workingDirectory);
 
         Tuple2<TaskManagerMetricGroup, MetricGroup> taskManagerMetricGroup =
@@ -649,13 +658,6 @@ public class TaskManagerRunner implements FatalErrorHandler {
                 taskManagerMetricGroup.f1,
                 taskManagerServices.getTaskSlotTable(),
                 taskManagerServices::getManagedMemorySize);
-
-        TaskManagerConfiguration taskManagerConfiguration =
-                TaskManagerConfiguration.fromConfiguration(
-                        configuration,
-                        taskExecutorResourceSpec,
-                        externalAddress,
-                        workingDirectory.getTmpDirectory());
 
         String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
 

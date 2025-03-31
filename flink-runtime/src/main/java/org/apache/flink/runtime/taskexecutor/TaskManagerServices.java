@@ -25,6 +25,7 @@ import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorGroup;
 import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
@@ -374,7 +375,8 @@ public class TaskManagerServices {
         final TaskSlotTable<Task> taskSlotTable =
                 createTaskSlotTable(
                         taskManagerServicesConfiguration.getNumberOfSlots(),
-                        taskManagerServicesConfiguration.getTaskExecutorResourceSpec(),
+                        taskManagerServicesConfiguration.getTotalResourceProfile(),
+                        taskManagerServicesConfiguration.getDefaultSlotResourceProfile(),
                         taskManagerServicesConfiguration.getTimerServiceShutdownTimeout(),
                         taskManagerServicesConfiguration.getPageSize(),
                         ioExecutor);
@@ -467,7 +469,8 @@ public class TaskManagerServices {
 
     private static TaskSlotTable<Task> createTaskSlotTable(
             final int numberOfSlots,
-            final TaskExecutorResourceSpec taskExecutorResourceSpec,
+            final ResourceProfile totalAvailableResourceProfile,
+            final ResourceProfile defaultSlotResourceProfile,
             final long timerServiceShutdownTimeout,
             final int pageSize,
             final Executor memoryVerificationExecutor) {
@@ -476,10 +479,8 @@ public class TaskManagerServices {
                         new ScheduledThreadPoolExecutor(1), timerServiceShutdownTimeout);
         return new TaskSlotTableImpl<>(
                 numberOfSlots,
-                TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(
-                        taskExecutorResourceSpec),
-                TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(
-                        taskExecutorResourceSpec, numberOfSlots),
+                totalAvailableResourceProfile,
+                defaultSlotResourceProfile,
                 pageSize,
                 timerService,
                 memoryVerificationExecutor);

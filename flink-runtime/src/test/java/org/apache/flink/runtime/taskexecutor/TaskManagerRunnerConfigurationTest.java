@@ -36,6 +36,7 @@ import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcSystem;
+import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.concurrent.Executors;
 
@@ -235,12 +236,18 @@ class TaskManagerRunnerConfigurationTest {
 
     private TaskManagerServicesConfiguration createTaskManagerServiceConfiguration(
             Configuration config) throws Exception {
+        final TaskExecutorResourceSpec taskExecutorResourceSpec =
+                TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(config);
         return TaskManagerServicesConfiguration.fromConfiguration(
                 config,
                 ResourceID.generate(),
                 InetAddress.getLocalHost().getHostName(),
                 true,
-                TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(config),
+                taskExecutorResourceSpec,
+                TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(
+                        taskExecutorResourceSpec, ConfigurationParserUtils.getSlot(config)),
+                TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(
+                        taskExecutorResourceSpec),
                 WorkingDirectory.create(
                         Files.createTempDirectory(temporaryFolder, UUID.randomUUID().toString())
                                 .toFile()));

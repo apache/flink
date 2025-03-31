@@ -132,6 +132,8 @@ public class TaskExecutorBuilder {
                             rpcService.getAddress(),
                             true,
                             taskExecutorResourceSpec,
+                            resolvedTaskManagerConfiguration.getDefaultSlotResourceProfile(),
+                            resolvedTaskManagerConfiguration.getTotalResourceProfile(),
                             workingDirectory);
             resolvedTaskManagerServices =
                     TaskManagerServices.fromConfiguration(
