@@ -148,18 +148,47 @@ Sink(table=[default_catalog.default_database.sink1], fields=[x, y])
 ]]>
 		</Resource>
 	</TestCase>
-	<TestCase name="testSinkReuseWithPartialColumns">
+	<TestCase name="testSinkReuseWithPartialColumnsNotSupportsTargetColumnWriting">
 		<Resource name="ast">
 			<![CDATA[
-LogicalSink(table=[default_catalog.default_database.sink1], targetColumns=[[0]], fields=[x, EXPR$1])
+LogicalSink(table=[default_catalog.default_database.sink1], fields=[x, EXPR$1])
 +- LogicalProject(x=[$0], EXPR$1=[null:BIGINT])
    +- LogicalTableScan(table=[[default_catalog, default_database, source1]])
 
-LogicalSink(table=[default_catalog.default_database.sink1], targetColumns=[[1]], fields=[EXPR$0, y])
+LogicalSink(table=[default_catalog.default_database.sink1], fields=[EXPR$0, y])
 +- LogicalProject(EXPR$0=[null:BIGINT], y=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, source1]])
 
-LogicalSink(table=[default_catalog.default_database.sink1], targetColumns=[[0]], fields=[x, EXPR$1])
+LogicalSink(table=[default_catalog.default_database.sink1], fields=[x, EXPR$1])
++- LogicalProject(x=[$0], EXPR$1=[null:BIGINT])
+   +- LogicalTableScan(table=[[default_catalog, default_database, source3]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Sink(table=[default_catalog.default_database.sink1], fields=[x, EXPR$1])
++- Union(all=[true], union=[x, EXPR$1])
+   :- Calc(select=[x, null:BIGINT AS EXPR$1])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, source1, project=[x, y], metadata=[]]], fields=[x, y])(reuse_id=[1])
+   :- Calc(select=[null:BIGINT AS EXPR$0, y])
+   :  +- Reused(reference_id=[1])
+   +- Calc(select=[x, null:BIGINT AS EXPR$1])
+      +- TableSourceScan(table=[[default_catalog, default_database, source3, project=[x], metadata=[]]], fields=[x])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testSinkReuseWithPartialColumnsAndSupportsTargetColumnWriting">
+		<Resource name="ast">
+			<![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink2], targetColumns=[[0]], fields=[x, EXPR$1])
++- LogicalProject(x=[$0], EXPR$1=[null:BIGINT])
+   +- LogicalTableScan(table=[[default_catalog, default_database, source1]])
+
+LogicalSink(table=[default_catalog.default_database.sink2], targetColumns=[[1]], fields=[EXPR$0, y])
++- LogicalProject(EXPR$0=[null:BIGINT], y=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, source1]])
+
+LogicalSink(table=[default_catalog.default_database.sink2], targetColumns=[[0]], fields=[x, EXPR$1])
 +- LogicalProject(x=[$0], EXPR$1=[null:BIGINT])
    +- LogicalTableScan(table=[[default_catalog, default_database, source3]])
 ]]>
@@ -168,14 +197,14 @@ LogicalSink(table=[default_catalog.default_database.sink1], targetColumns=[[0]],
 			<![CDATA[
 TableSourceScan(table=[[default_catalog, default_database, source1, project=[x, y], metadata=[]]], fields=[x, y])(reuse_id=[1])
 
-Sink(table=[default_catalog.default_database.sink1], targetColumns=[[0]], fields=[x, EXPR$1])
+Sink(table=[default_catalog.default_database.sink2], targetColumns=[[0]], fields=[x, EXPR$1])
 +- Union(all=[true], union=[x, EXPR$1])
    :- Calc(select=[x, null:BIGINT AS EXPR$1])
    :  +- Reused(reference_id=[1])
    +- Calc(select=[x, null:BIGINT AS EXPR$1])
       +- TableSourceScan(table=[[default_catalog, default_database, source3, project=[x], metadata=[]]], fields=[x])
 
-Sink(table=[default_catalog.default_database.sink1], targetColumns=[[1]], fields=[EXPR$0, y])
+Sink(table=[default_catalog.default_database.sink2], targetColumns=[[1]], fields=[EXPR$0, y])
 +- Calc(select=[null:BIGINT AS EXPR$0, y])
    +- Reused(reference_id=[1])
 ]]>
