@@ -106,6 +106,17 @@ public class OptimizerConfigOptions {
                                     + " is true.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_REUSE_SINK_ENABLED =
+            key("table.optimizer.reuse-sink-enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "When it is true, the optimizer will try to find out duplicated table sinks and "
+                                    + "reuse them. This works only when "
+                                    + TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED.key()
+                                    + " is true.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_SOURCE_REPORT_STATISTICS_ENABLED =
             key("table.optimizer.source.report-statistics-enabled")
                     .booleanType()
