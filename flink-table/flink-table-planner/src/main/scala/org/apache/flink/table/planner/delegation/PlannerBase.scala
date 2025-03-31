@@ -393,7 +393,7 @@ abstract class PlannerBase(
   @VisibleForTesting
   private[flink] def optimize(relNodes: Seq[RelNode]): Seq[RelNode] = {
     val optimizedRelNodes = getOptimizer.optimize(relNodes)
-    require(optimizedRelNodes.size == relNodes.size)
+    require(optimizedRelNodes.size <= relNodes.size)
     optimizedRelNodes
   }
 
