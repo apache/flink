@@ -22,6 +22,8 @@ import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec;
 import org.apache.flink.table.planner.plan.nodes.calcite.Sink;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalSink;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalUnion;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalSink;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalUnion;
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil;
 import org.apache.flink.util.Preconditions;
 
@@ -75,6 +77,11 @@ import java.util.stream.Collectors;
  * }</pre>
  */
 public class SinkReuser {
+    private final boolean isStreamingMode;
+
+    public SinkReuser(boolean isStreamingMode) {
+        this.isStreamingMode = isStreamingMode;
+    }
 
     public List<RelNode> reuseDuplicatedSink(List<RelNode> relNodes) {
         // Find all sinks
@@ -113,14 +120,25 @@ public class SinkReuser {
 
                     Union unionForReusedSinks;
 
-                    unionForReusedSinks =
-                            new BatchPhysicalUnion(
-                                    reusedSink.getCluster(),
-                                    group.inputTraitSet,
-                                    allSinkInputs,
-                                    true,
-                                    // use sink input row type
-                                    reusedSink.getRowType());
+                    if (isStreamingMode) {
+                        unionForReusedSinks =
+                                new StreamPhysicalUnion(
+                                        reusedSink.getCluster(),
+                                        group.inputTraitSet,
+                                        allSinkInputs,
+                                        true,
+                                        // use sink input row type
+                                        reusedSink.getRowType());
+                    } else {
+                        unionForReusedSinks =
+                                new BatchPhysicalUnion(
+                                        reusedSink.getCluster(),
+                                        group.inputTraitSet,
+                                        allSinkInputs,
+                                        true,
+                                        // use sink input row type
+                                        reusedSink.getRowType());
+                    }
 
                     reusedSink.replaceInput(0, unionForReusedSinks);
                     reusedSinkNodes.add(reusedSink);
@@ -179,6 +197,10 @@ public class SinkReuser {
             digest.add("hints=" + RelExplainUtil.hintsToString(sink.hints()));
         }
 
+        if (isStreamingMode) {
+            digest.add("upsertMaterialize=" + ((StreamPhysicalSink) sink).upsertMaterialize());
+        }
+
         return digest.toString();
     }
 
@@ -193,14 +215,20 @@ public class SinkReuser {
 
         ReusableSinkGroup(Sink sink) {
             this.originalSinks.add(sink);
-            this.sinkAbilitySpecs = ((BatchPhysicalSink) sink).abilitySpecs();
             this.inputTraitSet = sink.getInput().getTraitSet();
             this.digest = getDigest(sink);
+            this.sinkAbilitySpecs =
+                    isStreamingMode
+                            ? ((StreamPhysicalSink) sink).abilitySpecs()
+                            : ((BatchPhysicalSink) sink).abilitySpecs();
         }
 
         public boolean canBeReused(Sink sinkNode) {
             String currentSinkDigest = getDigest(sinkNode);
-            SinkAbilitySpec[] currentSinkSpecs = ((BatchPhysicalSink) sinkNode).abilitySpecs();
+            SinkAbilitySpec[] currentSinkSpecs =
+                    isStreamingMode
+                            ? ((StreamPhysicalSink) sinkNode).abilitySpecs()
+                            : ((BatchPhysicalSink) sinkNode).abilitySpecs();
             RelTraitSet currentInputTraitSet = sinkNode.getInput().getTraitSet();
 
             // Only table sink with the same digest, specs and input trait set can be reused

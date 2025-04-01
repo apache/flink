@@ -71,8 +71,8 @@ object SubplanReuser {
       newRels = new ScanReuser(flinkContext, flinkTypeFactory).reuseDuplicatedScan(rels)
     }
 
-    if (tableSinkReuseEnabled && flinkContext.isBatchMode) {
-      newRels = new SinkReuser().reuseDuplicatedSink(newRels)
+    if (tableSinkReuseEnabled) {
+      newRels = new SinkReuser(!flinkContext.isBatchMode).reuseDuplicatedSink(newRels)
     }
 
     val context = new SubplanReuseContext(tableSourceReuseEnabled, newRels: _*)

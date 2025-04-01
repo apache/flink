@@ -33,7 +33,7 @@ public abstract class SinkReuseTestBase extends TableTestBase {
     protected TableTestUtil util;
 
     @BeforeEach
-    void setup() {
+    protected void setup() {
         TableConfig tableConfig = TableConfig.getDefault();
         tableConfig.set(OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true);
         tableConfig.set(OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SINK_ENABLED, true);

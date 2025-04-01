@@ -105,7 +105,7 @@ public class OptimizerConfigOptions {
                                     + TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED.key()
                                     + " is true.");
 
-    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_REUSE_SINK_ENABLED =
             key("table.optimizer.reuse-sink-enabled")
                     .booleanType()
