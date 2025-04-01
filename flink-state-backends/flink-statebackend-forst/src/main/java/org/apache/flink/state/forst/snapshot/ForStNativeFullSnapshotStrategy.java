@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -152,12 +153,14 @@ public class ForStNativeFullSnapshotStrategy<K>
         final PreviousSnapshot previousSnapshot =
                 snapshotMetaData(checkpointId, stateMetaInfoSnapshots);
 
-        // Disable file deletion for file transformation. ForSt will decide whether to allow file
-        // deletion based on the number of calls to disableFileDeletions() and
-        // enableFileDeletions(), so disableFileDeletions() should be call only once.
-        db.disableFileDeletions();
+        try (ResourceGuard.Lease ignoredLease = resourceGuard.acquireResource()) {
 
-        try {
+            // Disable file deletion for file transformation. ForSt will decide whether to allow
+            // file
+            // deletion based on the number of calls to disableFileDeletions() and
+            // enableFileDeletions(), so disableFileDeletions() should be call only once.
+            db.disableFileDeletions();
+
             // get live files with flush memtable
             RocksDB.LiveFiles liveFiles = db.getLiveFiles(true);
             List<Path> liveFilesPath =
@@ -183,13 +186,13 @@ public class ForStNativeFullSnapshotStrategy<K>
                     manifestFile,
                     previousSnapshot,
                     () -> {
-                        try {
+                        try (ResourceGuard.Lease lease = resourceGuard.acquireResource()) {
                             db.enableFileDeletions(false);
                             LOG.info(
                                     "Release one file deletion lock with ForStNativeSnapshotResources, backendUID:{}, checkpointId:{}.",
                                     backendUID,
                                     checkpointId);
-                        } catch (RocksDBException e) {
+                        } catch (RocksDBException | IOException e) {
                             LOG.error(
                                     "Enable file deletion failed, backendUID:{}, checkpointId:{}.",
                                     backendUID,
