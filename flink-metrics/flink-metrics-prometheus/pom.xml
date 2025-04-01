@@ -101,9 +101,9 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>com.mashape.unirest</groupId>
-			<artifactId>unirest-java</artifactId>
-			<version>1.4.9</version>
+			<groupId>com.konghq</groupId>
+			<artifactId>unirest-java-core</artifactId>
+			<version>4.4.5</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
