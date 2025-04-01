@@ -381,7 +381,8 @@ public class DataTransferStrategyTest {
         return DataTransferStrategyBuilder.buildForSnapshot(
                 SnapshotType.SharingFilesStrategy.FORWARD_BACKWARD,
                 db.dbDelegateFileSystem,
-                dbDirUnderCpDir);
+                dbDirUnderCpDir,
+                false);
     }
 
     private Tuple2<DBFilesContainer, DataTransferStrategy> createOrRestoreDb(
@@ -411,7 +412,8 @@ public class DataTransferStrategyTest {
                         DataTransferStrategyBuilder.buildForSnapshot(
                                         sharingFilesStrategy,
                                         forStFlinkFileSystem,
-                                        isDbPathUnderCheckpointPathForSnapshot)
+                                        isDbPathUnderCheckpointPathForSnapshot,
+                                        false)
                                 .getClass())
                 .isEqualTo(expected);
     }

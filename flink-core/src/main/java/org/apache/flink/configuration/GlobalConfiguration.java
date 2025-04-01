@@ -191,18 +191,18 @@ public final class GlobalConfiguration {
      *
      * @param config an arbitrarily nested config map
      * @param keyPrefix The string to prefix the keys in the current config level
-     * @return A flattened, 1 level deep map
+     * @param flattenedMap The flattened, 1 level deep map contains all key-value pairs to be
+     *     returned.
      */
     @SuppressWarnings("unchecked")
-    private static Map<String, Object> flatten(Map<String, Object> config, String keyPrefix) {
-        final Map<String, Object> flattenedMap = new HashMap<>();
-
+    private static void flatten(
+            Map<String, Object> config, String keyPrefix, Map<String, Object> flattenedMap) {
         config.forEach(
                 (key, value) -> {
                     String flattenedKey = keyPrefix + key;
                     if (value instanceof Map) {
-                        Map<String, Object> e = (Map<String, Object>) value;
-                        flattenedMap.putAll(flatten(e, flattenedKey + KEY_SEPARATOR));
+                        Map<String, Object> nestedMap = (Map<String, Object>) value;
+                        flatten(nestedMap, flattenedKey + KEY_SEPARATOR, flattenedMap);
                     } else {
                         if (value instanceof List) {
                             flattenedMap.put(flattenedKey, YamlParserUtils.toYAMLString(value));
@@ -211,13 +211,13 @@ public final class GlobalConfiguration {
                         }
                     }
                 });
-
-        return flattenedMap;
     }
 
     private static Map<String, Object> flatten(Map<String, Object> config) {
         // Since we start flattening from the root, keys should not be prefixed with anything.
-        return flatten(config, "");
+        final Map<String, Object> flattenedMap = new HashMap<>();
+        flatten(config, "", flattenedMap);
+        return flattenedMap;
     }
 
     /**

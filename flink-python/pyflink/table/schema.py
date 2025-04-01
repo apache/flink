@@ -15,13 +15,17 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from typing import Union, List
+from typing import Union, List, TYPE_CHECKING
 
 from pyflink.java_gateway import get_gateway
-from pyflink.table import Expression
-from pyflink.table.expression import _get_java_expression
+from pyflink.table.expression import Expression, _get_java_expression
 from pyflink.table.types import DataType, _to_java_data_type
 from pyflink.util.java_utils import to_jarray
+
+if TYPE_CHECKING:
+    # This is imported here under the type-checking condition to avoid a circular dependency
+    # between schema.py -> resolved_schema.py -> catalog.py -> schema.py
+    from pyflink.table.catalog import ResolvedSchema
 
 __all__ = ['Schema']
 
@@ -75,6 +79,13 @@ class Schema(object):
             Adopts all members from the given unresolved schema.
             """
             self._j_builder.fromSchema(unresolved_schema._j_schema)
+            return self
+
+        def from_resolved_schema(self, resolved_schema: 'ResolvedSchema') -> 'Schema.Builder':
+            """
+            Adopts all members from the given resolved schema.
+            """
+            self._j_builder.fromResolvedSchema(resolved_schema._j_resolved_schema)
             return self
 
         def from_row_data_type(self, data_type: DataType) -> 'Schema.Builder':

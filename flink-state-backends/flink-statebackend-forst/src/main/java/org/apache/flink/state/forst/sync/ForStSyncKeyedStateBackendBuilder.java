@@ -93,6 +93,7 @@ import java.util.function.Function;
 import static org.apache.flink.state.forst.ForStConfigurableOptions.RESTORE_OVERLAP_FRACTION_THRESHOLD;
 import static org.apache.flink.state.forst.ForStConfigurableOptions.USE_DELETE_FILES_IN_RANGE_DURING_RESCALING;
 import static org.apache.flink.state.forst.ForStConfigurableOptions.USE_INGEST_DB_RESTORE_MODE;
+import static org.apache.flink.state.forst.fs.cache.FileBasedCache.setFlinkThread;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -244,6 +245,12 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
         this.injectedDefaultColumnFamilyHandle = injectedDefaultColumnFamilyHandle;
     }
 
+    public ForStSyncKeyedStateBackendBuilder<K> setEnableIncrementalCheckpointing(
+            boolean enableIncrementalCheckpointing) {
+        this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
+        return this;
+    }
+
     public ForStSyncKeyedStateBackendBuilder<K> setNativeMetricOptions(
             ForStNativeMetricOptions nativeMetricOptions) {
         this.nativeMetricOptions = nativeMetricOptions;
@@ -302,6 +309,9 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
                         numberOfKeyGroups);
 
         try {
+            // Current thread (task thread) must be a Flink thread to enable proper cache
+            // management.
+            setFlinkThread();
             // Variables for snapshot strategy when incremental checkpoint is enabled
             UUID backendUID = UUID.randomUUID();
             SortedMap<Long, Collection<HandleAndLocalPath>> materializedSstFiles = new TreeMap<>();

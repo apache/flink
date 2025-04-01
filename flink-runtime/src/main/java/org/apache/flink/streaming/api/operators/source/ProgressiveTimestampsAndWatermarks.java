@@ -272,9 +272,17 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
             PausableRelativeClock inputActivityClock = createInputActivityClock(splitId);
             watermarkMultiplexer.registerNewOutput(
                     splitId,
-                    watermark ->
-                            watermarkUpdateListener.updateCurrentSplitWatermark(
-                                    splitId, watermark));
+                    new WatermarkOutputMultiplexer.WatermarkUpdateListener() {
+                        @Override
+                        public void onWatermarkUpdate(long watermark) {
+                            watermarkUpdateListener.updateCurrentSplitWatermark(splitId, watermark);
+                        }
+
+                        @Override
+                        public void onIdleUpdate(boolean idle) {
+                            watermarkUpdateListener.updateCurrentSplitIdle(splitId, idle);
+                        }
+                    });
             final WatermarkOutput onEventOutput = watermarkMultiplexer.getImmediateOutput(splitId);
             final WatermarkOutput periodicOutput = watermarkMultiplexer.getDeferredOutput(splitId);
 

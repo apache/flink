@@ -34,6 +34,7 @@ import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.DescriptorType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
@@ -451,6 +452,11 @@ public final class LogicalRelDataTypeConverter {
         @Override
         public RelDataType visit(SymbolType<?> symbolType) {
             return relDataTypeFactory.createSqlType(SqlTypeName.SYMBOL);
+        }
+
+        @Override
+        public RelDataType visit(DescriptorType descriptorType) {
+            return relDataTypeFactory.createSqlType(SqlTypeName.COLUMN_LIST);
         }
 
         @Override

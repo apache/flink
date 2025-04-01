@@ -190,6 +190,12 @@ under the License.
 			<scope>compile</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-layout-template-json</artifactId>
+			<scope>compile</scope>
+		</dependency>
+
 		<!-- Table dependencies -->
 
 		<dependency>
@@ -484,7 +490,7 @@ under the License.
 			<dependency>
 				<groupId>org.objenesis</groupId>
 				<artifactId>objenesis</artifactId>
-				<version>2.1</version>
+				<version>3.4</version>
 				<optional>${flink.markBundledAsOptional}</optional>
 			</dependency>
 		</dependencies>

@@ -579,10 +579,6 @@ public class JobVertex implements java.io.Serializable {
         return this.results.isEmpty();
     }
 
-    public boolean hasNoConnectedInputs() {
-        return inputs.isEmpty();
-    }
-
     public void setSupportsConcurrentExecutionAttempts(
             boolean supportsConcurrentExecutionAttempts) {
         this.supportsConcurrentExecutionAttempts = supportsConcurrentExecutionAttempts;

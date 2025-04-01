@@ -47,20 +47,48 @@ public interface StateManager {
     <K> K getCurrentKey() throws UnsupportedOperationException;
 
     /**
+     * Get the optional of the specific list state.
+     *
+     * @param stateDeclaration of this state.
+     * @return the list state corresponds to the state declaration, this may be empty.
+     */
+    <T> Optional<ListState<T>> getStateOptional(ListStateDeclaration<T> stateDeclaration)
+            throws Exception;
+
+    /**
      * Get the specific list state.
      *
      * @param stateDeclaration of this state.
-     * @return the list state corresponds to the state declaration.
+     * @return the list state corresponds to the state declaration
+     * @throws RuntimeException if the state is not available.
      */
-    <T> Optional<ListState<T>> getState(ListStateDeclaration<T> stateDeclaration) throws Exception;
+    <T> ListState<T> getState(ListStateDeclaration<T> stateDeclaration) throws Exception;
+
+    /**
+     * Get the optional of the specific value state.
+     *
+     * @param stateDeclaration of this state.
+     * @return the value state corresponds to the state declaration, this may be empty.
+     */
+    <T> Optional<ValueState<T>> getStateOptional(ValueStateDeclaration<T> stateDeclaration)
+            throws Exception;
 
     /**
      * Get the specific value state.
      *
      * @param stateDeclaration of this state.
      * @return the value state corresponds to the state declaration.
+     * @throws RuntimeException if the state is not available.
      */
-    <T> Optional<ValueState<T>> getState(ValueStateDeclaration<T> stateDeclaration)
+    <T> ValueState<T> getState(ValueStateDeclaration<T> stateDeclaration) throws Exception;
+
+    /**
+     * Get the optional of the specific map state.
+     *
+     * @param stateDeclaration of this state.
+     * @return the map state corresponds to the state declaration, this may be empty.
+     */
+    <K, V> Optional<MapState<K, V>> getStateOptional(MapStateDeclaration<K, V> stateDeclaration)
             throws Exception;
 
     /**
@@ -68,8 +96,17 @@ public interface StateManager {
      *
      * @param stateDeclaration of this state.
      * @return the map state corresponds to the state declaration.
+     * @throws RuntimeException if the state is not available.
      */
-    <K, V> Optional<MapState<K, V>> getState(MapStateDeclaration<K, V> stateDeclaration)
+    <K, V> MapState<K, V> getState(MapStateDeclaration<K, V> stateDeclaration) throws Exception;
+
+    /**
+     * Get the optional of the specific reducing state.
+     *
+     * @param stateDeclaration of this state.
+     * @return the reducing state corresponds to the state declaration, this may be empty.
+     */
+    <T> Optional<ReducingState<T>> getStateOptional(ReducingStateDeclaration<T> stateDeclaration)
             throws Exception;
 
     /**
@@ -77,25 +114,45 @@ public interface StateManager {
      *
      * @param stateDeclaration of this state.
      * @return the reducing state corresponds to the state declaration.
+     * @throws RuntimeException if the state is not available.
      */
-    <T> Optional<ReducingState<T>> getState(ReducingStateDeclaration<T> stateDeclaration)
-            throws Exception;
+    <T> ReducingState<T> getState(ReducingStateDeclaration<T> stateDeclaration) throws Exception;
+
+    /**
+     * Get the optional of the specific aggregating state.
+     *
+     * @param stateDeclaration of this state.
+     * @return the aggregating state corresponds to the state declaration, this may be empty.
+     */
+    <IN, ACC, OUT> Optional<AggregatingState<IN, OUT>> getStateOptional(
+            AggregatingStateDeclaration<IN, ACC, OUT> stateDeclaration) throws Exception;
 
     /**
      * Get the specific aggregating state.
      *
      * @param stateDeclaration of this state.
      * @return the aggregating state corresponds to the state declaration.
+     * @throws RuntimeException if the state is not available.
      */
-    <IN, ACC, OUT> Optional<AggregatingState<IN, OUT>> getState(
+    <IN, ACC, OUT> AggregatingState<IN, OUT> getState(
             AggregatingStateDeclaration<IN, ACC, OUT> stateDeclaration) throws Exception;
+
+    /**
+     * Get the optional of the specific broadcast state.
+     *
+     * @param stateDeclaration of this state.
+     * @return the broadcast state corresponds to the state declaration, this may be empty.
+     */
+    <K, V> Optional<BroadcastState<K, V>> getStateOptional(
+            BroadcastStateDeclaration<K, V> stateDeclaration) throws Exception;
 
     /**
      * Get the specific broadcast state.
      *
      * @param stateDeclaration of this state.
      * @return the broadcast state corresponds to the state declaration.
+     * @throws RuntimeException if the state is not available.
      */
-    <K, V> Optional<BroadcastState<K, V>> getState(BroadcastStateDeclaration<K, V> stateDeclaration)
+    <K, V> BroadcastState<K, V> getState(BroadcastStateDeclaration<K, V> stateDeclaration)
             throws Exception;
 }

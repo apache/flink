@@ -333,6 +333,9 @@ public class ForStResourceContainerTest {
 
             optionsContainer.clearDirectories();
             assertFalse(new File(localBasePath.getPath()).exists());
+
+            assertTrue(new File(remoteBasePath.getPath()).exists());
+            optionsContainer.forceClearRemoteDirectories();
             assertFalse(new File(remoteBasePath.getPath()).exists());
         }
     }

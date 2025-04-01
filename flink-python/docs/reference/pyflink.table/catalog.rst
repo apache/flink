@@ -250,3 +250,148 @@ A CatalogDescriptor is a template for creating a catalog instance. It closely re
     :toctree: api/
 
     CatalogDescriptor.of
+
+
+
+ObjectIdentifier
+----------------
+
+Identifies an object in a catalog, including tables, views, function, or types.
+An :class:`ObjectIdentifier` must be fully qualified. It is the responsibility of the catalog
+manager to resolve an :class:`ObjectIdentifier` to an object.
+
+While Path :class:`ObjectPath` is used within the same catalog, instances of this class can be
+used across catalogs. An :class:`ObjectPath` only describes the name and database of an
+object and so is scoped over a particular catalog, but an :class:`ObjectIdentifier` is fully
+qualified and describes the name, database and catalog of the object.
+
+Two objects are considered equal if they share the same :class:`ObjectIdentifier` in a session
+context, such as a :class:`~pyflink.table.TableEnvironment`, where catalogs (or objects in a
+catalog) have not been added, deleted or modified.
+
+.. currentmodule:: pyflink.table.catalog
+
+.. autosummary::
+    :toctree: api/
+
+    ObjectIdentifier.of
+    ObjectIdentifier.get_catalog_name
+    ObjectIdentifier.get_database_name
+    ObjectIdentifier.get_object_name
+    ObjectIdentifier.to_object_path
+    ObjectIdentifier.to_list
+    ObjectIdentifier.as_serializable_string
+    ObjectIdentifier.as_summary_string
+
+
+Column
+------
+
+Representation of a column in a :class:`~pyflink.table.catalog.ResolvedSchema`.
+
+A table column describes either a :class:`pyflink.table.catalog.PhysicalColumn`,
+:class:`pyflink.table.catalog.ComputedColumn`, or :class:`pyflink.table.catalog.MetadataColumn`.
+
+.. currentmodule:: pyflink.table.catalog
+
+.. autosummary::
+    :toctree: api/
+
+    Column.physical
+    Column.computed
+    Column.metadata
+    Column.with_comment
+    Column.is_physical
+    Column.is_persisted
+    Column.get_data_type
+    Column.get_name
+    Column.get_comment
+    Column.as_summary_string
+    Column.explain_extras
+    Column.copy
+    Column.rename
+
+
+WatermarkSpec
+-------------
+
+Representation of a watermark specification in :class:`~pyflink.table.catalog.ResolvedSchema`.
+
+It defines the rowtime attribute and a :class:`~pyflink.table.ResolvedExpression`
+for watermark generation.
+
+.. currentmodule:: pyflink.table.catalog
+
+.. autosummary::
+    :toctree: api/
+
+    WatermarkSpec.of
+    WatermarkSpec.get_rowtime_attribute
+    WatermarkSpec.get_watermark_expression
+    WatermarkSpec.as_summary_string
+
+
+Constraint
+----------
+
+Integrity constraints, generally referred to simply as constraints, define the valid states of
+SQL-data by constraining the values in the base tables.
+
+.. currentmodule:: pyflink.table.catalog
+
+.. autosummary::
+    :toctree: api/
+
+    Constraint.get_name
+    Constraint.is_enforced
+    Constraint.get_type
+    Constraint.as_summary_string
+
+UniqueConstraint
+................
+
+A unique key constraint. It can be declared also as a PRIMARY KEY.
+
+.. currentmodule:: pyflink.table.catalog
+
+.. autosummary::
+    :toctree: api/
+
+    UniqueConstraint.get_columns
+    UniqueConstraint.get_type_string
+
+ResolvedSchema
+--------------
+
+Schema of a table or view consisting of columns, constraints, and watermark specifications.
+
+This class is the result of resolving a :class:`~pyflink.table.Schema` into a final validated
+representation.
+
+- Data types and functions have been expanded to fully qualified identifiers.
+- Time attributes are represented in the column's data type.
+- :class:`pyflink.table.Expression` have been translated to
+  :class:`pyflink.table.catalog.ResolvedExpression`
+
+This class should not be passed into a connector. It is therefore also not serializable.
+Instead, the :func:`~pyflink.table.catalog.ResolvedSchema.to_physical_row_data_type` can be
+passed around where necessary.
+
+.. currentmodule:: pyflink.table.catalog
+
+.. autosummary::
+    :toctree: api/
+
+    ResolvedSchema.of
+    ResolvedSchema.physical
+    ResolvedSchema.get_column_count
+    ResolvedSchema.get_columns
+    ResolvedSchema.get_column_names
+    ResolvedSchema.get_column_data_types
+    ResolvedSchema.get_column
+    ResolvedSchema.get_watermark_specs
+    ResolvedSchema.get_primary_key
+    ResolvedSchema.get_primary_key_indexes
+    ResolvedSchema.to_source_row_data_type
+    ResolvedSchema.to_physical_row_data_type
+    ResolvedSchema.to_sink_row_data_type

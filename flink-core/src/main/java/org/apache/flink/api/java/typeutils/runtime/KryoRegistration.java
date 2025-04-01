@@ -24,7 +24,7 @@ import org.apache.flink.util.Preconditions;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
-import com.esotericsoftware.kryo.factories.ReflectionSerializerFactory;
+import com.esotericsoftware.kryo.SerializerFactory.ReflectionSerializerFactory;
 
 import javax.annotation.Nullable;
 
@@ -118,7 +118,7 @@ public class KryoRegistration implements Serializable {
             case UNSPECIFIED:
                 return null;
             case CLASS:
-                return ReflectionSerializerFactory.makeSerializer(
+                return ReflectionSerializerFactory.newSerializer(
                         kryo, serializerClass, registeredClass);
             case INSTANCE:
                 return serializableSerializerInstance.getSerializer();

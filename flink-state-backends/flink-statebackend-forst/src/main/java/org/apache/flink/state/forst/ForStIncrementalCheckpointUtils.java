@@ -22,7 +22,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava32.com.google.common.primitives.UnsignedBytes;
+import org.apache.flink.shaded.guava33.com.google.common.primitives.UnsignedBytes;
 
 import org.forstdb.ColumnFamilyHandle;
 import org.forstdb.LiveFileMetaData;

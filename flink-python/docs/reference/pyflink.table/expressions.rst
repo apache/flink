@@ -140,6 +140,7 @@ arithmetic functions
     Expression.collect
     Expression.array_agg
     Expression.alias
+    Expression.as_argument
     Expression.cast
     Expression.try_cast
     Expression.asc

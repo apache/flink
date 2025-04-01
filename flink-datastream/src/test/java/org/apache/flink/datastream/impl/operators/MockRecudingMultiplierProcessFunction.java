@@ -57,7 +57,7 @@ public class MockRecudingMultiplierProcessFunction
             Integer record, Collector<Integer> output, PartitionedContext<Integer> ctx)
             throws Exception {
         Optional<ReducingState<Integer>> stateOptional =
-                ctx.getStateManager().getState(reducingStateDeclaration);
+                ctx.getStateManager().getStateOptional(reducingStateDeclaration);
         if (!stateOptional.isPresent()) {
             throw new RuntimeException("State is not available");
         }

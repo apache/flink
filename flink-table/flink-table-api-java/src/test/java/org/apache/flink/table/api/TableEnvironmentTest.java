@@ -19,11 +19,14 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogModel;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
+import org.apache.flink.table.catalog.ContextResolvedModel;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.exceptions.ModelNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.utils.TableEnvironmentMock;
@@ -46,6 +49,12 @@ class TableEnvironmentTest {
             Schema.newBuilder().column("f0", DataTypes.INT()).build();
     private static final TableDescriptor TEST_DESCRIPTOR =
             TableDescriptor.forConnector("fake").schema(TEST_SCHEMA).option("a", "Test").build();
+    private static final ModelDescriptor TEST_MODEL_DESCRIPTOR =
+            ModelDescriptor.forProvider("TestProvider")
+                    .option("a", "Test")
+                    .inputSchema(TEST_SCHEMA)
+                    .outputSchema(TEST_SCHEMA)
+                    .build();
 
     @Test
     void testCreateTemporaryTableFromDescriptor() {
@@ -158,6 +167,121 @@ class TableEnvironmentTest {
         assertThat(tEnv.getCatalogManager().listTables()).isEmpty();
     }
 
+    @Test
+    void testCreateModelFromDescriptor() throws Exception {
+        final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
+
+        assertCreateModelFromDescriptor(tEnv, false);
+    }
+
+    @Test
+    void testCreateModelIgnoreIfExistsFromDescriptor() throws Exception {
+        final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
+
+        assertCreateModelFromDescriptor(tEnv, true);
+        assertThatNoException()
+                .isThrownBy(() -> tEnv.createModel("M", TEST_MODEL_DESCRIPTOR, true));
+
+        assertThatThrownBy(() -> tEnv.createModel("M", TEST_MODEL_DESCRIPTOR, false))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Could not execute CreateModel in path `default_catalog`.`default_database`.`M`");
+    }
+
+    @Test
+    void testCreateModelWithSameName() {
+        final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
+
+        tEnv.createModel("M", TEST_MODEL_DESCRIPTOR);
+
+        tEnv.createModel("M", TEST_MODEL_DESCRIPTOR, true);
+
+        assertThatThrownBy(() -> tEnv.createModel("M", TEST_MODEL_DESCRIPTOR, false))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Could not execute CreateModel in path `default_catalog`.`default_database`.`M`");
+
+        assertThatThrownBy(() -> tEnv.createModel("M", TEST_MODEL_DESCRIPTOR))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Could not execute CreateModel in path `default_catalog`.`default_database`.`M`");
+    }
+
+    @Test
+    void testDropModel() throws Exception {
+        final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
+
+        tEnv.createModel("M", TEST_MODEL_DESCRIPTOR);
+
+        final String catalog = tEnv.getCurrentCatalog();
+        final String database = tEnv.getCurrentDatabase();
+        final ObjectPath objectPath = new ObjectPath(database, "M");
+        CatalogModel catalogModel =
+                tEnv.getCatalog(catalog).orElseThrow(AssertionError::new).getModel(objectPath);
+        assertThat(catalogModel).isInstanceOf(CatalogModel.class);
+        assertThat(tEnv.dropModel("M", true)).isTrue();
+        assertThatThrownBy(
+                        () ->
+                                tEnv.getCatalog(catalog)
+                                        .orElseThrow(AssertionError::new)
+                                        .getModel(objectPath))
+                .isInstanceOf(ModelNotExistException.class)
+                .hasMessage("Model '`default_catalog`.`default_database`.`M`' does not exist.");
+    }
+
+    @Test
+    void testNonExistingDropModel() throws Exception {
+        final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
+
+        assertThat(tEnv.dropModel("M", true)).isFalse();
+
+        assertThatThrownBy(() -> tEnv.dropModel("M", false))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Model with identifier 'default_catalog.default_database.M' does not exist.");
+    }
+
+    @Test
+    void testCreateTemporaryModelFromDescriptor() {
+        final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
+        assertTemporaryCreateModelFromDescriptor(tEnv, false);
+    }
+
+    @Test
+    void testCreateTemporaryModelIfNotExistsFromDescriptor() {
+        final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
+
+        assertTemporaryCreateModelFromDescriptor(tEnv, true);
+        assertThatNoException()
+                .isThrownBy(() -> tEnv.createTemporaryModel("M", TEST_MODEL_DESCRIPTOR, true));
+
+        assertThatThrownBy(() -> tEnv.createTemporaryModel("M", TEST_MODEL_DESCRIPTOR, false))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Temporary model '`default_catalog`.`default_database`.`M`' already exists");
+    }
+
+    @Test
+    void testCreateModelWithSameNameIgnoreIfExists() {
+        final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
+
+        tEnv.createModel("M", TEST_MODEL_DESCRIPTOR);
+        tEnv.createModel("M", TEST_MODEL_DESCRIPTOR, true);
+    }
+
+    @Test
+    void testListModels() {
+        final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
+
+        tEnv.createModel("M1", TEST_MODEL_DESCRIPTOR);
+        tEnv.createModel("M2", TEST_MODEL_DESCRIPTOR);
+
+        String[] models = tEnv.listModels();
+        assertThat(models).isNotEmpty();
+        assertThat(models[0]).isEqualTo("M1");
+        assertThat(models[1]).isEqualTo("M2");
+    }
+
     private static void assertCreateTableFromDescriptor(
             TableEnvironmentMock tEnv, Schema schema, boolean ignoreIfExists)
             throws org.apache.flink.table.catalog.exceptions.TableNotExistException {
@@ -211,5 +335,40 @@ class TableEnvironmentTest {
         assertThat(catalogTable.getUnresolvedSchema()).isEqualTo(schema);
         assertThat(catalogTable.getOptions().get("connector")).isEqualTo("fake");
         assertThat(catalogTable.getOptions().get("a")).isEqualTo("Test");
+    }
+
+    private static void assertCreateModelFromDescriptor(
+            TableEnvironmentMock tEnv, boolean ignoreIfExists) throws ModelNotExistException {
+        final String catalog = tEnv.getCurrentCatalog();
+        final String database = tEnv.getCurrentDatabase();
+
+        if (ignoreIfExists) {
+            tEnv.createModel("M", TEST_MODEL_DESCRIPTOR, true);
+        } else {
+            tEnv.createModel("M", TEST_MODEL_DESCRIPTOR);
+        }
+
+        final ObjectPath objectPath = new ObjectPath(database, "M");
+        CatalogModel catalogModel =
+                tEnv.getCatalog(catalog).orElseThrow(AssertionError::new).getModel(objectPath);
+        assertThat(catalogModel).isInstanceOf(CatalogModel.class);
+        assertThat(catalogModel.getInputSchema()).isEqualTo(TEST_SCHEMA);
+        assertThat(catalogModel.getOptions().get("a")).isEqualTo("Test");
+    }
+
+    private static void assertTemporaryCreateModelFromDescriptor(
+            TableEnvironmentMock tEnv, boolean ignoreIfExists) {
+        final String catalog = tEnv.getCurrentCatalog();
+        final String database = tEnv.getCurrentDatabase();
+
+        tEnv.createTemporaryModel("M", TEST_MODEL_DESCRIPTOR, ignoreIfExists);
+        final Optional<ContextResolvedModel> lookupResult =
+                tEnv.getCatalogManager().getModel(ObjectIdentifier.of(catalog, database, "M"));
+        assertThat(lookupResult.isPresent()).isTrue();
+        CatalogModel catalogModel = lookupResult.get().getResolvedModel();
+        assertThat(catalogModel != null).isTrue();
+        assertThat(catalogModel.getInputSchema()).isEqualTo(TEST_SCHEMA);
+        assertThat(catalogModel.getOutputSchema()).isEqualTo(TEST_SCHEMA);
+        assertThat(catalogModel.getOptions().get("a")).isEqualTo("Test");
     }
 }

@@ -70,7 +70,7 @@ import org.apache.flink.state.changelog.restore.FunctionDelegationHelper;
 import org.apache.flink.state.common.PeriodicMaterializationManager.MaterializationTarget;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.apache.flink.shaded.guava32.com.google.common.io.Closer;
+import org.apache.flink.shaded.guava33.com.google.common.io.Closer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -312,6 +312,11 @@ public class ChangelogKeyedStateBackend<K>
     @Override
     public <N> Stream<K> getKeys(String state, N namespace) {
         return keyedStateBackend.getKeys(state, namespace);
+    }
+
+    @Override
+    public <N> Stream<K> getKeys(List<String> states, N namespace) {
+        return keyedStateBackend.getKeys(states, namespace);
     }
 
     @Override

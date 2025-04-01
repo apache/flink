@@ -29,11 +29,14 @@ import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.types.utils.ValueDataTypeConverter;
+import org.apache.flink.types.ColumnList;
 
 import java.util.Arrays;
 import java.util.List;
@@ -112,7 +115,7 @@ public final class Expressions {
     }
 
     /**
-     * Creates a SQL literal.
+     * Creates a literal (i.e. a constant value).
      *
      * <p>The data type is derived from the object's class and its value.
      *
@@ -131,15 +134,26 @@ public final class Expressions {
     }
 
     /**
-     * Creates a SQL literal of a given {@link DataType}.
+     * Creates a literal (i.e. a constant value) of a given {@link DataType}.
      *
      * <p>The method {@link #lit(Object)} is preferred as it extracts the {@link DataType}
      * automatically. Use this method only when necessary. The class of {@code v} must be supported
-     * according to the {@link
-     * org.apache.flink.table.types.logical.LogicalType#supportsInputConversion(Class)}.
+     * according to the {@link LogicalType#supportsInputConversion(Class)}.
      */
     public static ApiExpression lit(Object v, DataType dataType) {
         return new ApiExpression(valueLiteral(v, dataType));
+    }
+
+    /**
+     * Creates a literal describing an arbitrary, unvalidated list of column names.
+     *
+     * <p>Passing a list of columns can be useful for parameterizing a function. In particular, it
+     * enables declaring the {@code on_time} argument for {@link ProcessTableFunction}.
+     *
+     * <p>The data type will be {@link DataTypes#DESCRIPTOR()}.
+     */
+    public static ApiExpression descriptor(String... columnNames) {
+        return new ApiExpression(valueLiteral(ColumnList.of(Arrays.asList(columnNames))));
     }
 
     /**
@@ -883,11 +897,12 @@ public final class Expressions {
      * a string.
      *
      * <p>This function can currently only be used within the {@link #jsonObject(JsonOnNull,
-     * Object...)} function. It allows passing pre-formatted JSON strings that will be inserted
-     * directly into the resulting JSON structure rather than being escaped as a string value. This
-     * allows storing nested JSON structures in a JSON_OBJECT without processing them as strings,
-     * which is often useful when ingesting already formatted json data. If the value is null or
-     * empty, the function returns {@code null}.
+     * Object...)} and {@link #jsonArray(JsonOnNull, Object...)} function. It allows passing
+     * pre-formatted JSON strings that will be inserted directly into the resulting JSON structure
+     * rather than being escaped as a string value. This allows storing nested JSON structures in a
+     * `JSON_OBJECT` or `JSON_ARRAY` without processing them as strings, which is often useful when
+     * ingesting already formatted json data. If the value is null or empty, the function returns
+     * {@code null}.
      *
      * <p>Examples:
      *
@@ -1003,8 +1018,12 @@ public final class Expressions {
      *
      * // "[[1]]"
      * jsonArray(JsonOnNull.NULL, jsonArray(JsonOnNull.NULL, 1))
+     *
+     * // "[{\"nested_json\":{\"value\":42}}]"
+     * jsonArray(JsonOnNull.NULL, json("{\"nested_json\": {\"value\": 42}}"))
      * }</pre>
      *
+     * @see #json(Object)
      * @see #jsonObject(JsonOnNull, Object...)
      */
     public static ApiExpression jsonArray(JsonOnNull onNull, Object... values) {

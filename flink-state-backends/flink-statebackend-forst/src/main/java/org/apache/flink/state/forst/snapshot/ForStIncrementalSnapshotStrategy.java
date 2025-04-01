@@ -140,7 +140,15 @@ public class ForStIncrementalSnapshotStrategy<K> extends ForStNativeFullSnapshot
                 // savepoint, use empty PreviousSnapshot
                 snapshotResources.setPreviousSnapshot(EMPTY_PREVIOUS_SNAPSHOT);
                 break;
-            case FORWARD: // full checkpoint for IncrementalSnapshotStrategy is not supported
+            case FORWARD:
+                // Full checkpoint for IncrementalSnapshotStrategy is not supported, except for the
+                // first one.
+                if (snapshotResources.previousSnapshot.isEmpty()) {
+                    break;
+                } else {
+                    throw new IllegalArgumentException(
+                            "Triggering a full checkpoint for IncrementalSnapshotStrategy is not supported.");
+                }
             default:
                 throw new IllegalArgumentException(
                         String.format(
@@ -338,7 +346,8 @@ public class ForStIncrementalSnapshotStrategy<K> extends ForStNativeFullSnapshot
                             checkpointStreamFactory,
                             stateScope,
                             snapshotCloseableRegistry,
-                            tmpResourcesRegistry);
+                            tmpResourcesRegistry,
+                            false);
 
             sstHandles.addAll(sstFilesTransferResult);
             transferBytes +=
@@ -353,7 +362,8 @@ public class ForStIncrementalSnapshotStrategy<K> extends ForStNativeFullSnapshot
                             checkpointStreamFactory,
                             stateScope,
                             snapshotCloseableRegistry,
-                            tmpResourcesRegistry);
+                            tmpResourcesRegistry,
+                            false);
             metaHandles.addAll(miscFilesTransferResult);
             transferBytes +=
                     miscFilesTransferResult.stream()
@@ -368,7 +378,8 @@ public class ForStIncrementalSnapshotStrategy<K> extends ForStNativeFullSnapshot
                             checkpointStreamFactory,
                             stateScope,
                             snapshotCloseableRegistry,
-                            tmpResourcesRegistry);
+                            tmpResourcesRegistry,
+                            false);
             metaHandles.add(manifestFileTransferResult);
             transferBytes += manifestFileTransferResult.getStateSize();
 

@@ -73,10 +73,10 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
     final ThreadLocal<DataInputDeserializer> valueDeserializerView;
 
     /** Serializer for the user keys. */
-    final TypeSerializer<UK> userKeySerializer;
+    final ThreadLocal<TypeSerializer<UK>> userKeySerializer;
 
     /** Serializer for the user values. */
-    final TypeSerializer<UV> userValueSerializer;
+    final ThreadLocal<TypeSerializer<UV>> userValueSerializer;
 
     /** Number of bytes required to prefix the key groups. */
     private final int keyGroupPrefixBytes;
@@ -100,8 +100,8 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
         this.valueSerializerView = ThreadLocal.withInitial(valueSerializerViewInitializer);
         this.keyDeserializerView = ThreadLocal.withInitial(keyDeserializerViewInitializer);
         this.valueDeserializerView = ThreadLocal.withInitial(valueDeserializerViewInitializer);
-        this.userKeySerializer = stateDescriptor.getUserKeySerializer();
-        this.userValueSerializer = stateDescriptor.getSerializer();
+        this.userKeySerializer = ThreadLocal.withInitial(stateDescriptor::getUserKeySerializer);
+        this.userValueSerializer = ThreadLocal.withInitial(stateDescriptor::getSerializer);
         this.keyGroupPrefixBytes = keyGroupPrefixBytes;
     }
 
@@ -124,14 +124,15 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
             return builder.build();
         }
         UK userKey = (UK) contextKey.getUserKey(); // map get
-        return builder.buildCompositeKeyUserKey(userKey, userKeySerializer);
+        return builder.buildCompositeKeyUserKey(userKey, userKeySerializer.get());
     }
 
     @Override
     public byte[] serializeValue(UV value) throws IOException {
         DataOutputSerializer outputView = valueSerializerView.get();
         outputView.clear();
-        userValueSerializer.serialize(value, outputView);
+        outputView.writeBoolean(false);
+        userValueSerializer.get().serialize(value, outputView);
         return outputView.getCopyOfBuffer();
     }
 
@@ -139,13 +140,14 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
     public UV deserializeValue(byte[] valueBytes) throws IOException {
         DataInputDeserializer inputView = valueDeserializerView.get();
         inputView.setBuffer(valueBytes);
-        return userValueSerializer.deserialize(inputView);
+        boolean isNull = inputView.readBoolean();
+        return isNull ? null : userValueSerializer.get().deserialize(inputView);
     }
 
     public UK deserializeUserKey(byte[] userKeyBytes, int userKeyOffset) throws IOException {
         DataInputDeserializer inputView = keyDeserializerView.get();
         inputView.setBuffer(userKeyBytes, userKeyOffset, userKeyBytes.length - userKeyOffset);
-        return userKeySerializer.deserialize(inputView);
+        return userKeySerializer.get().deserialize(inputView);
     }
 
     @Override

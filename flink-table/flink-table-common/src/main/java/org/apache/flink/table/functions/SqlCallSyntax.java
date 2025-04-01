@@ -21,6 +21,7 @@ package org.apache.flink.table.functions;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.CallExpression;
+import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
@@ -279,8 +280,7 @@ public interface SqlCallSyntax {
                                     + " serializable. It should've been flattened during expression"
                                     + " resolution.");
                 }
-                final String identifier =
-                        ((ValueLiteralExpression) operands.get(1)).getValueAs(String.class).get();
+                final String identifier = ExpressionUtils.stringValue(operands.get(1));
                 return String.format(
                         "%s %s %s",
                         CallSyntaxUtils.asSerializableOperand(operands.get(0)),

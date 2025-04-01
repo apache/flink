@@ -34,6 +34,8 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
@@ -114,7 +116,8 @@ public class ProjectWindowTableFunctionTransposeRule extends RelOptRule {
                         scan,
                         windowingStrategy.getTimeAttributeType(),
                         newScanInput,
-                        mapping);
+                        mapping,
+                        toPushFields);
 
         // 4. create top project
         RelNode topProject = createTopProject(relBuilder, project, newScan, mapping);
@@ -152,7 +155,8 @@ public class ProjectWindowTableFunctionTransposeRule extends RelOptRule {
             LogicalTableFunctionScan oldScan,
             LogicalType timeAttributeType,
             RelNode newInput,
-            Map<Integer, Integer> mapping) {
+            Map<Integer, Integer> mapping,
+            ImmutableBitSet toPushFields) {
         relBuilder.push(newInput);
         RelOptCluster cluster = oldScan.getCluster();
         FlinkTypeFactory typeFactory = (FlinkTypeFactory) cluster.getTypeFactory();
@@ -163,11 +167,11 @@ public class ProjectWindowTableFunctionTransposeRule extends RelOptRule {
                         typeFactory.createFieldTypeFromLogicalType(timeAttributeType));
         RexNode newCall =
                 rewriteWindowCall(
-                        newInput.getRowType(),
                         (RexCall) oldScan.getCall(),
                         mapping,
                         newScanOutputType,
-                        relBuilder);
+                        relBuilder,
+                        toPushFields);
 
         return LogicalTableFunctionScan.create(
                 cluster,
@@ -179,21 +183,41 @@ public class ProjectWindowTableFunctionTransposeRule extends RelOptRule {
     }
 
     private RexNode rewriteWindowCall(
-            RelDataType newInputType,
             RexCall windowCall,
             Map<Integer, Integer> mapping,
             RelDataType newScanOutputType,
-            RelBuilder relBuilder) {
-        List<RexNode> newOperands = new ArrayList<>();
+            RelBuilder relBuilder,
+            ImmutableBitSet toPushFields) {
+        final RelDataTypeFactory typeFactory = relBuilder.getTypeFactory();
+        final List<RexNode> newOperands = new ArrayList<>();
         for (RexNode next : windowCall.getOperands()) {
             newOperands.add(adjustInputRef(next, mapping));
         }
 
-        RexTableArgCall tableArgCall = (RexTableArgCall) windowCall.operands.get(0);
-        int[] newPartitionKeys =
+        final RexTableArgCall tableArgCall = (RexTableArgCall) windowCall.operands.get(0);
+        // Preserves the field names in the table arg to power the descriptor (which works
+        // name-based)
+        final List<RelDataTypeField> newInputFields =
+                tableArgCall.getType().getFieldList().stream()
+                        .filter(f -> toPushFields.get(f.getIndex()))
+                        .collect(Collectors.toList());
+        final RelDataType newTableType =
+                typeFactory.createStructType(
+                        newInputFields.stream()
+                                .map(RelDataTypeField::getType)
+                                .collect(Collectors.toList()),
+                        newInputFields.stream()
+                                .map(RelDataTypeField::getName)
+                                .collect(Collectors.toList()));
+        final int[] newPartitionKeys =
                 Arrays.stream(tableArgCall.getPartitionKeys()).map(mapping::get).toArray();
-        int[] newOrderKeys = Arrays.stream(tableArgCall.getOrderKeys()).map(mapping::get).toArray();
-        newOperands.set(0, tableArgCall.copy(newInputType, newPartitionKeys, newOrderKeys));
+        final int[] newOrderKeys =
+                Arrays.stream(tableArgCall.getOrderKeys()).map(mapping::get).toArray();
+        final RexTableArgCall projectedTableArgCall =
+                tableArgCall.copy(newTableType, newPartitionKeys, newOrderKeys);
+
+        newOperands.set(0, projectedTableArgCall);
+
         return relBuilder
                 .getRexBuilder()
                 .makeCall(newScanOutputType, windowCall.getOperator(), newOperands);

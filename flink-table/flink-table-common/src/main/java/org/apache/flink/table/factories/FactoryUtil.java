@@ -173,6 +173,12 @@ public final class FactoryUtil {
                     .withDescription(
                             "Specify the workflow scheduler type that is used for materialized table.");
 
+    public static final ConfigOption<String> MODEL_PROVIDER =
+            ConfigOptions.key("provider")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Specify the provider for the model.");
+
     /**
      * Suffix for keys of {@link ConfigOption} in case a connector requires multiple formats (e.g.
      * for both key and value).

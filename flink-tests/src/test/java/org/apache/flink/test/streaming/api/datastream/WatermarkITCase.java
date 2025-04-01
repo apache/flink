@@ -135,6 +135,27 @@ class WatermarkITCase {
         }
     }
 
+    private JobID submitJobAndWaitForOperator3Initialized(
+            StreamGraph streamGraph, boolean watermarkIsLongType)
+            throws ExecutionException, InterruptedException {
+        // block operator2's subtask 0 and subtask 1
+        Operator2ProcessFunction.blockSubTasks(0, 1);
+
+        // submit job
+        JobID jobId = flinkCluster.submitJob(streamGraph).get().getJobID();
+
+        // wait all operator3 tasks have initialized completely
+        tryWaitUntilCondition(
+                () -> Operator3ProcessFunction.receivedWatermarks.size() == DEFAULT_PARALLELISM);
+        // since all Operator2 tasks are blocked, so the Operator3 should not receive watermarks and
+        // records
+        assertOperatorReceivedWatermarkValues(
+                Operator3ProcessFunction.receivedWatermarks, watermarkIsLongType);
+        assertThat(Operator3ProcessFunction.receivedRecords).isEmpty();
+
+        return jobId;
+    }
+
     /**
      * Test aligned watermark can block upstream. In this test case, Operator2 will declare the
      * aligned watermark. We will block Operator2's subtasks first and unblock them step by step,
@@ -146,19 +167,7 @@ class WatermarkITCase {
     void testAlignedWatermarkBlockUpstream() throws Exception {
         StreamGraph streamGraph = getStreamGraphForAlignedWatermark(Map.of(0, true, 1, true));
 
-        // block operator2's subtask 0 and subtask 1
-        Operator2ProcessFunction.blockSubTasks(0, 1);
-
-        // submit job
-        JobID jobId = flinkCluster.submitJob(streamGraph).get().getJobID();
-
-        // wait all operator3 tasks have started
-        tryWaitUntilCondition(
-                () -> Operator3ProcessFunction.attemptIds.size() == DEFAULT_PARALLELISM);
-        // since all Operator2 tasks are blocked, so the Operator3 should not receive watermarks and
-        // records
-        assertOperatorReceivedWatermarkValues(Operator3ProcessFunction.receivedWatermarks, false);
-        assertThat(Operator3ProcessFunction.receivedRecords).isEmpty();
+        JobID jobId = submitJobAndWaitForOperator3Initialized(streamGraph, false);
 
         // unblock operator2's subtask 0; it will send a watermark with the value {@code true} to
         // operator3.
@@ -198,19 +207,7 @@ class WatermarkITCase {
         StreamGraph streamGraph =
                 getStreamGraphForLongWatermarkCombineFunction(true, Map.of(0, 1L, 1, 2L));
 
-        // block operator2's subtask 0 and subtask 1
-        Operator2ProcessFunction.blockSubTasks(0, 1);
-
-        // submit job
-        JobID jobId = flinkCluster.submitJob(streamGraph).get().getJobID();
-
-        // wait all operator3 tasks have started
-        tryWaitUntilCondition(
-                () -> Operator3ProcessFunction.attemptIds.size() == DEFAULT_PARALLELISM);
-        // since all Operator2 tasks are blocked, so the Operator3 should not receive watermarks and
-        // records
-        assertOperatorReceivedWatermarkValues(Operator3ProcessFunction.receivedWatermarks, true);
-        assertThat(Operator3ProcessFunction.receivedRecords).isEmpty();
+        JobID jobId = submitJobAndWaitForOperator3Initialized(streamGraph, true);
 
         // unblock Operator2's subtask 0, which will send a watermark with value {@code 1L} to
         // Operator3,
@@ -255,19 +252,7 @@ class WatermarkITCase {
         StreamGraph streamGraph =
                 getStreamGraphForLongWatermarkCombineFunction(false, Map.of(0, 1L, 1, 2L));
 
-        // block operator2's subtask 0 and subtask 1
-        Operator2ProcessFunction.blockSubTasks(0, 1);
-
-        // submit job
-        JobID jobId = flinkCluster.submitJob(streamGraph).get().getJobID();
-
-        // wait all operator3 tasks have started
-        tryWaitUntilCondition(
-                () -> Operator3ProcessFunction.attemptIds.size() == DEFAULT_PARALLELISM);
-        // since all Operator2 tasks are blocked, so the Operator3 should not receive watermarks and
-        // records
-        assertOperatorReceivedWatermarkValues(Operator3ProcessFunction.receivedWatermarks, true);
-        assertThat(Operator3ProcessFunction.receivedRecords).isEmpty();
+        JobID jobId = submitJobAndWaitForOperator3Initialized(streamGraph, true);
 
         // unblock Operator2's subtask 0, which will send a watermark with value {@code 1L} to
         // Operator3,
@@ -314,19 +299,7 @@ class WatermarkITCase {
         StreamGraph streamGraph =
                 getStreamGraphForBoolWatermarkCombineFunction(true, Map.of(0, false, 1, true));
 
-        // block operator2's subtask 0 and subtask 1
-        Operator2ProcessFunction.blockSubTasks(0, 1);
-
-        // submit job
-        JobID jobId = flinkCluster.submitJob(streamGraph).get().getJobID();
-
-        // wait all operator3 tasks have started
-        tryWaitUntilCondition(
-                () -> Operator3ProcessFunction.attemptIds.size() == DEFAULT_PARALLELISM);
-        // since all Operator2 tasks are blocked, so the Operator3 should not receive watermarks and
-        // records
-        assertOperatorReceivedWatermarkValues(Operator3ProcessFunction.receivedWatermarks, false);
-        assertThat(Operator3ProcessFunction.receivedRecords).isEmpty();
+        JobID jobId = submitJobAndWaitForOperator3Initialized(streamGraph, false);
 
         // unblock Operator2's subtask 0, which will send a watermark with value {@code false} to
         // Operator3,
@@ -373,19 +346,7 @@ class WatermarkITCase {
         StreamGraph streamGraph =
                 getStreamGraphForBoolWatermarkCombineFunction(false, Map.of(0, false, 1, true));
 
-        // block operator2's subtask 0 and subtask 1
-        Operator2ProcessFunction.blockSubTasks(0, 1);
-
-        // submit job
-        JobID jobId = flinkCluster.submitJob(streamGraph).get().getJobID();
-
-        // wait all operator3 tasks have started
-        tryWaitUntilCondition(
-                () -> Operator3ProcessFunction.attemptIds.size() == DEFAULT_PARALLELISM);
-        // since all Operator2 tasks are blocked, so the Operator3 should not receive watermarks and
-        // records
-        assertOperatorReceivedWatermarkValues(Operator3ProcessFunction.receivedWatermarks, false);
-        assertThat(Operator3ProcessFunction.receivedRecords).isEmpty();
+        JobID jobId = submitJobAndWaitForOperator3Initialized(streamGraph, false);
 
         // unblock Operator2's subtask 0, which will send a watermark with value {@code false} to
         // Operator3,
@@ -433,19 +394,7 @@ class WatermarkITCase {
             throws ReflectiveOperationException, ExecutionException, InterruptedException {
         StreamGraph streamGraph = getStreamGraphForCombineWaitForAllChannels(Map.of(0, 1L, 1, 2L));
 
-        // block operator2's subtask 0 and subtask 1
-        Operator2ProcessFunction.blockSubTasks(0, 1);
-
-        // submit job
-        JobID jobId = flinkCluster.submitJob(streamGraph).get().getJobID();
-
-        // wait all operator3 tasks have started
-        tryWaitUntilCondition(
-                () -> Operator3ProcessFunction.attemptIds.size() == DEFAULT_PARALLELISM);
-        // since all Operator2 tasks are blocked, so the Operator3 should not receive watermarks and
-        // records
-        assertOperatorReceivedWatermarkValues(Operator3ProcessFunction.receivedWatermarks, true);
-        assertThat(Operator3ProcessFunction.receivedRecords).isEmpty();
+        JobID jobId = submitJobAndWaitForOperator3Initialized(streamGraph, true);
 
         // unblock Operator2's subtask 0, which will send a watermark with value {@code 1L} to
         // Operator3,

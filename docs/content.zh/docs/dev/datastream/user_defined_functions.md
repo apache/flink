@@ -28,9 +28,6 @@ under the License.
 
 大多数操作都需要用户自定义 function。本节列出了实现用户自定义 function 的不同方式。还会介绍 `Accumulators`（累加器），可用于深入了解你的 Flink 应用程序。
 
-{{< tabs "965792c9-604b-4b79-8936-964f4e684b6d" >}}
-{{< tab "Java" >}}
-
 <a name="implementing-an-interface"></a>
 
 ## 实现接口
@@ -101,59 +98,6 @@ data.map (new RichMapFunction<String, Integer>() {
   public Integer map(String value) { return Integer.parseInt(value); }
 });
 ```
-
-{{< /tab >}}
-{{< tab "Scala" >}}
-
-<a name="lambda-functions"></a>
-
-## Lambda Functions
-
-正如你在上面的例子中看到的，所有的操作同可以通过 lambda 表达式来描述：
-```scala
-val data: DataStream[String] = // [...]
-data.filter { _.startsWith("http://") }
-```
-
-```scala
-val data: DataStream[Int] = // [...]
-data.reduce { (i1,i2) => i1 + i2 }
-// or
-data.reduce { _ + _ }
-```
-
-<a name="rich-functions"></a>
-
-## Rich functions
-
-所有将 lambda 表达式作为参数的转化操作都可以用 *rich* function 来代替。例如，你可以将下面代码
-
-```scala
-data.map { x => x.toInt }
-```
-
-替换成
-
-```scala
-class MyMapFunction extends RichMapFunction[String, Int] {
-  def map(in: String): Int = in.toInt
-}
-```
-
-并将 function 传递给 `map` transformation:
-
-```scala
-data.map(new MyMapFunction())
-```
-
-Rich functions 也可以定义成匿名类:
-```scala
-data.map (new RichMapFunction[String, Int] {
-  def map(in: String): Int = in.toInt
-})
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 {{< top >}}
 

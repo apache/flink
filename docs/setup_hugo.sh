@@ -35,4 +35,8 @@ if ! curl --fail -OL $HUGO_REPO ; then
 	echo "Failed to download Hugo binary"
 	exit 1
 fi
-tar -zxvf $HUGO_ARTIFACT -C /usr/local/bin
+if [ "$OS" = "Mac" ]; then
+    tar -zxvf $HUGO_ARTIFACT -C /usr/local/bin --include='hugo'
+else
+    tar -zxvf $HUGO_ARTIFACT -C /usr/local/bin --wildcards --no-anchored 'hugo'
+fi

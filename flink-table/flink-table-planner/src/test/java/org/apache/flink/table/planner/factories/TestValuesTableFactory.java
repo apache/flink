@@ -457,6 +457,22 @@ public final class TestValuesTableFactory
                     .withDescription(
                             "Option to determine whether or not to require the distribution bucket count");
 
+    private static final ConfigOption<Boolean> SINK_SUPPORTS_DELETE_BY_KEY =
+            ConfigOptions.key("sink.supports-delete-by-key")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Option to determine whether or not to require deletes to have the"
+                                    + " entire row or is a delete by key sufficient.");
+
+    private static final ConfigOption<Boolean> SOURCE_PRODUCES_DELETE_BY_KEY =
+            ConfigOptions.key("source.produces-delete-by-key")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Option to determine whether or not to require deletes to have the"
+                                    + " entire row or is a delete by key sufficient.");
+
     private static final ConfigOption<Integer> SOURCE_NUM_ELEMENT_TO_SKIP =
             ConfigOptions.key("source.num-element-to-skip")
                     .intType()
@@ -504,7 +520,10 @@ public final class TestValuesTableFactory
 
         helper.validate();
 
-        ChangelogMode changelogMode = parseChangelogMode(helper.getOptions().get(CHANGELOG_MODE));
+        ChangelogMode changelogMode =
+                parseChangelogMode(
+                        helper.getOptions().get(CHANGELOG_MODE),
+                        helper.getOptions().get(SOURCE_PRODUCES_DELETE_BY_KEY));
         String runtimeSource = helper.getOptions().get(RUNTIME_SOURCE);
         boolean isBounded = helper.getOptions().get(BOUNDED);
         boolean isFinite = helper.getOptions().get(TERMINATING);
@@ -749,6 +768,7 @@ public final class TestValuesTableFactory
                 TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
 
         boolean requireBucketCount = helper.getOptions().get(SINK_BUCKET_COUNT_REQUIRED);
+        boolean supportsDeleteByKey = helper.getOptions().get(SINK_SUPPORTS_DELETE_BY_KEY);
         if (sinkClass.equals("DEFAULT")) {
             int rowTimeIndex =
                     validateAndExtractRowtimeIndex(
@@ -765,7 +785,8 @@ public final class TestValuesTableFactory
                     changelogMode,
                     rowTimeIndex,
                     tableSchema,
-                    requireBucketCount);
+                    requireBucketCount,
+                    supportsDeleteByKey);
         } else {
             try {
                 return InstantiationUtil.instantiate(
@@ -816,6 +837,8 @@ public final class TestValuesTableFactory
                         ENABLE_WATERMARK_PUSH_DOWN,
                         SINK_DROP_LATE_EVENT,
                         SINK_BUCKET_COUNT_REQUIRED,
+                        SINK_SUPPORTS_DELETE_BY_KEY,
+                        SOURCE_PRODUCES_DELETE_BY_KEY,
                         SOURCE_NUM_ELEMENT_TO_SKIP,
                         SOURCE_SLEEP_AFTER_ELEMENTS,
                         SOURCE_SLEEP_TIME,
@@ -916,6 +939,10 @@ public final class TestValuesTableFactory
     }
 
     private ChangelogMode parseChangelogMode(String string) {
+        return parseChangelogMode(string, false);
+    }
+
+    private ChangelogMode parseChangelogMode(String string, boolean producesDeleteByKey) {
         ChangelogMode.Builder builder = ChangelogMode.newBuilder();
         for (String split : string.split(",")) {
             switch (split.trim()) {
@@ -935,6 +962,7 @@ public final class TestValuesTableFactory
                     throw new IllegalArgumentException("Invalid ChangelogMode string: " + string);
             }
         }
+        builder.keyOnlyDeletes(producesDeleteByKey);
         return builder.build();
     }
 
@@ -1621,7 +1649,7 @@ public final class TestValuesTableFactory
             implements SupportsWatermarkPushDown, SupportsSourceWatermark {
         private final String tableName;
 
-        private WatermarkStrategy<RowData> watermarkStrategy;
+        private WatermarkStrategy<RowData> watermarkStrategy = WatermarkStrategy.noWatermarks();
 
         private TestValuesScanTableSourceWithWatermarkPushDown(
                 DataType producedDataType,
@@ -2207,6 +2235,7 @@ public final class TestValuesTableFactory
         private final int rowtimeIndex;
         private final TableSchema tableSchema;
         private final boolean requireBucketCount;
+        private final boolean supportsDeleteByKey;
 
         private TestValuesTableSink(
                 DataType consumedDataType,
@@ -2220,7 +2249,8 @@ public final class TestValuesTableFactory
                 @Nullable ChangelogMode changelogModeEnforced,
                 int rowtimeIndex,
                 TableSchema tableSchema,
-                boolean requireBucketCount) {
+                boolean requireBucketCount,
+                boolean supportsDeleteByKey) {
             this.consumedDataType = consumedDataType;
             this.primaryKeyIndices = primaryKeyIndices;
             this.tableName = tableName;
@@ -2233,10 +2263,19 @@ public final class TestValuesTableFactory
             this.rowtimeIndex = rowtimeIndex;
             this.tableSchema = tableSchema;
             this.requireBucketCount = requireBucketCount;
+            this.supportsDeleteByKey = supportsDeleteByKey;
         }
 
         @Override
         public ChangelogMode getChangelogMode(ChangelogMode requestedMode) {
+            final ChangelogMode mode = getMode(requestedMode);
+            final ChangelogMode.Builder builder = ChangelogMode.newBuilder();
+            mode.getContainedKinds().forEach(builder::addContainedKind);
+            builder.keyOnlyDeletes(supportsDeleteByKey);
+            return builder.build();
+        }
+
+        private ChangelogMode getMode(ChangelogMode requestedMode) {
             // if param [changelogModeEnforced] is passed in, return it directly
             if (changelogModeEnforced != null) {
                 return changelogModeEnforced;
@@ -2376,7 +2415,8 @@ public final class TestValuesTableFactory
                     changelogModeEnforced,
                     rowtimeIndex,
                     tableSchema,
-                    requireBucketCount);
+                    requireBucketCount,
+                    supportsDeleteByKey);
         }
 
         @Override

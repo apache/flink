@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.deduplicate.utils;
 
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.generated.FilterCondition;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
@@ -152,6 +153,73 @@ public class DeduplicateFunctionHelper {
         }
     }
 
+    public static void processLastRowOnChangelogWithFilter(
+            RowData currentRow,
+            boolean generateUpdateBefore,
+            ValueState<RowData> state,
+            Collector<RowData> out,
+            boolean isStateTtlEnabled,
+            RecordEqualiser equaliser,
+            FilterCondition filterCondition)
+            throws Exception {
+        RowData preRow = state.value();
+        RowKind currentKind = currentRow.getRowKind();
+        if (currentKind == RowKind.INSERT || currentKind == RowKind.UPDATE_AFTER) {
+            if (preRow == null) {
+                if (filterCondition.apply(currentRow)) {
+                    // the first row, send INSERT message
+                    currentRow.setRowKind(RowKind.INSERT);
+                    out.collect(currentRow);
+                } else {
+                    // return, do not update the state
+                    return;
+                }
+            } else {
+                if (!isStateTtlEnabled && equaliser.equals(preRow, currentRow)) {
+                    // currentRow is the same as preRow and state cleaning is not enabled.
+                    // We do not emit retraction and update message.
+                    // If state cleaning is enabled, we have to emit messages to prevent too early
+                    // state eviction of downstream operators.
+                    return;
+                } else {
+                    if (filterCondition.apply(currentRow)) {
+                        if (generateUpdateBefore) {
+                            preRow.setRowKind(RowKind.UPDATE_BEFORE);
+                            out.collect(preRow);
+                        }
+                        currentRow.setRowKind(RowKind.UPDATE_AFTER);
+                        out.collect(currentRow);
+                    } else {
+                        // generate retraction, because the row does not match any longer
+                        preRow.setRowKind(RowKind.DELETE);
+                        out.collect(preRow);
+                        // clear the state, there is no row we will need to retract
+                        state.clear();
+                        return;
+                    }
+                }
+            }
+            // normalize row kind
+            currentRow.setRowKind(RowKind.INSERT);
+            // save to state
+            state.update(currentRow);
+        } else {
+            // DELETE or UPDATER_BEFORE
+            if (preRow != null) {
+                // always set to DELETE because this row has been removed
+                // even the input is UPDATE_BEFORE, there may no UPDATE_AFTER after it.
+                preRow.setRowKind(RowKind.DELETE);
+                // output the preRow instead of currentRow,
+                // because preRow always contains the full content.
+                // currentRow may only contain key parts (e.g. Kafka tombstone records).
+                out.collect(preRow);
+                // clear state as the row has been removed
+                state.clear();
+            }
+            // nothing to do if removing a non-existed row
+        }
+    }
+
     /**
      * Processes element to deduplicate on keys with process time semantic, sends current element if
      * it is first row.
@@ -211,8 +279,8 @@ public class DeduplicateFunctionHelper {
         }
     }
 
-    /** Returns current row is duplicate row or not compared to previous row. */
-    public static boolean isDuplicate(
+    /** Returns true if currentRow should be kept. */
+    public static boolean shouldKeepCurrentRow(
             RowData preRow, RowData currentRow, int rowtimeIndex, boolean keepLastRow) {
         if (keepLastRow) {
             return preRow == null

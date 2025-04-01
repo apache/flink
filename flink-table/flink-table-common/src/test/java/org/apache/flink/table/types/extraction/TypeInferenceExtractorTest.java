@@ -667,7 +667,7 @@ class TypeInferenceExtractorTest {
                                 StaticArgument.table(
                                         "rowTable",
                                         Row.class,
-                                        true,
+                                        false,
                                         EnumSet.of(StaticArgumentTrait.TABLE_AS_ROW)))
                         .expectStaticArgument(StaticArgument.scalar("s", DataTypes.STRING(), true))
                         .expectState("s1", TypeStrategies.explicit(MyFirstState.TYPE))
@@ -693,7 +693,7 @@ class TypeInferenceExtractorTest {
                                 StaticArgument.table(
                                         "rowTable",
                                         Row.class,
-                                        true,
+                                        false,
                                         EnumSet.of(StaticArgumentTrait.TABLE_AS_ROW)))
                         .expectStaticArgument(StaticArgument.scalar("s", DataTypes.STRING(), true))
                         .expectState("s1", TypeStrategies.explicit(MyFirstState.TYPE))
@@ -2328,8 +2328,7 @@ class TypeInferenceExtractorTest {
                 @ArgumentHint(name = "i") Integer i,
                 @ArgumentHint(
                                 value = {ArgumentTrait.TABLE_AS_ROW},
-                                name = "rowTable",
-                                isOptional = true)
+                                name = "rowTable")
                         Row t2,
                 @ArgumentHint(isOptional = true, name = "s") String s) {}
     }
@@ -2347,8 +2346,7 @@ class TypeInferenceExtractorTest {
                 @ArgumentHint(name = "i", type = @DataTypeHint("INT")),
                 @ArgumentHint(
                         name = "rowTable",
-                        value = {ArgumentTrait.TABLE_AS_ROW},
-                        isOptional = true),
+                        value = {ArgumentTrait.TABLE_AS_ROW}),
                 @ArgumentHint(name = "s", isOptional = true, type = @DataTypeHint("STRING"))
             },
             output = @DataTypeHint("ROW<b BOOLEAN>"))

@@ -53,9 +53,9 @@ public class FileMappingManagerTest {
     private MappingEntry registerFile(FileMappingManager manager, Path filePath) {
         if (reuseCp) {
             return manager.registerReusedRestoredFile(
-                    filePath.toString(), new FileStateHandle(filePath, 0), filePath);
+                    filePath.toString(), new FileStateHandle(filePath, 0), filePath, null);
         } else {
-            return manager.createNewFile(filePath);
+            return manager.createNewFile(filePath, false, null);
         }
     }
 
@@ -160,8 +160,9 @@ public class FileMappingManagerTest {
 
         // delete dst
         fileMappingManager.deleteFileOrDirectory(new Path(dst), false);
-        assertThat(localFS.exists(new Path(src))).isFalse();
-        assertThat(localFS.exists(new Path(testDir))).isFalse();
+        // TODO FLINK-37442: properly clear directory
+        assertThat(localFS.exists(new Path(src))).isTrue();
+        assertThat(localFS.exists(new Path(testDir))).isTrue();
     }
 
     @TestTemplate
@@ -191,7 +192,7 @@ public class FileMappingManagerTest {
         // delete src
         assertThat(fileMappingManager.deleteFileOrDirectory(new Path(src), false)).isEqualTo(true);
         assertThat(localFS.exists(new Path(testDir))).isTrue();
-        assertThat(localFS.exists(new Path(linkedDirTmp))).isFalse();
+        assertThat(localFS.exists(new Path(linkedDirTmp))).isTrue();
         assertThat(localFS.exists(new Path(linkedDir))).isTrue();
         assertThat(localFS.exists(new Path(src))).isTrue();
 
@@ -204,16 +205,17 @@ public class FileMappingManagerTest {
         // delete linkedSrc
         assertThat(fileMappingManager.deleteFileOrDirectory(new Path(linkedSrc), false))
                 .isEqualTo(true);
-        assertThat(localFS.exists(new Path(src))).isFalse();
-        assertThat(localFS.exists(new Path(testDir))).isFalse();
+        // file from cp cannot be deleted
+        assertThat(localFS.exists(new Path(src))).isTrue();
+        assertThat(localFS.exists(new Path(testDir))).isTrue();
 
         // delete linkedDir
         assertThat(fileMappingManager.deleteFileOrDirectory(new Path(linkedDir), true))
                 .isEqualTo(true);
-        assertThat(localFS.exists(new Path(testDir))).isFalse();
-        assertThat(localFS.exists(new Path(linkedDirTmp))).isFalse();
-        assertThat(localFS.exists(new Path(linkedDir))).isFalse();
-        assertThat(localFS.exists(new Path(src))).isFalse();
+        assertThat(localFS.exists(new Path(testDir))).isTrue();
+        assertThat(localFS.exists(new Path(linkedDirTmp))).isTrue();
+        assertThat(localFS.exists(new Path(linkedDir))).isTrue();
+        assertThat(localFS.exists(new Path(src))).isTrue();
     }
 
     @TestTemplate
@@ -267,8 +269,8 @@ public class FileMappingManagerTest {
         // delete linkedSrc
         assertThat(fileMappingManager.deleteFileOrDirectory(new Path(linkedSrc), false))
                 .isEqualTo(true);
-        assertThat(localFS.exists(new Path(src))).isFalse();
-        assertThat(localFS.exists(new Path(testDir))).isFalse();
+        assertThat(localFS.exists(new Path(src))).isTrue();
+        assertThat(localFS.exists(new Path(testDir))).isTrue();
         assertThat(localFS.exists(new Path(linkedDir))).isTrue();
         assertThat(localFS.exists(new Path(linkedDirTmp))).isTrue();
 
@@ -281,13 +283,13 @@ public class FileMappingManagerTest {
         if (reuseCp) {
             assertThat(localFS.exists(new Path(linkedDirTmp))).isTrue();
         } else {
-            assertThat(localFS.exists(new Path(linkedDirTmp))).isFalse();
+            assertThat(localFS.exists(new Path(linkedDirTmp))).isTrue();
         }
-        assertThat(localFS.exists(new Path(testDir))).isFalse();
+        assertThat(localFS.exists(new Path(testDir))).isTrue();
 
         // delete linkedDir
         assertThat(fileMappingManager.deleteFileOrDirectory(new Path(linkedDir), true))
                 .isEqualTo(true);
-        assertThat(localFS.exists(new Path(testDir))).isFalse();
+        assertThat(localFS.exists(new Path(testDir))).isTrue();
     }
 }

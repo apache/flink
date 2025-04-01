@@ -43,5 +43,6 @@ public interface OneInputEventTimeStreamProcessFunction<IN, OUT>
      * Invoked when an event-time timer fires. Note that it is only used in {@link
      * KeyedPartitionStream}.
      */
-    default void onEventTimer(long timestamp, Collector<OUT> output, PartitionedContext<OUT> ctx) {}
+    default void onEventTimer(long timestamp, Collector<OUT> output, PartitionedContext<OUT> ctx)
+            throws Exception {}
 }

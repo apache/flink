@@ -33,6 +33,7 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.ModelAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.ModelNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
@@ -1440,6 +1441,29 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
     }
 
     /**
+     * Returns an array of names of temporary models registered in the namespace of the current
+     * catalog and database.
+     *
+     * @return names of registered temporary models
+     */
+    public Set<String> listTemporaryModels() {
+        return listTemporaryModelsInternal(getCurrentCatalog(), getCurrentDatabase())
+                .map(e -> e.getKey().getObjectName())
+                .collect(Collectors.toSet());
+    }
+
+    private Stream<Map.Entry<ObjectIdentifier, CatalogModel>> listTemporaryModelsInternal(
+            String catalogName, String databaseName) {
+        return temporaryModels.entrySet().stream()
+                .filter(
+                        e -> {
+                            ObjectIdentifier identifier = e.getKey();
+                            return identifier.getCatalogName().equals(catalogName)
+                                    && identifier.getDatabaseName().equals(databaseName);
+                        });
+    }
+
+    /**
      * Creates a model in a given fully qualified path.
      *
      * @param model The resolved model to put in the given path.
@@ -1555,11 +1579,11 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      * @param ignoreIfNotExists If false exception will be thrown if the model to drop does not
      *     exist.
      */
-    public void dropModel(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
-        execute(
-                (catalog, path) -> {
-                    Optional<ContextResolvedModel> resultOpt = getModel(objectIdentifier);
-                    if (resultOpt.isPresent()) {
+    public boolean dropModel(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+        Optional<ContextResolvedModel> resultOpt = getModel(objectIdentifier);
+        if (resultOpt.isPresent()) {
+            execute(
+                    (catalog, path) -> {
                         ResolvedCatalogModel resolvedModel = resultOpt.get().getResolvedModel();
                         catalog.dropModel(path, ignoreIfNotExists);
                         catalogModificationListeners.forEach(
@@ -1573,14 +1597,18 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                                                         resolvedModel,
                                                         ignoreIfNotExists,
                                                         false)));
-                    } else if (!ignoreIfNotExists) {
-                        throw new ModelNotExistException(
-                                objectIdentifier.getCatalogName(), objectIdentifier.toObjectPath());
-                    }
-                },
-                objectIdentifier,
-                ignoreIfNotExists,
-                "DropModel");
+                    },
+                    objectIdentifier,
+                    ignoreIfNotExists,
+                    "DropModel");
+            return true;
+        } else if (!ignoreIfNotExists) {
+            throw new ValidationException(
+                    String.format(
+                            "Model with identifier '%s' does not exist.",
+                            objectIdentifier.asSummaryString()));
+        }
+        return false;
     }
 
     /**
@@ -1647,6 +1675,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                 command.execute(catalog.get(), objectIdentifier.toObjectPath());
             } catch (TableAlreadyExistException
                     | TableNotExistException
+                    | ModelNotExistException
+                    | ModelAlreadyExistException
                     | DatabaseNotExistException e) {
                 throw new ValidationException(getErrorMessage(objectIdentifier, commandName), e);
             } catch (Exception e) {

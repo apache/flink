@@ -566,7 +566,7 @@ related options. Here's an overview of all the Python related options for the ac
             <td><code class="highlighter-rouge">-pyclientexec,--pyClientExecutable</code></td>
             <td>
                 The path of the Python interpreter used to launch the Python process when submitting
-                the Python jobs via \"flink run\" or compiling the Java/Scala jobs containing
+                the Python jobs via \"flink run\" or compiling the Java jobs containing
                 Python UDFs.
                 (e.g., --pyArchives file:///tmp/py37.zip --pyClientExecutable py37.zip/py37/python)
             </td>

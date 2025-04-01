@@ -25,7 +25,9 @@ import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.DescriptorFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyArgFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RequiredTimeFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarArgsFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsRowFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsRowPassThroughFunction;
@@ -75,6 +77,10 @@ public class ProcessTableFunctionTest extends TableTestBase {
                 .executeSql("CREATE VIEW t_type_diff AS SELECT 'Bob' AS name, TRUE AS isValid");
         util.tableEnv()
                 .executeSql("CREATE VIEW t_updating AS SELECT name, COUNT(*) FROM t GROUP BY name");
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE t_watermarked (name STRING, score INT, ts TIMESTAMP_LTZ(3), WATERMARK FOR ts AS ts) "
+                                + "WITH ('connector' = 'datagen')");
         util.tableEnv()
                 .executeSql("CREATE TABLE t_sink (`out` STRING) WITH ('connector' = 'blackhole')");
         util.tableEnv()
@@ -132,6 +138,23 @@ public class ProcessTableFunctionTest extends TableTestBase {
     void testTableAsRowPassThroughColumns() {
         util.addTemporarySystemFunction("f", TableAsRowPassThroughFunction.class);
         util.verifyRelPlan("SELECT * FROM f(r => TABLE t, i => 1)");
+    }
+
+    @Test
+    void testDescriptors() {
+        util.addTemporarySystemFunction("f", DescriptorFunction.class);
+        util.verifyRelPlan(
+                "SELECT * FROM f("
+                        + "columnList1 => DESCRIPTOR(a), "
+                        + "columnList2 => DESCRIPTOR(b, c), "
+                        + "columnList3 => DESCRIPTOR())");
+    }
+
+    @Test
+    void testOnTime() {
+        util.addTemporarySystemFunction("f", RequiredTimeFunction.class);
+        util.verifyRelPlan(
+                "SELECT `out`, `rowtime` FROM f(r => TABLE t_watermarked, on_time => DESCRIPTOR(ts))");
     }
 
     @Test
@@ -221,7 +244,7 @@ public class ProcessTableFunctionTest extends TableTestBase {
                         // function expects <STRING name, INT score>
                         "SELECT * FROM f(u => TABLE t_type_diff, i => 1)",
                         "No match found for function signature "
-                                + "f(<RecordType(CHAR(3) name, BOOLEAN isValid)>, <NUMERIC>, <CHARACTER>)"),
+                                + "f(<RecordType(CHAR(3) name, BOOLEAN isValid)>, <NUMERIC>, <COLUMN_LIST>, <CHARACTER>)"),
                 ErrorSpec.of(
                         "table as set with missing partition by",
                         TableAsSetFunction.class,
@@ -233,7 +256,7 @@ public class ProcessTableFunctionTest extends TableTestBase {
                         // function expects <STRING name, INT score>
                         "SELECT * FROM f(u => TABLE t_type_diff PARTITION BY name, i => 1)",
                         "No match found for function signature "
-                                + "f(<RecordType(CHAR(3) name, BOOLEAN isValid)>, <NUMERIC>, <CHARACTER>)"),
+                                + "f(<RecordType(CHAR(3) name, BOOLEAN isValid)>, <NUMERIC>, <COLUMN_LIST>, <CHARACTER>)"),
                 ErrorSpec.of(
                         "table function instead of process table function",
                         NoProcessTableFunction.class,
@@ -244,7 +267,7 @@ public class ProcessTableFunctionTest extends TableTestBase {
                         "reserved args",
                         ReservedArgFunction.class,
                         "SELECT * FROM f(uid => 'my-ptf')",
-                        "Function signature must not declare system arguments. Reserved argument names are: [uid]"),
+                        "Function signature must not declare system arguments. Reserved argument names are: [on_time, uid]"),
                 ErrorSpec.of(
                         "multiple table args",
                         MultiTableFunction.class,
@@ -292,7 +315,39 @@ public class ProcessTableFunctionTest extends TableTestBase {
                         "no updates and pass through",
                         UpdatingPassThrough.class,
                         "SELECT * FROM f(r => TABLE t PARTITION BY name)",
-                        "Signatures with updating inputs must not pass columns through."));
+                        "Signatures with updating inputs must not pass columns through."),
+                ErrorSpec.of(
+                        "invalid descriptor",
+                        DescriptorFunction.class,
+                        "SELECT * FROM f(columnList1 => NULL, columnList3 => DESCRIPTOR(b.INVALID))",
+                        "column alias must be a simple identifier"),
+                ErrorSpec.of(
+                        "ambiguous on_time reference",
+                        TableAsRowFunction.class,
+                        "WITH duplicate_ts AS (SELECT ts AS ts1, ts AS ts2 FROM t_watermarked) "
+                                + "SELECT * FROM f(r => TABLE duplicate_ts, i => 1, on_time => DESCRIPTOR(ts1, ts2))",
+                        "Ambiguous time attribute found. The `on_time` argument must reference at "
+                                + "most one column in a table argument. Currently, the columns in "
+                                + "`on_time` point to both 'ts1' and 'ts2' in table argument 'r'."),
+                ErrorSpec.of(
+                        "invalid on_time data type",
+                        RequiredTimeFunction.class,
+                        "SELECT * FROM f(r => TABLE t_watermarked)",
+                        "Table argument 'r' requires a time attribute. "
+                                + "Please provide one using the implicit `on_time` argument. "
+                                + "For example: myFunction(..., on_time => DESCRIPTOR(`my_timestamp`)"),
+                ErrorSpec.of(
+                        "invalid on_time column",
+                        TableAsRowFunction.class,
+                        "SELECT * FROM f(r => TABLE t_watermarked, i => 1, on_time => DESCRIPTOR(ts, INVALID))",
+                        "Invalid time attribute declaration. Each column in the `on_time` argument must "
+                                + "reference at least one column in one of the table arguments. "
+                                + "Unknown references: [INVALID]"),
+                ErrorSpec.of(
+                        "invalid optional table argument",
+                        OptionalUntypedTable.class,
+                        "SELECT * FROM f()",
+                        "Untyped table arguments must not be optional."));
     }
 
     /** Testing function. */
@@ -340,6 +395,12 @@ public class ProcessTableFunctionTest extends TableTestBase {
         @SuppressWarnings("unused")
         public void eval(
                 @ArgumentHint({TABLE_AS_SET, SUPPORT_UPDATES, PASS_COLUMNS_THROUGH}) Row r) {}
+    }
+
+    /** Testing function. */
+    public static class OptionalUntypedTable extends ProcessTableFunction<String> {
+        @SuppressWarnings("unused")
+        public void eval(@ArgumentHint(value = TABLE_AS_ROW, isOptional = true) Row r) {}
     }
 
     private static class ErrorSpec {

@@ -91,24 +91,25 @@ public class EventTimeWrappedTwoInputNonBroadcastStreamProcessFunction<IN1, IN2,
     }
 
     @Override
-    public void endFirstInput(NonPartitionedContext<OUT> ctx) {
+    public void endFirstInput(NonPartitionedContext<OUT> ctx) throws Exception {
         wrappedUserFunction.endFirstInput(ctx);
     }
 
     @Override
-    public void endSecondInput(NonPartitionedContext<OUT> ctx) {
+    public void endSecondInput(NonPartitionedContext<OUT> ctx) throws Exception {
         wrappedUserFunction.endSecondInput(ctx);
     }
 
     @Override
     public void onProcessingTimer(
-            long timestamp, Collector<OUT> output, PartitionedContext<OUT> ctx) {
+            long timestamp, Collector<OUT> output, PartitionedContext<OUT> ctx) throws Exception {
         wrappedUserFunction.onProcessingTimer(timestamp, output, ctx);
     }
 
     @Override
     public WatermarkHandlingResult onWatermarkFromFirstInput(
-            Watermark watermark, Collector<OUT> output, NonPartitionedContext<OUT> ctx) {
+            Watermark watermark, Collector<OUT> output, NonPartitionedContext<OUT> ctx)
+            throws Exception {
         if (EventTimeExtensionImpl.isEventTimeExtensionWatermark(watermark)) {
             // If the watermark is from the event time extension, process it and call {@code
             // userFunction#onEventTimeWatermark} when the event time is updated; otherwise, forward
@@ -132,7 +133,8 @@ public class EventTimeWrappedTwoInputNonBroadcastStreamProcessFunction<IN1, IN2,
 
     @Override
     public WatermarkHandlingResult onWatermarkFromSecondInput(
-            Watermark watermark, Collector<OUT> output, NonPartitionedContext<OUT> ctx) {
+            Watermark watermark, Collector<OUT> output, NonPartitionedContext<OUT> ctx)
+            throws Exception {
         if (EventTimeExtensionImpl.isEventTimeExtensionWatermark(watermark)) {
             // If the watermark is from the event time extension, process it and call {@code
             // userFunction#onEventTimeWatermark} when the event time is updated; otherwise, forward
@@ -154,7 +156,8 @@ public class EventTimeWrappedTwoInputNonBroadcastStreamProcessFunction<IN1, IN2,
         }
     }
 
-    public void onEventTime(long timestamp, Collector<OUT> output, PartitionedContext<OUT> ctx) {
+    public void onEventTime(long timestamp, Collector<OUT> output, PartitionedContext<OUT> ctx)
+            throws Exception {
         wrappedUserFunction.onEventTimer(timestamp, output, ctx);
     }
 

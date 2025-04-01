@@ -61,6 +61,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.query.KvStateRegistry;
@@ -82,7 +83,7 @@ import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.StateMigrationException;
 
-import org.apache.flink.shaded.guava32.com.google.common.base.Joiner;
+import org.apache.flink.shaded.guava33.com.google.common.base.Joiner;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
@@ -125,11 +126,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 import static org.assertj.core.api.Assumptions.assumeThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
 /**
  * Tests for the {@link KeyedStateBackend} and {@link OperatorStateBackend} as produced by various
@@ -4542,7 +4538,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         try {
             KeyGroupRange expectedKeyGroupRange = backend.getKeyGroupRange();
 
-            KvStateRegistryListener listener = mock(KvStateRegistryListener.class);
+            final TestingKvStateRegistryListener listener = new TestingKvStateRegistryListener();
             registry.registerListener(HighAvailabilityServices.DEFAULT_JOB_ID, listener);
 
             ValueStateDescriptor<Integer> desc =
@@ -4553,13 +4549,13 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                     VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, desc);
 
             // Verify registered
-            verify(listener, times(1))
-                    .notifyKvStateRegistered(
-                            eq(env.getJobID()),
-                            eq(env.getJobVertexId()),
-                            eq(expectedKeyGroupRange),
-                            eq("banana"),
-                            any(KvStateID.class));
+            assertThat(
+                            listener.isRegistered(
+                                    env.getJobID(),
+                                    env.getJobVertexId(),
+                                    expectedKeyGroupRange,
+                                    "banana"))
+                    .isTrue();
 
             KeyedStateHandle snapshot =
                     runSnapshot(
@@ -4572,13 +4568,15 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
             backend.dispose();
 
-            verify(listener, times(1))
-                    .notifyKvStateUnregistered(
-                            eq(env.getJobID()),
-                            eq(env.getJobVertexId()),
-                            eq(expectedKeyGroupRange),
-                            eq("banana"));
+            assertThat(
+                            listener.isRegistered(
+                                    env.getJobID(),
+                                    env.getJobVertexId(),
+                                    expectedKeyGroupRange,
+                                    "banana"))
+                    .isFalse();
             backend.dispose();
+
             // Initialize again
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
             if (snapshot != null) {
@@ -4589,13 +4587,13 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                     VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, desc);
 
             // Verify registered again
-            verify(listener, times(2))
-                    .notifyKvStateRegistered(
-                            eq(env.getJobID()),
-                            eq(env.getJobVertexId()),
-                            eq(expectedKeyGroupRange),
-                            eq("banana"),
-                            any(KvStateID.class));
+            assertThat(
+                            listener.isRegistered(
+                                    env.getJobID(),
+                                    env.getJobVertexId(),
+                                    expectedKeyGroupRange,
+                                    "banana"))
+                    .isTrue();
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -5694,6 +5692,50 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
     public static final class MutableLong {
         long value;
+    }
+
+    private static class TestingKvStateRegistryListener implements KvStateRegistryListener {
+
+        private final Map<String, KvStateID> registeredStates = new HashMap<>();
+
+        private String createKey(
+                JobID jobId,
+                JobVertexID jobVertexId,
+                KeyGroupRange keyGroupRange,
+                String registrationName) {
+            return String.format(
+                    "%s-%s-%s-%s",
+                    jobId, jobVertexId, keyGroupRange.prettyPrintInterval(), registrationName);
+        }
+
+        private boolean isRegistered(
+                JobID jobId,
+                JobVertexID jobVertexId,
+                KeyGroupRange keyGroupRange,
+                String registrationName) {
+            return registeredStates.containsKey(
+                    createKey(jobId, jobVertexId, keyGroupRange, registrationName));
+        }
+
+        @Override
+        public void notifyKvStateRegistered(
+                JobID jobId,
+                JobVertexID jobVertexId,
+                KeyGroupRange keyGroupRange,
+                String registrationName,
+                KvStateID kvStateId) {
+            registeredStates.put(
+                    createKey(jobId, jobVertexId, keyGroupRange, registrationName), kvStateId);
+        }
+
+        @Override
+        public void notifyKvStateUnregistered(
+                JobID jobId,
+                JobVertexID jobVertexId,
+                KeyGroupRange keyGroupRange,
+                String registrationName) {
+            registeredStates.remove(createKey(jobId, jobVertexId, keyGroupRange, registrationName));
+        }
     }
 
     private MockEnvironment buildMockEnv() throws Exception {

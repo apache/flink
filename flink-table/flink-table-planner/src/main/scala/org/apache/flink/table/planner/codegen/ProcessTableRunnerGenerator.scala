@@ -23,7 +23,7 @@ import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.conversion.RowRowConverter
 import org.apache.flink.table.functions.{FunctionDefinition, ProcessTableFunction, UserDefinedFunction, UserDefinedFunctionHelper}
-import org.apache.flink.table.functions.UserDefinedFunctionHelper.{validateClassForRuntime, PROCESS_TABLE_EVAL}
+import org.apache.flink.table.functions.UserDefinedFunctionHelper.{validateClassForRuntime, PROCESS_TABLE_EVAL, PROCESS_TABLE_ON_TIMER}
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexTableArgCall}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
@@ -33,6 +33,7 @@ import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.{ver
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext
+import org.apache.flink.table.planner.plan.utils.RexLiteralUtil
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.generated.{GeneratedProcessTableRunner, ProcessTableRunner}
 import org.apache.flink.table.types.DataType
@@ -42,7 +43,8 @@ import org.apache.flink.table.types.inference.TypeInferenceUtil.StateInfo
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.types.Row
 
-import org.apache.calcite.rex.{RexCall, RexCallBinding, RexNode}
+import org.apache.calcite.rex.{RexCall, RexCallBinding, RexLiteral, RexNode, RexUtil}
+import org.apache.calcite.sql.SqlKind
 
 import java.util
 import java.util.Collections
@@ -59,6 +61,7 @@ object ProcessTableRunnerGenerator {
   def generate(
       ctx: CodeGeneratorContext,
       invocation: RexCall,
+      inputTimeColumns: java.util.List[Integer],
       inputChangelogModes: java.util.List[ChangelogMode]): GeneratedRunnerResult = {
     val function: BridgingSqlFunction = invocation.getOperator.asInstanceOf[BridgingSqlFunction]
     val definition: FunctionDefinition = function.getDefinition
@@ -81,6 +84,7 @@ object ProcessTableRunnerGenerator {
       definition,
       RexCallBinding.create(typeFactory, call, Collections.emptyList()),
       call.getType,
+      inputTimeColumns,
       inputChangelogModes)
 
     // Create the final UDF for runtime
@@ -92,26 +96,26 @@ object ProcessTableRunnerGenerator {
       ctx.tableConfig,
       new DefaultExpressionEvaluatorFactory(ctx.tableConfig, ctx.classLoader, rexFactory)
     )
+    val functionTerm = ctx.addReusableFunction(udf)
     val inference = udf.getTypeInference(dataTypeFactory)
+    val castCallContext = TypeInferenceUtil.castArguments(inference, callContext, null)
 
     // Enrich argument types with conversion class
-    val adaptedCallContext = TypeInferenceUtil.adaptArguments(inference, callContext, null)
-    val enrichedArgumentDataTypes = toScala(adaptedCallContext.getArgumentDataTypes)
+    val enrichedArgumentDataTypes = toScala(castCallContext.getArgumentDataTypes)
 
     // Enrich output types with conversion class
     val enrichedOutputDataType =
-      TypeInferenceUtil.inferOutputType(adaptedCallContext, inference.getOutputTypeStrategy)
+      TypeInferenceUtil.inferOutputType(castCallContext, inference.getOutputTypeStrategy)
     verifyFunctionAwareOutputType(returnType, enrichedOutputDataType, udf)
 
     // Derive state type with conversion class.
     // This happens after specialization such that the state entries can be highly
     // specialized to the call.
     val stateInfos =
-      TypeInferenceUtil.inferStateInfos(adaptedCallContext, inference.getStateTypeStrategies)
+      TypeInferenceUtil.inferStateInfos(castCallContext, inference.getStateTypeStrategies)
     val stateDataTypes = stateInfos.asScala.values.map(_.getDataType).toSeq
     stateDataTypes.foreach(ExtractionUtils.checkStateDataType)
 
-    // Generate operands (state + args)
     val stateToFunctionTerm = "stateToFunction"
     val stateClearedTerm = "stateCleared"
     val stateFromFunctionTerm = "stateFromFunction"
@@ -122,40 +126,35 @@ object ProcessTableRunnerGenerator {
       externalStateOperands,
       stateClearedTerm,
       stateFromFunctionTerm)
-    val tablesTerm = "tables"
-    val callOperands = generateCallOperands(ctx, call, tablesTerm)
-    val externalCallOperands =
-      BridgingFunctionGenUtil.prepareExternalOperands(ctx, callOperands, enrichedArgumentDataTypes)
-    val allExternalOperands = externalStateOperands ++ externalCallOperands
-    val allDataTypes = stateDataTypes ++ enrichedArgumentDataTypes
 
-    // Find and verify suitable runtime method
+    // Generate result collector
+    val resultCollectorTerm =
+      BridgingFunctionGenUtil.generateResultCollector(ctx, enrichedOutputDataType, returnType)
+    val setCollectorCode = s"$functionTerm.setCollector($resultCollectorTerm);"
+    ctx.addReusableOpenStatement(setCollectorCode)
 
-    val withContext = verifyEvalImplementation(allDataTypes, udf, functionName)
-    val contextTerm = if (withContext) {
-      Some("runnerContext")
-    } else {
-      None
-    }
-
-    // Generate function call with operands (table/scalar arguments and state)
-    val functionTerm = ctx.addReusableFunction(udf)
-    val functionCall = BridgingFunctionGenUtil.generateTableFunctionCall(
+    // Generate call to eval()
+    val evalCallCode = generateEvalCode(
       ctx,
+      call,
+      enrichedArgumentDataTypes,
+      externalStateOperands,
+      stateDataTypes,
+      udf,
+      functionName,
       functionTerm,
-      allExternalOperands,
-      enrichedOutputDataType,
-      returnType,
-      skipIfArgsNull = false,
-      contextTerm)
+      resultCollectorTerm,
+      stateFromFunctionCode)
 
-    // Generate setting result collector
-    val resultCollectorTerm = functionCall.resultTerm
-    val setCollectors =
-      s"""
-         |$resultCollectorTerm.setCollector(runnerCollector);
-         |""".stripMargin
-    ctx.addReusableOpenStatement(setCollectors)
+    // Generate call to onTimer()
+    val onTimerCallCode = generateOnTimerCode(
+      externalStateOperands,
+      stateDataTypes,
+      udf,
+      functionName,
+      functionTerm,
+      resultCollectorTerm,
+      stateFromFunctionCode)
 
     // Generate runner
     val name = newName(ctx, "ProcessTableRunner")
@@ -163,8 +162,6 @@ object ProcessTableRunnerGenerator {
       j"""
       public final class $name
           extends ${className[ProcessTableRunner]} {
-
-        private transient $ROW_DATA[] $tablesTerm;
 
         ${ctx.reuseMemberCode()}
 
@@ -175,23 +172,19 @@ object ProcessTableRunnerGenerator {
         @Override
         public void open(${className[OpenContext]} openContext) throws Exception {
           ${ctx.reuseOpenCode()}
-          $tablesTerm = new $ROW_DATA[${inputChangelogModes.size()}];
         }
 
         @Override
-        public void processElement(
-            $ROW_DATA[] $stateToFunctionTerm,
-            boolean[] $stateClearedTerm,
-            $ROW_DATA[] $stateFromFunctionTerm,
-            int inputIndex,
-            $ROW_DATA row) throws Exception {
-          ${className[util.Arrays]}.fill($tablesTerm, null);
-          $tablesTerm[inputIndex] = row;
-          ${ctx.reusePerRecordCode()}
+        public void callEval() throws Exception {
           ${ctx.reuseLocalVariableCode()}
-          ${ctx.reuseInputUnboxingCode()}
-          ${functionCall.code}
-          ${stateFromFunctionCode.mkString("\n")}
+          $evalCallCode
+          $stateFromFunctionCode
+        }
+
+        @Override
+        public void callOnTimer() throws Exception {
+          ${ctx.reuseLocalVariableCode()}
+          $onTimerCallCode
         }
 
         @Override
@@ -213,8 +206,9 @@ object ProcessTableRunnerGenerator {
       invocation: RexCall,
       staticArgs: Seq[StaticArgument],
       typeFactory: FlinkTypeFactory): RexCall = {
+    val operands = invocation.getOperands.asScala
     // Remove system arguments
-    val newOperands = invocation.getOperands.asScala
+    val newOperands = operands
       .dropRight(SystemTypeInference.PROCESS_TABLE_FUNCTION_SYSTEM_ARGS.size())
     // Remove system output columns
     val prefixOutputSystemFields = newOperands.zipWithIndex.map {
@@ -227,7 +221,17 @@ object ProcessTableRunnerGenerator {
         }
       case _ => 0
     }.sum
-    val projectedFields = invocation.getType.getFieldList.asScala.drop(prefixOutputSystemFields)
+    val onTimeArg = operands(
+      operands.size - 1 - SystemTypeInference.PROCESS_TABLE_FUNCTION_ARG_ON_TIME_OFFSET)
+    val suffixOutputSystemFields =
+      if (onTimeArg.getKind == SqlKind.DEFAULT || RexUtil.isNullLiteral(onTimeArg, true)) {
+        0
+      } else {
+        1
+      }
+    val projectedFields = invocation.getType.getFieldList.asScala
+      .drop(prefixOutputSystemFields)
+      .dropRight(suffixOutputSystemFields)
     val newReturnType = typeFactory.createStructType(projectedFields.asJava)
     invocation.clone(newReturnType, newOperands.asJava)
   }
@@ -281,7 +285,7 @@ object ProcessTableRunnerGenerator {
       stateDataTypes: Seq[DataType],
       externalStateOperands: Seq[GeneratedExpression],
       stateClearedTerm: String,
-      stateFromFunctionTerm: String): Seq[String] = {
+      stateFromFunctionTerm: String): String = {
     stateDataTypes.zipWithIndex
       .map {
         case (stateDataType, pos) =>
@@ -290,12 +294,14 @@ object ProcessTableRunnerGenerator {
           s"$stateEntryTerm = $stateClearedTerm[$pos] ? null : " +
             s"${genToInternalConverter(ctx, stateDataType)(externalStateOperandTerm)};"
       }
+      .mkString("\n")
   }
 
-  private def generateCallOperands(
+  private def generateEvalOperands(
       ctx: CodeGeneratorContext,
       call: RexCall,
-      tablesTerm: String): Seq[GeneratedExpression] = {
+      inputIndexTerm: String,
+      inputRowTerm: String): Seq[GeneratedExpression] = {
     val generator = new ExprCodeGenerator(ctx, false)
     call.getOperands.asScala
       .map {
@@ -303,8 +309,8 @@ object ProcessTableRunnerGenerator {
           val inputIndex = tableArgCall.getInputIndex
           val tableType = FlinkTypeFactory.toLogicalType(call.getType).copy(true)
           GeneratedExpression(
-            s"$tablesTerm[$inputIndex]",
-            s"$tablesTerm[$inputIndex] == null",
+            s"$inputRowTerm",
+            s"$inputIndexTerm != $inputIndex",
             NO_CODE,
             tableType)
         case rexNode: RexNode =>
@@ -312,33 +318,125 @@ object ProcessTableRunnerGenerator {
       }
   }
 
-  private def verifyEvalImplementation(
-      argumentDataTypes: Seq[DataType],
+  private def verifyMethodImplementation(
+      methodName: String,
+      contextClass: Class[_],
+      parameterDataTypes: Seq[DataType],
       udf: UserDefinedFunction,
-      functionName: String): Boolean = {
-    val contextClass = classOf[ProcessTableFunction.Context]
-    val argumentClasses = argumentDataTypes.map(_.getConversionClass)
+      functionName: String,
+      optional: Boolean): Option[Boolean] = {
+    if (optional && ExtractionUtils.collectMethods(udf.getClass, methodName).isEmpty) {
+      return None
+    }
+    val argumentClasses = parameterDataTypes.map(_.getConversionClass)
     try {
       // Try with context first
       val fullSignature = contextClass +: argumentClasses
       validateClassForRuntime(
         udf.getClass,
-        PROCESS_TABLE_EVAL,
+        methodName,
         fullSignature.toArray,
         classOf[Unit],
         functionName)
-      true
+      Some(true)
     } catch {
       case _: ValidationException =>
         // Try without context also to not force people to use a context
         val minimalSignature = argumentClasses
         validateClassForRuntime(
           udf.getClass,
-          PROCESS_TABLE_EVAL,
+          methodName,
           minimalSignature.toArray,
           classOf[Unit],
           functionName)
-        false
+        Some(false)
     }
+  }
+
+  private def generateEvalCode(
+      ctx: CodeGeneratorContext,
+      call: RexCall,
+      enrichedArgumentDataTypes: Seq[DataType],
+      externalStateOperands: Seq[GeneratedExpression],
+      stateDataTypes: Seq[DataType],
+      udf: UserDefinedFunction,
+      functionName: String,
+      functionTerm: String,
+      resultCollectorTerm: String,
+      stateFromFunctionCode: String): String = {
+    val inputIndexTerm = "inputIndex"
+    val inputRowTerm = "inputRow"
+    val collectorTerm = "evalCollector"
+    val callOperands = generateEvalOperands(ctx, call, inputIndexTerm, inputRowTerm)
+    val externalCallOperands =
+      BridgingFunctionGenUtil.prepareExternalOperands(ctx, callOperands, enrichedArgumentDataTypes)
+    val allExternalOperands = externalStateOperands ++ externalCallOperands
+    val allDataTypes = stateDataTypes ++ enrichedArgumentDataTypes
+
+    // Find and verify suitable runtime method
+    val withContext = verifyMethodImplementation(
+      PROCESS_TABLE_EVAL,
+      classOf[ProcessTableFunction.Context],
+      allDataTypes,
+      udf,
+      functionName,
+      optional = false)
+    val contextOperand = if (withContext.get) {
+      Seq("runnerContext")
+    } else {
+      Seq()
+    }
+
+    val methodOperands = contextOperand ++ allExternalOperands.map(_.resultTerm)
+
+    val functionCallCode =
+      s"""
+         |$resultCollectorTerm.setCollector($collectorTerm);
+         |${allExternalOperands.map(_.code).mkString("\n")}
+         |$functionTerm.eval(${methodOperands.mkString(", ")});
+         |$stateFromFunctionCode
+         |""".stripMargin
+
+    functionCallCode
+  }
+
+  private def generateOnTimerCode(
+      externalStateOperands: Seq[GeneratedExpression],
+      stateDataTypes: Seq[DataType],
+      udf: UserDefinedFunction,
+      functionName: String,
+      functionTerm: String,
+      resultCollectorTerm: String,
+      stateFromFunctionCode: String): String = {
+    val collectorTerm = "onTimerCollector"
+
+    // Find and verify suitable runtime method
+    val withContext = verifyMethodImplementation(
+      PROCESS_TABLE_ON_TIMER,
+      classOf[ProcessTableFunction.OnTimerContext],
+      stateDataTypes,
+      udf,
+      functionName,
+      optional = true)
+    if (withContext.isEmpty) {
+      return ""
+    }
+    val contextOperand = if (withContext.get) {
+      Seq("runnerOnTimerContext")
+    } else {
+      Seq()
+    }
+
+    val methodOperands = contextOperand ++ externalStateOperands.map(_.resultTerm)
+
+    val functionCallCode =
+      s"""
+         |$resultCollectorTerm.setCollector($collectorTerm);
+         |${externalStateOperands.map(_.code).mkString("\n")}
+         |$functionTerm.onTimer(${methodOperands.mkString(", ")});
+         |$stateFromFunctionCode
+         |""".stripMargin
+
+    functionCallCode
   }
 }

@@ -95,8 +95,8 @@ LogicalProject(a=[$1], b=[$2], c=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a, b, c], where=[>(a, 1)], changelogMode=[I,UB,UA,D])
-+- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
+Calc(select=[a, b, c], changelogMode=[I,UA,D])
++- ChangelogNormalize(key=[id], condition=[>(a, 1)], changelogMode=[I,UA,D])
    +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
       +- Calc(select=[id, a, b, c], changelogMode=[I,UA,D])
          +- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1000:INTERVAL SECOND)], changelogMode=[I,UA,D])
@@ -333,7 +333,7 @@ Calc(select=[currency, amount, rate, *(amount, rate) AS EXPR$3], changelogMode=[
    :     +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[amount, currency, rowtime], changelogMode=[I])
    +- Exchange(distribution=[hash[currency]], changelogMode=[UA,D])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[UA,D])
-         +- TableSourceScan(table=[[default_catalog, default_database, rates_history]], fields=[currency, rate, rowtime], changelogMode=[UA,D])
+         +- TableSourceScan(table=[[default_catalog, default_database, rates_history]], fields=[currency, rate, rowtime], changelogMode=[UA,PD])
 ]]>
     </Resource>
   </TestCase>
@@ -486,8 +486,8 @@ Calc(select=[currency, amount, rate, *(amount, rate) AS EXPR$3], changelogMode=[
    :     +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[amount, currency], changelogMode=[I])
    +- Exchange(distribution=[hash[currency]], changelogMode=[I,UA,D])
       +- ChangelogNormalize(key=[currency], changelogMode=[I,UA,D])
-         +- Exchange(distribution=[hash[currency]], changelogMode=[UA,D])
-            +- TableSourceScan(table=[[default_catalog, default_database, rates_history]], fields=[currency, rate], changelogMode=[UA,D])
+         +- Exchange(distribution=[hash[currency]], changelogMode=[UA,PD])
+            +- TableSourceScan(table=[[default_catalog, default_database, rates_history]], fields=[currency, rate], changelogMode=[UA,PD])
 ]]>
     </Resource>
   </TestCase>
@@ -546,175 +546,9 @@ Calc(select=[id1, a, b], changelogMode=[I,UA,D])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testUnionUpsertSourceAndAggregation">
-    <Resource name="sql">
-      <![CDATA[
-SELECT b, ts, a
-FROM (
-  SELECT * FROM upsert_src
-  UNION ALL
-  SELECT MAX(ts) as t, a, MAX(b) as b FROM append_src GROUP BY a
-)
-]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(b=[$2], ts=[$0], a=[$1])
-+- LogicalUnion(all=[true])
-   :- LogicalProject(ts=[$0], a=[$1], b=[$2])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, upsert_src]])
-   +- LogicalProject(t=[$1], a=[$0], b=[$2])
-      +- LogicalAggregate(group=[{0}], t=[MAX($1)], b=[MAX($2)])
-         +- LogicalProject(a=[$1], ts=[$0], b=[$2])
-            +- LogicalTableScan(table=[[default_catalog, default_database, append_src]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Union(all=[true], union=[b, ts, a], changelogMode=[I,UA,D])
-:- Calc(select=[b, ts, CAST(a AS INTEGER) AS a], changelogMode=[I,UA,D])
-:  +- ChangelogNormalize(key=[a], changelogMode=[I,UA,D])
-:     +- Exchange(distribution=[hash[a]], changelogMode=[UA,D])
-:        +- TableSourceScan(table=[[default_catalog, default_database, upsert_src]], fields=[ts, a, b], changelogMode=[UA,D])
-+- Calc(select=[b, t AS ts, a], changelogMode=[I,UA])
-   +- GroupAggregate(groupBy=[a], select=[a, MAX(ts) AS t, MAX(b) AS b], changelogMode=[I,UA])
-      +- Exchange(distribution=[hash[a]], changelogMode=[I])
-         +- TableSourceScan(table=[[default_catalog, default_database, append_src]], fields=[ts, a, b], changelogMode=[I])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testUnionChangelogSourceAndAggregation">
-    <Resource name="sql">
-      <![CDATA[
-SELECT b, ts, a
-FROM (
-  SELECT * FROM changelog_src
-  UNION ALL
-  SELECT MAX(ts) as t, a, MAX(b) as b FROM append_src GROUP BY a
-)
-]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(b=[$2], ts=[$0], a=[$1])
-+- LogicalUnion(all=[true])
-   :- LogicalProject(ts=[$0], a=[$1], b=[$2])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, changelog_src]])
-   +- LogicalProject(t=[$1], a=[$0], b=[$2])
-      +- LogicalAggregate(group=[{0}], t=[MAX($1)], b=[MAX($2)])
-         +- LogicalProject(a=[$1], ts=[$0], b=[$2])
-            +- LogicalTableScan(table=[[default_catalog, default_database, append_src]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Union(all=[true], union=[b, ts, a], changelogMode=[I,UA,D])
-:- Calc(select=[b, ts, a], changelogMode=[I,UA,D])
-:  +- DropUpdateBefore(changelogMode=[I,UA,D])
-:     +- TableSourceScan(table=[[default_catalog, default_database, changelog_src]], fields=[ts, a, b], changelogMode=[I,UB,UA,D])
-+- Calc(select=[b, t AS ts, a], changelogMode=[I,UA])
-   +- GroupAggregate(groupBy=[a], select=[a, MAX(ts) AS t, MAX(b) AS b], changelogMode=[I,UA])
-      +- Exchange(distribution=[hash[a]], changelogMode=[I])
-         +- TableSourceScan(table=[[default_catalog, default_database, append_src]], fields=[ts, a, b], changelogMode=[I])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testUpsertSourceWithComputedColumnAndWatermark">
-    <Resource name="sql">
-      <![CDATA[SELECT a, b, c FROM src WHERE a > 1]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$1], b=[$2], c=[$3])
-+- LogicalFilter(condition=[>($1, 1)])
-   +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($4, 1000:INTERVAL SECOND)])
-      +- LogicalProject(id=[$0], a=[$1], b=[+($1, 1)], c=[$2], ts=[TO_TIMESTAMP($2)])
-         +- LogicalTableScan(table=[[default_catalog, default_database, src]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Calc(select=[a, b, c], where=[>(a, 1)], changelogMode=[I,UB,UA,D])
-+- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
-   +- Exchange(distribution=[hash[id]], changelogMode=[UA,D])
-      +- Calc(select=[id, a, b, c], changelogMode=[UA,D])
-         +- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1000:INTERVAL SECOND)], changelogMode=[UA,D])
-            +- Calc(select=[id, a, +(a, 1) AS b, c, TO_TIMESTAMP(c) AS ts], changelogMode=[UA,D])
-               +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[id, a, c], changelogMode=[UA,D])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testUpsertSourceWithWatermarkPushDown">
-    <Resource name="sql">
-      <![CDATA[SELECT id, ts FROM src]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(id=[$0], ts=[$4])
-+- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($4, 1000:INTERVAL SECOND)])
-   +- LogicalProject(id=[$0], a=[$1], b=[+($1, 1)], c=[$2], ts=[TO_TIMESTAMP($2)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, src]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Calc(select=[id, Reinterpret(TO_TIMESTAMP(c)) AS ts], changelogMode=[I,UA,D])
-+- ChangelogNormalize(key=[id], changelogMode=[I,UA,D])
-   +- Exchange(distribution=[hash[id]], changelogMode=[UA,D])
-      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id, c], metadata=[], watermark=[-(TO_TIMESTAMP(c), 1000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[id, c], changelogMode=[UA,D])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testWindowAggregateOnChangelogSource">
-    <Resource name="sql">
-      <![CDATA[
-SELECT TUMBLE_START(ts, INTERVAL '10' SECOND), COUNT(*)
-FROM src
-GROUP BY TUMBLE(ts, INTERVAL '10' SECOND)
-]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(EXPR$0=[TUMBLE_START($0)], EXPR$1=[$1])
-+- LogicalAggregate(group=[{0}], EXPR$1=[COUNT()])
-   +- LogicalProject($f0=[$TUMBLE($0, 10000:INTERVAL SECOND)])
-      +- LogicalProject(ts=[PROCTIME()], a=[$0], b=[$1])
-         +- LogicalTableScan(table=[[default_catalog, default_database, src]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Calc(select=[w$start AS EXPR$0, EXPR$1], changelogMode=[I])
-+- GroupWindowAggregate(window=[TumblingGroupWindow('w$, $f2, 10000)], properties=[w$start, w$end, w$proctime], select=[COUNT(*) AS EXPR$1, start('w$) AS w$start, end('w$) AS w$end, proctime('w$) AS w$proctime], changelogMode=[I])
-   +- Exchange(distribution=[single], changelogMode=[I,UB,UA])
-      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a], metadata=[]]], fields=[a], changelogMode=[I,UB,UA])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testWatermarkAndChangelogSource">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM src WHERE a > 1]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(ts=[$0], a=[$1], b=[$2])
-+- LogicalFilter(condition=[>($1, 1)])
-   +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($0, 5000:INTERVAL SECOND)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, src]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Calc(select=[ts, a, b], where=[>(a, 1)], changelogMode=[I,UB,UA,D])
-+- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 5000:INTERVAL SECOND)], changelogMode=[I,UB,UA,D])
-   +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[ts, a, b], changelogMode=[I,UB,UA,D])
-]]>
-    </Resource>
-  </TestCase>
-
   <TestCase name="testSetParallelismForSource">
-  <Resource name="explain">
-	  <![CDATA[== Abstract Syntax Tree ==
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(id=[$0], b=[$1], c=[$2], id0=[$3], a=[$4])
 +- LogicalFilter(condition=[>($2, 1)])
    +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
@@ -794,6 +628,171 @@ Join(joinType=[LeftOuterJoin], where=[(id = id0)], select=[id, b, c, id0, a], le
     } ]
   } ]
 }]]>
-  </Resource>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnionUpsertSourceAndAggregation">
+    <Resource name="sql">
+      <![CDATA[
+SELECT b, ts, a
+FROM (
+  SELECT * FROM upsert_src
+  UNION ALL
+  SELECT MAX(ts) as t, a, MAX(b) as b FROM append_src GROUP BY a
+)
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[$2], ts=[$0], a=[$1])
++- LogicalUnion(all=[true])
+   :- LogicalProject(ts=[$0], a=[$1], b=[$2])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, upsert_src]])
+   +- LogicalProject(t=[$1], a=[$0], b=[$2])
+      +- LogicalAggregate(group=[{0}], t=[MAX($1)], b=[MAX($2)])
+         +- LogicalProject(a=[$1], ts=[$0], b=[$2])
+            +- LogicalTableScan(table=[[default_catalog, default_database, append_src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Union(all=[true], union=[b, ts, a], changelogMode=[I,UA,D])
+:- Calc(select=[b, ts, CAST(a AS INTEGER) AS a], changelogMode=[I,UA,D])
+:  +- ChangelogNormalize(key=[a], changelogMode=[I,UA,D])
+:     +- Exchange(distribution=[hash[a]], changelogMode=[UA,PD])
+:        +- TableSourceScan(table=[[default_catalog, default_database, upsert_src]], fields=[ts, a, b], changelogMode=[UA,PD])
++- Calc(select=[b, t AS ts, a], changelogMode=[I,UA])
+   +- GroupAggregate(groupBy=[a], select=[a, MAX(ts) AS t, MAX(b) AS b], changelogMode=[I,UA])
+      +- Exchange(distribution=[hash[a]], changelogMode=[I])
+         +- TableSourceScan(table=[[default_catalog, default_database, append_src]], fields=[ts, a, b], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnionChangelogSourceAndAggregation">
+    <Resource name="sql">
+      <![CDATA[
+SELECT b, ts, a
+FROM (
+  SELECT * FROM changelog_src
+  UNION ALL
+  SELECT MAX(ts) as t, a, MAX(b) as b FROM append_src GROUP BY a
+)
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[$2], ts=[$0], a=[$1])
++- LogicalUnion(all=[true])
+   :- LogicalProject(ts=[$0], a=[$1], b=[$2])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, changelog_src]])
+   +- LogicalProject(t=[$1], a=[$0], b=[$2])
+      +- LogicalAggregate(group=[{0}], t=[MAX($1)], b=[MAX($2)])
+         +- LogicalProject(a=[$1], ts=[$0], b=[$2])
+            +- LogicalTableScan(table=[[default_catalog, default_database, append_src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Union(all=[true], union=[b, ts, a], changelogMode=[I,UA,D])
+:- Calc(select=[b, ts, a], changelogMode=[I,UA,D])
+:  +- DropUpdateBefore(changelogMode=[I,UA,D])
+:     +- TableSourceScan(table=[[default_catalog, default_database, changelog_src]], fields=[ts, a, b], changelogMode=[I,UB,UA,D])
++- Calc(select=[b, t AS ts, a], changelogMode=[I,UA])
+   +- GroupAggregate(groupBy=[a], select=[a, MAX(ts) AS t, MAX(b) AS b], changelogMode=[I,UA])
+      +- Exchange(distribution=[hash[a]], changelogMode=[I])
+         +- TableSourceScan(table=[[default_catalog, default_database, append_src]], fields=[ts, a, b], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpsertSourceWithComputedColumnAndWatermark">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, c FROM src WHERE a > 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$1], b=[$2], c=[$3])
++- LogicalFilter(condition=[>($1, 1)])
+   +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($4, 1000:INTERVAL SECOND)])
+      +- LogicalProject(id=[$0], a=[$1], b=[+($1, 1)], c=[$2], ts=[TO_TIMESTAMP($2)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, b, c], changelogMode=[I,UA,D])
++- ChangelogNormalize(key=[id], condition=[>(a, 1)], changelogMode=[I,UA,D])
+   +- Exchange(distribution=[hash[id]], changelogMode=[UA,D])
+      +- Calc(select=[id, a, b, c], changelogMode=[UA,D])
+         +- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1000:INTERVAL SECOND)], changelogMode=[UA,D])
+            +- Calc(select=[id, a, +(a, 1) AS b, c, TO_TIMESTAMP(c) AS ts], changelogMode=[UA,D])
+               +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[id, a, c], changelogMode=[UA,D])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpsertSourceWithWatermarkPushDown">
+    <Resource name="sql">
+      <![CDATA[SELECT id, ts FROM src]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], ts=[$4])
++- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($4, 1000:INTERVAL SECOND)])
+   +- LogicalProject(id=[$0], a=[$1], b=[+($1, 1)], c=[$2], ts=[TO_TIMESTAMP($2)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[id, Reinterpret(TO_TIMESTAMP(c)) AS ts], changelogMode=[I,UA,D])
++- ChangelogNormalize(key=[id], changelogMode=[I,UA,D])
+   +- Exchange(distribution=[hash[id]], changelogMode=[UA,PD])
+      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id, c], metadata=[], watermark=[-(TO_TIMESTAMP(c), 1000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[id, c], changelogMode=[UA,PD])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWindowAggregateOnChangelogSource">
+    <Resource name="sql">
+      <![CDATA[
+SELECT TUMBLE_START(ts, INTERVAL '10' SECOND), COUNT(*)
+FROM src
+GROUP BY TUMBLE(ts, INTERVAL '10' SECOND)
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[TUMBLE_START($0)], EXPR$1=[$1])
++- LogicalAggregate(group=[{0}], EXPR$1=[COUNT()])
+   +- LogicalProject($f0=[$TUMBLE($0, 10000:INTERVAL SECOND)])
+      +- LogicalProject(ts=[PROCTIME()], a=[$0], b=[$1])
+         +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[w$start AS EXPR$0, EXPR$1], changelogMode=[I])
++- GroupWindowAggregate(window=[TumblingGroupWindow('w$, $f2, 10000)], properties=[w$start, w$end, w$proctime], select=[COUNT(*) AS EXPR$1, start('w$) AS w$start, end('w$) AS w$end, proctime('w$) AS w$proctime], changelogMode=[I])
+   +- Exchange(distribution=[single], changelogMode=[I,UB,UA])
+      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a], metadata=[]]], fields=[a], changelogMode=[I,UB,UA])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWatermarkAndChangelogSource">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM src WHERE a > 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(ts=[$0], a=[$1], b=[$2])
++- LogicalFilter(condition=[>($1, 1)])
+   +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($0, 5000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[ts, a, b], where=[>(a, 1)], changelogMode=[I,UB,UA,D])
++- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 5000:INTERVAL SECOND)], changelogMode=[I,UB,UA,D])
+   +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[ts, a, b], changelogMode=[I,UB,UA,D])
+]]>
+    </Resource>
   </TestCase>
 </Root>

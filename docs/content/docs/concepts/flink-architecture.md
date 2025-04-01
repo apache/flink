@@ -43,7 +43,7 @@ The Flink runtime consists of two types of processes: a _JobManager_ and one or 
 The *Client* is not part of the runtime and program execution, but is used to
 prepare and send a dataflow to the JobManager.  After that, the client can
 disconnect (_detached mode_), or stay connected to receive progress reports
-(_attached mode_). The client runs either as part of the Java/Scala program
+(_attached mode_). The client runs either as part of the Java program
 that triggers the execution, or in the command line process `./bin/flink run
 ...`.
 

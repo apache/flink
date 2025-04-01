@@ -27,6 +27,9 @@ import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.adaptive.AdaptiveJoin;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -34,7 +37,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * shuffle hash join or shuffle merge join operator based on actual conditions.
  */
 public class AdaptiveJoinOperatorGenerator implements AdaptiveJoin {
-
+    private static final Logger LOG = LoggerFactory.getLogger(AdaptiveJoinOperatorGenerator.class);
     private final int[] leftKeys;
 
     private final int[] rightKeys;
@@ -64,6 +67,8 @@ public class AdaptiveJoinOperatorGenerator implements AdaptiveJoin {
     private final OperatorType originalJoin;
 
     private boolean leftIsBuild;
+
+    private boolean originalLeftIsBuild;
 
     private boolean isBroadcastJoin;
 
@@ -105,6 +110,7 @@ public class AdaptiveJoinOperatorGenerator implements AdaptiveJoin {
                                 + "SortMergeJoin, not including %s.",
                         originalJoin.toString()));
         this.leftIsBuild = leftIsBuild;
+        this.originalLeftIsBuild = leftIsBuild;
         this.originalJoin = originalJoin;
     }
 
@@ -164,6 +170,12 @@ public class AdaptiveJoinOperatorGenerator implements AdaptiveJoin {
             return false;
         }
 
+        if (leftIsBuild != originalLeftIsBuild) {
+            LOG.info(
+                    "The build side of the adaptive join has been updated. Compile phase build side: {}, Runtime build side: {}.",
+                    originalLeftIsBuild ? "left" : "right",
+                    leftIsBuild ? "left" : "right");
+        }
         return !leftIsBuild;
     }
 }

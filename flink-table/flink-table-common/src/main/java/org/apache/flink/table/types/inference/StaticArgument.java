@@ -261,7 +261,7 @@ public class StaticArgument {
         }
         // e.g. for untyped table arguments
         if (dataType == null) {
-            return;
+            throw new ValidationException("Untyped table arguments must not be optional.");
         }
 
         final LogicalType type = dataType.getLogicalType();

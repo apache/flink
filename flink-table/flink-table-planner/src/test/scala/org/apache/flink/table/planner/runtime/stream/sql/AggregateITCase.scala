@@ -22,7 +22,6 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
@@ -1656,6 +1655,26 @@ class AggregateITCase(
       "4,102,1,4,1,2",
       "5,195,1,5,2,1",
       "6,333,1,6,2,2")
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testAggFilterReferenceFirstColumn(): Unit = {
+    val t = failingDataSource(TestData.tupleData3).toTable(tEnv).as("a", "b", "c")
+    tEnv.createTemporaryView("MyTable", t)
+
+    val sqlQuery =
+      s"""
+         |SELECT
+         |  COUNT(*) filter (where a < 10)
+         |FROM MyTable
+       """.stripMargin
+
+    val sink = new TestingRetractSink
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(sink).setParallelism(1)
+    env.execute()
+    val expected = List("9")
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 

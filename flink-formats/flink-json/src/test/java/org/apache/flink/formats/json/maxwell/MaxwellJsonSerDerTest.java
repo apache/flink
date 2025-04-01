@@ -44,12 +44,14 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.connector.testutils.formats.SchemaTestUtils.open;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.FLOAT;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests for {@link MaxwellJsonSerializationSchema} and {@link MaxwellJsonDeserializationSchema}.
@@ -99,6 +101,33 @@ class MaxwellJsonSerDerTest {
                             assertThat(row.getTimestamp(7, 3).getMillisecond())
                                     .isEqualTo(1596684883000L);
                         });
+    }
+
+    @Test
+    void testIgnoreParseErrors() throws Exception {
+        List<String> lines = readLines("maxwell-data.txt");
+        MaxwellJsonDeserializationSchema deserializationSchema =
+                new MaxwellJsonDeserializationSchema(
+                        PHYSICAL_DATA_TYPE,
+                        Collections.emptyList(),
+                        InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()),
+                        true,
+                        TimestampFormat.ISO_8601);
+        open(deserializationSchema);
+
+        ThrowingExceptionCollector collector = new ThrowingExceptionCollector();
+        assertThatThrownBy(
+                        () -> {
+                            for (String line : lines) {
+                                deserializationSchema.deserialize(
+                                        line.getBytes(StandardCharsets.UTF_8), collector);
+                            }
+                        })
+                .isInstanceOf(RuntimeException.class)
+                .satisfies(
+                        anyCauseMatches(
+                                RuntimeException.class,
+                                "An error occurred while collecting data."));
     }
 
     @Test
@@ -243,6 +272,19 @@ class MaxwellJsonSerDerTest {
         @Override
         public void collect(RowData record) {
             list.add(record);
+        }
+
+        @Override
+        public void close() {
+            // do nothing
+        }
+    }
+
+    private static class ThrowingExceptionCollector implements Collector<RowData> {
+
+        @Override
+        public void collect(RowData record) {
+            throw new RuntimeException("An error occurred while collecting data.");
         }
 
         @Override

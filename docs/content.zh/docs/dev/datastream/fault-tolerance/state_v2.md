@@ -419,12 +419,12 @@ StateTtlConfig ttlConfig = StateTtlConfig
 {{< /tab >}}
 {{< /tabs >}}
 
-{{ <hint info> }}
+{{< hint info >}}
 Currently the ForSt State Backend only cleanup the state in compaction process. If you are using
 a state backend other than ForSt and want to read about other cleanup strategies, please refer to the
 [State V1 documentation]({{< ref "docs/dev/datastream/fault-tolerance/state#cleanup-of-expired-state" >}})
 about the expired state cleanup.
-{{ </hint > }
+{{< /hint >}}
 
 ##### Cleanup during compaction
 

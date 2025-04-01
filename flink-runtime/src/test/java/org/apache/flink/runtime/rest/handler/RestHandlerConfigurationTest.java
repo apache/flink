@@ -106,12 +106,16 @@ class RestHandlerConfigurationTest {
 
     @Test
     void testCheckpointCacheExpireAfterWrite() {
-        final Duration testDuration = Duration.ofMillis(100L);
         final Configuration config = new Configuration();
-        config.set(RestOptions.CACHE_CHECKPOINT_STATISTICS_TIMEOUT, testDuration);
-
+        final Duration defaultDuration = Duration.ofMillis(3000L);
         RestHandlerConfiguration restHandlerConfiguration =
                 RestHandlerConfiguration.fromConfiguration(config);
+        assertThat(restHandlerConfiguration.getCheckpointCacheExpireAfterWrite())
+                .isEqualTo(defaultDuration);
+
+        final Duration testDuration = Duration.ofMillis(100L);
+        config.set(RestOptions.CACHE_CHECKPOINT_STATISTICS_TIMEOUT, testDuration);
+        restHandlerConfiguration = RestHandlerConfiguration.fromConfiguration(config);
         assertThat(restHandlerConfiguration.getCheckpointCacheExpireAfterWrite())
                 .isEqualTo(testDuration);
     }

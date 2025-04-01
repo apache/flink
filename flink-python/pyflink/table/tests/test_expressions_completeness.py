@@ -44,7 +44,8 @@ class ExpressionsCompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCas
     @classmethod
     def excluded_methods(cls):
         return {
-            '$'
+            '$',
+            'descriptor',
         }
 
 

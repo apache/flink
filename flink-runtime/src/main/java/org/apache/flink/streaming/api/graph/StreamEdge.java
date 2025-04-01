@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.graph;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
+import org.apache.flink.streaming.runtime.partitioner.ForwardForUnspecifiedPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -277,7 +278,9 @@ public class StreamEdge implements Serializable {
         // work normally by default. The final value of the correlations can be flexibly determined
         // by the operator.
         if (partitioner.isPointwise()) {
-            this.intraInputKeyCorrelated = partitioner instanceof ForwardPartitioner;
+            this.intraInputKeyCorrelated =
+                    partitioner instanceof ForwardPartitioner
+                            && !(partitioner instanceof ForwardForUnspecifiedPartitioner);
             this.interInputsKeysCorrelated = false;
         } else {
             this.intraInputKeyCorrelated = !(partitioner instanceof RebalancePartitioner);

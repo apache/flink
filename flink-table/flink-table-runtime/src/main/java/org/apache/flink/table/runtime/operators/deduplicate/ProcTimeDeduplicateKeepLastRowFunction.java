@@ -19,13 +19,17 @@
 package org.apache.flink.table.runtime.operators.deduplicate;
 
 import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.generated.FilterCondition;
+import org.apache.flink.table.runtime.generated.GeneratedFilterCondition;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Collector;
 
 import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.processLastRowOnChangelog;
+import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.processLastRowOnChangelogWithFilter;
 import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.processLastRowOnProcTime;
 
 /** This function is used to deduplicate on keys and keeps only last row. */
@@ -41,8 +45,12 @@ public class ProcTimeDeduplicateKeepLastRowFunction
     /** The code generated equaliser used to equal RowData. */
     private final GeneratedRecordEqualiser genRecordEqualiser;
 
+    private final GeneratedFilterCondition genFilterCondition;
+
     /** The record equaliser used to equal RowData. */
     private transient RecordEqualiser equaliser;
+
+    private transient FilterCondition filterCondition;
 
     public ProcTimeDeduplicateKeepLastRowFunction(
             InternalTypeInfo<RowData> typeInfo,
@@ -50,12 +58,14 @@ public class ProcTimeDeduplicateKeepLastRowFunction
             boolean generateUpdateBefore,
             boolean generateInsert,
             boolean inputInsertOnly,
-            GeneratedRecordEqualiser genRecordEqualiser) {
+            GeneratedRecordEqualiser genRecordEqualiser,
+            GeneratedFilterCondition filterCondition) {
         super(typeInfo, null, stateRetentionTime);
         this.generateUpdateBefore = generateUpdateBefore;
         this.generateInsert = generateInsert;
         this.inputIsInsertOnly = inputInsertOnly;
         this.genRecordEqualiser = genRecordEqualiser;
+        this.genFilterCondition = filterCondition;
         this.isStateTtlEnabled = stateRetentionTime > 0;
     }
 
@@ -63,6 +73,12 @@ public class ProcTimeDeduplicateKeepLastRowFunction
     public void open(OpenContext openContext) throws Exception {
         super.open(openContext);
         equaliser = genRecordEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
+        if (genFilterCondition != null) {
+            filterCondition =
+                    genFilterCondition.newInstance(getRuntimeContext().getUserCodeClassLoader());
+            FunctionUtils.setFunctionRuntimeContext(filterCondition, getRuntimeContext());
+            FunctionUtils.openFunction(filterCondition, openContext);
+        }
     }
 
     @Override
@@ -77,6 +93,15 @@ public class ProcTimeDeduplicateKeepLastRowFunction
                     out,
                     isStateTtlEnabled,
                     equaliser);
+        } else if (filterCondition != null) {
+            processLastRowOnChangelogWithFilter(
+                    input,
+                    generateUpdateBefore,
+                    state,
+                    out,
+                    isStateTtlEnabled,
+                    equaliser,
+                    filterCondition);
         } else {
             processLastRowOnChangelog(
                     input, generateUpdateBefore, state, out, isStateTtlEnabled, equaliser);

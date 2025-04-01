@@ -21,6 +21,7 @@ package org.apache.flink.table.api;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.Catalog;
@@ -28,6 +29,7 @@ import org.apache.flink.table.catalog.CatalogDescriptor;
 import org.apache.flink.table.catalog.CatalogStore;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.module.Module;
@@ -867,6 +869,62 @@ public interface TableEnvironment {
     boolean createView(String path, Table view, boolean ignoreIfExists);
 
     /**
+     * Registers a Model API object as a model similar to SQL models.
+     *
+     * <p>Temporary objects can shadow permanent ones. If a temporary object in a given path exists,
+     * the permanent one will be inaccessible in the current session. To make the permanent object
+     * available again one can drop the corresponding temporary object.
+     *
+     * @param path The path under which the model will be registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param descriptor The descriptor of the model to register.
+     */
+    void createModel(String path, ModelDescriptor descriptor);
+
+    /**
+     * Registers a Model API object as a model similar to SQL models.
+     *
+     * <p>Temporary objects can shadow permanent ones. If a temporary object in a given path exists,
+     * the permanent one will be inaccessible in the current session. To make the permanent object
+     * available again one can drop the corresponding temporary object.
+     *
+     * @param path The path under which the model will be registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param descriptor The descriptor of the model to register.
+     * @param ignoreIfExists If a model exists and the given flag is set, no operation is executed.
+     *     An exception is thrown otherwise.
+     */
+    void createModel(String path, ModelDescriptor descriptor, boolean ignoreIfExists);
+
+    /**
+     * Registers a Model API object as a temporary model similar to SQL temporary models.
+     *
+     * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+     * it will be inaccessible in the current session. To make the permanent object available again
+     * one can drop the corresponding temporary object.
+     *
+     * @param path The path under which the model will be registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param descriptor The descriptor of the model to register.
+     */
+    void createTemporaryModel(String path, ModelDescriptor descriptor);
+
+    /**
+     * Registers a Model API object as a temporary model similar to SQL temporary models.
+     *
+     * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+     * it will be inaccessible in the current session. To make the permanent object available again
+     * one can drop the corresponding temporary object.
+     *
+     * @param path The path under which the model will be registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param descriptor The descriptor of the model to register.
+     * @param ignoreIfExists If a model exists and the given flag is set, no operation is executed.
+     *     An exception is thrown otherwise.
+     */
+    void createTemporaryModel(String path, ModelDescriptor descriptor, boolean ignoreIfExists);
+
+    /**
      * Scans a registered table and returns the resulting {@link Table}.
      *
      * <p>A table to scan must be registered in the {@link TableEnvironment}. It can be either
@@ -966,6 +1024,74 @@ public interface TableEnvironment {
     Table from(TableDescriptor descriptor);
 
     /**
+     * Returns a {@link Table} backed by a call to a process table function (PTF).
+     *
+     * <p>A PTF maps zero, one, or multiple tables to a new table. PTFs are the most powerful
+     * function kind for Flink SQL and Table API. They enable implementing user-defined operators
+     * that can be as feature-rich as built-in operations. PTFs have access to Flink's managed
+     * state, event-time and timer services, underlying table changelogs, and can take multiple
+     * partitioned tables to produce a new table.
+     *
+     * <p>This method assumes a call to a previously registered function.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * env.createFunction("MyPTF", MyPTF.class);
+     *
+     * Table table = env.fromCall(
+     *   "MyPTF",
+     *   table.partitionBy($("key")).asArgument("input_table"),
+     *   lit("Bob").asArgument("default_name"),
+     *   lit(42).asArgument("default_threshold")
+     * );
+     * }</pre>
+     *
+     * <p>A PTF can digest tables either per row (with row semantics) or per set (with set
+     * semantics). For set semantics ({@link ArgumentTrait#TABLE_AS_SET}), make sure to partition
+     * the table first using {@link Table#partitionBy(Expression...)}.
+     *
+     * @param path The path of a function.
+     * @param arguments Table and scalar argument {@link Expressions}.
+     * @return The {@link Table} object describing the pipeline for further transformations.
+     * @see Expressions#call(String, Object...)
+     * @see ProcessTableFunction
+     */
+    Table fromCall(String path, Object... arguments);
+
+    /**
+     * Returns a {@link Table} backed by a call to a process table function (PTF).
+     *
+     * <p>A PTF maps zero, one, or multiple tables to a new table. PTFs are the most powerful
+     * function kind for Flink SQL and Table API. They enable implementing user-defined operators
+     * that can be as feature-rich as built-in operations. PTFs have access to Flink's managed
+     * state, event-time and timer services, underlying table changelogs, and can take multiple
+     * partitioned tables to produce a new table.
+     *
+     * <p>This method assumes a call to an unregistered, inline function.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * Table table = env.fromCall(
+     *   MyPTF.class,
+     *   table.partitionBy($("key")).asArgument("input_table")
+     * );
+     * }</pre>
+     *
+     * <p>A PTF can digest tables either per row (with row semantics) or per set (with set
+     * semantics). For set semantics ({@link ArgumentTrait#TABLE_AS_SET}), make sure to partition
+     * the table first using {@link Table#partitionBy(Expression...)}.
+     *
+     * @param function The class containing the function's logic.
+     * @param arguments Table and scalar argument {@link Expressions}.
+     * @return The {@link Table} object describing the pipeline for further transformations.
+     * @see Expressions#call(Class, Object...)
+     * @see ProcessTableFunction
+     */
+    Table fromCall(Class<? extends UserDefinedFunction> function, Object... arguments);
+
+    /**
      * Gets the names of all catalogs registered in this environment.
      *
      * @return A list of the names of all registered catalogs.
@@ -1051,6 +1177,35 @@ public interface TableEnvironment {
 
     /** Gets the names of all functions in this environment. */
     String[] listFunctions();
+
+    /**
+     * Gets the names of all models available in the given namespace (the given database of the
+     * given catalog). It returns both temporary and permanent models.
+     *
+     * @return A list of the names of all registered models in the given database of the given
+     *     catalog.
+     * @see #listTemporaryModels()
+     */
+    String[] listModels();
+
+    /**
+     * Gets the names of all models available in the given namespace (for the provided database of
+     * the provided catalog). It returns both temporary and permanent models.
+     *
+     * @return A list of the names of all registered models in the given database of the given
+     *     catalog.
+     */
+    String[] listModels(String catalogName, String databaseName);
+
+    /**
+     * Gets the names of all temporary Models available in the current namespace (the current
+     * database of the current catalog).
+     *
+     * @return A list of the names of all registered temporary models in the current database of the
+     *     current catalog.
+     * @see #listModels()
+     */
+    String[] listTemporaryModels();
 
     /**
      * Drops a temporary table registered in the given path.
@@ -1141,6 +1296,44 @@ public interface TableEnvironment {
      *     the given path and ignoreIfNotExists was true.
      */
     boolean dropView(String path, boolean ignoreIfNotExists);
+
+    /**
+     * Drops a model registered in the given path.
+     *
+     * <p>This method can only drop permanent objects. Temporary objects can shadow permanent ones.
+     * If a temporary object exists in a given path, make sure to drop the temporary object first
+     * using {@link #dropTemporaryModel}.
+     *
+     * @param path The given path under which the model will be dropped. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     */
+    boolean dropModel(String path);
+
+    /**
+     * Drops a model registered in the given path.
+     *
+     * <p>This method can only drop permanent objects. Temporary objects can shadow permanent ones.
+     * If a temporary object exists in a given path, make sure to drop the temporary object first
+     * using {@link #dropTemporaryModel}.
+     *
+     * @param path The given path under which the model will be dropped. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param ignoreIfNotExists If false exception will be thrown if the model to drop does not
+     *     exist.
+     */
+    boolean dropModel(String path, boolean ignoreIfNotExists);
+
+    /**
+     * Drops a temporary model registered in the given path.
+     *
+     * <p>If a permanent model with a given path exists, it will be used from now on for any queries
+     * that reference this path.
+     *
+     * @param path The given path under which the temporary model will be dropped. See also the
+     *     {@link TableEnvironment} class description for the format of the path.
+     * @return true if a model existed in the given path and was removed
+     */
+    boolean dropTemporaryModel(String path);
 
     /**
      * Returns the AST of the specified statement and the execution plan to compute the result of

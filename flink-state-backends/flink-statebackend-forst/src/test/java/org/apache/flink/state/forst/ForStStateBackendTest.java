@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.forst;
 
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointStorage;
@@ -31,6 +32,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.function.SupplierWithException;
 
+import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -40,6 +42,7 @@ import java.util.List;
 
 import static org.apache.flink.state.forst.ForStConfigurableOptions.USE_INGEST_DB_RESTORE_MODE;
 import static org.apache.flink.state.forst.ForStOptions.LOCAL_DIRECTORIES;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the partitioned state part of {@link ForStStateBackendTest}. */
 @ExtendWith(ParameterizedTestExtension.class)
@@ -98,5 +101,15 @@ class ForStStateBackendTest extends StateBackendTestBase<ForStStateBackend> {
     @Override
     protected boolean isSafeToReuseKVState() {
         return true;
+    }
+
+    @TestTemplate
+    void testConfiguration() throws Exception {
+        ForStStateBackend backend = new ForStStateBackend();
+        assertThat(backend.isIncrementalCheckpointsEnabled()).isFalse();
+        Configuration config = new Configuration();
+        config.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true);
+        backend = backend.configure(config, Thread.currentThread().getContextClassLoader());
+        assertThat(backend.isIncrementalCheckpointsEnabled()).isTrue();
     }
 }

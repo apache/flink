@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.state.AbstractChannelStateHandle;
+import org.apache.flink.runtime.state.ChannelStateHelper;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
 import java.io.Closeable;
@@ -64,7 +65,8 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
             read(
                     stateHandler,
                     groupByDelegate(
-                            streamSubtaskStates(), OperatorSubtaskState::getInputChannelState));
+                            streamSubtaskStates(),
+                            ChannelStateHelper::extractUnmergedInputHandles));
         }
     }
 
@@ -80,7 +82,7 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
                     stateHandler,
                     groupByDelegate(
                             streamSubtaskStates(),
-                            OperatorSubtaskState::getResultSubpartitionState));
+                            ChannelStateHelper::extractUnmergedOutputHandles));
         }
     }
 

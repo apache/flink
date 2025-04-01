@@ -477,6 +477,17 @@ public final class BuiltInFunctionDefinitions {
                     .internal()
                     .build();
 
+    public static final BuiltInFunctionDefinition INTERNAL_UNNEST_ROWS_WITH_ORDINALITY =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("$UNNEST_ROWS_WITH_ORDINALITY$1")
+                    .kind(TABLE)
+                    .inputTypeStrategy(sequence(ANY))
+                    .outputTypeStrategy(SpecificTypeStrategies.UNUSED)
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.table.UnnestRowsWithOrdinalityFunction")
+                    .internal()
+                    .build();
+
     public static final BuiltInFunctionDefinition INTERNAL_HASHCODE =
             BuiltInFunctionDefinition.newBuilder()
                     .name("$HASHCODE$1")
@@ -2449,7 +2460,7 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(
                             callContext -> {
                                 throw new UnsupportedOperationException(
-                                        "FLATTEN should be resolved to GET expressions");
+                                        "FLATTEN should be resolved to GET expressions.");
                             })
                     .build();
 
@@ -2884,6 +2895,22 @@ public final class BuiltInFunctionDefinitions {
                                             InputTypeStrategies.LITERAL,
                                             logical(LogicalTypeFamily.CHARACTER_STRING))))
                     .outputTypeStrategy(TypeStrategies.argument(0))
+                    .build();
+
+    public static final BuiltInFunctionDefinition ASSIGNMENT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ASSIGNMENT")
+                    .kind(OTHER)
+                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .build();
+
+    public static final BuiltInFunctionDefinition DEFAULT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("DEFAULT")
+                    .callSyntax(SqlCallSyntax.NO_PARENTHESIS)
+                    .kind(SCALAR)
+                    .inputTypeStrategy(NO_ARGS)
+                    .outputTypeStrategy(TypeStrategies.MISSING)
                     .build();
 
     public static final BuiltInFunctionDefinition STREAM_RECORD_TIMESTAMP =

@@ -25,11 +25,13 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.types.logical.RowType;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 
 /** State dynamic source. */
 public class SavepointDynamicTableSource implements ScanTableSource {
-    private final String stateBackendType;
+    @Nullable private final String stateBackendType;
     private final String statePath;
     private final OperatorIdentifier operatorIdentifier;
     private final String keyFormat;
@@ -37,7 +39,7 @@ public class SavepointDynamicTableSource implements ScanTableSource {
     private final RowType rowType;
 
     public SavepointDynamicTableSource(
-            final String stateBackendType,
+            @Nullable final String stateBackendType,
             final String statePath,
             final OperatorIdentifier operatorIdentifier,
             final String keyFormat,
