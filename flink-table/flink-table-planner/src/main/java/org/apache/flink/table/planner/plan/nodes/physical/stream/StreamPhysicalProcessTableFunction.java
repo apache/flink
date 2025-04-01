@@ -50,7 +50,6 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlKind;
-import static org.apache.flink.table.types.inference.SystemTypeInference.PROCESS_TABLE_FUNCTION_ARG_ON_TIME_OFFSET;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.ArrayList;
@@ -60,6 +59,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig;
+import static org.apache.flink.table.types.inference.SystemTypeInference.PROCESS_TABLE_FUNCTION_ARG_ON_TIME_OFFSET;
 
 /**
  * {@link StreamPhysicalRel} node for {@link ProcessTableFunction}.
