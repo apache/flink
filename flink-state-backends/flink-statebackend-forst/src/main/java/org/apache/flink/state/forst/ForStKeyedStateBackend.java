@@ -401,9 +401,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                                 stateDesc.getStateId(),
                                 stateDesc.getType(),
                                 namespaceSerializer,
-                                stateSerializer,
-                                StateSnapshotTransformer.StateSnapshotTransformFactory
-                                        .noTransform());
+                                stateSerializer);
             }
 
             newStateInfo =
@@ -428,7 +426,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
             Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> oldStateInfo,
             StateDescriptor<SV> stateDesc,
             TypeSerializer<SV> stateSerializer,
-            TypeSerializer userKeySerializer,
+            TypeSerializer<UK> userKeySerializer,
             TypeSerializer<N> namespaceSerializer)
             throws Exception {
 

@@ -44,6 +44,7 @@ import java.util.Objects;
 public class RegisteredKeyAndUserKeyValueStateBackendMetaInfo<N, UK, S>
         extends RegisteredKeyValueStateBackendMetaInfo<N, S> {
 
+    // We keep it @Nullable since in the very first version we did not store this serializer here.
     @Nullable private StateSerializerProvider<UK> userKeySerializerProvider;
 
     public RegisteredKeyAndUserKeyValueStateBackendMetaInfo(
