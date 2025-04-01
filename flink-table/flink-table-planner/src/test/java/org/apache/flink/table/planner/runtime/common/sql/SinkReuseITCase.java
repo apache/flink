@@ -52,7 +52,7 @@ public class SinkReuseITCase extends AbstractTestBase {
 
     @Parameters(name = "isBatch: {0}")
     public static Collection<Boolean> parameters() {
-        return List.of(true);
+        return List.of(true, false);
     }
 
     TableEnvironment tEnv;

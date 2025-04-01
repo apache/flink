@@ -132,6 +132,11 @@ public abstract class SinkReuseTestBase extends TableTestBase {
                                 + " 'disable-lookup' = 'true',\n"
                                 + " 'bounded' = 'true'\n"
                                 + ")");
+        doSetup();
+    }
+
+    protected void doSetup() {
+        // noop
     }
 
     @Test

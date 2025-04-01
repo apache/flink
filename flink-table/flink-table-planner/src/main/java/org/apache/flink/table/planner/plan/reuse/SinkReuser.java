@@ -22,6 +22,8 @@ import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec;
 import org.apache.flink.table.planner.plan.nodes.calcite.Sink;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalSink;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalUnion;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalSink;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalUnion;
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil;
 import org.apache.flink.util.Preconditions;
 
@@ -71,6 +73,11 @@ import java.util.stream.Collectors;
  * }</pre>
  */
 public class SinkReuser {
+    private final boolean isStreamingMode;
+
+    public SinkReuser(boolean isStreamingMode) {
+        this.isStreamingMode = isStreamingMode;
+    }
 
     public List<RelNode> reuseDuplicatedSink(List<RelNode> relNodes) {
         // Find all sinks
@@ -108,14 +115,25 @@ public class SinkReuser {
 
                     Union unionForReusedSinks;
 
-                    unionForReusedSinks =
-                            new BatchPhysicalUnion(
-                                    reusedSink.getCluster(),
-                                    group.inputTraitSet,
-                                    allSinkInputs,
-                                    true,
-                                    // use sink input row type
-                                    reusedSink.getRowType());
+                    if (isStreamingMode) {
+                        unionForReusedSinks =
+                                new StreamPhysicalUnion(
+                                        reusedSink.getCluster(),
+                                        group.inputTraitSet,
+                                        allSinkInputs,
+                                        true,
+                                        // use sink input row type
+                                        reusedSink.getRowType());
+                    } else {
+                        unionForReusedSinks =
+                                new BatchPhysicalUnion(
+                                        reusedSink.getCluster(),
+                                        group.inputTraitSet,
+                                        allSinkInputs,
+                                        true,
+                                        // use sink input row type
+                                        reusedSink.getRowType());
+                    }
 
                     reusedSink.replaceInput(0, unionForReusedSinks);
                     reusedSinkNodes.add(reusedSink);
@@ -136,8 +154,11 @@ public class SinkReuser {
             boolean canBeReused = false;
             String currentSinkDigest = getDigest(currentSinkNode);
             SinkAbilitySpec[] currentSinkSpecs;
-
-            currentSinkSpecs = ((BatchPhysicalSink) currentSinkNode).abilitySpecs();
+            if (isStreamingMode) {
+                currentSinkSpecs = ((StreamPhysicalSink) currentSinkNode).abilitySpecs();
+            } else {
+                currentSinkSpecs = ((BatchPhysicalSink) currentSinkNode).abilitySpecs();
+            }
             RelTraitSet currentInputTraitSet = currentSinkNode.getInput().getTraitSet();
             for (ReusableSinkGroup group : reusableSinkGroups) {
                 // Only table sink with the same digest, specs and input trait set can be reused
@@ -185,6 +206,10 @@ public class SinkReuser {
         digest.add("fields=[" + fields + "]");
         if (!sink.hints().isEmpty()) {
             digest.add("hints=" + RelExplainUtil.hintsToString(sink.hints()));
+        }
+
+        if (isStreamingMode) {
+            digest.add("upsertMaterialize=" + ((StreamPhysicalSink) sink).upsertMaterialize());
         }
 
         return digest.toString();
