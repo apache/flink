@@ -39,8 +39,6 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.util.StringUtils;
 
-import javax.annotation.Nullable;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -402,18 +400,8 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
     }
 
     @Override
-    public void alterModel(
-            ObjectPath modelPath, @Nullable CatalogModel newModel, boolean ignoreIfNotExists)
-            throws ModelNotExistException {
+    public void alterModel(ObjectPath modelPath, CatalogModel newModel, boolean ignoreIfNotExists) {
         checkNotNull(modelPath);
-
-        CatalogModel existingModel = models.get(modelPath);
-        if (existingModel == null || newModel == null) {
-            if (ignoreIfNotExists) {
-                return;
-            }
-            throw new ModelNotExistException(getName(), modelPath);
-        }
         models.put(modelPath, newModel.copy());
     }
 

@@ -89,6 +89,10 @@ public class AlterModelChangeOperation implements AlterOperation {
 
     @Override
     public TableResultInternal execute(Context ctx) {
+        if (getCatalogModel() == null && ignoreIfNotExists()) {
+            return TableResultImpl.TABLE_RESULT_OK;
+        }
+
         ctx.getCatalogManager()
                 .alterModel(
                         getCatalogModel(), modelChanges, getModelIdentifier(), ignoreIfNotExists());

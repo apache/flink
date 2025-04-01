@@ -880,11 +880,10 @@ public interface Catalog {
      * @param newModel the new model definition
      * @param ignoreIfNotExists flag to specify behavior when the model does not exist: if set to
      *     false, throw an exception, if set to true, do nothing.
-     * @throws ModelNotExistException if the model does not exist
      * @throws CatalogException in case of any runtime exception
      */
     default void alterModel(ObjectPath modelPath, CatalogModel newModel, boolean ignoreIfNotExists)
-            throws ModelNotExistException, CatalogException {
+            throws CatalogException {
         throw new UnsupportedOperationException(
                 String.format(
                         "alterModel(ObjectPath, CatalogModel, boolean) is not implemented for %s.",
@@ -904,7 +903,6 @@ public interface Catalog {
      *     original model
      * @param ignoreIfNotExists flag to specify behavior when the model does not exist: if set to
      *     false, throw an exception, if set to true, do nothing.
-     * @throws ModelNotExistException if the model does not exist
      * @throws CatalogException in case of any runtime exception
      */
     default void alterModel(
@@ -912,7 +910,7 @@ public interface Catalog {
             CatalogModel newModel,
             List<ModelChange> modelChanges,
             boolean ignoreIfNotExists)
-            throws ModelNotExistException, CatalogException {
+            throws CatalogException {
         alterModel(modelPath, newModel, ignoreIfNotExists);
     }
 }
