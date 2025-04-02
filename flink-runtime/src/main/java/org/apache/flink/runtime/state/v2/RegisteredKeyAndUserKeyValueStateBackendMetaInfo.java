@@ -22,7 +22,6 @@ import org.apache.flink.api.common.state.v2.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
-import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.StateSerializerProvider;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
@@ -30,6 +29,7 @@ import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.Map;
@@ -41,44 +41,33 @@ import java.util.Objects;
  *
  * @param <S> Type of state value
  */
-public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStateMetaInfoBase {
+public class RegisteredKeyAndUserKeyValueStateBackendMetaInfo<N, UK, S>
+        extends RegisteredKeyValueStateBackendMetaInfo<N, S> {
 
-    @Nonnull protected final StateDescriptor.Type stateType;
-    @Nonnull protected final StateSerializerProvider<N> namespaceSerializerProvider;
-    @Nonnull protected final StateSerializerProvider<S> stateSerializerProvider;
-    @Nonnull protected StateSnapshotTransformFactory<S> stateSnapshotTransformFactory;
+    // We keep it @Nullable since in the very first version we did not store this serializer here.
+    @Nullable private StateSerializerProvider<UK> userKeySerializerProvider;
 
-    public RegisteredKeyValueStateBackendMetaInfo(
-            @Nonnull String name,
-            @Nonnull StateDescriptor.Type stateType,
-            @Nonnull TypeSerializer<N> namespaceSerializer,
-            @Nonnull TypeSerializer<S> stateSerializer) {
-
-        this(
-                name,
-                stateType,
-                StateSerializerProvider.fromNewRegisteredSerializer(namespaceSerializer),
-                StateSerializerProvider.fromNewRegisteredSerializer(stateSerializer),
-                StateSnapshotTransformFactory.noTransform());
-    }
-
-    public RegisteredKeyValueStateBackendMetaInfo(
+    public RegisteredKeyAndUserKeyValueStateBackendMetaInfo(
             @Nonnull String name,
             @Nonnull StateDescriptor.Type stateType,
             @Nonnull TypeSerializer<N> namespaceSerializer,
             @Nonnull TypeSerializer<S> stateSerializer,
-            @Nonnull StateSnapshotTransformFactory<S> stateSnapshotTransformFactory) {
+            @Nullable TypeSerializer<UK> userKeySerializer) {
 
         this(
                 name,
                 stateType,
                 StateSerializerProvider.fromNewRegisteredSerializer(namespaceSerializer),
                 StateSerializerProvider.fromNewRegisteredSerializer(stateSerializer),
-                stateSnapshotTransformFactory);
+                userKeySerializer == null
+                        ? null
+                        : StateSerializerProvider.fromNewRegisteredSerializer(userKeySerializer),
+                StateSnapshotTransformFactory.noTransform());
     }
 
     @SuppressWarnings("unchecked")
-    public RegisteredKeyValueStateBackendMetaInfo(@Nonnull StateMetaInfoSnapshot snapshot) {
+    public RegisteredKeyAndUserKeyValueStateBackendMetaInfo(
+            @Nonnull StateMetaInfoSnapshot snapshot) {
         this(
                 snapshot.getName(),
                 StateDescriptor.Type.valueOf(
@@ -96,6 +85,17 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
                                         snapshot.getTypeSerializerSnapshot(
                                                 StateMetaInfoSnapshot.CommonSerializerKeys
                                                         .VALUE_SERIALIZER))),
+                snapshot.getTypeSerializerSnapshot(
+                                        StateMetaInfoSnapshot.CommonSerializerKeys
+                                                .USER_KEY_SERIALIZER)
+                                == null
+                        ? null
+                        : StateSerializerProvider.fromPreviousSerializerSnapshot(
+                                (TypeSerializerSnapshot<UK>)
+                                        Preconditions.checkNotNull(
+                                                snapshot.getTypeSerializerSnapshot(
+                                                        StateMetaInfoSnapshot.CommonSerializerKeys
+                                                                .USER_KEY_SERIALIZER))),
                 StateSnapshotTransformFactory.noTransform());
 
         Preconditions.checkState(
@@ -103,69 +103,57 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
                         == snapshot.getBackendStateType());
     }
 
-    protected RegisteredKeyValueStateBackendMetaInfo(
+    private RegisteredKeyAndUserKeyValueStateBackendMetaInfo(
             @Nonnull String name,
             @Nonnull StateDescriptor.Type stateType,
             @Nonnull StateSerializerProvider<N> namespaceSerializerProvider,
             @Nonnull StateSerializerProvider<S> stateSerializerProvider,
+            @Nullable StateSerializerProvider<UK> userKeySerializerProvider,
             @Nonnull StateSnapshotTransformFactory<S> stateSnapshotTransformFactory) {
+        super(
+                name,
+                stateType,
+                namespaceSerializerProvider,
+                stateSerializerProvider,
+                stateSnapshotTransformFactory);
+        this.userKeySerializerProvider = userKeySerializerProvider;
+    }
 
-        super(name);
-        this.stateType = stateType;
-        this.namespaceSerializerProvider = namespaceSerializerProvider;
-        this.stateSerializerProvider = stateSerializerProvider;
-        this.stateSnapshotTransformFactory = stateSnapshotTransformFactory;
+    @Nullable
+    public TypeSerializer<UK> getUserKeySerializer() {
+        return userKeySerializerProvider == null
+                ? null
+                : userKeySerializerProvider.currentSchemaSerializer();
     }
 
     @Nonnull
-    public StateDescriptor.Type getStateType() {
-        return stateType;
-    }
-
-    @Nonnull
-    public TypeSerializer<N> getNamespaceSerializer() {
-        return namespaceSerializerProvider.currentSchemaSerializer();
-    }
-
-    @Nonnull
-    public TypeSerializer<S> getStateSerializer() {
-        return stateSerializerProvider.currentSchemaSerializer();
-    }
-
-    @Nonnull
-    public TypeSerializerSchemaCompatibility<S> updateStateSerializer(
-            TypeSerializer<S> newStateSerializer) {
-        return stateSerializerProvider.registerNewSerializerForRestoredState(newStateSerializer);
+    public TypeSerializerSchemaCompatibility<UK> updateUserKeySerializer(
+            TypeSerializer<UK> newStateSerializer) {
+        if (userKeySerializerProvider == null) {
+            // This means that there is no userKeySerializerProvider in the previous StateMetaInfo,
+            // which may be restored from an old version.
+            this.userKeySerializerProvider =
+                    StateSerializerProvider.fromNewRegisteredSerializer(newStateSerializer);
+            return TypeSerializerSchemaCompatibility.compatibleAsIs();
+        } else {
+            return userKeySerializerProvider.registerNewSerializerForRestoredState(
+                    newStateSerializer);
+        }
     }
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-
-        RegisteredKeyValueStateBackendMetaInfo<?, ?> that =
-                (RegisteredKeyValueStateBackendMetaInfo<?, ?>) o;
-
-        if (!stateType.equals(that.stateType)) {
-            return false;
-        }
-
-        if (!getName().equals(that.getName())) {
-            return false;
-        }
-
-        return getStateSerializer().equals(that.getStateSerializer())
-                && getNamespaceSerializer().equals(that.getNamespaceSerializer());
+        return super.equals(o)
+                && o instanceof RegisteredKeyAndUserKeyValueStateBackendMetaInfo
+                && Objects.equals(
+                        getUserKeySerializer(),
+                        ((RegisteredKeyAndUserKeyValueStateBackendMetaInfo<?, ?, ?>) o)
+                                .getUserKeySerializer());
     }
 
     @Override
     public String toString() {
-        return "RegisteredKeyedBackendStateMetaInfo{"
+        return "RegisteredKeyAndUserKeyValueStateBackendMetaInfo{"
                 + "stateType="
                 + stateType
                 + ", name='"
@@ -175,6 +163,8 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
                 + getNamespaceSerializer()
                 + ", stateSerializer="
                 + getStateSerializer()
+                + ", userKeySerializer="
+                + getUserKeySerializer()
                 + '}';
     }
 
@@ -184,6 +174,9 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
         result = 31 * result + getStateType().hashCode();
         result = 31 * result + getNamespaceSerializer().hashCode();
         result = 31 * result + getStateSerializer().hashCode();
+        if (getUserKeySerializer() != null) {
+            result = 31 * result + getUserKeySerializer().hashCode();
+        }
         return result;
     }
 
@@ -195,30 +188,9 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 
     @Nonnull
     @Override
-    public RegisteredKeyValueStateBackendMetaInfo<N, S> withSerializerUpgradesAllowed() {
-        return new RegisteredKeyValueStateBackendMetaInfo<>(snapshot());
-    }
-
-    public void checkStateMetaInfo(StateDescriptor<?> stateDesc) {
-        Preconditions.checkState(
-                Objects.equals(stateDesc.getStateId(), getName()),
-                "Incompatible state names. "
-                        + "Was ["
-                        + getName()
-                        + "], "
-                        + "registered with ["
-                        + stateDesc.getStateId()
-                        + "].");
-
-        Preconditions.checkState(
-                stateDesc.getType() == getStateType(),
-                "Incompatible key/value state types. "
-                        + "Was ["
-                        + getStateType()
-                        + "], "
-                        + "registered with ["
-                        + stateDesc.getType()
-                        + "].");
+    public RegisteredKeyAndUserKeyValueStateBackendMetaInfo<N, UK, S>
+            withSerializerUpgradesAllowed() {
+        return new RegisteredKeyAndUserKeyValueStateBackendMetaInfo<>(snapshot());
     }
 
     @Nonnull
@@ -246,6 +218,15 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
         serializerMap.put(valueSerializerKey, stateSerializer.duplicate());
         serializerConfigSnapshotsMap.put(
                 valueSerializerKey, stateSerializer.snapshotConfiguration());
+
+        TypeSerializer<UK> userKeySerializer = getUserKeySerializer();
+        if (userKeySerializer != null) {
+            String userKeySerializerKey =
+                    StateMetaInfoSnapshot.CommonSerializerKeys.USER_KEY_SERIALIZER.toString();
+            serializerMap.put(userKeySerializerKey, userKeySerializer.duplicate());
+            serializerConfigSnapshotsMap.put(
+                    userKeySerializerKey, userKeySerializer.snapshotConfiguration());
+        }
 
         return new StateMetaInfoSnapshot(
                 name,

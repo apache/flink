@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.state.v2.StateDescriptor;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 
 import javax.annotation.Nonnull;
@@ -66,8 +67,15 @@ public abstract class RegisteredStateMetaInfoBase {
             case PRIORITY_QUEUE:
                 return new RegisteredPriorityQueueStateBackendMetaInfo<>(snapshot);
             case KEY_VALUE_V2:
-                return new org.apache.flink.runtime.state.v2
-                        .RegisteredKeyValueStateBackendMetaInfo<>(snapshot);
+                if (snapshot.getOption(
+                                StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE.toString())
+                        .equals(StateDescriptor.Type.MAP.toString())) {
+                    return new org.apache.flink.runtime.state.v2
+                            .RegisteredKeyAndUserKeyValueStateBackendMetaInfo<>(snapshot);
+                } else {
+                    return new org.apache.flink.runtime.state.v2
+                            .RegisteredKeyValueStateBackendMetaInfo<>(snapshot);
+                }
             default:
                 throw new IllegalArgumentException(
                         "Unknown backend state type: " + backendStateType);

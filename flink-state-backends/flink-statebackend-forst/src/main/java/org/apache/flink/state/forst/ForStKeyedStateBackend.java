@@ -21,6 +21,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.v2.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.v2.ListStateDescriptor;
+import org.apache.flink.api.common.state.v2.MapStateDescriptor;
 import org.apache.flink.api.common.state.v2.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.StateDescriptor;
@@ -48,11 +49,11 @@ import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
-import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.runtime.state.v2.RegisteredKeyAndUserKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.v2.internal.InternalKeyedState;
 import org.apache.flink.runtime.state.v2.ttl.TtlStateFactory;
@@ -360,6 +361,11 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
 
         TypeSerializer<SV> stateSerializer = stateDesc.getSerializer();
 
+        TypeSerializer<?> userKeySerializer =
+                stateDesc instanceof MapStateDescriptor
+                        ? ((MapStateDescriptor<?, SV>) stateDesc).getUserKeySerializer()
+                        : null;
+
         ForStOperationUtils.ForStKvStateInfo newStateInfo;
         RegisteredKeyValueStateBackendMetaInfo<N, SV> newMetaInfo;
         if (oldStateInfo != null) {
@@ -372,6 +378,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                             Tuple2.of(oldStateInfo.columnFamilyHandle, castedMetaInfo),
                             stateDesc,
                             stateSerializer,
+                            userKeySerializer,
                             namespaceSerializer);
 
             newStateInfo =
@@ -379,13 +386,22 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                             oldStateInfo.columnFamilyHandle, newMetaInfo);
             kvStateInformation.put(stateDesc.getStateId(), newStateInfo);
         } else {
-            newMetaInfo =
-                    new RegisteredKeyValueStateBackendMetaInfo<>(
-                            stateDesc.getStateId(),
-                            stateDesc.getType(),
-                            namespaceSerializer,
-                            stateSerializer,
-                            StateSnapshotTransformer.StateSnapshotTransformFactory.noTransform());
+            if (stateDesc.getType().equals(StateDescriptor.Type.MAP)) {
+                newMetaInfo =
+                        new RegisteredKeyAndUserKeyValueStateBackendMetaInfo<>(
+                                stateDesc.getStateId(),
+                                stateDesc.getType(),
+                                namespaceSerializer,
+                                stateSerializer,
+                                userKeySerializer);
+            } else {
+                newMetaInfo =
+                        new RegisteredKeyValueStateBackendMetaInfo<>(
+                                stateDesc.getStateId(),
+                                stateDesc.getType(),
+                                namespaceSerializer,
+                                stateSerializer);
+            }
 
             newStateInfo =
                     ForStOperationUtils.createStateInfo(
@@ -405,10 +421,11 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
         return Tuple2.of(newStateInfo.columnFamilyHandle, newMetaInfo);
     }
 
-    private <N, SV> RegisteredKeyValueStateBackendMetaInfo<N, SV> updateRestoredStateMetaInfo(
+    private <N, UK, SV> RegisteredKeyValueStateBackendMetaInfo<N, SV> updateRestoredStateMetaInfo(
             Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> oldStateInfo,
             StateDescriptor<SV> stateDesc,
             TypeSerializer<SV> stateSerializer,
+            TypeSerializer<UK> userKeySerializer,
             TypeSerializer<N> namespaceSerializer)
             throws Exception {
 
@@ -436,6 +453,17 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                             + ") must not be incompatible with the old state serializer ("
                             + previousStateSerializer
                             + ").");
+        }
+
+        if (userKeySerializer != null) {
+            TypeSerializerSchemaCompatibility<UK> userKeySerializerCompatibility =
+                    ((RegisteredKeyAndUserKeyValueStateBackendMetaInfo<N, UK, SV>)
+                                    restoredKvStateMetaInfo)
+                            .updateUserKeySerializer(userKeySerializer);
+            if (!userKeySerializerCompatibility.isCompatibleAsIs()) {
+                throw new StateMigrationException(
+                        "The new serializer for a MapState requires state migration in order for the job to proceed. State migration not support yet.");
+            }
         }
 
         return restoredKvStateMetaInfo;
