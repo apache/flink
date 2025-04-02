@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
@@ -70,12 +71,14 @@ public class ConnectedStreams<IN1, IN2> {
     protected final StreamExecutionEnvironment environment;
     protected final DataStream<IN1> inputStream1;
     protected final DataStream<IN2> inputStream2;
+    protected boolean isEnableAsyncState;
 
     protected ConnectedStreams(
             StreamExecutionEnvironment env, DataStream<IN1> input1, DataStream<IN2> input2) {
         this.environment = requireNonNull(env);
         this.inputStream1 = requireNonNull(input1);
         this.inputStream2 = requireNonNull(input2);
+        this.isEnableAsyncState = false;
     }
 
     public StreamExecutionEnvironment getExecutionEnvironment() {
@@ -531,12 +534,27 @@ public class ConnectedStreams<IN1, IN2> {
     }
 
     private boolean isEnableAsyncState() {
-        boolean enableAsyncState = false;
+        return isEnableAsyncState;
+    }
+
+    /**
+     * Enable the async state processing for following keyed processing function on connected
+     * streams. This also requires only State V2 APIs are used in the function.
+     *
+     * @return the configured ConnectedStreams itself.
+     */
+    @Experimental
+    public ConnectedStreams<IN1, IN2> enableAsyncState() {
         if ((inputStream1 instanceof KeyedStream) && (inputStream2 instanceof KeyedStream)) {
-            enableAsyncState =
-                    ((KeyedStream<?, ?>) inputStream1).isEnableAsyncState()
-                            && ((KeyedStream<?, ?>) inputStream2).isEnableAsyncState();
+            ((KeyedStream<?, ?>) inputStream1).enableAsyncState();
+            ((KeyedStream<?, ?>) inputStream2).enableAsyncState();
+            this.isEnableAsyncState = true;
+        } else {
+            throw new UnsupportedOperationException(
+                    "The connected streams do not support async state, "
+                            + "please ensure that two input streams of your connected streams are "
+                            + "keyed stream(not behind a keyBy()).");
         }
-        return enableAsyncState;
+        return this;
     }
 }

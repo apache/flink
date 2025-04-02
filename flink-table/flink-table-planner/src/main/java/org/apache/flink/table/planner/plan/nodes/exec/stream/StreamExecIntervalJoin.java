@@ -23,7 +23,6 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.StreamFlatMap;
 import org.apache.flink.streaming.api.operators.StreamMap;
-import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
@@ -368,18 +367,12 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                         leftTypeInfo,
                         rightTypeInfo,
                         joinFunction);
-        TwoInputStreamOperator<RowData, RowData, RowData> operator;
-        if (config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED)) {
-            // TODO: add async version procJoinFunc to use AsyncKeyedCoProcessOperator
-            operator = new KeyedCoProcessOperator<>(procJoinFunc);
-        } else {
-            operator = new KeyedCoProcessOperator<>(procJoinFunc);
-        }
+        // TODO: add async version procJoinFunc to use AsyncKeyedCoProcessOperator
         return ExecNodeUtil.createTwoInputTransformation(
                 leftInputTransform,
                 rightInputTransform,
                 createTransformationMeta(INTERVAL_JOIN_TRANSFORMATION, config),
-                operator,
+                new KeyedCoProcessOperator<>(procJoinFunc),
                 returnTypeInfo,
                 leftInputTransform.getParallelism(),
                 false);
@@ -411,23 +404,13 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                         joinFunction,
                         windowBounds.getLeftTimeIdx(),
                         windowBounds.getRightTimeIdx());
-
-        TwoInputStreamOperator<RowData, RowData, RowData> operator;
-        if (config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED)) {
-            // TODO: add async version rowJoinFunc to use AsyncKeyedCoProcessOperator
-            operator =
-                    new KeyedCoProcessOperatorWithWatermarkDelay<>(
-                            rowJoinFunc, rowJoinFunc.getMaxOutputDelay());
-        } else {
-            operator =
-                    new KeyedCoProcessOperatorWithWatermarkDelay<>(
-                            rowJoinFunc, rowJoinFunc.getMaxOutputDelay());
-        }
+        // TODO: add async version rowJoinFunc to use AsyncKeyedCoProcessOperator
         return ExecNodeUtil.createTwoInputTransformation(
                 leftInputTransform,
                 rightInputTransform,
                 createTransformationMeta(INTERVAL_JOIN_TRANSFORMATION, config),
-                operator,
+                new KeyedCoProcessOperatorWithWatermarkDelay<>(
+                        rowJoinFunc, rowJoinFunc.getMaxOutputDelay()),
                 returnTypeInfo,
                 leftInputTransform.getParallelism(),
                 false);

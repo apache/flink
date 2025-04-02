@@ -54,20 +54,21 @@ public abstract class DeclaringAsyncKeyedCoProcessFunction<K, IN1, IN2, OUT>
 
     private static final long serialVersionUID = 1L;
 
-    /** Override this method or use {@link #declareProcess1} instead. */
+    /** Override and finalize this method. Please use {@link #declareProcess1} instead. */
     @Override
-    public void processElement1(IN1 value, Context ctx, Collector<OUT> out) throws Exception {
+    public final void processElement1(IN1 value, Context ctx, Collector<OUT> out) throws Exception {
         throw new IllegalAccessException("This method is replaced by declareProcess1.");
     }
 
-    /** Override this method or use {@link #declareProcess2} instead. */
+    /** Override and finalize this method. Please use {@link #declareProcess2} instead. */
     @Override
-    public void processElement2(IN2 value, Context ctx, Collector<OUT> out) throws Exception {
+    public final void processElement2(IN2 value, Context ctx, Collector<OUT> out) throws Exception {
         throw new IllegalAccessException("This method is replaced by declareProcess2.");
     }
 
-    /** Override this method or use {@link #declareOnTimer} instead. */
-    public void onTimer(long timestamp, OnTimerContext ctx, Collector<OUT> out) throws Exception {
+    /** Override and finalize this method. Please use {@link #declareOnTimer} instead. */
+    public final void onTimer(long timestamp, OnTimerContext ctx, Collector<OUT> out)
+            throws Exception {
         throw new IllegalAccessException("This method is replaced by declareOnTimer.");
     }
 
