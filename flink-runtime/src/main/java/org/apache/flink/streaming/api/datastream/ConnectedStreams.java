@@ -78,7 +78,13 @@ public class ConnectedStreams<IN1, IN2> {
         this.environment = requireNonNull(env);
         this.inputStream1 = requireNonNull(input1);
         this.inputStream2 = requireNonNull(input2);
-        this.isEnableAsyncState = false;
+        if ((inputStream1 instanceof KeyedStream) && (inputStream2 instanceof KeyedStream)) {
+            this.isEnableAsyncState =
+                    ((KeyedStream) inputStream1).isEnableAsyncState()
+                            && ((KeyedStream) inputStream2).isEnableAsyncState();
+        } else {
+            this.isEnableAsyncState = false;
+        }
     }
 
     public StreamExecutionEnvironment getExecutionEnvironment() {
@@ -444,7 +450,7 @@ public class ConnectedStreams<IN1, IN2> {
 
         if ((inputStream1 instanceof KeyedStream) && (inputStream2 instanceof KeyedStream)) {
             operator =
-                    isEnableAsyncState()
+                    isEnableAsyncState
                             ? new AsyncKeyedCoProcessOperator<>(
                                     inputStream1.clean(keyedCoProcessFunction))
                             : new KeyedCoProcessOperator<>(
@@ -531,10 +537,6 @@ public class ConnectedStreams<IN1, IN2> {
         getExecutionEnvironment().addOperator(transform);
 
         return returnStream;
-    }
-
-    private boolean isEnableAsyncState() {
-        return isEnableAsyncState;
     }
 
     /**
