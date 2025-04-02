@@ -72,6 +72,7 @@ public class PlannerModule {
                                     "org.codehaus.commons",
                                     "org.apache.commons.lang3",
                                     "org.apache.commons.math3",
+                                    "org.apache.commons.text",
                                     // with hive dialect, hadoop jar should be in classpath,
                                     // also, we should make it loaded by owner classloader,
                                     // otherwise, it'll throw class not found exception
