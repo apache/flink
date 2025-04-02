@@ -32,6 +32,7 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.ExplainFormat;
 import org.apache.flink.table.api.Expressions;
+import org.apache.flink.table.api.ModelDescriptor;
 import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.SqlParserException;
@@ -565,6 +566,36 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
+    public void createModel(String path, ModelDescriptor descriptor, boolean ignoreIfExists) {
+        Preconditions.checkNotNull(path, "Path must not be null.");
+        Preconditions.checkNotNull(descriptor, "Model descriptor must not be null.");
+        final ObjectIdentifier objectIdentifier =
+                catalogManager.qualifyIdentifier(getParser().parseIdentifier(path));
+        catalogManager.createModel(descriptor.toCatalogModel(), objectIdentifier, ignoreIfExists);
+    }
+
+    @Override
+    public void createModel(String path, ModelDescriptor descriptor) {
+        createModel(path, descriptor, false);
+    }
+
+    @Override
+    public void createTemporaryModel(String path, ModelDescriptor descriptor) {
+        createTemporaryModel(path, descriptor, false);
+    }
+
+    @Override
+    public void createTemporaryModel(
+            String path, ModelDescriptor descriptor, boolean ignoreIfExists) {
+        Preconditions.checkNotNull(path, "Path must not be null.");
+        Preconditions.checkNotNull(descriptor, "Model descriptor must not be null.");
+        final ObjectIdentifier objectIdentifier =
+                catalogManager.qualifyIdentifier(getParser().parseIdentifier(path));
+        catalogManager.createTemporaryModel(
+                descriptor.toCatalogModel(), objectIdentifier, ignoreIfExists);
+    }
+
+    @Override
     public Table scan(String... tablePath) {
         UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(tablePath);
         return scanInternal(unresolvedIdentifier)
@@ -720,6 +751,32 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
+    public boolean dropModel(String path) {
+        return dropModel(path, true);
+    }
+
+    @Override
+    public boolean dropModel(String path, boolean ignoreIfNotExists) {
+        Preconditions.checkNotNull(path, "Path must not be null.");
+        ObjectIdentifier objectIdentifier =
+                catalogManager.qualifyIdentifier(getParser().parseIdentifier(path));
+        return catalogManager.dropModel(objectIdentifier, ignoreIfNotExists);
+    }
+
+    @Override
+    public boolean dropTemporaryModel(String path) {
+        Preconditions.checkNotNull(path, "Path must not be null.");
+        ObjectIdentifier objectIdentifier =
+                catalogManager.qualifyIdentifier(getParser().parseIdentifier(path));
+        try {
+            catalogManager.dropTemporaryModel(objectIdentifier, false);
+            return true;
+        } catch (ValidationException e) {
+            return false;
+        }
+    }
+
+    @Override
     public String[] listUserDefinedFunctions() {
         String[] functions = functionCatalog.getUserDefinedFunctions();
         Arrays.sort(functions);
@@ -731,6 +788,16 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         String[] functions = functionCatalog.getFunctions();
         Arrays.sort(functions);
         return functions;
+    }
+
+    @Override
+    public String[] listModels() {
+        return catalogManager.listModels().stream().sorted().toArray(String[]::new);
+    }
+
+    @Override
+    public String[] listTemporaryModels() {
+        return catalogManager.listTemporaryModels().stream().sorted().toArray(String[]::new);
     }
 
     @Override

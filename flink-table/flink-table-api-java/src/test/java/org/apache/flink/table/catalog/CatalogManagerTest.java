@@ -343,12 +343,14 @@ class CatalogManagerTest {
         assertThat(alterEvent.ignoreIfNotExists()).isFalse();
 
         // Drop a model
-        catalogManager.dropModel(
-                ObjectIdentifier.of(
-                        catalogManager.getCurrentCatalog(),
-                        catalogManager.getCurrentDatabase(),
-                        "model1"),
-                true);
+        assertThat(
+                        catalogManager.dropModel(
+                                ObjectIdentifier.of(
+                                        catalogManager.getCurrentCatalog(),
+                                        catalogManager.getCurrentDatabase(),
+                                        "model1"),
+                                true))
+                .isTrue();
         DropModelEvent dropEvent = dropFuture.get(10, TimeUnit.SECONDS);
         assertThat(dropEvent.ignoreIfNotExists()).isTrue();
         assertThat(dropEvent.identifier().getObjectName()).isEqualTo("model1");
