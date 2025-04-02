@@ -32,8 +32,6 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.util.Preconditions;
 
-import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
@@ -83,7 +81,16 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
 
     private final int maxBatchSize;
     private final int maxBufferedRequests;
-    private final long maxBatchSizeInBytes;
+
+    /**
+     * Threshold in bytes to trigger a flush from the buffer.
+     *
+     * <p>This is derived from {@code maxBatchSizeInBytes} in the configuration, but is only used
+     * here to decide when the buffer should be flushed. The actual batch size limit is now enforced
+     * by the {@link BatchCreator}.
+     */
+    private final long flushThresholdBytes;
+
     private final long maxTimeInBufferMS;
     private final long maxRecordSizeInBytes;
 
@@ -101,18 +108,18 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
 
     /**
      * Buffer to hold request entries that should be persisted into the destination, along with its
-     * total size in bytes.
+     * size in bytes.
      *
-     * <p>This buffer is managed using {@link BufferWrapper}, allowing sink implementations to
-     * define their own optimized buffering strategies. By default, {@link DequeBufferWrapper} is
-     * used.
+     * <p>A request entry contain all relevant details to make a call to the destination. Eg, for
+     * Kinesis Data Streams a request entry contains the payload and partition key.
      *
-     * <p>The buffer stores {@link RequestEntryWrapper} objects rather than raw {@link
-     * RequestEntryT} instances, as buffering wrapped entries allows for better tracking of size and
-     * metadata. This also makes it easier to handle retries by prioritising failed entries back
-     * into the buffer.
+     * <p>It seems more natural to buffer InputT, ie, the events that should be persisted, rather
+     * than RequestEntryT. However, in practice, the response of a failed request call can make it
+     * very hard, if not impossible, to reconstruct the original event. It is much easier, to just
+     * construct a new (retry) request entry from the response and add that back to the queue for
+     * later retry.
      */
-    private final BufferWrapper<RequestEntryT> bufferedRequestEntries;
+    private final RequestBuffer<RequestEntryT> bufferedRequestEntries;
 
     /**
      * Batch component responsible for forming a batch of request entries from the buffer when the
@@ -215,7 +222,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
 
     /**
      * This constructor is deprecated. Users should use {@link #AsyncSinkWriter(ElementConverter,
-     * WriterInitContext, AsyncSinkWriterConfiguration, Collection, BatchCreator, BufferWrapper)}.
+     * WriterInitContext, AsyncSinkWriterConfiguration, Collection, BatchCreator, RequestBuffer)}.
      */
     @Deprecated
     public AsyncSinkWriter(
@@ -223,7 +230,15 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
             WriterInitContext context,
             AsyncSinkWriterConfiguration configuration,
             Collection<BufferedRequestState<RequestEntryT>> states) {
-        this(elementConverter, context, configuration, states, null, null);
+        this(
+                elementConverter,
+                context,
+                configuration,
+                states,
+                new SimpleBatchCreator.Builder<RequestEntryT>()
+                        .setMaxBatchSizeInBytes(configuration.getMaxBatchSizeInBytes())
+                        .build(),
+                new DequeRequestBuffer.Builder<RequestEntryT>().build());
     }
 
     public AsyncSinkWriter(
@@ -231,8 +246,8 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
             WriterInitContext context,
             AsyncSinkWriterConfiguration configuration,
             Collection<BufferedRequestState<RequestEntryT>> states,
-            @Nullable BatchCreator<RequestEntryT> batchCreator,
-            @Nullable BufferWrapper<RequestEntryT> bufferedRequestEntries) {
+            BatchCreator<RequestEntryT> batchCreator,
+            RequestBuffer<RequestEntryT> bufferedRequestEntries) {
         this.elementConverter = elementConverter;
         this.mailboxExecutor = context.getMailboxExecutor();
         this.timeService = context.getProcessingTimeService();
@@ -252,30 +267,26 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
                 "The maximum allowed size in bytes per flush must be greater than or equal to the"
                         + " maximum allowed size in bytes of a single record.");
         Preconditions.checkNotNull(configuration.getRateLimitingStrategy());
+        Preconditions.checkNotNull(
+                batchCreator, "batchCreator must not be null; required for creating batches.");
+        Preconditions.checkNotNull(
+                bufferedRequestEntries,
+                "bufferedRequestEntries must not be null; holds pending request data.");
         this.maxBatchSize = configuration.getMaxBatchSize();
         this.maxBufferedRequests = configuration.getMaxBufferedRequests();
-        this.maxBatchSizeInBytes = configuration.getMaxBatchSizeInBytes();
+        this.flushThresholdBytes = configuration.getMaxBatchSizeInBytes();
         this.maxTimeInBufferMS = configuration.getMaxTimeInBufferMS();
         this.maxRecordSizeInBytes = configuration.getMaxRecordSizeInBytes();
         this.rateLimitingStrategy = configuration.getRateLimitingStrategy();
         this.requestTimeoutMS = configuration.getRequestTimeoutMS();
         this.failOnTimeout = configuration.isFailOnTimeout();
-        this.bufferedRequestEntries =
-                bufferedRequestEntries == null
-                        ? new DequeBufferWrapper.Builder<RequestEntryT>().build()
-                        : bufferedRequestEntries;
-        this.batchCreator =
-                batchCreator == null
-                        ? new SimpleBatchCreator.Builder<RequestEntryT>()
-                                .setMaxBatchSizeInBytes(maxBatchSizeInBytes)
-                                .build()
-                        : batchCreator;
         this.inFlightRequestsCount = 0;
         this.metrics = context.metricGroup();
         this.metrics.setCurrentSendTimeGauge(() -> this.ackTime - this.lastSendTimestamp);
         this.numBytesOutCounter = this.metrics.getIOMetricGroup().getNumBytesOutCounter();
         this.numRecordsOutCounter = this.metrics.getIOMetricGroup().getNumRecordsOutCounter();
-
+        this.batchCreator = batchCreator;
+        this.bufferedRequestEntries = bufferedRequestEntries;
         this.fatalExceptionCons =
                 exception ->
                         mailboxExecutor.execute(
@@ -325,7 +336,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
     private void nonBlockingFlush() throws InterruptedException {
         while (!rateLimitingStrategy.shouldBlock(createRequestInfo())
                 && (bufferedRequestEntries.size() >= getNextBatchSizeLimit()
-                        || bufferedRequestEntries.totalSizeInBytes() >= maxBatchSizeInBytes)) {
+                        || bufferedRequestEntries.totalSizeInBytes() >= flushThresholdBytes)) {
             flush();
         }
     }
@@ -543,7 +554,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
     }
 
     @VisibleForTesting
-    BufferWrapper<RequestEntryT> getBufferedRequestEntries() {
+    RequestBuffer<RequestEntryT> getBufferedRequestEntries() {
         return bufferedRequestEntries;
     }
 

@@ -25,13 +25,13 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Test for {@link DequeBufferWrapper}. */
-public class DequeueBufferWrapperTest {
-    private DequeBufferWrapper<String> bufferWrapper;
+/** Test for {@link DequeRequestBuffer}. */
+public class DequueRequestBufferTest {
+    private DequeRequestBuffer<String> bufferWrapper;
 
     @BeforeEach
     void setUp() {
-        bufferWrapper = new DequeBufferWrapper.Builder<String>().build();
+        bufferWrapper = new DequeRequestBuffer.Builder<String>().build();
     }
 
     /** Test entries should be added in FIFO Fashion. */

@@ -721,14 +721,14 @@ class AsyncSinkWriterTest {
                 .containsExactlyInAnyOrder(1, 2, 3, 4, 5, 6);
     }
 
-    /** Simple assertion to make sure that {@link DequeBufferWrapper} is the default buffer. */
+    /** Simple assertion to make sure that {@link DequeRequestBuffer} is the default buffer. */
     @Test
     public void testUseCorrectBufferWrapperImplementation() {
         AsyncSinkWriterImpl initialSinkWriter =
                 new AsyncSinkWriterImplBuilder().context(sinkInitContext).build();
 
         assertThat(initialSinkWriter.getBufferedRequestEntries())
-                .isInstanceOf(DequeBufferWrapper.class);
+                .isInstanceOf(DequeRequestBuffer.class);
     }
 
     /**
@@ -1134,9 +1134,7 @@ class AsyncSinkWriterTest {
                                                             .build())
                                             .build())
                             .build(),
-                    bufferedState,
-                    null,
-                    null);
+                    bufferedState);
             this.simulateFailures = simulateFailures;
             this.delay = delay;
         }

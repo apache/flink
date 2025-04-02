@@ -17,6 +17,7 @@
 
 package org.apache.flink.connector.base.sink.writer;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.base.sink.writer.strategy.RequestInfo;
 import org.apache.flink.util.Preconditions;
@@ -36,7 +37,7 @@ import java.util.List;
  *
  * @param <RequestEntryT> the type of request entries managed by this batch creator
  */
-@PublicEvolving
+@Internal
 public class SimpleBatchCreator<RequestEntryT extends Serializable>
         implements BatchCreator<RequestEntryT> {
 
@@ -59,7 +60,7 @@ public class SimpleBatchCreator<RequestEntryT extends Serializable>
      */
     @Override
     public Batch<RequestEntryT> createNextBatch(
-            RequestInfo requestInfo, BufferWrapper<RequestEntryT> bufferedRequestEntries) {
+            RequestInfo requestInfo, RequestBuffer<RequestEntryT> bufferedRequestEntries) {
         List<RequestEntryT> batch = new ArrayList<>(requestInfo.getBatchSize());
         long batchSizeBytes = 0L;
 
@@ -74,7 +75,7 @@ public class SimpleBatchCreator<RequestEntryT extends Serializable>
             batch.add(elem.getRequestEntry());
             batchSizeBytes += requestEntrySize;
         }
-        return new Batch<>(batch, batchSizeBytes, batch.size());
+        return new Batch<>(batch, batchSizeBytes);
     }
 
     /**

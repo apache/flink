@@ -42,7 +42,7 @@ public class SimpleBatchCreatorTest {
     public void testCreatNextBatchWithEmptyBuffer() {
         SimpleBatchCreator<String> creator =
                 new SimpleBatchCreator.Builder<String>().setMaxBatchSizeInBytes(100L).build();
-        BufferWrapper<String> buffer = new DequeBufferWrapper.Builder<String>().build();
+        RequestBuffer<String> buffer = new DequeRequestBuffer.Builder<String>().build();
         // No entries in the buffer
         RequestInfo requestInfo = () -> 10;
         Batch<String> result = creator.createNextBatch(requestInfo, buffer);
@@ -59,7 +59,7 @@ public class SimpleBatchCreatorTest {
     public void testCreateNextBatchRespectsBatchCountLimit() {
         SimpleBatchCreator<String> creator =
                 new SimpleBatchCreator.Builder<String>().setMaxBatchSizeInBytes(100L).build();
-        BufferWrapper<String> buffer = new DequeBufferWrapper.Builder<String>().build();
+        RequestBuffer<String> buffer = new DequeRequestBuffer.Builder<String>().build();
 
         // Add multiple items to the buffer
         for (int i = 0; i < 10; i++) {
@@ -88,7 +88,7 @@ public class SimpleBatchCreatorTest {
         // The total size limit for a batch is 25
         SimpleBatchCreator<String> creator =
                 new SimpleBatchCreator.Builder<String>().setMaxBatchSizeInBytes(25L).build();
-        BufferWrapper<String> buffer = new DequeBufferWrapper.Builder<String>().build();
+        RequestBuffer<String> buffer = new DequeRequestBuffer.Builder<String>().build();
         // The first three have size=10, the last has size=1
         buffer.add(new RequestEntryWrapper<>("A", 10L), false);
         buffer.add(new RequestEntryWrapper<>("B", 10L), false);
@@ -103,7 +103,7 @@ public class SimpleBatchCreatorTest {
                     }
                 };
         Batch<String> result = creator.createNextBatch(requestInfo, buffer);
-        // Should only take 5 items, ignoring the size limit because each item is 10 bytes
+        // Should only take 2 items, ignoring the size limit because each item is 10 bytes
         assertThat(result.getBatchEntries()).isEqualTo(Arrays.asList("A", "B"));
         assertThat(result.getRecordCount()).isEqualTo(2);
         assertThat(result.getSizeInBytes()).isEqualTo(20L);
@@ -118,7 +118,7 @@ public class SimpleBatchCreatorTest {
         // The total size limit for a batch is 20
         SimpleBatchCreator<String> creator =
                 new SimpleBatchCreator.Builder<String>().setMaxBatchSizeInBytes(20L).build();
-        BufferWrapper<String> buffer = new DequeBufferWrapper.Builder<String>().build();
+        RequestBuffer<String> buffer = new DequeRequestBuffer.Builder<String>().build();
         buffer.add(new RequestEntryWrapper<>("A", 10L), false);
         buffer.add(new RequestEntryWrapper<>("B", 10L), false);
         buffer.add(new RequestEntryWrapper<>("C", 10L), false);
@@ -146,7 +146,7 @@ public class SimpleBatchCreatorTest {
         // The total size limit for a batch is 20
         SimpleBatchCreator<String> creator =
                 new SimpleBatchCreator.Builder<String>().setMaxBatchSizeInBytes(50L).build();
-        BufferWrapper<String> buffer = new DequeBufferWrapper.Builder<String>().build();
+        RequestBuffer<String> buffer = new DequeRequestBuffer.Builder<String>().build();
         buffer.add(new RequestEntryWrapper<>("A", 10L), false);
         buffer.add(new RequestEntryWrapper<>("B", 20L), false);
         buffer.add(new RequestEntryWrapper<>("C", 20L), false);
@@ -172,7 +172,7 @@ public class SimpleBatchCreatorTest {
         // The total size limit for a batch is 20
         SimpleBatchCreator<String> creator =
                 new SimpleBatchCreator.Builder<String>().setMaxBatchSizeInBytes(30L).build();
-        BufferWrapper<String> buffer = new DequeBufferWrapper.Builder<String>().build();
+        RequestBuffer<String> buffer = new DequeRequestBuffer.Builder<String>().build();
         buffer.add(new RequestEntryWrapper<>("A", 10L), false);
         buffer.add(new RequestEntryWrapper<>("B", 20L), false);
         buffer.add(new RequestEntryWrapper<>("C", 10L), false);

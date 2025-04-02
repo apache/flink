@@ -25,12 +25,12 @@ import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Unit Test for BatchCreationResult, majorly testing constructor, setter and getters. */
+/** Unit Test for Batch, majorly testing constructor, setter and getters. */
 public class BatchTest {
 
     @Test
     public void testConstructorAndGetters() {
-        Batch<String> result = new Batch<>(Arrays.asList("event1", "event2", "event3"), 18L, 3);
+        Batch<String> result = new Batch<>(Arrays.asList("event1", "event2", "event3"), 18L);
 
         assertThat(result.getRecordCount()).isEqualTo(3);
         assertThat(result.getSizeInBytes()).isEqualTo(18L);
@@ -39,7 +39,7 @@ public class BatchTest {
 
     @Test
     public void testEmptyBatch() {
-        Batch<String> result = new Batch<>(Collections.emptyList(), 0L, 0);
+        Batch<String> result = new Batch<>(Collections.emptyList(), 0L);
 
         assertThat(result.getBatchEntries()).isEmpty();
         assertThat(result.getSizeInBytes()).isEqualTo(0L);

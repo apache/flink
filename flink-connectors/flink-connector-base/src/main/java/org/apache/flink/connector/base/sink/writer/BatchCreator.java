@@ -28,7 +28,7 @@ import java.util.Deque;
  * control how many entries are grouped together and in what manner before sending them downstream.
  *
  * <p>The {@code AsyncSinkWriter} (or similar sink component) calls {@link
- * #createNextBatch(RequestInfo, BufferWrapper)} (RequestInfo, Deque)} when it decides to flush or
+ * #createNextBatch(RequestInfo, RequestBuffer)} (RequestInfo, Deque)} when it decides to flush or
  * otherwise gather a new batch of elements. For instance, a batch creator might limit the batch by
  * the number of elements, total payload size, or any custom partition-based strategy.
  *
@@ -38,22 +38,33 @@ import java.util.Deque;
 public interface BatchCreator<RequestEntryT extends Serializable> {
 
     /**
-     * Creates the next batch of request entries from the current buffer.
+     * Creates the next batch of request entries based on the provided {@link RequestInfo} and the
+     * currently buffered entries.
      *
-     * <p>This method is typically invoked when the sink determines that it's time to flush—e.g.,
-     * based on rate limiting, a buffer-size threshold, or a time-based trigger. The implementation
-     * can select as many entries from {@code bufferedRequestEntries} as it deems appropriate for a
-     * single batch, subject to any internal constraints (for example, a maximum byte size).
+     * <p>This method is expected to:
+     *
+     * <ul>
+     *   <li>Mutate the {@code bufferedRequestEntries} by polling/removing elements from it.
+     *   <li>Return a batch containing the selected entries.
+     * </ul>
+     *
+     * <p><strong>Thread-safety note:</strong> This method is called from {@code flush()}, which is
+     * executed on the Flink main thread. Implementations should assume single-threaded access and
+     * must not be shared across subtasks.
+     *
+     * <p><strong>Contract:</strong> Implementations must ensure that any entry removed from {@code
+     * bufferedRequestEntries} is either added to the returned batch or properly handled (e.g.,
+     * retried or logged), and not silently dropped.
      *
      * @param requestInfo information about the desired request properties or constraints (e.g., an
      *     allowed batch size or other relevant hints)
-     * @param bufferedRequestEntries a {@link Deque} of all currently buffered entries waiting to be
-     *     grouped into batches
+     * @param bufferedRequestEntries a collection ex: {@link Deque} of all currently buffered
+     *     entries waiting to be grouped into batches
      * @return a {@link Batch} containing the new batch of entries along with metadata about the
      *     batch (e.g., total byte size, record count)
      */
     Batch<RequestEntryT> createNextBatch(
-            RequestInfo requestInfo, BufferWrapper<RequestEntryT> bufferedRequestEntries);
+            RequestInfo requestInfo, RequestBuffer<RequestEntryT> bufferedRequestEntries);
 
     /**
      * Generic builder interface for creating instances of {@link BatchCreator}.

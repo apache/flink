@@ -54,12 +54,11 @@ public class Batch<RequestEntryT extends Serializable> {
      *
      * @param requestEntries the list of request entries that form the batch
      * @param sizeInBytes the total size in bytes of the entire batch
-     * @param recordCount the total number of entries in the batch
      */
-    public Batch(List<RequestEntryT> requestEntries, long sizeInBytes, int recordCount) {
+    public Batch(List<RequestEntryT> requestEntries, long sizeInBytes) {
         this.batchEntries = requestEntries;
         this.sizeInBytes = sizeInBytes;
-        this.recordCount = recordCount;
+        this.recordCount = requestEntries.size();
     }
 
     /**

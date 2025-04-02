@@ -26,17 +26,25 @@ import java.util.Collection;
  * A flexible wrapper interface for managing buffered request entries in an async sink. This allows
  * sink implementations to define and optimize their own data structures for request buffering.
  *
+ * <p>{@link RequestEntryWrapper} is buffered instead of raw request entries (like {@code InputT})
+ * to support metadata tracking (e.g., entry size, retry priority). This makes it easier to manage
+ * retries and batch sizing without burdening the sink logic.
+ *
+ * <p>Sink developers can provide custom implementations of this interface (e.g., circular buffer,
+ * priority queue) to control how entries are buffered.
+ *
  * @param <RequestEntryT> The type of request entries being buffered.
  */
 @PublicEvolving
-public interface BufferWrapper<RequestEntryT extends Serializable> {
+public interface RequestBuffer<RequestEntryT extends Serializable> {
 
     /**
-     * Adds an entry (<code>RequestEntryWrapper&lt;RequestEntryT&gt;</code>) to the buffer.
-     * Implementations can decide how to store the entry.
+     * Adds an entry ({@code RequestEntryWrapper<RequestEntryT>}) to the buffer. Implementations can
+     * decide how to store the entry.
      *
      * @param entry The request entry to add.
-     * @param prioritize If true, the entry should be prioritized (e.g. retried before others).
+     * @param prioritize If true, the entry should be prioritized (e.g. retried before others)
+     *     required to maintain ordering on retries.
      */
     void add(RequestEntryWrapper<RequestEntryT> entry, boolean prioritize);
 
@@ -76,6 +84,13 @@ public interface BufferWrapper<RequestEntryT extends Serializable> {
      * Retrieves all buffered request entries as a collection. Implementations should return a
      * snapshot of the buffer for checkpointing.
      *
+     * <p>The returned collection:
+     *
+     * <ul>
+     *   <li>Must preserve the order in which entries were added (FIFO).
+     *   <li>Must not modify or clear the internal buffer.
+     * </ul>
+     *
      * @return A collection of all buffered request entries.
      */
     Collection<RequestEntryWrapper<RequestEntryT>> getBufferedState();
@@ -91,17 +106,17 @@ public interface BufferWrapper<RequestEntryT extends Serializable> {
     long totalSizeInBytes();
 
     /**
-     * Generic builder interface for creating instances of {@link BufferWrapper}.
+     * Generic builder interface for creating instances of {@link RequestBuffer}.
      *
-     * @param <R> The type of {@link BufferWrapper} that the builder will create.
+     * @param <R> The type of {@link RequestBuffer} that the builder will create.
      * @param <RequestEntryT> The type of request entries that the buffer wrapper will store.
      */
-    interface Builder<R extends BufferWrapper<RequestEntryT>, RequestEntryT extends Serializable> {
+    interface Builder<R extends RequestBuffer<RequestEntryT>, RequestEntryT extends Serializable> {
         /**
-         * Constructs and returns an instance of {@link BufferWrapper} with the configured
+         * Constructs and returns an instance of {@link RequestBuffer} with the configured
          * parameters.
          *
-         * @return A new instance of {@link BufferWrapper}.
+         * @return A new instance of {@link RequestBuffer}.
          */
         R build();
     }

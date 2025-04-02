@@ -17,7 +17,7 @@
 
 package org.apache.flink.connector.base.sink.writer;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 
 import java.io.Serializable;
 import java.util.ArrayDeque;
@@ -28,15 +28,15 @@ import java.util.Deque;
 /**
  * Default wrapper implementation that uses an {@link ArrayDeque} as the underlying data structure.
  */
-@PublicEvolving
-public class DequeBufferWrapper<RequestEntryT extends Serializable>
-        implements BufferWrapper<RequestEntryT> {
+@Internal
+public class DequeRequestBuffer<RequestEntryT extends Serializable>
+        implements RequestBuffer<RequestEntryT> {
 
     private final Deque<RequestEntryWrapper<RequestEntryT>> buffer;
     private long totalSizeInBytes;
 
     /** Creates an empty buffer backed by an {@link ArrayDeque}. */
-    private DequeBufferWrapper() {
+    private DequeRequestBuffer() {
         buffer = new ArrayDeque<>();
         totalSizeInBytes = 0L;
     }
@@ -99,16 +99,16 @@ public class DequeBufferWrapper<RequestEntryT extends Serializable>
     }
 
     /**
-     * Builder for {@link DequeBufferWrapper}.
+     * Builder for {@link DequeRequestBuffer}.
      *
      * @param <RequestEntryT> The type of request entries that the buffer wrapper will store.
      */
     public static class Builder<RequestEntryT extends Serializable>
-            implements BufferWrapper.Builder<DequeBufferWrapper<RequestEntryT>, RequestEntryT> {
+            implements RequestBuffer.Builder<DequeRequestBuffer<RequestEntryT>, RequestEntryT> {
 
         @Override
-        public DequeBufferWrapper<RequestEntryT> build() {
-            return new DequeBufferWrapper<>();
+        public DequeRequestBuffer<RequestEntryT> build() {
+            return new DequeRequestBuffer<>();
         }
     }
 }
