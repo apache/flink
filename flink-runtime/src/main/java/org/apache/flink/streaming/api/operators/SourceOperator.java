@@ -729,6 +729,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     @Override
     public void splitFinished(String splitId) {
         splitCurrentWatermarks.remove(splitId);
+        getOrCreateSplitMetricGroup(splitId).onSplitFinished();
         this.splitMetricGroups.remove(splitId);
     }
 
