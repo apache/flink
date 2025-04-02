@@ -1168,6 +1168,16 @@ valueconstruction:
   - sql: MAP '[' value1, value2 [, value3, value4 ]* ']'
     table: map(ANY1, ANY2, ANY3, ANY4, ...)
     description: Returns a map created from a list of key-value pairs ((value1, value2), (value3, value4), ...).
+  - sql: DESCRIPTOR '(' identifier1 [, identifier2  ]* ')'
+    table: descriptor(STRING1, STRING2, ...)
+    description: |
+      Returns a literal describing an arbitrary, unvalidated list of column names. Passing a list of columns
+      can be useful for parameterizing a function. In particular, it enables declaring the `on_time` argument
+      for process table functions (PTFs).
+
+      ```sql
+      f(columns => DESCRIPTOR(`col1`, `col2`), on_time => DESCRIPTOR(`ts`))
+      ```
   - table: NUMERIC.rows
     description: Creates a NUMERIC interval of rows (commonly used in window creation).
 

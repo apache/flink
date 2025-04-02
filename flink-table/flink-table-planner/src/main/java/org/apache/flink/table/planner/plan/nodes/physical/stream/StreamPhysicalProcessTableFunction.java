@@ -59,6 +59,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig;
+import static org.apache.flink.table.types.inference.SystemTypeInference.PROCESS_TABLE_FUNCTION_ARG_ON_TIME_OFFSET;
 
 /**
  * {@link StreamPhysicalRel} node for {@link ProcessTableFunction}.
@@ -263,12 +264,16 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
     }
 
     public static Set<String> deriveOnTimeFields(List<RexNode> operands) {
-        final RexCall onTimeOperand = (RexCall) operands.get(operands.size() - 2);
+        final RexCall onTimeOperand =
+                (RexCall)
+                        operands.get(
+                                operands.size() - 1 - PROCESS_TABLE_FUNCTION_ARG_ON_TIME_OFFSET);
         if (onTimeOperand.getKind() == SqlKind.DEFAULT) {
             return Set.of();
         }
         return onTimeOperand.getOperands().stream()
                 .map(RexLiteral::stringValue)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
     }
 }
