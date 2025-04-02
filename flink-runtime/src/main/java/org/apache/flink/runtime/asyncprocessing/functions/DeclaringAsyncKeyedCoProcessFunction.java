@@ -54,50 +54,22 @@ public abstract class DeclaringAsyncKeyedCoProcessFunction<K, IN1, IN2, OUT>
 
     private static final long serialVersionUID = 1L;
 
+    /** Override this method or use {@link #declareProcess1} instead. */
     @Override
     public void processElement1(IN1 value, Context ctx, Collector<OUT> out) throws Exception {
         throw new IllegalAccessException("This method is replaced by declareProcess1.");
     }
 
-    /**
-     * This method is called for each element in the second of the connected streams.
-     *
-     * <p>This function can output zero or more elements using the {@link Collector} parameter and
-     * also update internal state or set timers using the {@link Context} parameter.
-     *
-     * @param value The stream element
-     * @param ctx A {@link Context} that allows querying the timestamp of the element, querying the
-     *     {@link TimeDomain} of the firing timer and getting a {@link TimerService} for registering
-     *     timers and querying the time. The context is only valid during the invocation of this
-     *     method, do not store it.
-     * @param out The collector to emit resulting elements to
-     * @throws Exception The function may throw exceptions which cause the streaming program to fail
-     *     and go into recovery.
-     */
+    /** Override this method or use {@link #declareProcess2} instead. */
     @Override
     public void processElement2(IN2 value, Context ctx, Collector<OUT> out) throws Exception {
         throw new IllegalAccessException("This method is replaced by declareProcess2.");
     }
 
-    /**
-     * Called when a timer set using {@link TimerService} fires.
-     *
-     * @param timestamp The timestamp of the firing timer.
-     * @param ctx An {@link OnTimerContext} that allows querying the timestamp of the firing timer,
-     *     querying the {@link TimeDomain} of the firing timer and getting a {@link TimerService}
-     *     for registering timers and querying the time. The context is only valid during the
-     *     invocation of this method, do not store it.
-     * @param out The collector for returning result values.
-     * @throws Exception This method may throw exceptions. Throwing an exception will cause the
-     *     operation to fail and may trigger recovery.
-     */
-    public void onTimer(long timestamp, OnTimerContext ctx, Collector<OUT> out) throws Exception {}
-
-    /**
-     * Information available in an invocation of {@link #processElement1(Object, Context,
-     * Collector)}/ {@link #processElement2(Object, Context, Collector)} or {@link #onTimer(long,
-     * OnTimerContext, Collector)}.
-     */
+    /** Override this method or use {@link #declareOnTimer} instead. */
+    public void onTimer(long timestamp, OnTimerContext ctx, Collector<OUT> out) throws Exception {
+        throw new IllegalAccessException("This method is replaced by declareOnTimer.");
+    }
 
     /**
      * Declaring variables before {@link #declareProcess1} and {@link #declareProcess2} and {@link

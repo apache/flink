@@ -72,6 +72,7 @@ public class AsyncKeyedCoProcessOperator<K, IN1, IN2, OUT>
     }
 
     @Override
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public void open() throws Exception {
         super.open();
         sharedTimestamp =
@@ -134,7 +135,7 @@ public class AsyncKeyedCoProcessOperator<K, IN1, IN2, OUT>
         timerProcessor.accept(timer.getTimestamp());
     }
 
-    private class ContextImpl<K, IN1, IN2, OUT>
+    public class ContextImpl<K, IN1, IN2, OUT>
             extends KeyedCoProcessFunction<K, IN1, IN2, OUT>.Context {
 
         private final TimerService timerService;

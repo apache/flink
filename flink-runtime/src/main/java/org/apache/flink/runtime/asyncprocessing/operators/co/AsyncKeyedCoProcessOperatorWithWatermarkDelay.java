@@ -22,38 +22,27 @@ import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.util.Preconditions;
 
-import java.io.Serializable;
-import java.util.function.Consumer;
-
 /** A {@link KeyedCoProcessOperator} that supports holding back watermarks with a static delay. */
 public class AsyncKeyedCoProcessOperatorWithWatermarkDelay<K, IN1, IN2, OUT>
         extends AsyncKeyedCoProcessOperator<K, IN1, IN2, OUT> {
     private static final long serialVersionUID = 1L;
 
-    private final Consumer<Watermark> emitter;
+    private final long watermarkDelay;
 
     public AsyncKeyedCoProcessOperatorWithWatermarkDelay(
             KeyedCoProcessFunction<K, IN1, IN2, OUT> keyedCoProcessFunction, long watermarkDelay) {
         super(keyedCoProcessFunction);
         Preconditions.checkArgument(
                 watermarkDelay >= 0, "The watermark delay should be non-negative.");
-        if (watermarkDelay == 0) {
-            // emits watermark without delay
-            emitter =
-                    (Consumer<Watermark> & Serializable)
-                            (Watermark mark) -> output.emitWatermark(mark);
-        } else {
-            // emits watermark with delay
-            emitter =
-                    (Consumer<Watermark> & Serializable)
-                            (Watermark mark) ->
-                                    output.emitWatermark(
-                                            new Watermark(mark.getTimestamp() - watermarkDelay));
-        }
+        this.watermarkDelay = watermarkDelay;
     }
 
     @Override
-    public void postProcessWatermark(Watermark watermark) throws Exception {
-        emitter.accept(watermark);
+    public Watermark postProcessWatermark(Watermark watermark) throws Exception {
+        if (watermarkDelay == 0) {
+            return watermark;
+        } else {
+            return new Watermark(watermark.getTimestamp() - watermarkDelay);
+        }
     }
 }
