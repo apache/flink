@@ -21,8 +21,11 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.runtime.asyncprocessing.operators.co.AsyncKeyedCoProcessOperator;
+import org.apache.flink.runtime.asyncprocessing.operators.co.AsyncKeyedCoProcessOperatorWithWatermarkDelay;
 import org.apache.flink.streaming.api.operators.StreamFlatMap;
 import org.apache.flink.streaming.api.operators.StreamMap;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
@@ -53,6 +56,8 @@ import org.apache.flink.table.runtime.operators.join.interval.PaddingLeftMapFunc
 import org.apache.flink.table.runtime.operators.join.interval.PaddingRightMapFunction;
 import org.apache.flink.table.runtime.operators.join.interval.ProcTimeIntervalJoin;
 import org.apache.flink.table.runtime.operators.join.interval.RowTimeIntervalJoin;
+import org.apache.flink.table.runtime.operators.join.interval.asyncprocess.AsyncProcAsyncTimeIntervalJoin;
+import org.apache.flink.table.runtime.operators.join.interval.asyncprocess.AsyncRowAsyncTimeIntervalJoin;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
@@ -358,21 +363,36 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                 (InternalTypeInfo<RowData>) leftInputTransform.getOutputType();
         InternalTypeInfo<RowData> rightTypeInfo =
                 (InternalTypeInfo<RowData>) rightInputTransform.getOutputType();
-        ProcTimeIntervalJoin procJoinFunc =
-                new ProcTimeIntervalJoin(
-                        joinSpec.getJoinType(),
-                        windowBounds.getLeftLowerBound(),
-                        windowBounds.getLeftUpperBound(),
-                        minCleanUpIntervalMillis,
-                        leftTypeInfo,
-                        rightTypeInfo,
-                        joinFunction);
-        // TODO: add async version procJoinFunc to use AsyncKeyedCoProcessOperator
+
+        TwoInputStreamOperator<RowData, RowData, RowData> operator;
+        if (config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED)) {
+            AsyncProcAsyncTimeIntervalJoin procJoinFunc =
+                    new AsyncProcAsyncTimeIntervalJoin(
+                            joinSpec.getJoinType(),
+                            windowBounds.getLeftLowerBound(),
+                            windowBounds.getLeftUpperBound(),
+                            minCleanUpIntervalMillis,
+                            leftTypeInfo,
+                            rightTypeInfo,
+                            joinFunction);
+            operator = new AsyncKeyedCoProcessOperator<>(procJoinFunc);
+        } else {
+            ProcTimeIntervalJoin procJoinFunc =
+                    new ProcTimeIntervalJoin(
+                            joinSpec.getJoinType(),
+                            windowBounds.getLeftLowerBound(),
+                            windowBounds.getLeftUpperBound(),
+                            minCleanUpIntervalMillis,
+                            leftTypeInfo,
+                            rightTypeInfo,
+                            joinFunction);
+            operator = new KeyedCoProcessOperator<>(procJoinFunc);
+        }
         return ExecNodeUtil.createTwoInputTransformation(
                 leftInputTransform,
                 rightInputTransform,
                 createTransformationMeta(INTERVAL_JOIN_TRANSFORMATION, config),
-                new KeyedCoProcessOperator<>(procJoinFunc),
+                operator,
                 returnTypeInfo,
                 leftInputTransform.getParallelism(),
                 false);
@@ -392,25 +412,46 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                 (InternalTypeInfo<RowData>) leftInputTransform.getOutputType();
         InternalTypeInfo<RowData> rightTypeInfo =
                 (InternalTypeInfo<RowData>) rightInputTransform.getOutputType();
-        RowTimeIntervalJoin rowJoinFunc =
-                new RowTimeIntervalJoin(
-                        joinSpec.getJoinType(),
-                        windowBounds.getLeftLowerBound(),
-                        windowBounds.getLeftUpperBound(),
-                        0L, // allowedLateness
-                        minCleanUpIntervalMillis,
-                        leftTypeInfo,
-                        rightTypeInfo,
-                        joinFunction,
-                        windowBounds.getLeftTimeIdx(),
-                        windowBounds.getRightTimeIdx());
-        // TODO: add async version rowJoinFunc to use AsyncKeyedCoProcessOperator
+        TwoInputStreamOperator<RowData, RowData, RowData> operator;
+        if (config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED)) {
+            AsyncRowAsyncTimeIntervalJoin rowJoinFunc =
+                    new AsyncRowAsyncTimeIntervalJoin(
+                            joinSpec.getJoinType(),
+                            windowBounds.getLeftLowerBound(),
+                            windowBounds.getLeftUpperBound(),
+                            0L, // allowedLateness
+                            minCleanUpIntervalMillis,
+                            leftTypeInfo,
+                            rightTypeInfo,
+                            joinFunction,
+                            windowBounds.getLeftTimeIdx(),
+                            windowBounds.getRightTimeIdx());
+
+            operator =
+                    new AsyncKeyedCoProcessOperatorWithWatermarkDelay<>(
+                            rowJoinFunc, rowJoinFunc.getMaxOutputDelay());
+        } else {
+            RowTimeIntervalJoin rowJoinFunc =
+                    new RowTimeIntervalJoin(
+                            joinSpec.getJoinType(),
+                            windowBounds.getLeftLowerBound(),
+                            windowBounds.getLeftUpperBound(),
+                            0L, // allowedLateness
+                            minCleanUpIntervalMillis,
+                            leftTypeInfo,
+                            rightTypeInfo,
+                            joinFunction,
+                            windowBounds.getLeftTimeIdx(),
+                            windowBounds.getRightTimeIdx());
+            operator =
+                    new KeyedCoProcessOperatorWithWatermarkDelay<>(
+                            rowJoinFunc, rowJoinFunc.getMaxOutputDelay());
+        }
         return ExecNodeUtil.createTwoInputTransformation(
                 leftInputTransform,
                 rightInputTransform,
                 createTransformationMeta(INTERVAL_JOIN_TRANSFORMATION, config),
-                new KeyedCoProcessOperatorWithWatermarkDelay<>(
-                        rowJoinFunc, rowJoinFunc.getMaxOutputDelay()),
+                operator,
                 returnTypeInfo,
                 leftInputTransform.getParallelism(),
                 false);
