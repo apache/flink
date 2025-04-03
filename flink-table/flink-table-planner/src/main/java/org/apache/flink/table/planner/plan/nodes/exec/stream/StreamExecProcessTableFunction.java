@@ -206,7 +206,8 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
                         .collect(Collectors.toList());
         final GeneratedHashFunction[] stateHashCode =
                 runtimeStateInfos.stream()
-                        .map(RuntimeStateInfo::getType)
+                        .map(RuntimeStateInfo::getDataType)
+                        .map(DataType::getLogicalType)
                         .map(
                                 t ->
                                         HashCodeGenerator.generateRowHash(
@@ -217,7 +218,8 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
                         .toArray(GeneratedHashFunction[]::new);
         final GeneratedRecordEqualiser[] stateEquals =
                 runtimeStateInfos.stream()
-                        .map(RuntimeStateInfo::getType)
+                        .map(RuntimeStateInfo::getDataType)
+                        .map(DataType::getLogicalType)
                         .map(t -> EqualiserCodeGenerator.generateRowEquals(ctx, t, "StateEquals"))
                         .toArray(GeneratedRecordEqualiser[]::new);
 
@@ -315,7 +317,7 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
             String name, StateInfo stateInfo, ExecNodeConfig config) {
         return new RuntimeStateInfo(
                 name,
-                stateInfo.getDataType().getLogicalType(),
+                stateInfo.getDataType(),
                 deriveStateTimeToLive(
                         stateInfo.getTimeToLive().orElse(null), config.getStateRetentionTime()));
     }

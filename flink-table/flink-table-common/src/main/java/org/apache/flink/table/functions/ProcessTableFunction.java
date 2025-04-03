@@ -24,6 +24,8 @@ import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.StateHint;
+import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.extraction.TypeInferenceExtractor;
 import org.apache.flink.table.types.inference.TypeInference;
@@ -285,6 +287,54 @@ import java.time.LocalDateTime;
  *     } else {
  *       collect("Event 1: " + memory.first + " and Event 2: " + input.toString());
  *       ctx.clearAllState();
+ *     }
+ *   }
+ * }
+ * }</pre>
+ *
+ * <h2>Large State</h2>
+ *
+ * <p>Flink's state backends provide different types of state to efficiently handle large state.
+ *
+ * <p>Currently, PTFs support three types of state:
+ *
+ * <ul>
+ *   <li><b>Value state</b>: Represents a single value.
+ *   <li><b>List state</b>: Represents a list of values, supporting operations like appending,
+ *       removing, and iterating.
+ *   <li><b>Map state</b>: Represents a map (key-value pair) for efficient lookups, modifications,
+ *       and removal of individual entries.
+ * </ul>
+ *
+ * <p>By default, state entries in a PTF are represented as value state. This means that every state
+ * entry is fully read from the state backend when the evaluation method is called, and the value is
+ * written back to the state backend once the evaluation method finishes.
+ *
+ * <p>To optimize state access and avoid unnecessary (de)serialization, state entries can be
+ * declared as {@link ListView} or {@link MapView}. These provide direct views to the underlying
+ * Flink state backend.
+ *
+ * <p>For example, when using a {@link MapView}, accessing a value via {@link MapView#get(Object)}
+ * will only deserialize the value associated with the specified key. This allows for efficient
+ * access to individual entries without needing to load the entire map. This approach is
+ * particularly useful when the map does not fit entirely into memory.
+ *
+ * <p>State TTL is applied individually to each entry in a list or map, allowing for fine-grained
+ * expiration control over state elements.
+ *
+ * <pre>{@code
+ * // Function that uses a map view for storing a large map for an event history per user
+ * class HistoryFunction extends ProcessTableFunction<String> {
+ *   public void eval(@StateHint MapView<String, Integer> largeMemory, @ArgumentHint(TABLE_AS_SET) Row input) {
+ *     String eventId = input.getFieldAs("eventId");
+ *     Integer count = largeMemory.get(eventId);
+ *     if (count == null) {
+ *       largeMemory.put(eventId, 1);
+ *     } else {
+ *       if (count > 1000) {
+ *         collect("Anomaly detected: " + eventId);
+ *       }
+ *       largeMemory.put(eventId, count + 1);
  *     }
  *   }
  * }
