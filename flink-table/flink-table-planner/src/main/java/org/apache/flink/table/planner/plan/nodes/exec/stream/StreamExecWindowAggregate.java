@@ -262,7 +262,9 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
         }
 
         if (needRetraction) {
-            generator.needRetract();
+            final boolean[] aggCallNeedRetractions = new boolean[aggCalls.length];
+            Arrays.fill(aggCallNeedRetractions, needRetraction);
+            generator.needRetract(aggCallNeedRetractions);
         }
 
         final List<WindowProperty> windowProperties =
