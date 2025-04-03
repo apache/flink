@@ -329,6 +329,7 @@ public class ForStKeyedStateBackendBuilder<K>
                 backendUID,
                 executionConfig,
                 this.optionsContainer,
+                forstResourceGuard,
                 keyGroupPrefixBytes,
                 this.keySerializerProvider.currentSchemaSerializer(),
                 serializedKeyBuilder,

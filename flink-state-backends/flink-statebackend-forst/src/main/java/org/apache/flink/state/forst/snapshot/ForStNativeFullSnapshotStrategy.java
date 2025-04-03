@@ -152,11 +152,12 @@ public class ForStNativeFullSnapshotStrategy<K>
         final PreviousSnapshot previousSnapshot =
                 snapshotMetaData(checkpointId, stateMetaInfoSnapshots);
 
-        // Disable file deletion for file transformation. ForSt will decide whether to allow file
+        ResourceGuard.Lease lease = resourceGuard.acquireResource();
+        // Disable file deletion for file transformation. ForSt will decide whether to allow
+        // file
         // deletion based on the number of calls to disableFileDeletions() and
         // enableFileDeletions(), so disableFileDeletions() should be call only once.
         db.disableFileDeletions();
-
         try {
             // get live files with flush memtable
             RocksDB.LiveFiles liveFiles = db.getLiveFiles(true);
@@ -185,6 +186,7 @@ public class ForStNativeFullSnapshotStrategy<K>
                     () -> {
                         try {
                             db.enableFileDeletions(false);
+                            lease.close();
                             LOG.info(
                                     "Release one file deletion lock with ForStNativeSnapshotResources, backendUID:{}, checkpointId:{}.",
                                     backendUID,
@@ -203,6 +205,7 @@ public class ForStNativeFullSnapshotStrategy<K>
                     backendUID,
                     checkpointId);
             db.enableFileDeletions(false);
+            lease.close();
             throw e;
         }
     }
