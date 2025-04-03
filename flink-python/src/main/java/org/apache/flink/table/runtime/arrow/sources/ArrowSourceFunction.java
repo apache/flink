@@ -63,7 +63,6 @@ import java.util.Deque;
  * @deprecated This class is based on the {@link SourceFunction} API, which is due to be removed.
  *     Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
-@Deprecated
 @Internal
 public class ArrowSourceFunction extends RichParallelSourceFunction<RowData>
         implements ResultTypeQueryable<RowData>, CheckpointedFunction {
