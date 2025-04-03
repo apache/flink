@@ -37,7 +37,6 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
-import org.apache.flink.streaming.api.connector.sink2.CommittableSummaryAssert;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineageAssert;
 import org.apache.flink.streaming.api.connector.sink2.SinkV2Assertions;
@@ -69,7 +68,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.api.connector.sink2.InitContext.INITIAL_CHECKPOINT_ID;
-import static org.apache.flink.streaming.api.connector.sink2.CommittableMessage.EOI;
 import static org.apache.flink.streaming.api.connector.sink2.SinkV2Assertions.committableSummary;
 import static org.apache.flink.streaming.api.connector.sink2.SinkV2Assertions.committableWithLineage;
 import static org.assertj.core.api.Assertions.as;
@@ -264,7 +262,7 @@ class SinkV2SinkWriterOperatorTest {
 
             testHarness.processElement(1, 1);
             testHarness.endInput();
-            assertBasicOutput(testHarness.extractOutputValues(), 1, EOI);
+            assertBasicOutput(testHarness.extractOutputValues(), 1, 1L);
         }
     }
 
@@ -412,6 +410,54 @@ class SinkV2SinkWriterOperatorTest {
     }
 
     @Test
+    void testDoubleEndOfInput() throws Exception {
+        TestSinkV2<Integer> sink =
+                TestSinkV2.newBuilder()
+                        .setWriter(new DefaultCommittingSinkWriter<Integer>())
+                        .setCommitter(new DefaultCommitter<>(), RecordSerializer::new)
+                        .setWriterState(true)
+                        .build();
+
+        OperatorSubtaskState snapshot;
+        try (OneInputStreamOperatorTestHarness<Integer, CommittableMessage<Record<Integer>>>
+                testHarness =
+                        new OneInputStreamOperatorTestHarness<>(
+                                new SinkWriterOperatorFactory<>(sink))) {
+            testHarness.open();
+            testHarness.processElement(1, 1);
+
+            testHarness.endInput();
+            testHarness.prepareSnapshotPreBarrier(1);
+            snapshot = testHarness.snapshot(1, 1);
+
+            assertBasicOutput(testHarness.extractOutputValues(), 1, 1L);
+        }
+
+        final TestSinkV2<Integer> restoredSink =
+                TestSinkV2.newBuilder()
+                        .setCommitter(new DefaultCommitter<>(), RecordSerializer::new)
+                        .setWriter(new DefaultStatefulSinkWriter<Integer>())
+                        .setWriterState(true)
+                        .build();
+        try (OneInputStreamOperatorTestHarness<Integer, CommittableMessage<Integer>>
+                restoredTestHarness =
+                        new OneInputStreamOperatorTestHarness<>(
+                                new SinkWriterOperatorFactory<>(restoredSink))) {
+            restoredTestHarness.setRestoredCheckpointId(1L);
+            restoredTestHarness.initializeState(snapshot);
+            restoredTestHarness.open();
+            restoredTestHarness.processElement(2, 2);
+
+            restoredTestHarness.endInput();
+            restoredTestHarness.prepareSnapshotPreBarrier(3);
+            restoredTestHarness.snapshot(3, 1);
+
+            // asserts the guessed checkpoint id which needs
+            assertBasicOutput(restoredTestHarness.extractOutputValues(), 1, 2L);
+        }
+    }
+
+    @Test
     void testInitContext() throws Exception {
         final AtomicReference<WriterInitContext> initContext = new AtomicReference<>();
         final Sink<String> sink =
@@ -459,12 +505,12 @@ class SinkV2SinkWriterOperatorTest {
     }
 
     private static void assertBasicOutput(
-            List<CommittableMessage<Integer>> output, int numberOfCommittables, long checkpointId) {
-        ListAssert<CommittableMessage<Integer>> records =
+            List<? extends CommittableMessage<?>> output,
+            int numberOfCommittables,
+            long checkpointId) {
+        ListAssert<? extends CommittableMessage<?>> records =
                 assertThat(output).hasSize(numberOfCommittables + 1);
-        CommittableSummaryAssert<Object> objectCommittableSummaryAssert =
-                records.element(0, as(committableSummary()))
-                        .hasOverallCommittables(numberOfCommittables);
+        records.element(0, as(committableSummary())).hasOverallCommittables(numberOfCommittables);
         records.filteredOn(r -> r instanceof CommittableWithLineage)
                 .allSatisfy(
                         cl ->
