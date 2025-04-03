@@ -66,7 +66,6 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.api.connector.sink2.InitContext.INITIAL_CHECKPOINT_ID;
-import static org.apache.flink.streaming.api.connector.sink2.CommittableMessage.EOI;
 import static org.apache.flink.streaming.api.connector.sink2.SinkV2Assertions.committableSummary;
 import static org.apache.flink.streaming.api.connector.sink2.SinkV2Assertions.committableWithLineage;
 import static org.assertj.core.api.Assertions.as;
@@ -178,7 +177,7 @@ abstract class SinkWriterOperatorTestBase {
 
         testHarness.processElement(1, 1);
         testHarness.endInput();
-        assertBasicOutput(testHarness.extractOutputValues(), 1, EOI);
+        assertBasicOutput(testHarness.extractOutputValues(), 1, 1L);
     }
 
     @ParameterizedTest
@@ -465,6 +464,43 @@ abstract class SinkWriterOperatorTestBase {
                         });
 
         testHarness.close();
+    }
+
+    @Test
+    void testDoubleEndOfInput() throws Exception {
+        InspectableSink sink = sinkWithCommitter();
+
+        OperatorSubtaskState snapshot;
+        try (OneInputStreamOperatorTestHarness<Integer, CommittableMessage<Integer>> testHarness =
+                new OneInputStreamOperatorTestHarness<>(
+                        new SinkWriterOperatorFactory<>(sink.getSink()))) {
+            testHarness.open();
+            testHarness.processElement(1, 1);
+
+            testHarness.endInput();
+            testHarness.prepareSnapshotPreBarrier(1);
+            snapshot = testHarness.snapshot(1, 1);
+
+            assertBasicOutput(testHarness.extractOutputValues(), 1, 1L);
+        }
+
+        final InspectableSink restoredSink = sinkWithCommitter();
+        try (OneInputStreamOperatorTestHarness<Integer, CommittableMessage<Integer>>
+                restoredTestHarness =
+                        new OneInputStreamOperatorTestHarness<>(
+                                new SinkWriterOperatorFactory<>(restoredSink.getSink()))) {
+            restoredTestHarness.setRestoredCheckpointId(1L);
+            restoredTestHarness.initializeState(snapshot);
+            restoredTestHarness.open();
+            restoredTestHarness.processElement(2, 2);
+
+            restoredTestHarness.endInput();
+            restoredTestHarness.prepareSnapshotPreBarrier(3);
+            restoredTestHarness.snapshot(3, 1);
+
+            // asserts the guessed checkpoint id which needs
+            assertBasicOutput(restoredTestHarness.extractOutputValues(), 1, 2L);
+        }
     }
 
     private static void assertContextsEqual(
