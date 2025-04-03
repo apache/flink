@@ -27,7 +27,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /** Base class of state latency metric which counts and histogram the state metric. */
-class StateLatencyMetricBase implements AutoCloseable {
+class StateMetricBase implements AutoCloseable {
     protected static final String STATE_NAME_KEY = "state_name";
     protected static final String STATE_CLEAR_LATENCY = "stateClearLatency";
     private final MetricGroup metricGroup;
@@ -36,7 +36,7 @@ class StateLatencyMetricBase implements AutoCloseable {
     private final Supplier<Histogram> histogramSupplier;
     private int clearCount = 0;
 
-    StateLatencyMetricBase(
+    StateMetricBase(
             String stateName,
             MetricGroup metricGroup,
             int sampleInterval,
@@ -55,7 +55,7 @@ class StateLatencyMetricBase implements AutoCloseable {
         return clearCount;
     }
 
-    protected boolean trackLatencyOnClear() {
+    protected boolean trackMetricsOnClear() {
         clearCount = loopUpdateCounter(clearCount);
         return clearCount == 1;
     }
@@ -64,11 +64,11 @@ class StateLatencyMetricBase implements AutoCloseable {
         return (counter + 1 < sampleInterval) ? counter + 1 : 0;
     }
 
-    protected void updateLatency(String latencyLabel, long duration) {
-        updateHistogram(latencyLabel, duration);
+    protected void updateMetrics(String latencyLabel, long value) {
+        updateHistogram(latencyLabel, value);
     }
 
-    private void updateHistogram(final String metricName, final long durationNanoTime) {
+    private void updateHistogram(final String metricName, final long value) {
         this.histogramMetrics
                 .computeIfAbsent(
                         metricName,
@@ -77,7 +77,7 @@ class StateLatencyMetricBase implements AutoCloseable {
                             metricGroup.histogram(metricName, histogram);
                             return histogram;
                         })
-                .update(durationNanoTime);
+                .update(value);
     }
 
     @Override

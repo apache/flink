@@ -45,6 +45,7 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
+import org.apache.flink.runtime.state.metrics.SizeTrackingStateConfig;
 import org.apache.flink.state.forst.ForStMemoryControllerUtils.ForStMemoryFactory;
 import org.apache.flink.state.forst.sync.ForStPriorityQueueConfig;
 import org.apache.flink.state.forst.sync.ForStSyncKeyedStateBackendBuilder;
@@ -282,6 +283,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
 
         // configure latency tracking
         latencyTrackingConfigBuilder = original.latencyTrackingConfigBuilder.configure(config);
+        sizeTrackingConfigBuilder = original.sizeTrackingConfigBuilder.configure(config);
 
         this.forStMemoryFactory = original.forStMemoryFactory;
 
@@ -545,6 +547,8 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
 
         LatencyTrackingStateConfig latencyTrackingStateConfig =
                 latencyTrackingConfigBuilder.setMetricGroup(parameters.getMetricGroup()).build();
+        SizeTrackingStateConfig sizeTrackingStateConfig =
+                sizeTrackingConfigBuilder.setMetricGroup(parameters.getMetricGroup()).build();
         ForStSyncKeyedStateBackendBuilder<K> builder =
                 new ForStSyncKeyedStateBackendBuilder<>(
                                 parameters.getOperatorIdentifier(),
@@ -561,6 +565,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                                 priorityQueueConfig,
                                 parameters.getTtlTimeProvider(),
                                 latencyTrackingStateConfig,
+                                sizeTrackingStateConfig,
                                 parameters.getMetricGroup(),
                                 parameters.getCustomInitializationMetrics(),
                                 parameters.getStateHandles(),
