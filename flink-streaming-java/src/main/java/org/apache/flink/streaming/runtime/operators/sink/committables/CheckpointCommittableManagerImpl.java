@@ -95,6 +95,7 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
                         summary.getSubtaskId(),
                         checkpointId,
                         metricGroup);
+        // Remove branch once CommittableMessage.EOI has been removed (earliest 2.2)
         if (checkpointId == CommittableMessage.EOI) {
             SubtaskCommittableManager<CommT> merged =
                     subtasksCommittableManagers.merge(
