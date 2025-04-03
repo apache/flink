@@ -136,7 +136,7 @@ public class ForStDBOperationTestBase {
         return new ForStValueState<>(
                 stateRequestHandler,
                 cf,
-                valueStateDescriptor,
+                valueStateDescriptor.getSerializer(),
                 serializedKeyBuilder,
                 VoidNamespace.INSTANCE,
                 () -> VoidNamespaceSerializer.INSTANCE,
@@ -157,7 +157,7 @@ public class ForStDBOperationTestBase {
         return new ForStListState<>(
                 buildMockStateRequestHandler(),
                 cf,
-                valueStateDescriptor,
+                valueStateDescriptor.getSerializer(),
                 serializedKeyBuilder,
                 VoidNamespace.INSTANCE,
                 () -> VoidNamespaceSerializer.INSTANCE,
@@ -200,7 +200,8 @@ public class ForStDBOperationTestBase {
                 () -> new DataInputDeserializer(new byte[128]);
 
         return new ForStAggregatingState<>(
-                valueStateDescriptor,
+                valueStateDescriptor.getAggregateFunction(),
+                valueStateDescriptor.getSerializer(),
                 buildMockStateRequestHandler(),
                 cf,
                 serializedKeyBuilder,
@@ -226,7 +227,8 @@ public class ForStDBOperationTestBase {
         return new ForStMapState<>(
                 stateRequestHandler,
                 cf,
-                mapStateDescriptor,
+                mapStateDescriptor.getUserKeySerializer(),
+                mapStateDescriptor.getSerializer(),
                 serializedKeyBuilder,
                 VoidNamespace.INSTANCE,
                 () -> VoidNamespaceSerializer.INSTANCE,

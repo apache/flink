@@ -20,12 +20,10 @@ package org.apache.flink.state.forst;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.v2.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.v2.ListStateDescriptor;
 import org.apache.flink.api.common.state.v2.MapStateDescriptor;
 import org.apache.flink.api.common.state.v2.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.StateDescriptor;
-import org.apache.flink.api.common.state.v2.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -291,7 +289,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                         new ForStValueState<>(
                                 stateRequestHandler,
                                 columnFamilyHandle,
-                                (ValueStateDescriptor<SV>) stateDesc,
+                                registerResult.f1.getStateSerializer(),
                                 serializedKeyBuilder,
                                 defaultNamespace,
                                 namespaceSerializer::duplicate,
@@ -303,7 +301,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                         new ForStListState<>(
                                 stateRequestHandler,
                                 columnFamilyHandle,
-                                (ListStateDescriptor<SV>) stateDesc,
+                                registerResult.f1.getStateSerializer(),
                                 serializedKeyBuilder,
                                 defaultNamespace,
                                 namespaceSerializer::duplicate,
@@ -311,23 +309,28 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                                 valueDeserializerView);
             case MAP:
                 Supplier<DataInputDeserializer> keyDeserializerView = DataInputDeserializer::new;
-                return ForStMapState.create(
-                        stateDesc,
-                        stateRequestHandler,
-                        columnFamilyHandle,
-                        serializedKeyBuilder,
-                        defaultNamespace,
-                        namespaceSerializer::duplicate,
-                        valueSerializerView,
-                        keyDeserializerView,
-                        valueDeserializerView,
-                        keyGroupPrefixBytes);
+                RegisteredKeyAndUserKeyValueStateBackendMetaInfo mapStateMetaInfo =
+                        (RegisteredKeyAndUserKeyValueStateBackendMetaInfo) registerResult.f1;
+                return (S)
+                        ForStMapState.create(
+                                mapStateMetaInfo.getUserKeySerializer(),
+                                mapStateMetaInfo.getStateSerializer(),
+                                stateRequestHandler,
+                                columnFamilyHandle,
+                                serializedKeyBuilder,
+                                defaultNamespace,
+                                namespaceSerializer::duplicate,
+                                valueSerializerView,
+                                keyDeserializerView,
+                                valueDeserializerView,
+                                keyGroupPrefixBytes);
             case REDUCING:
                 return (S)
                         new ForStReducingState<>(
                                 stateRequestHandler,
                                 columnFamilyHandle,
-                                (ReducingStateDescriptor<SV>) stateDesc,
+                                ((ReducingStateDescriptor<SV>) stateDesc).getReduceFunction(),
+                                registerResult.f1.getStateSerializer(),
                                 serializedKeyBuilder,
                                 defaultNamespace,
                                 namespaceSerializer::duplicate,
@@ -336,7 +339,9 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
             case AGGREGATING:
                 return (S)
                         new ForStAggregatingState<>(
-                                (AggregatingStateDescriptor<?, SV, ?>) stateDesc,
+                                ((AggregatingStateDescriptor<?, SV, ?>) stateDesc)
+                                        .getAggregateFunction(),
+                                registerResult.f1.getStateSerializer(),
                                 stateRequestHandler,
                                 columnFamilyHandle,
                                 serializedKeyBuilder,

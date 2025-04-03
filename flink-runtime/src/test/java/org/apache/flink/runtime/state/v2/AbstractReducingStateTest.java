@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.v2;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.v2.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -51,8 +52,10 @@ public class AbstractReducingStateTest extends AbstractKeyedStateTestBase {
         ReduceFunction<Integer> reducer = Integer::sum;
         ReducingStateDescriptor<Integer> descriptor =
                 new ReducingStateDescriptor<>("testState", reducer, BasicTypeInfo.INT_TYPE_INFO);
+        descriptor.initializeSerializerUnlessSet(new ExecutionConfig());
         AbstractReducingState<String, Void, Integer> reducingState =
-                new AbstractReducingState<>(aec, descriptor);
+                new AbstractReducingState<>(
+                        aec, descriptor.getReduceFunction(), descriptor.getSerializer());
         aec.setCurrentContext(aec.buildContext("test", "test"));
 
         reducingState.asyncClear();
@@ -81,6 +84,7 @@ public class AbstractReducingStateTest extends AbstractKeyedStateTestBase {
         ReduceFunction<Integer> reducer = Integer::sum;
         ReducingStateDescriptor<Integer> descriptor =
                 new ReducingStateDescriptor<>("testState", reducer, BasicTypeInfo.INT_TYPE_INFO);
+        descriptor.initializeSerializerUnlessSet(new ExecutionConfig());
         AsyncExecutionController<String> aec =
                 new AsyncExecutionController<>(
                         new SyncMailboxExecutor(),
@@ -94,7 +98,8 @@ public class AbstractReducingStateTest extends AbstractKeyedStateTestBase {
                         null,
                         null);
         AbstractReducingState<String, String, Integer> reducingState =
-                new AbstractReducingState<>(aec, descriptor);
+                new AbstractReducingState<>(
+                        aec, descriptor.getReduceFunction(), descriptor.getSerializer());
         aec.setCurrentContext(aec.buildContext("test", "test"));
         aec.setCurrentNamespaceForState(reducingState, "1");
         reducingState.asyncAdd(1);
