@@ -42,6 +42,7 @@ under the License.
 - *聚合函数* 将多行数据里的标量值转换成一个新标量值；
 - *表值聚合函数* 将多行数据里的标量值转换成新的行数据；
 - *异步表值函数* 是异步查询外部数据系统的特殊函数。
+- *Process table functions* map tables to new rows. Enabling user-defined operators with state and timers.
 
 <span class="label label-danger">注意</span> 标量和表值函数已经使用了新的基于[数据类型]({{< ref "docs/dev/table/types" >}})的类型系统，聚合函数仍然使用基于 `TypeInformation` 的旧类型系统。
 
@@ -2195,5 +2196,27 @@ tab
 ```
 {{< /tab >}}
 {{< /tabs >}}
+
+{{< top >}}
+
+Process Table Functions
+-----------------------
+
+Process Table Functions (PTFs) are the most powerful function kind for Flink SQL and Table API. They enable implementing
+user-defined operators that can be as feature-rich as built-in operations. PTFs can take (partitioned) tables to produce
+a new table. They have access to Flink's managed state, event-time and timer services, and underlying table changelogs.
+
+Conceptually, a PTF is a superset of all other user-defined functions. It maps zero, one, or multiple tables to zero, one,
+or multiple rows (or structured types). Scalar arguments are supported. Due to its stateful nature, implementing aggregating
+behavior is possible as well.
+
+A PTF enables the following tasks:
+- Apply transformations on each row of a table.
+- Logically partition the table into distinct sets and apply transformations per set.
+- Store seen events for repeated access.
+- Continue the processing at a later point in time enabling waiting, synchronization, or timeouts.
+- Buffer and aggregate events using complex state machines or rule-based conditional logic.
+
+See the [dedicated page for PTFs]({{< ref "docs/dev/table/functions/ptfs" >}}) for more details.
 
 {{< top >}}

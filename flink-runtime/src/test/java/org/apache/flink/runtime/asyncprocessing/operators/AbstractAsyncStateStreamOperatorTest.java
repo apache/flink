@@ -371,8 +371,8 @@ public class AbstractAsyncStateStreamOperatorTest {
             expectedOutput.add(new StreamRecord<>(1002L));
             expectedOutput.add(new StreamRecord<>(1L));
             expectedOutput.add(new StreamRecord<>(3L));
-            expectedOutput.add(new Watermark(3L));
             expectedOutput.add(new StreamRecord<>(103L));
+            expectedOutput.add(new Watermark(3L));
             testHarness.processWatermark1(new Watermark(4L));
             testHarness.processWatermark2(new Watermark(4L));
             expectedOutput.add(new StreamRecord<>(1004L));
@@ -380,8 +380,8 @@ public class AbstractAsyncStateStreamOperatorTest {
             testHarness.processWatermark2(new Watermark(5L));
             expectedOutput.add(new StreamRecord<>(1005L));
             expectedOutput.add(new StreamRecord<>(4L));
-            expectedOutput.add(new Watermark(6L));
             expectedOutput.add(new StreamRecord<>(106L));
+            expectedOutput.add(new Watermark(6L));
 
             TestHarnessUtil.assertOutputEquals(
                     "Output was not correct", expectedOutput, testHarness.getOutput());
@@ -690,10 +690,11 @@ public class AbstractAsyncStateStreamOperatorTest {
         }
 
         @Override
-        public void postProcessWatermark(Watermark watermark) throws Exception {
+        public Watermark postProcessWatermark(Watermark watermark) throws Exception {
             if (postProcessFunction != null) {
                 postProcessFunction.accept(watermark);
             }
+            return watermark;
         }
 
         @Override
