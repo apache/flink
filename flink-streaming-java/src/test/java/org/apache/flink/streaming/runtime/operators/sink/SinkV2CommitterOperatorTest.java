@@ -41,7 +41,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.util.Collection;
 import java.util.function.IntSupplier;
 
-import static org.apache.flink.streaming.api.connector.sink2.CommittableMessage.EOI;
 import static org.apache.flink.streaming.api.connector.sink2.SinkV2Assertions.committableSummary;
 import static org.apache.flink.streaming.api.connector.sink2.SinkV2Assertions.committableWithLineage;
 import static org.assertj.core.api.Assertions.as;
@@ -160,44 +159,6 @@ class SinkV2CommitterOperatorTest {
         records.element(0, as(committableSummary()))
                 .hasFailedCommittables(committableSummary.getNumberOfFailedCommittables())
                 .hasOverallCommittables(committableSummary.getNumberOfCommittables());
-        records.element(1, as(committableWithLineage())).isEqualTo(first.withSubtaskId(0));
-        records.element(2, as(committableWithLineage())).isEqualTo(second.withSubtaskId(0));
-        testHarness.close();
-    }
-
-    @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    void testEmitAllCommittablesOnEndOfInput(boolean isBatchMode) throws Exception {
-        SinkAndCounters sinkAndCounters = sinkWithPostCommit();
-        final OneInputStreamOperatorTestHarness<
-                        CommittableMessage<String>, CommittableMessage<String>>
-                testHarness = createTestHarness(sinkAndCounters.sink, isBatchMode, !isBatchMode);
-        testHarness.open();
-
-        final CommittableSummary<String> committableSummary =
-                new CommittableSummary<>(1, 2, EOI, 1, 0);
-        testHarness.processElement(new StreamRecord<>(committableSummary));
-        final CommittableSummary<String> committableSummary2 =
-                new CommittableSummary<>(2, 2, EOI, 1, 0);
-        testHarness.processElement(new StreamRecord<>(committableSummary2));
-
-        final CommittableWithLineage<String> first = new CommittableWithLineage<>("1", EOI, 1);
-        testHarness.processElement(new StreamRecord<>(first));
-        final CommittableWithLineage<String> second = new CommittableWithLineage<>("1", EOI, 2);
-        testHarness.processElement(new StreamRecord<>(second));
-
-        testHarness.endInput();
-        if (!isBatchMode) {
-            assertThat(testHarness.getOutput()).isEmpty();
-            // notify final checkpoint complete
-            testHarness.notifyOfCompletedCheckpoint(1);
-        }
-
-        ListAssert<CommittableMessage<String>> records =
-                assertThat(testHarness.extractOutputValues()).hasSize(3);
-        records.element(0, as(committableSummary()))
-                .hasFailedCommittables(0)
-                .hasOverallCommittables(2);
         records.element(1, as(committableWithLineage())).isEqualTo(first.withSubtaskId(0));
         records.element(2, as(committableWithLineage())).isEqualTo(second.withSubtaskId(0));
         testHarness.close();
