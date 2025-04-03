@@ -100,12 +100,6 @@ under the License.
 			<artifactId>flink-test-utils-junit</artifactId>
 		</dependency>
 
-		<dependency>
-			<groupId>com.konghq</groupId>
-			<artifactId>unirest-java-core</artifactId>
-			<version>4.4.5</version>
-			<scope>test</scope>
-		</dependency>
 	</dependencies>
 
 	<build>
