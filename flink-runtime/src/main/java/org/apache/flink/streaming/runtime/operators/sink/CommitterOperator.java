@@ -25,6 +25,7 @@ import org.apache.flink.api.connector.sink2.CommitterInitContext;
 import org.apache.flink.configuration.SinkOptions;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
+import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.metrics.groups.InternalSinkCommitterMetricGroup;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -51,7 +52,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.OptionalLong;
 
-import static org.apache.flink.streaming.api.connector.sink2.CommittableMessage.EOI;
 import static org.apache.flink.util.IOUtils.closeAll;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -76,10 +76,8 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
     private SinkCommitterMetricGroup metricGroup;
     private Committer<CommT> committer;
     private CommittableCollector<CommT> committableCollector;
-    private long lastCompletedCheckpointId = -1;
+    private long lastCompletedCheckpointId = CheckpointIDCounter.INITIAL_CHECKPOINT_ID - 1;
     private int maxRetries;
-
-    private boolean endInput = false;
 
     /** The operator's state descriptor. */
     private static final ListStateDescriptor<byte[]> STREAMING_COMMITTER_RAW_STATES_DESC =
@@ -134,11 +132,11 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
                                 getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
                                 getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks(),
                                 metricGroup));
-        if (context.isRestored()) {
+        if (checkpointId.isPresent()) {
             committableCollectorState.get().forEach(cc -> committableCollector.merge(cc));
             lastCompletedCheckpointId = checkpointId.getAsLong();
             // try to re-commit recovered transactions as quickly as possible
-            commitAndEmitCheckpoints();
+            commitAndEmitCheckpoints(lastCompletedCheckpointId);
         }
     }
 
@@ -151,24 +149,23 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
 
     @Override
     public void endInput() throws Exception {
-        endInput = true;
         if (!isCheckpointingEnabled || isBatchMode) {
             // There will be no final checkpoint, all committables should be committed here
-            commitAndEmitCheckpoints();
+            commitAndEmitCheckpoints(lastCompletedCheckpointId + 1);
         }
     }
 
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
         super.notifyCheckpointComplete(checkpointId);
-        lastCompletedCheckpointId = Math.max(lastCompletedCheckpointId, checkpointId);
-        commitAndEmitCheckpoints();
+        commitAndEmitCheckpoints(Math.max(lastCompletedCheckpointId, checkpointId));
     }
 
-    private void commitAndEmitCheckpoints() throws IOException, InterruptedException {
-        long completedCheckpointId = endInput ? EOI : lastCompletedCheckpointId;
+    private void commitAndEmitCheckpoints(long checkpointId)
+            throws IOException, InterruptedException {
+        lastCompletedCheckpointId = checkpointId;
         for (CheckpointCommittableManager<CommT> checkpointManager :
-                committableCollector.getCheckpointCommittablesUpTo(completedCheckpointId)) {
+                committableCollector.getCheckpointCommittablesUpTo(checkpointId)) {
             // ensure that all committables of the first checkpoint are fully committed before
             // attempting the next committable
             commitAndEmit(checkpointManager);
