@@ -364,7 +364,7 @@ public class ProcessTableOperator extends AbstractStreamOperator<RowData>
     private void setStateHandles() {
         final KeyedStateStore keyedStateStore = getKeyedStateStore();
         final State[] stateHandles = new State[stateDescriptors.length];
-        for (int i = 0; i < stateInfos.size(); i++) {
+        for (int i = 0; i < stateDescriptors.length; i++) {
             final StateDescriptor<?, ?> stateDescriptor = stateDescriptors[i];
             final State stateHandle;
             if (stateDescriptor instanceof ValueStateDescriptor) {

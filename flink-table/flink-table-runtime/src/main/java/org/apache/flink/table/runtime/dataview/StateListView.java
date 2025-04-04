@@ -70,25 +70,19 @@ public abstract class StateListView<N, EE> extends ListView<EE> implements State
 
     @Override
     public void add(EE value) throws Exception {
-        if (value == null) {
-            throw new TableRuntimeException("List views don't support null values.");
-        }
+        checkValue(value);
         getListState().add(value);
     }
 
     @Override
     public void addAll(List<EE> list) throws Exception {
-        if (list.contains(null)) {
-            throw new TableRuntimeException("List views don't support null values.");
-        }
+        checkList(list);
         getListState().addAll(list);
     }
 
     @Override
     public boolean remove(EE value) throws Exception {
-        if (value == null) {
-            throw new TableRuntimeException("List views don't support null values.");
-        }
+        checkValue(value);
         Iterable<EE> iterable = getListState().get();
         if (iterable == null) {
             // ListState.get() may return null according to the Javadoc.
