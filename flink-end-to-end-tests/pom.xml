@@ -71,6 +71,8 @@ under the License.
 		<module>flink-end-to-end-tests-jdbc-driver</module>
 		<module>flink-end-to-end-tests-restclient</module>
 		<module>flink-failure-enricher-test</module>
+		<module>flink-end-to-end-tests-table-api</module>
+		
     </modules>
 
 	<dependencies>
