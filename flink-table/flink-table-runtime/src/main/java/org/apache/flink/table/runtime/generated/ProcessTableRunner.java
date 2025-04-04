@@ -216,7 +216,6 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
             throws IOException {
         final RowData fromFunction = valueStateFromFunction[pos];
         if (fromFunction == null || isEmpty(fromFunction)) {
-            // Reduce state size
             valueState.clear();
         } else {
             final HashFunction hashCode = stateHashCode[pos];

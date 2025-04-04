@@ -84,38 +84,31 @@ public abstract class StateMapView<N, EK, EV> extends MapView<EK, EV> implements
 
         @Override
         public EV get(EK key) throws Exception {
+            checkKey(key);
             return getMapState().get(key);
         }
 
         @Override
         public void put(EK key, EV value) throws Exception {
-            if (key == null) {
-                throw new TableRuntimeException("Map views don't support null keys.");
-            }
+            checkKey(key);
             getMapState().put(key, value);
         }
 
         @Override
         public void putAll(Map<EK, EV> map) throws Exception {
-            if (map.containsKey(null)) {
-                throw new TableRuntimeException("Map views don't support null keys.");
-            }
+            checkMap(map);
             getMapState().putAll(map);
         }
 
         @Override
         public void remove(EK key) throws Exception {
-            if (key == null) {
-                throw new TableRuntimeException("Map views don't support null keys.");
-            }
+            checkKey(key);
             getMapState().remove(key);
         }
 
         @Override
         public boolean contains(EK key) throws Exception {
-            if (key == null) {
-                throw new TableRuntimeException("Map views don't support null keys.");
-            }
+            checkKey(key);
             return getMapState().contains(key);
         }
 
