@@ -316,7 +316,7 @@ object ProcessTableRunnerGenerator {
     val constructorCode = stateDataType.getConversionClass match {
       case rowType if rowType == classOf[Row] =>
         // This allows us to retrieve the converter term that has been generated
-        // in genToExternalConverter(). The converter is able to created named positions
+        // in genToExternalConverter(). The converter is able to create named positions
         // for row fields.
         val converterTerm = ctx.addReusableConverter(stateDataType)
         s"((${className[RowRowConverter]}) $converterTerm).createEmptyRow()"

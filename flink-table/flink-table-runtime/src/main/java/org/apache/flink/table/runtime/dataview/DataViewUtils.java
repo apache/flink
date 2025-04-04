@@ -77,7 +77,8 @@ public final class DataViewUtils {
     /** Checks that the given type and its children do not contain data views. */
     public static void checkForInvalidDataViews(LogicalType type) {
         if (hasNested(type, t -> isDataView(t, DataView.class))) {
-            throw new ValidationException("Data views are not supported at the declared location.");
+            throw new ValidationException(
+                    "Data views are not supported at the declared location. Given type: " + type);
         }
     }
 
