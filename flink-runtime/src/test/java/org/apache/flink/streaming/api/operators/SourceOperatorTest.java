@@ -93,7 +93,10 @@ class SourceOperatorTest {
 
     @BeforeEach
     void setup() throws Exception {
-        context = new SourceOperatorTestContext(false, pauseSourcesUntilCheckpoint);
+        context =
+                SourceOperatorTestContext.builder()
+                        .setPauseSourcesUntilFirstCheckpoint(pauseSourcesUntilCheckpoint)
+                        .build();
         operator = context.getOperator();
         mockSourceReader = context.getSourceReader();
         mockGateway = context.getGateway();
@@ -249,28 +252,29 @@ class SourceOperatorTest {
     public void testPausingUntilCheckpoint() throws Exception {
         final List<StreamElement> out = new ArrayList<>();
         try (SourceOperatorTestContext context =
-                new SourceOperatorTestContext(
-                        false,
-                        false,
-                        WatermarkStrategy.<Integer>forMonotonousTimestamps()
-                                .withTimestampAssigner((element, recordTimestamp) -> element),
-                        new CollectorOutput<>(out),
-                        false,
-                        pauseSourcesUntilCheckpoint,
-                        // recover with some state, so the source will pause until a checkpoint
-                        // to speedup recovery (if pauseSourcesUntilCheckpoint)
-                        (stateManager, operatorID) -> {
-                            long checkpointID = 1L;
-                            stateManager.setReportedCheckpointId(checkpointID);
-                            stateManager.setJobManagerTaskStateSnapshotsByCheckpointId(
-                                    singletonMap(
-                                            checkpointID,
-                                            new TaskStateSnapshot(
-                                                    singletonMap(
-                                                            operatorID,
-                                                            OperatorSubtaskState.builder()
-                                                                    .build()))));
-                        })) {
+                SourceOperatorTestContext.builder()
+                        .setWatermarkStrategy(
+                                WatermarkStrategy.<Integer>forMonotonousTimestamps()
+                                        .withTimestampAssigner(
+                                                (element, recordTimestamp) -> element))
+                        .setOutput(new CollectorOutput<>(out))
+                        .setPauseSourcesUntilFirstCheckpoint(pauseSourcesUntilCheckpoint)
+                        .setPreInit(
+                                // recover with some state, so the source will pause until a checkpoint
+                                // to speedup recovery (if pauseSourcesUntilCheckpoint)
+                                (stateManager, operatorID) -> {
+                                    long checkpointID = 1L;
+                                    stateManager.setReportedCheckpointId(checkpointID);
+                                    stateManager.setJobManagerTaskStateSnapshotsByCheckpointId(
+                                            singletonMap(
+                                                    checkpointID,
+                                                    new TaskStateSnapshot(
+                                                            singletonMap(
+                                                                    operatorID,
+                                                                    OperatorSubtaskState.builder()
+                                                                            .build()))));
+                                })
+                        .build()) {
 
             final SourceOperator<Integer, MockSourceSplit> operator = context.getOperator();
             operator.open();
@@ -307,14 +311,15 @@ class SourceOperatorTest {
     void testHandleBacklogEvent() throws Exception {
         List<StreamElement> outputStreamElements = new ArrayList<>();
         context =
-                new SourceOperatorTestContext(
-                        false,
-                        false,
-                        WatermarkStrategy.<Integer>forMonotonousTimestamps()
-                                .withTimestampAssigner((element, recordTimestamp) -> element),
-                        new CollectorOutput<>(outputStreamElements),
-                        false,
-                        pauseSourcesUntilCheckpoint);
+                SourceOperatorTestContext.builder()
+                        .setWatermarkStrategy(
+                                WatermarkStrategy.<Integer>forMonotonousTimestamps()
+                                        .withTimestampAssigner(
+                                                (element, recordTimestamp) -> element))
+                        .setOutput(new CollectorOutput<>(outputStreamElements))
+                        .setPauseSourcesUntilFirstCheckpoint(pauseSourcesUntilCheckpoint)
+                        .build();
+
         operator = context.getOperator();
         operator.initializeState(context.createStateContext());
         operator.open();
