@@ -509,7 +509,72 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "properties" : {
     "plan" : {
       "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:Plan",
+      "properties" : {
+        "jid" : {
+          "type" : "string"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "nodes" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:Plan:Node",
+            "properties" : {
+              "description" : {
+                "type" : "string"
+              },
+              "id" : {
+                "type" : "string"
+              },
+              "inputs" : {
+                "type" : "array",
+                "items" : {
+                  "type" : "object",
+                  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:Plan:Node:Input",
+                  "properties" : {
+                    "caching" : {
+                      "type" : "string"
+                    },
+                    "exchange" : {
+                      "type" : "string"
+                    },
+                    "id" : {
+                      "type" : "string"
+                    },
+                    "local_strategy" : {
+                      "type" : "string"
+                    },
+                    "num" : {
+                      "type" : "integer"
+                    },
+                    "ship_strategy" : {
+                      "type" : "string"
+                    }
+                  }
+                }
+              },
+              "operator" : {
+                "type" : "string"
+              },
+              "operator_strategy" : {
+                "type" : "string"
+              },
+              "optimizer_properties" : {
+                "type" : "string"
+              },
+              "parallelism" : {
+                "type" : "integer"
+              }
+            }
+          }
+        },
+        "type" : {
+          "type" : "string"
+        }
+      }
     }
   }
 }</code></pre>
@@ -1126,7 +1191,72 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     },
     "plan" : {
       "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:Plan",
+      "properties" : {
+        "jid" : {
+          "type" : "string"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "nodes" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:Plan:Node",
+            "properties" : {
+              "description" : {
+                "type" : "string"
+              },
+              "id" : {
+                "type" : "string"
+              },
+              "inputs" : {
+                "type" : "array",
+                "items" : {
+                  "type" : "object",
+                  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:Plan:Node:Input",
+                  "properties" : {
+                    "caching" : {
+                      "type" : "string"
+                    },
+                    "exchange" : {
+                      "type" : "string"
+                    },
+                    "id" : {
+                      "type" : "string"
+                    },
+                    "local_strategy" : {
+                      "type" : "string"
+                    },
+                    "num" : {
+                      "type" : "integer"
+                    },
+                    "ship_strategy" : {
+                      "type" : "string"
+                    }
+                  }
+                }
+              },
+              "operator" : {
+                "type" : "string"
+              },
+              "operator_strategy" : {
+                "type" : "string"
+              },
+              "optimizer_properties" : {
+                "type" : "string"
+              },
+              "parallelism" : {
+                "type" : "integer"
+              }
+            }
+          }
+        },
+        "type" : {
+          "type" : "string"
+        }
+      }
     },
     "start-time" : {
       "type" : "integer"
@@ -1143,7 +1273,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     },
     "stream-graph" : {
       "type" : "object",
-      "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
     },
     "timestamps" : {
       "type" : "object",
@@ -2879,7 +3009,72 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "properties" : {
     "plan" : {
       "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:Plan",
+      "properties" : {
+        "jid" : {
+          "type" : "string"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "nodes" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:Plan:Node",
+            "properties" : {
+              "description" : {
+                "type" : "string"
+              },
+              "id" : {
+                "type" : "string"
+              },
+              "inputs" : {
+                "type" : "array",
+                "items" : {
+                  "type" : "object",
+                  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:Plan:Node:Input",
+                  "properties" : {
+                    "caching" : {
+                      "type" : "string"
+                    },
+                    "exchange" : {
+                      "type" : "string"
+                    },
+                    "id" : {
+                      "type" : "string"
+                    },
+                    "local_strategy" : {
+                      "type" : "string"
+                    },
+                    "num" : {
+                      "type" : "integer"
+                    },
+                    "ship_strategy" : {
+                      "type" : "string"
+                    }
+                  }
+                }
+              },
+              "operator" : {
+                "type" : "string"
+              },
+              "operator_strategy" : {
+                "type" : "string"
+              },
+              "optimizer_properties" : {
+                "type" : "string"
+              },
+              "parallelism" : {
+                "type" : "integer"
+              }
+            }
+          }
+        },
+        "type" : {
+          "type" : "string"
+        }
+      }
     }
   }
 }</code></pre>
