@@ -40,7 +40,7 @@ public class ShuffleEnvironmentContext {
     private final TaskEventPublisher eventPublisher;
     private final MetricGroup parentMetricGroup;
     private final int numberOfSlots;
-    private final String[] tmpDirPaths;
+    private final String[] tmpDirs;
 
     private final Executor ioExecutor;
     private final ScheduledExecutor scheduledExecutor;
@@ -52,7 +52,7 @@ public class ShuffleEnvironmentContext {
             boolean localCommunicationOnly,
             InetAddress hostAddress,
             int numberOfSlots,
-            String[] tmpDirPaths,
+            String[] tmpDirs,
             TaskEventPublisher eventPublisher,
             MetricGroup parentMetricGroup,
             Executor ioExecutor,
@@ -67,7 +67,7 @@ public class ShuffleEnvironmentContext {
         this.ioExecutor = ioExecutor;
         this.scheduledExecutor = scheduledExecutor;
         this.numberOfSlots = numberOfSlots;
-        this.tmpDirPaths = checkNotNull(tmpDirPaths);
+        this.tmpDirs = checkNotNull(tmpDirs);
     }
 
     public Configuration getConfiguration() {
@@ -110,7 +110,7 @@ public class ShuffleEnvironmentContext {
         return numberOfSlots;
     }
 
-    public String[] getTmpDirPaths() {
-        return tmpDirPaths;
+    public String[] getTmpDirs() {
+        return tmpDirs;
     }
 }
