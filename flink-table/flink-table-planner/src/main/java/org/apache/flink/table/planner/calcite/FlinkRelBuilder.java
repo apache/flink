@@ -73,7 +73,7 @@ import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext;
 public final class FlinkRelBuilder extends RelBuilder {
 
     public static final RelBuilder.Config FLINK_REL_BUILDER_CONFIG =
-            Config.DEFAULT.withSimplifyValues(false);
+            Config.DEFAULT.withSimplifyValues(false).withConvertCorrelateToJoin(false);
     private final QueryOperationConverter toRelNodeConverter;
 
     private final ExpandFactory expandFactory;
