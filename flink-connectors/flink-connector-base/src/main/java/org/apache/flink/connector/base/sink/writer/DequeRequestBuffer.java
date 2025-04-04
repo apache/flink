@@ -36,7 +36,7 @@ public class DequeRequestBuffer<RequestEntryT extends Serializable>
     private long totalSizeInBytes;
 
     /** Creates an empty buffer backed by an {@link ArrayDeque}. */
-    private DequeRequestBuffer() {
+    public DequeRequestBuffer() {
         buffer = new ArrayDeque<>();
         totalSizeInBytes = 0L;
     }
@@ -96,19 +96,5 @@ public class DequeRequestBuffer<RequestEntryT extends Serializable>
     @Override
     public long totalSizeInBytes() {
         return totalSizeInBytes;
-    }
-
-    /**
-     * Builder for {@link DequeRequestBuffer}.
-     *
-     * @param <RequestEntryT> The type of request entries that the buffer wrapper will store.
-     */
-    public static class Builder<RequestEntryT extends Serializable>
-            implements RequestBuffer.Builder<DequeRequestBuffer<RequestEntryT>, RequestEntryT> {
-
-        @Override
-        public DequeRequestBuffer<RequestEntryT> build() {
-            return new DequeRequestBuffer<>();
-        }
     }
 }

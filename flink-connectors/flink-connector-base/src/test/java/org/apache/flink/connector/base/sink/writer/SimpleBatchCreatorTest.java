@@ -25,24 +25,15 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /** Unit test for SimpleBatchCreator. */
 public class SimpleBatchCreatorTest {
 
-    /** If no MaxBatchSizeInBytes is configured error should be thrown. */
-    @Test
-    public void testInvalidBatchCreator() {
-        assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> new SimpleBatchCreator.Builder<String>().build());
-    }
-
     /** Ensures no entries are returned when the buffer is empty. */
     @Test
     public void testCreatNextBatchWithEmptyBuffer() {
-        SimpleBatchCreator<String> creator =
-                new SimpleBatchCreator.Builder<String>().setMaxBatchSizeInBytes(100L).build();
-        RequestBuffer<String> buffer = new DequeRequestBuffer.Builder<String>().build();
+        SimpleBatchCreator<String> creator = new SimpleBatchCreator<>(100L);
+        RequestBuffer<String> buffer = new DequeRequestBuffer<>();
         // No entries in the buffer
         RequestInfo requestInfo = () -> 10;
         Batch<String> result = creator.createNextBatch(requestInfo, buffer);
@@ -57,9 +48,8 @@ public class SimpleBatchCreatorTest {
      */
     @Test
     public void testCreateNextBatchRespectsBatchCountLimit() {
-        SimpleBatchCreator<String> creator =
-                new SimpleBatchCreator.Builder<String>().setMaxBatchSizeInBytes(100L).build();
-        RequestBuffer<String> buffer = new DequeRequestBuffer.Builder<String>().build();
+        SimpleBatchCreator<String> creator = new SimpleBatchCreator<>(100L);
+        RequestBuffer<String> buffer = new DequeRequestBuffer<>();
 
         // Add multiple items to the buffer
         for (int i = 0; i < 10; i++) {
@@ -86,9 +76,8 @@ public class SimpleBatchCreatorTest {
     @Test
     public void testCreateNextBatchRespectSizeLimit() {
         // The total size limit for a batch is 25
-        SimpleBatchCreator<String> creator =
-                new SimpleBatchCreator.Builder<String>().setMaxBatchSizeInBytes(25L).build();
-        RequestBuffer<String> buffer = new DequeRequestBuffer.Builder<String>().build();
+        SimpleBatchCreator<String> creator = new SimpleBatchCreator<>(25L);
+        RequestBuffer<String> buffer = new DequeRequestBuffer<>();
         // The first three have size=10, the last has size=1
         buffer.add(new RequestEntryWrapper<>("A", 10L), false);
         buffer.add(new RequestEntryWrapper<>("B", 10L), false);
@@ -116,9 +105,8 @@ public class SimpleBatchCreatorTest {
     @Test
     public void testCreateNextBatchSizeLimitFits() {
         // The total size limit for a batch is 20
-        SimpleBatchCreator<String> creator =
-                new SimpleBatchCreator.Builder<String>().setMaxBatchSizeInBytes(20L).build();
-        RequestBuffer<String> buffer = new DequeRequestBuffer.Builder<String>().build();
+        SimpleBatchCreator<String> creator = new SimpleBatchCreator<>(20L);
+        RequestBuffer<String> buffer = new DequeRequestBuffer<>();
         buffer.add(new RequestEntryWrapper<>("A", 10L), false);
         buffer.add(new RequestEntryWrapper<>("B", 10L), false);
         buffer.add(new RequestEntryWrapper<>("C", 10L), false);
@@ -144,9 +132,8 @@ public class SimpleBatchCreatorTest {
     @Test
     public void testCreateNextBufferPartiallyUsed() {
         // The total size limit for a batch is 20
-        SimpleBatchCreator<String> creator =
-                new SimpleBatchCreator.Builder<String>().setMaxBatchSizeInBytes(50L).build();
-        RequestBuffer<String> buffer = new DequeRequestBuffer.Builder<String>().build();
+        SimpleBatchCreator<String> creator = new SimpleBatchCreator<>(50L);
+        RequestBuffer<String> buffer = new DequeRequestBuffer<>();
         buffer.add(new RequestEntryWrapper<>("A", 10L), false);
         buffer.add(new RequestEntryWrapper<>("B", 20L), false);
         buffer.add(new RequestEntryWrapper<>("C", 20L), false);
@@ -170,9 +157,8 @@ public class SimpleBatchCreatorTest {
     @Test
     public void testCreateNextStopWhenAddingNextWouldExceedSize() {
         // The total size limit for a batch is 20
-        SimpleBatchCreator<String> creator =
-                new SimpleBatchCreator.Builder<String>().setMaxBatchSizeInBytes(30L).build();
-        RequestBuffer<String> buffer = new DequeRequestBuffer.Builder<String>().build();
+        SimpleBatchCreator<String> creator = new SimpleBatchCreator<>(30L);
+        RequestBuffer<String> buffer = new DequeRequestBuffer<>();
         buffer.add(new RequestEntryWrapper<>("A", 10L), false);
         buffer.add(new RequestEntryWrapper<>("B", 20L), false);
         buffer.add(new RequestEntryWrapper<>("C", 10L), false);

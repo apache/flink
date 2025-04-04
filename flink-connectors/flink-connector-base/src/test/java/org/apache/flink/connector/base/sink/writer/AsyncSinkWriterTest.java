@@ -721,27 +721,6 @@ class AsyncSinkWriterTest {
                 .containsExactlyInAnyOrder(1, 2, 3, 4, 5, 6);
     }
 
-    /** Simple assertion to make sure that {@link DequeRequestBuffer} is the default buffer. */
-    @Test
-    public void testUseCorrectBufferWrapperImplementation() {
-        AsyncSinkWriterImpl initialSinkWriter =
-                new AsyncSinkWriterImplBuilder().context(sinkInitContext).build();
-
-        assertThat(initialSinkWriter.getBufferedRequestEntries())
-                .isInstanceOf(DequeRequestBuffer.class);
-    }
-
-    /**
-     * Simple assertion to make sure that {@link SimpleBatchCreator} is the default batch creator.
-     */
-    @Test
-    public void testUseCorrectBatchCreatorImplementation() {
-        AsyncSinkWriterImpl initialSinkWriter =
-                new AsyncSinkWriterImplBuilder().context(sinkInitContext).build();
-
-        assertThat(initialSinkWriter.getBatchCreator()).isInstanceOf(SimpleBatchCreator.class);
-    }
-
     @Test
     void testWriterInitializedWithStateHasCallbackRegistered() throws Exception {
         AsyncSinkWriterImpl initialSinkWriter =
@@ -950,35 +929,41 @@ class AsyncSinkWriterTest {
     @Test
     public void testTotalSizeInBytesReflectsBufferBeforeFlush()
             throws InterruptedException, IOException {
+        SimpleBatchCreator<Integer> simpleBatchCreator = new SimpleBatchCreator<>(15);
+        DequeRequestBuffer<Integer> requestBuffer = new DequeRequestBuffer<>();
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
                         .context(sinkInitContext)
                         .maxBatchSizeInBytes(15)
                         .maxRecordSizeInBytes(5)
                         .maxBatchSize(5)
-                        .build();
+                        .buildWithCustomPluggableComponents(simpleBatchCreator, requestBuffer);
 
-        // Since maxBatchSizeInBytes> 12(Size per element), flush will never be called.
+        // Since maxBatchSizeInBytes> 12(Size per element is 4), flush will never be called.
         sink.write("1");
         sink.write("2");
         sink.write("3");
 
         // Assert: Total size before flush
-        assertThat(sink.getBufferedRequestEntries().totalSizeInBytes()).isEqualTo(12L);
+        assertThat(requestBuffer.totalSizeInBytes()).isEqualTo(12L);
+        assertThat(requestBuffer.size()).isEqualTo(3);
+        assertThat(requestBuffer.getBufferedState().iterator().hasNext()).isEqualTo(Boolean.TRUE);
     }
 
     @Test
     public void testTotalSizeInBytesReflectsBufferAfterFlush()
             throws InterruptedException, IOException {
+        SimpleBatchCreator<Integer> simpleBatchCreator = new SimpleBatchCreator<>(11);
+        DequeRequestBuffer<Integer> requestBuffer = new DequeRequestBuffer<>();
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
                         .context(sinkInitContext)
                         .maxBatchSizeInBytes(11)
                         .maxRecordSizeInBytes(5)
                         .maxBatchSize(5)
-                        .build();
+                        .buildWithCustomPluggableComponents(simpleBatchCreator, requestBuffer);
 
-        // Since maxBatchSizeInBytes< 12(Size per element), flush will be called.
+        // Since maxBatchSizeInBytes< 12(Size per element is 4), flush will be called.
         // The first 2 elements will be flushed but not the last element.
         sink.write("1");
         sink.write("2");
@@ -986,7 +971,13 @@ class AsyncSinkWriterTest {
 
         // Assert: Total size after flush
         // Last element will not be flushed.
-        assertThat(sink.getBufferedRequestEntries().totalSizeInBytes()).isEqualTo(4L);
+        assertThat(requestBuffer.totalSizeInBytes()).isEqualTo(4L);
+        assertThat(requestBuffer.size()).isEqualTo(1);
+        assertThat(requestBuffer.getBufferedState().iterator().hasNext()).isEqualTo(Boolean.TRUE);
+        RequestEntryWrapper<Integer> requestEntryWrapper =
+                requestBuffer.getBufferedState().iterator().next();
+        assertThat(requestEntryWrapper.getRequestEntry()).isEqualTo(3);
+        assertThat(requestEntryWrapper.getSize()).isEqualTo(4L);
     }
 
     private void writeTwoElementsAndInterleaveTheNextTwoElements(
@@ -1135,6 +1126,50 @@ class AsyncSinkWriterTest {
                                             .build())
                             .build(),
                     bufferedState);
+            this.simulateFailures = simulateFailures;
+            this.delay = delay;
+        }
+
+        private AsyncSinkWriterImpl(
+                ElementConverter<String, Integer> elementConverter,
+                WriterInitContext context,
+                int maxBatchSize,
+                int maxInFlightRequests,
+                int maxBufferedRequests,
+                long maxBatchSizeInBytes,
+                long maxTimeInBufferMS,
+                long maxRecordSizeInBytes,
+                boolean simulateFailures,
+                int delay,
+                List<BufferedRequestState<Integer>> bufferedState,
+                BatchCreator<Integer> batchCreator,
+                RequestBuffer<Integer> requestBuffer) {
+
+            super(
+                    elementConverter,
+                    context,
+                    AsyncSinkWriterConfiguration.builder()
+                            .setMaxBatchSize(maxBatchSize)
+                            .setMaxBatchSizeInBytes(maxBatchSizeInBytes)
+                            .setMaxInFlightRequests(maxInFlightRequests)
+                            .setMaxBufferedRequests(maxBufferedRequests)
+                            .setMaxTimeInBufferMS(maxTimeInBufferMS)
+                            .setMaxRecordSizeInBytes(maxRecordSizeInBytes)
+                            .setRateLimitingStrategy(
+                                    CongestionControlRateLimitingStrategy.builder()
+                                            .setInitialMaxInFlightMessages(
+                                                    maxBatchSize * maxInFlightRequests)
+                                            .setMaxInFlightRequests(maxInFlightRequests)
+                                            .setScalingStrategy(
+                                                    AIMDScalingStrategy.builder(
+                                                                    maxBatchSize
+                                                                            * maxInFlightRequests)
+                                                            .build())
+                                            .build())
+                            .build(),
+                    bufferedState,
+                    batchCreator,
+                    requestBuffer);
             this.simulateFailures = simulateFailures;
             this.delay = delay;
         }
@@ -1327,6 +1362,24 @@ class AsyncSinkWriterTest {
                     simulateFailures,
                     delay,
                     bufferedState);
+        }
+
+        private AsyncSinkWriterImpl buildWithCustomPluggableComponents(
+                BatchCreator<Integer> batchCreator, RequestBuffer<Integer> requestBuffer) {
+            return new AsyncSinkWriterImpl(
+                    elementConverter,
+                    context,
+                    maxBatchSize,
+                    maxInFlightRequests,
+                    maxBufferedRequests,
+                    maxBatchSizeInBytes,
+                    maxTimeInBufferMS,
+                    maxRecordSizeInBytes,
+                    simulateFailures,
+                    delay,
+                    Collections.emptyList(),
+                    batchCreator,
+                    requestBuffer);
         }
     }
 

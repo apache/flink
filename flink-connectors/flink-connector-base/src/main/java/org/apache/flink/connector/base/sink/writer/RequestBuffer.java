@@ -104,20 +104,4 @@ public interface RequestBuffer<RequestEntryT extends Serializable> {
      * @return The total buffered size in bytes.
      */
     long totalSizeInBytes();
-
-    /**
-     * Generic builder interface for creating instances of {@link RequestBuffer}.
-     *
-     * @param <R> The type of {@link RequestBuffer} that the builder will create.
-     * @param <RequestEntryT> The type of request entries that the buffer wrapper will store.
-     */
-    interface Builder<R extends RequestBuffer<RequestEntryT>, RequestEntryT extends Serializable> {
-        /**
-         * Constructs and returns an instance of {@link RequestBuffer} with the configured
-         * parameters.
-         *
-         * @return A new instance of {@link RequestBuffer}.
-         */
-        R build();
-    }
 }

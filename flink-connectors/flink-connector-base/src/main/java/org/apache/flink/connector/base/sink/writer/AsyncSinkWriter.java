@@ -18,7 +18,6 @@
 package org.apache.flink.connector.base.sink.writer;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.connector.sink2.StatefulSinkWriter;
@@ -235,10 +234,8 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
                 context,
                 configuration,
                 states,
-                new SimpleBatchCreator.Builder<RequestEntryT>()
-                        .setMaxBatchSizeInBytes(configuration.getMaxBatchSizeInBytes())
-                        .build(),
-                new DequeRequestBuffer.Builder<RequestEntryT>().build());
+                new SimpleBatchCreator<>(configuration.getMaxBatchSizeInBytes()),
+                new DequeRequestBuffer<>());
     }
 
     public AsyncSinkWriter(
@@ -551,15 +548,5 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
                         requestTimeoutMS);
             }
         }
-    }
-
-    @VisibleForTesting
-    RequestBuffer<RequestEntryT> getBufferedRequestEntries() {
-        return bufferedRequestEntries;
-    }
-
-    @VisibleForTesting
-    BatchCreator<RequestEntryT> getBatchCreator() {
-        return batchCreator;
     }
 }

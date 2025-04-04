@@ -65,20 +65,4 @@ public interface BatchCreator<RequestEntryT extends Serializable> {
      */
     Batch<RequestEntryT> createNextBatch(
             RequestInfo requestInfo, RequestBuffer<RequestEntryT> bufferedRequestEntries);
-
-    /**
-     * Generic builder interface for creating instances of {@link BatchCreator}.
-     *
-     * @param <R> The type of {@link BatchCreator} that the builder will create.
-     * @param <RequestEntryT> The type of request entries that the batch creator will process.
-     */
-    interface Builder<R extends BatchCreator<RequestEntryT>, RequestEntryT extends Serializable> {
-        /**
-         * Constructs and returns an instance of {@link BatchCreator} with the configured
-         * parameters.
-         *
-         * @return A new instance of {@link BatchCreator}.
-         */
-        R build();
-    }
 }

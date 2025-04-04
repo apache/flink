@@ -18,7 +18,6 @@
 package org.apache.flink.connector.base.sink.writer;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.base.sink.writer.strategy.RequestInfo;
 import org.apache.flink.util.Preconditions;
 
@@ -49,7 +48,7 @@ public class SimpleBatchCreator<RequestEntryT extends Serializable>
      *
      * @param maxBatchSizeInBytes the maximum cumulative size in bytes allowed for any single batch
      */
-    private SimpleBatchCreator(long maxBatchSizeInBytes) {
+    public SimpleBatchCreator(long maxBatchSizeInBytes) {
         Preconditions.checkArgument(maxBatchSizeInBytes > 0);
         this.maxBatchSizeInBytes = maxBatchSizeInBytes;
     }
@@ -76,36 +75,5 @@ public class SimpleBatchCreator<RequestEntryT extends Serializable>
             batchSizeBytes += requestEntrySize;
         }
         return new Batch<>(batch, batchSizeBytes);
-    }
-
-    /**
-     * Builder for {@link SimpleBatchCreator}.
-     *
-     * @param <RequestEntryT> The type of request entries that this batch creator will process.
-     */
-    public static class Builder<RequestEntryT extends Serializable>
-            implements BatchCreator.Builder<SimpleBatchCreator<RequestEntryT>, RequestEntryT> {
-        private long maxBatchSizeInBytes;
-
-        /**
-         * Sets the maximum batch size in bytes.
-         *
-         * @param maxBatchSizeInBytes The maximum allowed size for a batch in bytes.
-         * @return This builder instance for method chaining.
-         */
-        public Builder<RequestEntryT> setMaxBatchSizeInBytes(long maxBatchSizeInBytes) {
-            this.maxBatchSizeInBytes = maxBatchSizeInBytes;
-            return this;
-        }
-
-        /**
-         * Builds and returns a {@link SimpleBatchCreator} instance with the configured parameters.
-         *
-         * @return A new {@link SimpleBatchCreator} instance.
-         */
-        @Override
-        public SimpleBatchCreator<RequestEntryT> build() {
-            return new SimpleBatchCreator<>(maxBatchSizeInBytes);
-        }
     }
 }
