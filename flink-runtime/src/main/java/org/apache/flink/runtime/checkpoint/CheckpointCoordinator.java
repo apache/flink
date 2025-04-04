@@ -79,7 +79,6 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
@@ -257,6 +256,8 @@ public class CheckpointCoordinator {
 
     private boolean forceFullSnapshot;
 
+    private final long initialTriggeringDelay;
+
     // --------------------------------------------------------------------------------------------
 
     public CheckpointCoordinator(
@@ -314,25 +315,12 @@ public class CheckpointCoordinator {
         // sanity checks
         checkNotNull(checkpointStorage);
 
-        // max "in between duration" can be one year - this is to prevent numeric overflows
-        long minPauseBetweenCheckpoints = chkConfig.getMinPauseBetweenCheckpoints();
-        if (minPauseBetweenCheckpoints > 365L * 24 * 60 * 60 * 1_000) {
-            minPauseBetweenCheckpoints = 365L * 24 * 60 * 60 * 1_000;
-        }
-
-        // it does not make sense to schedule checkpoints more often then the desired
-        // time between checkpoints
-        long baseInterval = chkConfig.getCheckpointInterval();
-        if (baseInterval < minPauseBetweenCheckpoints) {
-            baseInterval = minPauseBetweenCheckpoints;
-        }
-
         this.job = checkNotNull(job);
-        this.baseInterval = baseInterval;
+        this.baseInterval = chkConfig.getCheckpointInterval();
         this.baseIntervalDuringBacklog = chkConfig.getCheckpointIntervalDuringBacklog();
         this.nextCheckpointTriggeringRelativeTime = Long.MAX_VALUE;
         this.checkpointTimeout = chkConfig.getCheckpointTimeout();
-        this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
+        this.minPauseBetweenCheckpoints = chkConfig.getMinPauseBetweenCheckpoints();
         this.coordinatorsToCheckpoint =
                 Collections.unmodifiableCollection(coordinatorsToCheckpoint);
         this.pendingCheckpoints = new LinkedHashMap<>();
@@ -387,6 +375,7 @@ public class CheckpointCoordinator {
                         this.checkpointsCleaner::getNumberOfCheckpointsToClean);
         this.statsTracker = checkNotNull(statsTracker, "Statistic tracker can not be null");
         this.vertexFinishedStateCheckerFactory = checkNotNull(vertexFinishedStateCheckerFactory);
+        this.initialTriggeringDelay = chkConfig.getInitialTriggeringDelay();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -2055,7 +2044,7 @@ public class CheckpointCoordinator {
             }
 
             periodicScheduling = true;
-            scheduleTriggerWithDelay(clock.relativeTimeMillis(), getRandomInitDelay());
+            scheduleTriggerWithDelay(clock.relativeTimeMillis(), initialTriggeringDelay);
         }
     }
 
@@ -2115,10 +2104,6 @@ public class CheckpointCoordinator {
             currentPeriodicTrigger = null;
             currentPeriodicTriggerFuture = null;
         }
-    }
-
-    private long getRandomInitDelay() {
-        return ThreadLocalRandom.current().nextLong(minPauseBetweenCheckpoints, baseInterval + 1L);
     }
 
     private void scheduleTriggerWithDelay(long currentRelativeTime, long initDelay) {

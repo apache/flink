@@ -25,6 +25,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.Objects;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Configuration settings for the {@link CheckpointCoordinator}. This includes the checkpoint
@@ -140,10 +141,19 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 !isUnalignedCheckpointsEnabled || maxConcurrentCheckpoints <= 1,
                 "maxConcurrentCheckpoints can't be > 1 if UnalignedCheckpoints enabled");
 
+        // max "in between duration" can be one year - this is to prevent numeric overflows
+        if (minPauseBetweenCheckpoints > 365L * 24 * 60 * 60 * 1_000) {
+            minPauseBetweenCheckpoints = 365L * 24 * 60 * 60 * 1_000;
+        }
+        this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
+        // it does not make sense to schedule checkpoints more often then the desired
+        // time between checkpoints
+        if (checkpointInterval < minPauseBetweenCheckpoints) {
+            checkpointInterval = minPauseBetweenCheckpoints;
+        }
         this.checkpointInterval = checkpointInterval;
         this.checkpointIntervalDuringBacklog = checkpointIntervalDuringBacklog;
         this.checkpointTimeout = checkpointTimeout;
-        this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
         this.maxConcurrentCheckpoints = maxConcurrentCheckpoints;
         this.checkpointRetentionPolicy = Preconditions.checkNotNull(checkpointRetentionPolicy);
         this.isExactlyOnce = isExactlyOnce;
@@ -284,6 +294,13 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 
     public static CheckpointCoordinatorConfigurationBuilder builder() {
         return new CheckpointCoordinatorConfigurationBuilder();
+    }
+
+    public long getInitialTriggeringDelay() {
+        return ThreadLocalRandom.current()
+                .nextLong(
+                        minPauseBetweenCheckpoints,
+                        checkpointInterval + (checkpointInterval == Long.MAX_VALUE ? 0L : 1L));
     }
 
     /** {@link CheckpointCoordinatorConfiguration} builder. */
