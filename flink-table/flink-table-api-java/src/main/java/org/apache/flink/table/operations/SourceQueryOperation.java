@@ -65,7 +65,7 @@ public class SourceQueryOperation implements QueryOperation {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SerializationContext context) {
         return String.format(
                 "SELECT %s FROM %s %s",
                 OperationUtils.formatSelectColumns(getResolvedSchema(), INPUT_ALIAS),

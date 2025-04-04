@@ -21,8 +21,10 @@ package org.apache.flink.table.api;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.operations.CollectModifyOperation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.SerializationContext;
 import org.apache.flink.table.test.program.SqlTestStep;
 import org.apache.flink.table.test.program.TableApiTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -67,7 +69,8 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
                 QueryOperationTestPrograms.OVER_WINDOW_LAG,
                 QueryOperationTestPrograms.ACCESSING_NESTED_COLUMN,
                 QueryOperationTestPrograms.TABLE_AS_ROW_PTF,
-                QueryOperationTestPrograms.TABLE_AS_SET_PTF);
+                QueryOperationTestPrograms.TABLE_AS_SET_PTF,
+                QueryOperationTestPrograms.INLINE_FUNCTION_SERIALIZATION);
     }
 
     @ParameterizedTest
@@ -89,7 +92,10 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
                                 .findFirst()
                                 .get();
         final Table table = tableApiStep.toTable(env);
-        assertThat(table.getQueryOperation().asSerializableString()).isEqualTo(sqlStep.sql);
+        assertThat(
+                        table.getQueryOperation()
+                                .asSerializableString(new InlineFunctionSerializationContext()))
+                .isEqualTo(sqlStep.sql);
     }
 
     @ParameterizedTest
@@ -126,7 +132,12 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
     }
 
     private static TableEnvironment setupEnv(TableTestProgram program) {
-        final TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+        final TableEnvironment env =
+                TableEnvironment.create(
+                        EnvironmentSettings.newInstance()
+                                .inStreamingMode()
+                                .withSerializationContext(new InlineFunctionSerializationContext())
+                                .build());
         final Map<String, String> connectorOptions = new HashMap<>();
         connectorOptions.put("connector", "values");
         program.getSetupSourceTestSteps().forEach(s -> s.apply(env, connectorOptions));
@@ -148,5 +159,17 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
     @Override
     public EnumSet<TestKind> supportedRunSteps() {
         return EnumSet.of(TestKind.TABLE_API, TestKind.SQL);
+    }
+
+    private static class InlineFunctionSerializationContext implements SerializationContext {
+
+        private final Map<FunctionDefinition, String> functionNameMap = new HashMap<>();
+
+        @Override
+        public String serializeInlineFunction(FunctionDefinition functionDefinition) {
+            return functionNameMap.computeIfAbsent(
+                    functionDefinition,
+                    fd -> String.format("inlineFunction$%02d", functionNameMap.size()));
+        }
     }
 }

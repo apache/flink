@@ -87,14 +87,14 @@ public class SortQueryOperation implements QueryOperation {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SerializationContext context) {
         final StringBuilder s =
                 new StringBuilder(
                         String.format(
                                 "SELECT %s FROM (%s\n) %s ORDER BY %s",
                                 OperationUtils.formatSelectColumns(
                                         getResolvedSchema(), INPUT_ALIAS),
-                                OperationUtils.indent(child.asSerializableString()),
+                                OperationUtils.indent(child.asSerializableString(context)),
                                 INPUT_ALIAS,
                                 order.stream()
                                         .map(
@@ -102,7 +102,11 @@ public class SortQueryOperation implements QueryOperation {
                                                         OperationExpressionsUtils
                                                                 .scopeReferencesWithAlias(
                                                                         INPUT_ALIAS, expr))
-                                        .map(ResolvedExpression::asSerializableString)
+                                        .map(
+                                                resolvedExpression ->
+                                                        resolvedExpression.asSerializableString(
+                                                                SerializationContextAdapters.adapt(
+                                                                        context)))
                                         .collect(Collectors.joining(", "))));
 
         if (offset >= 0) {

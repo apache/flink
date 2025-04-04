@@ -171,4 +171,35 @@ public class CorrelateTestPrograms {
                     .runSql(
                             "INSERT INTO sink_t SELECT name, nested FROM source_t CROSS JOIN UNNEST(arr) AS T(nested)")
                     .build();
+
+    public static final TableTestProgram CORRELATE_CROSS_JOIN_UNNEST_2 =
+            TableTestProgram.of(
+                            "correlate-cross-join-unnest",
+                            "validate correlate with cross join and unnest")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("name STRING", "arr ARRAY<ROW<nested STRING>>")
+                                    .producedBeforeRestore(
+                                            Row.of(
+                                                    "Bob",
+                                                    new Row[] {
+                                                        Row.of("1"), Row.of("2"), Row.of("3")
+                                                    }))
+                                    .producedAfterRestore(
+                                            Row.of(
+                                                    "Alice",
+                                                    new Row[] {
+                                                        Row.of("4"), Row.of("5"), Row.of("6")
+                                                    }))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("name STRING", "nested STRING")
+                                    .consumedBeforeRestore("+I[Bob, 1]", "+I[Bob, 2]", "+I[Bob, 3]")
+                                    .consumedAfterRestore(
+                                            "+I[Alice, 4]", "+I[Alice, 5]", "+I[Alice, 6]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT (SELECT name, nested FROM source_t, UNNEST(arr) AS T(nested)) FROM source_t")
+                    .build();
 }

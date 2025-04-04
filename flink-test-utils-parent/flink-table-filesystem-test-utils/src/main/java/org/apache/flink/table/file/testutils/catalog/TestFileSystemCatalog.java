@@ -58,6 +58,7 @@ import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.expressions.DefaultSerializationContext;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.file.testutils.TestFileSystemTableFactory;
@@ -649,12 +650,14 @@ public class TestFileSystemCatalog extends AbstractCatalog {
 
     private Map<String, String> serializeTable(
             ResolvedCatalogBaseTable<?> resolvedCatalogBaseTable) {
+        final DefaultSerializationContext serializationContext = new DefaultSerializationContext();
         if (resolvedCatalogBaseTable instanceof ResolvedCatalogTable) {
             return CatalogPropertiesUtil.serializeCatalogTable(
-                    (ResolvedCatalogTable) resolvedCatalogBaseTable);
+                    (ResolvedCatalogTable) resolvedCatalogBaseTable, serializationContext);
         } else if (resolvedCatalogBaseTable instanceof ResolvedCatalogMaterializedTable) {
             return CatalogPropertiesUtil.serializeCatalogMaterializedTable(
-                    (ResolvedCatalogMaterializedTable) resolvedCatalogBaseTable);
+                    (ResolvedCatalogMaterializedTable) resolvedCatalogBaseTable,
+                    serializationContext);
         }
 
         throw new IllegalArgumentException(

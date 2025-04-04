@@ -60,14 +60,14 @@ public class FilterQueryOperation implements QueryOperation {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SerializationContext context) {
         return String.format(
                 "SELECT %s FROM (%s\n) %s WHERE %s",
                 OperationUtils.formatSelectColumns(getResolvedSchema(), INPUT_ALIAS),
-                OperationUtils.indent(child.asSerializableString()),
+                OperationUtils.indent(child.asSerializableString(context)),
                 INPUT_ALIAS,
                 OperationExpressionsUtils.scopeReferencesWithAlias(INPUT_ALIAS, condition)
-                        .asSerializableString());
+                        .asSerializableString(SerializationContextAdapters.adapt(context)));
     }
 
     @Override

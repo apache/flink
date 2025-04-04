@@ -50,12 +50,15 @@ public class PartitionQueryOperation implements QueryOperation {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SerializationContext context) {
         return String.format(
                 "(%s\n) PARTITION BY (%s)",
-                OperationUtils.indent(child.asSerializableString()),
+                OperationUtils.indent(child.asSerializableString(context)),
                 partitionExpressions.stream()
-                        .map(ResolvedExpression::asSerializableString)
+                        .map(
+                                expr ->
+                                        expr.asSerializableString(
+                                                SerializationContextAdapters.adapt(context)))
                         .collect(Collectors.joining(", ")));
     }
 

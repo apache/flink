@@ -111,7 +111,7 @@ public class JoinQueryOperation implements QueryOperation {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SerializationContext context) {
 
         Map<Integer, String> inputAliases = new HashMap<>();
         inputAliases.put(0, INPUT_1_ALIAS);
@@ -121,12 +121,12 @@ public class JoinQueryOperation implements QueryOperation {
         return String.format(
                 "SELECT %s FROM (%s\n) %s %s JOIN %s ON %s",
                 getSelectList(),
-                OperationUtils.indent(left.asSerializableString()),
+                OperationUtils.indent(left.asSerializableString(context)),
                 INPUT_1_ALIAS,
                 joinType.toString().replaceAll("_", " "),
-                rightToSerializable(),
+                rightToSerializable(context),
                 OperationExpressionsUtils.scopeReferencesWithAlias(inputAliases, condition)
-                        .asSerializableString());
+                        .asSerializableString(SerializationContextAdapters.adapt(context)));
     }
 
     private String getSelectList() {
@@ -139,12 +139,12 @@ public class JoinQueryOperation implements QueryOperation {
         return leftColumns + ", " + rightColumns;
     }
 
-    private String rightToSerializable() {
+    private String rightToSerializable(SerializationContext context) {
         final StringBuilder s = new StringBuilder();
         if (!correlated) {
             s.append("(");
         }
-        s.append(OperationUtils.indent(right.asSerializableString()));
+        s.append(OperationUtils.indent(right.asSerializableString(context)));
         if (!correlated) {
             s.append("\n)");
             s.append(" ");
