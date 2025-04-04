@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.v2;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.v2.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -37,8 +38,9 @@ public class AbstractMapStateTest extends AbstractKeyedStateTestBase {
         MapStateDescriptor<String, Integer> descriptor =
                 new MapStateDescriptor<>(
                         "testState", BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
+        descriptor.initializeSerializerUnlessSet(new ExecutionConfig());
         AbstractMapState<String, Void, String, Integer> mapState =
-                new AbstractMapState<>(aec, descriptor);
+                new AbstractMapState<>(aec, descriptor.getSerializer());
         aec.setCurrentContext(aec.buildContext("test", "test"));
 
         mapState.asyncClear();
