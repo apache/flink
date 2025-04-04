@@ -310,18 +310,26 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           .newBuilder()
           .addContainedKind(ModifyKind.INSERT)
 
-        // All aggregates are computed over the same window and order by is supported for only 1 field
-        val orderKeyIndex =
-          over.logicWindow.groups.get(0).orderKeys.getFieldCollations.get(0).getFieldIndex
-        val orderKeyType = over.logicWindow.getRowType.getFieldList.get(orderKeyIndex).getType
         if (
-          !FlinkTypeFactory.isRowtimeIndicatorType(orderKeyType)
-          && !FlinkTypeFactory.isProctimeIndicatorType(orderKeyType)
+          !over.logicWindow.groups.isEmpty && !over.logicWindow.groups
+            .get(0)
+            .orderKeys
+            .getFieldCollations
+            .isEmpty
         ) {
-          // Only non row-time/proc-time sort can support UPDATES
-          builder.addContainedKind(ModifyKind.UPDATE)
-          builder.addContainedKind(ModifyKind.DELETE)
-          overRequiredTrait = ModifyKindSetTrait.ALL_CHANGES
+          // All aggregates are computed over the same window and order by is supported for only 1 field
+          val orderKeyIndex =
+            over.logicWindow.groups.get(0).orderKeys.getFieldCollations.get(0).getFieldIndex
+          val orderKeyType = over.logicWindow.getRowType.getFieldList.get(orderKeyIndex).getType
+          if (
+            !FlinkTypeFactory.isRowtimeIndicatorType(orderKeyType)
+            && !FlinkTypeFactory.isProctimeIndicatorType(orderKeyType)
+          ) {
+            // Only non row-time/proc-time sort can support UPDATES
+            builder.addContainedKind(ModifyKind.UPDATE)
+            builder.addContainedKind(ModifyKind.DELETE)
+            overRequiredTrait = ModifyKindSetTrait.ALL_CHANGES
+          }
         }
         val children = visitChildren(over, overRequiredTrait)
         val providedTrait = new ModifyKindSetTrait(builder.build())

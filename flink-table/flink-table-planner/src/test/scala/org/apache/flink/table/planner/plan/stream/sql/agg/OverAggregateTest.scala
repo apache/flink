@@ -467,4 +467,17 @@ class OverAggregateTest extends TableTestBase {
                            |)
                            |""".stripMargin)
   }
+
+  @Test
+  def testWithoutOrderByClause(): Unit = {
+    val sql =
+      """
+        |SELECT c,
+        |    COUNT(a) OVER (PARTITION BY c) AS cnt1
+        |FROM MyTable
+      """.stripMargin
+
+    util.verifyExecPlan(sql)
+  }
+
 }
