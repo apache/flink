@@ -708,6 +708,85 @@ class CountingFunction extends ProcessTableFunction<String> {
 {{< /tab >}}
 {{< /tabs >}}
 
+### Large State
+
+Flink's state backends provide different types of state to efficiently handle large state.
+
+Currently, PTFs support three types of state:
+
+- **Value state**: Represents a single value.
+- **List state**: Represents a list of values, supporting operations like appending, removing, and iterating.
+- **Map state**: Represents a map (key-value pair) for efficient lookups, modifications, and removal of individual entries.
+
+By default, state entries in a PTF are represented as value state. This means that every state entry is fully read from
+the state backend when the evaluation method is called, and the value is written back to the state backend once the
+evaluation method finishes.
+
+To optimize state access and avoid unnecessary (de)serialization, state entries can be declared as:
+- `org.apache.flink.table.api.dataview.ListView` (for list state)
+- `org.apache.flink.table.api.dataview.MapView` (for map state)
+
+These provide direct views to the underlying Flink state backend.
+
+For example, when using a `MapView`, accessing a value via `MapView#get` will only deserialize the value associated with
+the specified key. This allows for efficient access to individual entries without needing to load the entire map. This
+approach is particularly useful when the map does not fit entirely into memory.
+
+{{< hint info >}}
+State TTL is applied individually to each entry in a list or map, allowing for fine-grained expiration control over state
+elements.
+{{< /hint >}}
+
+The following example demonstrates how to declare and use a `MapView`. It assumes the PTF processes a table with the
+schema `(userId, eventId, ...)`, partitioned by `userId`, with a high cardinality of distinct `eventId` values. For this
+use case, it is generally recommended to partition the table by both `userId` and `eventId`. For example purposes, the
+large state is stored as a map state.
+
+{{< tabs "1837eeed-3d13-455c-8e2f-5e164da9f844" >}}
+{{< tab "Java" >}}
+```java
+// Function that uses a map view for storing a large map for an event history per user
+class LargeHistoryFunction extends ProcessTableFunction<String> {
+  public void eval(
+    @StateHint MapView<String, Integer> largeMemory,
+    @ArgumentHint(TABLE_AS_SET) Row input
+  ) {
+    String eventId = input.getFieldAs("eventId");
+    Integer count = largeMemory.get(eventId);
+    if (count == null) {
+      largeMemory.put(eventId, 1);
+    } else {
+      if (count > 1000) {
+        collect("Anomaly detected: " + eventId);
+      }
+      largeMemory.put(eventId, count + 1);
+    }
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+Similar to other data types, reflection is used to extract the necessary type information. If reflection is not
+feasible - such as when a `Row` object is involved - type hints can be provided. Use the `ARRAY` data type for list views
+and the `MAP` data type for map views.
+
+{{< tabs "1937eeed-3d13-455c-8e2f-5e164da9f844" >}}
+{{< tab "Java" >}}
+```java
+// Function that uses a list view of rows
+class LargeHistoryFunction extends ProcessTableFunction<String> {
+  public void eval(
+    @StateHint(type = @DataTypeHint("ARRAY<ROW<s STRING, i INT>>")) ListView<Row> largeMemory,
+    @ArgumentHint(TABLE_AS_SET) Row input
+  ) {
+    ...
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
 ### Efficiency and Design Principles
 
 A stateful function also means that data layout and data retention should be well thought

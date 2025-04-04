@@ -16,20 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.typeutils;
+package org.apache.flink.table.runtime.dataview;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.dataview.DataView;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.data.binary.LazyBinaryFormat;
 import org.apache.flink.table.dataview.NullSerializer;
-import org.apache.flink.table.runtime.dataview.DataViewSpec;
-import org.apache.flink.table.runtime.dataview.ListViewSpec;
-import org.apache.flink.table.runtime.dataview.MapViewSpec;
 import org.apache.flink.table.runtime.typeutils.ExternalSerializer;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeTransformation;
@@ -51,12 +48,39 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasNe
 /**
  * Utilities to deal with {@link DataView}s.
  *
- * <p>A {@link DataView} is either represented as a regular {@link StructuredType} or as a {@link
- * RawType} that serializes to {@code null} when backed by a state backend. In the latter case, a
- * {@link DataViewSpec} contains all information necessary to store and retrieve data from state.
+ * <p>For aggregating functions: A {@link DataView} is a field that is either represented as a
+ * regular {@link StructuredType} or as a {@link RawType} that serializes to {@code null} when
+ * backed by a state backend. In the latter case, a {@link DataViewSpec} contains all information
+ * necessary to store and retrieve data from state.
+ *
+ * <p>For process table functions: A {@link DataView} is a top-level instance that is always backed
+ * by a state backend.
  */
 @Internal
 public final class DataViewUtils {
+
+    /** Returns whether the given {@link LogicalType} qualifies as a {@link DataView}. */
+    public static boolean isDataView(LogicalType viewType, Class<? extends DataView> viewClass) {
+        final boolean isDataView =
+                viewType.is(STRUCTURED_TYPE)
+                        && ((StructuredType) viewType)
+                                .getImplementationClass()
+                                .map(viewClass::isAssignableFrom)
+                                .orElse(false);
+        if (!isDataView) {
+            return false;
+        }
+        viewType.getChildren().forEach(DataViewUtils::checkForInvalidDataViews);
+        return true;
+    }
+
+    /** Checks that the given type and its children do not contain data views. */
+    public static void checkForInvalidDataViews(LogicalType type) {
+        if (hasNested(type, t -> isDataView(t, DataView.class))) {
+            throw new ValidationException(
+                    "Data views are not supported at the declared location. Given type: " + type);
+        }
+    }
 
     /** Searches for data views in the data type of an accumulator and extracts them. */
     public static List<DataViewSpec> extractDataViews(int aggIndex, DataType accumulatorDataType) {
@@ -84,11 +108,6 @@ public final class DataViewUtils {
                                 fieldIndex,
                                 fieldDataType.getChildren().get(0),
                                 false));
-            }
-            if (fieldType.getChildren().stream()
-                    .anyMatch(c -> hasNested(c, t -> isDataView(t, DataView.class)))) {
-                throw new TableException(
-                        "Data views are only supported in the first level of a composite accumulator type.");
             }
         }
         return specs;
@@ -136,14 +155,6 @@ public final class DataViewUtils {
 
     private static String createStateId(int fieldIndex, String fieldName) {
         return "agg" + fieldIndex + "$" + fieldName;
-    }
-
-    private static boolean isDataView(LogicalType t, Class<? extends DataView> viewClass) {
-        return t.is(STRUCTURED_TYPE)
-                && ((StructuredType) t)
-                        .getImplementationClass()
-                        .map(viewClass::isAssignableFrom)
-                        .orElse(false);
     }
 
     // --------------------------------------------------------------------------------------------

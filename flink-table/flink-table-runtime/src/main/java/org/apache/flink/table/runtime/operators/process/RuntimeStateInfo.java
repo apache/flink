@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.process;
 
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInferenceUtil.StateInfo;
-import org.apache.flink.table.types.logical.LogicalType;
 
 import java.io.Serializable;
 
@@ -32,12 +32,12 @@ public class RuntimeStateInfo implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private final String stateName;
-    private final LogicalType type;
+    private final DataType dataType;
     private final long timeToLive;
 
-    public RuntimeStateInfo(String stateName, LogicalType type, long timeToLive) {
+    public RuntimeStateInfo(String stateName, DataType dataType, long timeToLive) {
         this.stateName = stateName;
-        this.type = type;
+        this.dataType = dataType;
         this.timeToLive = timeToLive;
     }
 
@@ -45,8 +45,8 @@ public class RuntimeStateInfo implements Serializable {
         return stateName;
     }
 
-    public LogicalType getType() {
-        return type;
+    public DataType getDataType() {
+        return dataType;
     }
 
     public long getTimeToLive() {
