@@ -95,7 +95,7 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
 
 The total memory amount of RocksDB instance(s) per slot can also be bounded, please refer to documentation [here]({{< ref "docs/ops/state/large_state_tuning" >}}#bounding-rocksdb-memory-usage) for details.
 
-## The ForStStateBackend
+### The ForStStateBackend
 
 The *ForStStateBackend* is a state backend that is based on [ForSt project](https://github.com/ververica/ForSt),
 which is also a LSM-tree structured key-value store and built on top of the RocksDB.
