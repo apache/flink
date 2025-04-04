@@ -62,69 +62,72 @@ public class SourceOperatorTestContext implements AutoCloseable {
     public static final int SUBTASK_INDEX = 1;
     public static final MockSourceSplit MOCK_SPLIT = new MockSourceSplit(1234, 10);
 
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static class Builder {
+        private boolean idle = false;
+        private boolean usePerSplitOutputs = false;
+        private WatermarkStrategy<Integer> watermarkStrategy = WatermarkStrategy.noWatermarks();
+        private Output<StreamRecord<Integer>> output = new MockOutput<>(new ArrayList<>());
+        private boolean supportsSplitReassignmentOnRecovery = false;
+        private boolean pauseSourcesUntilFirstCheckpoint = false;
+        private BiConsumer<TestTaskStateManager, OperatorID> preInit = (ign0, ign1) -> {};
+
+        public Builder setIdle(boolean idle) {
+            this.idle = idle;
+            return this;
+        }
+
+        public Builder setUsePerSplitOutputs(boolean usePerSplitOutputs) {
+            this.usePerSplitOutputs = usePerSplitOutputs;
+            return this;
+        }
+
+        public Builder setWatermarkStrategy(WatermarkStrategy<Integer> watermarkStrategy) {
+            this.watermarkStrategy = watermarkStrategy;
+            return this;
+        }
+
+        public Builder setOutput(Output<StreamRecord<Integer>> output) {
+            this.output = output;
+            return this;
+        }
+
+        public Builder setSupportsSplitReassignmentOnRecovery(boolean supportsSplitReassignmentOnRecovery) {
+            this.supportsSplitReassignmentOnRecovery = supportsSplitReassignmentOnRecovery;
+            return this;
+        }
+
+        public Builder setPauseSourcesUntilFirstCheckpoint(
+                boolean pauseSourcesUntilFirstCheckpoint) {
+            this.pauseSourcesUntilFirstCheckpoint = pauseSourcesUntilFirstCheckpoint;
+            return this;
+        }
+
+        public Builder setPreInit(BiConsumer<TestTaskStateManager, OperatorID> preInit) {
+            this.preInit = preInit;
+            return this;
+        }
+
+        public SourceOperatorTestContext build() throws Exception {
+            return new SourceOperatorTestContext(
+                    idle,
+                    usePerSplitOutputs,
+                    watermarkStrategy,
+                    output,
+                    supportsSplitReassignmentOnRecovery,
+                    pauseSourcesUntilFirstCheckpoint,
+                    preInit);
+        }
+    }
+
     private MockSourceReader mockSourceReader;
     private MockOperatorEventGateway mockGateway;
     private TestProcessingTimeService timeService;
     private SourceOperator<Integer, MockSourceSplit> operator;
     public Output<StreamRecord<Integer>> output;
-
-    public SourceOperatorTestContext() throws Exception {
-        this(false, false);
-    }
-
-    public SourceOperatorTestContext(boolean idle, boolean pauseSourcesUntilFirstCheckpoint)
-            throws Exception {
-        this(idle, WatermarkStrategy.noWatermarks(), pauseSourcesUntilFirstCheckpoint);
-    }
-
-    public SourceOperatorTestContext(
-            boolean idle,
-            WatermarkStrategy<Integer> watermarkStrategy,
-            boolean pauseSourcesUntilFirstCheckpoint)
-            throws Exception {
-        this(
-                idle,
-                false,
-                watermarkStrategy,
-                new MockOutput<>(new ArrayList<>()),
-                false,
-                pauseSourcesUntilFirstCheckpoint);
-    }
-
-    public SourceOperatorTestContext(
-            boolean idle,
-            boolean usePerSplitOutputs,
-            WatermarkStrategy<Integer> watermarkStrategy,
-            Output<StreamRecord<Integer>> output,
-            boolean supportsSplitReassignmentOnRecovery)
-            throws Exception {
-        this(
-                idle,
-                usePerSplitOutputs,
-                watermarkStrategy,
-                output,
-                supportsSplitReassignmentOnRecovery,
-                false,
-                (ign0, ign1) -> {});
-    }
-
-    public SourceOperatorTestContext(
-            boolean idle,
-            boolean usePerSplitOutputs,
-            WatermarkStrategy<Integer> watermarkStrategy,
-            Output<StreamRecord<Integer>> output,
-            boolean supportsSplitReassignmentOnRecovery,
-            boolean pauseSourcesUntilFirstCheckpoint)
-            throws Exception {
-        this(
-                idle,
-                usePerSplitOutputs,
-                watermarkStrategy,
-                output,
-                supportsSplitReassignmentOnRecovery,
-                pauseSourcesUntilFirstCheckpoint,
-                (ign0, ign1) -> {});
-    }
 
     public SourceOperatorTestContext(
             boolean idle,

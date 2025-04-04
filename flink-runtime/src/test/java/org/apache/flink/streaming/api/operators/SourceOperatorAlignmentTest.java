@@ -63,15 +63,15 @@ class SourceOperatorAlignmentTest {
     @BeforeEach
     void setup() throws Exception {
         context =
-                new SourceOperatorTestContext(
-                        false,
-                        WatermarkStrategy.forGenerator(ctx -> new PunctuatedGenerator())
-                                .withTimestampAssigner((r, t) -> r)
-                                .withWatermarkAlignment(
-                                        "group1",
-                                        Duration.ofMillis(100),
-                                        Duration.ofMillis(updateIntervalMillis)),
-                        false);
+                SourceOperatorTestContext.builder()
+                        .setWatermarkStrategy(
+                                WatermarkStrategy.forGenerator(ctx -> new PunctuatedGenerator())
+                                        .withTimestampAssigner((r, t) -> r)
+                                        .withWatermarkAlignment(
+                                                "group1",
+                                                Duration.ofMillis(100),
+                                                Duration.ofMillis(updateIntervalMillis)))
+                        .build();
         operator = context.getOperator();
     }
 
@@ -137,16 +137,20 @@ class SourceOperatorAlignmentTest {
     void testWatermarkAlignmentWithIdleness(boolean allSubtasksIdle) throws Exception {
         // we use a separate context, because we need to enable idleness
         try (SourceOperatorTestContext context =
-                new SourceOperatorTestContext(
-                        true,
-                        WatermarkStrategy.forGenerator(
-                                        ctx ->
-                                                new PunctuatedGenerator(
-                                                        PunctuatedGenerator.GenerationMode.ODD))
-                                .withWatermarkAlignment(
-                                        "group1", Duration.ofMillis(100), Duration.ofMillis(1))
-                                .withTimestampAssigner((r, t) -> r),
-                        false)) {
+                SourceOperatorTestContext.builder()
+                        .setIdle(true)
+                        .setWatermarkStrategy(
+                                WatermarkStrategy.forGenerator(
+                                                ctx ->
+                                                        new PunctuatedGenerator(
+                                                                PunctuatedGenerator.GenerationMode
+                                                                        .ODD))
+                                        .withWatermarkAlignment(
+                                                "group1",
+                                                Duration.ofMillis(100),
+                                                Duration.ofMillis(1))
+                                        .withTimestampAssigner((r, t) -> r))
+                        .build()) {
             final SourceOperator<Integer, MockSourceSplit> operator = context.getOperator();
             operator.initializeState(context.createStateContext());
             operator.open();
