@@ -737,6 +737,11 @@ State TTL is applied individually to each entry in a list or map, allowing for f
 elements.
 {{< /hint >}}
 
+The following example demonstrates how to declare and use a `MapView`. It assumes the PTF processes a table with the
+schema `(userId, eventId, ...)`, partitioned by `userId`, with a high cardinality of distinct `eventId` values. For this
+use case, it is generally recommended to partition the table by both `userId` and `eventId`. For example purposes, the
+large state is stored as a map state.
+
 {{< tabs "1837eeed-3d13-455c-8e2f-5e164da9f844" >}}
 {{< tab "Java" >}}
 ```java

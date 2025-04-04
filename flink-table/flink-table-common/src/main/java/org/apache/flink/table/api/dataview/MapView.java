@@ -26,6 +26,7 @@ import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.types.DataType;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -40,8 +41,12 @@ import java.util.Objects;
  *
  * <p>For aggregating functions, the view can be used as a field in the accumulator of an {@link
  * AggregateFunction} or {@link TableAggregateFunction} when large amounts of data are expected.
+ * Aggregate functions might be used at various locations (pre-aggregation, combiners, merging of
+ * window slides, etc.) for some of these locations the data view is not backed by state but {@link
+ * ArrayList}.
  *
- * <p>For process table functions, the view can be used as a top-level state entry.
+ * <p>For process table functions, the view can be used as a top-level state entry. Data views in
+ * PTFs are always backed by state.
  *
  * <p>Note: Keys of a {@link MapView} must not be null. Nulls in values are supported. For
  * heap-based state backends, {@code hashCode/equals} of the original (i.e. external) class are
@@ -119,8 +124,9 @@ public class MapView<K, V> implements DataView {
     /**
      * Return the value for the specified key or {@code null} if the key is not in the map view.
      *
-     * @param key The lookup key.
-     * @return The value for the specified key.
+     * @param key The key whose associated value is to be returned
+     * @return The value to which the specified key is mapped, or {@code null} if this map contains
+     *     no mapping for the key
      * @throws Exception Thrown if the system cannot get data.
      */
     public V get(K key) throws Exception {
