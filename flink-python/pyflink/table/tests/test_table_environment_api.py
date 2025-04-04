@@ -700,8 +700,8 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
                                1.98932, bytearray(b'pyflink'), 'pyflink',
                                datetime.date(2014, 9, 13), datetime.time(12, 0, 0, 123000),
                                datetime.datetime(2018, 3, 11, 3, 0, 0, 123000),
-                               [Row(['[pyflink]']), Row(['[pyflink]']), Row(['[pyflink]'])],
-                               {1: Row(['[flink]']), 2: Row(['[pyflink]'])},
+                               [Row('pyflink'), Row('pyflink'), Row('pyflink')],
+                               {1: Row('flink'), 2: Row('pyflink')},
                                decimal.Decimal('1000000000000000000.050000000000000000'),
                                decimal.Decimal('1000000000000000000.059999999999999999'))]
         source = self.t_env.from_elements(
@@ -709,8 +709,8 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
               datetime.date(2014, 9, 13), datetime.time(hour=12, minute=0, second=0,
                                                         microsecond=123000),
               datetime.datetime(2018, 3, 11, 3, 0, 0, 123000),
-              [Row(['pyflink']), Row(['pyflink']), Row(['pyflink'])],
-              {1: Row(['flink']), 2: Row(['pyflink'])}, decimal.Decimal('1000000000000000000.05'),
+              [Row('pyflink'), Row('pyflink'), Row('pyflink')],
+              {1: Row('flink'), 2: Row('pyflink')}, decimal.Decimal('1000000000000000000.05'),
               decimal.Decimal('1000000000000000000.05999999999999999899999999999'))], DataTypes.ROW(
                 [DataTypes.FIELD("a", DataTypes.BIGINT()), DataTypes.FIELD("b", DataTypes.BIGINT()),
                  DataTypes.FIELD("c", DataTypes.TINYINT()),

@@ -111,7 +111,7 @@ def pickled_bytes_to_python_converter(data, field_type: DataType):
         fields = []
         for d, d_type in data:
             fields.append(pickled_bytes_to_python_converter(d, d_type))
-        result_row = Row(fields)
+        result_row = Row(*fields)
         result_row.set_row_kind(row_kind)
         return result_row
     else:
