@@ -1395,7 +1395,7 @@ return types of this type.
 
 **Declaration**
 
-{{< tabs "8dfc33fb-c7e5-43c4-ade0-bfc197d46aef" >}}
+{{< tabs "25c30432-8460-441d-a036-9416d8202882" >}}
 {{< tab "SQL" >}}
 ```text
 DESCRIPTOR
