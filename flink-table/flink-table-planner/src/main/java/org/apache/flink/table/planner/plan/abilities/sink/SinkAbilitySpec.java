@@ -37,7 +37,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTyp
     @JsonSubTypes.Type(value = PartitioningSpec.class),
     @JsonSubTypes.Type(value = WritingMetadataSpec.class),
     @JsonSubTypes.Type(value = RowLevelDeleteSpec.class),
-    @JsonSubTypes.Type(value = RowLevelUpdateSpec.class)
+    @JsonSubTypes.Type(value = RowLevelUpdateSpec.class),
+    @JsonSubTypes.Type(value = TargetColumnWritingSpec.class)
 })
 @Internal
 public interface SinkAbilitySpec {
