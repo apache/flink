@@ -41,9 +41,7 @@ public class TemporalTableJoinUtil {
                 new RexVisitorImpl<Void>(true) {
                     @Override
                     public Void visitCall(RexCall call) {
-                        if ((call.getOperator()
-                                                == TemporalJoinUtil
-                                                        .INITIAL_TEMPORAL_JOIN_CONDITION()
+                        if ((call.getOperator() == TemporalJoinUtil.INITIAL_TEMPORAL_JOIN_CONDITION
                                         && TemporalJoinUtil.isInitialRowTimeTemporalTableJoin(call))
                                 || isRowTimeTemporalTableJoinCondition(call)) {
                             // has initial temporal join condition or
@@ -63,7 +61,7 @@ public class TemporalTableJoinUtil {
     /** Check if the given rexCall is a rewrote join condition on event time. */
     public static boolean isRowTimeTemporalTableJoinCondition(RexCall call) {
         // (LEFT_TIME_ATTRIBUTE, RIGHT_TIME_ATTRIBUTE, LEFT_KEY, RIGHT_KEY, PRIMARY_KEY)
-        return call.getOperator() == TemporalJoinUtil.TEMPORAL_JOIN_CONDITION()
+        return call.getOperator() == TemporalJoinUtil.TEMPORAL_JOIN_CONDITION
                 && call.operands.size() == 5;
     }
 }
