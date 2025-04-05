@@ -33,8 +33,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.Collections;
-import java.util.Set;
 
 /** Simple factory for the OSS file system. */
 public class OSSFileSystemFactory implements FileSystemFactory {
@@ -43,11 +41,6 @@ public class OSSFileSystemFactory implements FileSystemFactory {
     private Configuration flinkConfig;
 
     private org.apache.hadoop.conf.Configuration hadoopConfig;
-
-    private static final Set<String> CONFIG_KEYS_TO_SHADE =
-            Collections.singleton("fs.oss.credentials.provider");
-
-    private static final String FLINK_SHADING_PREFIX = "org.apache.flink.fs.osshadoop.shaded.";
 
     /**
      * In order to simplify, we make flink oss configuration keys same with hadoop oss module. So,
@@ -127,9 +120,6 @@ public class OSSFileSystemFactory implements FileSystemFactory {
                 if (key.startsWith(prefix)) {
                     String value = flinkConfig.getString(key, null);
                     conf.set(key, value);
-                    if (CONFIG_KEYS_TO_SHADE.contains(key)) {
-                        conf.set(key, FLINK_SHADING_PREFIX + value);
-                    }
 
                     LOG.debug(
                             "Adding Flink config entry for {} as {} to Hadoop config",
