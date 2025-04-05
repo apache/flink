@@ -57,7 +57,8 @@ CREATE TABLE user_behavior (
  'properties.group.id' = 'testGroup',
  'format' = 'json',
  'json.fail-on-missing-field' = 'false',
- 'json.ignore-parse-errors' = 'true'
+ 'json.ignore-parse-errors' = 'true' ,
+ 'json.zero-timestamp.behavior' = 'CONVERT_TO_NULL'
 )
 ```
 
@@ -113,6 +114,19 @@ Format Options
         parse input TIMESTAMP_LTZ values in "yyyy-MM-dd HH:mm:ss.s{precision}'Z'" format, e.g "2020-12-30 12:13:14.123Z" and output timestamp in the same format.</li>
         <li>Option <code>'ISO-8601'</code>will parse input TIMESTAMP in "yyyy-MM-ddTHH:mm:ss.s{precision}" format, e.g "2020-12-30T12:13:14.123" 
         parse input TIMESTAMP_LTZ in "yyyy-MM-ddTHH:mm:ss.s{precision}'Z'" format, e.g "2020-12-30T12:13:14.123Z" and output timestamp in the same format.</li>
+      </ul>
+      </td>
+    </tr>
+    <tr>
+      <td><h5>json.zero-timestamp.behavior</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;"><code>'FAIL'</code></td>
+      <td>String</td>
+      <td>Specify how to deserialize zero timestamp data of type <code>TIMESTAMP</code> in json, such as "0000-00-00 00:00:00" and "0000-00-00". Currently supported values are <code>'FAIL'</code> and <code>'CONVERT_TO_NULL'</code>:
+      <ul>
+        <li>Option <code>'FAIL'</code> will throw exception when encountering zero timestamp.</li>
+        <li>Option <code>'CONVERT_TO_NULL'</code> will set field value to null when encountering zero timestamp.</li>
       </ul>
       </td>
     </tr>

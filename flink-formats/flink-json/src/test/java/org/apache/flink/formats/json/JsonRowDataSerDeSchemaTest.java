@@ -408,6 +408,53 @@ public class JsonRowDataSerDeSchemaTest {
         assertThat(deserializationSchema.deserialize(null)).isNull();
     }
 
+    @Test
+    void testDeserializationZeroTimestamp() throws Exception {
+        // Root
+        ObjectNode root = OBJECT_MAPPER.createObjectNode();
+        root.put("zeroDate", "0000-00-00");
+        root.put("zeroTimestamp", "0000-00-00 00:00:00");
+        byte[] serializedJson = OBJECT_MAPPER.writeValueAsBytes(root);
+
+        DataType dataType =
+                ROW(FIELD("zeroDate", TIMESTAMP()), FIELD("zeroTimestamp", TIMESTAMP()));
+        RowType schema = (RowType) dataType.getLogicalType();
+
+        // convert to null on parsing zero timestamp
+        JsonRowDataDeserializationSchema deserializationSchema =
+                new JsonRowDataDeserializationSchema(
+                        schema,
+                        InternalTypeInfo.of(schema),
+                        true,
+                        false,
+                        TimestampFormat.SQL,
+                        JsonFormatOptions.ZeroTimestampBehavior.CONVERT_TO_NULL);
+        open(deserializationSchema);
+
+        Row expected = new Row(2);
+        expected.setField(0, null);
+        expected.setField(1, null);
+        Row actual = convertToExternal(deserializationSchema.deserialize(serializedJson), dataType);
+        assertThat(actual).isEqualTo(expected);
+
+        // fail on parsing zero timestamp
+        deserializationSchema =
+                new JsonRowDataDeserializationSchema(
+                        schema,
+                        InternalTypeInfo.of(schema),
+                        true,
+                        false,
+                        TimestampFormat.SQL,
+                        JsonFormatOptions.ZeroTimestampBehavior.FAIL);
+        open(deserializationSchema);
+        String errorMessage =
+                "Unable to parse zero timestamp '0000-00-00' in 'FAIL' zero-timestamp.behavior.";
+        JsonRowDataDeserializationSchema finalDeserializationSchema = deserializationSchema;
+        assertThatThrownBy(() -> finalDeserializationSchema.deserialize(serializedJson))
+                .rootCause()
+                .hasMessage(errorMessage);
+    }
+
     @TestTemplate
     void testDeserializationMissingNode() throws Exception {
         DataType dataType = ROW(FIELD("name", STRING()));
