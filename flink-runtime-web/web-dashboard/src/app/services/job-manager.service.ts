@@ -133,7 +133,7 @@ export class JobManagerService {
 
   createProfilingInstance(mode: string, duration: number): Observable<ProfilingDetail> {
     const requestParam = { mode, duration };
-    return this.httpClient.post<ProfilingDetail>(`${this.configService.BASE_URL}/jobmanager/profiler`, requestParam);
+    return this.httpClient.put<ProfilingDetail>(`${this.configService.BASE_URL}/jobmanager/profiler`, requestParam);
   }
 
   loadProfilingResult(filePath: string): Observable<Record<string, string>> {
