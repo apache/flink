@@ -31,7 +31,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.testutils.WaitingCancelableInvokable;
 
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -45,10 +45,10 @@ class ClientHeartbeatTest {
     private final long clientHeartbeatInterval = 50;
     private final long clientHeartbeatTimeout = 1000;
 
-    private MiniCluster miniCluster;
+    private static MiniCluster miniCluster;
 
-    @AfterEach
-    void teardown() throws Exception {
+    @AfterAll
+    static void teardown() throws Exception {
         if (miniCluster != null) {
             miniCluster.close();
         }
