@@ -22,12 +22,18 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.planner.functions.CastFunctionMiscITCase.LocalDateTimeToRaw;
 
+import java.time.LocalDateTime;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.api.DataTypes.BINARY;
 import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER;
+import static org.apache.flink.table.planner.functions.CastFunctionMiscITCase.serializeLocalDateTime;
 
 /**
  * Tests for {@link BuiltInFunctionDefinitions#CAST} when legacy cast mode enabled regarding {@link
@@ -56,6 +62,17 @@ class CastFunctionMiscLegacyITCase extends BuiltInFunctionTestBase {
                                 "Column 'EXPR$0' is NOT NULL, however, a null value is "
                                         + "being written into it. You can set job configuration "
                                         + "'table.exec.sink.not-null-enforcer'='DROP' to suppress "
-                                        + "this exception and drop such records silently."));
+                                        + "this exception and drop such records silently."),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.CAST,
+                                "cast from RAW(LocalDateTime) to BINARY(13)")
+                        .onFieldsWithData("2020-11-11T18:08:01.123")
+                        .andDataTypes(STRING())
+                        .withFunction(LocalDateTimeToRaw.class)
+                        .testTableApiResult(
+                                call("LocalDateTimeToRaw", $("f0")).cast(BINARY(13)),
+                                serializeLocalDateTime(
+                                        LocalDateTime.parse("2020-11-11T18:08:01.123")),
+                                BINARY(13)));
     }
 }
