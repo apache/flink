@@ -28,6 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.RuntimePairComparatorFactory;
 import org.apache.flink.api.java.typeutils.runtime.TupleComparator;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
+import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.operators.testutils.BinaryOperatorTestBase;
 import org.apache.flink.runtime.operators.testutils.DelayingIterator;
 import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
@@ -42,6 +43,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.apache.flink.runtime.testutils.CommonTestUtils.waitUntilCondition;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -355,33 +357,25 @@ abstract class AbstractOuterJoinTaskTest
                 this.comparator1.duplicate());
         addInput(new DelayingIterator<>(new InfiniteIntTupleIterator(), 100), this.serializer);
 
-        final AtomicReference<Throwable> error = new AtomicReference<>();
-
-        final Thread taskRunner =
-                new Thread("Task runner for testCancelOuterJoinTaskWhileSort1()") {
+        final CheckedThread taskRunner =
+                new CheckedThread("Task runner for testCancelOuterJoinTaskWhileSort1()") {
                     @Override
-                    public void run() {
-                        try {
-                            testDriver(testTask, MockJoinStub.class);
-                        } catch (Throwable t) {
-                            error.set(t);
-                        }
+                    public void go() throws Exception {
+                        testDriver(testTask, MockJoinStub.class);
                     }
                 };
         taskRunner.start();
 
-        Thread.sleep(1000);
+        waitUntilCondition(() -> taskRunner.getState() == Thread.State.WAITING);
 
         cancel();
         taskRunner.interrupt();
 
-        taskRunner.join(60000);
+        taskRunner.sync(60000);
 
         assertThat(taskRunner.isAlive())
                 .withFailMessage("Task thread did not finish within 60 seconds")
                 .isFalse();
-
-        assertThat(error.get()).isNull();
     }
 
     @TestTemplate
@@ -406,33 +400,25 @@ abstract class AbstractOuterJoinTaskTest
                 this.serializer,
                 this.comparator2.duplicate());
 
-        final AtomicReference<Throwable> error = new AtomicReference<>();
-
-        final Thread taskRunner =
-                new Thread("Task runner for testCancelOuterJoinTaskWhileSort2()") {
+        final CheckedThread taskRunner =
+                new CheckedThread("Task runner for testCancelOuterJoinTaskWhileSort2()") {
                     @Override
-                    public void run() {
-                        try {
-                            testDriver(testTask, MockJoinStub.class);
-                        } catch (Throwable t) {
-                            error.set(t);
-                        }
+                    public void go() throws Exception {
+                        testDriver(testTask, MockJoinStub.class);
                     }
                 };
         taskRunner.start();
 
-        Thread.sleep(1000);
+        waitUntilCondition(() -> taskRunner.getState() == Thread.State.WAITING);
 
         cancel();
         taskRunner.interrupt();
 
-        taskRunner.join(60000);
+        taskRunner.sync(60000);
 
         assertThat(taskRunner.isAlive())
                 .withFailMessage("Task thread did not finish within 60 seconds")
                 .isFalse();
-
-        assertThat(error.get()).isNull();
     }
 
     @TestTemplate
