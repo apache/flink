@@ -438,11 +438,56 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
     getUniqueKeysOfOverAgg(rel, mq, ignoreNulls)
   }
 
+  def getUniqueKeysOfWindowGroup(
+      group: Window.Group,
+      startPos: Int): Option[JSet[ImmutableBitSet]] = {
+    val retSet = new JHashSet[ImmutableBitSet]
+    val aggCalls = group.aggCalls
+    for ((aggCall, offset) <- aggCalls.zipWithIndex) {
+      // If it's a ROW_NUMBER window, then the unique keys are partition by key and row number.
+      if (aggCall.getOperator.equals(SqlStdOperatorTable.ROW_NUMBER)) {
+        val rowNumberColumnIndex = startPos + offset
+        retSet.add(group.keys.union(ImmutableBitSet.of(rowNumberColumnIndex)))
+      }
+    }
+    if (retSet.isEmpty) {
+      None
+    } else {
+      Some(retSet)
+    }
+  }
+
+  def getGroupsAndStartPos(window: SingleRel): Tuple2[JList[Window.Group], Int] = {
+    val groups: JList[Window.Group] = window match {
+      case window: Window => window.groups
+      case streamOverAggregate: StreamPhysicalOverAggregate =>
+        streamOverAggregate.logicWindow.groups
+      case batchOverAggregate: BatchPhysicalOverAggregate => batchOverAggregate.windowGroups
+      case _ => throw new IllegalArgumentException("Illegal window type.")
+    }
+    val aggCounts = groups.map(_.aggCalls.length).sum
+    val aggStartIndex = window.getRowType.getFieldCount - aggCounts
+    (groups, aggStartIndex)
+  }
+
   private def getUniqueKeysOfOverAgg(
       window: SingleRel,
       mq: RelMetadataQuery,
       ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
-    mq.getUniqueKeys(window.getInput, ignoreNulls)
+    val retSet = new JHashSet[ImmutableBitSet]
+    var (groups, aggStartPos) = getGroupsAndStartPos(window)
+    for (group <- groups) {
+      getUniqueKeysOfWindowGroup(group, aggStartPos) match {
+        case Some(uniqueKeys) => retSet.addAll(uniqueKeys)
+        case _ =>
+      }
+      aggStartPos = aggStartPos + group.aggCalls.length
+    }
+    val inputKeys = mq.getUniqueKeys(window.getInput, ignoreNulls)
+    if (inputKeys != null && inputKeys.nonEmpty) {
+      retSet.addAll(inputKeys)
+    }
+    retSet
   }
 
   def getUniqueKeys(
