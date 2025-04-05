@@ -339,12 +339,24 @@ public class PlannerContext {
 
     /** Returns builtin the operator table and external the operator for this environment. */
     private SqlOperatorTable getBuiltinSqlOperatorTable() {
-        return SqlOperatorTables.chain(
-                new FunctionCatalogOperatorTable(
-                        context.getFunctionCatalog(),
-                        context.getCatalogManager().getDataTypeFactory(),
-                        typeFactory,
-                        context.getRexFactory()),
-                FlinkSqlOperatorTable.instance(context.isBatchMode()));
+        List<String> modulesList = getFlinkContext().getModuleManager().listModules();
+        if (modulesList.size() > 0 && !modulesList.get(0).equals("core")) {
+            return SqlOperatorTables.chain(
+                    new FunctionCatalogOperatorTable(
+                            context.getFunctionCatalog(),
+                            context.getCatalogManager().getDataTypeFactory(),
+                            typeFactory,
+                            context.getRexFactory()),
+                    FlinkSqlOperatorTable.instance(context.isBatchMode()));
+        } else {
+            // by default, we should prefer FlinkSqlOperatorTable.
+            return SqlOperatorTables.chain(
+                    FlinkSqlOperatorTable.instance(context.isBatchMode()),
+                    new FunctionCatalogOperatorTable(
+                            context.getFunctionCatalog(),
+                            context.getCatalogManager().getDataTypeFactory(),
+                            typeFactory,
+                            context.getRexFactory()));
+        }
     }
 }
