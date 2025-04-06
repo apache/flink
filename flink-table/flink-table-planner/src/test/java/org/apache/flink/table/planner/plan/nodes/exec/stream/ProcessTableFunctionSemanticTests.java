@@ -44,6 +44,7 @@ public class ProcessTableFunctionSemanticTests extends SemanticTestBase {
                 ProcessTableFunctionTestPrograms.PROCESS_TYPED_TABLE_AS_SET,
                 ProcessTableFunctionTestPrograms.PROCESS_TYPED_TABLE_AS_SET_TABLE_API,
                 ProcessTableFunctionTestPrograms.PROCESS_POJO_ARGS,
+                ProcessTableFunctionTestPrograms.PROCESS_INTERVAL_ARGS,
                 ProcessTableFunctionTestPrograms.PROCESS_EMPTY_ARGS,
                 ProcessTableFunctionTestPrograms.PROCESS_TABLE_AS_ROW_PASS_THROUGH,
                 ProcessTableFunctionTestPrograms.PROCESS_TABLE_AS_SET_PASS_THROUGH,

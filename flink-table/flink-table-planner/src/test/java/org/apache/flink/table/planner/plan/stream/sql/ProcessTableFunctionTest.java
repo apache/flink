@@ -27,6 +27,7 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.DescriptorFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyArgFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.IntervalArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RequiredTimeFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarArgsFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsRowFunction;
@@ -120,6 +121,12 @@ public class ProcessTableFunctionTest extends TableTestBase {
     void testDifferentPartitionKey() {
         util.addTemporarySystemFunction("f", TableAsSetFunction.class);
         util.verifyRelPlan("SELECT * FROM f(r => TABLE t PARTITION BY score, i => 1)");
+    }
+
+    @Test
+    void testIntervalArgs() {
+        util.addTemporarySystemFunction("f", IntervalArgFunction.class);
+        util.verifyRelPlan("SELECT * FROM f(d => INTERVAL '1' SECOND)");
     }
 
     @Test
