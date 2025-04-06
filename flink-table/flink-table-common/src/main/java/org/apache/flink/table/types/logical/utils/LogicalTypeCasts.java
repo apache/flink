@@ -20,6 +20,7 @@ package org.apache.flink.table.types.logical.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.logical.DateType;
+import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
@@ -536,6 +537,11 @@ public final class LogicalTypeCasts {
 
         private CastAvoidanceChecker(LogicalType sourceType) {
             this.sourceType = sourceType;
+        }
+
+        @Override
+        public Boolean visit(DayTimeIntervalType targetType) {
+            return true;
         }
 
         @Override

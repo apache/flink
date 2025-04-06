@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ContextFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.DescriptorFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyArgFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.IntervalArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidPassThroughTimersFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidRowKindFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidRowSemanticTableTimersFunction;
@@ -383,6 +384,18 @@ public class ProcessTableFunctionTestPrograms {
                                     .consumedValues("+I[{empty}]")
                                     .build())
                     .runSql("INSERT INTO sink SELECT * FROM f()")
+                    .build();
+
+    public static final TableTestProgram PROCESS_INTERVAL_ARGS =
+            TableTestProgram.of("process-interval-args", "interval argument")
+                    .setupTemporarySystemFunction("f", IntervalArgFunction.class)
+                    .setupSql(BASIC_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(BASE_SINK_SCHEMA)
+                                    .consumedValues("+I[{PT1S}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(d => INTERVAL '1' SECOND)")
                     .build();
 
     public static final TableTestProgram PROCESS_ROW_SEMANTIC_TABLE_PASS_THROUGH =
