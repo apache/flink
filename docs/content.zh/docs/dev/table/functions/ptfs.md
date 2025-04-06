@@ -1153,6 +1153,7 @@ notification queue, while the checkout process would be finalized by a separate 
 ```sql
 CREATE VIEW Checkouts AS SELECT * FROM CheckoutProcessor(
   events => TABLE Events PARTITION BY `user`,
+  on_time => DESCRIPTOR(ts),
   reminderInterval => INTERVAL '1' DAY,
   timeoutInterval => INTERVAL '2' DAY, uid => 'cart-processor'
 )
