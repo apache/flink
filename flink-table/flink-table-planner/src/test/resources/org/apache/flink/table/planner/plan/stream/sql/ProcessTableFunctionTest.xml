@@ -54,6 +54,23 @@ ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($1), 1, DEFAULT(), DEF
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testIntervalArgs">
+	<Resource name="sql">
+		<![CDATA[SELECT * FROM f(d => INTERVAL '1' SECOND)]]>
+	</Resource>
+	<Resource name="ast">
+		<![CDATA[
+LogicalProject(out=[$0])
++- LogicalTableFunctionScan(invocation=[f(1000:INTERVAL SECOND, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
+]]>
+	</Resource>
+	<Resource name="optimized rel plan">
+		<![CDATA[
+ProcessTableFunction(invocation=[f(1000:INTERVAL SECOND, DEFAULT(), DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
++- Values(tuples=[[{  }]])
+]]>
+	</Resource>
+  </TestCase>
   <TestCase name="testEmptyArgs">
     <Resource name="sql">
       <![CDATA[SELECT * FROM f(uid => 'my-ptf')]]>
