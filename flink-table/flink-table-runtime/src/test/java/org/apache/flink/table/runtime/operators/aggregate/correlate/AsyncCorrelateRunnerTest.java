@@ -34,9 +34,11 @@ import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.generated.GeneratedFunctionWrapper;
 import org.apache.flink.table.runtime.operators.correlate.async.AsyncCorrelateRunner;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 
@@ -58,10 +60,13 @@ public class AsyncCorrelateRunnerTest {
     @Test
     public void testRows() throws Exception {
         TestResultFuture resultFuture = new TestResultFuture();
+        RowType resultType = RowType.of(new IntType());
         AsyncCorrelateRunner runner =
                 new AsyncCorrelateRunner(
                         new GeneratedFunctionWrapper<>(new ImmediateCallbackFunction()),
-                        createConverter(RowType.of(new IntType())));
+                        createConverter(resultType),
+                        FlinkJoinType.INNER,
+                        resultType);
         runner.setRuntimeContext(createRuntimeContext());
         runner.open((OpenContext) null);
         runner.asyncInvoke(GenericRowData.of(0), resultFuture);
@@ -86,10 +91,13 @@ public class AsyncCorrelateRunnerTest {
     @Test
     public void testException() throws Exception {
         TestResultFuture resultFuture = new TestResultFuture();
+        RowType resultType = RowType.of(new IntType());
         AsyncCorrelateRunner runner =
                 new AsyncCorrelateRunner(
                         new GeneratedFunctionWrapper<>(new ExceptionFunction()),
-                        createConverter(RowType.of(new IntType())));
+                        createConverter(resultType),
+                        FlinkJoinType.INNER,
+                        resultType);
         runner.setRuntimeContext(createRuntimeContext());
         runner.open((OpenContext) null);
         runner.asyncInvoke(GenericRowData.of(0), resultFuture);
@@ -107,6 +115,39 @@ public class AsyncCorrelateRunnerTest {
                 .cause()
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Other Error!");
+    }
+
+    @Test
+    public void testLeftJoin() throws Exception {
+        TestResultFuture resultFuture = new TestResultFuture();
+        RowType resultType = RowType.of(new IntType(), new VarCharType(1000));
+        AsyncCorrelateRunner runner =
+                new AsyncCorrelateRunner(
+                        new GeneratedFunctionWrapper<>(new ImmediateCallbackFunction()),
+                        createConverter(resultType),
+                        FlinkJoinType.LEFT,
+                        resultType);
+        runner.setRuntimeContext(createRuntimeContext());
+        runner.open((OpenContext) null);
+        runner.asyncInvoke(GenericRowData.of(0), resultFuture);
+        Collection<RowData> rows = resultFuture.getResult().get();
+        assertThat(rows)
+                .containsExactly(
+                        new JoinedRowData(GenericRowData.of(0), GenericRowData.of(null, null)));
+    }
+
+    @Test
+    public void testOtherJoin() throws Exception {
+        RowType resultType = RowType.of(new IntType(), new VarCharType(1000));
+        assertThatThrownBy(
+                        () ->
+                                new AsyncCorrelateRunner(
+                                        new GeneratedFunctionWrapper<>(
+                                                new ImmediateCallbackFunction()),
+                                        createConverter(resultType),
+                                        FlinkJoinType.RIGHT,
+                                        resultType))
+                .hasMessageContaining("Only LEFT and INNER join types are supported");
     }
 
     private RuntimeContext createRuntimeContext() {

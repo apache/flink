@@ -135,9 +135,10 @@ public class CommonExecAsyncCorrelate extends ExecNodeBase<RowData>
         DataStructureConverter<RowData, Object> fetcherConverter =
                 cast(
                         DataStructureConverters.getConverter(
-                                TypeConversions.fromLogicalToDataType(
-                                        FlinkTypeFactory.toLogicalType(invocation.getType()))));
-        AsyncCorrelateRunner func = new AsyncCorrelateRunner(generatedFunction, fetcherConverter);
+                                TypeConversions.fromLogicalToDataType(resultTypeInfo)));
+        AsyncCorrelateRunner func =
+                new AsyncCorrelateRunner(
+                        generatedFunction, fetcherConverter, joinType, resultTypeInfo);
         FunctionCallUtil.AsyncOptions options = AsyncTableUtil.getAsyncOptions(config);
         return new AsyncWaitOperatorFactory<>(
                 func,

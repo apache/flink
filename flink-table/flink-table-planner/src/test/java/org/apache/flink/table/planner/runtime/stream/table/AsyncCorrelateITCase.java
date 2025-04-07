@@ -32,6 +32,7 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunction
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.SumScalarFunction;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CloseableIterator;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -48,6 +49,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.table.api.Expressions.row;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -269,6 +271,35 @@ public class AsyncCorrelateITCase extends StreamingTestBase {
                 .hasRootCauseMessage("Error 9");
     }
 
+    @Test
+    public void testGroupBy() {
+        Table t1 = tEnv.fromValues(row(1, 1), row(2, 4), row(1, 2)).as("f1", "f2");
+        tEnv.createTemporaryView("t1", t1);
+        tEnv.createTemporarySystemFunction("func", new Add10TableFunction(-1));
+        final List<Row> results =
+                executeSql(
+                        "select f1, res FROM (SELECT f1, SUM(f2) as thesum FROM t1 group by f1), LATERAL TABLE(func(thesum)) t(res)");
+        final List<Row> expectedRows =
+                Arrays.asList(
+                        Row.of(1, 11),
+                        Row.of(2, 14),
+                        Row.ofKind(RowKind.UPDATE_BEFORE, 1, 11),
+                        Row.ofKind(RowKind.UPDATE_AFTER, 1, 13));
+        assertThat(results).containsSequence(expectedRows);
+    }
+
+    @Test
+    public void testLeftJoin() {
+        Table t1 = tEnv.fromValues(row(1), row(2), row(1)).as("f1");
+        tEnv.createTemporaryView("t1", t1);
+        tEnv.createTemporarySystemFunction("func", new Add10TableFunction(1));
+        final List<Row> results =
+                executeSql("select * FROM t1 LEFT OUTER JOIN LATERAL TABLE(func(f1)) ON TRUE");
+        final List<Row> expectedRows =
+                Arrays.asList(Row.of(1, null), Row.of(2, 12), Row.of(1, null));
+        assertThat(results).containsSequence(expectedRows);
+    }
+
     private List<Row> executeSql(String sql) {
         TableResult result = tEnv.executeSql(sql);
         final List<Row> rows = new ArrayList<>();
@@ -293,6 +324,24 @@ public class AsyncCorrelateITCase extends StreamingTestBase {
 
         public void eval(CompletableFuture<Collection<String>> result) {
             result.complete(Arrays.asList("blah", "foo"));
+        }
+    }
+
+    /** A table function. */
+    public static class Add10TableFunction extends AsyncTableFunction<Integer> {
+
+        private final int omitForValue;
+
+        public Add10TableFunction(int omitForValue) {
+            this.omitForValue = omitForValue;
+        }
+
+        public void eval(CompletableFuture<Collection<Integer>> result, Integer i) {
+            if (i == omitForValue) {
+                result.complete(Collections.emptyList());
+                return;
+            }
+            result.complete(Arrays.asList(i + 10));
         }
     }
 
