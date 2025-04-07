@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ContextFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.DescriptorFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyArgFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.IntervalArgFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.IntervalDayArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidPassThroughTimersFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidRowKindFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidRowSemanticTableTimersFunction;
@@ -388,7 +388,7 @@ public class ProcessTableFunctionTestPrograms {
 
     public static final TableTestProgram PROCESS_INTERVAL_ARGS =
             TableTestProgram.of("process-interval-args", "interval argument")
-                    .setupTemporarySystemFunction("f", IntervalArgFunction.class)
+                    .setupTemporarySystemFunction("f", IntervalDayArgFunction.class)
                     .setupSql(BASIC_VALUES)
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
