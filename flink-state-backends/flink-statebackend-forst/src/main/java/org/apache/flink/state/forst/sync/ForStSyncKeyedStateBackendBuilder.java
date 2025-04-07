@@ -107,7 +107,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
     /** String that identifies the operator that owns this backend. */
     private final String operatorIdentifier;
 
-    /** The configuration of rocksDB priorityQueue state. */
+    /** The configuration of ForSt priorityQueue state. */
     private final ForStPriorityQueueConfig priorityQueueConfig;
 
     /** The configuration of local recovery. */
@@ -116,7 +116,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
     /** Factory function to create column family options from state name. */
     private final Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory;
 
-    /** The container of RocksDB option factory and predefined options. */
+    /** The container of ForSt option factory and predefined options. */
     private final ForStResourceContainer optionsContainer;
 
     private final MetricGroup metricGroup;
@@ -125,7 +125,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
     /** True if incremental checkpointing is enabled. */
     private boolean enableIncrementalCheckpointing;
 
-    /** RocksDB property-based and statistics-based native metrics options. */
+    /** ForSt property-based and statistics-based native metrics options. */
     private ForStNativeMetricOptions nativeMetricOptions;
 
     private long writeBatchSize =
@@ -200,7 +200,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
             KeyGroupRange keyGroupRange,
             ExecutionConfig executionConfig,
             LocalRecoveryConfig localRecoveryConfig,
-            ForStPriorityQueueConfig rocksDBPriorityQueueConfig,
+            ForStPriorityQueueConfig forStPriorityQueueConfig,
             TtlTimeProvider ttlTimeProvider,
             LatencyTrackingStateConfig latencyTrackingStateConfig,
             MetricGroup metricGroup,
@@ -220,7 +220,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
                 keyGroupRange,
                 executionConfig,
                 localRecoveryConfig,
-                rocksDBPriorityQueueConfig,
+                forStPriorityQueueConfig,
                 ttlTimeProvider,
                 latencyTrackingStateConfig,
                 metricGroup,
@@ -257,7 +257,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
             }
         } else if (!directory.mkdirs()) {
             throw new IOException(
-                    String.format("Could not create RocksDB data directory at %s.", directory));
+                    String.format("Could not create ForSt data directory at %s.", directory));
         }
     }
 
@@ -283,7 +283,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
 
         ForStSnapshotStrategyBase<K, ?> checkpointStrategy = null;
 
-        ResourceGuard rocksDBResourceGuard = new ResourceGuard();
+        ResourceGuard forStResourceGuard = new ResourceGuard();
         PriorityQueueSetFactory priorityQueueFactory;
         SerializedCompositeKeyBuilder<K> sharedRocksKeyBuilder;
         // Number of bytes required to prefix the key groups.
@@ -329,7 +329,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
             checkpointStrategy =
                     initializeSnapshotStrategy(
                             db,
-                            rocksDBResourceGuard,
+                            forStResourceGuard,
                             keySerializerProvider.currentSchemaSerializer(),
                             kvStateInformation,
                             keyGroupRange,
@@ -352,7 +352,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
                     new ArrayList<>(kvStateInformation.values().size());
             IOUtils.closeQuietly(cancelRegistryForBackend);
             IOUtils.closeQuietly(writeBatchWrapper);
-            IOUtils.closeQuietly(rocksDBResourceGuard);
+            IOUtils.closeQuietly(forStResourceGuard);
             ForStOperationUtils.addColumnFamilyOptionsToCloseLater(
                     columnFamilyOptions, defaultColumnFamilyHandle);
             IOUtils.closeQuietly(defaultColumnFamilyHandle);
@@ -374,7 +374,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
                 FileUtils.deleteDirectory(new File(optionsContainer.getBasePath().getPath()));
             } catch (Exception ex) {
                 logger.warn(
-                        "Failed to delete base path for RocksDB: " + optionsContainer.getBasePath(),
+                        "Failed to delete base path for ForSt: " + optionsContainer.getBasePath(),
                         ex);
             }
             // Log and rethrow
@@ -389,7 +389,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
         InternalKeyContext<K> keyContext =
                 new InternalKeyContextImpl<>(keyGroupRange, numberOfKeyGroups);
         logger.info(
-                "Finished building RocksDB keyed state-backend at {}.",
+                "Finished building ForSt keyed state-backend at {}.",
                 optionsContainer.getBasePath());
         return new ForStSyncKeyedStateBackend<>(
                 this.userCodeClassLoader,
@@ -406,7 +406,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
                 keyGroupPrefixBytes,
                 cancelRegistryForBackend,
                 this.keyGroupCompressionDecorator,
-                rocksDBResourceGuard,
+                forStResourceGuard,
                 checkpointStrategy,
                 writeBatchWrapper,
                 defaultColumnFamilyHandle,
@@ -595,7 +595,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
                                 nativeMetricMonitor,
                                 columnFamilyOptionsFactory,
                                 optionsContainer.getWriteBufferManagerCapacity(),
-                                priorityQueueConfig.getRocksDBPriorityQueueSetCacheSize());
+                                priorityQueueConfig.getForStDBPriorityQueueSetCacheSize());
                 break;
             default:
                 throw new IllegalArgumentException(

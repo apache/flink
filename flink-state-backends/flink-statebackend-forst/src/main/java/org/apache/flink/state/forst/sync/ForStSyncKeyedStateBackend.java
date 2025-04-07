@@ -102,7 +102,7 @@ import static org.apache.flink.runtime.state.SnapshotExecutionType.ASYNCHRONOUS;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * An {@link AbstractKeyedStateBackend} that stores its state in {@code RocksDB} and serializes
+ * An {@link AbstractKeyedStateBackend} that stores its state in {@code ForStDB} and serializes
  * state to streams provided by a {@link org.apache.flink.runtime.state.CheckpointStreamFactory}
  * upon checkpointing. This state backend can store very large state that exceeds memory and spills
  * to disk. Except for the snapshotting, this class should be accessed as if it is not threadsafe.
@@ -175,14 +175,14 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
     /** Factory function to create column family options from state name. */
     private final Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory;
 
-    /** The container of RocksDB option factory and predefined options. */
+    /** The container of ForSt option factory and predefined options. */
     private final ForStResourceContainer optionsContainer;
 
     /**
-     * Protects access to RocksDB in other threads, like the checkpointing thread from parallel call
-     * that disposes the RocksDB object.
+     * Protects access to ForSt in other threads, like the checkpointing thread from parallel call
+     * that disposes the ForSt object.
      */
-    private final ResourceGuard rocksDBResourceGuard;
+    private final ResourceGuard forstResourceGuard;
 
     /** The write options to use in the states. We disable write ahead logging. */
     private final WriteOptions writeOptions;
@@ -222,7 +222,7 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
      */
     private final ColumnFamilyHandle defaultColumnFamily;
 
-    /** Shared wrapper for batch writes to the RocksDB instance. */
+    /** Shared wrapper for batch writes to the ForSt instance. */
     private final ForStDBWriteBatchWrapper writeBatchWrapper;
 
     /**
@@ -238,14 +238,14 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
     private final PriorityQueueSetFactory priorityQueueFactory;
 
     /**
-     * Helper to build the byte arrays of composite keys to address data in RocksDB. Shared across
-     * all states.
+     * Helper to build the byte arrays of composite keys to address data in forst. Shared across all
+     * states.
      */
     private final SerializedCompositeKeyBuilder<K> sharedRocksKeyBuilder;
 
     /**
-     * Our RocksDB database, this is used by the actual subclasses of {@link AbstractForStSyncState}
-     * to store state. The different k/v states that we have don't each have their own RocksDB
+     * Our ForSt database, this is used by the actual subclasses of {@link AbstractForStSyncState}
+     * to store state. The different k/v states that we have don't each have their own ForSt
      * instance. They all write to this instance but to their own column family.
      */
     protected final RocksDB db;
@@ -270,7 +270,7 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
             int keyGroupPrefixBytes,
             CloseableRegistry cancelStreamRegistry,
             StreamCompressionDecorator keyGroupCompressionDecorator,
-            ResourceGuard rocksDBResourceGuard,
+            ResourceGuard forstResourceGuard,
             ForStSnapshotStrategyBase<K, ?> checkpointSnapshotStrategy,
             ForStDBWriteBatchWrapper writeBatchWrapper,
             ColumnFamilyHandle defaultColumnFamilyHandle,
@@ -308,7 +308,7 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
         this.readOptions = optionsContainer.getReadOptions();
         this.writeBatchSize = writeBatchSize;
         this.db = db;
-        this.rocksDBResourceGuard = rocksDBResourceGuard;
+        this.forstResourceGuard = forstResourceGuard;
         this.checkpointSnapshotStrategy = checkpointSnapshotStrategy;
         this.writeBatchWrapper = writeBatchWrapper;
         this.defaultColumnFamily = defaultColumnFamilyHandle;
@@ -351,7 +351,8 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
                     namespace, namespaceSerializer, namespaceOutputView, ambiguousKeyPossible);
             nameSpaceBytes = namespaceOutputView.getCopyOfBuffer();
         } catch (IOException ex) {
-            throw new FlinkRuntimeException("Failed to get keys from RocksDB state backend.", ex);
+            throw new FlinkRuntimeException(
+                    "Failed to get keys from ForSt sync state backend.", ex);
         }
 
         ForStIteratorWrapper iterator =
@@ -440,11 +441,11 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
         }
         super.dispose();
 
-        // This call will block until all clients that still acquire access to the RocksDB instance
+        // This call will block until all clients that still acquire access to the ForSt instance
         // have released it,
         // so that we cannot release the native resources while clients are still working with it in
         // parallel.
-        rocksDBResourceGuard.close();
+        forstResourceGuard.close();
 
         // IMPORTANT: null reference to signal potential async checkpoint workers that the db was
         // disposed, as
@@ -453,7 +454,7 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
             IOUtils.closeQuietly(writeBatchWrapper);
 
             // Metric collection occurs on a background thread. When this method returns
-            // it is guaranteed that thr RocksDB reference has been invalidated
+            // it is guaranteed that thr ForSt reference has been invalidated
             // and no more metric collection will be attempted against the database.
             if (nativeMetricMonitor != null) {
                 nativeMetricMonitor.close();
@@ -556,9 +557,9 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
     }
 
     /**
-     * Triggers an asynchronous snapshot of the keyed state backend from RocksDB. This snapshot can
-     * be canceled and is also stopped when the backend is closed through {@link #dispose()}. For
-     * each backend, this method must always be called by the same thread.
+     * Triggers an asynchronous snapshot of the keyed state backend from ForSt. This snapshot can be
+     * canceled and is also stopped when the backend is closed through {@link #dispose()}. For each
+     * backend, this method must always be called by the same thread.
      *
      * @param checkpointId The Id of the checkpoint.
      * @param timestamp The timestamp of the checkpoint.
@@ -609,11 +610,11 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
     }
 
     /**
-     * Registers a k/v state information, which includes its state id, type, RocksDB column family
+     * Registers a k/v state information, which includes its state id, type, ForSt column family
      * handle, and serializers.
      *
      * <p>When restoring from a snapshot, we don’t restore the individual k/v states, just the
-     * global RocksDB database and the list of k/v state information. When a k/v state is first
+     * global ForSt database and the list of k/v state information. When a k/v state is first
      * requested we check here whether we already have a registered entry for that and return it
      * (after some necessary state compatibility checks) or create a new one if it does not exist.
      */
@@ -739,7 +740,7 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
     }
 
     /**
-     * Migrate only the state value, that is the "value" that is stored in RocksDB. We don't migrate
+     * Migrate only the state value, that is the "value" that is stored in ForSt. We don't migrate
      * the key here, which is made up of key group, key, namespace and map key (in case of
      * MapState).
      */
@@ -787,9 +788,9 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
         }
 
         @SuppressWarnings("unchecked")
-        AbstractForStSyncState<?, ?, SV> rocksDBState = (AbstractForStSyncState<?, ?, SV>) state;
+        AbstractForStSyncState<?, ?, SV> forStState = (AbstractForStSyncState<?, ?, SV>) state;
 
-        Snapshot rocksDBSnapshot = db.getSnapshot();
+        Snapshot forstSnapshot = db.getSnapshot();
         try (ForStIteratorWrapper iterator =
                         ForStOperationUtils.getForStIterator(db, stateMetaInfo.f0, readOptions);
                 ForStDBWriteBatchWrapper batchWriter =
@@ -804,7 +805,7 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
             while (iterator.isValid()) {
                 serializedValueInput.setBuffer(iterator.value());
 
-                rocksDBState.migrateSerializedValue(
+                forStState.migrateSerializedValue(
                         serializedValueInput,
                         migratedSerializedValueOutput,
                         stateMetaInfo.f1.getPreviousStateSerializer(),
@@ -819,8 +820,8 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
                 iterator.next();
             }
         } finally {
-            db.releaseSnapshot(rocksDBSnapshot);
-            rocksDBSnapshot.close();
+            db.releaseSnapshot(forstSnapshot);
+            forstSnapshot.close();
         }
     }
 
