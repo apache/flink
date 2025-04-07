@@ -30,7 +30,6 @@ import org.apache.flink.api.common.typeutils.base.MapSerializerSnapshot;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.ICloseableRegistry;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -64,7 +63,6 @@ import org.apache.flink.state.forst.ForStNativeMetricMonitor;
 import org.apache.flink.state.forst.ForStOperationUtils;
 import org.apache.flink.state.forst.ForStResourceContainer;
 import org.apache.flink.state.forst.snapshot.ForStSnapshotStrategyBase;
-import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
@@ -85,7 +83,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -181,9 +178,6 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
     /** The container of RocksDB option factory and predefined options. */
     private final ForStResourceContainer optionsContainer;
 
-    /** Path where this configured instance stores its data directory. */
-    private final Path instanceBasePath;
-
     /**
      * Protects access to RocksDB in other threads, like the checkpointing thread from parallel call
      * that disposes the RocksDB object.
@@ -263,7 +257,6 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
 
     public ForStSyncKeyedStateBackend(
             ClassLoader userCodeClassLoader,
-            Path instanceBasePath,
             ForStResourceContainer optionsContainer,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             TaskKvStateRegistry kvStateRegistry,
@@ -306,8 +299,6 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
         this.columnFamilyOptionsFactory = Preconditions.checkNotNull(columnFamilyOptionsFactory);
 
         this.optionsContainer = Preconditions.checkNotNull(optionsContainer);
-
-        this.instanceBasePath = Preconditions.checkNotNull(instanceBasePath);
 
         this.keyGroupPrefixBytes = keyGroupPrefixBytes;
         this.kvStateInformation = kvStateInformation;
@@ -398,6 +389,7 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
             return Stream.empty();
         }
 
+        @SuppressWarnings("unchecked")
         RegisteredKeyValueStateBackendMetaInfo<N, ?> registeredKeyValueStateBackendMetaInfo =
                 (RegisteredKeyValueStateBackendMetaInfo<N, ?>) columnInfo.metaInfo;
 
@@ -426,12 +418,6 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
                         Spliterators.spliteratorUnknownSize(iteratorWrapper, Spliterator.ORDERED),
                         false);
         return targetStream.onClose(iteratorWrapper::close);
-    }
-
-    @VisibleForTesting
-    ColumnFamilyHandle getColumnFamilyHandle(String state) {
-        ForStOperationUtils.ForStKvStateInfo columnInfo = kvStateInformation.get(state);
-        return columnInfo != null ? columnInfo.columnFamilyHandle : null;
     }
 
     @Override
@@ -497,11 +483,24 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
 
             columnFamilyOptions.forEach(IOUtils::closeQuietly);
 
+            LOG.info(
+                    "Closed ForSt State Backend. Cleaning up ForSt local working directory {}, remote working directory {}.",
+                    optionsContainer.getLocalBasePath(),
+                    optionsContainer.getRemoteBasePath());
+
+            try {
+                optionsContainer.clearDirectories();
+            } catch (Exception ex) {
+                LOG.warn(
+                        "Could not delete ForSt local working directory {}, remote working directory {}.",
+                        optionsContainer.getLocalBasePath(),
+                        optionsContainer.getRemoteBasePath(),
+                        ex);
+            }
+
             IOUtils.closeQuietly(optionsContainer);
 
             kvStateInformation.clear();
-
-            cleanInstanceBasePath();
         }
         IOUtils.closeQuietly(checkpointSnapshotStrategy);
         this.disposed = true;
@@ -531,18 +530,6 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
         }
     }
 
-    private void cleanInstanceBasePath() {
-        LOG.info(
-                "Closed RocksDB State Backend. Cleaning up RocksDB working directory {}.",
-                instanceBasePath);
-
-        try {
-            FileUtils.deleteDirectory(new File(instanceBasePath.getPath()));
-        } catch (IOException ex) {
-            LOG.warn("Could not delete RocksDB working directory: {}", instanceBasePath, ex);
-        }
-    }
-
     // ------------------------------------------------------------------------
     //  Getters and Setters
     // ------------------------------------------------------------------------
@@ -566,11 +553,6 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
 
     SerializedCompositeKeyBuilder<K> getSharedRocksKeyBuilder() {
         return sharedRocksKeyBuilder;
-    }
-
-    @VisibleForTesting
-    boolean isDisposed() {
-        return this.disposed;
     }
 
     /**
@@ -925,11 +907,6 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
                 "State %s is not supported by %s", stateDesc.getClass(), this.getClass());
     }
 
-    /** Only visible for testing, DO NOT USE. */
-    Path getInstanceBasePath() {
-        return instanceBasePath;
-    }
-
     @VisibleForTesting
     @Override
     public int numKeyValueStateEntries() {
@@ -966,5 +943,10 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
     @Nonnegative
     long getWriteBatchSize() {
         return writeBatchSize;
+    }
+
+    @VisibleForTesting
+    public ForStResourceContainer getOptionsContainer() {
+        return optionsContainer;
     }
 }

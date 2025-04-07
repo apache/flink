@@ -104,8 +104,6 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBuilder<K> {
 
-    private static final String DB_INSTANCE_DIR_STRING = "db";
-
     /** String that identifies the operator that owns this backend. */
     private final String operatorIdentifier;
 
@@ -120,12 +118,6 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
 
     /** The container of RocksDB option factory and predefined options. */
     private final ForStResourceContainer optionsContainer;
-
-    /** Path where this configured instance stores its data directory. */
-    private final Path instanceBasePath;
-
-    /** Path where this configured instance stores its RocksDB database. */
-    private final Path instanceForStDBPath;
 
     private final MetricGroup metricGroup;
     private final StateBackend.CustomInitializationMetrics customInitializationMetrics;
@@ -154,7 +146,6 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
     public ForStSyncKeyedStateBackendBuilder(
             String operatorIdentifier,
             ClassLoader userCodeClassLoader,
-            Path instanceBasePath,
             ForStResourceContainer optionsContainer,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             TaskKvStateRegistry kvStateRegistry,
@@ -190,8 +181,6 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
         // ensure that we use the right merge operator, because other code relies on this
         this.columnFamilyOptionsFactory = Preconditions.checkNotNull(columnFamilyOptionsFactory);
         this.optionsContainer = optionsContainer;
-        this.instanceBasePath = instanceBasePath;
-        this.instanceForStDBPath = getInstanceRocksDBPath(instanceBasePath);
         this.metricGroup = metricGroup;
         this.customInitializationMetrics = customInitializationMetrics;
         this.enableIncrementalCheckpointing = false;
@@ -203,7 +192,6 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
     ForStSyncKeyedStateBackendBuilder(
             String operatorIdentifier,
             ClassLoader userCodeClassLoader,
-            Path instanceBasePath,
             ForStResourceContainer optionsContainer,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             TaskKvStateRegistry kvStateRegistry,
@@ -224,7 +212,6 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
         this(
                 operatorIdentifier,
                 userCodeClassLoader,
-                instanceBasePath,
                 optionsContainer,
                 columnFamilyOptionsFactory,
                 kvStateRegistry,
@@ -261,10 +248,6 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
         checkArgument(writeBatchSize >= 0, "Write batch size should be non negative.");
         this.writeBatchSize = writeBatchSize;
         return this;
-    }
-
-    public static Path getInstanceRocksDBPath(Path instanceBasePath) {
-        return new Path(instanceBasePath, DB_INSTANCE_DIR_STRING);
     }
 
     private static void checkAndCreateDirectory(File directory) throws IOException {
@@ -316,7 +299,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
             UUID backendUID = UUID.randomUUID();
             SortedMap<Long, Collection<HandleAndLocalPath>> materializedSstFiles = new TreeMap<>();
             long lastCompletedCheckpointId = -1L;
-            prepareDirectories();
+            optionsContainer.prepareDirectories();
             restoreOperation =
                     getForStDBRestoreOperation(
                             keyGroupPrefixBytes,
@@ -388,9 +371,11 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
             kvStateInformation.clear();
 
             try {
-                FileUtils.deleteDirectory(new File(instanceBasePath.getPath()));
+                FileUtils.deleteDirectory(new File(optionsContainer.getBasePath().getPath()));
             } catch (Exception ex) {
-                logger.warn("Failed to delete base path for RocksDB: " + instanceBasePath, ex);
+                logger.warn(
+                        "Failed to delete base path for RocksDB: " + optionsContainer.getBasePath(),
+                        ex);
             }
             // Log and rethrow
             if (e instanceof BackendBuildingException) {
@@ -403,10 +388,11 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
         }
         InternalKeyContext<K> keyContext =
                 new InternalKeyContextImpl<>(keyGroupRange, numberOfKeyGroups);
-        logger.info("Finished building RocksDB keyed state-backend at {}.", instanceBasePath);
+        logger.info(
+                "Finished building RocksDB keyed state-backend at {}.",
+                optionsContainer.getBasePath());
         return new ForStSyncKeyedStateBackend<>(
                 this.userCodeClassLoader,
-                this.instanceBasePath,
                 this.optionsContainer,
                 columnFamilyOptionsFactory,
                 this.kvStateRegistry,
@@ -513,11 +499,15 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
         // env. We expect to directly use the dfs directory in flink env or local directory as
         // working dir. We will implement this in ForStDB later, but before that, we achieved this
         // by setting the dbPath to "/" when the dfs directory existed.
+        Path instanceForStPath =
+                optionsContainer.getRemoteForStPath() == null
+                        ? optionsContainer.getLocalForStPath()
+                        : new Path("/db");
 
         if (CollectionUtil.isEmptyOrAllElementsNull(restoreStateHandles)) {
             return new ForStNoneRestoreOperation(
                     Collections.emptyMap(),
-                    instanceForStDBPath,
+                    instanceForStPath,
                     optionsContainer.getDbOptions(),
                     columnFamilyOptionsFactory,
                     nativeMetricOptions,
@@ -538,7 +528,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
                     keySerializerProvider,
                     optionsContainer,
                     optionsContainer.getBasePath(),
-                    instanceForStDBPath,
+                    instanceForStPath,
                     optionsContainer.getDbOptions(),
                     columnFamilyOptionsFactory,
                     nativeMetricOptions,
@@ -565,7 +555,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
                     registeredPQStates,
                     createHeapQueueFactory(),
                     keySerializerProvider,
-                    instanceForStDBPath,
+                    instanceForStPath,
                     optionsContainer.getDbOptions(),
                     columnFamilyOptionsFactory,
                     nativeMetricOptions,
@@ -617,15 +607,5 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
 
     private HeapPriorityQueueSetFactory createHeapQueueFactory() {
         return new HeapPriorityQueueSetFactory(keyGroupRange, numberOfKeyGroups, 128);
-    }
-
-    private void prepareDirectories() throws IOException {
-        File baseFile = new File(instanceBasePath.getPath());
-        checkAndCreateDirectory(baseFile);
-        if (new File(instanceForStDBPath.getPath()).exists()) {
-            // Clear the base directory when the backend is created
-            // in case something crashed and the backend never reached dispose()
-            FileUtils.deleteDirectory(baseFile);
-        }
     }
 }
