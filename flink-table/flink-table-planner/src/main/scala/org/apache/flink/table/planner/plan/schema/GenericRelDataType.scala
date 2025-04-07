@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.schema
 
-import org.apache.flink.table.types.logical.TypeInformationRawType
+import org.apache.flink.table.legacy.types.logical.TypeInformationRawType
 
 import org.apache.calcite.rel.`type`.RelDataTypeSystem
 import org.apache.calcite.sql.`type`.{ArraySqlType, BasicSqlType, MapSqlType, SqlTypeName}

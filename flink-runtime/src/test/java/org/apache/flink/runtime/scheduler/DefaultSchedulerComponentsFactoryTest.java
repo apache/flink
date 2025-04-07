@@ -19,7 +19,6 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
@@ -28,12 +27,14 @@ import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStra
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests for the factory method {@link DefaultSchedulerComponents#createSchedulerComponents(
- * JobType, boolean, Configuration, SlotPool, Time)}.
+ * JobType, boolean, Configuration, SlotPool, Duration)}.
  */
 class DefaultSchedulerComponentsFactoryTest {
 
@@ -81,6 +82,6 @@ class DefaultSchedulerComponentsFactoryTest {
                 iApproximateLocalRecoveryEnabled,
                 configuration,
                 SlotPoolUtils.createDeclarativeSlotPoolBridge(),
-                Time.milliseconds(10L));
+                Duration.ofMillis(10L));
     }
 }

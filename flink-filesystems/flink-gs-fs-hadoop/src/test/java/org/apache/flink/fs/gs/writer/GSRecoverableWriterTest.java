@@ -23,11 +23,13 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.fs.gs.GSFileSystemOptions;
 import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
 import org.apache.flink.fs.gs.storage.MockBlobStorage;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -36,26 +38,23 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test {@link GSRecoverableWriter}. */
-@RunWith(Parameterized.class)
-public class GSRecoverableWriterTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class GSRecoverableWriterTest {
 
-    @Parameterized.Parameter(value = 0)
-    public long position = 16;
+    @Parameter private long position = 16;
 
-    @Parameterized.Parameter(value = 1)
-    public boolean closed = false;
+    @Parameter(value = 1)
+    private boolean closed = false;
 
-    @Parameterized.Parameter(value = 2)
-    public int componentCount;
+    @Parameter(value = 2)
+    private int componentCount;
 
-    @Parameterized.Parameters(name = "position={0}, closed={1}, componentCount={2}")
-    public static Collection<Object[]> data() {
+    @Parameters(name = "position={0}, closed={1}, componentCount={2}")
+    private static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
                     // position 0, not closed, component count = 0
@@ -81,8 +80,8 @@ public class GSRecoverableWriterTest {
 
     private GSBlobIdentifier blobIdentifier;
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         MockBlobStorage storage = new MockBlobStorage();
         blobIdentifier = new GSBlobIdentifier("foo", "bar");
 
@@ -100,71 +99,74 @@ public class GSRecoverableWriterTest {
         commitRecoverable = new GSCommitRecoverable(blobIdentifier, componentObjectIds);
     }
 
-    @Test
-    public void testRequiresCleanupOfRecoverableState() {
-        assertFalse(writer.requiresCleanupOfRecoverableState());
+    @TestTemplate
+    void testRequiresCleanupOfRecoverableState() {
+        assertThat(writer.requiresCleanupOfRecoverableState()).isFalse();
     }
 
-    @Test
-    public void testSupportsResume() {
-        assertTrue(writer.supportsResume());
+    @TestTemplate
+    void testSupportsResume() {
+        assertThat(writer.supportsResume()).isTrue();
     }
 
-    @Test
-    public void testOpen() throws IOException {
+    @TestTemplate
+    void testOpen() throws IOException {
         Path path = new Path("gs://foo/bar");
         GSRecoverableFsDataOutputStream stream =
                 (GSRecoverableFsDataOutputStream) writer.open(path);
-        assertNotNull(stream);
+        assertThat(stream).isNotNull();
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testOpenWithEmptyBucketName() throws IOException {
+    @TestTemplate
+    void testOpenWithEmptyBucketName() throws IOException {
         Path path = new Path("gs:///bar");
-        writer.open(path);
+
+        assertThatThrownBy(() -> writer.open(path)).isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testOpenWithEmptyObjectName() throws IOException {
+    @TestTemplate
+    void testOpenWithEmptyObjectName() throws IOException {
         Path path = new Path("gs://foo/");
-        writer.open(path);
+
+        assertThatThrownBy(() -> writer.open(path)).isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testOpenWithMissingObjectName() throws IOException {
+    @TestTemplate
+    void testOpenWithMissingObjectName() throws IOException {
         Path path = new Path("gs://foo");
-        writer.open(path);
+
+        assertThatThrownBy(() -> writer.open(path)).isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test
-    public void testCleanupRecoverableState() {
-        assertTrue(writer.cleanupRecoverableState(resumeRecoverable));
+    @TestTemplate
+    void testCleanupRecoverableState() {
+        assertThat(writer.cleanupRecoverableState(resumeRecoverable)).isTrue();
     }
 
-    @Test
-    public void testRecover() throws IOException {
+    @TestTemplate
+    void testRecover() throws IOException {
         GSRecoverableFsDataOutputStream stream =
                 (GSRecoverableFsDataOutputStream) writer.recover(resumeRecoverable);
-        assertEquals(position, stream.getPos());
+        assertThat(stream.getPos()).isEqualTo(position);
     }
 
-    @Test
-    public void testRecoverForCommit() {
+    @TestTemplate
+    void testRecoverForCommit() {
         GSRecoverableWriterCommitter committer =
                 (GSRecoverableWriterCommitter) writer.recoverForCommit(commitRecoverable);
-        assertEquals(options, committer.options);
-        assertEquals(commitRecoverable, committer.recoverable);
+        assertThat(committer.options).isEqualTo(options);
+        assertThat(committer.recoverable).isEqualTo(commitRecoverable);
     }
 
-    @Test
-    public void testGetCommitRecoverableSerializer() {
+    @TestTemplate
+    void testGetCommitRecoverableSerializer() {
         Object serializer = writer.getCommitRecoverableSerializer();
-        assertEquals(GSCommitRecoverableSerializer.class, serializer.getClass());
+        assertThat(serializer.getClass()).isEqualTo(GSCommitRecoverableSerializer.class);
     }
 
-    @Test
-    public void testGetResumeRecoverableSerializer() {
+    @TestTemplate
+    void testGetResumeRecoverableSerializer() {
         Object serializer = writer.getResumeRecoverableSerializer();
-        assertEquals(GSResumeRecoverableSerializer.class, serializer.getClass());
+        assertThat(serializer.getClass()).isEqualTo(GSResumeRecoverableSerializer.class);
     }
 }

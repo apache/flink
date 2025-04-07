@@ -297,6 +297,10 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
         public List<SqlTableConstraint> constraints = new ArrayList<>();
         @Nullable public SqlWatermark watermark;
         @Nullable public SqlDistribution distribution;
+
+        public boolean isColumnsIdentifiersOnly() {
+            return !columnList.isEmpty() && columnList.get(0) instanceof SqlIdentifier;
+        }
     }
 
     public String[] fullTableName() {

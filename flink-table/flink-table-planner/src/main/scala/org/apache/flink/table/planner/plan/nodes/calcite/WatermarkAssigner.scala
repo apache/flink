@@ -19,13 +19,16 @@ package org.apache.flink.table.planner.plan.nodes.calcite
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 
+import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFieldImpl}
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rel.hint.{Hintable, RelHint}
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.SqlTypeName
 
 import java.util
+import java.util.ArrayList
 
 import scala.collection.JavaConversions._
 
@@ -34,9 +37,11 @@ abstract class WatermarkAssigner(
     cluster: RelOptCluster,
     traits: RelTraitSet,
     inputRel: RelNode,
+    val hints: util.List[RelHint],
     val rowtimeFieldIndex: Int,
     val watermarkExpr: RexNode)
-  extends SingleRel(cluster, traits, inputRel) {
+  extends SingleRel(cluster, traits, inputRel)
+  with Hintable {
 
   override def deriveRowType(): RelDataType = {
     val inputRowType = inputRel.getRowType
@@ -68,10 +73,21 @@ abstract class WatermarkAssigner(
   }
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    copy(traitSet, inputs.get(0), rowtimeFieldIndex, watermarkExpr)
+    copy(traitSet, inputs.get(0), hints, rowtimeFieldIndex, watermarkExpr)
   }
 
   /** Copies a new WatermarkAssigner. */
-  def copy(traitSet: RelTraitSet, input: RelNode, rowtime: Int, watermark: RexNode): RelNode
+  def copy(
+      traitSet: RelTraitSet,
+      input: RelNode,
+      hints: util.List[RelHint],
+      rowtime: Int,
+      watermark: RexNode): RelNode
 
+  override def getHints: ImmutableList[RelHint] = {
+    val arrayHints = hints.toArray(new Array[RelHint](0))
+    ImmutableList.copyOf(arrayHints)
+  }
+
+  def withHints(hintList: util.List[RelHint]): RelNode
 }

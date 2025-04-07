@@ -26,14 +26,12 @@ import org.apache.flink.table.client.cli.CliOptionsParser;
 import org.apache.flink.table.client.gateway.DefaultContextUtils;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SingleSessionManager;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.gateway.SqlGateway;
 import org.apache.flink.table.gateway.rest.SqlGatewayRestEndpointFactory;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestOptions;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.util.NetUtils;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.jline.terminal.Terminal;
 import org.slf4j.Logger;
@@ -42,16 +40,14 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.function.Supplier;
 
 import static org.apache.flink.table.client.cli.CliClient.DEFAULT_TERMINAL_FACTORY;
+import static org.apache.flink.table.client.cli.CliUtils.isApplicationMode;
 import static org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils.getSqlGatewayOptionPrefix;
 
 /**
@@ -137,20 +133,14 @@ public class SqlClient {
         }
 
         boolean hasSqlFile = options.getSqlFile() != null;
-        boolean hasUpdateStatement = options.getUpdateStatement() != null;
-        if (hasSqlFile && hasUpdateStatement) {
-            throw new IllegalArgumentException(
-                    String.format(
-                            "Please use either option %s or %s. The option %s is deprecated and it's suggested to use %s instead.",
-                            CliOptionsParser.OPTION_FILE,
-                            CliOptionsParser.OPTION_UPDATE,
-                            CliOptionsParser.OPTION_UPDATE.getOpt(),
-                            CliOptionsParser.OPTION_FILE.getOpt()));
-        }
 
         try (CliClient cli = new CliClient(terminalFactory, executor, historyFilePath)) {
             if (options.getInitFile() != null) {
-                boolean success = cli.executeInitialization(readFromURL(options.getInitFile()));
+                if (isApplicationMode(executor.getSessionConfig())) {
+                    throw new SqlClientException(
+                            "Sql Client doesn't support to run init files when deploying script into cluster.");
+                }
+                boolean success = cli.executeInitialization(options.getInitFile());
                 if (!success) {
                     System.out.println(
                             String.format(
@@ -165,10 +155,10 @@ public class SqlClient {
                 }
             }
 
-            if (!hasSqlFile && !hasUpdateStatement) {
+            if (!hasSqlFile) {
                 cli.executeInInteractiveMode();
             } else {
-                cli.executeInNonInteractiveMode(readExecutionContent());
+                cli.executeInNonInteractiveMode(options.getSqlFile());
             }
         }
     }
@@ -328,23 +318,6 @@ public class SqlClient {
                 gateway.close();
             }
             System.out.println("done.");
-        }
-    }
-
-    private String readExecutionContent() {
-        if (options.getSqlFile() != null) {
-            return readFromURL(options.getSqlFile());
-        } else {
-            return options.getUpdateStatement().trim();
-        }
-    }
-
-    private String readFromURL(URL file) {
-        try {
-            return IOUtils.toString(file, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            throw new SqlExecutionException(
-                    String.format("Fail to read content from the %s.", file.getPath()), e);
         }
     }
 }

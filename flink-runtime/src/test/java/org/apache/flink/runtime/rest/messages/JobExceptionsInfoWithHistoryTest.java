@@ -27,9 +27,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -44,27 +42,7 @@ class JobExceptionsInfoWithHistoryTest
 
     @Override
     protected JobExceptionsInfoWithHistory getTestResponseInstance() throws Exception {
-        List<JobExceptionsInfo.ExecutionExceptionInfo> executionTaskExceptionInfoList =
-                new ArrayList<>();
-        executionTaskExceptionInfoList.add(
-                new JobExceptionsInfo.ExecutionExceptionInfo(
-                        "exception1",
-                        "task1",
-                        "location1",
-                        System.currentTimeMillis(),
-                        "taskManagerId1"));
-        executionTaskExceptionInfoList.add(
-                new JobExceptionsInfo.ExecutionExceptionInfo(
-                        "exception2",
-                        "task2",
-                        "location2",
-                        System.currentTimeMillis(),
-                        "taskManagerId2"));
         return new JobExceptionsInfoWithHistory(
-                "root exception",
-                System.currentTimeMillis(),
-                executionTaskExceptionInfoList,
-                false,
                 new JobExceptionsInfoWithHistory.JobExceptionHistory(
                         Collections.emptyList(), false));
     }

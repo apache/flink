@@ -256,7 +256,13 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
                             .setAttribute("checkpointId", checkpointStats.getCheckpointId())
                             .setAttribute("fullSize", checkpointStats.getStateSize())
                             .setAttribute("checkpointedSize", checkpointStats.getCheckpointedSize())
-                            .setAttribute("checkpointStatus", checkpointStats.getStatus().name()));
+                            .setAttribute("checkpointStatus", checkpointStats.getStatus().name())
+                            .setAttribute(
+                                    "isUnaligned",
+                                    Boolean.toString(checkpointStats.isUnalignedCheckpoint()))
+                            .setAttribute(
+                                    "checkpointType",
+                                    checkpointStats.getProperties().getCheckpointType().getName()));
             if (LOG.isDebugEnabled()) {
                 StringWriter sw = new StringWriter();
                 MAPPER.writeValue(
@@ -434,6 +440,9 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
     @VisibleForTesting
     static final String LATEST_COMPLETED_CHECKPOINT_ID_METRIC = "lastCompletedCheckpointId";
 
+    @VisibleForTesting
+    static final String LATEST_CHECKPOINT_COMPLETED_TIMESTAMP = "lastCheckpointCompletedTimestamp";
+
     /**
      * Register the exposed metrics.
      *
@@ -468,6 +477,9 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
                 new LatestCompletedCheckpointExternalPathGauge());
         metricGroup.gauge(
                 LATEST_COMPLETED_CHECKPOINT_ID_METRIC, new LatestCompletedCheckpointIdGauge());
+        metricGroup.gauge(
+                LATEST_CHECKPOINT_COMPLETED_TIMESTAMP,
+                new LatestCheckpointCompletedTimestampGauge());
     }
 
     private class CheckpointsCounter implements Gauge<Long> {
@@ -585,6 +597,18 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
             CompletedCheckpointStats completed = latestCompletedCheckpoint;
             if (completed != null) {
                 return completed.getCheckpointId();
+            } else {
+                return -1L;
+            }
+        }
+    }
+
+    private class LatestCheckpointCompletedTimestampGauge implements Gauge<Long> {
+        @Override
+        public Long getValue() {
+            CompletedCheckpointStats completed = latestCompletedCheckpoint;
+            if (completed != null) {
+                return completed.getLatestAckTimestamp();
             } else {
                 return -1L;
             }

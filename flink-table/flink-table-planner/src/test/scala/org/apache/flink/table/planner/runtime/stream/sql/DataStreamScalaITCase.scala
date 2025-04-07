@@ -17,16 +17,17 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration
-import org.apache.flink.streaming.api.scala.{CloseableIterator, DataStream, StreamExecutionEnvironment}
-import org.apache.flink.table.api.{DataTypes, Table, TableResult}
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.table.api.{createTypeInformation, DataTypes, Table, TableResult}
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.catalog.{Column, ResolvedSchema}
 import org.apache.flink.table.planner.runtime.stream.sql.DataStreamScalaITCase.{ComplexCaseClass, ImmutableCaseClass}
+import org.apache.flink.table.planner.runtime.utils.StreamingEnvUtil
 import org.apache.flink.test.junit5.MiniClusterExtension
 import org.apache.flink.types.Row
-import org.apache.flink.util.CollectionUtil
+import org.apache.flink.util.{CloseableIterator, CollectionUtil}
 
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.containsInAnyOrder
@@ -36,6 +37,7 @@ import org.junit.jupiter.api.extension.RegisterExtension
 
 import java.util
 
+import scala.collection.JavaConversions.asScalaIterator
 import scala.collection.JavaConverters._
 
 /** Tests for connecting to the Scala [[DataStream]] API. */
@@ -58,7 +60,7 @@ class DataStreamScalaITCase {
       ComplexCaseClass(42, "hello", ImmutableCaseClass(42.0, b = true)),
       ComplexCaseClass(42, null, ImmutableCaseClass(42.0, b = false)))
 
-    val dataStream = env.fromElements(caseClasses: _*)
+    val dataStream = StreamingEnvUtil.fromElements(env, caseClasses: _*)
 
     val table = tableEnv.fromDataStream(dataStream)
 
@@ -91,7 +93,7 @@ class DataStreamScalaITCase {
   @Test
   def testImplicitConversions(): Unit = {
     // DataStream to Table implicit
-    val table = env.fromElements((42, "hello")).toTable(tableEnv)
+    val table = StreamingEnvUtil.fromElements(env, (42, "hello")).toTable(tableEnv)
 
     // Table to DataStream implicit
     assertEquals(List(Row.of(Int.box(42), "hello")), table.executeAndCollect().toList)

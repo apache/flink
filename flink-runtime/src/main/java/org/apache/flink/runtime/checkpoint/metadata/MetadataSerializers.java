@@ -30,13 +30,15 @@ import java.util.Map;
 public class MetadataSerializers {
 
     private static final Map<Integer, MetadataSerializer> SERIALIZERS =
-            CollectionUtil.newHashMapWithExpectedSize(4);
+            CollectionUtil.newHashMapWithExpectedSize(6);
 
     static {
         registerSerializer(MetadataV1Serializer.INSTANCE);
         registerSerializer(MetadataV2Serializer.INSTANCE);
         registerSerializer(MetadataV3Serializer.INSTANCE);
         registerSerializer(MetadataV4Serializer.INSTANCE);
+        registerSerializer(MetadataV5Serializer.INSTANCE);
+        registerSerializer(MetadataV6Serializer.INSTANCE);
     }
 
     private static void registerSerializer(MetadataSerializer serializer) {

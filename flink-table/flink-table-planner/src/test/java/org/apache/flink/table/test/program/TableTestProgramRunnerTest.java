@@ -120,7 +120,8 @@ public class TableTestProgramRunnerTest {
                 .isEqualTo(
                         "CREATE TABLE `default_catalog`.`default_database`.`MyTableSource` (\n"
                                 + "  `i` INT\n"
-                                + ") WITH (\n"
+                                + ")\n"
+                                + "WITH (\n"
                                 + "  'connector' = 'datagen',\n"
                                 + "  'number-of-rows' = '3'\n"
                                 + ")\n");
@@ -128,7 +129,8 @@ public class TableTestProgramRunnerTest {
                 .isEqualTo(
                         "CREATE TABLE `default_catalog`.`default_database`.`MyTableSink` (\n"
                                 + "  `i` INT\n"
-                                + ") WITH (\n"
+                                + ")\n"
+                                + "WITH (\n"
                                 + "  'connector' = 'blackhole'\n"
                                 + ")\n");
     }

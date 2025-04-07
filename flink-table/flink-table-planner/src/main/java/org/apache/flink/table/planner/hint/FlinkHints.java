@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.hint;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.planner.plan.nodes.calcite.WatermarkAssigner;
 import org.apache.flink.table.planner.plan.rules.logical.WrapJsonAggFunctionArgumentsRule;
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
 
@@ -119,7 +120,8 @@ public abstract class FlinkHints {
     public static boolean canTransposeToTableScan(RelNode node) {
         return node instanceof LogicalProject // computed column on table
                 || node instanceof LogicalFilter
-                || node instanceof LogicalSnapshot;
+                || node instanceof LogicalSnapshot
+                || node instanceof WatermarkAssigner;
     }
 
     /** Returns the qualified name of a table scan, otherwise returns empty. */

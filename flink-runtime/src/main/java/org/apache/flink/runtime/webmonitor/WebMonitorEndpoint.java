@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
@@ -178,8 +177,8 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.apache.flink.shaded.guava32.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava32.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava33.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava33.com.google.common.cache.CacheBuilder;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
 import javax.annotation.Nullable;
@@ -301,7 +300,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
         final Duration asyncOperationStoreDuration =
                 clusterConfiguration.get(RestOptions.ASYNC_OPERATION_STORE_DURATION);
-        final Time timeout = restConfiguration.getTimeout();
+        final Duration timeout = restConfiguration.getTimeout();
 
         ClusterOverviewHandler clusterOverviewHandler =
                 new ClusterOverviewHandler(
@@ -979,7 +978,8 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
         handlers.add(
                 Tuple2.of(JobManagerThreadDumpHeaders.getInstance(), jobManagerThreadDumpHandler));
 
-        final Time cacheEntryDuration = Time.milliseconds(restConfiguration.getRefreshInterval());
+        final Duration cacheEntryDuration =
+                Duration.ofMillis(restConfiguration.getRefreshInterval());
 
         // load profiler relative handlers
         if (clusterConfiguration.get(RestOptions.ENABLE_PROFILER)) {
@@ -1213,7 +1213,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 "{} was granted leadership with leaderSessionID={}",
                 getRestBaseUrl(),
                 leaderSessionID);
-        leaderElection.confirmLeadership(leaderSessionID, getRestBaseUrl());
+        leaderElection.confirmLeadershipAsync(leaderSessionID, getRestBaseUrl());
     }
 
     @Override

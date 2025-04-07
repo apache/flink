@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmaster.utils;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.tuple.Tuple6;
@@ -371,7 +370,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     }
 
     @Override
-    public CompletableFuture<Acknowledge> cancel(Time timeout) {
+    public CompletableFuture<Acknowledge> cancel(Duration timeout) {
         return cancelFunction.get();
     }
 
@@ -406,7 +405,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 
     @Override
     public CompletableFuture<Collection<SlotOffer>> offerSlots(
-            ResourceID taskManagerId, Collection<SlotOffer> slots, Time timeout) {
+            ResourceID taskManagerId, Collection<SlotOffer> slots, Duration timeout) {
         return offerSlotsFunction.apply(taskManagerId, slots);
     }
 
@@ -419,7 +418,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     public CompletableFuture<RegistrationResponse> registerTaskManager(
             JobID jobId,
             TaskManagerRegistrationInformation taskManagerRegistrationInformation,
-            Time timeout) {
+            Duration timeout) {
         return registerTaskManagerFunction.apply(jobId, taskManagerRegistrationInformation);
     }
 
@@ -435,17 +434,17 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     }
 
     @Override
-    public CompletableFuture<JobStatus> requestJobStatus(Time timeout) {
+    public CompletableFuture<JobStatus> requestJobStatus(Duration timeout) {
         return requestJobStatusSupplier.get();
     }
 
     @Override
-    public CompletableFuture<ExecutionGraphInfo> requestJob(Time timeout) {
+    public CompletableFuture<ExecutionGraphInfo> requestJob(Duration timeout) {
         return requestJobSupplier.get();
     }
 
     @Override
-    public CompletableFuture<CheckpointStatsSnapshot> requestCheckpointStats(Time timeout) {
+    public CompletableFuture<CheckpointStatsSnapshot> requestCheckpointStats(Duration timeout) {
         return checkpointStatsSnapshotSupplier.get();
     }
 
@@ -454,13 +453,13 @@ public class TestingJobMasterGateway implements JobMasterGateway {
             @Nullable final String targetDirectory,
             final boolean cancelJob,
             final SavepointFormatType formatType,
-            final Time timeout) {
+            final Duration timeout) {
         return triggerSavepointFunction.apply(targetDirectory, cancelJob, formatType);
     }
 
     @Override
     public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(
-            CheckpointType checkpointType, Time timeout) {
+            CheckpointType checkpointType, Duration timeout) {
         return triggerCheckpointFunction.apply(checkpointType);
     }
 
@@ -469,7 +468,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
             @Nullable final String targetDirectory,
             final SavepointFormatType formatType,
             final boolean terminate,
-            final Time timeout) {
+            final Duration timeout) {
         return stopWithSavepointFunction.apply(targetDirectory, terminate, formatType);
     }
 
@@ -584,7 +583,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     public CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
             OperatorID operatorId,
             SerializedValue<CoordinationRequest> serializedRequest,
-            Time timeout) {
+            Duration timeout) {
         return deliverCoordinationRequestFunction.apply(operatorId, serializedRequest);
     }
 

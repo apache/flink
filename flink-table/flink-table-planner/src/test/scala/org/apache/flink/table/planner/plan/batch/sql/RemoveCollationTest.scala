@@ -18,11 +18,9 @@
 package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.plan.stats.TableStats
-import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalSortMergeJoinRule
-import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 import org.apache.flink.table.planner.utils.{TableFunc1, TableTestBase}
@@ -58,10 +56,6 @@ class RemoveCollationTest extends TableTestBase {
       Array("d1", "e1", "f1"),
       FlinkStatistic.builder().tableStats(new TableStats(100L)).build()
     )
-
-    util.tableEnv.getConfig.set(
-      BatchPhysicalSortMergeJoinRule.TABLE_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED,
-      Boolean.box(true))
   }
 
   @Test
@@ -107,7 +101,6 @@ class RemoveCollationTest extends TableTestBase {
 
   @Test
   def testRemoveCollation_Sort(): Unit = {
-    util.tableEnv.getConfig.set(TABLE_EXEC_RANGE_SORT_ENABLED, Boolean.box(true))
     val sqlQuery =
       """
         |WITH r AS (SELECT a, b, COUNT(c) AS cnt FROM x GROUP BY a, b)
@@ -120,7 +113,6 @@ class RemoveCollationTest extends TableTestBase {
   @Test
   def testRemoveCollation_Aggregate_3(): Unit = {
     util.tableEnv.getConfig.set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg")
-    util.tableEnv.getConfig.set(TABLE_EXEC_RANGE_SORT_ENABLED, Boolean.box(true))
     val sqlQuery =
       """
         |WITH r AS (SELECT * FROM x ORDER BY a, b)

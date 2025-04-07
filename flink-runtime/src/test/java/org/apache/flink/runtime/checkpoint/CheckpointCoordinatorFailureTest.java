@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
@@ -53,9 +53,11 @@ import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
 import static java.util.Collections.emptyList;
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTest.assertStatsMetrics;
+import static org.apache.flink.runtime.state.ChannelStateHelper.collectUniqueDisposableInChannelState;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
@@ -174,9 +176,18 @@ class CheckpointCoordinatorFailureTest {
         verify(operatorSubtaskState.getRawOperatorState().iterator().next()).discardState();
         verify(operatorSubtaskState.getManagedKeyedState().iterator().next()).discardState();
         verify(operatorSubtaskState.getRawKeyedState().iterator().next()).discardState();
-        verify(operatorSubtaskState.getInputChannelState().iterator().next().getDelegate())
+        verify(
+                        collectUniqueDisposableInChannelState(
+                                        Stream.of(operatorSubtaskState.getInputChannelState()))
+                                .iterator()
+                                .next())
                 .discardState();
-        verify(operatorSubtaskState.getResultSubpartitionState().iterator().next().getDelegate())
+        verify(
+                        collectUniqueDisposableInChannelState(
+                                        Stream.of(
+                                                operatorSubtaskState.getResultSubpartitionState()))
+                                .iterator()
+                                .next())
                 .discardState();
     }
 
@@ -285,7 +296,7 @@ class CheckpointCoordinatorFailureTest {
         public FailingCompletedCheckpointStore(Exception addCheckpointFailure) {
             super(
                     SharedStateRegistry.DEFAULT_FACTORY.create(
-                            Executors.directExecutor(), emptyList(), RestoreMode.DEFAULT));
+                            Executors.directExecutor(), emptyList(), RecoveryClaimMode.DEFAULT));
             this.addCheckpointFailure = addCheckpointFailure;
         }
 

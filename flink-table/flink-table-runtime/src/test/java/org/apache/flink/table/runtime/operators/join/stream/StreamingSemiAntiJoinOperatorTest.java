@@ -33,7 +33,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.rowOfKind;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
 
 /** Test for {@link StreamingSemiAntiJoinOperator}. */
-public class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTestBase {
+class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTestBase {
     @Override
     protected StreamingSemiAntiJoinOperator createJoinOperator(TestInfo testInfo) {
         Long[] ttl = STATE_RETENTION_TIME_EXTRACTOR.apply(testInfo.getTags());
@@ -63,7 +63,7 @@ public class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTest
     @Tag("leftStateRetentionTime=4000")
     @Tag("rightStateRetentionTime=1000")
     @Test
-    public void testLeftSemiJoinWithDifferentStateRetentionTime() throws Exception {
+    void testLeftSemiJoinWithDifferentStateRetentionTime() throws Exception {
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(
                 insertRecord("Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464"));
@@ -116,7 +116,7 @@ public class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTest
      * The only difference is that the state retention is disabled.
      */
     @Test
-    public void testLeftSemiJoinWithStateRetentionDisabled() throws Exception {
+    void testLeftSemiJoinWithStateRetentionDisabled() throws Exception {
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(
                 insertRecord("Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464"));
@@ -184,7 +184,7 @@ public class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTest
     @Tag("leftStateRetentionTime=4000")
     @Tag("rightStateRetentionTime=1000")
     @Test
-    public void testLeftAntiJoinWithDifferentStateRetentionTime() throws Exception {
+    void testLeftAntiJoinWithDifferentStateRetentionTime() throws Exception {
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(
                 insertRecord("Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464"));
@@ -240,7 +240,7 @@ public class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTest
      * The only difference is that the state retention is disabled.
      */
     @Test
-    public void testLeftAntiJoinWithStateRetentionTimeDisabled() throws Exception {
+    void testLeftAntiJoinWithStateRetentionTimeDisabled() throws Exception {
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(
                 insertRecord("Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464"));

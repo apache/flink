@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.async;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
@@ -48,6 +47,7 @@ import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -62,7 +62,7 @@ import static org.assertj.core.api.Assertions.fail;
 /** Tests for the {@link AbstractAsynchronousOperationHandlers}. */
 class AbstractAsynchronousOperationHandlersTest {
 
-    private static final Time TIMEOUT = Time.seconds(10L);
+    private static final Duration TIMEOUT = Duration.ofSeconds(10L);
 
     // Not actually used by the tests in this class, but required as a parameter
     private static final TestingRestfulGateway DUMMY_GATEWAY = new TestingRestfulGateway();
@@ -355,7 +355,7 @@ class AbstractAsynchronousOperationHandlersTest {
 
             protected TestingTriggerHandler(
                     GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-                    Time timeout,
+                    Duration timeout,
                     Map<String, String> responseHeaders,
                     MessageHeaders<EmptyRequestBody, TriggerResponse, EmptyMessageParameters>
                             messageHeaders) {
@@ -399,7 +399,7 @@ class AbstractAsynchronousOperationHandlersTest {
 
             protected TestingStatusHandler(
                     GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-                    Time timeout,
+                    Duration timeout,
                     Map<String, String> responseHeaders,
                     MessageHeaders<
                                     EmptyRequestBody,

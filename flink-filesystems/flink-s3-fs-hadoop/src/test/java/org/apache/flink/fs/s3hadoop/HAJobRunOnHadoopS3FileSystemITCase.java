@@ -21,4 +21,4 @@ package org.apache.flink.fs.s3hadoop;
 import org.apache.flink.fs.s3.common.HAJobRunOnMinioS3StoreITCase;
 
 /** Runs the {@link HAJobRunOnMinioS3StoreITCase} on the Hadoop S3 file system. */
-public class HAJobRunOnHadoopS3FileSystemITCase extends HAJobRunOnMinioS3StoreITCase {}
+class HAJobRunOnHadoopS3FileSystemITCase extends HAJobRunOnMinioS3StoreITCase {}

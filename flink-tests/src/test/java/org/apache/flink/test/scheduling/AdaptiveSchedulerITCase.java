@@ -18,14 +18,11 @@
 
 package org.apache.flink.test.scheduling;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
@@ -57,15 +54,16 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.DiscardingSink;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
-import org.assertj.core.api.Assertions;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -86,15 +84,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
-import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
-import static org.apache.flink.util.ExceptionUtils.assertThrowable;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.either;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.fail;
-import static org.junit.Assume.assumeTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Integration tests for the adaptive scheduler. */
 public class AdaptiveSchedulerITCase extends TestLogger {
@@ -126,7 +118,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
 
     @Before
     public void ensureAdaptiveSchedulerEnabled() {
-        assumeTrue(ClusterOptions.isAdaptiveSchedulerEnabled(configuration));
+        assumeThat(ClusterOptions.isAdaptiveSchedulerEnabled(configuration)).isTrue();
     }
 
     @After
@@ -174,31 +166,29 @@ public class AdaptiveSchedulerITCase extends TestLogger {
                                 savepointDirectory.getAbsolutePath(),
                                 SavepointFormatType.CANONICAL)
                         .get();
-        assertThat(savepoint, containsString(savepointDirectory.getAbsolutePath()));
-        assertThat(client.getJobStatus().get(), is(JobStatus.FINISHED));
+        assertThat(savepoint).contains(savepointDirectory.getAbsolutePath());
+        assertThat(client.getJobStatus().get()).isSameAs(JobStatus.FINISHED);
     }
 
     @Test
     public void testStopWithSavepointFailOnCheckpoint() throws Exception {
         StreamExecutionEnvironment env =
                 getEnvWithSource(StopWithSavepointTestBehavior.FAIL_ON_CHECKPOINT);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 0L);
 
         DummySource.resetForParallelism(PARALLELISM);
 
         JobClient client = env.executeAsync();
 
         DummySource.awaitRunning();
-        try {
-            client.stopWithSavepoint(
-                            false,
-                            tempFolder.newFolder("savepoint").getAbsolutePath(),
-                            SavepointFormatType.CANONICAL)
-                    .get();
-            fail("Expect exception");
-        } catch (ExecutionException e) {
-            assertThat(e, containsCause(FlinkException.class));
-        }
+        assertThatThrownBy(
+                        () ->
+                                client.stopWithSavepoint(
+                                                false,
+                                                tempFolder.newFolder("savepoint").getAbsolutePath(),
+                                                SavepointFormatType.CANONICAL)
+                                        .get())
+                .hasCauseInstanceOf(FlinkException.class);
         // expect job to run again (maybe restart)
         CommonTestUtils.waitUntilCondition(() -> client.getJobStatus().get() == JobStatus.RUNNING);
     }
@@ -207,7 +197,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
     public void testStopWithSavepointFailOnStop() throws Throwable {
         StreamExecutionEnvironment env =
                 getEnvWithSource(StopWithSavepointTestBehavior.FAIL_ON_CHECKPOINT_COMPLETE);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 0L);
 
         DummySource.resetForParallelism(PARALLELISM);
 
@@ -219,24 +209,24 @@ public class AdaptiveSchedulerITCase extends TestLogger {
                         false,
                         tempFolder.newFolder("savepoint").getAbsolutePath(),
                         SavepointFormatType.CANONICAL);
-        final Throwable savepointException =
-                assertThrows(ExecutionException.class, savepointCompleted::get).getCause();
-        assertThrowable(
-                savepointException,
-                throwable ->
-                        throwable instanceof StopWithSavepointStoppingException
-                                && throwable
-                                        .getMessage()
-                                        .startsWith("A savepoint has been created at: "));
-        assertThat(
-                client.getJobStatus().get(),
-                either(is(JobStatus.FAILED)).or(is(JobStatus.FAILING)));
+        assertThatThrownBy(savepointCompleted::get)
+                .isInstanceOf(ExecutionException.class)
+                .satisfies(
+                        e ->
+                                assertThat(
+                                                ExceptionUtils.findThrowable(
+                                                                e,
+                                                                StopWithSavepointStoppingException
+                                                                        .class)
+                                                        .get())
+                                        .hasMessageContaining("A savepoint has been created at: "));
+        assertThat(client.getJobStatus().get()).isIn(JobStatus.FAILED, JobStatus.FAILING);
     }
 
     @Test
     public void testStopWithSavepointFailOnFirstSavepointSucceedOnSecond() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
 
         env.setParallelism(PARALLELISM);
 
@@ -250,16 +240,14 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         DummySource.awaitRunning();
         DummySource.resetForParallelism(PARALLELISM);
         final File savepointDirectory = tempFolder.newFolder("savepoint");
-        try {
-            client.stopWithSavepoint(
-                            false,
-                            savepointDirectory.getAbsolutePath(),
-                            SavepointFormatType.CANONICAL)
-                    .get();
-            fail("Expect failure of operation");
-        } catch (ExecutionException e) {
-            assertThat(e, containsCause(FlinkException.class));
-        }
+        assertThatThrownBy(
+                        () ->
+                                client.stopWithSavepoint(
+                                                false,
+                                                savepointDirectory.getAbsolutePath(),
+                                                SavepointFormatType.CANONICAL)
+                                        .get())
+                .hasCauseInstanceOf(FlinkException.class);
 
         DummySource.awaitRunning();
 
@@ -275,7 +263,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
                                 savepointDirectory.getAbsolutePath(),
                                 SavepointFormatType.CANONICAL)
                         .get();
-        assertThat(savepoint, containsString(savepointDirectory.getAbsolutePath()));
+        assertThat(savepoint).contains(savepointDirectory.getAbsolutePath());
     }
 
     @Test
@@ -313,14 +301,11 @@ public class AdaptiveSchedulerITCase extends TestLogger {
                         new FailingCoordinatorProvider(OperatorID.fromJobVertexID(jobVertexId))));
         jobVertex.setParallelism(1);
 
-        final ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, Time.hours(1)));
-
         final JobGraph jobGraph =
                 JobGraphBuilder.newStreamingJobGraphBuilder()
                         .addJobVertices(Collections.singletonList(jobVertex))
-                        .setExecutionConfig(executionConfig)
                         .build();
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(jobGraph, 1, Duration.ofHours(1L));
         miniCluster.submitJob(jobGraph).join();
 
         // We rely on waiting in restarting state (see the restart strategy above)
@@ -340,22 +325,20 @@ public class AdaptiveSchedulerITCase extends TestLogger {
 
         // there should be exactly 1 root exception in the history from the failing vertex,
         // as the global coordinator failure should be treated as a concurrent exception
-        Assertions.assertThat(jobExceptions.getExceptionHistory().getEntries())
+        assertThat(jobExceptions.getExceptionHistory().getEntries())
                 .hasSize(1)
                 .allSatisfy(
                         rootExceptionInfo ->
-                                Assertions.assertThat(rootExceptionInfo.getStacktrace())
+                                assertThat(rootExceptionInfo.getStacktrace())
                                         .contains(FailingInvokable.localExceptionMsg)
                                         .doesNotContain(
                                                 FailingCoordinatorProvider.globalExceptionMsg))
                 .allSatisfy(
                         rootExceptionInfo ->
-                                Assertions.assertThat(rootExceptionInfo.getConcurrentExceptions())
+                                assertThat(rootExceptionInfo.getConcurrentExceptions())
                                         .anySatisfy(
                                                 exceptionInfo ->
-                                                        Assertions.assertThat(
-                                                                        exceptionInfo
-                                                                                .getStacktrace())
+                                                        assertThat(exceptionInfo.getStacktrace())
                                                                 .contains(
                                                                         FailingCoordinatorProvider
                                                                                 .globalExceptionMsg)));

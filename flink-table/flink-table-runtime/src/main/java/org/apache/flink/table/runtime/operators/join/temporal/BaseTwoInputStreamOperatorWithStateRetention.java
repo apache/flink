@@ -81,6 +81,11 @@ public abstract class BaseTwoInputStreamOperatorWithStateRetention
     }
 
     @Override
+    public boolean useSplittableTimers() {
+        return true;
+    }
+
+    @Override
     public void open() throws Exception {
         initializeTimerService();
 

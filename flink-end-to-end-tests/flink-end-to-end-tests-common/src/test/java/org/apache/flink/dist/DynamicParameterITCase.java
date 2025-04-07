@@ -17,6 +17,11 @@
 
 package org.apache.flink.dist;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.EntrypointClusterConfiguration;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
@@ -47,8 +52,8 @@ class DynamicParameterITCase {
     private static final Pattern ENTRYPOINT_CLASSPATH_LOG_PATTERN =
             Pattern.compile(".*ClusterEntrypoint +\\[] - +Classpath:.*");
 
-    private static final String HOST = "localhost";
-    private static final int PORT = 8081;
+    private static final String HOST = "test_host";
+    private static final int PORT = 8082;
 
     private static final String DYNAMIC_KEY = "hello";
     private static final String DYNAMIC_VALUE = "world";
@@ -109,11 +114,13 @@ class DynamicParameterITCase {
         args.add("start");
 
         if (withHost) {
-            args.add(HOST);
+            args.add("-D");
+            args.add("jobmanager.rpc.address=" + HOST);
         }
         if (withPort) {
             Preconditions.checkState(withHost, "port may only be supplied with a host");
-            args.add(String.valueOf(PORT));
+            args.add("-D");
+            args.add("rest.port=" + PORT);
         }
         if (withDynamicProperty) {
             args.add("-D");
@@ -133,8 +140,11 @@ class DynamicParameterITCase {
                     ClusterEntrypoint.parseArguments(
                             lines.filter(new ProgramArgumentsFilter()).toArray(String[]::new));
 
-            assertThat(entrypointConfig.getHostname()).isEqualTo(withHost ? HOST : null);
-            assertThat(entrypointConfig.getRestPort()).isEqualTo(withPort ? PORT : -1);
+            final Configuration configuration = loadConfiguration(entrypointConfig);
+
+            assertThat(configuration.get(JobManagerOptions.ADDRESS))
+                    .isEqualTo(withHost ? HOST : "localhost");
+            assertThat(configuration.get(RestOptions.PORT)).isEqualTo(withPort ? PORT : 8081);
 
             if (withDynamicProperty) {
                 assertThat(entrypointConfig.getDynamicProperties())
@@ -146,6 +156,18 @@ class DynamicParameterITCase {
         } catch (FlinkParseException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static Configuration loadConfiguration(
+            EntrypointClusterConfiguration entrypointClusterConfiguration) {
+        final Configuration dynamicProperties =
+                ConfigurationUtils.createConfiguration(
+                        entrypointClusterConfiguration.getDynamicProperties());
+        final Configuration configuration =
+                GlobalConfiguration.loadConfiguration(
+                        entrypointClusterConfiguration.getConfigDir(), dynamicProperties);
+
+        return configuration;
     }
 
     private static boolean allProgramArgumentsLogged(FlinkDistribution dist) throws IOException {

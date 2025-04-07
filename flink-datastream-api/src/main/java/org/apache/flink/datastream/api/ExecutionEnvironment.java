@@ -21,7 +21,7 @@ package org.apache.flink.datastream.api;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.connector.dsv2.Source;
-import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream;
+import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream.ProcessConfigurableAndNonKeyedPartitionStream;
 
 /**
  * This is the context in which a program is executed.
@@ -51,5 +51,6 @@ public interface ExecutionEnvironment {
     /** Set the execution mode for this environment. */
     ExecutionEnvironment setExecutionMode(RuntimeExecutionMode runtimeMode);
 
-    <OUT> NonKeyedPartitionStream<OUT> fromSource(Source<OUT> source, String sourceName);
+    <OUT> ProcessConfigurableAndNonKeyedPartitionStream<OUT> fromSource(
+            Source<OUT> source, String sourceName);
 }

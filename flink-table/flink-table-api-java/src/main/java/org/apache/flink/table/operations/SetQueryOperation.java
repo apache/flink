@@ -88,7 +88,7 @@ public class SetQueryOperation implements QueryOperation {
     public String asSerializableString() {
         return String.format(
                 "SELECT %s FROM (%s\n) %s (%s\n)",
-                OperationUtils.formatSelectColumns(resolvedSchema),
+                OperationUtils.formatSelectColumns(resolvedSchema, null),
                 OperationUtils.indent(leftOperation.asSerializableString()),
                 asSerializableType(),
                 OperationUtils.indent(rightOperation.asSerializableString()));

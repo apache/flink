@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.windowing.evictors;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.TimestampedValue;
 
@@ -125,34 +124,9 @@ public class TimeEvictor<W extends Window> implements Evictor<Object, W> {
      * before the window function.
      *
      * @param windowSize The amount of time for which to keep elements.
-     * @deprecated Use {@link #of(Duration)}
-     */
-    @Deprecated
-    public static <W extends Window> TimeEvictor<W> of(Time windowSize) {
-        return of(windowSize.toDuration());
-    }
-
-    /**
-     * Creates a {@code TimeEvictor} that keeps the given number of elements. Eviction is done
-     * before the window function.
-     *
-     * @param windowSize The amount of time for which to keep elements.
      */
     public static <W extends Window> TimeEvictor<W> of(Duration windowSize) {
         return new TimeEvictor<>(windowSize.toMillis());
-    }
-
-    /**
-     * Creates a {@code TimeEvictor} that keeps the given number of elements. Eviction is done
-     * before/after the window function based on the value of doEvictAfter.
-     *
-     * @param windowSize The amount of time for which to keep elements.
-     * @param doEvictAfter Whether eviction is done after window function.
-     * @deprecated Use {@link #of(Duration, boolean)}
-     */
-    @Deprecated
-    public static <W extends Window> TimeEvictor<W> of(Time windowSize, boolean doEvictAfter) {
-        return of(windowSize.toDuration(), doEvictAfter);
     }
 
     /**

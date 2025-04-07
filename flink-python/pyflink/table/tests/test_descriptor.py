@@ -51,9 +51,9 @@ class RowTimeDescriptorTests(PyFlinkTestCase):
                 'org.apache.flink.table.utils.TestingDescriptors$CustomExtractor',
             'rowtime.timestamps.serialized':
                 'rO0ABXNyAD9vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnV0aWxzLlRlc3RpbmdEZXNjcmlwdG9ycyRDdXN0b2'
-                '1FeHRyYWN0b3K-MntVKO8Z7QIAAUwABWZpZWxkdAASTGphdmEvbGFuZy9TdHJpbmc7eHIAPm9yZy5hcGFj'
-                'aGUuZmxpbmsudGFibGUuc291cmNlcy50c2V4dHJhY3RvcnMuVGltZXN0YW1wRXh0cmFjdG9yX9WOqYhTbB'
-                'gCAAB4cHQAAnRz'}
+                '1FeHRyYWN0b3K-MntVKO8Z7QIAAUwABWZpZWxkdAASTGphdmEvbGFuZy9TdHJpbmc7eHIARW9yZy5hcGFj'
+                'aGUuZmxpbmsudGFibGUubGVnYWN5LnNvdXJjZXMudHNleHRyYWN0b3JzLlRpbWVzdGFtcEV4dHJhY3Rvcm'
+                'xipkcC9a6NAgAAeHB0AAJ0cw'}
         self.assertEqual(expected, properties)
 
     def test_watermarks_periodic_ascending(self):
@@ -91,7 +91,7 @@ class RowTimeDescriptorTests(PyFlinkTestCase):
                 'rO0ABXNyAD5vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnV0aWxzLlRlc3RpbmdEZXNjcmlwdG9ycyRDdXN0b2'
                 '1Bc3NpZ25lcsY_Xt96bBjDAgAAeHIAR29yZy5hcGFjaGUuZmxpbmsudGFibGUuc291cmNlcy53bXN0cmF0'
                 'ZWdpZXMuUHVuY3R1YXRlZFdhdGVybWFya0Fzc2lnbmVygVHOe6GlrvQCAAB4cgA9b3JnLmFwYWNoZS5mbG'
-                'luay50YWJsZS5zb3VyY2VzLndtc3RyYXRlZ2llcy5XYXRlcm1hcmtTdHJhdGVned57foNjlmk-AgAAeHA'}
+                'luay50YWJsZS5zb3VyY2VzLndtc3RyYXRlZ2llcy5XYXRlcm1hcmtTdHJhdGVneQ4F9aoQgAHyAgAAeHA'}
         self.assertEqual(expected, properties)
 
 

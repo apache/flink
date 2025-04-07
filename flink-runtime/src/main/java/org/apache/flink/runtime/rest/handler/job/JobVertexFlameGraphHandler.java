@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.job;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
@@ -43,6 +42,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -57,7 +57,7 @@ public class JobVertexFlameGraphHandler
 
     public JobVertexFlameGraphHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> responseHeaders,
             ExecutionGraphCache executionGraphCache,
             Executor executor,
@@ -166,7 +166,7 @@ public class JobVertexFlameGraphHandler
 
     public static AbstractRestHandler<?, ?, ?, ?> disabledHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> responseHeaders) {
         return new DisabledJobVertexFlameGraphHandler(leaderRetriever, timeout, responseHeaders);
     }
@@ -179,7 +179,7 @@ public class JobVertexFlameGraphHandler
                     JobVertexFlameGraphParameters> {
         protected DisabledJobVertexFlameGraphHandler(
                 GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-                Time timeout,
+                Duration timeout,
                 Map<String, String> responseHeaders) {
             super(
                     leaderRetriever,

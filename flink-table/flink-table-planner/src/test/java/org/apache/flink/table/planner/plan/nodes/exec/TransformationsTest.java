@@ -52,7 +52,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_UID_FORMAT;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_UID_GENERATION;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.UidGeneration.ALWAYS;
@@ -147,13 +146,6 @@ class TransformationsTest {
         checkUids(c -> c.set(TABLE_EXEC_UID_GENERATION, PLAN_ONLY), true, false);
         checkUids(c -> c.set(TABLE_EXEC_UID_GENERATION, ALWAYS), true, true);
         checkUids(c -> c.set(TABLE_EXEC_UID_GENERATION, DISABLED), false, false);
-        checkUids(
-                c -> {
-                    c.set(TABLE_EXEC_UID_GENERATION, PLAN_ONLY);
-                    c.set(TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS, true);
-                },
-                false,
-                false);
     }
 
     private static void checkUids(
@@ -181,8 +173,10 @@ class TransformationsTest {
         // Uses in-memory ExecNodes
         final CompiledPlan memoryPlan = table.insertInto("sink_table").compilePlan();
         final List<String> memoryUids =
-                CompiledPlanUtils.toTransformations(env, memoryPlan).get(0)
-                        .getTransitivePredecessors().stream()
+                CompiledPlanUtils.toTransformations(env, memoryPlan)
+                        .get(0)
+                        .getTransitivePredecessors()
+                        .stream()
                         .map(Transformation::getUid)
                         .collect(Collectors.toList());
         assertThat(memoryUids).hasSize(3);
@@ -197,7 +191,9 @@ class TransformationsTest {
         final List<String> jsonUids =
                 CompiledPlanUtils.toTransformations(
                                 env, env.loadPlan(PlanReference.fromJsonString(jsonPlan)))
-                        .get(0).getTransitivePredecessors().stream()
+                        .get(0)
+                        .getTransitivePredecessors()
+                        .stream()
                         .map(Transformation::getUid)
                         .collect(Collectors.toList());
         assertThat(jsonUids).hasSize(3);
@@ -208,7 +204,10 @@ class TransformationsTest {
         }
 
         final List<String> inlineUids =
-                env.toChangelogStream(table).getTransformation().getTransitivePredecessors()
+                env
+                        .toChangelogStream(table)
+                        .getTransformation()
+                        .getTransitivePredecessors()
                         .stream()
                         .map(Transformation::getUid)
                         .collect(Collectors.toList());
@@ -284,7 +283,9 @@ class TransformationsTest {
         final List<String> planUids =
                 CompiledPlanUtils.toTransformations(
                                 env, env.loadPlan(PlanReference.fromJsonString(json.toString())))
-                        .get(0).getTransitivePredecessors().stream()
+                        .get(0)
+                        .getTransitivePredecessors()
+                        .stream()
                         .map(Transformation::getUid)
                         .collect(Collectors.toList());
         assertThat(planUids).hasSize(expectedUidPatterns.length);

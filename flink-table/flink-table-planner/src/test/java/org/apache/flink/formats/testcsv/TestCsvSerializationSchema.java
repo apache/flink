@@ -25,10 +25,12 @@ import org.apache.flink.types.Row;
 
 import java.nio.charset.StandardCharsets;
 
-import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_FIELD_DELIMITER;
-
-/** @see TestCsvFormatFactory */
+/**
+ * @see TestCsvFormatFactory
+ */
 class TestCsvSerializationSchema implements SerializationSchema<RowData> {
+
+    private static final String DEFAULT_FIELD_DELIMITER = ",";
 
     private final DynamicTableSink.DataStructureConverter converter;
 

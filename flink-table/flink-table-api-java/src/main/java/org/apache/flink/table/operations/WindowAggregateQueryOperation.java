@@ -24,6 +24,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
 import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nullable;
@@ -50,6 +51,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class WindowAggregateQueryOperation implements QueryOperation {
 
+    private static final String INPUT_ALIAS = "$$T_WIN_AGG";
     private final List<ResolvedExpression> groupingExpressions;
     private final List<ResolvedExpression> aggregateExpressions;
     private final List<ResolvedExpression> windowPropertiesExpressions;
@@ -92,19 +94,29 @@ public class WindowAggregateQueryOperation implements QueryOperation {
     @Override
     public String asSerializableString() {
         return String.format(
-                "SELECT %s FROM TABLE(%s\n) GROUP BY %s",
+                "SELECT %s FROM TABLE(%s\n) %s GROUP BY %s",
                 Stream.of(
                                 groupingExpressions.stream(),
                                 aggregateExpressions.stream(),
                                 windowPropertiesExpressions.stream())
                         .flatMap(Function.identity())
+                        .map(
+                                expr ->
+                                        OperationExpressionsUtils.scopeReferencesWithAlias(
+                                                INPUT_ALIAS, expr))
                         .map(ResolvedExpression::asSerializableString)
                         .collect(Collectors.joining(", ")),
                 OperationUtils.indent(
                         groupWindow.asSerializableString(child.asSerializableString())),
+                INPUT_ALIAS,
                 Stream.concat(
                                 Stream.of("window_start", "window_end"),
                                 groupingExpressions.stream()
+                                        .map(
+                                                expr ->
+                                                        OperationExpressionsUtils
+                                                                .scopeReferencesWithAlias(
+                                                                        INPUT_ALIAS, expr))
                                         .map(ResolvedExpression::asSerializableString))
                         .collect(Collectors.joining(", ")));
     }

@@ -20,13 +20,13 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.resources.CPUResource;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.util.Preconditions;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -77,7 +77,7 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
     private final ResourceMatchingStrategy pendingResourceMatchingStrategy =
             AnyMatchingResourceMatchingStrategy.INSTANCE;
 
-    private final Time taskManagerTimeout;
+    private final Duration taskManagerTimeout;
 
     /** Defines the number of redundant task managers. */
     private final int redundantTaskManagerNum;
@@ -86,7 +86,7 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
             ResourceProfile totalResourceProfile,
             int numSlotsPerWorker,
             TaskManagerLoadBalanceMode taskManagerLoadBalanceMode,
-            Time taskManagerTimeout,
+            Duration taskManagerTimeout,
             int redundantTaskManagerNum,
             CPUResource minTotalCPU,
             MemorySize minTotalMemory) {
@@ -95,10 +95,20 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
         this.defaultSlotResourceProfile =
                 SlotManagerUtils.generateDefaultSlotResourceProfile(
                         totalResourceProfile, numSlotsPerWorker);
-        this.availableResourceMatchingStrategy =
-                taskManagerLoadBalanceMode == TaskManagerLoadBalanceMode.SLOTS
-                        ? LeastUtilizationResourceMatchingStrategy.INSTANCE
-                        : AnyMatchingResourceMatchingStrategy.INSTANCE;
+        switch (taskManagerLoadBalanceMode) {
+            case SLOTS:
+                this.availableResourceMatchingStrategy =
+                        PrioritizedResourceMatchingStrategy.leastUtilization();
+                break;
+            case MIN_RESOURCES:
+                this.availableResourceMatchingStrategy =
+                        PrioritizedResourceMatchingStrategy.mostUtilization();
+                break;
+            default:
+                this.availableResourceMatchingStrategy =
+                        AnyMatchingResourceMatchingStrategy.INSTANCE;
+        }
+
         this.taskManagerTimeout = taskManagerTimeout;
         this.redundantTaskManagerNum = redundantTaskManagerNum;
         this.minTotalCPU = minTotalCPU;
@@ -166,7 +176,7 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                         taskManagerInfo -> {
                             if (taskManagerInfo.isIdle()
                                     && currentTime - taskManagerInfo.getIdleSince()
-                                            >= taskManagerTimeout.toMilliseconds()) {
+                                            >= taskManagerTimeout.toMillis()) {
                                 taskManagersIdleTimeout.add(taskManagerInfo);
                             } else {
                                 taskManagersNonTimeout.add(taskManagerInfo);
@@ -526,8 +536,35 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
         }
     }
 
-    private enum LeastUtilizationResourceMatchingStrategy implements ResourceMatchingStrategy {
-        INSTANCE;
+    private static class PrioritizedResourceMatchingStrategy implements ResourceMatchingStrategy {
+        private final Comparator<InternalResourceInfo> resourceInfoComparator;
+
+        /**
+         * Returns a {@link PrioritizedResourceMatchingStrategy} that prioritizes the resource with
+         * the least utilization, used to evenly distribute slots to workers.
+         *
+         * @return least utilization prioritized resource matching strategy.
+         */
+        public static PrioritizedResourceMatchingStrategy leastUtilization() {
+            return new PrioritizedResourceMatchingStrategy(
+                    Comparator.comparingDouble(i -> i.utilization));
+        }
+
+        /**
+         * Returns a {@link PrioritizedResourceMatchingStrategy} that prioritizes the resource with
+         * the highest utilization, used to minimize number of workers assigned.
+         *
+         * @return most utilization prioritized resource matching strategy.
+         */
+        public static PrioritizedResourceMatchingStrategy mostUtilization() {
+            return new PrioritizedResourceMatchingStrategy(
+                    Comparator.comparingDouble(i -> -i.utilization));
+        }
+
+        private PrioritizedResourceMatchingStrategy(
+                final Comparator<InternalResourceInfo> resourceInfoComparator) {
+            this.resourceInfoComparator = resourceInfoComparator;
+        }
 
         @Override
         public int tryFulfilledRequirementWithResource(
@@ -539,25 +576,23 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                 return numUnfulfilled;
             }
 
-            Queue<InternalResourceInfo> resourceInfoInUtilizationOrder =
-                    new PriorityQueue<>(
-                            internalResources.size(),
-                            Comparator.comparingDouble(i -> i.utilization));
-            resourceInfoInUtilizationOrder.addAll(internalResources);
+            Queue<InternalResourceInfo> prioritizedResources =
+                    new PriorityQueue<>(internalResources.size(), resourceInfoComparator);
+            prioritizedResources.addAll(internalResources);
 
-            while (numUnfulfilled > 0 && !resourceInfoInUtilizationOrder.isEmpty()) {
-                final InternalResourceInfo currentTaskManager =
-                        resourceInfoInUtilizationOrder.poll();
+            while (numUnfulfilled > 0 && !prioritizedResources.isEmpty()) {
+                final InternalResourceInfo currentTaskManager = prioritizedResources.poll();
 
                 if (currentTaskManager.tryAllocateSlotForJob(jobId, requiredResource)) {
                     numUnfulfilled--;
 
-                    // ignore non resource task managers to reduce the overhead of insert.
-                    if (!currentTaskManager.availableProfile.equals(ResourceProfile.ZERO)) {
-                        resourceInfoInUtilizationOrder.add(currentTaskManager);
+                    // ignore non-fitting task managers to reduce the overhead of insert and check.
+                    if (currentTaskManager.availableProfile.allFieldsNoLessThan(requiredResource)) {
+                        prioritizedResources.add(currentTaskManager);
                     }
                 }
             }
+
             return numUnfulfilled;
         }
     }

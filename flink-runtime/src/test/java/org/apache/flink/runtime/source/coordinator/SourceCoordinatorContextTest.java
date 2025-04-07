@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.source.coordinator;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.connector.source.ReaderInfo;
 import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
@@ -160,6 +161,7 @@ class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
                 new ManuallyTriggeredScheduledExecutorService();
         SourceCoordinatorContext<MockSourceSplit> testingContext =
                 new SourceCoordinatorContext<>(
+                        new JobID(),
                         coordinatorExecutorWithExceptionHandler,
                         manualWorkerExecutor,
                         new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
@@ -195,6 +197,7 @@ class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
 
         SourceCoordinatorContext<MockSourceSplit> testingContext =
                 new SourceCoordinatorContext<>(
+                        new JobID(),
                         manualCoordinatorExecutor,
                         manualWorkerExecutor,
                         new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(

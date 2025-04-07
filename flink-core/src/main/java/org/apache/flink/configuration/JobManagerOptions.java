@@ -125,33 +125,6 @@ public class JobManagerOptions {
                                     + PORT.key()
                                     + "') will be used.");
 
-    /**
-     * JVM heap size for the JobManager with memory size.
-     *
-     * @deprecated use {@link #TOTAL_FLINK_MEMORY} for standalone setups and {@link
-     *     #TOTAL_PROCESS_MEMORY} for containerized setups.
-     */
-    @Deprecated
-    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
-    public static final ConfigOption<MemorySize> JOB_MANAGER_HEAP_MEMORY =
-            key("jobmanager.heap.size")
-                    .memoryType()
-                    .noDefaultValue()
-                    .withDescription("JVM heap size for the JobManager.");
-
-    /**
-     * JVM heap size (in megabytes) for the JobManager.
-     *
-     * @deprecated use {@link #TOTAL_FLINK_MEMORY} for standalone setups and {@link
-     *     #TOTAL_PROCESS_MEMORY} for containerized setups.
-     */
-    @Deprecated
-    public static final ConfigOption<Integer> JOB_MANAGER_HEAP_MEMORY_MB =
-            key("jobmanager.heap.mb")
-                    .intType()
-                    .noDefaultValue()
-                    .withDescription("JVM heap size (in megabytes) for the JobManager.");
-
     /** Total Process Memory size for the JobManager. */
     @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
     public static final ConfigOption<MemorySize> TOTAL_PROCESS_MEMORY =
@@ -474,9 +447,6 @@ public class JobManagerOptions {
 
     /** Type of scheduler implementation. */
     public enum SchedulerType implements DescribedEnum {
-        /** @deprecated Use {@link SchedulerType#Default} instead. */
-        @Deprecated
-        Ng(text("Deprecated. Use Default scheduler instead.")),
         Default(text("Default scheduler")),
         Adaptive(
                 text(
@@ -517,21 +487,11 @@ public class JobManagerOptions {
                                             code(SchedulerExecutionMode.REACTIVE.name()))
                                     .build());
 
-    @Documentation.Section({
-        Documentation.Sections.EXPERT_SCHEDULING,
-        Documentation.Sections.ALL_JOB_MANAGER
-    })
-    public static final ConfigOption<Integer> MIN_PARALLELISM_INCREASE =
-            key("jobmanager.adaptive-scheduler.min-parallelism-increase")
-                    .intType()
-                    .defaultValue(1)
-                    .withDescription(
-                            "Configure the minimum increase in parallelism for a job to scale up.");
-
-    @Documentation.Section({
-        Documentation.Sections.EXPERT_SCHEDULING,
-        Documentation.Sections.ALL_JOB_MANAGER
-    })
+    /**
+     * @deprecated Use {@link JobManagerOptions#SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING}
+     */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
     public static final ConfigOption<Duration> SCHEDULER_SCALING_INTERVAL_MIN =
             key("jobmanager.adaptive-scheduler.scaling-interval.min")
                     .durationType()
@@ -543,6 +503,69 @@ public class JobManagerOptions {
         Documentation.Sections.EXPERT_SCHEDULING,
         Documentation.Sections.ALL_JOB_MANAGER
     })
+    public static final ConfigOption<Duration> SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING =
+            key("jobmanager.adaptive-scheduler.executing.cooldown-after-rescaling")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(30))
+                    .withDeprecatedKeys(SCHEDULER_SCALING_INTERVAL_MIN.key())
+                    .withDescription("Determines the minimum time between scaling operations.");
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Duration> SCHEDULER_EXECUTING_RESOURCE_STABILIZATION_TIMEOUT =
+            key("jobmanager.adaptive-scheduler.executing.resource-stabilization-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(60))
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Defines the duration the JobManager delays the scaling operation after a resource change if only sufficient resources are available. "
+                                                    + "The scaling operation is performed immediately if the resources have changed and the desired resources are available. "
+                                                    + "The timeout begins as soon as either the available resources or the job's resource requirements are changed.")
+                                    .linebreak()
+                                    .text(
+                                            "The resource requirements of a running job can be changed using the %s.",
+                                            link(
+                                                    "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/rest_api/#jobs-jobid-resource-requirements-1",
+                                                    "REST API endpoint"))
+                                    .build());
+
+    /**
+     * @deprecated Use {@link JobManagerOptions#SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING} and
+     *     {@link JobManagerOptions#SCHEDULER_EXECUTING_RESOURCE_STABILIZATION_TIMEOUT}.
+     */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
+    public static final ConfigOption<Integer> MIN_PARALLELISM_INCREASE =
+            key("jobmanager.adaptive-scheduler.min-parallelism-increase")
+                    .intType()
+                    .defaultValue(1)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Configure the minimum increase in parallelism for a job to scale up. "
+                                                    + "It's not used anymore. Use the configuration option %s and %s to control the sensitivity of a scaling operation.",
+                                            code(
+                                                    SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING
+                                                            .key()),
+                                            code(
+                                                    SCHEDULER_EXECUTING_RESOURCE_STABILIZATION_TIMEOUT
+                                                            .key()))
+                                    .linebreak()
+                                    .text(
+                                            "The resource requirements of a running job can be changed using the %s.",
+                                            link(
+                                                    "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/rest_api/#jobs-jobid-resource-requirements-1",
+                                                    "REST API endpoint"))
+                                    .build());
+
+    /**
+     * @deprecated Use {@link JobManagerOptions#SCHEDULER_EXECUTING_RESOURCE_STABILIZATION_TIMEOUT}.
+     */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
     public static final ConfigOption<Duration> SCHEDULER_SCALING_INTERVAL_MAX =
             key("jobmanager.adaptive-scheduler.scaling-interval.max")
                     .durationType()
@@ -554,10 +577,11 @@ public class JobManagerOptions {
                                             code(MIN_PARALLELISM_INCREASE.key()))
                                     .build());
 
-    @Documentation.Section({
-        Documentation.Sections.EXPERT_SCHEDULING,
-        Documentation.Sections.ALL_JOB_MANAGER
-    })
+    /**
+     * @deprecated Use {@link JobManagerOptions#SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT}.
+     */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
     public static final ConfigOption<Duration> RESOURCE_WAIT_TIMEOUT =
             key("jobmanager.adaptive-scheduler.resource-wait-timeout")
                     .durationType()
@@ -584,8 +608,35 @@ public class JobManagerOptions {
         Documentation.Sections.EXPERT_SCHEDULING,
         Documentation.Sections.ALL_JOB_MANAGER
     })
-    public static final ConfigOption<Integer> SCHEDULER_SCALE_ON_FAILED_CHECKPOINTS_COUNT =
-            key("jobmanager.adaptive-scheduler.scale-on-failed-checkpoints-count")
+    public static final ConfigOption<Duration> SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT =
+            key("jobmanager.adaptive-scheduler.submission.resource-wait-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(5))
+                    .withDeprecatedKeys(RESOURCE_WAIT_TIMEOUT.key())
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The maximum time the JobManager will wait to acquire all required resources after a job submission or restart. "
+                                                    + "Once elapsed it will try to run the job with a lower parallelism, or fail if the minimum amount of resources could not be acquired.")
+                                    .linebreak()
+                                    .text(
+                                            "Increasing this value will make the cluster more resilient against temporary resources shortages (e.g., there is more time for a failed TaskManager to be restarted).")
+                                    .linebreak()
+                                    .text(
+                                            "Setting a negative duration will disable the resource timeout: The JobManager will wait indefinitely for resources to appear.")
+                                    .linebreak()
+                                    .text(
+                                            "If %s is configured to %s, this configuration value will default to a negative value to disable the resource timeout.",
+                                            code(SCHEDULER_MODE.key()),
+                                            code(SchedulerExecutionMode.REACTIVE.name()))
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Integer> SCHEDULER_RESCALE_TRIGGER_MAX_CHECKPOINT_FAILURES =
+            key("jobmanager.adaptive-scheduler.rescale-trigger.max-checkpoint-failures")
                     .intType()
                     .defaultValue(2)
                     .withDescription(
@@ -598,8 +649,8 @@ public class JobManagerOptions {
         Documentation.Sections.EXPERT_SCHEDULING,
         Documentation.Sections.ALL_JOB_MANAGER
     })
-    public static final ConfigOption<Duration> MAXIMUM_DELAY_FOR_SCALE_TRIGGER =
-            key("jobmanager.adaptive-scheduler.max-delay-for-scale-trigger")
+    public static final ConfigOption<Duration> SCHEDULER_RESCALE_TRIGGER_MAX_DELAY =
+            key("jobmanager.adaptive-scheduler.rescale-trigger.max-delay")
                     .durationType()
                     .noDefaultValue()
                     .withDescription(
@@ -607,13 +658,17 @@ public class JobManagerOptions {
                                     .text(
                                             "The maximum time the JobManager will wait with evaluating previously observed events for rescaling (default: 0ms if checkpointing is disabled "
                                                     + "and the checkpointing interval multiplied by the by-1-incremented parameter value of %s if checkpointing is enabled).",
-                                            text(SCHEDULER_SCALE_ON_FAILED_CHECKPOINTS_COUNT.key()))
+                                            text(
+                                                    SCHEDULER_RESCALE_TRIGGER_MAX_CHECKPOINT_FAILURES
+                                                            .key()))
                                     .build());
 
-    @Documentation.Section({
-        Documentation.Sections.EXPERT_SCHEDULING,
-        Documentation.Sections.ALL_JOB_MANAGER
-    })
+    /**
+     * @deprecated Use {@link
+     *     JobManagerOptions#SCHEDULER_SUBMISSION_RESOURCE_STABILIZATION_TIMEOUT}.
+     */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
     public static final ConfigOption<Duration> RESOURCE_STABILIZATION_TIMEOUT =
             key("jobmanager.adaptive-scheduler.resource-stabilization-timeout")
                     .durationType()
@@ -622,6 +677,28 @@ public class JobManagerOptions {
                             Description.builder()
                                     .text(
                                             "The resource stabilization timeout defines the time the JobManager will wait if fewer than the desired but sufficient resources are available. "
+                                                    + "The timeout starts once sufficient resources for running the job are available. "
+                                                    + "Once this timeout has passed, the job will start executing with the available resources.")
+                                    .linebreak()
+                                    .text(
+                                            "If %s is configured to %s, this configuration value will default to 0, so that jobs are starting immediately with the available resources.",
+                                            code(SCHEDULER_MODE.key()),
+                                            code(SchedulerExecutionMode.REACTIVE.name()))
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Duration> SCHEDULER_SUBMISSION_RESOURCE_STABILIZATION_TIMEOUT =
+            key("jobmanager.adaptive-scheduler.submission.resource-stabilization-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(10L))
+                    .withDeprecatedKeys(RESOURCE_STABILIZATION_TIMEOUT.key())
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The resource stabilization timeout defines the time the JobManager will wait if fewer than the desired but sufficient resources are available during job submission. "
                                                     + "The timeout starts once sufficient resources for running the job are available. "
                                                     + "Once this timeout has passed, the job will start executing with the available resources.")
                                     .linebreak()
@@ -644,106 +721,6 @@ public class JobManagerOptions {
                     .defaultValue(true)
                     .withDescription(
                             "Controls whether partitions should already be released during the job execution.");
-
-    /** @deprecated Use {@link BatchExecutionOptions#ADAPTIVE_AUTO_PARALLELISM_MIN_PARALLELISM}. */
-    @Deprecated
-    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
-    public static final ConfigOption<Integer> ADAPTIVE_BATCH_SCHEDULER_MIN_PARALLELISM =
-            key("jobmanager.adaptive-batch-scheduler.min-parallelism")
-                    .intType()
-                    .defaultValue(1)
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "The lower bound of allowed parallelism to set adaptively if %s has been set to %s",
-                                            code(SCHEDULER.key()),
-                                            code(SchedulerType.AdaptiveBatch.name()))
-                                    .build());
-
-    /** @deprecated Use {@link BatchExecutionOptions#ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM}. */
-    @Deprecated
-    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
-    public static final ConfigOption<Integer> ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM =
-            key("jobmanager.adaptive-batch-scheduler.max-parallelism")
-                    .intType()
-                    .defaultValue(128)
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "The upper bound of allowed parallelism to set adaptively if %s has been set to %s",
-                                            code(SCHEDULER.key()),
-                                            code(SchedulerType.AdaptiveBatch.name()))
-                                    .build());
-
-    /**
-     * @deprecated Use {@link
-     *     BatchExecutionOptions#ADAPTIVE_AUTO_PARALLELISM_AVG_DATA_VOLUME_PER_TASK}.
-     */
-    @Deprecated
-    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
-    public static final ConfigOption<MemorySize> ADAPTIVE_BATCH_SCHEDULER_AVG_DATA_VOLUME_PER_TASK =
-            key("jobmanager.adaptive-batch-scheduler.avg-data-volume-per-task")
-                    .memoryType()
-                    .defaultValue(MemorySize.ofMebiBytes(1024))
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "The average size of data volume to expect each task instance to process if %s has been set to %s. "
-                                                    + "Note that when data skew occurs or the decided parallelism reaches the %s (due to too much data), "
-                                                    + "the data actually processed by some tasks may far exceed this value.",
-                                            code(SCHEDULER.key()),
-                                            code(SchedulerType.AdaptiveBatch.name()),
-                                            code(ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM.key()))
-                                    .build());
-
-    /**
-     * @deprecated Use {@link
-     *     BatchExecutionOptions#ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM}.
-     */
-    @Deprecated
-    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
-    public static final ConfigOption<Integer> ADAPTIVE_BATCH_SCHEDULER_DEFAULT_SOURCE_PARALLELISM =
-            key("jobmanager.adaptive-batch-scheduler.default-source-parallelism")
-                    .intType()
-                    .defaultValue(1)
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "The default parallelism of source vertices if %s has been set to %s",
-                                            code(SCHEDULER.key()),
-                                            code(SchedulerType.AdaptiveBatch.name()))
-                                    .build());
-
-    /** @deprecated Use {@link BatchExecutionOptions#SPECULATIVE_ENABLED}. */
-    @Deprecated
-    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
-    public static final ConfigOption<Boolean> SPECULATIVE_ENABLED =
-            key("jobmanager.adaptive-batch-scheduler.speculative.enabled")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription("Controls whether to enable speculative execution.");
-
-    /** @deprecated Use {@link BatchExecutionOptions#SPECULATIVE_MAX_CONCURRENT_EXECUTIONS}. */
-    @Deprecated
-    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
-    public static final ConfigOption<Integer> SPECULATIVE_MAX_CONCURRENT_EXECUTIONS =
-            key("jobmanager.adaptive-batch-scheduler.speculative.max-concurrent-executions")
-                    .intType()
-                    .defaultValue(2)
-                    .withDescription(
-                            "Controls the maximum number of execution attempts of each operator "
-                                    + "that can execute concurrently, including the original one "
-                                    + "and speculative ones.");
-
-    /** @deprecated Use {@link BatchExecutionOptions#BLOCK_SLOW_NODE_DURATION}. */
-    @Deprecated
-    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
-    public static final ConfigOption<Duration> BLOCK_SLOW_NODE_DURATION =
-            key("jobmanager.adaptive-batch-scheduler.speculative.block-slow-node-duration")
-                    .durationType()
-                    .defaultValue(Duration.ofMinutes(1))
-                    .withDescription(
-                            "Controls how long an detected slow node should be blocked for.");
 
     /**
      * The JobManager's ResourceID. If not configured, the ResourceID will be generated randomly.

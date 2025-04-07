@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.expressions.utils
 
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, TupleTypeInfo, TypeExtractor}
-import org.apache.flink.api.scala.createTypeInformation
+import org.apache.flink.table.api.createTypeInformation
 import org.apache.flink.table.planner.expressions.utils.CompositeTypeTestBase.{MyCaseClass, MyCaseClass2, MyCaseClass3, MyPojo}
 import org.apache.flink.types.Row
 

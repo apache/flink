@@ -25,7 +25,6 @@ import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -41,6 +40,7 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
+import org.apache.flink.table.legacy.api.TableSchema;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
@@ -397,14 +397,12 @@ class ExpressionResolverTest {
                                                             new SourceQueryOperation(
                                                                     ContextResolvedTable.anonymous(
                                                                             new ResolvedCatalogTable(
-                                                                                    CatalogTable.of(
-                                                                                            schema
-                                                                                                    .toSchema(),
-                                                                                            null,
-                                                                                            Collections
-                                                                                                    .emptyList(),
-                                                                                            Collections
-                                                                                                    .emptyMap()),
+                                                                                    CatalogTable
+                                                                                            .newBuilder()
+                                                                                            .schema(
+                                                                                                    schema
+                                                                                                            .toSchema())
+                                                                                            .build(),
                                                                                     ResolvedSchema
                                                                                             .physical(
                                                                                                     schema

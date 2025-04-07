@@ -31,10 +31,7 @@ import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.CommitterInitContext;
 import org.apache.flink.api.connector.sink2.CommittingSinkWriter;
 import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.connector.sink2.SupportsCommitter;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink.PrecommittingSinkWriter;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.ReaderOutput;
@@ -62,9 +59,9 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.InputFormatSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -207,7 +204,7 @@ class SpeculativeExecutionITCase {
         assertThat(DummyCommitter.foundSpeculativeWriter).isTrue();
     }
 
-    /** Should be removed along {@link TwoPhaseCommittingSink}. */
+    /** Should be removed along {@link SupportsCommitter}. */
     @Deprecated
     @Test
     public void testSpeculativeSlowSinkDeprecated() throws Exception {
@@ -396,7 +393,7 @@ class SpeculativeExecutionITCase {
                 .slotSharingGroup("sinkGroup");
     }
 
-    /** Should be removed along {@link TwoPhaseCommittingSink}. */
+    /** Should be removed along {@link SupportsCommitter}. */
     @Deprecated
     private void setupSpeculativeSlowSinkDeprecated(StreamExecutionEnvironment env) {
         DummyCommitter.attempts.set(0);
@@ -621,11 +618,6 @@ class SpeculativeExecutionITCase {
                     SupportsConcurrentExecutionAttempts {
 
         @Override
-        public SinkWriter<Long> createWriter(InitContext context) {
-            throw new UnsupportedOperationException("Not supported");
-        }
-
-        @Override
         public CommittingSinkWriter<Long, Tuple3<Integer, Integer, Map<Long, Long>>> createWriter(
                 WriterInitContext context) {
             return new DummyCommittingSinkWriter(
@@ -700,15 +692,16 @@ class SpeculativeExecutionITCase {
         public void close() throws Exception {}
     }
 
-    /** Should be removed along {@link TwoPhaseCommittingSink}. */
+    /** Should be removed along {@link SupportsCommitter}. */
     @Deprecated
     private static class SpeculativeSinkDeprecated
-            implements TwoPhaseCommittingSink<Long, Tuple3<Integer, Integer, Map<Long, Long>>>,
+            implements SupportsCommitter<Tuple3<Integer, Integer, Map<Long, Long>>>,
+                    Sink<Long>,
                     SupportsConcurrentExecutionAttempts {
 
         @Override
-        public PrecommittingSinkWriter<Long, Tuple3<Integer, Integer, Map<Long, Long>>>
-                createWriter(InitContext context) {
+        public CommittingSinkWriter<Long, Tuple3<Integer, Integer, Map<Long, Long>>> createWriter(
+                WriterInitContext context) {
             return new DummyPrecommittingSinkWriter(
                     context.getTaskInfo().getIndexOfThisSubtask(),
                     context.getTaskInfo().getAttemptNumber());
@@ -749,10 +742,10 @@ class SpeculativeExecutionITCase {
         }
     }
 
-    /** Should be removed along {@link TwoPhaseCommittingSink}. */
+    /** Should be removed along {@link SupportsCommitter}. */
     @Deprecated
     private static class DummyPrecommittingSinkWriter
-            implements PrecommittingSinkWriter<Long, Tuple3<Integer, Integer, Map<Long, Long>>> {
+            implements CommittingSinkWriter<Long, Tuple3<Integer, Integer, Map<Long, Long>>> {
 
         private final int subTaskIndex;
 

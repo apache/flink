@@ -19,11 +19,16 @@
 package org.apache.flink.streaming.tests;
 
 import org.apache.flink.api.common.state.StateTtlConfig;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
+import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.PrintSinkFunction;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.util.ParameterTool;
 
+import static org.apache.flink.configuration.StateBackendOptions.STATE_BACKEND;
+import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.STATE_BACKEND_ROCKS_INCREMENTAL;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
 
 /**
@@ -54,9 +59,7 @@ public class DataStreamStateTTLTestProgram {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        setupEnvironment(env, pt);
-
-        setBackendWithCustomTTLTimeProvider(env);
+        setupEnvironment(env, pt, false);
 
         TtlTestConfig config = TtlTestConfig.fromArgs(pt);
         StateTtlConfig ttlConfig =
@@ -72,20 +75,43 @@ public class DataStreamStateTTLTestProgram {
                 .addSink(new PrintSinkFunction<>())
                 .name("PrintFailedVerifications");
 
-        env.execute("State TTL test job");
+        StreamGraph streamGraph = env.getStreamGraph();
+        setBackendWithCustomTTLTimeProvider(streamGraph, pt);
+        streamGraph.setJobName("State TTL test job");
+        streamGraph.createJobCheckpointingSettings();
+
+        env.execute(streamGraph);
     }
 
     /**
      * Sets the state backend to a new {@link StubStateBackend} which has a {@link
      * MonotonicTTLTimeProvider}.
      *
-     * @param env The {@link StreamExecutionEnvironment} of the job.
+     * @param streamGraph The {@link StreamGraph} of the job.
      */
-    private static void setBackendWithCustomTTLTimeProvider(StreamExecutionEnvironment env) {
+    private static void setBackendWithCustomTTLTimeProvider(
+            StreamGraph streamGraph, final ParameterTool pt) {
         final MonotonicTTLTimeProvider ttlTimeProvider = new MonotonicTTLTimeProvider();
 
-        final StateBackend configuredBackend = env.getStateBackend();
+        final StateBackend configuredBackend = getConfiguredStateBackend(pt);
         final StateBackend stubBackend = new StubStateBackend(configuredBackend, ttlTimeProvider);
-        env.setStateBackend(stubBackend);
+        streamGraph.setStateBackend(stubBackend);
+    }
+
+    private static StateBackend getConfiguredStateBackend(final ParameterTool pt) {
+        final String stateBackend = pt.get(STATE_BACKEND.key(), STATE_BACKEND.defaultValue());
+
+        if ("hashmap".equalsIgnoreCase(stateBackend)) {
+            return new HashMapStateBackend();
+        } else if ("rocks".equalsIgnoreCase(stateBackend)) {
+            boolean incrementalCheckpoints =
+                    pt.getBoolean(
+                            STATE_BACKEND_ROCKS_INCREMENTAL.key(),
+                            STATE_BACKEND_ROCKS_INCREMENTAL.defaultValue());
+
+            return new EmbeddedRocksDBStateBackend(incrementalCheckpoints);
+        } else {
+            throw new IllegalArgumentException("Unknown backend requested: " + stateBackend);
+        }
     }
 }

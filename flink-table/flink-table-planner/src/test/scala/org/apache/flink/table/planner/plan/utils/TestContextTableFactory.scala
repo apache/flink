@@ -19,10 +19,11 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.configuration.{ConfigOption, ConfigOptions}
 import org.apache.flink.table.catalog.ObjectIdentifier
-import org.apache.flink.table.factories.{TableFactoryUtil, TableSinkFactory, TableSourceFactory}
+import org.apache.flink.table.factories.TableFactoryUtil
+import org.apache.flink.table.legacy.factories.{TableSinkFactory, TableSourceFactory}
+import org.apache.flink.table.legacy.sinks.TableSink
+import org.apache.flink.table.legacy.sources.TableSource
 import org.apache.flink.table.planner.plan.utils.TestContextTableFactory.REQUIRED_KEY
-import org.apache.flink.table.sinks.TableSink
-import org.apache.flink.table.sources.TableSource
 
 import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
 

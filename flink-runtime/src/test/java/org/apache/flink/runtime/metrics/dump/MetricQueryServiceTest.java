@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.metrics.dump;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -37,6 +36,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
@@ -46,7 +46,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for the {@link MetricQueryService}. */
 class MetricQueryServiceTest {
 
-    private static final Time TIMEOUT = Time.seconds(1);
+    private static final Duration TIMEOUT = Duration.ofSeconds(1);
 
     private static TestingRpcService rpcService;
 

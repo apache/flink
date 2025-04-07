@@ -32,7 +32,6 @@ import org.apache.flink.table.types.AbstractDataType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -67,6 +66,28 @@ class RTASITCase extends BatchTestBase {
         // verify written rows
         assertThat(TestValuesTableFactory.getResultsAsStrings("target").toString())
                 .isEqualTo("[+I[1, 1, Hi], +I[2, 2, Hello], +I[3, 2, Hello world]]");
+
+        // verify the table after replacing
+        CatalogTable expectCatalogTable =
+                getExpectCatalogTable(
+                        new String[] {"a", "b", "c"},
+                        new AbstractDataType[] {
+                            DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()
+                        });
+        verifyCatalogTable(expectCatalogTable, getCatalogTable("target"));
+    }
+
+    @Test
+    void testReplaceTableASWithSortLimit() throws Exception {
+        tEnv().executeSql(
+                        "REPLACE TABLE target WITH ('connector' = 'values',"
+                                + " 'bounded' = 'true')"
+                                + " AS (SELECT * FROM source order by `a` LIMIT 2)")
+                .await();
+
+        // verify written rows
+        assertThat(TestValuesTableFactory.getResultsAsStrings("target").toString())
+                .isEqualTo("[+I[1, 1, Hi], +I[2, 2, Hello]]");
 
         // verify the table after replacing
         CatalogTable expectCatalogTable =
@@ -129,11 +150,10 @@ class RTASITCase extends BatchTestBase {
 
     private CatalogTable getExpectCatalogTable(
             String[] cols, AbstractDataType<?>[] fieldDataTypes) {
-        return CatalogTable.of(
-                Schema.newBuilder().fromFields(cols, fieldDataTypes).build(),
-                null,
-                Collections.emptyList(),
-                getDefaultTargetTableOptions());
+        return CatalogTable.newBuilder()
+                .schema(Schema.newBuilder().fromFields(cols, fieldDataTypes).build())
+                .options(getDefaultTargetTableOptions())
+                .build();
     }
 
     private Map<String, String> getDefaultTargetTableOptions() {

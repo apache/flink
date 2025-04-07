@@ -77,7 +77,7 @@ public class FlinkCalcMergeRule extends RelRule<FlinkCalcMergeRule.FlinkCalcMerg
         Calc bottomCalc = call.rel(1);
 
         Calc newCalc = FlinkRelUtil.merge(topCalc, bottomCalc);
-        if (newCalc.getDigest() == bottomCalc.getDigest()) {
+        if (newCalc.getDigest().equals(bottomCalc.getDigest())) {
             // newCalc is equivalent to bottomCalc,
             // which means that topCalc
             // must be trivial. Take it out of the game.

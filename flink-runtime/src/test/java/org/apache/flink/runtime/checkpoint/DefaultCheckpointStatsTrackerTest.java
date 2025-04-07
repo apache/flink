@@ -31,7 +31,7 @@ import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.traces.Span;
 import org.apache.flink.traces.SpanBuilder;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Iterables;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -48,7 +48,6 @@ import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
-import java.util.stream.Collectors;
 
 import static java.util.Collections.singletonMap;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -180,7 +179,7 @@ class DefaultCheckpointStatsTrackerTest {
                         null,
                         42);
         tracker.reportInitializationStarted(Collections.emptySet(), 123L);
-        tracker.reportRestoredCheckpoint(restored);
+        reportRestoredCheckpoint(tracker, restored);
 
         CheckpointStatsSnapshot snapshot = tracker.createSnapshot();
 
@@ -340,7 +339,8 @@ class DefaultCheckpointStatsTrackerTest {
 
         // Restore operation => new snapshot
         tracker.reportInitializationStarted(Collections.emptySet(), 0);
-        tracker.reportRestoredCheckpoint(
+        reportRestoredCheckpoint(
+                tracker,
                 new RestoredCheckpointStats(
                         12,
                         CheckpointProperties.forCheckpoint(
@@ -378,17 +378,37 @@ class DefaultCheckpointStatsTrackerTest {
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
                         singletonMap(jobVertexID, 1));
 
-        pending.reportSubtaskStats(jobVertexID, createSubtaskStats(0));
+        pending.reportSubtaskStats(jobVertexID, createSubtaskStats(0, false));
 
         // Complete checkpoint => new snapshot
         tracker.reportCompletedCheckpoint(pending.toCompletedCheckpointStats(null));
 
         assertThat(reportedSpans.size()).isEqualTo(1);
-        assertThat(
-                        reportedSpans.stream()
-                                .map(span -> span.getAttributes().get("checkpointId"))
-                                .collect(Collectors.toList()))
-                .containsExactly(42L);
+        Span reportedSpan = Iterables.getOnlyElement(reportedSpans);
+        assertThat(reportedSpan.getAttributes().get("checkpointId")).isEqualTo(42L);
+        assertThat(reportedSpan.getAttributes().get("checkpointType")).isEqualTo("Checkpoint");
+        assertThat(reportedSpan.getAttributes().get("isUnaligned")).isEqualTo("false");
+
+        reportedSpans.clear();
+
+        pending =
+                tracker.reportPendingCheckpoint(
+                        43,
+                        1,
+                        CheckpointProperties.forCheckpoint(
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                        singletonMap(jobVertexID, 1));
+
+        pending.reportSubtaskStats(jobVertexID, createSubtaskStats(0, true));
+
+        // Complete checkpoint => new snapshot
+        tracker.reportCompletedCheckpoint(pending.toCompletedCheckpointStats(null));
+
+        assertThat(reportedSpans.size()).isEqualTo(1);
+        reportedSpan = Iterables.getOnlyElement(reportedSpans);
+        assertThat(reportedSpan.getAttributes().get("checkpointId")).isEqualTo(43L);
+        assertThat(reportedSpan.getAttributes().get("checkpointType")).isEqualTo("Checkpoint");
+        assertThat(reportedSpan.getAttributes().get("isUnaligned")).isEqualTo("true");
     }
 
     @Test
@@ -410,7 +430,8 @@ class DefaultCheckpointStatsTrackerTest {
         final ExecutionAttemptID executionAttemptId2 = ExecutionAttemptID.randomId();
         tracker.reportInitializationStarted(
                 new HashSet<>(Arrays.asList(executionAttemptId3, executionAttemptId2)), 100);
-        tracker.reportRestoredCheckpoint(
+        reportRestoredCheckpoint(
+                tracker,
                 new RestoredCheckpointStats(
                         42,
                         CheckpointProperties.forCheckpoint(
@@ -454,7 +475,8 @@ class DefaultCheckpointStatsTrackerTest {
         final ExecutionAttemptID executionAttemptId = ExecutionAttemptID.randomId();
         tracker.reportInitializationStarted(
                 new HashSet<>(Arrays.asList(executionAttemptId1, executionAttemptId)), 100);
-        tracker.reportRestoredCheckpoint(
+        reportRestoredCheckpoint(
+                tracker,
                 new RestoredCheckpointStats(
                         44,
                         CheckpointProperties.forCheckpoint(
@@ -531,9 +553,10 @@ class DefaultCheckpointStatsTrackerTest {
                                         .LATEST_COMPLETED_CHECKPOINT_PERSISTED_DATA_METRIC,
                                 DefaultCheckpointStatsTracker
                                         .LATEST_COMPLETED_CHECKPOINT_EXTERNAL_PATH_METRIC,
+                                DefaultCheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_ID_METRIC,
                                 DefaultCheckpointStatsTracker
-                                        .LATEST_COMPLETED_CHECKPOINT_ID_METRIC));
-        assertThat(registeredGaugeNames).hasSize(12);
+                                        .LATEST_CHECKPOINT_COMPLETED_TIMESTAMP));
+        assertThat(registeredGaugeNames).hasSize(13);
     }
 
     /**
@@ -562,7 +585,7 @@ class DefaultCheckpointStatsTrackerTest {
         CheckpointStatsTracker stats = new DefaultCheckpointStatsTracker(0, metricGroup);
 
         // Make sure to adjust this test if metrics are added/removed
-        assertThat(registeredGauges).hasSize(12);
+        assertThat(registeredGauges).hasSize(13);
 
         // Check initial values
         Gauge<Long> numCheckpoints =
@@ -623,6 +646,11 @@ class DefaultCheckpointStatsTrackerTest {
                         registeredGauges.get(
                                 DefaultCheckpointStatsTracker
                                         .LATEST_COMPLETED_CHECKPOINT_ID_METRIC);
+        Gauge<Long> latestCompletedTimestamp =
+                (Gauge<Long>)
+                        registeredGauges.get(
+                                DefaultCheckpointStatsTracker
+                                        .LATEST_CHECKPOINT_COMPLETED_TIMESTAMP);
 
         assertThat(numCheckpoints.getValue()).isZero();
         assertThat(numInProgressCheckpoints.getValue()).isZero();
@@ -636,6 +664,7 @@ class DefaultCheckpointStatsTrackerTest {
         assertThat(latestPersistedData.getValue()).isEqualTo(-1);
         assertThat(latestCompletedExternalPath.getValue()).isEqualTo("n/a");
         assertThat(latestCompletedId.getValue()).isEqualTo(-1);
+        assertThat(latestCompletedTimestamp.getValue()).isEqualTo(-1);
 
         PendingCheckpointStats pending =
                 stats.reportPendingCheckpoint(
@@ -691,6 +720,7 @@ class DefaultCheckpointStatsTrackerTest {
         assertThat(latestCompletedDuration.getValue()).isEqualTo(ackTimestamp);
         assertThat(latestCompletedExternalPath.getValue()).isEqualTo(externalPath);
         assertThat(latestCompletedId.getValue()).isZero();
+        assertThat(latestCompletedTimestamp.getValue()).isEqualTo(ackTimestamp);
 
         // Check failed
         PendingCheckpointStats nextPending =
@@ -722,7 +752,7 @@ class DefaultCheckpointStatsTrackerTest {
                         null,
                         42);
         stats.reportInitializationStarted(Collections.emptySet(), restoreTimestamp);
-        stats.reportRestoredCheckpoint(restored);
+        reportRestoredCheckpoint(stats, restored);
 
         assertThat(numCheckpoints.getValue()).isEqualTo(2);
         assertThat(numInProgressCheckpoints.getValue()).isZero();
@@ -752,6 +782,19 @@ class DefaultCheckpointStatsTrackerTest {
     // ------------------------------------------------------------------------
 
     private SubtaskStateStats createSubtaskStats(int index) {
-        return new SubtaskStateStats(index, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, true);
+        return createSubtaskStats(index, false);
+    }
+
+    private SubtaskStateStats createSubtaskStats(int index, boolean unaligned) {
+        return new SubtaskStateStats(index, 0, 0, 0, 0, 0, 0, 0, 0, 0, unaligned, true);
+    }
+
+    private void reportRestoredCheckpoint(
+            CheckpointStatsTracker tracker, RestoredCheckpointStats restored) {
+        tracker.reportRestoredCheckpoint(
+                restored.getCheckpointId(),
+                restored.getProperties(),
+                restored.getExternalPath(),
+                restored.getStateSize());
     }
 }

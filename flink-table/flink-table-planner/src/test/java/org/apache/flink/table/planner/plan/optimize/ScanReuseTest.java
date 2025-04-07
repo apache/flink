@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.optimize;
 
+import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
@@ -400,5 +401,47 @@ class ScanReuseTest extends TableTestBase {
                         + " GROUP BY a0, window_start, window_end) T2"
                         + " WHERE T1.a1 = T2.a1";
         util.verifyExecPlan(sqlQuery);
+    }
+
+    @TestTemplate
+    void testReuseWithReadMetadataKeepOrder() {
+        assumeThat(isStreaming).isTrue();
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TEMPORARY TABLE src( "
+                                + "   `origin_ts` TIMESTAMP(3) METADATA VIRTUAL, "
+                                + "   `partition` INT METADATA VIRTUAL, "
+                                + "   `offset` BIGINT METADATA VIRTUAL, "
+                                + "   `id` BIGINT,"
+                                + "   PRIMARY KEY (`id`) NOT ENFORCED "
+                                + ") WITH ( "
+                                + "   'connector' = 'values', "
+                                + "   'readable-metadata' = 'offset:bigint,origin_ts:timestamp(3),partition:int'"
+                                + ")");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TEMPORARY TABLE snk1( "
+                                + "   `origin_ts` TIMESTAMP(3), "
+                                + "   `partition` INT, "
+                                + "   `offset` BIGINT, "
+                                + "   `id` BIGINT"
+                                + ") WITH ( "
+                                + "   'connector' = 'values' "
+                                + ")");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TEMPORARY TABLE snk2( "
+                                + "   `id` BIGINT"
+                                + ") WITH ( "
+                                + "   'connector' = 'values' "
+                                + ")");
+
+        StatementSet stmt = util.tableEnv().createStatementSet();
+        stmt.addInsertSql(
+                "INSERT INTO snk1 select `origin_ts`, `partition`, `offset`, `id` from src");
+        stmt.addInsertSql("INSERT INTO snk2 select `id` from src");
+        util.verifyExecPlan(stmt);
     }
 }

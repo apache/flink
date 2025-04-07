@@ -49,11 +49,12 @@ import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -75,16 +76,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Harness tests for {@link LookupJoinRunner} and {@link LookupJoinWithCalcRunner}. */
-@RunWith(Parameterized.class)
-public class AsyncLookupJoinHarnessTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class AsyncLookupJoinHarnessTest {
 
     private static final int ASYNC_BUFFER_CAPACITY = 100;
     private static final int ASYNC_TIMEOUT_MS = 3000;
 
-    @Parameterized.Parameter public boolean orderedResult;
+    private boolean orderedResult;
 
-    @Parameterized.Parameters(name = "ordered result = {0}")
-    public static Object[] parameters() {
+    @Parameters(name = "ordered result = {0}")
+    private static Object[] parameters() {
         return new Object[][] {new Object[] {true}, new Object[] {false}};
     }
 
@@ -115,8 +116,8 @@ public class AsyncLookupJoinHarnessTest {
             (RowDataSerializer)
                     InternalSerializers.<RowData>create(rightRowDataType.getLogicalType());
 
-    @Test
-    public void testTemporalInnerAsyncJoin() throws Exception {
+    @TestTemplate
+    void testTemporalInnerAsyncJoin() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.INNER_JOIN, FilterOnTable.WITHOUT_FILTER);
 
@@ -145,8 +146,8 @@ public class AsyncLookupJoinHarnessTest {
         checkResult(expectedOutput, testHarness.getOutput());
     }
 
-    @Test
-    public void testTemporalInnerAsyncJoinWithFilter() throws Exception {
+    @TestTemplate
+    void testTemporalInnerAsyncJoinWithFilter() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.INNER_JOIN, FilterOnTable.WITH_FILTER);
 
@@ -174,8 +175,8 @@ public class AsyncLookupJoinHarnessTest {
         checkResult(expectedOutput, testHarness.getOutput());
     }
 
-    @Test
-    public void testTemporalLeftAsyncJoin() throws Exception {
+    @TestTemplate
+    void testTemporalLeftAsyncJoin() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.LEFT_JOIN, FilterOnTable.WITHOUT_FILTER);
 
@@ -208,8 +209,8 @@ public class AsyncLookupJoinHarnessTest {
         checkResult(expectedOutput, testHarness.getOutput());
     }
 
-    @Test
-    public void testTemporalLeftAsyncJoinWithFilter() throws Exception {
+    @TestTemplate
+    void testTemporalLeftAsyncJoinWithFilter() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.LEFT_JOIN, FilterOnTable.WITH_FILTER);
 
@@ -292,8 +293,8 @@ public class AsyncLookupJoinHarnessTest {
                 inSerializer);
     }
 
-    @Test
-    public void testCloseAsyncLookupJoinRunner() throws Exception {
+    @TestTemplate
+    void testCloseAsyncLookupJoinRunner() throws Exception {
         final AsyncLookupJoinRunner joinRunner =
                 new AsyncLookupJoinRunner(
                         new GeneratedFunctionWrapper(new TestingFetcherFunction()),

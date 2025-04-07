@@ -104,11 +104,6 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
         super(filePath, null);
     }
 
-    @Override
-    public boolean supportsMultiPaths() {
-        return true;
-    }
-
     // --------------------------------------------------------------------------------------------
 
     public int getNumberOfFieldsTotal() {

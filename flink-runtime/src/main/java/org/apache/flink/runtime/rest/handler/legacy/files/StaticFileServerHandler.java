@@ -26,7 +26,6 @@ package org.apache.flink.runtime.rest.handler.legacy.files;
  * https://github.com/netty/netty/blob/4.0/example/src/main/java/io/netty/example/http/file/HttpStaticFileServerHandler.java
  * ***************************************************************************
  */
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.rest.NotFoundException;
 import org.apache.flink.runtime.rest.handler.LeaderRetrievalHandler;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -67,6 +66,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
@@ -115,7 +115,7 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
     private final File rootPath;
 
     public StaticFileServerHandler(
-            GatewayRetriever<? extends T> retriever, Time timeout, File rootPath)
+            GatewayRetriever<? extends T> retriever, Duration timeout, File rootPath)
             throws IOException {
 
         super(retriever, timeout, Collections.emptyMap());

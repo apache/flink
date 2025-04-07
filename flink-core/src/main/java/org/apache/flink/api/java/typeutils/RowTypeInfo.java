@@ -73,6 +73,7 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
     // --------------------------------------------------------------------------------------------
 
     protected final String[] fieldNames;
+
     /** Temporary variable for directly passing orders to comparators. */
     private boolean[] comparatorOrders = null;
 
@@ -263,11 +264,6 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
     }
 
     @Override
-    public TypeSerializer<Row> createSerializer(ExecutionConfig config) {
-        return createSerializer(config.getSerializerConfig());
-    }
-
-    @Override
     public boolean canEqual(Object obj) {
         return obj instanceof RowTypeInfo;
     }
@@ -305,21 +301,6 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
             bld.append(')');
         }
         return bld.toString();
-    }
-
-    /**
-     * Creates a serializer for the old {@link Row} format before Flink 1.11.
-     *
-     * <p>The serialization format has changed from 1.10 to 1.11 and added {@link Row#getKind()}.
-     */
-    @Deprecated
-    public TypeSerializer<Row> createLegacySerializer(SerializerConfig config) {
-        int len = getArity();
-        TypeSerializer<?>[] fieldSerializers = new TypeSerializer[len];
-        for (int i = 0; i < len; i++) {
-            fieldSerializers[i] = types[i].createSerializer(config);
-        }
-        return new RowSerializer(fieldSerializers, null, false);
     }
 
     /** Tests whether an other object describes the same, schema-equivalent row information. */

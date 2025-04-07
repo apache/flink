@@ -123,6 +123,17 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
     </tr>
     <tr>
       <td>
+        <strong>create_view(view_path, table, ignore_if_exists=False)</strong>
+      </td>
+      <td>
+        Registers a `Table` object as a view similar to SQL views. 
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.create_view" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
         <strong>drop_temporary_view(view_path)</strong>
       </td>
       <td>
@@ -130,6 +141,39 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.drop_temporary_view" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>drop_view(view_path, ignore_if_not_exists=True)</strong>
+      </td>
+      <td>
+        Drops a view registered in the given path.
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.drop_view" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>create_temporary_table(path, table_descriptor, ignore_if_exists=False)</strong>
+      </td>
+      <td>
+        Registers a `Table` object as a temporary catalog table similar to SQL temporary tables. 
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.create_temporary_table" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>create_table(path, table_descriptor, ignore_if_exists=False)</strong>
+      </td>
+      <td>
+        Registers a `Table` object as a catalog table similar to SQL tables. 
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.create_table" name="link">}}
       </td>
     </tr>
     <tr>
@@ -142,6 +186,17 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.drop_temporary_table" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>drop_table(table_path, ignore_if_not_exists=True)</strong>
+      </td>
+      <td>
+        Drops a table registered under the given path.
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.drop_table" name="link">}}
       </td>
     </tr>
     <tr>
@@ -186,17 +241,6 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
   <tbody>
     <tr>
       <td>
-        <strong>from_table_source(table_source)</strong>
-      </td>
-      <td>
-        Creates a table from a table source. 
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.from_table_source" name="link">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
         <strong>scan(*table_path)</strong>
       </td>
       <td>
@@ -218,28 +262,6 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.register_table" name="link">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <strong>register_table_source(name, table_source)</strong>
-      </td>
-      <td>
-        Registers an external `TableSource` in the TableEnvironment's catalog.
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.register_table_source" name="link">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <strong>register_table_sink(name, table_sink)</strong>
-      </td>
-      <td>
-        Registers an external `TableSink` in the TableEnvironment's catalog.
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.register_table_sink" name="link">}}
       </td>
     </tr>
     <tr>
@@ -456,46 +478,6 @@ For more details about the different kinds of UDFs, please refer to [User Define
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.drop_temporary_system_function" name="link">}}
-      </td>
-    </tr>
-  </tbody>
-</table>
-
-<big><strong>Deprecated APIs</strong></big>
-
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 20%">APIs</th>
-      <th class="text-center">Description</th>
-      <th class="text-center" style="width: 10%">Docs</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>
-        <strong>register_function(name, function)</strong>
-      </td>
-      <td>
-        Registers a Python user-defined function under a unique name. 
-        Replaces already existing user-defined function under this name.
-        It can be replaced by <strong>create_temporary_system_function</strong>.
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.register_function" name="link">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <strong>register_java_function(name, function_class_name)</strong>
-      </td>
-      <td>
-        Registers a Java user defined function under a unique name. 
-        Replaces already existing user-defined functions under this name.
-        It can be replaced by <strong>create_java_temporary_system_function</strong>.
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.register_java_function" name="link">}}
       </td>
     </tr>
   </tbody>
@@ -833,9 +815,9 @@ table_env.get_config().set("restart-strategy.fixed-delay.delay", "30s")
 table_env.get_config().set("execution.checkpointing.mode", "EXACTLY_ONCE")
 table_env.get_config().set("execution.checkpointing.interval", "3min")
 
-# set the statebackend type to "rocksdb", other available options are "filesystem" and "jobmanager"
+# set the statebackend type to "rocksdb", other available options are "hashmap"
 # you can also set the full qualified Java class name of the StateBackendFactory to this option
-# e.g. org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory
+# e.g. org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackendFactory
 table_env.get_config().set("state.backend.type", "rocksdb")
 
 # set the checkpoint directory, which is required by the RocksDB statebackend

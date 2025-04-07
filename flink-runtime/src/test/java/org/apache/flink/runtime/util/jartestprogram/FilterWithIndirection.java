@@ -18,17 +18,18 @@
 
 package org.apache.flink.runtime.util.jartestprogram;
 
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 /** Filter with additional indirections. */
 public class FilterWithIndirection {
 
     public static void main(String[] args) throws Exception {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        DataSet<String> input = env.fromElements("Please filter", "the words", "but not this");
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStreamSource<String> input = env.fromData("Please filter", "the words", "but not this");
 
-        DataSet<String> output = input.filter(UtilFunctionWrapper.UtilFunction.getWordFilter());
+        DataStream<String> output = input.filter(UtilFunctionWrapper.UtilFunction.getWordFilter());
         output.print();
 
         env.execute();

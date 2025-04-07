@@ -20,7 +20,6 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.blocklist.BlocklistHandler;
@@ -94,7 +93,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Tests for the {@link ResourceManager}. */
 class ResourceManagerTest {
 
-    private static final Time TIMEOUT = Time.minutes(2L);
+    private static final Duration TIMEOUT = Duration.ofMinutes(2L);
 
     private static final HeartbeatServices heartbeatServices =
             new HeartbeatServicesImpl(1000L, 10000L);
@@ -313,7 +312,7 @@ class ResourceManagerTest {
                                 jobMasterGateway.getAddress(),
                                 Collections.singleton(
                                         ResourceRequirement.create(ResourceProfile.UNKNOWN, 1))),
-                        TIMEOUT.toDuration())
+                        TIMEOUT)
                 .get();
 
         resourceManagerGateway.disconnectJobManager(
@@ -372,7 +371,7 @@ class ResourceManagerTest {
                         jobMasterGateway.getAddress(),
                         Collections.singleton(
                                 ResourceRequirement.create(ResourceProfile.UNKNOWN, 1))),
-                TIMEOUT.toDuration());
+                TIMEOUT);
         resourceManager
                 .runInMainThread(
                         () -> {
@@ -381,7 +380,7 @@ class ResourceManagerTest {
                             return null;
                         },
                         TIMEOUT)
-                .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+                .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
         processRequirementsFuture.get();
     }
 
@@ -718,7 +717,7 @@ class ResourceManagerTest {
         executor.triggerAll();
 
         ResourceOverview overview =
-                resourceManagerGateway.requestResourceOverview(Time.seconds(5)).get();
+                resourceManagerGateway.requestResourceOverview(Duration.ofSeconds(5)).get();
         assertThat(overview.getNumberTaskManagers()).isEqualTo(2);
         assertThat(overview.getNumberRegisteredSlots()).isEqualTo(8);
         assertThat(overview.getNumberFreeSlots()).isEqualTo(8);
@@ -737,7 +736,7 @@ class ResourceManagerTest {
                                 Long.MAX_VALUE)));
 
         ResourceOverview overviewBlocked =
-                resourceManagerGateway.requestResourceOverview(Time.seconds(5)).get();
+                resourceManagerGateway.requestResourceOverview(Duration.ofSeconds(5)).get();
         assertThat(overviewBlocked.getNumberTaskManagers()).isEqualTo(2);
         assertThat(overviewBlocked.getNumberRegisteredSlots()).isEqualTo(8);
         assertThat(overviewBlocked.getNumberFreeSlots()).isEqualTo(3);
@@ -783,7 +782,7 @@ class ResourceManagerTest {
                             new SlotID(taskManagerId, i), ResourceProfile.fromResources(1, 1024)));
         }
         resourceManagerGateway.sendSlotReport(
-                taskManagerId, instanceID, new SlotReport(slots), Time.seconds(5));
+                taskManagerId, instanceID, new SlotReport(slots), Duration.ofSeconds(5));
     }
 
     private JobMasterGateway createJobMasterGateway(Collection<BlockedNode> receivedBlockedNodes) {
@@ -991,7 +990,7 @@ class ResourceManagerTest {
                             readyToServeFuture);
 
             resourceManager.start();
-            resourceManager.getStartedFuture().get(TIMEOUT.getSize(), TIMEOUT.getUnit());
+            resourceManager.getStartedFuture().get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
 
             return resourceManager;
         }

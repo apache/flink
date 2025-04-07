@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.job.metrics;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -44,6 +43,7 @@ import org.mockito.Mockito;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -84,7 +84,7 @@ class JobVertexWatermarksHandlerTest {
         watermarkHandler =
                 new JobVertexWatermarksHandler(
                         Mockito.mock(LeaderGatewayRetriever.class),
-                        Time.seconds(1),
+                        Duration.ofSeconds(1),
                         Collections.emptyMap(),
                         metricFetcher,
                         NoOpExecutionGraphCache.INSTANCE,

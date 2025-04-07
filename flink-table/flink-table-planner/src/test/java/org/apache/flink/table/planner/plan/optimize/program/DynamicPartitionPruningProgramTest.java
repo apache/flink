@@ -651,27 +651,28 @@ class DynamicPartitionPruningProgramTest extends TableTestBase {
 
     @Test
     void testDppWithAggInFactSideWithAggPushDownDisable() {
-        // Dpp will success while fact side source support agg push down but source agg push down
-        // enabled is false.
-        TableConfig tableConfig = util.tableEnv().getConfig();
-        // Disable source agg push down.
-        tableConfig.set(
-                OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED, false);
-
-        String ddl =
-                "CREATE TABLE test_database.item (\n"
-                        + "  id BIGINT,\n"
-                        + "  amount BIGINT,\n"
-                        + "  price BIGINT\n"
-                        + ") WITH (\n"
-                        + " 'connector' = 'values',\n"
-                        + " 'bounded' = 'true'\n"
-                        + ")";
-        util.tableEnv().executeSql(ddl);
+        // Dpp will success while fact side source disables agg push down
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE fact_part_without_agg_push_down (\n"
+                                + "  id BIGINT,\n"
+                                + "  name STRING,\n"
+                                + "  amount BIGINT,\n"
+                                + "  price BIGINT,\n"
+                                + "  fact_date_sk BIGINT\n"
+                                + ") PARTITIONED BY (fact_date_sk)\n"
+                                + "WITH (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'runtime-source' = 'NewSource',\n"
+                                + " 'partition-list' = 'fact_date_sk:1990;fact_date_sk:1991;fact_date_sk:1992',\n"
+                                + " 'dynamic-filtering-fields' = 'fact_date_sk;amount',\n"
+                                + " 'bounded' = 'true',\n"
+                                + " 'enable-aggregate-push-down' = 'false'\n"
+                                + ")");
 
         String query =
                 "Select * from (Select id, amount, fact_date_sk, count(name), sum(price) "
-                        + "from fact_part where fact_date_sk > 100 group by id, amount, fact_date_sk) t1 "
+                        + "from fact_part_without_agg_push_down where fact_date_sk > 100 group by id, amount, fact_date_sk) t1 "
                         + "join dim on t1.fact_date_sk = dim.dim_date_sk where dim.price < 500 and dim.price > 300 ";
         util.verifyRelPlan(query);
     }

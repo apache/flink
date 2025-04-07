@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.catalog.{CatalogManager, ContextResolvedFunction, FunctionCatalog, FunctionLookup, UnresolvedIdentifier}
+import org.apache.flink.table.catalog.{CatalogManager, ContextResolvedFunction, FunctionCatalog, UnresolvedIdentifier}
 import org.apache.flink.table.data.conversion.{DayTimeIntervalDurationConverter, YearMonthIntervalPeriodConverter}
 import org.apache.flink.table.data.util.DataFormatConverters.{LocalDateConverter, LocalTimeConverter}
 import org.apache.flink.table.expressions._
@@ -37,7 +37,6 @@ import org.apache.flink.table.types.logical.YearMonthIntervalType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.util.Preconditions
 
-import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
@@ -49,9 +48,9 @@ import java.time.{ZoneId, ZoneOffset}
 import java.util
 import java.util.{Collections, List => JList}
 
-import scala.collection.{mutable, JavaConverters}
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Success, Try}
 
@@ -107,7 +106,6 @@ object RexNodeExtractor extends Logging {
    */
   def extractConjunctiveConditions(
       expr: RexNode,
-      maxCnfNodeCount: Int,
       inputFieldNames: JList[String],
       rexBuilder: RexBuilder,
       functionCatalog: FunctionCatalog,
@@ -116,7 +114,7 @@ object RexNodeExtractor extends Logging {
     val converter =
       new RexNodeToExpressionConverter(rexBuilder, inputNames, functionCatalog, catalogManager)
     val (convertibleRexNodes, unconvertedRexNodes) =
-      extractConjunctiveConditions(expr, maxCnfNodeCount, rexBuilder, converter)
+      extractConjunctiveConditions(expr, rexBuilder, converter)
     val convertedExpressions = convertibleRexNodes.map(_.accept(converter).get)
     (convertedExpressions.toArray, unconvertedRexNodes)
   }
@@ -135,7 +133,6 @@ object RexNodeExtractor extends Logging {
    */
   def extractConjunctiveConditions(
       expr: RexNode,
-      maxCnfNodeCount: Int,
       rexBuilder: RexBuilder,
       converter: RexNodeToExpressionConverter): (Array[RexNode], Array[RexNode]) = {
     // converts the expanded expression to conjunctive normal form,
@@ -147,7 +144,7 @@ object RexNodeExtractor extends Logging {
     } else {
       expr
     }
-    val cnf = FlinkRexUtil.toCnf(rexBuilder, maxCnfNodeCount, rewrite)
+    val cnf = FlinkRexUtil.toCnf(rexBuilder, rewrite)
     // converts the cnf condition to a list of AND conditions
     val conjunctions = RelOptUtil.conjunctions(cnf)
 
@@ -166,16 +163,11 @@ object RexNodeExtractor extends Logging {
   @VisibleForTesting
   def extractPartitionPredicates(
       expr: RexNode,
-      maxCnfNodeCount: Int,
       inputFieldNames: Array[String],
       rexBuilder: RexBuilder,
       partitionFieldNames: Array[String]): (RexNode, RexNode) = {
-    val (partitionPredicates, nonPartitionPredicates) = extractPartitionPredicateList(
-      expr,
-      maxCnfNodeCount,
-      inputFieldNames,
-      rexBuilder,
-      partitionFieldNames)
+    val (partitionPredicates, nonPartitionPredicates) =
+      extractPartitionPredicateList(expr, inputFieldNames, rexBuilder, partitionFieldNames)
     val partitionPredicate = RexUtil.composeConjunction(rexBuilder, partitionPredicates)
     val nonPartitionPredicate = RexUtil.composeConjunction(rexBuilder, nonPartitionPredicates)
     (partitionPredicate, nonPartitionPredicate)
@@ -197,13 +189,12 @@ object RexNodeExtractor extends Logging {
    */
   def extractPartitionPredicateList(
       expr: RexNode,
-      maxCnfNodeCount: Int,
       inputFieldNames: Array[String],
       rexBuilder: RexBuilder,
       partitionFieldNames: Array[String]): (Seq[RexNode], Seq[RexNode]) = {
     // converts the expanded expression to conjunctive normal form,
     // like "(a AND b) OR c" will be converted to "(a OR c) AND (b OR c)"
-    val cnf = FlinkRexUtil.toCnf(rexBuilder, maxCnfNodeCount, expr)
+    val cnf = FlinkRexUtil.toCnf(rexBuilder, expr)
     // converts the cnf condition to a list of AND conditions
     val conjunctions = RelOptUtil.conjunctions(cnf)
 

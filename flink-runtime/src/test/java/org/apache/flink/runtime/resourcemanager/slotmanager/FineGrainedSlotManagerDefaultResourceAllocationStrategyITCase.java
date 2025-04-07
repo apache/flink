@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -172,7 +171,7 @@ class FineGrainedSlotManagerDefaultResourceAllocationStrategyITCase
      */
     @Test
     void testTimeoutForUnusedTaskManager() throws Exception {
-        final Time taskManagerTimeout = Time.milliseconds(50L);
+        final Duration taskManagerTimeout = Duration.ofMillis(50L);
 
         final CompletableFuture<InstanceID> releaseResourceFuture = new CompletableFuture<>();
         final AllocationID allocationId = new AllocationID();

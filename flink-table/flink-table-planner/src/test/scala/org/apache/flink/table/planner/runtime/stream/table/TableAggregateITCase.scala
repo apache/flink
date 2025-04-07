@@ -17,16 +17,14 @@
  */
 package org.apache.flink.table.planner.runtime.stream.table
 
-import org.apache.flink.api.common.time.Time
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.runtime.utils.{JavaUserDefinedTableAggFunctions, StreamingWithStateTestBase, TestData, TestingRetractSink}
+import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverloadedDoubleMaxFunction
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData.tupleData3
-import org.apache.flink.table.planner.utils.{TableAggSum, Top3, Top3Accum, Top3WithMapView, Top3WithRetractInput}
+import org.apache.flink.table.planner.utils._
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
@@ -301,7 +299,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
   @TestTemplate
   def testTableAggFunctionWithoutRetractionMethod(): Unit = {
     val top3 = new Top3
-    val source = env.fromCollection(tupleData3).toTable(tEnv, 'a, 'b, 'c)
+    val source = StreamingEnvUtil.fromCollection(env, tupleData3).toTable(tEnv, 'a, 'b, 'c)
 
     assertThatThrownBy(
       () => {

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -35,6 +34,7 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -53,7 +53,7 @@ public class JarDeleteHandler
 
     public JarDeleteHandler(
             final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            final Time timeout,
+            final Duration timeout,
             final Map<String, String> responseHeaders,
             final MessageHeaders<EmptyRequestBody, EmptyResponseBody, JarDeleteMessageParameters>
                     messageHeaders,

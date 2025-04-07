@@ -17,14 +17,12 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.TypeExtractor
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.MyPojo
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
-import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.{JavaTableFunc1, StringSplit}
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.table.types.AbstractDataType
 
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.junit.jupiter.api.{BeforeEach, Test}
@@ -158,7 +156,7 @@ class CalcTest extends TableTestBase {
   def testPojoType(): Unit = {
     util.addTableSource(
       "MyTable4",
-      Array[TypeInformation[_]](TypeExtractor.createTypeInfo(classOf[MyPojo])),
+      Array[AbstractDataType[_]](DataTypes.RAW(classOf[MyPojo])),
       Array("a"))
     util.verifyExecPlan("SELECT a FROM MyTable4")
   }
@@ -216,5 +214,20 @@ class CalcTest extends TableTestBase {
         |WHERE r > 10
         |""".stripMargin
     util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testRowTypeEquality(): Unit = {
+    util.addTable(s"""
+                     |CREATE TABLE src (
+                     |  my_row ROW(a INT, b STRING)
+                     |) WITH (
+                     |  'connector' = 'values'
+                     |  )
+                     |""".stripMargin)
+
+    util.verifyExecPlan(s"""
+                           |SELECT my_row = ROW(1, 'str') from src
+                           |""".stripMargin)
   }
 }

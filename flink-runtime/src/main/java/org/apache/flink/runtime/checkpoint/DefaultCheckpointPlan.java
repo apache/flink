@@ -208,8 +208,10 @@ public class DefaultCheckpointPlan implements CheckpointPlan {
                                 .filter(Objects::nonNull)
                                 .flatMap(
                                         operatorStateHandle ->
-                                                operatorStateHandle.getStateNameToPartitionOffsets()
-                                                        .values().stream())
+                                                operatorStateHandle
+                                                        .getStateNameToPartitionOffsets()
+                                                        .values()
+                                                        .stream())
                                 .anyMatch(
                                         stateMetaInfo ->
                                                 stateMetaInfo.getDistributionMode()
@@ -228,19 +230,21 @@ public class DefaultCheckpointPlan implements CheckpointPlan {
             Map<OperatorID, OperatorState> operatorStates) {
         // Completes the operator state for the fully finished operators
         for (ExecutionJobVertex jobVertex : fullyFinishedOrFinishedOnRestoreVertices.values()) {
-            for (OperatorIDPair operatorID : jobVertex.getOperatorIDs()) {
+            for (OperatorIDPair operatorIDPair : jobVertex.getOperatorIDs()) {
                 OperatorState operatorState =
-                        operatorStates.get(operatorID.getGeneratedOperatorID());
+                        operatorStates.get(operatorIDPair.getGeneratedOperatorID());
                 checkState(
                         operatorState == null || !operatorState.hasSubtaskStates(),
                         "There should be no states or only coordinator state reported for fully finished operators");
 
                 operatorState =
                         new FullyFinishedOperatorState(
-                                operatorID.getGeneratedOperatorID(),
+                                operatorIDPair.getUserDefinedOperatorName(),
+                                operatorIDPair.getUserDefinedOperatorUid(),
+                                operatorIDPair.getGeneratedOperatorID(),
                                 jobVertex.getParallelism(),
                                 jobVertex.getMaxParallelism());
-                operatorStates.put(operatorID.getGeneratedOperatorID(), operatorState);
+                operatorStates.put(operatorIDPair.getGeneratedOperatorID(), operatorState);
             }
         }
     }
@@ -260,6 +264,8 @@ public class DefaultCheckpointPlan implements CheckpointPlan {
                 if (operatorState == null) {
                     operatorState =
                             new OperatorState(
+                                    operatorIDPair.getUserDefinedOperatorName(),
+                                    operatorIDPair.getUserDefinedOperatorUid(),
                                     operatorIDPair.getGeneratedOperatorID(),
                                     jobVertex.getParallelism(),
                                     jobVertex.getMaxParallelism());

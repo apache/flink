@@ -56,27 +56,12 @@ DataStream<String> text = [...];
 DataStream<Tuple2<String, Integer>> wordCounts = text
     .flatMap(new LineSplitter())
     .keyBy(value -> value.f0)
-    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
     .sum(1).setParallelism(5);
 
 wordCounts.print();
 
 env.execute("Word Count Example");
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment
-
-val text = [...]
-val wordCounts = text
-    .flatMap{ _.split(" ") map { (_, 1) } }
-    .keyBy(_._1)
-    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
-    .sum(1).setParallelism(5)
-wordCounts.print()
-
-env.execute("Word Count Example")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -88,7 +73,7 @@ word_counts = text
     .flat_map(lambda x: x.split(" ")) \
     .map(lambda i: (i, 1), output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
     .key_by(lambda i: i[0]) \
-    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5))) \
     .reduce(lambda i, j: (i[0], i[1] + j[1])) \
     .set_parallelism(5)
 word_counts.print()
@@ -124,22 +109,6 @@ wordCounts.print();
 env.execute("Word Count Example");
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment
-env.setParallelism(3)
-
-val text = [...]
-val wordCounts = text
-    .flatMap{ _.split(" ") map { (_, 1) } }
-    .keyBy(_._1)
-    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
-    .sum(1)
-wordCounts.print()
-
-env.execute("Word Count Example")
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 env = StreamExecutionEnvironment.get_execution_environment()
@@ -150,7 +119,7 @@ word_counts = text
     .flat_map(lambda x: x.split(" ")) \
     .map(lambda i: (i, 1), output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
     .key_by(lambda i: i[0]) \
-    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5))) \
     .reduce(lambda i, j: (i[0], i[1] + j[1]))
 word_counts.print()
 
@@ -162,8 +131,7 @@ env.execute("Word Count Example")
 
 ### Client Level
 
-The parallelism can be set at the Client when submitting jobs to Flink. The
-Client can either be a Java or a Scala program. One example of such a Client is
+The parallelism can be set at the Client when submitting jobs to Flink. One example of such a Client is
 Flink's Command-line Interface (CLI).
 
 For the CLI client, the parallelism parameter can be specified with `-p`. For
@@ -172,7 +140,7 @@ example:
     ./bin/flink run -p 10 ../examples/*WordCount-java*.jar
 
 
-In a Java/Scala program, the parallelism is set as follows:
+In a client program, the parallelism is set as follows:
 
 {{< tabs "54c4adac-7461-40e9-b85c-69bbc0b3a36d" >}}
 {{< tab "Java" >}}
@@ -192,23 +160,6 @@ try {
     e.printStackTrace();
 }
 
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-try {
-    PackagedProgram program = new PackagedProgram(file, args)
-    InetSocketAddress jobManagerAddress = RemoteExecutor.getInetFromHostport("localhost:6123")
-    Configuration config = new Configuration()
-
-    Client client = new Client(jobManagerAddress, new Configuration(), program.getUserCodeClassLoader())
-
-    // set the parallelism to 10 here
-    client.run(program, 10, true)
-
-} catch {
-    case e: Exception => e.printStackTrace
-}
 ```
 {{< /tab >}}
 {{< tab "Python" >}}

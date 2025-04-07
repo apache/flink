@@ -88,7 +88,7 @@ _string_doc_seealso = """
              :func:`~Expression.overlay`, :func:`~Expression.regexp_replace`,
              :func:`~Expression.regexp_extract`, :func:`~Expression.substring`,
              :py:attr:`~Expression.from_base64`, :py:attr:`~Expression.to_base64`,
-             :py:attr:`~Expression.ltrim`, :py:attr:`~Expression.rtrim`, :func:`~Expression.repeat`,
+             :func:`~Expression.ltrim`, :func:`~Expression.rtrim`, :func:`~Expression.repeat`,
              :func:`~Expression.json_quote`, :func:`~Expression.json_unquote`
 """
 
@@ -631,6 +631,12 @@ class Expression(Generic[T]):
         """
         return _binary_op("round")(self, places)
 
+    def concat(self, other: Union[str, 'Expression[str]']) -> 'Expression[str]':
+        """
+        Concatenates two strings.
+        """
+        return _binary_op("concat")(self, other)
+
     def between(self, lower_bound, upper_bound) -> 'Expression[bool]':
         """
         Returns true if the given expression is between lower_bound and upper_bound
@@ -853,6 +859,31 @@ class Expression(Generic[T]):
         gateway = get_gateway()
         return _ternary_op("as")(self, name, to_jarray(gateway.jvm.String, extra_names))
 
+    def as_argument(self, name: str) -> 'Expression':
+        """
+        Converts this expression into a named argument.
+
+        If the function declares a static signature (usually indicated by the "=>" assignment
+        operator), the framework is able to reorder named arguments and consider optional arguments
+        accordingly, before passing them into the function call.
+
+        .. note::
+            Not every function supports named arguments. Named arguments are not available for
+            signatures that are overloaded, use varargs, or any other kind of input type strategy.
+
+        Example:
+        ::
+
+            >>> table.select(
+            ...     call(
+            ...         "MyFunction",
+            ...         col("my_column").as_argument("input"),
+            ...         lit(42).as_argument("threshold")
+            ...     )
+            ... )
+        """
+        return _binary_op("asArgument")(self, name)
+
     def cast(self, data_type: DataType) -> 'Expression':
         """
         Returns a new value being cast to type type.
@@ -1006,6 +1037,17 @@ class Expression(Generic[T]):
         """
         return _unary_op("hex")(self)
 
+    @property
+    def unhex(self) -> 'Expression':
+        """
+        Converts hexadecimal string expr to BINARY.
+        If the length of expr is odd, the first character is discarded
+        and the result is left padded with a null byte.
+
+        :return: a BINARY. null if expr is null or expr contains non-hex characters.
+        """
+        return _unary_op("unhex")(self)
+
     def truncate(self, n: Union[int, 'Expression[int]'] = 0) -> 'Expression[T]':
         """
         Returns a number of truncated to n decimal places.
@@ -1015,7 +1057,54 @@ class Expression(Generic[T]):
         """
         return _binary_op("truncate")(self, n)
 
+    def percentile(self, percentage, frequency=None) -> 'Expression':
+        """
+        Returns the exact percentile value of expr at the specified percentage in a group.
+
+        percentage must be a literal numeric value between [0.0, 1.0] or an array of such values.
+        If a variable expression is passed to this function, the result will be calculated using
+        any one of them. frequency describes how many times expr should be counted, the default
+        value is 1.
+
+        If no expr lies exactly at the desired percentile, the result is calculated using linear
+        interpolation of the two nearest exprs. If expr or frequency is null, or frequency is not
+        positive, the input row will be ignored.
+
+        NOTE: It is recommended to use this function in a window scenario, as it typically offers
+        better performance. In a regular group aggregation scenario, users should be aware of the
+        performance overhead caused by a full sort triggered by each record.
+
+        :param percentage: A NUMERIC NOT NULL or ARRAY<NUMERIC NOT NULL> NOT NULL expression.
+        :param frequency: An optional INTEGER_NUMERIC expression.
+        :return: A DOUBLE if percentage is numeric, or an ARRAY<DOUBLE> if percentage is an
+                 array. null if percentage is an empty array.
+        """
+        if frequency is None:
+            return _binary_op("percentile")(self, percentage)
+        else:
+            return _ternary_op("percentile")(self, percentage, frequency)
+
     # ---------------------------- string functions ----------------------------------
+
+    def starts_with(self, start_expr) -> 'Expression':
+        """
+        Returns whether expr starts with start_expr. If start_expr is empty, the result is true.
+        expr and start_expr should have same type.
+
+        :param start_expr: A STRING or BINARY expression.
+        :return: A BOOLEAN.
+        """
+        return _binary_op("startsWith")(self, start_expr)
+
+    def ends_with(self, end_expr) -> 'Expression':
+        """
+        Returns whether expr ends with end_expr. If end_expr is empty, the result is true.
+        expr and end_expr should have same type.
+
+        :param end_expr: A STRING or BINARY expression.
+        :return: A BOOLEAN.
+        """
+        return _binary_op("endsWith")(self, end_expr)
 
     def substring(self,
                   begin_index: Union[int, 'Expression[int]'],
@@ -1124,12 +1213,19 @@ class Expression(Generic[T]):
         """
         return _unary_op("initCap")(self)
 
-    def like(self, pattern: Union[str, 'Expression[str]'] = None) -> 'Expression[bool]':
+    def like(self,
+             pattern: Union[str, 'Expression[str]'] = None,
+             escape=None) -> 'Expression[bool]':
         """
-        Returns true, if a string matches the specified LIKE pattern.
-        e.g. 'Jo_n%' matches all strings that start with 'Jo(arbitrary letter)n'
+        Returns true, if a string matches the specified LIKE pattern
+        e.g. 'Jo_n%' matches all strings that start with 'Jo(arbitrary letter)n'.
+        An escape character consisting of a single char can be defined if necessary,
+        '\\' by default.
         """
-        return _binary_op("like")(self, pattern)
+        if escape is None:
+            return _binary_op("like")(self, pattern)
+        else:
+            return _ternary_op("like")(self, pattern, escape)
 
     def similar(self, pattern: Union[str, 'Expression[str]'] = None) -> 'Expression[bool]':
         """
@@ -1193,6 +1289,17 @@ class Expression(Generic[T]):
         """
         return _binary_op("regexp")(self, regex)
 
+    def regexp_count(self, regex) -> 'Expression':
+        """
+        Returns the number of times str matches the regex pattern.
+        regex must be a Java regular expression.
+        null if any of the arguments are null or regex is invalid.
+
+        :param regex: A STRING expression with a matching pattern.
+        :return: An INTEGER representation of the number of matches.
+        """
+        return _binary_op("regexpCount")(self, regex)
+
     def regexp_replace(self,
                        regex: Union[str, 'Expression[str]'],
                        replacement: Union[str, 'Expression[str]']) -> 'Expression[str]':
@@ -1210,9 +1317,48 @@ class Expression(Generic[T]):
         group index.
         """
         if extract_index is None:
-            return _ternary_op("regexpExtract")(self, regex)
+            return _binary_op("regexpExtract")(self, regex)
         else:
             return _ternary_op("regexpExtract")(self, regex, extract_index)
+
+    def regexp_extract_all(self, regex, extract_index=None) -> 'Expression':
+        """
+        Extracts all the substrings in str that match the regex expression and correspond to the
+        regex group extract_index.
+        regex may contain multiple groups. extract_index indicates which regex group to extract and
+        starts from 1, also the default value if not specified. 0 means matching the entire
+        regular expression.
+        null if any of the arguments are null or invalid.
+
+        :param regex: A STRING expression with a matching pattern.
+        :param extract_index: An optional INTEGER expression with default 1.
+        :return: An ARRAY<STRING> of all the matched substrings.
+        """
+        if extract_index is None:
+            return _binary_op("regexpExtractAll")(self, regex)
+        else:
+            return _ternary_op("regexpExtractAll")(self, regex, extract_index)
+
+    def regexp_instr(self, regex) -> 'Expression':
+        """
+        Returns the position of the first substring in str that matches regex.
+        Result indexes begin at 1, 0 if there is no match.
+        null if any of the arguments are null or regex is invalid.
+
+        :param regex: A STRING expression with a matching pattern.
+        :return: An INTEGER representation of the first matched substring index.
+        """
+        return _binary_op("regexpInstr")(self, regex)
+
+    def regexp_substr(self, regex) -> 'Expression':
+        """
+        Returns the first substring in str that matches regex.
+        null if any of the arguments are null or regex is invalid or pattern is not found.
+
+        :param regex: A STRING expression with a matching pattern.
+        :return: A STRING representation of the first matched substring.
+        """
+        return _binary_op("regexpSubstr")(self, regex)
 
     @property
     def from_base64(self) -> 'Expression[str]':
@@ -1310,19 +1456,39 @@ class Expression(Generic[T]):
         else:
             return _ternary_op("parseUrl")(self, part_to_extract, key)
 
-    @property
-    def ltrim(self) -> 'Expression[str]':
+    def printf(self, *obj) -> 'Expression':
         """
-        Returns a string that removes the left whitespaces from the given string.
-        """
-        return _unary_op("ltrim")(self)
+        Returns a formatted string from printf-style format strings.
+        The function exploits the java.util.Formatter class with Locale.US.
 
-    @property
-    def rtrim(self) -> 'Expression[str]':
+        :param obj: any expression
+        :return: a formatted string. null if format is null or invalid.
         """
-        Returns a string that removes the right whitespaces from the given string.
+        gateway = get_gateway()
+        ApiExpressionUtils = gateway.jvm.org.apache.flink.table.expressions.ApiExpressionUtils
+        exprs = [ApiExpressionUtils.objectToExpression(_get_java_expression(e))
+                 for e in obj]
+        return _binary_op("printf")(self, to_jarray(gateway.jvm.Object, exprs))
+
+    def ltrim(self, trim_str=None) -> 'Expression[str]':
         """
-        return _unary_op("rtrim")(self)
+        Removes any leading characters within trim_str from str.
+        trim_str is set to whitespace by default.
+        """
+        if trim_str is None:
+            return _unary_op("ltrim")(self)
+        else:
+            return _binary_op("ltrim")(self, trim_str)
+
+    def rtrim(self, trim_str=None) -> 'Expression[str]':
+        """
+        Removes any trailing characters within trim_str from str.
+        trim_str is set to whitespace by default.
+        """
+        if trim_str is None:
+            return _unary_op("rtrim")(self)
+        else:
+            return _binary_op("rtrim")(self, trim_str)
 
     def btrim(self, trim_str=None) -> 'Expression':
         """
@@ -1383,6 +1549,22 @@ class Expression(Generic[T]):
             return _unary_op("strToMap")(self)
         else:
             return _ternary_op("strToMap")(self, list_delimiter, key_value_delimiter)
+
+    def elt(self, expr, *exprs) -> 'Expression':
+        """
+        Returns the index-th expression. null if index is null or out of range.
+        index must be an integer between 1 and the number of expressions.
+
+        :param expr: a STRING or BINARY expression
+        :param exprs: a STRING or BINARY expression
+
+        :return: result type is the least common type of all expressions.
+        """
+        gateway = get_gateway()
+        ApiExpressionUtils = gateway.jvm.org.apache.flink.table.expressions.ApiExpressionUtils
+        expr_list = [ApiExpressionUtils.objectToExpression(_get_java_expression(e))
+                     for e in exprs]
+        return _ternary_op("elt")(self, expr, to_jarray(gateway.jvm.Object, expr_list))
 
     # ---------------------------- temporal functions ----------------------------------
 

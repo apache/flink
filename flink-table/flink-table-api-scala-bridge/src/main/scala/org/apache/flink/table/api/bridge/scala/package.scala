@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.api.bridge
 
-import org.apache.flink.streaming.api.scala.DataStream
+import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{ImplicitExpressionConversions, ImplicitExpressionOperations, Table, ValidationException}
 import org.apache.flink.table.api.internal.TableImpl
 import org.apache.flink.types.Row

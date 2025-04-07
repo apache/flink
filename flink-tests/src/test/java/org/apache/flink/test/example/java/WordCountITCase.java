@@ -19,7 +19,7 @@
 
 package org.apache.flink.test.example.java;
 
-import org.apache.flink.examples.java.wordcount.WordCount;
+import org.apache.flink.streaming.examples.wordcount.WordCount;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 
@@ -39,7 +39,7 @@ public class WordCountITCase extends JavaProgramTestBaseJUnit4 {
 
     @Override
     protected void postSubmit() throws Exception {
-        compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath);
+        compareResultsByLinesInMemory(WordCountData.COUNTS_AS_TUPLES, resultPath);
     }
 
     @Override
@@ -47,7 +47,8 @@ public class WordCountITCase extends JavaProgramTestBaseJUnit4 {
         WordCount.main(
                 new String[] {
                     "--input", textPath,
-                    "--output", resultPath
+                    "--output", resultPath,
+                    "--execution-mode", "BATCH"
                 });
     }
 }

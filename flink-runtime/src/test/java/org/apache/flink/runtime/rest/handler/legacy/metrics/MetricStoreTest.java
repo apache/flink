@@ -133,7 +133,7 @@ class MetricStoreTest {
         store.add(cd);
 
         // -----verify that no side effects occur
-        assertThat(store.getJobManager().metrics).isEmpty();
+        assertThat(store.getJobManagerMetricStore().metrics).isEmpty();
         assertThat(store.getTaskManagers()).isEmpty();
         assertThat(store.getJobs()).isEmpty();
     }

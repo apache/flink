@@ -74,7 +74,7 @@ public class BytesColumnReader extends AbstractColumnReader<WritableBytesVector>
             int rowId, int num, WritableBytesVector column, WritableIntVector dictionaryIds) {
         for (int i = rowId; i < rowId + num; ++i) {
             if (!column.isNullAt(i)) {
-                byte[] bytes = dictionary.decodeToBinary(dictionaryIds.getInt(i)).getBytes();
+                byte[] bytes = dictionary.decodeToBinary(dictionaryIds.getInt(i)).getBytesUnsafe();
                 column.appendBytes(i, bytes, 0, bytes.length);
             }
         }

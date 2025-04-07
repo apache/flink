@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.execution.CheckpointType;
@@ -56,7 +55,6 @@ import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.PartitionTrackerFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -103,6 +101,7 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation.ResolutionMode;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -142,7 +141,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * JobMaster implementation. The job master is responsible for the execution of a single {@link
- * JobGraph}.
+ * ExecutionPlan}.
  *
  * <p>It offers the following methods as part of its rpc interface to interact with the JobMaster
  * remotely:
@@ -163,9 +162,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
     private final ResourceID resourceId;
 
-    private final JobGraph jobGraph;
+    private final ExecutionPlan executionPlan;
 
-    private final Time rpcTimeout;
+    private final Duration rpcTimeout;
 
     private final HighAvailabilityServices highAvailabilityServices;
 
@@ -255,7 +254,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
             JobMasterId jobMasterId,
             JobMasterConfiguration jobMasterConfiguration,
             ResourceID resourceId,
-            JobGraph jobGraph,
+            ExecutionPlan executionPlan,
             HighAvailabilityServices highAvailabilityService,
             SlotPoolServiceSchedulerFactory slotPoolServiceSchedulerFactory,
             JobManagerSharedServices jobManagerSharedServices,
@@ -277,7 +276,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                 rpcService,
                 RpcServiceUtils.createRandomName(JOB_MANAGER_NAME),
                 jobMasterId,
-                MdcUtils.asContextData(jobGraph.getJobID()));
+                MdcUtils.asContextData(executionPlan.getJobID()));
 
         final ExecutionDeploymentReconciliationHandler executionStateReconciliationHandler =
                 new ExecutionDeploymentReconciliationHandler() {
@@ -318,8 +317,10 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                         }
                     }
                 };
-        final String jobName = jobGraph.getName();
-        final JobID jid = jobGraph.getJobID();
+        final String jobName = executionPlan.getName();
+        final JobID jid = executionPlan.getJobID();
+
+        this.executionPlan = checkNotNull(executionPlan);
 
         log.info("Initializing job '{}' ({}).", jobName, jid);
 
@@ -329,7 +330,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
         this.jobMasterConfiguration = checkNotNull(jobMasterConfiguration);
         this.resourceId = checkNotNull(resourceId);
-        this.jobGraph = checkNotNull(jobGraph);
         this.rpcTimeout = jobMasterConfiguration.getRpcTimeout();
         this.highAvailabilityServices = checkNotNull(highAvailabilityService);
         this.blobWriter = jobManagerSharedServices.getBlobWriter();
@@ -375,7 +375,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
         this.shuffleMaster = checkNotNull(shuffleMaster);
 
-        this.jobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
+        this.jobManagerJobMetricGroup = jobMetricGroupFactory.create(executionPlan);
         this.jobStatusListener = new JobManagerJobStatusListener();
 
         this.failureEnrichers = checkNotNull(failureEnrichers);
@@ -406,7 +406,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         final SchedulerNG scheduler =
                 slotPoolServiceSchedulerFactory.createScheduler(
                         log,
-                        jobGraph,
+                        executionPlan,
                         ioExecutor,
                         jobMasterConfiguration.getConfiguration(),
                         slotPoolService,
@@ -470,23 +470,27 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     /** Suspend the job and shutdown all other services including rpc. */
     @Override
     public CompletableFuture<Void> onStop() {
-        log.info(
-                "Stopping the JobMaster for job '{}' ({}).",
-                jobGraph.getName(),
-                jobGraph.getJobID());
+        try (MdcUtils.MdcCloseable ignored =
+                MdcUtils.withContext(MdcUtils.asContextData(executionPlan.getJobID()))) {
+            log.info(
+                    "Stopping the JobMaster for job '{}' ({}).",
+                    executionPlan.getName(),
+                    executionPlan.getJobID());
 
-        // make sure there is a graceful exit
-        return stopJobExecution(
-                        new FlinkException(
-                                String.format(
-                                        "Stopping JobMaster for job '%s' (%s).",
-                                        jobGraph.getName(), jobGraph.getJobID())))
-                .exceptionally(
-                        exception -> {
-                            throw new CompletionException(
-                                    new JobMasterException(
-                                            "Could not properly stop the JobMaster.", exception));
-                        });
+            // make sure there is a graceful exit
+            return stopJobExecution(
+                            new FlinkException(
+                                    String.format(
+                                            "Stopping JobMaster for job '%s' (%s).",
+                                            executionPlan.getName(), executionPlan.getJobID())))
+                    .exceptionally(
+                            exception -> {
+                                throw new CompletionException(
+                                        new JobMasterException(
+                                                "Could not properly stop the JobMaster.",
+                                                exception));
+                            });
+        }
     }
 
     // ----------------------------------------------------------------------------------------------
@@ -494,7 +498,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     // ----------------------------------------------------------------------------------------------
 
     @Override
-    public CompletableFuture<Acknowledge> cancel(Time timeout) {
+    public CompletableFuture<Acknowledge> cancel(Duration timeout) {
         schedulerNG.cancel();
 
         return CompletableFuture.completedFuture(Acknowledge.get());
@@ -583,7 +587,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
             taskManagerRegistration
                     .getTaskExecutorGateway()
-                    .disconnectJobManager(jobGraph.getJobID(), cause);
+                    .disconnectJobManager(executionPlan.getJobID(), cause);
         }
 
         return CompletableFuture.completedFuture(Acknowledge.get());
@@ -597,12 +601,14 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
             final long checkpointId,
             final CheckpointMetrics checkpointMetrics,
             @Nullable final SerializedValue<TaskStateSnapshot> checkpointState) {
-        schedulerNG.acknowledgeCheckpoint(
-                jobID,
-                executionAttemptID,
-                checkpointId,
-                checkpointMetrics,
-                deserializeTaskStateSnapshot(checkpointState, getClass().getClassLoader()));
+        try (MdcUtils.MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobID))) {
+            schedulerNG.acknowledgeCheckpoint(
+                    jobID,
+                    executionAttemptID,
+                    checkpointId,
+                    checkpointMetrics,
+                    deserializeTaskStateSnapshot(checkpointState, getClass().getClassLoader()));
+        }
     }
 
     @Override
@@ -710,7 +716,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
     @Override
     public CompletableFuture<Collection<SlotOffer>> offerSlots(
-            final ResourceID taskManagerId, final Collection<SlotOffer> slots, final Time timeout) {
+            final ResourceID taskManagerId,
+            final Collection<SlotOffer> slots,
+            final Duration timeout) {
 
         TaskManagerRegistration taskManagerRegistration = registeredTaskManagers.get(taskManagerId);
 
@@ -773,9 +781,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     public CompletableFuture<RegistrationResponse> registerTaskManager(
             final JobID jobId,
             final TaskManagerRegistrationInformation taskManagerRegistrationInformation,
-            final Time timeout) {
+            final Duration timeout) {
 
-        if (!jobGraph.getJobID().equals(jobId)) {
+        if (!executionPlan.getJobID().equals(jobId)) {
             log.debug(
                     "Rejecting TaskManager registration attempt because of wrong job id {}.",
                     jobId);
@@ -881,14 +889,29 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     public void disconnectResourceManager(
             final ResourceManagerId resourceManagerId, final Exception cause) {
 
-        if (isConnectingToResourceManager(resourceManagerId)) {
+        if (resourceManagerAddress == null) {
+            log.debug(
+                    "Disconnecting ResourceManager {} was triggered with no ResourceManager address "
+                            + "being set (anymore). That either indicates that the ResourceManager "
+                            + "lost leadership in the mean time or the message was received while "
+                            + "shutting down the JobMaster. No reconnect will be initiated.",
+                    resourceManagerId);
+        } else if (!resourceManagerAddress.getResourceManagerId().equals(resourceManagerId)) {
+            log.debug(
+                    "Disconnecting ResourceManager {} was received while this instance is currently "
+                            + "connected to another ResourceManager {} indicating that a ResourceManager "
+                            + "leader change happened. No reconnect will be initiated.",
+                    resourceManagerId,
+                    resourceManagerAddress.getResourceManagerId());
+        } else {
             reconnectToResourceManager(cause);
         }
     }
 
-    private boolean isConnectingToResourceManager(ResourceManagerId resourceManagerId) {
-        return resourceManagerAddress != null
-                && resourceManagerAddress.getResourceManagerId().equals(resourceManagerId);
+    private void shutdownResourceManagerConnection(Exception cause) {
+        // unsetting the resourceManagerAddress will prevent reconnection
+        resourceManagerAddress = null;
+        closeResourceManagerConnection(cause);
     }
 
     @Override
@@ -903,23 +926,23 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     }
 
     @Override
-    public CompletableFuture<JobStatus> requestJobStatus(Time timeout) {
+    public CompletableFuture<JobStatus> requestJobStatus(Duration timeout) {
         return CompletableFuture.completedFuture(schedulerNG.requestJobStatus());
     }
 
     @Override
-    public CompletableFuture<ExecutionGraphInfo> requestJob(Time timeout) {
+    public CompletableFuture<ExecutionGraphInfo> requestJob(Duration timeout) {
         return CompletableFuture.completedFuture(schedulerNG.requestJob());
     }
 
     @Override
-    public CompletableFuture<CheckpointStatsSnapshot> requestCheckpointStats(Time timeout) {
+    public CompletableFuture<CheckpointStatsSnapshot> requestCheckpointStats(Duration timeout) {
         return CompletableFuture.completedFuture(schedulerNG.requestCheckpointStats());
     }
 
     @Override
     public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(
-            final CheckpointType checkpointType, final Time timeout) {
+            final CheckpointType checkpointType, final Duration timeout) {
         return schedulerNG.triggerCheckpoint(checkpointType);
     }
 
@@ -928,7 +951,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
             @Nullable final String targetDirectory,
             final boolean cancelJob,
             final SavepointFormatType formatType,
-            final Time timeout) {
+            final Duration timeout) {
 
         return schedulerNG.triggerSavepoint(targetDirectory, cancelJob, formatType);
     }
@@ -938,7 +961,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
             @Nullable final String targetDirectory,
             final SavepointFormatType formatType,
             final boolean terminate,
-            final Time timeout) {
+            final Duration timeout) {
 
         return schedulerNG.stopWithSavepoint(targetDirectory, terminate, formatType);
     }
@@ -976,7 +999,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     public CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
             OperatorID operatorId,
             SerializedValue<CoordinationRequest> serializedRequest,
-            Time timeout) {
+            Duration timeout) {
         return this.sendRequestToCoordinator(operatorId, serializedRequest);
     }
 
@@ -1047,7 +1070,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
         taskManager
                 .getTaskExecutorGateway()
-                .getAndRetainPartitionWithMetrics(jobGraph.getJobID())
+                .getAndRetainPartitionWithMetrics(executionPlan.getJobID())
                 .thenAccept(
                         partitionWithMetrics -> {
                             if (fetchAndRetainPartitions) {
@@ -1074,7 +1097,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                                 taskManager
                                         .getTaskExecutorGateway()
                                         .releasePartitions(
-                                                jobGraph.getJobID(),
+                                                executionPlan.getJobID(),
                                                 partitionWithMetrics.stream()
                                                         .map(PartitionWithMetrics::getPartition)
                                                         .map(
@@ -1126,15 +1149,15 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     private void startJobExecution() throws Exception {
         validateRunsInMainThread();
 
-        JobShuffleContext context = new JobShuffleContextImpl(jobGraph.getJobID(), this);
+        JobShuffleContext context = new JobShuffleContextImpl(executionPlan.getJobID(), this);
         shuffleMaster.registerJob(context);
 
         startJobMasterServices();
 
         log.info(
                 "Starting execution of job '{}' ({}) under job master id {}.",
-                jobGraph.getName(),
-                jobGraph.getJobID(),
+                executionPlan.getName(),
+                executionPlan.getJobID(),
                 getFencingToken());
 
         startScheduling();
@@ -1192,13 +1215,18 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
         final CompletableFuture<Void> terminationFuture = stopScheduling();
 
-        return FutureUtils.runAfterwards(
+        return FutureUtils.runAfterwardsAsync(
                 terminationFuture,
                 () -> {
-                    shuffleMaster.unregisterJob(jobGraph.getJobID());
-                    disconnectTaskManagerResourceManagerConnections(cause);
-                    stopJobMasterServices();
-                });
+                    try (MdcUtils.MdcCloseable ignored =
+                            MdcUtils.withContext(
+                                    MdcUtils.asContextData(executionPlan.getJobID()))) {
+                        shuffleMaster.unregisterJob(executionPlan.getJobID());
+                        disconnectTaskManagerResourceManagerConnections(cause);
+                        stopJobMasterServices();
+                    }
+                },
+                getMainThreadExecutor());
     }
 
     private void disconnectTaskManagerResourceManagerConnections(Exception cause) {
@@ -1210,8 +1238,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
             disconnectTaskManager(taskManagerResourceId, cause);
         }
 
-        // disconnect from resource manager:
-        closeResourceManagerConnection(cause);
+        shutdownResourceManagerConnection(cause);
     }
 
     private void stopHeartbeatServices() {
@@ -1331,7 +1358,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         resourceManagerConnection =
                 new ResourceManagerConnection(
                         log,
-                        jobGraph.getJobID(),
+                        executionPlan.getJobID(),
                         resourceId,
                         getAddress(),
                         getFencingToken(),
@@ -1413,7 +1440,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         ResourceManagerGateway resourceManagerGateway =
                 establishedResourceManagerConnection.getResourceManagerGateway();
         resourceManagerGateway.disconnectJobManager(
-                jobGraph.getJobID(), schedulerNG.requestJobStatus(), cause);
+                executionPlan.getJobID(), schedulerNG.requestJobStatus(), cause);
         blocklistHandler.deregisterBlocklistListener(resourceManagerGateway);
         slotPoolService.disconnectResourceManager();
     }
@@ -1469,10 +1496,12 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         @Override
         public void notifyLeaderAddress(final String leaderAddress, final UUID leaderSessionID) {
             runAsync(
-                    () ->
-                            notifyOfNewResourceManagerLeader(
-                                    leaderAddress,
-                                    ResourceManagerId.fromUuidOrNull(leaderSessionID)));
+                    MdcUtils.wrapRunnable(
+                            MdcUtils.asContextData(executionPlan.getJobID()),
+                            () ->
+                                    notifyOfNewResourceManagerLeader(
+                                            leaderAddress,
+                                            ResourceManagerId.fromUuidOrNull(leaderSessionID))));
         }
 
         @Override
@@ -1539,7 +1568,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                         ResourceManagerGateway gateway,
                         ResourceManagerId fencingToken,
                         long timeoutMillis) {
-                    Time timeout = Time.milliseconds(timeoutMillis);
+                    Duration timeout = Duration.ofMillis(timeoutMillis);
 
                     return gateway.registerJobMaster(
                             jobMasterId,
@@ -1653,13 +1682,16 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
         @Override
         public void notifyHeartbeatTimeout(final ResourceID resourceId) {
-            final String message =
-                    String.format(
-                            "The heartbeat of ResourceManager with id %s timed out.",
-                            resourceId.getStringWithMetadata());
-            log.info(message);
+            try (MdcUtils.MdcCloseable ignored =
+                    MdcUtils.withContext(MdcUtils.asContextData(executionPlan.getJobID()))) {
+                final String message =
+                        String.format(
+                                "The heartbeat of ResourceManager with id %s timed out.",
+                                resourceId.getStringWithMetadata());
+                log.info(message);
 
-            handleResourceManagerConnectionLoss(resourceId, new TimeoutException(message));
+                handleResourceManagerConnectionLoss(resourceId, new TimeoutException(message));
+            }
         }
 
         private void handleResourceManagerConnectionLoss(ResourceID resourceId, Exception cause) {
@@ -1674,13 +1706,16 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
         @Override
         public void notifyTargetUnreachable(ResourceID resourceID) {
-            final String message =
-                    String.format(
-                            "ResourceManager with id %s is no longer reachable.",
-                            resourceID.getStringWithMetadata());
-            log.info(message);
+            try (MdcUtils.MdcCloseable ignored =
+                    MdcUtils.withContext(MdcUtils.asContextData(executionPlan.getJobID()))) {
+                final String message =
+                        String.format(
+                                "ResourceManager with id %s is no longer reachable.",
+                                resourceID.getStringWithMetadata());
+                log.info(message);
 
-            handleResourceManagerConnectionLoss(resourceID, new JobMasterException(message));
+                handleResourceManagerConnectionLoss(resourceID, new JobMasterException(message));
+            }
         }
 
         @Override

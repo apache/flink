@@ -18,7 +18,6 @@
 
 package org.apache.flink.cep.pattern;
 
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -213,30 +212,12 @@ public class Quantifier {
             return to;
         }
 
-        /** @deprecated Use {@link #getWindowSize()}. */
-        @Deprecated
-        public Time getWindowTime() {
-            return getWindowSize().map(Time::of).orElse(null);
-        }
-
         public Optional<Duration> getWindowSize() {
             return Optional.ofNullable(windowTime);
         }
 
-        /** @deprecated Use {@link #of(int, int, Duration)} */
-        @Deprecated
-        public static Times of(int from, int to, @Nullable Time windowTime) {
-            return of(from, to, Time.toDuration(windowTime));
-        }
-
         public static Times of(int from, int to, @Nullable Duration windowTime) {
             return new Times(from, to, windowTime);
-        }
-
-        /** @deprecated Use {@link #of(int, Duration)} */
-        @Deprecated
-        public static Times of(int times, @Nullable Time windowTime) {
-            return of(times, Time.toDuration(windowTime));
         }
 
         public static Times of(int times, @Nullable Duration windowTime) {

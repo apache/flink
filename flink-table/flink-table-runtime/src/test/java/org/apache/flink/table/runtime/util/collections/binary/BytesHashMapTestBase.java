@@ -37,7 +37,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -47,7 +47,7 @@ import java.util.Random;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Base test class for both {@link BytesHashMap} and {@link WindowBytesHashMap}. */
-public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
+abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
 
     private static final int NUM_REWRITES = 10;
 
@@ -102,7 +102,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    public void testHashSetMode() throws IOException {
+    void testHashSetMode() throws IOException {
         final int numMemSegments =
                 needNumMemSegments(
                         NUM_ENTRIES,
@@ -124,7 +124,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
     }
 
     @Test
-    public void testBuildAndRetrieve() throws Exception {
+    void testBuildAndRetrieve() throws Exception {
 
         final int numMemSegments =
                 needNumMemSegments(
@@ -147,7 +147,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
     }
 
     @Test
-    public void testBuildAndUpdate() throws Exception {
+    void testBuildAndUpdate() throws Exception {
         final int numMemSegments =
                 needNumMemSegments(
                         NUM_ENTRIES,
@@ -170,7 +170,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
     }
 
     @Test
-    public void testRest() throws Exception {
+    void testRest() throws Exception {
         final int numMemSegments =
                 needNumMemSegments(
                         NUM_ENTRIES,
@@ -202,7 +202,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
     }
 
     @Test
-    public void testResetAndOutput() throws Exception {
+    void testResetAndOutput() throws Exception {
         final Random rnd = new Random(RANDOM_SEED);
         final int reservedMemSegments = 64;
 
@@ -267,7 +267,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
     }
 
     @Test
-    public void testSingleKeyMultipleOps() throws Exception {
+    void testSingleKeyMultipleOps() throws Exception {
         final int numMemSegments =
                 needNumMemSegments(
                         NUM_ENTRIES,

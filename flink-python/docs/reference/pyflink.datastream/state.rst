@@ -167,8 +167,5 @@ streams and keyed-/operator state backends concurrently.
 
     HashMapStateBackend
     EmbeddedRocksDBStateBackend
-    MemoryStateBackend
-    FsStateBackend
-    RocksDBStateBackend
     CustomStateBackend
     PredefinedOptions

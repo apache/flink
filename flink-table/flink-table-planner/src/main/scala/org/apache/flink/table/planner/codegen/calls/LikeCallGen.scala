@@ -57,15 +57,19 @@ class LikeCallGen extends CallGenerator {
             !pattern.contains("_")
           } else {
             val escape = operands(2).literalValue.get.toString
-            if (escape.length != 1) {
+            if ((escape.length == 2 && escape.charAt(0) != '\\') || escape.length > 2) {
               throw SqlLikeUtils.invalidEscapeCharacter(escape)
             }
-            val escapeChar = escape.charAt(0)
+            val escapeChar = escape.charAt(escape.length - 1)
             var matched = true
             var i = 0
             val newBuilder = new StringBuilder
             while (i < pattern.length && matched) {
-              val c = pattern.charAt(i)
+              var c = pattern.charAt(i)
+              if (c == '\\') {
+                i += 1
+                c = pattern.charAt(i)
+              }
               if (c == escapeChar) {
                 if (i == (pattern.length - 1)) {
                   throw SqlLikeUtils.invalidEscapeSequence(pattern, i)

@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -46,7 +45,7 @@ public class RpcUtils {
      * private method {@code checkMaxDelay()} in {@link
      * org.apache.pekko.actor.LightArrayRevolverScheduler}.
      */
-    public static final Time INF_TIMEOUT = Time.seconds(21474835);
+    public static final Duration INF_TIMEOUT = Duration.ofSeconds(21474835);
 
     public static final Duration INF_DURATION = Duration.ofSeconds(21474835);
 

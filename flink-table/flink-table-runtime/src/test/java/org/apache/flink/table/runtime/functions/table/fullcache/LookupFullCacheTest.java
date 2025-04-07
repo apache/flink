@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Unit test for {@link LookupFullCache}. */
-public class LookupFullCacheTest {
+class LookupFullCacheTest {
 
     private final TestManualCacheReloadTrigger reloadTrigger = new TestManualCacheReloadTrigger();
 

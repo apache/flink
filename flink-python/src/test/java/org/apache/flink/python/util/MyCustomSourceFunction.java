@@ -17,7 +17,7 @@
 
 package org.apache.flink.python.util;
 
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.types.Row;
 
 import java.util.Random;

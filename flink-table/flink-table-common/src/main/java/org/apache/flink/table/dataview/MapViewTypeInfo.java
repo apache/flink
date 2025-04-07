@@ -19,7 +19,6 @@
 package org.apache.flink.table.dataview;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -126,11 +125,6 @@ public class MapViewTypeInfo<K, V> extends TypeInformation<MapView<K, V>> {
                 return new MapViewSerializer<>(new MapSerializer<>(keySer, valueSer));
             }
         }
-    }
-
-    @Override
-    public TypeSerializer<MapView<K, V>> createSerializer(ExecutionConfig config) {
-        return createSerializer(config.getSerializerConfig());
     }
 
     @Override

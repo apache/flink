@@ -50,7 +50,7 @@ import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
@@ -61,7 +61,7 @@ import static org.apache.flink.table.data.util.DataFormatConverters.getConverter
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link DataFormatConverters}. */
-public class DataFormatConvertersTest {
+class DataFormatConvertersTest {
 
     private TypeInformation[] simpleTypes =
             new TypeInformation[] {
@@ -177,7 +177,7 @@ public class DataFormatConvertersTest {
     }
 
     @Test
-    public void testTypes() {
+    void testTypes() {
         for (int i = 0; i < simpleTypes.length; i++) {
             test(simpleTypes[i], simpleValues[i]);
         }
@@ -229,7 +229,7 @@ public class DataFormatConvertersTest {
     }
 
     @Test
-    public void testDataTypes() {
+    void testDataTypes() {
         for (int i = 0; i < dataTypes.length; i++) {
             testDataType(dataTypes[i], dataValues[i]);
         }

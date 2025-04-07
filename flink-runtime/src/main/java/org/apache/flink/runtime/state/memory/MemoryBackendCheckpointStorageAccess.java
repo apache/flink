@@ -30,6 +30,7 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.NotDuplicatingCheckpointStateToolset;
 import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory.MemoryCheckpointOutputStream;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 
 import javax.annotation.Nullable;
 
@@ -39,8 +40,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * An implementation of a checkpoint storage for the {@link MemoryStateBackend}. Depending on
- * whether this is created with a checkpoint location, the setup supports durable checkpoints
+ * An implementation of a checkpoint storage for the {@link JobManagerCheckpointStorage}. Depending
+ * on whether this is created with a checkpoint location, the setup supports durable checkpoints
  * (durable metadata) or not.
  */
 public class MemoryBackendCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess {

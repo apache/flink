@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
-import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
+import org.apache.flink.streaming.api.operators.legacy.YieldingOperatorFactory;
 
 import static org.apache.flink.streaming.util.retryable.AsyncRetryStrategies.NO_RETRY_STRATEGY;
 
@@ -70,6 +70,7 @@ public class AsyncWaitOperatorFactory<IN, OUT> extends AbstractStreamOperatorFac
             StreamOperatorParameters<OUT> parameters) {
         AsyncWaitOperator asyncWaitOperator =
                 new AsyncWaitOperator(
+                        parameters,
                         asyncFunction,
                         timeout,
                         capacity,
@@ -77,10 +78,6 @@ public class AsyncWaitOperatorFactory<IN, OUT> extends AbstractStreamOperatorFac
                         asyncRetryStrategy,
                         processingTimeService,
                         getMailboxExecutor());
-        asyncWaitOperator.setup(
-                parameters.getContainingTask(),
-                parameters.getStreamConfig(),
-                parameters.getOutput());
         return (T) asyncWaitOperator;
     }
 

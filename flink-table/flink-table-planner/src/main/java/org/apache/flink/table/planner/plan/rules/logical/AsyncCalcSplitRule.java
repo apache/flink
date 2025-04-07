@@ -59,6 +59,12 @@ public class AsyncCalcSplitRule {
     public static final RelOptRule NESTED_SPLIT = new AsyncCalcSplitNestedRule(ASYNC_CALL_FINDER);
     public static final RelOptRule ONE_PER_CALC_SPLIT =
             new AsyncCalcSplitOnePerCalcRule(ASYNC_CALL_FINDER);
+    public static final RelOptRule NO_ASYNC_JOIN_CONDITIONS =
+            new SplitRemoteConditionFromJoinRule(
+                    ASYNC_CALL_FINDER,
+                    JavaScalaConversionUtil.toScala(
+                            Optional.of(
+                                    "AsyncScalarFunction not supported for non inner join condition")));
 
     /**
      * An Async implementation of {@link RemoteCalcCallFinder} which finds uses of {@link

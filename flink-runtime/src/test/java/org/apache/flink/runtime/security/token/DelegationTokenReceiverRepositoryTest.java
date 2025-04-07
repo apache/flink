@@ -19,11 +19,13 @@
 package org.apache.flink.runtime.security.token;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.SecurityOptions;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
 import static org.apache.flink.core.security.token.DelegationTokenProvider.CONFIG_PREFIX;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -61,7 +63,7 @@ class DelegationTokenReceiverRepositoryTest {
     @Test
     public void testAllReceiversLoaded() {
         Configuration configuration = new Configuration();
-        configuration.setBoolean(CONFIG_PREFIX + ".throw.enabled", false);
+        configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".throw.enabled"), false);
         DelegationTokenReceiverRepository delegationTokenReceiverRepository =
                 new DelegationTokenReceiverRepository(configuration, null);
 
@@ -70,6 +72,21 @@ class DelegationTokenReceiverRepositoryTest {
         assertTrue(delegationTokenReceiverRepository.isReceiverLoaded("hbase"));
         assertTrue(delegationTokenReceiverRepository.isReceiverLoaded("test"));
         assertTrue(ExceptionThrowingDelegationTokenReceiver.constructed.get());
+        assertFalse(delegationTokenReceiverRepository.isReceiverLoaded("throw"));
+    }
+
+    @Test
+    public void testDelegationTokenDisabled() {
+        Configuration configuration = new Configuration();
+        configuration.set(SecurityOptions.DELEGATION_TOKENS_ENABLED, false);
+        DelegationTokenReceiverRepository delegationTokenReceiverRepository =
+                new DelegationTokenReceiverRepository(configuration, null);
+
+        assertEquals(0, delegationTokenReceiverRepository.delegationTokenReceivers.size());
+        assertFalse(delegationTokenReceiverRepository.isReceiverLoaded("hadoopfs"));
+        assertFalse(delegationTokenReceiverRepository.isReceiverLoaded("hbase"));
+        assertFalse(delegationTokenReceiverRepository.isReceiverLoaded("test"));
+        assertFalse(ExceptionThrowingDelegationTokenReceiver.constructed.get());
         assertFalse(delegationTokenReceiverRepository.isReceiverLoaded("throw"));
     }
 }

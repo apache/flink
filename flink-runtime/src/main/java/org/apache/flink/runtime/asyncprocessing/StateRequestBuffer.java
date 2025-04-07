@@ -18,14 +18,17 @@
 
 package org.apache.flink.runtime.asyncprocessing;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
-import java.util.Deque;
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.ListIterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
@@ -43,7 +46,7 @@ import java.util.function.Supplier;
  * @param <K> the type of the key
  */
 @NotThreadSafe
-public class StateRequestBuffer<K> {
+public class StateRequestBuffer<K> implements Closeable {
 
     /** All StateRequestBuffer in the same task manager share one ScheduledExecutorService. */
     private static final ScheduledThreadPoolExecutor DELAYER =
@@ -60,14 +63,14 @@ public class StateRequestBuffer<K> {
      * The state requests in this buffer could be executed when the buffer is full or configured
      * batch size is reached. All operations on this buffer must be invoked in task thread.
      */
-    final LinkedList<StateRequest<K, ?, ?>> activeQueue;
+    final LinkedList<StateRequest<K, ?, ?, ?>> activeQueue;
 
     /**
      * The requests in that should wait until all preceding records with identical key finishing its
      * execution. After which the queueing requests will move into the active buffer. All operations
      * on this buffer must be invoked in task thread.
      */
-    final Map<K, Deque<StateRequest<K, ?, ?>>> blockingQueue;
+    final Map<K, LinkedList<StateRequest<K, ?, ?, ?>>> blockingQueue;
 
     /** The number of state requests in blocking queue. */
     int blockingQueueSize;
@@ -75,44 +78,68 @@ public class StateRequestBuffer<K> {
     /** The timeout of {@link #activeQueue} triggering in milliseconds. */
     final long bufferTimeout;
 
+    /** The interval of periodic buffer timeout check. */
+    final long bufferTimeoutCheckInterval;
+
     /** The handler to trigger when timeout. */
     final Consumer<Long> timeoutHandler;
 
     /** The executor service that schedules and calls the triggers of this task. */
-    ScheduledExecutorService scheduledExecutor;
+    final ScheduledExecutorService scheduledExecutor;
 
     /**
      * The current scheduled future, when the next scheduling occurs, the previous one that has not
      * yet been executed will be canceled.
      */
-    ScheduledFuture<Void> currentScheduledFuture;
+    ScheduledFuture<?> currentScheduledFuture;
 
     /**
      * The current scheduled trigger sequence number, a timeout trigger is scheduled only if {@code
      * scheduledSeq} is less than {@code currentSeq}.
      */
-    AtomicLong scheduledSeq;
+    volatile Tuple2<Long, Long> seqAndTimeout = null;
 
     /**
      * The current trigger sequence number, used to distinguish different triggers. Every time a
      * trigger occurs, {@code currentSeq} increases by 1.
      */
-    AtomicLong currentSeq;
+    final AtomicLong currentSeq;
 
-    public StateRequestBuffer(long bufferTimeout, Consumer<Long> timeoutHandler) {
+    public StateRequestBuffer(
+            long bufferTimeout, long bufferTimeoutCheckInterval, Consumer<Long> timeoutHandler) {
         this.activeQueue = new LinkedList<>();
         this.blockingQueue = new HashMap<>();
         this.blockingQueueSize = 0;
         this.bufferTimeout = bufferTimeout;
+        this.bufferTimeoutCheckInterval = bufferTimeoutCheckInterval;
         this.timeoutHandler = timeoutHandler;
-        this.scheduledSeq = new AtomicLong(-1);
         this.currentSeq = new AtomicLong(0);
         if (bufferTimeout > 0) {
             this.scheduledExecutor = DELAYER;
+            initPeriodicTimeoutCheck();
+        } else {
+            this.scheduledExecutor = null;
         }
     }
 
+    private void initPeriodicTimeoutCheck() {
+        currentScheduledFuture =
+                scheduledExecutor.scheduleAtFixedRate(
+                        () -> {
+                            final Tuple2<Long, Long> theSeqAndTimeout = seqAndTimeout;
+                            if (theSeqAndTimeout != null
+                                    && theSeqAndTimeout.f0 == currentSeq.get()
+                                    && theSeqAndTimeout.f1 <= System.currentTimeMillis()) {
+                                timeoutHandler.accept(theSeqAndTimeout.f0);
+                            }
+                        },
+                        bufferTimeout,
+                        bufferTimeoutCheckInterval,
+                        TimeUnit.MILLISECONDS);
+    }
+
     void advanceSeq() {
+        seqAndTimeout = null;
         currentSeq.incrementAndGet();
     }
 
@@ -120,37 +147,45 @@ public class StateRequestBuffer<K> {
         return currentSeq.get() == seq;
     }
 
-    void enqueueToActive(StateRequest<K, ?, ?> request) {
-        if (request.getRequestType() == StateRequestType.SYNC_POINT) {
-            request.getFuture().complete(null);
-        } else {
-            activeQueue.add(request);
-            if (bufferTimeout > 0 && currentSeq.get() > scheduledSeq.get()) {
-                if (currentScheduledFuture != null
-                        && !currentScheduledFuture.isDone()
-                        && !currentScheduledFuture.isCancelled()) {
-                    currentScheduledFuture.cancel(false);
-                }
-                final long thisScheduledSeq = currentSeq.get();
-                scheduledSeq.set(thisScheduledSeq);
-                currentScheduledFuture =
-                        (ScheduledFuture<Void>)
-                                scheduledExecutor.schedule(
-                                        () -> {
-                                            if (thisScheduledSeq == currentSeq.get()) {
-                                                timeoutHandler.accept(thisScheduledSeq);
-                                            }
-                                        },
-                                        bufferTimeout,
-                                        TimeUnit.MILLISECONDS);
-            }
+    void enqueueToActive(StateRequest<K, ?, ?, ?> request) {
+        activeQueue.add(request);
+        if (bufferTimeout > 0 && seqAndTimeout == null) {
+            seqAndTimeout = Tuple2.of(currentSeq.get(), System.currentTimeMillis() + bufferTimeout);
         }
     }
 
-    void enqueueToBlocking(StateRequest<K, ?, ?> request) {
-        blockingQueue
-                .computeIfAbsent(request.getRecordContext().getKey(), k -> new LinkedList<>())
-                .add(request);
+    void enqueueToBlocking(StateRequest<K, ?, ?, ?> request) {
+        LinkedList<StateRequest<K, ?, ?, ?>> currentList =
+                blockingQueue.computeIfAbsent(
+                        request.getRecordContext().getKey(), k -> new LinkedList<>());
+        if (currentList.isEmpty()) {
+            currentList.addLast(request);
+        } else {
+            int priority = request.getRecordContext().getPriority();
+            if (priority == RecordContext.PRIORITY_MIN) {
+                currentList.addLast(request);
+            } else {
+                // Insert 'request' before the first element whose priority smaller than 'priority'
+                // This is a rare case with greater overhead.
+                boolean inserted = false;
+                ListIterator<StateRequest<K, ?, ?, ?>> iterator = currentList.listIterator(0);
+                while (!inserted && iterator.hasNext()) {
+                    StateRequest<K, ?, ?, ?> iterRequest = iterator.next();
+                    if (iterRequest.getRecordContext().getPriority() < priority) {
+                        iterator.previous(); // returns 'iterRequest' again.  But the real purpose
+                        // is to reset the iteration position
+                        // so that 'next()' would return 'iterRequest' again.
+                        iterator.add(request); // inserts before 'iterRequest'.
+                        inserted = true;
+                    }
+                }
+                if (!inserted) {
+                    // The priority of 'request' is the smallest, so it should be added to the end
+                    // of the queue.
+                    currentList.addLast(request);
+                }
+            }
+        }
         blockingQueueSize++;
     }
 
@@ -161,18 +196,17 @@ public class StateRequestBuffer<K> {
      * @return The first record context with the same key in blocking queue, null if no such record.
      */
     @Nullable
-    RecordContext<K> tryActivateOneByKey(K key) {
+    StateRequest<K, ?, ?, ?> unblockOneByKey(K key) {
         if (!blockingQueue.containsKey(key)) {
             return null;
         }
 
-        StateRequest<K, ?, ?> stateRequest = blockingQueue.get(key).removeFirst();
-        enqueueToActive(stateRequest);
+        StateRequest<K, ?, ?, ?> stateRequest = blockingQueue.get(key).removeFirst();
         if (blockingQueue.get(key).isEmpty()) {
             blockingQueue.remove(key);
         }
         blockingQueueSize--;
-        return stateRequest.getRecordContext();
+        return stateRequest;
     }
 
     /**
@@ -182,6 +216,15 @@ public class StateRequestBuffer<K> {
      */
     int blockingQueueSize() {
         return blockingQueueSize;
+    }
+
+    /**
+     * Get the number of different keys in blocking queue.
+     *
+     * @return the number of different keys in blocking queue.
+     */
+    int blockingKeyNum() {
+        return blockingQueue.size();
     }
 
     /**
@@ -212,5 +255,13 @@ public class StateRequestBuffer<K> {
             stateRequestContainer.offer(activeQueue.pop());
         }
         return Optional.of(stateRequestContainer);
+    }
+
+    @Override
+    public synchronized void close() throws IOException {
+        if (currentScheduledFuture != null) {
+            currentScheduledFuture.cancel(true);
+            currentScheduledFuture = null;
+        }
     }
 }

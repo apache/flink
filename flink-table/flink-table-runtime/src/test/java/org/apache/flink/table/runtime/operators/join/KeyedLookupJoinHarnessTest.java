@@ -44,7 +44,7 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -60,7 +60,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterR
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
 
 /** Harness tests for {@link KeyedLookupJoinWrapper}. */
-public class KeyedLookupJoinHarnessTest {
+class KeyedLookupJoinHarnessTest {
 
     private final InternalTypeInfo<RowData> inputRowType =
             InternalTypeInfo.ofFields(new IntType(), VarCharType.STRING_TYPE);
@@ -75,7 +75,7 @@ public class KeyedLookupJoinHarnessTest {
                     });
 
     @Test
-    public void testTemporalInnerJoin() throws Exception {
+    void testTemporalInnerJoin() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.INNER_JOIN, FilterOnTable.WITHOUT_FILTER, false);
 
@@ -112,7 +112,7 @@ public class KeyedLookupJoinHarnessTest {
     }
 
     @Test
-    public void testTemporalInnerJoinLookupKeyContainsPk() throws Exception {
+    void testTemporalInnerJoinLookupKeyContainsPk() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.INNER_JOIN, FilterOnTable.WITHOUT_FILTER, true);
 
@@ -146,7 +146,7 @@ public class KeyedLookupJoinHarnessTest {
     }
 
     @Test
-    public void testTemporalInnerJoinWithFilter() throws Exception {
+    void testTemporalInnerJoinWithFilter() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.INNER_JOIN, FilterOnTable.WITH_FILTER, false);
 
@@ -179,7 +179,7 @@ public class KeyedLookupJoinHarnessTest {
     }
 
     @Test
-    public void testTemporalInnerJoinWithFilterLookupKeyContainsPk() throws Exception {
+    void testTemporalInnerJoinWithFilterLookupKeyContainsPk() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.INNER_JOIN, FilterOnTable.WITH_FILTER, true);
 
@@ -207,7 +207,7 @@ public class KeyedLookupJoinHarnessTest {
     }
 
     @Test
-    public void testTemporalLeftJoin() throws Exception {
+    void testTemporalLeftJoin() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.LEFT_JOIN, FilterOnTable.WITHOUT_FILTER, false);
 
@@ -238,7 +238,7 @@ public class KeyedLookupJoinHarnessTest {
     }
 
     @Test
-    public void testTemporalLeftJoinLookupKeyContainsPk() throws Exception {
+    void testTemporalLeftJoinLookupKeyContainsPk() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.LEFT_JOIN, FilterOnTable.WITHOUT_FILTER, true);
 
@@ -268,7 +268,7 @@ public class KeyedLookupJoinHarnessTest {
     }
 
     @Test
-    public void testTemporalLeftJoinWithFilter() throws Exception {
+    void testTemporalLeftJoinWithFilter() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.LEFT_JOIN, FilterOnTable.WITH_FILTER, false);
 
@@ -311,7 +311,7 @@ public class KeyedLookupJoinHarnessTest {
     }
 
     @Test
-    public void testTemporalLeftJoinWithFilterLookupKeyContainsPk() throws Exception {
+    void testTemporalLeftJoinWithFilterLookupKeyContainsPk() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.LEFT_JOIN, FilterOnTable.WITH_FILTER, true);
 
@@ -351,7 +351,7 @@ public class KeyedLookupJoinHarnessTest {
     }
 
     @Test
-    public void testTemporalLeftJoinWithTtlLookupKeyContainsPk() throws Exception {
+    void testTemporalLeftJoinWithTtlLookupKeyContainsPk() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.LEFT_JOIN, FilterOnTable.WITH_FILTER, true, 1_000);
 
@@ -385,7 +385,7 @@ public class KeyedLookupJoinHarnessTest {
     }
 
     @Test
-    public void testTemporalInnerJoinWithTtlLookupKeyContainsPk() throws Exception {
+    void testTemporalInnerJoinWithTtlLookupKeyContainsPk() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.INNER_JOIN, FilterOnTable.WITH_FILTER, true, 1_000);
 

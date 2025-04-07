@@ -17,8 +17,7 @@
  */
 package org.apache.flink.table.planner.runtime.utils
 
-import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{Table, TableEnvironment}
+import org.apache.flink.table.api._
 
 import scala.collection.mutable
 import scala.util.Random

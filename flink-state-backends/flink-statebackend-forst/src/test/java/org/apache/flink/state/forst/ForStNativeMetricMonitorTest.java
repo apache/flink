@@ -20,6 +20,7 @@ package org.apache.flink.state.forst;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.events.EventBuilder;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
@@ -28,10 +29,10 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.traces.SpanBuilder;
 
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.RocksDBException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.RocksDBException;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -223,7 +224,7 @@ class ForStNativeMetricMonitorTest {
         }
 
         @Override
-        public void addSpan(SpanBuilder spanBuilder) {}
+        public void addSpan(SpanBuilder spanBuilder, AbstractMetricGroup<?> group) {}
 
         @Override
         public void register(Metric metric, String metricName, AbstractMetricGroup group) {
@@ -238,6 +239,9 @@ class ForStNativeMetricMonitorTest {
 
         @Override
         public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {}
+
+        @Override
+        public void addEvent(EventBuilder eventBuilder, AbstractMetricGroup<?> group) {}
 
         @Override
         public ScopeFormats getScopeFormats() {

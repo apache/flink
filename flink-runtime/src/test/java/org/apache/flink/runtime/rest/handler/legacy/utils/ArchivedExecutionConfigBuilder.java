@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.legacy.utils;
 
 import org.apache.flink.api.common.ArchivedExecutionConfig;
-import org.apache.flink.api.common.ExecutionMode;
 
 import java.util.Collections;
 import java.util.Map;
@@ -74,7 +73,6 @@ public class ArchivedExecutionConfigBuilder {
 
     public ArchivedExecutionConfig build() {
         return new ArchivedExecutionConfig(
-                executionMode != null ? executionMode : ExecutionMode.PIPELINED.name(),
                 restartStrategyDescription != null ? restartStrategyDescription : "default",
                 maxParallelism,
                 parallelism,

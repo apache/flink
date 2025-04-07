@@ -27,8 +27,8 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.util.Collector;
 
 import org.slf4j.Logger;
@@ -95,7 +95,7 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
                 .map(new StatefulCounterFunction())
 
                 // -------------- third vertex - reducer and the sink ----------------
-                .keyBy("prefix")
+                .keyBy(x -> x.prefix)
                 .flatMap(new OnceFailingAggregator(failurePos))
                 .addSink(new ValidatingSink());
     }

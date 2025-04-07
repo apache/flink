@@ -18,11 +18,8 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.runtime.checkpoint.CheckpointFailureManager;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 import org.junit.jupiter.api.Test;
 
@@ -38,7 +35,6 @@ class CheckpointExceptionHandlerConfigurationTest {
         StreamExecutionEnvironment streamExecutionEnvironment =
                 StreamExecutionEnvironment.getExecutionEnvironment();
         CheckpointConfig checkpointConfig = streamExecutionEnvironment.getCheckpointConfig();
-        assertThat(checkpointConfig.isFailOnCheckpointingErrors()).isTrue();
         assertThat(checkpointConfig.getTolerableCheckpointFailureNumber()).isZero();
     }
 
@@ -48,54 +44,7 @@ class CheckpointExceptionHandlerConfigurationTest {
                 StreamExecutionEnvironment.getExecutionEnvironment();
         CheckpointConfig checkpointConfig = streamExecutionEnvironment.getCheckpointConfig();
 
-        // use deprecated API to set not fail on checkpoint errors
-        checkpointConfig.setFailOnCheckpointingErrors(false);
-        assertThat(checkpointConfig.isFailOnCheckpointingErrors()).isFalse();
-        assertThat(checkpointConfig.getTolerableCheckpointFailureNumber())
-                .isEqualTo(CheckpointFailureManager.UNLIMITED_TOLERABLE_FAILURE_NUMBER);
-
-        // use new API to set tolerable declined checkpoint number
         checkpointConfig.setTolerableCheckpointFailureNumber(5);
         assertThat(checkpointConfig.getTolerableCheckpointFailureNumber()).isEqualTo(5);
-
-        // after we configure the tolerable declined checkpoint number, deprecated API would not
-        // take effect
-        checkpointConfig.setFailOnCheckpointingErrors(true);
-        assertThat(checkpointConfig.getTolerableCheckpointFailureNumber()).isEqualTo(5);
-    }
-
-    @Test
-    void testPropagationFailFromCheckpointConfig() {
-        try {
-            doTestPropagationFromCheckpointConfig(true);
-        } catch (IllegalArgumentException ignored) {
-            // ignored
-        }
-    }
-
-    @Test
-    void testPropagationDeclineFromCheckpointConfig() {
-        doTestPropagationFromCheckpointConfig(false);
-    }
-
-    public void doTestPropagationFromCheckpointConfig(boolean failTaskOnCheckpointErrors) {
-        StreamExecutionEnvironment streamExecutionEnvironment =
-                StreamExecutionEnvironment.getExecutionEnvironment();
-        streamExecutionEnvironment.setParallelism(1);
-        streamExecutionEnvironment.getCheckpointConfig().setCheckpointInterval(1000);
-        streamExecutionEnvironment
-                .getCheckpointConfig()
-                .setFailOnCheckpointingErrors(failTaskOnCheckpointErrors);
-        streamExecutionEnvironment
-                .addSource(
-                        new SourceFunction<Integer>() {
-
-                            @Override
-                            public void run(SourceContext<Integer> ctx) {}
-
-                            @Override
-                            public void cancel() {}
-                        })
-                .sinkTo(new DiscardingSink<>());
     }
 }

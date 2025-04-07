@@ -292,7 +292,9 @@ public final class DataTypeUtils {
         return flattenToNames(dataType, Collections.emptyList());
     }
 
-    /** @see DataTypeUtils#flattenToNames(DataType) */
+    /**
+     * @see DataTypeUtils#flattenToNames(DataType)
+     */
     public static List<String> flattenToNames(DataType dataType, List<String> existingNames) {
         final LogicalType type = dataType.getLogicalType();
         if (type.is(DISTINCT_TYPE)) {
@@ -323,6 +325,24 @@ public final class DataTypeUtils {
     /** Returns a PROCTIME data type. */
     public static DataType createProctimeDataType() {
         return new AtomicDataType(new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3));
+    }
+
+    /**
+     * {@link ResolvedSchema#toPhysicalRowDataType()} erases time attributes. This method keeps them
+     * during conversion for very specific use cases mostly in Table API.
+     */
+    public static DataType fromResolvedSchemaPreservingTimeAttributes(
+            ResolvedSchema resolvedSchema) {
+        final List<String> fieldNames = resolvedSchema.getColumnNames();
+        final List<DataType> fieldTypes = resolvedSchema.getColumnDataTypes();
+        return DataTypes.ROW(
+                        IntStream.range(0, fieldNames.size())
+                                .mapToObj(
+                                        pos ->
+                                                DataTypes.FIELD(
+                                                        fieldNames.get(pos), fieldTypes.get(pos)))
+                                .collect(Collectors.toList()))
+                .notNull();
     }
 
     private DataTypeUtils() {

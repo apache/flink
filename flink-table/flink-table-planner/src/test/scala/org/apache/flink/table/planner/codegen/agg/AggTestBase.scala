@@ -19,7 +19,6 @@ package org.apache.flink.table.planner.codegen.agg
 
 import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
-import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 import org.apache.flink.table.api.{DataTypes, EnvironmentSettings}
 import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
@@ -42,7 +41,7 @@ abstract class AggTestBase(isBatchMode: Boolean) {
 
   val typeFactory: FlinkTypeFactory =
     new FlinkTypeFactory(Thread.currentThread().getContextClassLoader, FlinkTypeSystem.INSTANCE)
-  val env = new ScalaStreamExecEnv(new LocalStreamEnvironment)
+  val env = new LocalStreamEnvironment
   private val tEnv = if (isBatchMode) {
     val settings = EnvironmentSettings.newInstance().inBatchMode().build()
     // use impl class instead of interface class to avoid
@@ -67,6 +66,7 @@ abstract class AggTestBase(isBatchMode: Boolean) {
   val aggInfo1: AggregateInfo = {
     val aggInfo = mock(classOf[AggregateInfo])
     val call = mock(classOf[AggregateCall])
+    updateFilter(call, -1)
     when(aggInfo.agg).thenReturn(call)
     when(call.getName).thenReturn("avg1")
     when(call.hasFilter).thenReturn(false)
@@ -82,6 +82,7 @@ abstract class AggTestBase(isBatchMode: Boolean) {
   val aggInfo2: AggregateInfo = {
     val aggInfo = mock(classOf[AggregateInfo])
     val call = mock(classOf[AggregateCall])
+    updateFilter(call, -1)
     when(aggInfo.agg).thenReturn(call)
     when(call.getName).thenReturn("avg2")
     when(call.hasFilter).thenReturn(false)
@@ -98,6 +99,7 @@ abstract class AggTestBase(isBatchMode: Boolean) {
   val aggInfo3: AggregateInfo = {
     val aggInfo = mock(classOf[AggregateInfo])
     val call = mock(classOf[AggregateCall])
+    updateFilter(call, -1)
     when(aggInfo.agg).thenReturn(call)
     when(call.getName).thenReturn("avg3")
     when(call.hasFilter).thenReturn(false)
@@ -118,4 +120,10 @@ abstract class AggTestBase(isBatchMode: Boolean) {
   val classLoader: ClassLoader = Thread.currentThread().getContextClassLoader
   val context: ExecutionContext = mock(classOf[ExecutionContext])
   when(context.getRuntimeContext).thenReturn(mock(classOf[RuntimeContext]))
+
+  private def updateFilter(call: AggregateCall, v: Int): Unit = {
+    val field = call.getClass.getField("filterArg")
+    field.setAccessible(true)
+    field.set(call, v)
+  }
 }

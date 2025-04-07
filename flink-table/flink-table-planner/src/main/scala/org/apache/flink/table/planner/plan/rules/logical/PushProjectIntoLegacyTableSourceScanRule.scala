@@ -18,9 +18,9 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.legacy.sources._
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable
 import org.apache.flink.table.planner.plan.utils._
-import org.apache.flink.table.sources._
 import org.apache.flink.util.CollectionUtil
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}

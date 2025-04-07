@@ -22,7 +22,7 @@ from typing import Optional
 from py4j.java_gateway import get_java_class
 
 from pyflink.java_gateway import get_gateway
-from pyflink.util.java_utils import to_j_flink_time, from_j_flink_time
+from pyflink.util.java_utils import to_j_duration, from_j_duration
 
 __all__ = ['RestartStrategies', 'RestartStrategyConfiguration']
 
@@ -92,7 +92,7 @@ class RestartStrategies(object):
                 self._j_restart_strategy_configuration = \
                     gateway.jvm.RestartStrategies\
                     .fixedDelayRestart(
-                        restart_attempts, to_j_flink_time(delay_between_attempts_interval))
+                        restart_attempts, to_j_duration(delay_between_attempts_interval))
                 super(RestartStrategies.FixedDelayRestartStrategyConfiguration, self)\
                     .__init__(self._j_restart_strategy_configuration)
             else:
@@ -103,7 +103,7 @@ class RestartStrategies(object):
             return self._j_restart_strategy_configuration.getRestartAttempts()
 
         def get_delay_between_attempts_interval(self) -> timedelta:
-            return from_j_flink_time(
+            return from_j_duration(
                 self._j_restart_strategy_configuration.getDelayBetweenAttemptsInterval())
 
     class FailureRateRestartStrategyConfiguration(RestartStrategyConfiguration):
@@ -129,8 +129,8 @@ class RestartStrategies(object):
                 self._j_restart_strategy_configuration = \
                     gateway.jvm.RestartStrategies\
                     .FailureRateRestartStrategyConfiguration(max_failure_rate,
-                                                             to_j_flink_time(failure_interval),
-                                                             to_j_flink_time(
+                                                             to_j_duration(failure_interval),
+                                                             to_j_duration(
                                                                  delay_between_attempts_interval))
                 super(RestartStrategies.FailureRateRestartStrategyConfiguration, self)\
                     .__init__(self._j_restart_strategy_configuration)
@@ -142,11 +142,11 @@ class RestartStrategies(object):
             return self._j_restart_strategy_configuration.getMaxFailureRate()
 
         def get_failure_interval(self) -> timedelta:
-            return from_j_flink_time(self._j_restart_strategy_configuration.getFailureInterval())
+            return from_j_duration(self._j_restart_strategy_configuration.getFailureInterval())
 
         def get_delay_between_attempts_interval(self) -> timedelta:
-            return from_j_flink_time(self._j_restart_strategy_configuration
-                                     .getDelayBetweenAttemptsInterval())
+            return from_j_duration(self._j_restart_strategy_configuration
+                                       .getDelayBetweenAttemptsInterval())
 
     class FallbackRestartStrategyConfiguration(RestartStrategyConfiguration):
         """

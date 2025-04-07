@@ -348,9 +348,14 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       tView1ShowCreateResult,
       Lists.newArrayList(
         Row.of(
-          s"""CREATE TEMPORARY VIEW `default_catalog`.`default_database`.`t_v1`(`a`, `b`, `c`) as
-             |SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
-             |FROM `default_catalog`.`default_database`.`T1`""".stripMargin
+          s"""CREATE TEMPORARY VIEW `default_catalog`.`default_database`.`t_v1` (
+             |  `a`,
+             |  `b`,
+             |  `c`
+             |)
+             |AS SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
+             |FROM `default_catalog`.`default_database`.`T1`
+             |""".stripMargin
         )
       )
     )
@@ -366,9 +371,14 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       tView2ShowCreateResult,
       Lists.newArrayList(
         Row.of(
-          s"""CREATE TEMPORARY VIEW `default_catalog`.`default_database`.`t_v2`(`d`, `e`, `f`) as
-             |SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
-             |FROM `default_catalog`.`default_database`.`T1`""".stripMargin
+          s"""CREATE TEMPORARY VIEW `default_catalog`.`default_database`.`t_v2` (
+             |  `d`,
+             |  `e`,
+             |  `f`
+             |)
+             |AS SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
+             |FROM `default_catalog`.`default_database`.`T1`
+             |""".stripMargin
         )
       )
     )
@@ -390,9 +400,14 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       view1ShowCreateResult,
       Lists.newArrayList(
         Row.of(
-          s"""CREATE VIEW `default_catalog`.`default_database`.`v1`(`a`, `b`, `c`) as
-             |SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
-             |FROM `default_catalog`.`default_database`.`T1`""".stripMargin
+          s"""CREATE VIEW `default_catalog`.`default_database`.`v1` (
+             |  `a`,
+             |  `b`,
+             |  `c`
+             |)
+             |AS SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
+             |FROM `default_catalog`.`default_database`.`T1`
+             |""".stripMargin
         )
       )
     )
@@ -408,9 +423,14 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       view2ShowCreateResult,
       Lists.newArrayList(
         Row.of(
-          s"""CREATE VIEW `default_catalog`.`default_database`.`v2`(`x`, `y`, `z`) as
-             |SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
-             |FROM `default_catalog`.`default_database`.`T1`""".stripMargin
+          s"""CREATE VIEW `default_catalog`.`default_database`.`v2` (
+             |  `x`,
+             |  `y`,
+             |  `z`
+             |)
+             |AS SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
+             |FROM `default_catalog`.`default_database`.`T1`
+             |""".stripMargin
         )
       )
     )
@@ -435,10 +455,13 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       showCreateLeftJoinGroupByViewResult,
       Lists.newArrayList(
         Row.of(
-          s"""CREATE VIEW `default_catalog`.`default_database`.`viewLeftJoinGroupBy`(`max_value`) as
-             |SELECT MAX(`t1`.`a`) AS `max_value`
+          s"""CREATE VIEW `default_catalog`.`default_database`.`viewLeftJoinGroupBy` (
+             |  `max_value`
+             |)
+             |AS SELECT MAX(`t1`.`a`) AS `max_value`
              |FROM `default_catalog`.`default_database`.`t1`
-             |LEFT JOIN `default_catalog`.`default_database`.`t2` ON `t1`.`c` = `t2`.`c`""".stripMargin
+             |LEFT JOIN `default_catalog`.`default_database`.`t2` ON `t1`.`c` = `t2`.`c`
+             |""".stripMargin
         )
       )
     )
@@ -468,10 +491,15 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       showCreateCrossJoinViewResult,
       Lists.newArrayList(
         Row.of(
-          s"""CREATE VIEW `default_catalog`.`default_database`.`viewWithCrossJoin`(`a`, `a1`, `b2`) as
-             |SELECT `udfEqualsOne`() AS `a`, `t1`.`a` AS `a1`, `t2`.`b` AS `b2`
+          s"""CREATE VIEW `default_catalog`.`default_database`.`viewWithCrossJoin` (
+             |  `a`,
+             |  `a1`,
+             |  `b2`
+             |)
+             |AS SELECT `udfEqualsOne`() AS `a`, `t1`.`a` AS `a1`, `t2`.`b` AS `b2`
              |FROM `default_catalog`.`default_database`.`t1`
-             |CROSS JOIN `default_catalog`.`default_database`.`t2`""".stripMargin
+             |CROSS JOIN `default_catalog`.`default_database`.`t2`
+             |""".stripMargin
         )
       )
     )
@@ -497,10 +525,14 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       showCreateInnerJoinViewResult,
       Lists.newArrayList(
         Row.of(
-          s"""CREATE VIEW `default_catalog`.`default_database`.`innerJoinView`(`a1`, `b2`) as
-             |SELECT `t1`.`a` AS `a1`, `t2`.`b` AS `b2`
+          s"""CREATE VIEW `default_catalog`.`default_database`.`innerJoinView` (
+             |  `a1`,
+             |  `b2`
+             |)
+             |AS SELECT `t1`.`a` AS `a1`, `t2`.`b` AS `b2`
              |FROM `default_catalog`.`default_database`.`t1`
-             |INNER JOIN `default_catalog`.`default_database`.`t2` ON `t1`.`c` = `t2`.`c`""".stripMargin
+             |INNER JOIN `default_catalog`.`default_database`.`t2` ON `t1`.`c` = `t2`.`c`
+             |""".stripMargin
         )
       )
     )

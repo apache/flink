@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
@@ -117,7 +117,7 @@ public interface StateBackend extends java.io.Serializable {
      *     backend.
      */
     @Experimental
-    default <K> AsyncKeyedStateBackend createAsyncKeyedStateBackend(
+    default <K> AsyncKeyedStateBackend<K> createAsyncKeyedStateBackend(
             KeyedStateBackendParameters<K> parameters) throws Exception {
         throw new UnsupportedOperationException(
                 "Don't support createAsyncKeyedStateBackend by default");
@@ -157,13 +157,13 @@ public interface StateBackend extends java.io.Serializable {
     }
 
     /**
-     * Tells if a state backend supports the {@link RestoreMode#NO_CLAIM} mode.
+     * Tells if a state backend supports the {@link RecoveryClaimMode#NO_CLAIM} mode.
      *
      * <p>If a state backend supports {@code NO_CLAIM} mode, it should create an independent
      * snapshot when it receives {@link CheckpointType#FULL_CHECKPOINT} in {@link
      * Snapshotable#snapshot(long, long, CheckpointStreamFactory, CheckpointOptions)}.
      *
-     * @return If the state backend supports {@link RestoreMode#NO_CLAIM} mode.
+     * @return If the state backend supports {@link RecoveryClaimMode#NO_CLAIM} mode.
      */
     default boolean supportsNoClaimRestoreMode() {
         return false;
@@ -181,7 +181,9 @@ public interface StateBackend extends java.io.Serializable {
      */
     @PublicEvolving
     interface KeyedStateBackendParameters<K> {
-        /** @return The runtime environment of the executing task. */
+        /**
+         * @return The runtime environment of the executing task.
+         */
         Environment getEnv();
 
         JobID getJobID();
@@ -192,12 +194,16 @@ public interface StateBackend extends java.io.Serializable {
 
         int getNumberOfKeyGroups();
 
-        /** @return Range of key-groups for which the to-be-created backend is responsible. */
+        /**
+         * @return Range of key-groups for which the to-be-created backend is responsible.
+         */
         KeyGroupRange getKeyGroupRange();
 
         TaskKvStateRegistry getKvStateRegistry();
 
-        /** @return Provider for TTL logic to judge about state expiration. */
+        /**
+         * @return Provider for TTL logic to judge about state expiration.
+         */
         TtlTimeProvider getTtlTimeProvider();
 
         MetricGroup getMetricGroup();
@@ -222,7 +228,9 @@ public interface StateBackend extends java.io.Serializable {
      */
     @PublicEvolving
     interface OperatorStateBackendParameters {
-        /** @return The runtime environment of the executing task. */
+        /**
+         * @return The runtime environment of the executing task.
+         */
         Environment getEnv();
 
         String getOperatorIdentifier();

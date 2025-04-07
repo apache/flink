@@ -24,7 +24,7 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis
 import org.apache.flink.table.functions.{FunctionIdentifier, UserDefinedFunctionHelper}
 import org.apache.flink.table.operations.TableSourceQueryOperation
-import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkTypeFactory}
+import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkTypeFactory, RexTableArgCall}
 import org.apache.flink.table.planner.delegation.PlannerContext
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
@@ -665,7 +665,8 @@ class FlinkRelMdHandlerTestBase {
       new ConstantRankRange(1, 5),
       new RelDataTypeFieldImpl("rk", 7, longType),
       outputRankNumber = true,
-      RankProcessStrategy.UNDEFINED_STRATEGY
+      RankProcessStrategy.UNDEFINED_STRATEGY,
+      sortOnRowTime = false
     )
 
     (logicalRank, flinkLogicalRank, batchLocalRank, batchGlobalRank, streamRank)
@@ -753,7 +754,8 @@ class FlinkRelMdHandlerTestBase {
       new ConstantRankRange(3, 5),
       new RelDataTypeFieldImpl("rk", 7, longType),
       outputRankNumber = true,
-      RankProcessStrategy.UNDEFINED_STRATEGY
+      RankProcessStrategy.UNDEFINED_STRATEGY,
+      sortOnRowTime = false
     )
 
     (logicalRank, flinkLogicalRank, batchLocalRank, batchGlobalRank, streamRank)
@@ -805,7 +807,8 @@ class FlinkRelMdHandlerTestBase {
       new ConstantRankRange(3, 6),
       new RelDataTypeFieldImpl("rn", 7, longType),
       outputRankNumber = true,
-      RankProcessStrategy.UNDEFINED_STRATEGY
+      RankProcessStrategy.UNDEFINED_STRATEGY,
+      sortOnRowTime = false
     )
 
     (logicalRowNumber, flinkLogicalRowNumber, streamRowNumber)
@@ -835,6 +838,7 @@ class FlinkRelMdHandlerTestBase {
   //  select a, b, c, rowtime
   //  ROW_NUMBER() over (partition by b, c order by rowtime desc) rn from TemporalTable3
   // ) t where rn <= 1
+  // canbe merged into rank
   protected lazy val (streamRowTimeDeduplicateFirstRow, streamRowTimeDeduplicateLastRow) = {
     buildFirstRowAndLastRowDeduplicateNode(true)
   }
@@ -845,13 +849,18 @@ class FlinkRelMdHandlerTestBase {
     val hash1 = FlinkRelDistribution.hash(Array(1), requireStrict = true)
     val streamExchange1 =
       new StreamPhysicalExchange(cluster, scan.getTraitSet.replace(hash1), scan, hash1)
-    val firstRow = new StreamPhysicalDeduplicate(
+    val firstRow = new StreamPhysicalRank(
       cluster,
       streamPhysicalTraits,
       streamExchange1,
-      Array(1),
-      isRowtime,
-      keepLastRow = false
+      ImmutableBitSet.of(1),
+      RelCollations.of(3),
+      RankType.ROW_NUMBER,
+      new ConstantRankRange(1, 1),
+      new RelDataTypeFieldImpl("rn", 7, longType),
+      outputRankNumber = false,
+      RankProcessStrategy.UNDEFINED_STRATEGY,
+      sortOnRowTime = isRowtime
     )
 
     val builder = typeFactory.builder()
@@ -874,13 +883,22 @@ class FlinkRelMdHandlerTestBase {
     val hash12 = FlinkRelDistribution.hash(Array(1, 2), requireStrict = true)
     val streamExchange2 =
       new BatchPhysicalExchange(cluster, scan.getTraitSet.replace(hash12), scan, hash12)
-    val lastRow = new StreamPhysicalDeduplicate(
+    val lastRow = new StreamPhysicalRank(
       cluster,
       streamPhysicalTraits,
       streamExchange2,
-      Array(1, 2),
-      isRowtime,
-      keepLastRow = true
+      ImmutableBitSet.of(1, 2),
+      RelCollations.of(
+        new RelFieldCollation(
+          3,
+          RelFieldCollation.Direction.DESCENDING,
+          RelFieldCollation.NullDirection.FIRST)),
+      RankType.ROW_NUMBER,
+      new ConstantRankRange(1, 1),
+      new RelDataTypeFieldImpl("rn", 7, longType),
+      outputRankNumber = false,
+      RankProcessStrategy.UNDEFINED_STRATEGY,
+      sortOnRowTime = false
     )
     val calcOfLastRow = new StreamPhysicalCalc(
       cluster,
@@ -903,12 +921,7 @@ class FlinkRelMdHandlerTestBase {
       streamTableScan,
       hash1)
     val table = streamTableScan.getTable.asInstanceOf[TableSourceTable]
-    new StreamPhysicalChangelogNormalize(
-      cluster,
-      streamPhysicalTraits,
-      streamExchange,
-      key,
-      table.contextResolvedTable)
+    new StreamPhysicalChangelogNormalize(cluster, streamPhysicalTraits, streamExchange, key)
   }
 
   protected lazy val streamDropUpdateBefore = {
@@ -962,7 +975,8 @@ class FlinkRelMdHandlerTestBase {
       new VariableRankRange(3),
       new RelDataTypeFieldImpl("rk", 7, longType),
       outputRankNumber = true,
-      RankProcessStrategy.UNDEFINED_STRATEGY
+      RankProcessStrategy.UNDEFINED_STRATEGY,
+      sortOnRowTime = false
     )
 
     (logicalRankWithVariableRange, flinkLogicalRankWithVariableRange, streamRankWithVariableRange)
@@ -3262,7 +3276,8 @@ class FlinkRelMdHandlerTestBase {
         ImmutableList.of(calcOnStudentScan),
         relBuilder.call(
           FlinkSqlOperatorTable.TUMBLE,
-          relBuilder.call(FlinkSqlOperatorTable.DESCRIPTOR, relBuilder.field(2)),
+          new RexTableArgCall(outputRowType, 0, Array(), Array()),
+          relBuilder.call(FlinkSqlOperatorTable.DESCRIPTOR, relBuilder.literal("ptime")),
           rexBuilder.makeIntervalLiteral(
             bd(600000L),
             new SqlIntervalQualifier(TimeUnit.MILLISECOND, null, SqlParserPos.ZERO))

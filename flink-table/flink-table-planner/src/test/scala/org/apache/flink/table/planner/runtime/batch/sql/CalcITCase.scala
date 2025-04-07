@@ -24,8 +24,7 @@ import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.{DATE, TIME, TIMESTA
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.common.typeinfo.Types.INSTANT
 import org.apache.flink.api.java.typeutils._
-import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException}
+import org.apache.flink.table.api.{createTypeInformation, DataTypes, ValidationException}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.config.ExecutionConfigOptions.LegacyCastBehaviour
 import org.apache.flink.table.catalog.CatalogDatabaseImpl
@@ -33,13 +32,12 @@ import org.apache.flink.table.data.{DecimalDataUtils, TimestampData}
 import org.apache.flink.table.data.util.DataFormatConverters.LocalDateConverter
 import org.apache.flink.table.planner.expressions.utils.{RichFunc1, RichFunc2, RichFunc3, SplitUDF}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalSortRule
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, TestData, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil.parseFieldNames
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils._
-import org.apache.flink.table.planner.utils.{DateTimeTestUtil, TestLegacyFilterableTableSource}
+import org.apache.flink.table.planner.utils.DateTimeTestUtil
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.utils.DateTimeUtils.toLocalDateTime
 import org.apache.flink.types.Row
@@ -1579,22 +1577,19 @@ class CalcITCase extends BatchTestBase {
       nullablesOfNullData3
     )
     tableConfig.set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(1))
-    tableConfig.set(BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED, Boolean.box(true))
 
-    assertThatThrownBy(
-      () =>
-        checkResult(
-          "select * from BinaryT order by c",
-          nullData3
-            .sortBy((x: Row) => x.getField(2).asInstanceOf[String])
-            .map(
-              r =>
-                row(
-                  r.getField(0),
-                  r.getField(1),
-                  r.getField(2).toString.getBytes(StandardCharsets.UTF_8))),
-          isSorted = true
-        )).isInstanceOf(classOf[UnsupportedOperationException])
+    checkResult(
+      "select * from BinaryT order by c",
+      nullData3
+        .sortBy((x: Row) => x.getField(2).asInstanceOf[String])
+        .map(
+          r =>
+            row(
+              r.getField(0),
+              r.getField(1),
+              r.getField(2).toString.getBytes(StandardCharsets.UTF_8))),
+      isSorted = true
+    )
   }
 
   @Test
@@ -1800,12 +1795,6 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testFilterPushDownWithInterval(): Unit = {
-    val schema = TableSchema
-      .builder()
-      .field("a", DataTypes.TIMESTAMP)
-      .field("b", DataTypes.TIMESTAMP)
-      .build()
-
     val data = List(
       row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 14:59:59")),
       row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 15:00:00")),
@@ -1815,13 +1804,18 @@ class CalcITCase extends BatchTestBase {
       row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 10:00:01"))
     )
 
-    TestLegacyFilterableTableSource.createTemporaryTable(
-      tEnv,
-      schema,
-      "myTable",
-      isBounded = true,
-      data,
-      Set("a", "b"))
+    val dataId = TestValuesTableFactory.registerData(data)
+    tEnv.executeSql(s"""
+                       |create table myTable(
+                       |  a TIMESTAMP(3),
+                       |  b TIMESTAMP(3)
+                       |) with (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId',
+                       |  'bounded' = 'true',
+                       |  'filterable-fields' = 'a,b'
+                       |)
+                       |""".stripMargin)
 
     checkResult(
       "SELECT * FROM myTable WHERE TIMESTAMPADD(HOUR, 5, a) >= b",

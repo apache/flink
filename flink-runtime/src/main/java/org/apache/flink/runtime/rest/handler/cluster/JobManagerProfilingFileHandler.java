@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.cluster;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -30,6 +29,7 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.Map;
 
 /** Rest handler which serves the profiler result file from JobManager. */
@@ -40,7 +40,7 @@ public class JobManagerProfilingFileHandler
 
     public JobManagerProfilingFileHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> responseHeaders,
             UntypedResponseMessageHeaders<EmptyRequestBody, ProfilingFileMessageParameters>
                     messageHeaders,

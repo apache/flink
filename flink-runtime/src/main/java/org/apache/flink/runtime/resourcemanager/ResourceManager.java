@@ -21,7 +21,6 @@ package org.apache.flink.runtime.resourcemanager;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.blocklist.BlockedNode;
@@ -116,8 +115,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>It offers the following methods as part of its rpc interface to interact with him remotely:
  *
  * <ul>
- *   <li>{@link #registerJobMaster(JobMasterId, ResourceID, String, JobID, Time)} registers a {@link
- *       JobMaster} at the resource manager
+ *   <li>{@link #registerJobMaster(JobMasterId, ResourceID, String, JobID, Duration)} registers a
+ *       {@link JobMaster} at the resource manager
  * </ul>
  */
 public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
@@ -138,7 +137,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     /** Service to retrieve the job leader ids. */
     private final JobLeaderIdService jobLeaderIdService;
 
-    /** All currently registered TaskExecutors with there framework specific worker information. */
+    /** All currently registered TaskExecutors with their framework specific worker information. */
     private final Map<ResourceID, WorkerRegistration<WorkerType>> taskExecutors;
 
     /** Ongoing registration of TaskExecutors per resource ID. */
@@ -162,6 +161,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     protected final Executor ioExecutor;
 
     private final CompletableFuture<Void> startedFuture;
+
     /** The heartbeat manager with task managers. */
     private HeartbeatManager<TaskExecutorHeartbeatPayload, Void> taskManagerHeartbeatManager;
 
@@ -189,7 +189,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             ClusterInformation clusterInformation,
             FatalErrorHandler fatalErrorHandler,
             ResourceManagerMetricGroup resourceManagerMetricGroup,
-            Time rpcTimeout,
+            Duration rpcTimeout,
             Executor ioExecutor) {
 
         super(
@@ -366,107 +366,114 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             final ResourceID jobManagerResourceId,
             final String jobManagerAddress,
             final JobID jobId,
-            final Time timeout) {
+            final Duration timeout) {
 
         checkNotNull(jobMasterId);
         checkNotNull(jobManagerResourceId);
         checkNotNull(jobManagerAddress);
         checkNotNull(jobId);
 
-        if (!jobLeaderIdService.containsJob(jobId)) {
+        try (MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobId))) {
+            if (!jobLeaderIdService.containsJob(jobId)) {
+                try {
+                    jobLeaderIdService.addJob(jobId);
+                } catch (Exception e) {
+                    ResourceManagerException exception =
+                            new ResourceManagerException(
+                                    "Could not add the job "
+                                            + jobId
+                                            + " to the job id leader service.",
+                                    e);
+
+                    onFatalError(exception);
+
+                    log.error("Could not add job {} to job leader id service.", jobId, e);
+                    return FutureUtils.completedExceptionally(exception);
+                }
+            }
+
+            log.info(
+                    "Registering job manager {}@{} for job {}.",
+                    jobMasterId,
+                    jobManagerAddress,
+                    jobId);
+
+            CompletableFuture<JobMasterId> jobMasterIdFuture;
+
             try {
-                jobLeaderIdService.addJob(jobId);
+                jobMasterIdFuture = jobLeaderIdService.getLeaderId(jobId);
             } catch (Exception e) {
+                // we cannot check the job leader id so let's fail
+                // TODO: Maybe it's also ok to skip this check in case that we cannot check the
+                // leader id
                 ResourceManagerException exception =
                         new ResourceManagerException(
-                                "Could not add the job " + jobId + " to the job id leader service.",
+                                "Cannot obtain the "
+                                        + "job leader id future to verify the correct job leader.",
                                 e);
 
                 onFatalError(exception);
 
-                log.error("Could not add job {} to job leader id service.", jobId, e);
+                log.debug(
+                        "Could not obtain the job leader id future to verify the correct job leader.");
                 return FutureUtils.completedExceptionally(exception);
             }
-        }
 
-        log.info(
-                "Registering job manager {}@{} for job {}.", jobMasterId, jobManagerAddress, jobId);
+            CompletableFuture<JobMasterGateway> jobMasterGatewayFuture =
+                    getRpcService().connect(jobManagerAddress, jobMasterId, JobMasterGateway.class);
 
-        CompletableFuture<JobMasterId> jobMasterIdFuture;
+            CompletableFuture<RegistrationResponse> registrationResponseFuture =
+                    jobMasterGatewayFuture.thenCombineAsync(
+                            jobMasterIdFuture,
+                            (JobMasterGateway jobMasterGateway, JobMasterId leadingJobMasterId) -> {
+                                if (Objects.equals(leadingJobMasterId, jobMasterId)) {
+                                    return registerJobMasterInternal(
+                                            jobMasterGateway,
+                                            jobId,
+                                            jobManagerAddress,
+                                            jobManagerResourceId);
+                                } else {
+                                    final String declineMessage =
+                                            String.format(
+                                                    "The leading JobMaster id %s did not match the received JobMaster id %s. "
+                                                            + "This indicates that a JobMaster leader change has happened.",
+                                                    leadingJobMasterId, jobMasterId);
+                                    log.debug(declineMessage);
+                                    return new RegistrationResponse.Failure(
+                                            new FlinkException(declineMessage));
+                                }
+                            },
+                            getMainThreadExecutor(jobId));
 
-        try {
-            jobMasterIdFuture = jobLeaderIdService.getLeaderId(jobId);
-        } catch (Exception e) {
-            // we cannot check the job leader id so let's fail
-            // TODO: Maybe it's also ok to skip this check in case that we cannot check the leader
-            // id
-            ResourceManagerException exception =
-                    new ResourceManagerException(
-                            "Cannot obtain the "
-                                    + "job leader id future to verify the correct job leader.",
-                            e);
-
-            onFatalError(exception);
-
-            log.debug(
-                    "Could not obtain the job leader id future to verify the correct job leader.");
-            return FutureUtils.completedExceptionally(exception);
-        }
-
-        CompletableFuture<JobMasterGateway> jobMasterGatewayFuture =
-                getRpcService().connect(jobManagerAddress, jobMasterId, JobMasterGateway.class);
-
-        CompletableFuture<RegistrationResponse> registrationResponseFuture =
-                jobMasterGatewayFuture.thenCombineAsync(
-                        jobMasterIdFuture,
-                        (JobMasterGateway jobMasterGateway, JobMasterId leadingJobMasterId) -> {
-                            if (Objects.equals(leadingJobMasterId, jobMasterId)) {
-                                return registerJobMasterInternal(
-                                        jobMasterGateway,
-                                        jobId,
+            // handle exceptions which might have occurred in one of the futures inputs of combine
+            return registrationResponseFuture.handleAsync(
+                    (RegistrationResponse registrationResponse, Throwable throwable) -> {
+                        if (throwable != null) {
+                            if (log.isDebugEnabled()) {
+                                log.debug(
+                                        "Registration of job manager {}@{} failed.",
+                                        jobMasterId,
                                         jobManagerAddress,
-                                        jobManagerResourceId);
+                                        throwable);
                             } else {
-                                final String declineMessage =
-                                        String.format(
-                                                "The leading JobMaster id %s did not match the received JobMaster id %s. "
-                                                        + "This indicates that a JobMaster leader change has happened.",
-                                                leadingJobMasterId, jobMasterId);
-                                log.debug(declineMessage);
-                                return new RegistrationResponse.Failure(
-                                        new FlinkException(declineMessage));
+                                log.info(
+                                        "Registration of job manager {}@{} failed.",
+                                        jobMasterId,
+                                        jobManagerAddress);
                             }
-                        },
-                        getMainThreadExecutor(jobId));
 
-        // handle exceptions which might have occurred in one of the futures inputs of combine
-        return registrationResponseFuture.handleAsync(
-                (RegistrationResponse registrationResponse, Throwable throwable) -> {
-                    if (throwable != null) {
-                        if (log.isDebugEnabled()) {
-                            log.debug(
-                                    "Registration of job manager {}@{} failed.",
-                                    jobMasterId,
-                                    jobManagerAddress,
-                                    throwable);
+                            return new RegistrationResponse.Failure(throwable);
                         } else {
-                            log.info(
-                                    "Registration of job manager {}@{} failed.",
-                                    jobMasterId,
-                                    jobManagerAddress);
+                            return registrationResponse;
                         }
-
-                        return new RegistrationResponse.Failure(throwable);
-                    } else {
-                        return registrationResponse;
-                    }
-                },
-                ioExecutor);
+                    },
+                    ioExecutor);
+        }
     }
 
     @Override
     public CompletableFuture<RegistrationResponse> registerTaskExecutor(
-            final TaskExecutorRegistration taskExecutorRegistration, final Time timeout) {
+            final TaskExecutorRegistration taskExecutorRegistration, final Duration timeout) {
 
         CompletableFuture<TaskExecutorGateway> taskExecutorGatewayFuture =
                 getRpcService()
@@ -503,7 +510,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             ResourceID taskManagerResourceId,
             InstanceID taskManagerRegistrationId,
             SlotReport slotReport,
-            Time timeout) {
+            Duration timeout) {
         final WorkerRegistration<WorkerType> workerTypeWorkerRegistration =
                 taskExecutors.get(taskManagerResourceId);
 
@@ -563,10 +570,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     @Override
     public void disconnectJobManager(
             final JobID jobId, JobStatus jobStatus, final Exception cause) {
-        if (jobStatus.isGloballyTerminalState()) {
-            removeJob(jobId, cause);
-        } else {
-            closeJobManagerConnection(jobId, ResourceRequirementHandling.RETAIN, cause);
+        try (MdcUtils.MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobId))) {
+            if (jobStatus.isGloballyTerminalState()) {
+                removeJob(jobId, cause);
+            } else {
+                closeJobManagerConnection(jobId, ResourceRequirementHandling.RETAIN, cause);
+            }
         }
     }
 
@@ -660,7 +669,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     }
 
     @Override
-    public CompletableFuture<Collection<TaskManagerInfo>> requestTaskManagerInfo(Time timeout) {
+    public CompletableFuture<Collection<TaskManagerInfo>> requestTaskManagerInfo(Duration timeout) {
 
         final ArrayList<TaskManagerInfo> taskManagerInfos = new ArrayList<>(taskExecutors.size());
 
@@ -690,7 +699,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
     @Override
     public CompletableFuture<TaskManagerInfoWithSlots> requestTaskManagerDetailsInfo(
-            ResourceID resourceId, Time timeout) {
+            ResourceID resourceId, Duration timeout) {
 
         final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(resourceId);
 
@@ -721,7 +730,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     }
 
     @Override
-    public CompletableFuture<ResourceOverview> requestResourceOverview(Time timeout) {
+    public CompletableFuture<ResourceOverview> requestResourceOverview(Duration timeout) {
         final int numberSlots = slotManager.getNumberRegisteredSlots();
         final ResourceProfile totalResource = slotManager.getRegisteredResource();
 
@@ -757,7 +766,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
     @Override
     public CompletableFuture<Collection<Tuple2<ResourceID, String>>>
-            requestTaskManagerMetricQueryServiceAddresses(Time timeout) {
+            requestTaskManagerMetricQueryServiceAddresses(Duration timeout) {
         final ArrayList<CompletableFuture<Optional<Tuple2<ResourceID, String>>>>
                 metricQueryServiceAddressFutures = new ArrayList<>(taskExecutors.size());
 
@@ -796,7 +805,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
     @Override
     public CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByType(
-            ResourceID taskManagerId, FileType fileType, Time timeout) {
+            ResourceID taskManagerId, FileType fileType, Duration timeout) {
         log.debug(
                 "Request {} file upload from TaskExecutor {}.",
                 fileType,
@@ -844,7 +853,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
     @Override
     public CompletableFuture<Collection<LogInfo>> requestTaskManagerLogList(
-            ResourceID taskManagerId, Time timeout) {
+            ResourceID taskManagerId, Duration timeout) {
         final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
         if (taskExecutor == null) {
             log.debug(
@@ -885,7 +894,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
     @Override
     public CompletableFuture<ThreadDumpInfo> requestThreadDump(
-            ResourceID taskManagerId, Time timeout) {
+            ResourceID taskManagerId, Duration timeout) {
         final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
 
         if (taskExecutor == null) {
@@ -936,7 +945,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     @Override
     @Local // Bug; see FLINK-27954
     public CompletableFuture<TaskExecutorThreadInfoGateway> requestTaskExecutorThreadInfoGateway(
-            ResourceID taskManagerId, Time timeout) {
+            ResourceID taskManagerId, Duration timeout) {
 
         final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
 
@@ -1422,28 +1431,28 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         @Override
         public void jobLeaderLostLeadership(final JobID jobId, final JobMasterId oldJobMasterId) {
             runAsync(
-                    new Runnable() {
-                        @Override
-                        public void run() {
-                            ResourceManager.this.jobLeaderLostLeadership(jobId, oldJobMasterId);
-                        }
-                    });
+                    MdcUtils.wrapRunnable(
+                            MdcUtils.asContextData(jobId),
+                            () ->
+                                    ResourceManager.this.jobLeaderLostLeadership(
+                                            jobId, oldJobMasterId)));
         }
 
         @Override
         public void notifyJobTimeout(final JobID jobId, final UUID timeoutId) {
             runAsync(
-                    new Runnable() {
-                        @Override
-                        public void run() {
-                            if (jobLeaderIdService.isValidTimeout(jobId, timeoutId)) {
-                                removeJob(
-                                        jobId,
-                                        new Exception(
-                                                "Job " + jobId + "was removed because of timeout"));
-                            }
-                        }
-                    });
+                    MdcUtils.wrapRunnable(
+                            MdcUtils.asContextData(jobId),
+                            () -> {
+                                if (jobLeaderIdService.isValidTimeout(jobId, timeoutId)) {
+                                    removeJob(
+                                            jobId,
+                                            new Exception(
+                                                    "Job "
+                                                            + jobId
+                                                            + "was removed because of timeout"));
+                                }
+                            }));
         }
 
         @Override
@@ -1528,10 +1537,14 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                         jmResourceIdRegistrations.get(resourceID);
 
                 if (jobManagerRegistration != null) {
-                    closeJobManagerConnection(
-                            jobManagerRegistration.getJobID(),
-                            ResourceRequirementHandling.RETAIN,
-                            cause);
+                    try (MdcUtils.MdcCloseable ignored =
+                            MdcUtils.withContext(
+                                    MdcUtils.asContextData(jobManagerRegistration.getJobID()))) {
+                        closeJobManagerConnection(
+                                jobManagerRegistration.getJobID(),
+                                ResourceRequirementHandling.RETAIN,
+                                cause);
+                    }
                 }
             }
         }

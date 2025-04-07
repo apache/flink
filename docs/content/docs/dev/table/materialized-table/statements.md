@@ -150,10 +150,10 @@ FRESHNESS = INTERVAL '5' HOUR
 - The materialized table data will be refreshed as closely as possible within the defined freshness but cannot guarantee complete satisfaction.
 - In CONTINUOUS mode, setting a data freshness interval that is too short can impact job performance as it aligns with the checkpoint interval. To optimize checkpoint performance, consider [enabling-changelog]({{< ref "docs/ops/state/state_backends" >}}#incremental-checkpoints).
 - In FULL mode, data freshness must be translated into a cron expression, consequently, only freshness intervals within predefined time spans are presently accommodated, this design ensures alignment with cron's capabilities. Specifically, support for the following freshness:
-    - Second: 30, 15, 10, 5, 2, and 1 second intervals.
-    - Minute: 30, 15, 10, 5, 2, and 1 minute intervals.
-    - Hour: 8, 4, 2, and 1 hour intervals.
-    - Day: 1 day.
+    - Second: 1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30.
+    - Minute: 1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30.
+    - Hour: 1, 2, 3, 4, 6, 8, 12.
+    - Day: 1.
 
 ## REFRESH_MODE
 
@@ -165,22 +165,22 @@ FRESHNESS = INTERVAL '5' HOUR
 ```sql
 -- The refresh mode of the created materialized table is CONTINUOUS, and the job's checkpoint interval is 1 hour.
 CREATE MATERIALIZED TABLE my_materialized_table
-    REFRESH_MODE = CONTINUOUS
     FRESHNESS = INTERVAL '1' HOUR
+    REFRESH_MODE = CONTINUOUS
     AS SELECT
        ...    
 
 -- The refresh mode of the created materialized table is FULL, and the job's schedule cycle is 10 minutes.
 CREATE MATERIALIZED TABLE my_materialized_table
-    REFRESH_MODE = FULL
     FRESHNESS = INTERVAL '10' MINUTE
+    REFRESH_MODE = FULL
     AS SELECT
        ...    
 ```
 
 ## AS <select_statement>
 
-This clause is used to define the query for populating materialized view data. The upstream table can be a materialized table, table, or view. The select statement supports all Flink SQL [Queries]({{< ref "docs/dev/table/sql/queries/overview" >}}).
+This clause is used to define the query for populating materialized table data. The upstream table can be a materialized table, table, or view. The select statement supports all Flink SQL [Queries]({{< ref "docs/dev/table/sql/queries/overview" >}}).
 
 **Example:**
 
@@ -192,7 +192,7 @@ CREATE MATERIALIZED TABLE my_materialized_table
 
 ## Examples
 
-**(Assuming `materialized-table.refresh-mode.freshness-threshold` is 30 minutes)**
+Assuming `materialized-table.refresh-mode.freshness-threshold` is 30 minutes.
 
 Create a materialized table with a data freshness of 10 seconds and the derived refresh mode is CONTINUOUS:
 
@@ -255,16 +255,18 @@ CREATE MATERIALIZED TABLE my_materialized_table_full
 ## Limitations
 
 - Does not support explicitly specifying columns
-- Does not support modified query statements
-- Does not support using temporary tables, temporary views, or temporary functions in the select query
+- Does not support referring to temporary tables, temporary views, or temporary functions in the select query
 
 # ALTER MATERIALIZED TABLE
 
 ```
-ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name SUSPEND | RESUME [WITH (key1=val1, key2=val2, ...)] | REFRESH [PARTITION partition_spec]
+ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name
+    SUSPEND | RESUME [WITH (key1=val1, key2=val2, ...)] |
+    REFRESH [PARTITION partition_spec] |
+    AS <select_statement>
 ```
 
-`ALTER MATERIALIZED TABLE` is used to manage materialized tables. This command allows users to suspend and resume refresh pipeline of materialized tables and manually trigger data refreshes.
+`ALTER MATERIALIZED TABLE` is used to manage materialized tables. This command allows users to suspend and resume refresh pipeline of materialized tables and manually trigger data refreshes, and modify the query definition of materialized tables.
 
 ## SUSPEND
 
@@ -325,6 +327,69 @@ ALTER MATERIALIZED TABLE my_materialized_table REFRESH PARTITION (ds='2024-06-28
 
 <span class="label label-danger">Note</span>
 - The REFRESH operation will start a Flink batch job to refresh the materialized table data.
+
+## AS <select_statement>
+
+```sql
+ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name AS <select_statement>
+```
+
+The `AS <select_statement>` clause allows you to modify the query definition for refreshing materialized table. It will first evolve the table's schema using the schema derived from the new query and then use the new query to refresh the table data. It is important to emphasize that, by default, this does not impact historical data.
+
+The modification process depends on the refresh mode of the materialized table:
+
+**Full mode:**
+
+1. Update the `schema` and `query definition` of the materialized table.
+2. The table is refreshed using the new query definition when the next refresh job is triggered:
+   - If it is a partitioned table and [partition.fields.#.date-formatter]({{< ref "docs/dev/table/config" >}}#partition-fields-date-formatter) is correctly set, only the latest partition will be refreshed.
+   - Otherwise, the table will be overwritten entirely.
+
+**Continuous mode:**
+
+1. Pause the current running refresh job.
+2. Update the `schema` and `query definition` of the materialized table.
+3. Start a new refresh job to refresh the materialized table:
+   - The new refresh job starts from the beginning and does not restore from the previous state.
+   - The starting offset of the data source is determined by the connector’s default implementation or the [dynamic hint]({{< ref "docs/dev/table/sql/queries/hints" >}}#dynamic-table-options) specified in the query.
+
+**Example:**
+
+```sql
+-- Definition of origin materialized table
+CREATE MATERIALIZED TABLE my_materialized_table
+    FRESHNESS = INTERVAL '10' SECOND
+    AS
+    SELECT
+        user_id,
+        COUNT(*) AS event_count,
+        SUM(amount) AS total_amount
+    FROM
+        kafka_catalog.db1.events
+    WHERE
+        event_type = 'purchase'
+    GROUP BY
+        user_id;
+
+-- Modify the query definition of materialized table
+ALTER MATERIALIZED TABLE my_materialized_table
+    AS
+    SELECT
+        user_id,
+        COUNT(*) AS event_count,
+        SUM(amount) AS total_amount,
+        AVG(amount) AS avg_amount  -- Add a new nullable column at the end
+    FROM
+        kafka_catalog.db1.events
+    WHERE
+        event_type = 'purchase'
+    GROUP BY
+        user_id;
+```
+
+<span class="label label-danger">Note</span>
+- Schema evolution currently only supports adding `nullable` columns to the end of the original table's schema.
+- In continuous mode, the new refresh job will not restore from the state of the original refresh job. This may result in temporary data duplication or loss.
 
 # DROP MATERIALIZED TABLE
 

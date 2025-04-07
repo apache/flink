@@ -37,8 +37,6 @@ abstract class JarMessageParameters extends MessageParameters {
 
     final ParallelismQueryParameter parallelismQueryParameter = new ParallelismQueryParameter();
 
-    final ProgramArgsQueryParameter programArgsQueryParameter = new ProgramArgsQueryParameter();
-
     final ProgramArgQueryParameter programArgQueryParameter = new ProgramArgQueryParameter();
 
     @Override
@@ -50,7 +48,6 @@ abstract class JarMessageParameters extends MessageParameters {
     public Collection<MessageQueryParameter<?>> getQueryParameters() {
         return Collections.unmodifiableList(
                 Arrays.asList(
-                        programArgsQueryParameter,
                         programArgQueryParameter,
                         entryClassQueryParameter,
                         parallelismQueryParameter));

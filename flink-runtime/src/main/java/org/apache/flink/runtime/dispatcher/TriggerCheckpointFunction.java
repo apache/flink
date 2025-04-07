@@ -19,9 +19,9 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.execution.CheckpointType;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -30,5 +30,5 @@ import java.util.concurrent.CompletableFuture;
  */
 @FunctionalInterface
 public interface TriggerCheckpointFunction {
-    CompletableFuture<Long> apply(JobID jobId, CheckpointType checkpointType, Time timeout);
+    CompletableFuture<Long> apply(JobID jobId, CheckpointType checkpointType, Duration timeout);
 }

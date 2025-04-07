@@ -917,8 +917,8 @@ public class TaskTest extends TestLogger {
         final TaskManagerActions taskManagerActions = new ProhibitFatalErrorTaskManagerActions();
 
         final Configuration config = new Configuration();
-        config.setLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL.key(), 5);
-        config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT.key(), 60 * 1000);
+        config.set(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, Duration.ofMillis(5));
+        config.set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, Duration.ofMillis(60 * 1000));
 
         final Task task =
                 createTaskBuilder()
@@ -933,6 +933,36 @@ public class TaskTest extends TestLogger {
 
         task.cancelExecution();
         task.getExecutingThread().join();
+    }
+
+    /**
+     * Tests that interrupt happens via watch dog if canceller is stuck in cancel. Task cancellation
+     * blocks the task canceller. Interrupt after cancel via cancellation watch dog.
+     */
+    @Test
+    public void testWatchDogThrowFatalErrorOnTaskStuckInInstantiation() throws Exception {
+        final InterruptOnFatalErrorTaskManagerActions taskManagerActions =
+                new InterruptOnFatalErrorTaskManagerActions();
+
+        final Configuration config = new Configuration();
+        config.set(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, Duration.ofMillis(5));
+        config.set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, Duration.ofMillis(1000L));
+
+        final Task task =
+                createTaskBuilder()
+                        .setInvokable(InvokableBlockingInInstantiation.class)
+                        .setTaskManagerConfig(config)
+                        .setTaskManagerActions(taskManagerActions)
+                        .build(Executors.directExecutor());
+        taskManagerActions.setExecutingThread(task.getExecutingThread());
+
+        task.startTaskThread();
+        InvokableBlockingInInstantiation.await();
+        task.cancelExecution();
+        task.getExecutingThread().join();
+
+        // Expect fatal error to recover
+        assertTrue(taskManagerActions.hasFatalError());
     }
 
     /**
@@ -1284,6 +1314,26 @@ public class TaskTest extends TestLogger {
         }
     }
 
+    /** Customized TaskManagerActions that interrupts task thread on fatal error. */
+    private static class InterruptOnFatalErrorTaskManagerActions extends NoOpTaskManagerActions {
+        private boolean fatalError = false;
+        private Thread executingThread;
+
+        @Override
+        public void notifyFatalError(String message, Throwable cause) {
+            fatalError = true;
+            executingThread.interrupt();
+        }
+
+        public boolean hasFatalError() {
+            return fatalError;
+        }
+
+        public void setExecutingThread(Thread executingThread) {
+            this.executingThread = executingThread;
+        }
+    }
+
     // ------------------------------------------------------------------------
     //  helper functions
     // ------------------------------------------------------------------------
@@ -1569,6 +1619,30 @@ public class TaskTest extends TestLogger {
 
         @Override
         public void cancel() {}
+    }
+
+    /** {@link AbstractInvokable} which blocks in instantiation. */
+    public static final class InvokableBlockingInInstantiation extends AbstractInvokable {
+        /** Declared static, otherwise there's no way to access it when blocking in constructor. */
+        static final OneShotLatch AWAIT_LATCH = new OneShotLatch();
+
+        public InvokableBlockingInInstantiation(Environment environment)
+                throws InterruptedException {
+            super(environment);
+            while (true) {
+                synchronized (this) {
+                    AWAIT_LATCH.trigger();
+                    wait();
+                }
+            }
+        }
+
+        @Override
+        public void invoke() {}
+
+        static void await() throws InterruptedException {
+            AWAIT_LATCH.await();
+        }
     }
 
     // ------------------------------------------------------------------------

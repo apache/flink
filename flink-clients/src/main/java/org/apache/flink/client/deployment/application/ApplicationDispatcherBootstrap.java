@@ -21,7 +21,6 @@ package org.apache.flink.client.deployment.application;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.cli.ClientOptions;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
@@ -50,6 +49,7 @@ import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -364,10 +364,8 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
             final JobID jobId,
             final ScheduledExecutor scheduledExecutor,
             final boolean tolerateMissingResult) {
-        final Time timeout =
-                Time.milliseconds(configuration.get(ClientOptions.CLIENT_TIMEOUT).toMillis());
-        final Time retryPeriod =
-                Time.milliseconds(configuration.get(ClientOptions.CLIENT_RETRY_PERIOD).toMillis());
+        final Duration timeout = configuration.get(ClientOptions.CLIENT_TIMEOUT);
+        final Duration retryPeriod = configuration.get(ClientOptions.CLIENT_RETRY_PERIOD);
         final CompletableFuture<JobResult> jobResultFuture =
                 JobStatusPollingUtils.getJobResult(
                         dispatcherGateway, jobId, scheduledExecutor, timeout, retryPeriod);

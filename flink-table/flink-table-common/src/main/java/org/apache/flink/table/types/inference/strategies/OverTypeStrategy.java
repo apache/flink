@@ -28,11 +28,12 @@ import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.Signature;
+import org.apache.flink.table.types.inference.Signature.Argument;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import java.math.BigDecimal;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -70,6 +71,27 @@ public class OverTypeStrategy implements InputTypeStrategy {
         final DataType preceding = argumentDataTypes.get(2);
         final DataType following = argumentDataTypes.get(3);
 
+        if (preceding.getLogicalType().is(LogicalTypeRoot.NULL)
+                || following.getLogicalType().is(LogicalTypeRoot.NULL)) {
+            if (!preceding.getLogicalType().is(LogicalTypeRoot.NULL)
+                    || !following.getLogicalType().is(LogicalTypeRoot.NULL)) {
+                return callContext.fail(
+                        throwOnFailure, "Both preceding and following must be provided" + ".");
+            }
+
+            return Optional.of(argumentDataTypes);
+        }
+
+        return validatePrecedingFollowingPresent(
+                callContext, throwOnFailure, preceding, following, argumentDataTypes);
+    }
+
+    private Optional<List<DataType>> validatePrecedingFollowingPresent(
+            CallContext callContext,
+            boolean throwOnFailure,
+            DataType preceding,
+            DataType following,
+            List<DataType> argumentDataTypes) {
         final LogicalTypeRoot precedingTypeRoot = preceding.getLogicalType().getTypeRoot();
         final Optional<String> precedingErr =
                 validateFollowingPreceding(
@@ -180,20 +202,6 @@ public class OverTypeStrategy implements InputTypeStrategy {
 
     @Override
     public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-        return Arrays.asList(
-                Signature.of(
-                        Signature.Argument.ofGroup("ANY"),
-                        Signature.Argument.ofGroup("TIME ATTRIBUTE"),
-                        Signature.Argument.ofGroup(
-                                "INTERVAL LITERAL | CURRENT_RANGE | UNBOUNDED_RANGE"),
-                        Signature.Argument.ofGroup(
-                                "INTERVAL LITERAL | CURRENT_RANGE | UNBOUNDED_RANGE"),
-                        Signature.Argument.ofGroupVarying("ANY")),
-                Signature.of(
-                        Signature.Argument.ofGroup("ANY"),
-                        Signature.Argument.ofGroup("TIME ATTRIBUTE"),
-                        Signature.Argument.ofGroup("BIGINT | CURRENT_ROW | UNBOUNDED_ROW"),
-                        Signature.Argument.ofGroup("BIGINT | CURRENT_ROW | UNBOUNDED_ROW"),
-                        Signature.Argument.ofGroupVarying("ANY")));
+        return Collections.singletonList(Signature.of(Argument.ofGroupVarying("INTERNAL")));
     }
 }

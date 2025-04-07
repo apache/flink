@@ -31,28 +31,56 @@ public class OperatorIDPair implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private final OperatorID generatedOperatorID;
-    private final OperatorID userDefinedOperatorID;
+    @Nullable private final OperatorID userDefinedOperatorID;
+    @Nullable private final String userDefinedOperatorName;
+    @Nullable private final String userDefinedOperatorUid;
 
     private OperatorIDPair(
-            OperatorID generatedOperatorID, @Nullable OperatorID userDefinedOperatorID) {
+            OperatorID generatedOperatorID,
+            @Nullable OperatorID userDefinedOperatorID,
+            @Nullable String userDefinedOperatorName,
+            @Nullable String userDefinedOperatorUid) {
         this.generatedOperatorID = generatedOperatorID;
         this.userDefinedOperatorID = userDefinedOperatorID;
+        if (userDefinedOperatorName != null && userDefinedOperatorName.isEmpty()) {
+            throw new IllegalArgumentException("Empty string operator name is not allowed");
+        }
+        this.userDefinedOperatorName = userDefinedOperatorName;
+        if (userDefinedOperatorUid != null && userDefinedOperatorUid.isEmpty()) {
+            throw new IllegalArgumentException("Empty string operator uid is not allowed");
+        }
+        this.userDefinedOperatorUid = userDefinedOperatorUid;
     }
 
     public static OperatorIDPair of(
-            OperatorID generatedOperatorID, @Nullable OperatorID userDefinedOperatorID) {
-        return new OperatorIDPair(generatedOperatorID, userDefinedOperatorID);
+            OperatorID generatedOperatorID,
+            @Nullable OperatorID userDefinedOperatorID,
+            @Nullable String operatorName,
+            @Nullable String operatorUid) {
+        return new OperatorIDPair(
+                generatedOperatorID, userDefinedOperatorID, operatorName, operatorUid);
     }
 
     public static OperatorIDPair generatedIDOnly(OperatorID generatedOperatorID) {
-        return new OperatorIDPair(generatedOperatorID, null);
+        return new OperatorIDPair(generatedOperatorID, null, null, null);
     }
 
     public OperatorID getGeneratedOperatorID() {
         return generatedOperatorID;
     }
 
+    @Nullable
     public Optional<OperatorID> getUserDefinedOperatorID() {
         return Optional.ofNullable(userDefinedOperatorID);
+    }
+
+    @Nullable
+    public String getUserDefinedOperatorName() {
+        return userDefinedOperatorName;
+    }
+
+    @Nullable
+    public String getUserDefinedOperatorUid() {
+        return userDefinedOperatorUid;
     }
 }

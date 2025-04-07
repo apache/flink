@@ -18,11 +18,11 @@
 
 package org.apache.flink.client.testjar;
 
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.cli.CliFrontendTestUtils;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.util.FlinkException;
 
 import java.io.File;
@@ -56,10 +56,10 @@ public class ErrorHandlingSubmissionJob {
     }
 
     public static void main(String[] args) throws Exception {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        env.fromCollection(Arrays.asList(1, 2, 3))
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.fromData(Arrays.asList(1, 2, 3))
                 .map(element -> element + 1)
-                .output(new DiscardingOutputFormat<>());
+                .sinkTo(new DiscardingSink<>());
 
         try {
             env.execute();

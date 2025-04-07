@@ -19,15 +19,14 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api.{TableDescriptor, _}
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.config.ExecutionConfigOptions.LegacyCastBehaviour
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.api.typeutils.Types
 import org.apache.flink.table.catalog.CatalogDatabaseImpl
+import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.data.{GenericRowData, MapData}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils._
@@ -94,7 +93,7 @@ class CalcITCase extends StreamingTestBase {
         .ofFields(new IntType(), new BooleanType())
         .asInstanceOf[TypeInformation[GenericRowData]]
 
-    val ds = env.fromCollection(data)
+    val ds = StreamingEnvUtil.fromCollection(env, data)
 
     val t = ds.toTable(tEnv, 'a, 'b)
     tEnv.createTemporaryView("MyTableRow", t)
@@ -129,7 +128,7 @@ class CalcITCase extends StreamingTestBase {
         .ofFields(new IntType(), new IntType(), new BigIntType())
         .asInstanceOf[TypeInformation[GenericRowData]]
 
-    val ds = env.fromCollection(data)
+    val ds = StreamingEnvUtil.fromCollection(env, data)
 
     val t = ds.toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTableRow", t)
@@ -156,7 +155,7 @@ class CalcITCase extends StreamingTestBase {
 
     implicit val tpe: TypeInformation[Row] = new RowTypeInfo(Types.STRING, Types.STRING, Types.INT)
 
-    val ds = env.fromCollection(data)
+    val ds = StreamingEnvUtil.fromCollection(env, data)
 
     val t = ds.toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTableRow", t)
@@ -189,7 +188,7 @@ class CalcITCase extends StreamingTestBase {
         .ofFields(new IntType(), new IntType(), new BigIntType())
         .asInstanceOf[TypeInformation[GenericRowData]]
 
-    val ds = env.fromCollection(data)
+    val ds = StreamingEnvUtil.fromCollection(env, data)
 
     val t = ds.toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTableRow", t)
@@ -214,7 +213,7 @@ class CalcITCase extends StreamingTestBase {
 
     implicit val tpe: TypeInformation[Row] = new RowTypeInfo(Types.STRING, Types.STRING, Types.INT)
 
-    val ds = env.fromCollection(data)
+    val ds = StreamingEnvUtil.fromCollection(env, data)
 
     val t = ds.toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTableRow", t)
@@ -232,8 +231,8 @@ class CalcITCase extends StreamingTestBase {
   def testPrimitiveMapType(): Unit = {
     val sqlQuery = "SELECT MAP[b, 30, 10, a] FROM MyTableRow"
 
-    val t = env
-      .fromCollection(TestData.smallTupleData3)
+    val t = StreamingEnvUtil
+      .fromCollection(env, TestData.smallTupleData3)
       .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTableRow", t)
 
@@ -250,8 +249,8 @@ class CalcITCase extends StreamingTestBase {
   def testNonPrimitiveMapType(): Unit = {
     val sqlQuery = "SELECT MAP[a, c] FROM MyTableRow"
 
-    val t = env
-      .fromCollection(TestData.smallTupleData3)
+    val t = StreamingEnvUtil
+      .fromCollection(env, TestData.smallTupleData3)
       .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTableRow", t)
 
@@ -269,7 +268,8 @@ class CalcITCase extends StreamingTestBase {
     val sqlQuery = "SELECT * FROM MyTable"
 
     val table = tEnv.fromDataStream(
-      env.fromCollection(
+      StreamingEnvUtil.fromCollection(
+        env,
         Seq(
           ((0, 0), "0"),
           ((1, 1), "1"),
@@ -280,20 +280,23 @@ class CalcITCase extends StreamingTestBase {
     tEnv.createTemporaryView("MyTable", table)
 
     val result = tEnv.sqlQuery(sqlQuery)
-    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+
+    TestSinkUtil.addValuesSink(tEnv, "MySink", result, ChangelogMode.insertOnly())
     table.executeInsert("MySink").await()
 
     val expected = List("0,0,0", "1,1,1", "2,2,2")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
   @Test
   def testIn(): Unit = {
     val sqlQuery = "SELECT * FROM MyTable WHERE b in (1,3,4,5,6)"
 
-    val t = env
-      .fromCollection(TestData.tupleData3)
+    val t = StreamingEnvUtil
+      .fromCollection(env, TestData.tupleData3)
       .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTable", t)
 
@@ -330,8 +333,8 @@ class CalcITCase extends StreamingTestBase {
   def testNotIn(): Unit = {
     val sqlQuery = "SELECT * FROM MyTable WHERE b not in (1,3,4,5,6)"
 
-    val t = env
-      .fromCollection(TestData.tupleData3)
+    val t = StreamingEnvUtil
+      .fromCollection(env, TestData.tupleData3)
       .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTable", t)
 
@@ -347,8 +350,8 @@ class CalcITCase extends StreamingTestBase {
   @Test
   def testLongProjectionList(): Unit = {
 
-    val t = env
-      .fromCollection(TestData.smallTupleData3)
+    val t = StreamingEnvUtil
+      .fromCollection(env, TestData.smallTupleData3)
       .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTable", t)
 
@@ -789,8 +792,8 @@ class CalcITCase extends StreamingTestBase {
 
   @Test
   def testNonMergeableRandCall(): Unit = {
-    val t = env
-      .fromCollection(TestData.smallTupleData3)
+    val t = StreamingEnvUtil
+      .fromCollection(env, TestData.smallTupleData3)
       .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("SimpleTable", t)
 

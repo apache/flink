@@ -35,15 +35,15 @@ public class DataGenerator {
 
         GeneratorFunction<Long, String> generatorFunction = index -> "Number: " + index;
 
-        DataGeneratorSource<String> generatorSource =
+        DataGeneratorSource<String> source =
                 new DataGeneratorSource<>(
                         generatorFunction,
                         Long.MAX_VALUE,
-                        RateLimiterStrategy.perSecond(4),
+                        RateLimiterStrategy.perSecond(100),
                         Types.STRING);
 
         DataStreamSource<String> streamSource =
-                env.fromSource(generatorSource, WatermarkStrategy.noWatermarks(), "Data Generator");
+                env.fromSource(source, WatermarkStrategy.noWatermarks(), "Data Generator");
         streamSource.print();
 
         env.execute("Data Generator Source Example");

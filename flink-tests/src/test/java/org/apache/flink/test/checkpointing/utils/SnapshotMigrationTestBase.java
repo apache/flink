@@ -182,9 +182,6 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
                 case StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME:
                     str.append("-rocksdb");
                     break;
-                case StateBackendLoader.MEMORY_STATE_BACKEND_NAME:
-                    // This is implicit due to backwards compatibility with legacy artifact names.
-                    break;
                 case StateBackendLoader.HASHMAP_STATE_BACKEND_NAME:
                     str.append("-hashmap");
                     break;

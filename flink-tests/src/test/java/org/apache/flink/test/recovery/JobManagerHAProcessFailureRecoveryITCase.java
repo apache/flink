@@ -18,20 +18,16 @@
 
 package org.apache.flink.test.recovery;
 
-import org.apache.flink.api.common.ExecutionMode;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
@@ -51,11 +47,12 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.testutils.DispatcherProcess;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
-import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
-import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -69,8 +66,6 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -95,7 +90,7 @@ import static org.assertj.core.api.Assertions.fail;
  * <p>This follows the same structure as {@link AbstractTaskManagerProcessFailureRecoveryTest}.
  */
 @SuppressWarnings("serial")
-@ExtendWith(ParameterizedTestExtension.class)
+@ExtendWith(NoOpTestExtension.class)
 class JobManagerHAProcessFailureRecoveryITCase {
 
     private final ZooKeeperExtension zooKeeperExtension = new ZooKeeperExtension();
@@ -118,17 +113,6 @@ class JobManagerHAProcessFailureRecoveryITCase {
 
     protected static final int PARALLELISM = 4;
 
-    // --------------------------------------------------------------------------------------------
-    //  Parametrization (run pipelined and batch)
-    // --------------------------------------------------------------------------------------------
-
-    @Parameter private ExecutionMode executionMode;
-
-    @Parameters(name = "executionMode={0}")
-    private static Collection<ExecutionMode> executionMode() {
-        return Arrays.asList(ExecutionMode.PIPELINED, ExecutionMode.BATCH);
-    }
-
     /**
      * Test program with JobManager failure.
      *
@@ -144,15 +128,21 @@ class JobManagerHAProcessFailureRecoveryITCase {
         config.set(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkQuorum);
         config.set(HighAvailabilityOptions.HA_STORAGE_PATH, zookeeperStoragePath.getAbsolutePath());
 
-        ExecutionEnvironment env =
-                ExecutionEnvironment.createRemoteEnvironment("leader", 1, config);
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.createRemoteEnvironment("leader", 1, config);
         env.setParallelism(PARALLELISM);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
-        env.getConfig().setExecutionMode(executionMode);
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(0));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
+
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
         final long numElements = 100000L;
-        final DataSet<Long> result =
-                env.generateSequence(1, numElements)
+        final DataStream<Long> result =
+                env.fromSequence(1, numElements)
                         // make sure every mapper is involved (no one is skipped because of lazy
                         // split assignment)
                         .rebalance()
@@ -192,6 +182,9 @@ class JobManagerHAProcessFailureRecoveryITCase {
                                         return value;
                                     }
                                 })
+                        .setParallelism(PARALLELISM)
+                        // we map all data to single partition to force 1 parallelism reduce.
+                        .keyBy(x -> 0)
                         .reduce(
                                 new ReduceFunction<Long>() {
                                     @Override
@@ -199,6 +192,7 @@ class JobManagerHAProcessFailureRecoveryITCase {
                                         return value1 + value2;
                                     }
                                 })
+                        .setParallelism(1)
                         // The check is done in the mapper, because the client can currently not
                         // handle
                         // job manager losses/reconnects.
@@ -219,9 +213,10 @@ class JobManagerHAProcessFailureRecoveryITCase {
                                                         coordinateDir,
                                                         FINISH_MARKER_FILE_PREFIX + taskIndex));
                                     }
-                                });
+                                })
+                        .setParallelism(1);
 
-        result.output(new DiscardingOutputFormat<>());
+        result.sinkTo(new DiscardingSink<>());
 
         env.execute();
     }
@@ -429,12 +424,9 @@ class JobManagerHAProcessFailureRecoveryITCase {
             int numberOfTaskManagers, DispatcherGateway dispatcherGateway, Duration timeLeft)
             throws ExecutionException, InterruptedException {
         FutureUtils.retrySuccessfulWithDelay(
-                        () ->
-                                dispatcherGateway.requestClusterOverview(
-                                        Time.milliseconds(timeLeft.toMillis())),
+                        () -> dispatcherGateway.requestClusterOverview(timeLeft),
                         Duration.ofMillis(50L),
-                        org.apache.flink.api.common.time.Deadline.fromNow(
-                                Duration.ofMillis(timeLeft.toMillis())),
+                        org.apache.flink.api.common.time.Deadline.fromNow(timeLeft),
                         clusterOverview ->
                                 clusterOverview.getNumTaskManagersConnected()
                                         >= numberOfTaskManagers,

@@ -178,11 +178,6 @@ public class AvroInputFormat<E> extends FileInputFormat<E>
         }
     }
 
-    @Override
-    public boolean supportsMultiPaths() {
-        return true;
-    }
-
     // --------------------------------------------------------------------------------------------
     //  Checkpointing
     // --------------------------------------------------------------------------------------------

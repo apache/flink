@@ -20,7 +20,7 @@ package org.apache.flink.table.sources.wmstrategies;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.table.descriptors.Rowtime;
+import org.apache.flink.table.legacy.descriptors.Rowtime;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -38,7 +38,9 @@ public final class BoundedOutOfOrderTimestamps extends PeriodicWatermarkAssigner
     private final long delay;
     private long maxTimestamp;
 
-    /** @param delay The delay by which watermarks are behind the maximum observed timestamp. */
+    /**
+     * @param delay The delay by which watermarks are behind the maximum observed timestamp.
+     */
     public BoundedOutOfOrderTimestamps(long delay) {
         this.delay = delay;
         maxTimestamp = Long.MIN_VALUE + delay;

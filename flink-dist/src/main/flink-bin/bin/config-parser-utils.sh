@@ -25,7 +25,9 @@ if [ "$#" -lt 3 ]; then
 fi
 
 source "$2"/bash-java-utils.sh
-setJavaRun "$1"
+
+CONF_FILE="$1/config.yaml"
+setJavaRun "$CONF_FILE"
 
 ARGS=("${@:1}")
 result=$(updateAndGetFlinkConfiguration "${ARGS[@]}")
@@ -35,11 +37,6 @@ if [[ $? -ne 0 ]]; then
   echo "$result"
   exit 1
 fi
-
-CONF_FILE="$1/flink-conf.yaml"
-if [ ! -e "$1/flink-conf.yaml" ]; then
-  CONF_FILE="$1/config.yaml"
-fi;
 
 # Output the result
 echo "${result}" > "$CONF_FILE";

@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.operators.sink;
 
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.OutputFormatSinkFunction;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.SimpleOutputFormatOperatorFactory;
 import org.apache.flink.table.data.RowData;
@@ -30,10 +30,10 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link SinkOperator}. */
-public class SinkOperatorTest {
+class SinkOperatorTest {
 
     @Test
-    public void testSinkOperatorWithOutputFormat() {
+    void testSinkOperatorWithOutputFormat() {
         SinkOperator operator =
                 new SinkOperator(
                         new OutputFormatSinkFunction<>(
@@ -44,7 +44,7 @@ public class SinkOperatorTest {
                                     public void configure(Configuration parameters) {}
 
                                     @Override
-                                    public void open(int taskNumber, int numTasks) {}
+                                    public void open(InitializationContext context) {}
 
                                     @Override
                                     public void writeRecord(RowData record) {}

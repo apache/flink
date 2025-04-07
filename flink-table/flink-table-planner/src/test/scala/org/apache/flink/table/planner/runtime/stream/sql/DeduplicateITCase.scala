@@ -17,30 +17,31 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
+import org.apache.flink.api.common.eventtime._
 import org.apache.flink.core.testutils.EachCallbackWrapper
-import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils._
-import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOn}
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.utils.LegacyRowExtension
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assumptions.assumeThat
-import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.{ExtendWith, RegisterExtension}
+
+import java.util
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
-class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
+class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncState: Boolean)
   extends StreamingWithMiniBatchTestBase(miniBatch, mode) {
 
   @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
@@ -55,6 +56,14 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
   rowtimeTestData.+=((3, 5L, "Comment#2"))
   rowtimeTestData.+=((3, 4L, "Comment#2"))
   rowtimeTestData.+=((4, 4L, "Comment#3"))
+
+  @BeforeEach
+  override def before(): Unit = {
+    super.before()
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED,
+      Boolean.box(enableAsyncState))
+  }
 
   @TestTemplate
   def testFirstRowOnProctime(): Unit = {
@@ -180,8 +189,8 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
 
   @TestTemplate
   def testFirstRowOnRowtime(): Unit = {
-    val t = env
-      .fromCollection(rowtimeTestData)
+    val t = StreamingEnvUtil
+      .fromCollection(env, rowtimeTestData)
       .assignTimestampsAndWatermarks(new RowtimeExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
     tEnv.createTemporaryView("T", t)
@@ -202,14 +211,24 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
     tEnv.executeSql(sql).await()
     val rawResult = TestValuesTableFactory.getRawResultsAsStrings("rowtime_sink")
 
-    val expected = List(
-      "+I(1,1,Hi,1970-01-01T00:00:00.001)",
-      "+I(2,3,I am fine.,1970-01-01T00:00:00.003)",
-      "+I(3,5,Comment#2,1970-01-01T00:00:00.005)",
-      "-U(3,5,Comment#2,1970-01-01T00:00:00.005)",
-      "+U(3,4,Comment#2,1970-01-01T00:00:00.004)",
-      "+I(4,4,Comment#3,1970-01-01T00:00:00.004)"
-    )
+    val expected = if (miniBatch.equals(MiniBatchOff)) {
+      List(
+        "+I(1,1,Hi,1970-01-01T00:00:00.001)",
+        "+I(2,3,I am fine.,1970-01-01T00:00:00.003)",
+        "+I(3,4,Comment#2,1970-01-01T00:00:00.004)",
+        "+I(4,4,Comment#3,1970-01-01T00:00:00.004)"
+      )
+    } else {
+      List(
+        "+I(1,1,Hi,1970-01-01T00:00:00.001)",
+        "+I(2,3,I am fine.,1970-01-01T00:00:00.003)",
+        "+I(3,5,Comment#2,1970-01-01T00:00:00.005)",
+        "-U(3,5,Comment#2,1970-01-01T00:00:00.005)",
+        "+U(3,4,Comment#2,1970-01-01T00:00:00.004)",
+        "+I(4,4,Comment#3,1970-01-01T00:00:00.004)"
+      )
+    }
+
     assertThat(rawResult.sorted).isEqualTo(expected.sorted)
   }
 
@@ -219,8 +238,8 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
     tEnv.getConfig.set(
       ExecutionConfigOptions.TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES_ENABLED,
       Boolean.box(true))
-    val t = env
-      .fromCollection(rowtimeTestData)
+    val t = StreamingEnvUtil
+      .fromCollection(env, rowtimeTestData)
       .assignTimestampsAndWatermarks(new RowtimeExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
     tEnv.createTemporaryView("T", t)
@@ -252,8 +271,8 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
 
   @TestTemplate
   def testFirstRowOnRowTimeFollowedByUnboundedAgg(): Unit = {
-    val t = env
-      .fromCollection(rowtimeTestData)
+    val t = StreamingEnvUtil
+      .fromCollection(env, rowtimeTestData)
       .assignTimestampsAndWatermarks(new RowtimeExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
     tEnv.createTemporaryView("T", t)
@@ -288,8 +307,8 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
 
   @TestTemplate
   def testLastRowOnRowtime(): Unit = {
-    val t = env
-      .fromCollection(rowtimeTestData)
+    val t = StreamingEnvUtil
+      .fromCollection(env, rowtimeTestData)
       .assignTimestampsAndWatermarks(new RowtimeExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
     tEnv.createTemporaryView("T", t)
@@ -331,8 +350,8 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
     tEnv.getConfig.set(
       ExecutionConfigOptions.TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES_ENABLED,
       Boolean.box(true))
-    val t = env
-      .fromCollection(rowtimeTestData)
+    val t = StreamingEnvUtil
+      .fromCollection(env, rowtimeTestData)
       .assignTimestampsAndWatermarks(new RowtimeExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
     tEnv.createTemporaryView("T", t)
@@ -366,8 +385,8 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
 
   @TestTemplate
   def testLastRowOnRowTimeFollowedByUnboundedAgg(): Unit = {
-    val t = env
-      .fromCollection(rowtimeTestData)
+    val t = StreamingEnvUtil
+      .fromCollection(env, rowtimeTestData)
       .assignTimestampsAndWatermarks(new RowtimeExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
     tEnv.createTemporaryView("T", t)
@@ -416,6 +435,27 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
   }
 }
 
-class RowtimeExtractor extends AscendingTimestampExtractor[(Int, Long, String)] {
-  override def extractAscendingTimestamp(element: (Int, Long, String)): Long = element._2
+class RowtimeExtractor extends WatermarkStrategy[(Int, Long, String)] {
+  override def createWatermarkGenerator(
+      context: WatermarkGeneratorSupplier.Context): WatermarkGenerator[(Int, Long, String)] =
+    new AscendingTimestampsWatermarks[(Int, Long, String)]
+
+  override def createTimestampAssigner(
+      context: TimestampAssignerSupplier.Context): TimestampAssigner[(Int, Long, String)] = {
+    (e: (Int, Long, String), _: Long) => e._2
+  }
+}
+
+object DeduplicateITCase {
+
+  @Parameters(name = "{0}, StateBackend={1}, EnableAsyncState={2}")
+  def parameters(): util.Collection[Array[java.lang.Object]] = {
+    Seq[Array[AnyRef]](
+      Array(MiniBatchOff, HEAP_BACKEND, Boolean.box(false)),
+      Array(MiniBatchOff, ROCKSDB_BACKEND, Boolean.box(false)),
+      Array(MiniBatchOn, HEAP_BACKEND, Boolean.box(false)),
+      Array(MiniBatchOn, ROCKSDB_BACKEND, Boolean.box(false)),
+      Array(MiniBatchOff, HEAP_BACKEND, Boolean.box(true))
+    )
+  }
 }

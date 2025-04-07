@@ -34,8 +34,15 @@ import java.util.List;
 @Internal
 public interface InternalPlan {
 
-    /** @see CompiledPlan#asJsonString() */
+    /**
+     * @see CompiledPlan#asJsonString()
+     */
     String asJsonString();
+
+    /**
+     * @see CompiledPlan#asSmileBytes()
+     */
+    byte[] asSmileBytes();
 
     /**
      * Note that {@code ignoreIfExists} has precedence over {@code failIfExists}.
@@ -44,7 +51,9 @@ public interface InternalPlan {
      */
     void writeToFile(File file, boolean ignoreIfExists, boolean failIfExists);
 
-    /** @see CompiledPlan#getFlinkVersion() */
+    /**
+     * @see CompiledPlan#getFlinkVersion()
+     */
     FlinkVersion getFlinkVersion();
 
     /** This returns an ordered list of sink identifiers, if any. */

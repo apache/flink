@@ -203,6 +203,75 @@ class StateFutureTest {
         assertThat(list).hasSize(7);
     }
 
+    @Test
+    void testConditionally() {
+        StateFutureImpl.CallbackRunner runner = new TestCallbackRunner(null);
+        final AtomicInteger counter = new AtomicInteger(0);
+
+        // accept
+        StateFutureImpl<Integer> stateFuture1 = new StateFutureImpl<>(runner, exceptionHandler);
+        stateFuture1
+                .thenConditionallyAccept(e -> e > 0, counter::addAndGet, v -> counter.addAndGet(-v))
+                .thenConditionallyAccept(
+                        e -> !e, v -> counter.incrementAndGet(), v -> counter.decrementAndGet());
+        assertThat(counter).hasValue(0);
+        stateFuture1.complete(-5);
+        assertThat(counter).hasValue(6);
+
+        // apply
+        StateFutureImpl<Integer> stateFuture2 = new StateFutureImpl<>(runner, exceptionHandler);
+        stateFuture2
+                .thenConditionallyApply(
+                        v -> v > 0,
+                        v -> String.valueOf(counter.addAndGet(v)),
+                        v -> String.valueOf(counter.addAndGet(-v)))
+                .thenConditionallyApply(
+                        e -> !e.f0,
+                        e -> counter.addAndGet(Integer.parseInt((String) e.f1) * 2),
+                        e -> counter.addAndGet(Integer.parseInt((String) e.f1) * 3));
+        assertThat(counter).hasValue(6);
+        stateFuture2.complete(-3);
+        assertThat(counter).hasValue(27);
+
+        // compose
+        StateFutureImpl<Integer> stateFuture3 = new StateFutureImpl<>(runner, exceptionHandler);
+        StateFutureImpl<Integer> stateFuture4 = new StateFutureImpl<>(runner, exceptionHandler);
+        StateFutureImpl<Integer> stateFuture5 = new StateFutureImpl<>(runner, exceptionHandler);
+        stateFuture3
+                .thenConditionallyCompose(
+                        v -> v > 0,
+                        (v) -> {
+                            counter.addAndGet(v);
+                            return stateFuture4;
+                        },
+                        (v) -> {
+                            counter.addAndGet(-v);
+                            return stateFuture5;
+                        })
+                .thenConditionallyCompose(
+                        t -> !t.f0,
+                        (t) -> {
+                            counter.addAndGet((Integer) t.f1 * 2);
+                            return StateFutureUtils.completedVoidFuture();
+                        },
+                        (t) -> {
+                            counter.addAndGet((Integer) t.f1 * 3);
+                            return StateFutureUtils.completedVoidFuture();
+                        });
+
+        assertThat(counter).hasValue(27);
+        counter.set(0);
+
+        stateFuture3.complete(3);
+        assertThat(counter).hasValue(3);
+
+        stateFuture5.complete(5);
+        assertThat(counter).hasValue(3);
+
+        stateFuture4.complete(4);
+        assertThat(counter).hasValue(15);
+    }
+
     /** Mock for value state. */
     private static class MockValueState {
         AtomicInteger value = new AtomicInteger(0);

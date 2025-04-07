@@ -15,6 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import unittest
+
 from pyflink.common import Types
 from pyflink.datastream.connectors.rabbitmq import RMQSink, RMQSource, RMQConnectionConfig
 from pyflink.datastream.formats.json import JsonRowDeserializationSchema, JsonRowSerializationSchema
@@ -24,6 +26,7 @@ from pyflink.util.java_utils import get_field_value
 
 class RMQTest(PyFlinkStreamingTestCase):
 
+    @unittest.skip("Disable due to rabbitmq connectors is not support 2.0 for new.")
     def test_rabbitmq_connectors(self):
         connection_config = RMQConnectionConfig.Builder() \
             .set_host('localhost') \

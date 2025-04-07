@@ -274,7 +274,7 @@ Abstract Method pattern.
 For each of these interfaces, Flink also provides a so-called "rich" variant, e.g.,
 `RichFlatMapFunction`, which has some additional methods, including:
 
-- `open(Configuration c)`
+- `open(OpenContext context)`
 - `close()`
 - `getRuntimeContext()`
 
@@ -329,7 +329,7 @@ public static class Deduplicator extends RichFlatMapFunction<Event, Event> {
     ValueState<Boolean> keyHasBeenSeen;
 
     @Override
-    public void open(Configuration conf) {
+    public void open(OpenContext ctx) {
         ValueStateDescriptor<Boolean> desc = new ValueStateDescriptor<>("keyHasBeenSeen", Types.BOOLEAN);
         keyHasBeenSeen = getRuntimeContext().getState(desc);
     }
@@ -419,11 +419,11 @@ public static void main(String[] args) throws Exception {
     StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
     DataStream<String> control = env
-        .fromElements("DROP", "IGNORE")
+        .fromData("DROP", "IGNORE")
         .keyBy(x -> x);
 
     DataStream<String> streamOfWords = env
-        .fromElements("Apache", "DROP", "Flink", "IGNORE")
+        .fromData("Apache", "DROP", "Flink", "IGNORE")
         .keyBy(x -> x);
   
     control
@@ -447,7 +447,7 @@ public static class ControlFunction extends RichCoFlatMapFunction<String, String
     private ValueState<Boolean> blocked;
       
     @Override
-    public void open(Configuration config) {
+    public void open(OpenContext ctx) {
         blocked = getRuntimeContext()
             .getState(new ValueStateDescriptor<>("blocked", Boolean.class));
     }

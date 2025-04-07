@@ -49,13 +49,36 @@ public interface ValueState<T> extends State {
     StateFuture<T> asyncValue();
 
     /**
-     * Updates the operator state accessible by {@link #asyncValue()} to the given value. The next
-     * time {@link #asyncValue()} is called (for the same state partition) the returned state will
-     * represent the updated value. When a partitioned state is updated with {@code null}, the state
-     * for the current key will be removed.
+     * Updates the operator state accessible by {@link #asyncValue()} to the given value
+     * asynchronously. The next time {@link #asyncValue()} is called (for the same state partition)
+     * the returned state will represent the updated value. When a partitioned state is updated with
+     * {@code null}, the state for the current key will be removed.
      *
      * @param value The new value for the state.
      * @return The {@link StateFuture} that will trigger the callback when update finishes.
      */
     StateFuture<Void> asyncUpdate(T value);
+
+    /**
+     * Returns the current value for the state. When the state is not partitioned the returned value
+     * is the same for all inputs in a given operator instance. If state partitioning is applied,
+     * the value returned depends on the current operator input, as the operator maintains an
+     * independent state for each partition.
+     *
+     * <p>If you didn't specify a default value when creating the ValueStateDescriptor this will
+     * return {@code null} when no value was previously set using {@link #update(Object)}.
+     *
+     * @return The state value corresponding to the current input.
+     */
+    T value();
+
+    /**
+     * Updates the operator state accessible by {@link #value()} to the given value. The next time
+     * {@link #value()} is called (for the same state partition) the returned state will represent
+     * the updated value. When a partitioned state is updated with {@code null}, the state for the
+     * current key will be removed and the default value is returned on the next access.
+     *
+     * @param value The new value for the state.
+     */
+    void update(T value);
 }

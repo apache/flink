@@ -29,13 +29,15 @@ class StateMetaInfoSnapshotEnumConstantsTest {
 
     @Test
     void testFixedBackendStateTypeEnumConstants() {
-        assertThat(StateMetaInfoSnapshot.BackendStateType.values()).hasSize(4);
+        assertThat(StateMetaInfoSnapshot.BackendStateType.values()).hasSize(5);
         assertThat(StateMetaInfoSnapshot.BackendStateType.KEY_VALUE.ordinal()).isZero();
         assertThat(StateMetaInfoSnapshot.BackendStateType.OPERATOR.ordinal()).isOne();
         assertThat(StateMetaInfoSnapshot.BackendStateType.BROADCAST.ordinal()).isEqualTo(2);
         assertThat(StateMetaInfoSnapshot.BackendStateType.PRIORITY_QUEUE.ordinal()).isEqualTo(3);
         assertThat(StateMetaInfoSnapshot.BackendStateType.KEY_VALUE.toString())
                 .isEqualTo("KEY_VALUE");
+        assertThat(StateMetaInfoSnapshot.BackendStateType.KEY_VALUE_V2.toString())
+                .isEqualTo("KEY_VALUE_V2");
         assertThat(StateMetaInfoSnapshot.BackendStateType.OPERATOR.toString())
                 .isEqualTo("OPERATOR");
         assertThat(StateMetaInfoSnapshot.BackendStateType.BROADCAST.toString())
@@ -62,7 +64,7 @@ class StateMetaInfoSnapshotEnumConstantsTest {
 
     @Test
     void testFixedSerializerEnumConstants() {
-        assertThat(StateMetaInfoSnapshot.CommonSerializerKeys.values()).hasSize(3);
+        assertThat(StateMetaInfoSnapshot.CommonSerializerKeys.values()).hasSize(4);
         assertThat(StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER.ordinal()).isZero();
         assertThat(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.ordinal())
                 .isOne();
@@ -74,5 +76,7 @@ class StateMetaInfoSnapshotEnumConstantsTest {
                 .isEqualTo("NAMESPACE_SERIALIZER");
         assertThat(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString())
                 .isEqualTo("VALUE_SERIALIZER");
+        assertThat(StateMetaInfoSnapshot.CommonSerializerKeys.USER_KEY_SERIALIZER.toString())
+                .isEqualTo("USER_KEY_SERIALIZER");
     }
 }

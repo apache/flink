@@ -20,9 +20,10 @@ package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.legacy.types.logical.TypeInformationRawType;
+import org.apache.flink.table.legacy.utils.TypeStringUtils;
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
 import org.apache.flink.table.utils.EncodingUtils;
-import org.apache.flink.table.utils.TypeStringUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;

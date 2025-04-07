@@ -21,7 +21,6 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.columnar.vector.writable.WritableIntVector;
 import org.apache.flink.table.data.columnar.vector.writable.WritableTimestampVector;
 
-import org.apache.parquet.Preconditions;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.page.PageReader;
 import org.apache.parquet.io.api.Binary;
@@ -33,6 +32,8 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.sql.Timestamp;
 import java.util.concurrent.TimeUnit;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Timestamp {@link ColumnReader}. We support INT96 and INT64 now, julianDay(4) + nanosOfDay(8). See
@@ -72,7 +73,7 @@ public class TimestampColumnReader extends AbstractColumnReader<WritableTimestam
     }
 
     private void checkTypeName() {
-        Preconditions.checkArgument(
+        checkArgument(
                 actualName == PrimitiveType.PrimitiveTypeName.INT96
                         || actualName == PrimitiveType.PrimitiveTypeName.INT64,
                 "Expected type name: %s or %s, actual type name: %s",
@@ -137,8 +138,7 @@ public class TimestampColumnReader extends AbstractColumnReader<WritableTimestam
     public static TimestampData decodeInt96ToTimestamp(
             boolean utcTimestamp, org.apache.parquet.column.Dictionary dictionary, int id) {
         Binary binary = dictionary.decodeToBinary(id);
-        Preconditions.checkArgument(
-                binary.length() == 12, "Timestamp with int96 should be 12 bytes.");
+        checkArgument(binary.length() == 12, "Timestamp with int96 should be 12 bytes.");
         ByteBuffer buffer = binary.toByteBuffer().order(ByteOrder.LITTLE_ENDIAN);
         return int96ToTimestamp(utcTimestamp, buffer.getLong(), buffer.getInt());
     }

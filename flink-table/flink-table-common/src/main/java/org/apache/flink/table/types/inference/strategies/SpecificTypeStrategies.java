@@ -22,10 +22,13 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.CollectionDataType;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategy;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -93,6 +96,18 @@ public final class SpecificTypeStrategies {
     /** See {@link DecimalTimesTypeStrategy}. */
     public static final TypeStrategy DECIMAL_TIMES = new DecimalTimesTypeStrategy();
 
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#PERCENTILE}. */
+    public static final TypeStrategy PERCENTILE =
+            callContext ->
+                    Optional.of(
+                            callContext
+                                            .getArgumentDataTypes()
+                                            .get(1)
+                                            .getLogicalType()
+                                            .is(LogicalTypeRoot.ARRAY)
+                                    ? DataTypes.ARRAY(DataTypes.DOUBLE())
+                                    : DataTypes.DOUBLE());
+
     /** See {@link SourceWatermarkTypeStrategy}. */
     public static final TypeStrategy SOURCE_WATERMARK = new SourceWatermarkTypeStrategy();
 
@@ -155,6 +170,23 @@ public final class SpecificTypeStrategies {
                                             .getElementDataType(),
                                     ((CollectionDataType) callContext.getArgumentDataTypes().get(1))
                                             .getElementDataType()));
+
+    /**
+     * Strategy for {@link org.apache.flink.table.functions.BuiltInFunctionDefinitions#LAG} and
+     * {@link org.apache.flink.table.functions.BuiltInFunctionDefinitions#LEAD}. Returns a nullable
+     * type of arg0, unless the default value is not null. In that case the result will be not null.
+     */
+    public static final TypeStrategy LEAD_LAG =
+            callContext -> {
+                final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+                final DataType arg0 = argumentDataTypes.get(0);
+                if (argumentDataTypes.size() == 3
+                        && !argumentDataTypes.get(2).getLogicalType().isNullable()) {
+                    return Optional.of(arg0.notNull());
+                } else {
+                    return Optional.of(arg0.nullable());
+                }
+            };
 
     private SpecificTypeStrategies() {
         // no instantiation

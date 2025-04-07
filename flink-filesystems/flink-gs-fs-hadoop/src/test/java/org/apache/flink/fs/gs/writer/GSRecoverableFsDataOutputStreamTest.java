@@ -23,12 +23,14 @@ import org.apache.flink.fs.gs.GSFileSystemOptions;
 import org.apache.flink.fs.gs.TestUtils;
 import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
 import org.apache.flink.fs.gs.storage.MockBlobStorage;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.function.ThrowingRunnable;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nullable;
 
@@ -39,36 +41,32 @@ import java.util.Collection;
 import java.util.Random;
 import java.util.UUID;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test {@link GSResumeRecoverable}. */
-@RunWith(Parameterized.class)
-public class GSRecoverableFsDataOutputStreamTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class GSRecoverableFsDataOutputStreamTest {
 
-    @Parameterized.Parameter(value = 0)
-    public boolean empty;
+    @Parameter private boolean empty;
 
-    @Parameterized.Parameter(value = 1)
+    @Parameter(value = 1)
     @Nullable
-    public String temporaryBucketName;
+    private String temporaryBucketName;
 
-    @Parameterized.Parameter(value = 2)
-    public int componentObjectCount;
+    @Parameter(value = 2)
+    private int componentObjectCount;
 
-    @Parameterized.Parameter(value = 3)
-    public long position;
+    @Parameter(value = 3)
+    private long position;
 
-    @Parameterized.Parameter(value = 4)
-    public boolean closed;
+    @Parameter(value = 4)
+    private boolean closed;
 
-    @Parameterized.Parameters(
+    @Parameters(
             name =
                     "empty={0}, temporaryBucketName={1}, componentObjectCount={2}, position={3}, closed={4}")
-    public static Collection<Object[]> data() {
+    private static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
                     // not empty, no explicit temporary bucket, 0 components, position=0, not closed
@@ -101,8 +99,8 @@ public class GSRecoverableFsDataOutputStreamTest {
 
     private byte byteValue;
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
 
         random = new Random(TestUtils.RANDOM_SEED);
         blobIdentifier = new GSBlobIdentifier("foo", "bar");
@@ -133,57 +131,57 @@ public class GSRecoverableFsDataOutputStreamTest {
         }
     }
 
-    @Test
-    public void emptyStreamShouldHaveProperPositionAndComponentObjectCount() {
+    @TestTemplate
+    void emptyStreamShouldHaveProperPositionAndComponentObjectCount() {
         if (empty) {
-            assertEquals(0, position);
-            assertEquals(0, componentObjectCount);
+            assertThat(position).isZero();
+            assertThat(componentObjectCount).isZero();
         }
     }
 
-    @Test
-    public void shouldConstructStream() throws IOException {
+    @TestTemplate
+    void shouldConstructStream() throws IOException {
         if (empty) {
-            assertEquals(0, fsDataOutputStream.getPos());
+            assertThat(fsDataOutputStream.getPos()).isEqualTo(0);
 
         } else {
-            assertEquals(position, fsDataOutputStream.getPos());
+            assertThat(fsDataOutputStream.getPos()).isEqualTo(position);
         }
     }
 
-    @Test
-    public void shouldReturnPosition() throws IOException {
-        assertEquals(position, fsDataOutputStream.getPos());
+    @TestTemplate
+    void shouldReturnPosition() throws IOException {
+        assertThat(fsDataOutputStream.getPos()).isEqualTo(position);
     }
 
     private void writeContent(ThrowingRunnable<IOException> write, byte[] expectedContent)
             throws IOException {
 
         // write the byte, confirm position change and existence of write channel
-        assertEquals(position, fsDataOutputStream.getPos());
+        assertThat(fsDataOutputStream.getPos()).isEqualTo(position);
         write.run();
-        assertEquals(position + expectedContent.length, fsDataOutputStream.getPos());
+        assertThat(fsDataOutputStream.getPos()).isEqualTo(position + expectedContent.length);
 
         // close and persist. there should be exactly zero blobs before and one after, with this
         // byte value in it
-        assertEquals(0, blobStorage.blobs.size());
+        assertThat(blobStorage.blobs).isEmpty();
         fsDataOutputStream.closeForCommit();
-        assertEquals(1, blobStorage.blobs.size());
+        assertThat(blobStorage.blobs).hasSize(1);
         GSBlobIdentifier blobIdentifier =
                 blobStorage.blobs.keySet().toArray(new GSBlobIdentifier[0])[0];
         MockBlobStorage.BlobValue blobValue = blobStorage.blobs.get(blobIdentifier);
-        assertNotNull(blobValue);
-        assertArrayEquals(expectedContent, blobValue.content);
+        assertThat(blobValue).isNotNull();
+        assertThat(blobValue.content).isEqualTo(expectedContent);
     }
 
     private void writeByte() throws IOException {
         writeContent(() -> fsDataOutputStream.write(byteValue), new byte[] {byteValue});
     }
 
-    @Test
-    public void shouldWriteByte() throws IOException {
+    @TestTemplate
+    void shouldWriteByte() throws IOException {
         if (closed) {
-            assertThrows(IOException.class, this::writeByte);
+            assertThatThrownBy(this::writeByte).isInstanceOf(IOException.class);
         } else {
             writeByte();
         }
@@ -195,10 +193,10 @@ public class GSRecoverableFsDataOutputStreamTest {
         writeContent(() -> fsDataOutputStream.write(bytes), bytes);
     }
 
-    @Test
-    public void shouldWriteArray() throws IOException {
+    @TestTemplate
+    void shouldWriteArray() throws IOException {
         if (closed) {
-            assertThrows(IOException.class, this::writeArray);
+            assertThatThrownBy(this::writeArray).isInstanceOf(IOException.class);
         } else {
             writeArray();
         }
@@ -214,55 +212,56 @@ public class GSRecoverableFsDataOutputStreamTest {
                 Arrays.copyOfRange(bytes, start, start + length));
     }
 
-    @Test
-    public void shouldWriteArraySlice() throws IOException {
+    @TestTemplate
+    void shouldWriteArraySlice() throws IOException {
         if (closed) {
-            assertThrows(IOException.class, this::writeArraySlice);
+            assertThatThrownBy(this::writeArraySlice).isInstanceOf(IOException.class);
         } else {
             writeArraySlice();
         }
     }
 
-    @Test
-    public void shouldFlush() throws IOException {
+    @TestTemplate
+    void shouldFlush() throws IOException {
         if (!closed) {
             fsDataOutputStream.write(byteValue);
             fsDataOutputStream.flush();
         }
     }
 
-    @Test
-    public void shouldSync() throws IOException {
+    @TestTemplate
+    void shouldSync() throws IOException {
         if (!closed) {
             fsDataOutputStream.write(byteValue);
             fsDataOutputStream.sync();
         }
     }
 
-    @Test
-    public void shouldPersist() throws IOException {
+    @TestTemplate
+    void shouldPersist() throws IOException {
         if (!closed) {
             GSResumeRecoverable recoverable = (GSResumeRecoverable) fsDataOutputStream.persist();
-            assertEquals(blobIdentifier, recoverable.finalBlobIdentifier);
+            assertThat(recoverable.finalBlobIdentifier).isEqualTo(blobIdentifier);
             if (empty) {
-                assertEquals(0, recoverable.componentObjectIds.size());
+                assertThat(recoverable.componentObjectIds).isEmpty();
             } else {
-                assertArrayEquals(
-                        componentObjectIds.toArray(), recoverable.componentObjectIds.toArray());
+                assertThat(recoverable.componentObjectIds.toArray())
+                        .isEqualTo(componentObjectIds.toArray());
             }
-            assertEquals(position, recoverable.position);
-            assertFalse(recoverable.closed);
+            assertThat(recoverable.position).isEqualTo(position);
+            assertThat(recoverable.closed).isFalse();
         }
     }
 
-    @Test
-    public void shouldFailOnPartialWrite() throws IOException {
+    @TestTemplate
+    void shouldFailOnPartialWrite() {
         if (!closed) {
             blobStorage.maxWriteCount = 1;
             byte[] bytes = new byte[2];
             random.nextBytes(bytes);
 
-            assertThrows(IOException.class, () -> fsDataOutputStream.write(bytes));
+            assertThatThrownBy(() -> fsDataOutputStream.write(bytes))
+                    .isInstanceOf(IOException.class);
         }
     }
 }

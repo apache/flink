@@ -93,13 +93,19 @@ public abstract class AbstractCheckpointStats implements Serializable {
      */
     public abstract long getCheckpointedSize();
 
-    /** @return the total number of processed bytes during the checkpoint. */
+    /**
+     * @return the total number of processed bytes during the checkpoint.
+     */
     public abstract long getProcessedData();
 
-    /** @return the total number of persisted bytes during the checkpoint. */
+    /**
+     * @return the total number of persisted bytes during the checkpoint.
+     */
     public abstract long getPersistedData();
 
-    /** @return whether the checkpoint is unaligned. */
+    /**
+     * @return whether the checkpoint is unaligned.
+     */
     public abstract boolean isUnalignedCheckpoint();
 
     /**

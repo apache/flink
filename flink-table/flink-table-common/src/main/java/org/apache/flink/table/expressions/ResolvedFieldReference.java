@@ -20,7 +20,7 @@ package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.sources.FieldComputer;
+import org.apache.flink.table.legacy.sources.FieldComputer;
 import org.apache.flink.util.Preconditions;
 
 /**

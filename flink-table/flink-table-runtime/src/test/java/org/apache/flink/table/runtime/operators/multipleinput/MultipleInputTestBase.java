@@ -64,15 +64,25 @@ public class MultipleInputTestBase {
     }
 
     protected TestingOneInputStreamOperator createOneInputStreamOperator() throws Exception {
-        TestingOneInputStreamOperator op = new TestingOneInputStreamOperator();
-        op.setup(createStreamTask(), createStreamConfig(), new BlackHoleOutput());
-        return op;
+        return new TestingOneInputStreamOperator(
+                new StreamOperatorParameters<>(
+                        createStreamTask(),
+                        createStreamConfig(),
+                        new BlackHoleOutput(),
+                        TestProcessingTimeService::new,
+                        null,
+                        null));
     }
 
     protected TestingTwoInputStreamOperator createTwoInputStreamOperator() throws Exception {
-        TestingTwoInputStreamOperator op = new TestingTwoInputStreamOperator();
-        op.setup(createStreamTask(), createStreamConfig(), new BlackHoleOutput());
-        return op;
+        return new TestingTwoInputStreamOperator(
+                new StreamOperatorParameters<>(
+                        createStreamTask(),
+                        createStreamConfig(),
+                        new BlackHoleOutput(),
+                        TestProcessingTimeService::new,
+                        null,
+                        null));
     }
 
     protected OneInputTransformation<RowData, RowData> createOneInputTransform(

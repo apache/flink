@@ -23,7 +23,6 @@ import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
@@ -48,6 +47,8 @@ import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorHolder;
 import org.apache.flink.runtime.operators.coordination.RecreateOnResetOperatorCoordinator;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
+import org.apache.flink.runtime.scheduler.adaptivebatch.ExecutionPlanSchedulingContext;
+import org.apache.flink.runtime.scheduler.adaptivebatch.NonAdaptiveExecutionPlanSchedulingContext;
 import org.apache.flink.runtime.source.coordinator.SourceCoordinator;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.IOUtils;
@@ -61,6 +62,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -185,11 +187,27 @@ public class ExecutionJobVertex
         }
     }
 
+    @VisibleForTesting
     protected void initialize(
             int executionHistorySizeLimit,
-            Time timeout,
+            Duration timeout,
             long createTimestamp,
             SubtaskAttemptNumberStore initialAttemptCounts)
+            throws JobException {
+        initialize(
+                executionHistorySizeLimit,
+                timeout,
+                createTimestamp,
+                initialAttemptCounts,
+                NonAdaptiveExecutionPlanSchedulingContext.INSTANCE);
+    }
+
+    protected void initialize(
+            int executionHistorySizeLimit,
+            Duration timeout,
+            long createTimestamp,
+            SubtaskAttemptNumberStore initialAttemptCounts,
+            ExecutionPlanSchedulingContext executionPlanSchedulingContext)
             throws JobException {
 
         checkState(parallelismInfo.getParallelism() > 0);
@@ -211,7 +229,8 @@ public class ExecutionJobVertex
                             result,
                             this,
                             this.parallelismInfo.getParallelism(),
-                            result.getResultType());
+                            result.getResultType(),
+                            executionPlanSchedulingContext);
         }
 
         // create all task vertices
@@ -271,7 +290,7 @@ public class ExecutionJobVertex
             ExecutionJobVertex jobVertex,
             int subTaskIndex,
             IntermediateResult[] producedDataSets,
-            Time timeout,
+            Duration timeout,
             long createTimestamp,
             int executionHistorySizeLimit,
             int initialAttemptCount) {

@@ -110,4 +110,11 @@ class RowTypeTest extends RowTypeTestBase {
           ))
       .withMessageContaining("Cast function cannot convert value")
   }
+
+  @Test
+  def testRowTypeEquality(): Unit = {
+    testAllApis('f2 === row(2, "foo", true), "f2 = row(2, 'foo', true)", "TRUE")
+
+    testAllApis('f3 === row(3, row(2, "foo", true)), "f3 = row(3, row(2, 'foo', true))", "TRUE")
+  }
 }

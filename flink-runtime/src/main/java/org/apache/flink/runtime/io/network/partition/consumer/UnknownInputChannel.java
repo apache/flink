@@ -196,8 +196,8 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
                 taskEventPublisher,
                 initialBackoff,
                 maxBackoff,
-                metrics.getNumBytesInRemoteCounter(),
-                metrics.getNumBuffersInRemoteCounter(),
+                metrics.getNumBytesInLocalCounter(),
+                metrics.getNumBuffersInLocalCounter(),
                 channelStateWriter == null ? ChannelStateWriter.NO_OP : channelStateWriter);
     }
 

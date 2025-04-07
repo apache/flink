@@ -22,11 +22,16 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.StateHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import org.apache.flink.shaded.asm9.org.objectweb.asm.ClassReader;
 import org.apache.flink.shaded.asm9.org.objectweb.asm.ClassVisitor;
@@ -91,7 +96,8 @@ public final class ExtractionUtils {
      * <p>E.g., {@code (int.class, int.class)} matches {@code f(Object...), f(int, int), f(Integer,
      * Object)} and so forth.
      */
-    public static boolean isInvokable(Executable executable, Class<?>... classes) {
+    public static boolean isInvokable(
+            Autoboxing autoboxing, Executable executable, Class<?>... classes) {
         final int m = executable.getModifiers();
         if (!Modifier.isPublic(m)) {
             return false;
@@ -110,21 +116,21 @@ public final class ExtractionUtils {
             if (currentParam == paramCount - 1 && executable.isVarArgs()) {
                 final Class<?> paramComponent =
                         executable.getParameterTypes()[currentParam].getComponentType();
-                // we have more than 1 classes left so the vararg needs to consume them all
+                // we have more than one class left so the vararg needs to consume them all
                 if (classCount - currentClass > 1) {
                     while (currentClass < classCount
-                            && ExtractionUtils.isAssignable(
-                                    classes[currentClass], paramComponent, true)) {
+                            && isAssignable(classes[currentClass], paramComponent, autoboxing)) {
                         currentClass++;
                     }
                 } else if (currentClass < classCount
-                        && (parameterMatches(classes[currentClass], param)
-                                || parameterMatches(classes[currentClass], paramComponent))) {
+                        && (parameterMatches(autoboxing, classes[currentClass], param)
+                                || parameterMatches(
+                                        autoboxing, classes[currentClass], paramComponent))) {
                     currentClass++;
                 }
             }
             // entire parameter matches
-            else if (parameterMatches(classes[currentClass], param)) {
+            else if (parameterMatches(autoboxing, classes[currentClass], param)) {
                 currentClass++;
             }
         }
@@ -132,8 +138,8 @@ public final class ExtractionUtils {
         return currentClass == classCount;
     }
 
-    private static boolean parameterMatches(Class<?> clz, Class<?> param) {
-        return clz == null || ExtractionUtils.isAssignable(clz, param, true);
+    private static boolean parameterMatches(Autoboxing autoboxing, Class<?> clz, Class<?> param) {
+        return clz == null || isAssignable(clz, param, autoboxing);
     }
 
     /** Creates a method signature string like {@code int eval(Integer, String)}. */
@@ -298,11 +304,11 @@ public final class ExtractionUtils {
     /**
      * Checks for an invokable constructor matching the given arguments.
      *
-     * @see #isInvokable(Executable, Class[])
+     * @see #isInvokable(Autoboxing, Executable, Class[])
      */
     public static boolean hasInvokableConstructor(Class<?> clazz, Class<?>... classes) {
         for (Constructor<?> constructor : clazz.getDeclaredConstructors()) {
-            if (isInvokable(constructor, classes)) {
+            if (isInvokable(Autoboxing.JVM, constructor, classes)) {
                 return true;
             }
         }
@@ -397,6 +403,28 @@ public final class ExtractionUtils {
         }
         // Otherwise assume it's a basic type that can be cast.
         return (Class<?>) type;
+    }
+
+    /**
+     * Checks whether the given data type can be used as a state entry for {@link
+     * ProcessTableFunction}.
+     */
+    public static void checkStateDataType(DataType dataType) {
+        final LogicalType type = dataType.getLogicalType();
+        if (!LogicalTypeChecks.isCompositeType(type)) {
+            throw extractionError(
+                    "State entries must use a mutable, composite data type. But was: %s", dataType);
+        }
+        if (type.is(LogicalTypeRoot.ROW)) {
+            return;
+        }
+        if (!hasInvokableConstructor(dataType.getConversionClass())) {
+            throw extractionError(
+                    "Class '%s' cannot be used as state because a default constructor is missing. "
+                            + "State entries must provide an argument-less constructor so that all "
+                            + "fields are mutable.",
+                    dataType.getConversionClass().getName());
+        }
     }
 
     // --------------------------------------------------------------------------------------------
@@ -758,16 +786,20 @@ public final class ExtractionUtils {
         } else {
             offset = 0;
         }
-        // by default parameter names are "arg0, arg1, arg2, ..." if compiler flag is not set
-        // so we need to extract them manually if possible
+        // by default parameter names are "arg0, arg1, arg2, ..." if compiler flag is not set,
+        // we need to extract them manually if possible
         List<String> parameterNames =
                 Stream.of(executable.getParameters())
                         .map(
                                 parameter -> {
-                                    ArgumentHint argumentHint =
+                                    final StateHint stateHint =
+                                            parameter.getAnnotation(StateHint.class);
+                                    final ArgumentHint argHint =
                                             parameter.getAnnotation(ArgumentHint.class);
-                                    if (argumentHint != null && argumentHint.name() != "") {
-                                        return argumentHint.name();
+                                    if (stateHint != null && !stateHint.name().isEmpty()) {
+                                        return stateHint.name();
+                                    } else if (argHint != null && !argHint.name().isEmpty()) {
+                                        return argHint.name();
                                     } else {
                                         return parameter.getName();
                                     }
@@ -783,11 +815,11 @@ public final class ExtractionUtils {
             getClassReader(executable.getDeclaringClass()).accept(extractor, 0);
 
             final List<String> extractedNames = extractor.getParameterNames();
-            if (extractedNames.size() == 0) {
+            if (extractedNames.isEmpty()) {
                 return null;
             }
             // remove "this" and additional local variables
-            // select less names if class file has not the required information
+            // select fewer names if class file has not the required information
             parameterNames =
                     extractedNames.subList(
                             offset,
@@ -912,8 +944,30 @@ public final class ExtractionUtils {
     // --------------------------------------------------------------------------------------------
     // Class Assignment and Boxing
     //
-    // copied from o.a.commons.lang3.ClassUtils (commons-lang3:3.3.2)
+    // inspired by o.a.commons.lang3.ClassUtils (commons-lang3:3.3.2)
     // --------------------------------------------------------------------------------------------
+
+    /** Checks the relation between primitive and boxed types. */
+    @Internal
+    public enum Autoboxing {
+        /**
+         * int.class cannot be passed into f(Integer.class). Integer.class cannot be passed into
+         * f(int.class).
+         */
+        NONE,
+
+        /**
+         * int.class can be passed into f(Integer.class). Integer.class can be passed into
+         * f(int.class). The latter could cause a {@link NullPointerException}.
+         */
+        JVM,
+
+        /**
+         * int.class can be passed into f(Integer.class). Integer.class cannot be passed into
+         * f(int.class).
+         */
+        STRICT
+    }
 
     /**
      * Checks if one {@code Class} can be assigned to a variable of another {@code Class}.
@@ -936,10 +990,10 @@ public final class ExtractionUtils {
      * @param cls the Class to check, may be null
      * @param toClass the Class to try to assign into, returns false if null
      * @param autoboxing whether to use implicit autoboxing/unboxing between primitives and wrappers
+     * @param autoboxing checks whether null would end up in a primitive type and forbids it
      * @return {@code true} if assignment possible
      */
-    public static boolean isAssignable(
-            Class<?> cls, final Class<?> toClass, final boolean autoboxing) {
+    public static boolean isAssignable(Class<?> cls, Class<?> toClass, Autoboxing autoboxing) {
         if (toClass == null) {
             return false;
         }
@@ -948,17 +1002,19 @@ public final class ExtractionUtils {
             return !toClass.isPrimitive();
         }
         // autoboxing:
-        if (autoboxing) {
+        if (autoboxing != Autoboxing.NONE) {
             if (cls.isPrimitive() && !toClass.isPrimitive()) {
                 cls = primitiveToWrapper(cls);
                 if (cls == null) {
                     return false;
                 }
             }
-            if (toClass.isPrimitive() && !cls.isPrimitive()) {
-                cls = wrapperToPrimitive(cls);
-                if (cls == null) {
-                    return false;
+            if (autoboxing == Autoboxing.JVM) {
+                if (toClass.isPrimitive() && !cls.isPrimitive()) {
+                    cls = wrapperToPrimitive(cls);
+                    if (cls == null) {
+                        return false;
+                    }
                 }
             }
         }
@@ -1048,7 +1104,7 @@ public final class ExtractionUtils {
      *     {@code null} if null input.
      * @since 2.1
      */
-    public static Class<?> primitiveToWrapper(final Class<?> cls) {
+    public static Class<?> primitiveToWrapper(Class<?> cls) {
         Class<?> convertedClass = cls;
         if (cls != null && cls.isPrimitive()) {
             convertedClass = primitiveWrapperMap.get(cls);
@@ -1070,7 +1126,7 @@ public final class ExtractionUtils {
      * @see #primitiveToWrapper(Class)
      * @since 2.4
      */
-    public static Class<?> wrapperToPrimitive(final Class<?> cls) {
+    public static Class<?> wrapperToPrimitive(Class<?> cls) {
         return wrapperPrimitiveMap.get(cls);
     }
 

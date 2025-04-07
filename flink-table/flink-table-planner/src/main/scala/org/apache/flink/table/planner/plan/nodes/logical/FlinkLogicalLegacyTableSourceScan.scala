@@ -17,11 +17,11 @@
  */
 package org.apache.flink.table.planner.plan.nodes.logical
 
+import org.apache.flink.table.legacy.sources.TableSource
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalLegacyTableSourceScan.isTableSourceScan
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, LegacyTableSourceTable}
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
-import org.apache.flink.table.sources._
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._

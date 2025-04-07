@@ -17,6 +17,8 @@
  */
 package org.apache.flink.table
 
+import scala.language.experimental.macros
+
 /**
  * ==Table & SQL API==
  *
@@ -35,5 +37,18 @@ package org.apache.flink.table
  * [[ImplicitExpressionOperations]].
  *
  * Please refer to the website documentation about how to construct and run table programs.
+ *
+ * @deprecated
+ *   All Flink Scala APIs are deprecated and will be removed in a future Flink major version. You
+ *   can still build your application in Scala, but you should move to the Java version of either
+ *   the DataStream and/or Table API.
+ * @see
+ *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
  */
-package object api extends ImplicitExpressionConversions {}
+package object api extends ImplicitExpressionConversions with ImplicitTypeConversions {
+
+  val FLIP_265_WARNING: String = "All Flink Scala APIs are deprecated and will be removed in a " +
+    "future Flink version. You can still build your application in Scala, but you should move " +
+    "to the Java version of either the DataStream and/or Table API."
+
+}

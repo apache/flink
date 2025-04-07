@@ -20,6 +20,7 @@ package org.apache.flink.core.state;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.v2.StateFuture;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.function.BiFunctionWithException;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -223,6 +224,290 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
         }
     }
 
+    @Override
+    public <U, V> StateFuture<Tuple2<Boolean, Object>> thenConditionallyApply(
+            FunctionWithException<? super T, Boolean, ? extends Exception> condition,
+            FunctionWithException<? super T, ? extends U, ? extends Exception> actionIfTrue,
+            FunctionWithException<? super T, ? extends V, ? extends Exception> actionIfFalse) {
+        callbackRegistered();
+        if (completableFuture.isDone()) {
+            // this branch must be invoked in task thread when expected
+            T t;
+            try {
+                t = completableFuture.get();
+            } catch (Exception e) {
+                exceptionHandler.handleException(
+                        "Caught exception when processing completed StateFuture's callback.", e);
+                return null;
+            }
+            boolean test = FunctionWithException.unchecked(condition).apply(t);
+            Object r =
+                    test
+                            ? FunctionWithException.unchecked(actionIfTrue).apply(t)
+                            : FunctionWithException.unchecked(actionIfFalse).apply(t);
+
+            callbackFinished();
+            return StateFutureUtils.completedFuture(Tuple2.of(test, r));
+        } else {
+            StateFutureImpl<Tuple2<Boolean, Object>> ret = makeNewStateFuture();
+            completableFuture
+                    .thenAccept(
+                            (t) -> {
+                                callbackRunner.submit(
+                                        () -> {
+                                            boolean test = condition.apply(t);
+                                            Object r =
+                                                    test
+                                                            ? actionIfTrue.apply(t)
+                                                            : actionIfFalse.apply(t);
+                                            ret.completeInCallbackRunner(Tuple2.of(test, r));
+                                            callbackFinished();
+                                        });
+                            })
+                    .exceptionally(
+                            (e) -> {
+                                exceptionHandler.handleException(
+                                        "Caught exception when submitting StateFuture's callback.",
+                                        e);
+                                return null;
+                            });
+            return ret;
+        }
+    }
+
+    @Override
+    public <U> StateFuture<Tuple2<Boolean, U>> thenConditionallyApply(
+            FunctionWithException<? super T, Boolean, ? extends Exception> condition,
+            FunctionWithException<? super T, ? extends U, ? extends Exception> actionIfTrue) {
+        callbackRegistered();
+        if (completableFuture.isDone()) {
+            // this branch must be invoked in task thread when expected
+            T t;
+            try {
+                t = completableFuture.get();
+            } catch (Exception e) {
+                exceptionHandler.handleException(
+                        "Caught exception when processing completed StateFuture's callback.", e);
+                return null;
+            }
+            boolean test = FunctionWithException.unchecked(condition).apply(t);
+            U r = test ? FunctionWithException.unchecked(actionIfTrue).apply(t) : null;
+
+            callbackFinished();
+            return StateFutureUtils.completedFuture(Tuple2.of(test, r));
+        } else {
+            StateFutureImpl<Tuple2<Boolean, U>> ret = makeNewStateFuture();
+            completableFuture
+                    .thenAccept(
+                            (t) -> {
+                                callbackRunner.submit(
+                                        () -> {
+                                            boolean test = condition.apply(t);
+                                            U r = test ? actionIfTrue.apply(t) : null;
+                                            ret.completeInCallbackRunner(Tuple2.of(test, r));
+                                            callbackFinished();
+                                        });
+                            })
+                    .exceptionally(
+                            (e) -> {
+                                exceptionHandler.handleException(
+                                        "Caught exception when submitting StateFuture's callback.",
+                                        e);
+                                return null;
+                            });
+            return ret;
+        }
+    }
+
+    @Override
+    public StateFuture<Boolean> thenConditionallyAccept(
+            FunctionWithException<? super T, Boolean, ? extends Exception> condition,
+            ThrowingConsumer<? super T, ? extends Exception> actionIfTrue,
+            ThrowingConsumer<? super T, ? extends Exception> actionIfFalse) {
+        callbackRegistered();
+        if (completableFuture.isDone()) {
+            // this branch must be invoked in task thread when expected
+            T t;
+            try {
+                t = completableFuture.get();
+            } catch (Exception e) {
+                exceptionHandler.handleException(
+                        "Caught exception when processing completed StateFuture's callback.", e);
+                return null;
+            }
+            boolean test = FunctionWithException.unchecked(condition).apply(t);
+            if (test) {
+                ThrowingConsumer.unchecked(actionIfTrue).accept(t);
+            } else {
+                ThrowingConsumer.unchecked(actionIfFalse).accept(t);
+            }
+            callbackFinished();
+            return StateFutureUtils.completedFuture(test);
+        } else {
+            StateFutureImpl<Boolean> ret = makeNewStateFuture();
+            completableFuture
+                    .thenAccept(
+                            (t) -> {
+                                callbackRunner.submit(
+                                        () -> {
+                                            boolean test = condition.apply(t);
+                                            if (test) {
+                                                actionIfTrue.accept(t);
+                                            } else {
+                                                actionIfFalse.accept(t);
+                                            }
+                                            ret.completeInCallbackRunner(test);
+                                            callbackFinished();
+                                        });
+                            })
+                    .exceptionally(
+                            (e) -> {
+                                exceptionHandler.handleException(
+                                        "Caught exception when submitting StateFuture's callback.",
+                                        e);
+                                return null;
+                            });
+            return ret;
+        }
+    }
+
+    @Override
+    public StateFuture<Boolean> thenConditionallyAccept(
+            FunctionWithException<? super T, Boolean, ? extends Exception> condition,
+            ThrowingConsumer<? super T, ? extends Exception> actionIfTrue) {
+        return thenConditionallyAccept(condition, actionIfTrue, (b) -> {});
+    }
+
+    @Override
+    public <U, V> StateFuture<Tuple2<Boolean, Object>> thenConditionallyCompose(
+            FunctionWithException<? super T, Boolean, ? extends Exception> condition,
+            FunctionWithException<? super T, ? extends StateFuture<U>, ? extends Exception>
+                    actionIfTrue,
+            FunctionWithException<? super T, ? extends StateFuture<V>, ? extends Exception>
+                    actionIfFalse) {
+        callbackRegistered();
+        if (completableFuture.isDone()) {
+            // this branch must be invoked in task thread when expected
+            T t;
+            try {
+                t = completableFuture.get();
+            } catch (Throwable e) {
+                exceptionHandler.handleException(
+                        "Caught exception when processing completed StateFuture's callback.", e);
+                return null;
+            }
+            boolean test = FunctionWithException.unchecked(condition).apply(t);
+            StateFuture<?> actionResult;
+            if (test) {
+                actionResult = FunctionWithException.unchecked(actionIfTrue).apply(t);
+            } else {
+                actionResult = FunctionWithException.unchecked(actionIfFalse).apply(t);
+            }
+            StateFutureImpl<Tuple2<Boolean, Object>> ret = makeNewStateFuture();
+            actionResult.thenAccept(
+                    (e) -> {
+                        ret.completeInCallbackRunner(Tuple2.of(test, e));
+                    });
+            callbackFinished();
+            return ret;
+        } else {
+            StateFutureImpl<Tuple2<Boolean, Object>> ret = makeNewStateFuture();
+            completableFuture
+                    .thenAccept(
+                            (t) -> {
+                                callbackRunner.submit(
+                                        () -> {
+                                            boolean test = condition.apply(t);
+                                            StateFuture<?> actionResult;
+                                            if (test) {
+                                                actionResult = actionIfTrue.apply(t);
+                                            } else {
+                                                actionResult = actionIfFalse.apply(t);
+                                            }
+                                            actionResult.thenAccept(
+                                                    (e) -> {
+                                                        ret.completeInCallbackRunner(
+                                                                Tuple2.of(test, e));
+                                                    });
+                                            callbackFinished();
+                                        });
+                            })
+                    .exceptionally(
+                            (e) -> {
+                                exceptionHandler.handleException(
+                                        "Caught exception when submitting StateFuture's callback.",
+                                        e);
+                                return null;
+                            });
+            return ret;
+        }
+    }
+
+    @Override
+    public <U> StateFuture<Tuple2<Boolean, U>> thenConditionallyCompose(
+            FunctionWithException<? super T, Boolean, ? extends Exception> condition,
+            FunctionWithException<? super T, ? extends StateFuture<U>, ? extends Exception>
+                    actionIfTrue) {
+        callbackRegistered();
+        if (completableFuture.isDone()) {
+            // this branch must be invoked in task thread when expected
+            T t;
+            try {
+                t = completableFuture.get();
+            } catch (Throwable e) {
+                exceptionHandler.handleException(
+                        "Caught exception when processing completed StateFuture's callback.", e);
+                return null;
+            }
+            boolean test = FunctionWithException.unchecked(condition).apply(t);
+
+            if (test) {
+                StateFuture<U> actionResult =
+                        FunctionWithException.unchecked(actionIfTrue).apply(t);
+                StateFutureImpl<Tuple2<Boolean, U>> ret = makeNewStateFuture();
+                actionResult.thenAccept(
+                        (e) -> {
+                            ret.completeInCallbackRunner(Tuple2.of(true, e));
+                        });
+                callbackFinished();
+                return ret;
+            } else {
+                callbackFinished();
+                return StateFutureUtils.completedFuture(Tuple2.of(false, null));
+            }
+        } else {
+            StateFutureImpl<Tuple2<Boolean, U>> ret = makeNewStateFuture();
+            completableFuture
+                    .thenAccept(
+                            (t) -> {
+                                callbackRunner.submit(
+                                        () -> {
+                                            boolean test = condition.apply(t);
+                                            if (test) {
+                                                StateFuture<U> actionResult = actionIfTrue.apply(t);
+                                                actionResult.thenAccept(
+                                                        (e) -> {
+                                                            ret.completeInCallbackRunner(
+                                                                    Tuple2.of(true, e));
+                                                        });
+                                            } else {
+                                                ret.completeInCallbackRunner(
+                                                        Tuple2.of(false, null));
+                                            }
+                                            callbackFinished();
+                                        });
+                            })
+                    .exceptionally(
+                            (e) -> {
+                                exceptionHandler.handleException(
+                                        "Caught exception when submitting StateFuture's callback.",
+                                        e);
+                                return null;
+                            });
+            return ret;
+        }
+    }
+
     /**
      * Make a new future based on context of this future. Subclasses need to overload this method to
      * generate their own instances (if needed).
@@ -231,6 +516,24 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
      */
     public <A> StateFutureImpl<A> makeNewStateFuture() {
         return new StateFutureImpl<>(callbackRunner, exceptionHandler);
+    }
+
+    @Override
+    public boolean isDone() {
+        return completableFuture.isDone();
+    }
+
+    @Override
+    public T get() {
+        T t;
+        try {
+            t = completableFuture.get();
+        } catch (Exception e) {
+            exceptionHandler.handleException(
+                    "Caught exception when getting StateFuture's result.", e);
+            return null;
+        }
+        return t;
     }
 
     @Override

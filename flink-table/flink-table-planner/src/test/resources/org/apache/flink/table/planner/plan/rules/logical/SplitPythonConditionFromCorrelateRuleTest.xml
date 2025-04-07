@@ -25,8 +25,8 @@ limitations under the License.
 LogicalProject(a=[$0], b=[$1], c=[$2], s=[$3], l=[$4])
 +- LogicalFilter(condition=[AND(=($4, $0), =($2, $3), =(pyFunc($4, $4), 2), =(+($4, 1), *($4, $4)))])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
-      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
-      +- LogicalTableFunctionScan(invocation=[func($cor0.c)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0, INTEGER f1)])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableFunctionScan(invocation=[func($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) f0, INTEGER f1)])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -34,9 +34,9 @@ LogicalProject(a=[$0], b=[$1], c=[$2], s=[$3], l=[$4])
 FlinkLogicalCalc(select=[a, b, c, f0, f1], where=[AND(=(f00, 2), =(f1, a), =(c, f0))])
 +- FlinkLogicalCalc(select=[a, b, c, f0, f1, pyFunc(f1, f1) AS f00])
    +- FlinkLogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
-      :- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      :- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
       +- FlinkLogicalCalc(select=[f0, f1], where=[=(+(f1, 1), *(f1, f1))])
-         +- FlinkLogicalTableFunctionScan(invocation=[func($cor0.c)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0, INTEGER f1)])
+         +- FlinkLogicalTableFunctionScan(invocation=[func($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) f0, INTEGER f1)])
 ]]>
     </Resource>
   </TestCase>

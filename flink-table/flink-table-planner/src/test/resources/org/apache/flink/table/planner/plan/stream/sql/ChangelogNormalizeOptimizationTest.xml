@@ -1,0 +1,458 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testChangelogNormalizePlan[[10] select_with_filter_upsert_table_full_deletes_into_all_change_sink_table]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO all_change_sink_table SELECT * FROM upsert_table_full_deletes WHERE col1 > 2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.all_change_sink_table], fields=[id, col1, col2])
++- LogicalProject(id=[$0], col1=[$1], col2=[$2])
+   +- LogicalFilter(condition=[>($1, 2)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_full_deletes]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.all_change_sink_table], fields=[id, col1, col2], changelogMode=[NONE])
++- ChangelogNormalize(key=[id], condition=[>(col1, 2)], changelogMode=[I,UB,UA,D])
+   +- Exchange(distribution=[hash[id]], changelogMode=[UA,D])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_full_deletes, filter=[]]], fields=[id, col1, col2], changelogMode=[UA,D])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testChangelogNormalizePlan[[11] join_upsert_table_full_deletes_upsert_table_full_deletes_into_upsert_sink_table]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO upsert_sink_table SELECT l.* FROM upsert_table_full_deletes l JOIN upsert_table_full_deletes r ON l.id = r.id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2])
++- LogicalProject(id=[$0], col1=[$1], col2=[$2])
+   +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_full_deletes]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_full_deletes]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2], changelogMode=[NONE])
++- Calc(select=[id, col1, col2], changelogMode=[I,UA,D])
+   +- Join(joinType=[InnerJoin], where=[=(id, id0)], select=[id, col1, col2, id0], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UA,D])
+      :- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_full_deletes, project=[id, col1, col2], metadata=[]]], fields=[id, col1, col2], changelogMode=[UA,D])
+      +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
+         +- Calc(select=[id], changelogMode=[UA,D])
+            +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_full_deletes, project=[id, col1, col2], metadata=[]]], fields=[id, col1, col2], changelogMode=[UA,D])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testChangelogNormalizePlan[[12] join_upsert_table_partial_deletes_upsert_table_partial_deletes_into_upsert_sink_table]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO upsert_sink_table SELECT l.* FROM upsert_table_partial_deletes l JOIN upsert_table_partial_deletes r ON l.id = r.id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2])
++- LogicalProject(id=[$0], col1=[$1], col2=[$2])
+   +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2], changelogMode=[NONE])
++- Calc(select=[id, col1, col2], changelogMode=[I,UA,PD])
+   +- Join(joinType=[InnerJoin], where=[=(id, id0)], select=[id, col1, col2, id0], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UA,PD])
+      :- Exchange(distribution=[hash[id]], changelogMode=[I,UA,PD])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes, project=[id, col1, col2], metadata=[]]], fields=[id, col1, col2], changelogMode=[UA,PD])
+      +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,PD])
+         +- Calc(select=[id], changelogMode=[UA,PD])
+            +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes, project=[id, col1, col2], metadata=[]]], fields=[id, col1, col2], changelogMode=[UA,PD])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testChangelogNormalizePlan[[13] join_upsert_table_full_deletes_upsert_table_partial_deletes_into_upsert_sink_table]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO upsert_sink_table SELECT l.* FROM upsert_table_full_deletes l JOIN upsert_table_partial_deletes r ON l.id = r.id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2])
++- LogicalProject(id=[$0], col1=[$1], col2=[$2])
+   +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_full_deletes]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2], changelogMode=[NONE])
++- Calc(select=[id, col1, col2], changelogMode=[I,UA,PD])
+   +- Join(joinType=[InnerJoin], where=[=(id, id0)], select=[id, col1, col2, id0], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UA,PD])
+      :- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_full_deletes]], fields=[id, col1, col2], changelogMode=[UA,D])
+      +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,PD])
+         +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes, project=[id], metadata=[]]], fields=[id], changelogMode=[UA,PD])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testChangelogNormalizePlan[[14] join_upsert_table_partial_deletes_upsert_table_full_deletes_into_upsert_sink_table]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO upsert_sink_table SELECT l.* FROM upsert_table_partial_deletes l JOIN upsert_table_full_deletes r ON l.id = r.id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2])
++- LogicalProject(id=[$0], col1=[$1], col2=[$2])
+   +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_full_deletes]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2], changelogMode=[NONE])
++- Calc(select=[id, col1, col2], changelogMode=[I,UA,PD])
+   +- Join(joinType=[InnerJoin], where=[=(id, id0)], select=[id, col1, col2, id0], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UA,PD])
+      :- Exchange(distribution=[hash[id]], changelogMode=[I,UA,PD])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]], fields=[id, col1, col2], changelogMode=[UA,PD])
+      +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
+         +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_full_deletes, project=[id], metadata=[]]], fields=[id], changelogMode=[UA,D])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testChangelogNormalizePlan[[15] join_upsert_table_partial_deletes_upsert_table_partial_deletes_into_upsert_sink_table_full_deletes]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO upsert_sink_table_full_deletes SELECT l.* FROM upsert_table_partial_deletes l JOIN upsert_table_partial_deletes r ON l.id = r.id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.upsert_sink_table_full_deletes], fields=[id, col1, col2])
++- LogicalProject(id=[$0], col1=[$1], col2=[$2])
+   +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.upsert_sink_table_full_deletes], fields=[id, col1, col2], changelogMode=[NONE])
++- Calc(select=[id, col1, col2], changelogMode=[I,UA,D])
+   +- Join(joinType=[InnerJoin], where=[=(id, id0)], select=[id, col1, col2, id0], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UA,D])
+      :- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
+      :  +- ChangelogNormalize(key=[id], changelogMode=[I,UA,D])
+      :     +- Exchange(distribution=[hash[id]], changelogMode=[UA,PD])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes, project=[id, col1, col2], metadata=[]]], fields=[id, col1, col2], changelogMode=[UA,PD])
+      +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
+         +- ChangelogNormalize(key=[id], changelogMode=[I,UA,D])
+            +- Exchange(distribution=[hash[id]], changelogMode=[UA,PD])
+               +- Calc(select=[id], changelogMode=[UA,PD])
+                  +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes, project=[id, col1, col2], metadata=[]]], fields=[id, col1, col2], changelogMode=[UA,PD])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testChangelogNormalizePlan[[16] join_upsert_table_partial_deletes_upsert_table_partial_deletes_into_all_change_sink_table]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO all_change_sink_table SELECT l.* FROM upsert_table_partial_deletes l JOIN upsert_table_partial_deletes r ON l.id = r.id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.all_change_sink_table], fields=[id, col1, col2])
++- LogicalProject(id=[$0], col1=[$1], col2=[$2])
+   +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.all_change_sink_table], fields=[id, col1, col2], changelogMode=[NONE])
++- Calc(select=[id, col1, col2], changelogMode=[I,UB,UA,D])
+   +- Join(joinType=[InnerJoin], where=[=(id, id0)], select=[id, col1, col2, id0], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UB,UA,D])
+      :- Exchange(distribution=[hash[id]], changelogMode=[I,UB,UA,D])
+      :  +- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
+      :     +- Exchange(distribution=[hash[id]], changelogMode=[UA,PD])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes, project=[id, col1, col2], metadata=[]]], fields=[id, col1, col2], changelogMode=[UA,PD])
+      +- Exchange(distribution=[hash[id]], changelogMode=[I,UB,UA,D])
+         +- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
+            +- Exchange(distribution=[hash[id]], changelogMode=[UA,PD])
+               +- Calc(select=[id], changelogMode=[UA,PD])
+                  +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes, project=[id, col1, col2], metadata=[]]], fields=[id, col1, col2], changelogMode=[UA,PD])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testChangelogNormalizePlan[[17] select_upsert_table_partial_deletes_metadata_into_upsert_sink_table]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO upsert_sink_table SELECT * FROM upsert_table_partial_deletes_metadata]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2, offset])
++- LogicalProject(id=[$0], col1=[$1], col2=[$2], offset=[$3])
+   +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes_metadata, metadata=[offset]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2, offset], changelogMode=[NONE])
++- ChangelogNormalize(key=[id], changelogMode=[I,UA,D])
+   +- Exchange(distribution=[hash[id]], changelogMode=[UA,PD])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes_metadata, metadata=[offset]]], fields=[id, col1, col2, offset], changelogMode=[UA,PD])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testChangelogNormalizePlan[[18] select_no_metadata_upsert_table_partial_deletes_metadata_into_upsert_sink_table]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO upsert_sink_table SELECT id, col1, col2 FROM upsert_table_partial_deletes_metadata]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2])
++- LogicalProject(id=[$0], col1=[$1], col2=[$2])
+   +- LogicalProject(id=[$0], col1=[$1], col2=[$2], offset=[$3])
+      +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes_metadata, metadata=[offset]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2], changelogMode=[NONE])
++- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes_metadata, project=[id, col1, col2], metadata=[]]], fields=[id, col1, col2], changelogMode=[UA,PD])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testChangelogNormalizePlan[[19] select_upsert_table_partial_deletes_metadata_no_pushdown_into_upsert_sink_table]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO upsert_sink_table SELECT * FROM upsert_table_partial_deletes_metadata_no_pushdown]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2, offset])
++- LogicalProject(id=[$0], col1=[$1], col2=[$2], offset=[$3])
+   +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes_metadata_no_pushdown, metadata=[offset]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2, offset], changelogMode=[NONE])
++- ChangelogNormalize(key=[id], changelogMode=[I,UA,D])
+   +- Exchange(distribution=[hash[id]], changelogMode=[UA,PD])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes_metadata_no_pushdown, metadata=[offset]]], fields=[id, col1, col2, offset], changelogMode=[UA,PD])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testChangelogNormalizePlan[[1] select_upsert_table_partial_deletes_into_upsert_sink_table]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO upsert_sink_table SELECT * FROM upsert_table_partial_deletes]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2])
++- LogicalProject(id=[$0], col1=[$1], col2=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2], changelogMode=[NONE])
++- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]], fields=[id, col1, col2], changelogMode=[UA,PD])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testChangelogNormalizePlan[[20] select_no_metadata_upsert_table_partial_deletes_metadata_no_pushdown_into_upsert_sink_table]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO upsert_sink_table SELECT id, col1, col2 FROM upsert_table_partial_deletes_metadata_no_pushdown]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2])
++- LogicalProject(id=[$0], col1=[$1], col2=[$2])
+   +- LogicalProject(id=[$0], col1=[$1], col2=[$2], offset=[$3])
+      +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes_metadata_no_pushdown, metadata=[offset]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2], changelogMode=[NONE])
++- Calc(select=[id, col1, col2], changelogMode=[UA,PD])
+   +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes_metadata_no_pushdown, metadata=[offset]]], fields=[id, col1, col2, offset], changelogMode=[UA,PD])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testChangelogNormalizePlan[[2] select_upsert_table_full_deletes_into_upsert_sink_table]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO upsert_sink_table SELECT * FROM upsert_table_full_deletes]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2])
++- LogicalProject(id=[$0], col1=[$1], col2=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_full_deletes]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2], changelogMode=[NONE])
++- TableSourceScan(table=[[default_catalog, default_database, upsert_table_full_deletes]], fields=[id, col1, col2], changelogMode=[UA,D])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testChangelogNormalizePlan[[3] select_upsert_table_partial_deletes_into_upsert_sink_table_full_deletes]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO upsert_sink_table_full_deletes SELECT * FROM upsert_table_partial_deletes]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.upsert_sink_table_full_deletes], fields=[id, col1, col2])
++- LogicalProject(id=[$0], col1=[$1], col2=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.upsert_sink_table_full_deletes], fields=[id, col1, col2], changelogMode=[NONE])
++- ChangelogNormalize(key=[id], changelogMode=[I,UA,D])
+   +- Exchange(distribution=[hash[id]], changelogMode=[UA,PD])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]], fields=[id, col1, col2], changelogMode=[UA,PD])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testChangelogNormalizePlan[[4] select_upsert_table_full_deletes_into_upsert_sink_table_full_deletes]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO upsert_sink_table_full_deletes SELECT * FROM upsert_table_full_deletes]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.upsert_sink_table_full_deletes], fields=[id, col1, col2])
++- LogicalProject(id=[$0], col1=[$1], col2=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_full_deletes]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.upsert_sink_table_full_deletes], fields=[id, col1, col2], changelogMode=[NONE])
++- TableSourceScan(table=[[default_catalog, default_database, upsert_table_full_deletes]], fields=[id, col1, col2], changelogMode=[UA,D])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testChangelogNormalizePlan[[5] select_upsert_table_partial_deletes_into_all_change_sink_table]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO all_change_sink_table SELECT * FROM upsert_table_partial_deletes]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.all_change_sink_table], fields=[id, col1, col2])
++- LogicalProject(id=[$0], col1=[$1], col2=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.all_change_sink_table], fields=[id, col1, col2], changelogMode=[NONE])
++- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
+   +- Exchange(distribution=[hash[id]], changelogMode=[UA,PD])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]], fields=[id, col1, col2], changelogMode=[UA,PD])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testChangelogNormalizePlan[[6] select_upsert_table_full_deletes_into_all_change_sink_table]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO all_change_sink_table SELECT * FROM upsert_table_full_deletes]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.all_change_sink_table], fields=[id, col1, col2])
++- LogicalProject(id=[$0], col1=[$1], col2=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_full_deletes]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.all_change_sink_table], fields=[id, col1, col2], changelogMode=[NONE])
++- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
+   +- Exchange(distribution=[hash[id]], changelogMode=[UA,D])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_full_deletes]], fields=[id, col1, col2], changelogMode=[UA,D])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testChangelogNormalizePlan[[7] select_with_filter_upsert_table_partial_deletes_into_upsert_sink_table]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO upsert_sink_table SELECT * FROM upsert_table_partial_deletes WHERE col1 > 2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2])
++- LogicalProject(id=[$0], col1=[$1], col2=[$2])
+   +- LogicalFilter(condition=[>($1, 2)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2], changelogMode=[NONE])
++- ChangelogNormalize(key=[id], condition=[>(col1, 2)], changelogMode=[I,UA,D])
+   +- Exchange(distribution=[hash[id]], changelogMode=[UA,PD])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes, filter=[]]], fields=[id, col1, col2], changelogMode=[UA,PD])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testChangelogNormalizePlan[[8] select_with_filter_upsert_table_full_deletes_into_upsert_sink_table]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO upsert_sink_table SELECT * FROM upsert_table_full_deletes WHERE col1 > 2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2])
++- LogicalProject(id=[$0], col1=[$1], col2=[$2])
+   +- LogicalFilter(condition=[>($1, 2)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_full_deletes]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2], changelogMode=[NONE])
++- ChangelogNormalize(key=[id], condition=[>(col1, 2)], changelogMode=[I,UA,D])
+   +- Exchange(distribution=[hash[id]], changelogMode=[UA,D])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_full_deletes, filter=[]]], fields=[id, col1, col2], changelogMode=[UA,D])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testChangelogNormalizePlan[[9] select_with_filter_upsert_table_partial_deletes_into_all_change_sink_table]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO all_change_sink_table SELECT * FROM upsert_table_partial_deletes WHERE col1 > 2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.all_change_sink_table], fields=[id, col1, col2])
++- LogicalProject(id=[$0], col1=[$1], col2=[$2])
+   +- LogicalFilter(condition=[>($1, 2)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.all_change_sink_table], fields=[id, col1, col2], changelogMode=[NONE])
++- ChangelogNormalize(key=[id], condition=[>(col1, 2)], changelogMode=[I,UB,UA,D])
+   +- Exchange(distribution=[hash[id]], changelogMode=[UA,PD])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes, filter=[]]], fields=[id, col1, col2], changelogMode=[UA,PD])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

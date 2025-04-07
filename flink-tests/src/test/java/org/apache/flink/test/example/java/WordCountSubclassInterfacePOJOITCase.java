@@ -22,8 +22,14 @@ package org.apache.flink.test.example.java;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.common.serialization.SimpleStringEncoder;
+import org.apache.flink.connector.file.sink.FileSink;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.legacy.io.TextInputFormat;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 import org.apache.flink.util.Collector;
@@ -53,12 +59,13 @@ public class WordCountSubclassInterfacePOJOITCase extends JavaProgramTestBaseJUn
 
     @Override
     protected void testProgram() throws Exception {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        DataSet<String> text = env.readTextFile(textPath);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStreamSource<String> text = env.createInput(new TextInputFormat(new Path(textPath)));
 
-        DataSet<WCBase> counts =
+        DataStream<WCBase> counts =
                 text.flatMap(new Tokenizer())
-                        .groupBy("word")
+                        .keyBy(x -> x.word)
+                        .window(GlobalWindows.createWithEndOfStreamTrigger())
                         .reduce(
                                 new ReduceFunction<WCBase>() {
                                     private static final long serialVersionUID = 1L;
@@ -83,7 +90,9 @@ public class WordCountSubclassInterfacePOJOITCase extends JavaProgramTestBaseJUn
                                     }
                                 });
 
-        counts.writeAsText(resultPath);
+        counts.sinkTo(
+                FileSink.forRowFormat(new Path(resultPath), new SimpleStringEncoder<WCBase>())
+                        .build());
 
         env.execute("WordCount with custom data types example");
     }

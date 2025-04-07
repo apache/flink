@@ -25,7 +25,7 @@ import org.apache.calcite.rex.{RexBuilder, RexLiteral, RexNode, RexUtil}
 import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName}
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
-import org.junit.jupiter.api.Assertions.{assertEquals, assertFalse}
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 import java.math.BigDecimal
@@ -196,18 +196,8 @@ class FlinkRexUtilTest {
     )
 
     // the number of RexCall in the CNF result exceeds 95 * 2, so returns the original expression
-    val newPredicate1 = FlinkRexUtil.toCnf(rexBuilder, -1, predicate)
-    assertEquals(predicate.toString, newPredicate1.toString)
-
-    val newPredicate2 = FlinkRexUtil.toCnf(rexBuilder, 200, predicate)
-    assertEquals(predicate.toString, newPredicate2.toString)
-
-    val newPredicate3 = FlinkRexUtil.toCnf(rexBuilder, 2103039, predicate)
-    assertEquals(RexUtil.toCnf(rexBuilder, predicate).toString, newPredicate3.toString)
-
-    val newPredicate4 = FlinkRexUtil.toCnf(rexBuilder, Int.MaxValue, predicate)
-    assertFalse(predicate.equals(newPredicate4))
-    assertEquals(RexUtil.toCnf(rexBuilder, predicate).toString, newPredicate4.toString)
+    val newPredicate = FlinkRexUtil.toCnf(rexBuilder, predicate)
+    assertEquals(predicate.toString, newPredicate.toString)
   }
 
   @Test
@@ -239,12 +229,9 @@ class FlinkRexUtilTest {
         rexBuilder.makeCall(EQUALS, c, rexBuilder.makeLiteral("3")))
     )
 
-    val newPredicate1 = FlinkRexUtil.toCnf(rexBuilder, -1, predicate)
-    assertEquals(expected.toString, newPredicate1.toString)
+    val newPredicate = FlinkRexUtil.toCnf(rexBuilder, predicate)
+    assertEquals(expected.toString, newPredicate.toString)
     assertEquals(expected.toString, RexUtil.toCnf(rexBuilder, predicate).toString)
-
-    val newPredicate2 = FlinkRexUtil.toCnf(rexBuilder, 0, predicate)
-    assertEquals(predicate.toString, newPredicate2.toString)
   }
 
   @Test

@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.expressions.utils
 
 import org.apache.flink.api.common.{TaskInfo, TaskInfoImpl}
-import org.apache.flink.api.common.functions.{MapFunction, RichFunction, RichMapFunction}
+import org.apache.flink.api.common.functions.{DefaultOpenContext, MapFunction, OpenContext, RichFunction, RichMapFunction}
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
@@ -241,7 +241,7 @@ abstract class ExpressionTestBase(isStreaming: Boolean = true) {
         Collections.emptyMap(),
         null)
       richMapper.setRuntimeContext(t)
-      richMapper.open(new Configuration())
+      richMapper.open(DefaultOpenContext.INSTANCE)
     }
 
     val testRow = if (containsLegacyTypes) {

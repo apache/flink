@@ -43,9 +43,9 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.streaming.api.functions.sink.filesystem.PartFileInfo;
 import org.apache.flink.streaming.api.functions.sink.filesystem.RollingPolicy;
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink.BucketsBuilder;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
+import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
+import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink.BucketsBuilder;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.CheckpointRollingPolicy;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
@@ -429,7 +429,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
             public void configure(Configuration parameters) {}
 
             @Override
-            public void open(int taskNumber, int numTasks) throws IOException {
+            public void open(InitializationContext context) throws IOException {
                 this.stream = path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE);
                 this.writer = factory.create(stream);
             }
@@ -460,7 +460,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
             public void configure(Configuration parameters) {}
 
             @Override
-            public void open(int taskNumber, int numTasks) throws IOException {
+            public void open(InitializationContext context) throws IOException {
                 this.output = path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE);
             }
 

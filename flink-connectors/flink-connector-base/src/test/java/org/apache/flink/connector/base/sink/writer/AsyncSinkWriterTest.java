@@ -18,7 +18,6 @@
 package org.apache.flink.connector.base.sink.writer;
 
 import org.apache.flink.api.common.operators.MailboxExecutor;
-import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.connector.base.sink.writer.config.AsyncSinkWriterConfiguration;
 import org.apache.flink.connector.base.sink.writer.strategy.AIMDScalingStrategy;
@@ -51,14 +50,14 @@ import static org.assertj.core.api.Assertions.fail;
  * Unit Tests the functionality of AsyncSinkWriter without any assumptions of what a concrete
  * implementation might do.
  */
-public class AsyncSinkWriterTest {
+class AsyncSinkWriterTest {
 
     private final List<Integer> res = new ArrayList<>();
     private TestSinkInitContext sinkInitContext;
     private TestSinkInitContextAnyThreadMailbox sinkInitContextAnyThreadMailbox;
 
     @BeforeEach
-    public void before() {
+    void before() {
         res.clear();
         sinkInitContext = new TestSinkInitContext();
         sinkInitContextAnyThreadMailbox = new TestSinkInitContextAnyThreadMailbox();
@@ -74,7 +73,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testElementConvertOpenIsInvoked() {
+    void testElementConvertOpenIsInvoked() {
         TestElementConverter elementConverter = new TestElementConverter();
         assertThat(elementConverter.getOpenCallCount()).isEqualTo(0);
 
@@ -88,7 +87,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testNumberOfRecordsIsAMultipleOfBatchSizeResultsInThatNumberOfRecordsBeingWritten()
+    void testNumberOfRecordsIsAMultipleOfBatchSizeResultsInThatNumberOfRecordsBeingWritten()
             throws IOException, InterruptedException {
         performNormalWriteOfEightyRecordsToMock();
 
@@ -96,7 +95,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testMetricsGroupHasLoggedNumberOfRecordsAndNumberOfBytesCorrectly()
+    void testMetricsGroupHasLoggedNumberOfRecordsAndNumberOfBytesCorrectly()
             throws IOException, InterruptedException {
         performNormalWriteOfEightyRecordsToMock();
 
@@ -108,7 +107,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void checkLoggedSendTimesAreWithinBounds() throws IOException, InterruptedException {
+    void checkLoggedSendTimesAreWithinBounds() throws IOException, InterruptedException {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
                         .context(sinkInitContext)
@@ -129,7 +128,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testThatUnwrittenRecordsInBufferArePersistedWhenSnapshotIsTaken()
+    void testThatUnwrittenRecordsInBufferArePersistedWhenSnapshotIsTaken()
             throws IOException, InterruptedException {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder().context(sinkInitContext).build();
@@ -142,8 +141,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void sinkToAllowBatchSizesEqualToByteWiseLimit()
-            throws IOException, InterruptedException {
+    void sinkToAllowBatchSizesEqualToByteWiseLimit() throws IOException, InterruptedException {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
                         .context(sinkInitContext)
@@ -158,7 +156,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testPreparingCommitAtSnapshotTimeEnsuresBufferedRecordsArePersistedToDestination()
+    void testPreparingCommitAtSnapshotTimeEnsuresBufferedRecordsArePersistedToDestination()
             throws IOException, InterruptedException {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder().context(sinkInitContext).build();
@@ -171,7 +169,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testThatMailboxYieldDoesNotBlockWhileATimerIsRegisteredAndHasYetToElapse()
+    void testThatMailboxYieldDoesNotBlockWhileATimerIsRegisteredAndHasYetToElapse()
             throws Exception {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder().context(sinkInitContext).build();
@@ -182,7 +180,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testThatSnapshotsAreTakenOfBufferCorrectlyBeforeAndAfterAutomaticFlush()
+    void testThatSnapshotsAreTakenOfBufferCorrectlyBeforeAndAfterAutomaticFlush()
             throws IOException, InterruptedException {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder().context(sinkInitContext).maxBatchSize(3).build();
@@ -216,7 +214,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testThatSnapshotsAreTakenOfBufferCorrectlyBeforeAndAfterManualFlush()
+    void testThatSnapshotsAreTakenOfBufferCorrectlyBeforeAndAfterManualFlush()
             throws IOException, InterruptedException {
         writeFiveRecordsWithOneFailingThenCallPrepareCommitWithFlushing();
 
@@ -224,7 +222,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void metricsAreLoggedEachTimeSubmitRequestEntriesIsCalled()
+    void metricsAreLoggedEachTimeSubmitRequestEntriesIsCalled()
             throws IOException, InterruptedException {
         writeFiveRecordsWithOneFailingThenCallPrepareCommitWithFlushing();
 
@@ -233,7 +231,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testRuntimeErrorsInSubmitRequestEntriesEndUpAsIOExceptionsWithNumOfFailedRequests()
+    void testRuntimeErrorsInSubmitRequestEntriesEndUpAsIOExceptionsWithNumOfFailedRequests()
             throws IOException, InterruptedException {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
@@ -255,7 +253,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testRetryableErrorsDoNotViolateAtLeastOnceSemanticsDueToRequeueOfFailures()
+    void testRetryableErrorsDoNotViolateAtLeastOnceSemanticsDueToRequeueOfFailures()
             throws IOException, InterruptedException {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
@@ -329,9 +327,8 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void
-            testFailedEntriesAreRetriedInTheNextPossiblePersistRequestIfPrepareCommitIsTriggered()
-                    throws IOException, InterruptedException {
+    void testFailedEntriesAreRetriedInTheNextPossiblePersistRequestIfPrepareCommitIsTriggered()
+            throws IOException, InterruptedException {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
                         .context(sinkInitContext)
@@ -342,7 +339,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testFailedEntriesAreRetriedInTheNextPossiblePersistRequestIfBufferFillsToFull()
+    void testFailedEntriesAreRetriedInTheNextPossiblePersistRequestIfBufferFillsToFull()
             throws IOException, InterruptedException {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
@@ -380,7 +377,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testThatMaxBufferSizeOfSinkShouldBeStrictlyGreaterThanMaxSizeOfEachBatch() {
+    void testThatMaxBufferSizeOfSinkShouldBeStrictlyGreaterThanMaxSizeOfEachBatch() {
         assertThatThrownBy(
                         () ->
                                 new AsyncSinkWriterImplBuilder()
@@ -394,7 +391,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void maxRecordSizeSetMustBeSmallerThanOrEqualToMaxBatchSize() {
+    void maxRecordSizeSetMustBeSmallerThanOrEqualToMaxBatchSize() {
         assertThatThrownBy(
                         () ->
                                 new AsyncSinkWriterImplBuilder()
@@ -410,7 +407,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void recordsWrittenToTheSinkMustBeSmallerOrEqualToMaxRecordSizeInBytes() {
+    void recordsWrittenToTheSinkMustBeSmallerOrEqualToMaxRecordSizeInBytes() {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
                         .context(sinkInitContext)
@@ -437,7 +434,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testFlushThresholdMetBeforeBatchLimitWillCreateASmallerBatchOfSizeAboveThreshold()
+    void testFlushThresholdMetBeforeBatchLimitWillCreateASmallerBatchOfSizeAboveThreshold()
             throws IOException, InterruptedException {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
@@ -458,7 +455,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void prepareCommitDoesNotFlushElementsIfFlushIsSetToFalse() throws Exception {
+    void prepareCommitDoesNotFlushElementsIfFlushIsSetToFalse() throws Exception {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder().context(sinkInitContext).build();
         sink.write(String.valueOf(0));
@@ -470,7 +467,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testThatWhenNumberOfItemAndSizeOfRecordThresholdsAreMetSimultaneouslyAFlushOccurs()
+    void testThatWhenNumberOfItemAndSizeOfRecordThresholdsAreMetSimultaneouslyAFlushOccurs()
             throws IOException, InterruptedException {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
@@ -494,7 +491,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testThatIntermittentlyFailingEntriesAreEnqueuedOnToTheBufferWithCorrectSize()
+    void testThatIntermittentlyFailingEntriesAreEnqueuedOnToTheBufferWithCorrectSize()
             throws IOException, InterruptedException {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
@@ -522,7 +519,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testThatIntermittentlyFailingEntriesAreEnqueuedOnToTheBufferWithCorrectOrder()
+    void testThatIntermittentlyFailingEntriesAreEnqueuedOnToTheBufferWithCorrectOrder()
             throws IOException, InterruptedException {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
@@ -553,8 +550,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testThatABatchWithSizeSmallerThanMaxBatchSizeIsFlushedOnTimeoutExpiry()
-            throws Exception {
+    void testThatABatchWithSizeSmallerThanMaxBatchSizeIsFlushedOnTimeoutExpiry() throws Exception {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
                         .context(sinkInitContext)
@@ -582,8 +578,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testThatTimeBasedBatchPicksUpAllRelevantItemsUpUntilExpiryOfTimer()
-            throws Exception {
+    void testThatTimeBasedBatchPicksUpAllRelevantItemsUpUntilExpiryOfTimer() throws Exception {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
                         .context(sinkInitContext)
@@ -607,8 +602,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void prepareCommitFlushesInflightElementsAndDoesNotFlushIfFlushIsSetToFalse()
-            throws Exception {
+    void prepareCommitFlushesInflightElementsAndDoesNotFlushIfFlushIsSetToFalse() throws Exception {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
                         .context(sinkInitContext)
@@ -635,7 +629,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testThatIntermittentlyFailingEntriesAreEnqueuedOnToTheBufferAfterSnapshot()
+    void testThatIntermittentlyFailingEntriesAreEnqueuedOnToTheBufferAfterSnapshot()
             throws IOException, InterruptedException {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
@@ -671,7 +665,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testThatRecordOfSizeBiggerThanMaximumFailsSinkInitialization()
+    void testThatRecordOfSizeBiggerThanMaximumFailsSinkInitialization()
             throws IOException, InterruptedException {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
@@ -695,7 +689,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testRestoreFromMultipleStates() throws IOException {
+    void testRestoreFromMultipleStates() throws IOException {
         List<BufferedRequestState<Integer>> states =
                 Arrays.asList(
                         new BufferedRequestState<>(
@@ -728,7 +722,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testWriterInitializedWithStateHasCallbackRegistered() throws Exception {
+    void testWriterInitializedWithStateHasCallbackRegistered() throws Exception {
         AsyncSinkWriterImpl initialSinkWriter =
                 new AsyncSinkWriterImplBuilder()
                         .context(sinkInitContext)
@@ -764,7 +758,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testThatOneAndOnlyOneCallbackIsEverRegistered() throws Exception {
+    void testThatOneAndOnlyOneCallbackIsEverRegistered() throws Exception {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
                         .context(sinkInitContext)
@@ -796,7 +790,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testThatIntermittentlyFailingEntriesShouldBeFlushedWithMainBatchInTimeBasedFlush()
+    void testThatIntermittentlyFailingEntriesShouldBeFlushedWithMainBatchInTimeBasedFlush()
             throws Exception {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
@@ -823,7 +817,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testThatFlushingAnEmptyBufferDoesNotResultInErrorOrFailure() throws Exception {
+    void testThatFlushingAnEmptyBufferDoesNotResultInErrorOrFailure() throws Exception {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
                         .context(sinkInitContext)
@@ -845,7 +839,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testThatOnExpiryOfAnOldTimeoutANewOneMayBeRegisteredImmediately() throws Exception {
+    void testThatOnExpiryOfAnOldTimeoutANewOneMayBeRegisteredImmediately() throws Exception {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
                         .context(sinkInitContext)
@@ -885,7 +879,7 @@ public class AsyncSinkWriterTest {
      * thread if it enters {@code mailbox.tryYield()}.
      */
     @Test
-    public void testThatInterleavingThreadsMayBlockEachOtherButDoNotCauseRaceConditions()
+    void testThatInterleavingThreadsMayBlockEachOtherButDoNotCauseRaceConditions()
             throws Exception {
         CountDownLatch blockedWriteLatch = new CountDownLatch(1);
         CountDownLatch delayedStartLatch = new CountDownLatch(1);
@@ -916,7 +910,7 @@ public class AsyncSinkWriterTest {
      * thread if it enters {@code mailbox.tryYield()}.
      */
     @Test
-    public void testThatIfOneInterleavedThreadIsBlockedTheOtherThreadWillContinueAndCorrectlyWrite()
+    void testThatIfOneInterleavedThreadIsBlockedTheOtherThreadWillContinueAndCorrectlyWrite()
             throws Exception {
         CountDownLatch blockedWriteLatch = new CountDownLatch(1);
         CountDownLatch delayedStartLatch = new CountDownLatch(1);
@@ -979,7 +973,7 @@ public class AsyncSinkWriterTest {
      * immediately fail.
      */
     @Test
-    public void ifTheNumberOfUncompletedInFlightRequestsIsTooManyThenBlockInFlushMethod()
+    void ifTheNumberOfUncompletedInFlightRequestsIsTooManyThenBlockInFlushMethod()
             throws Exception {
         CountDownLatch blockedWriteLatch = new CountDownLatch(1);
         CountDownLatch delayedStartLatch = new CountDownLatch(1);
@@ -1044,7 +1038,7 @@ public class AsyncSinkWriterTest {
 
         private AsyncSinkWriterImpl(
                 ElementConverter<String, Integer> elementConverter,
-                Sink.InitContext context,
+                WriterInitContext context,
                 int maxBatchSize,
                 int maxInFlightRequests,
                 int maxBufferedRequests,
@@ -1182,7 +1176,7 @@ public class AsyncSinkWriterTest {
                 (elem, ctx) -> Integer.parseInt(elem);
         private boolean simulateFailures = false;
         private int delay = 0;
-        private Sink.InitContext context;
+        private WriterInitContext context;
         private int maxBatchSize = 10;
         private int maxInFlightRequests = 1;
         private int maxBufferedRequests = 100;
@@ -1196,13 +1190,8 @@ public class AsyncSinkWriterTest {
             return this;
         }
 
-        private AsyncSinkWriterImplBuilder context(Sink.InitContext context) {
-            this.context = context;
-            return this;
-        }
-
         private AsyncSinkWriterImplBuilder context(WriterInitContext context) {
-            this.context = new Sink.InitContextWrapper(context);
+            this.context = context;
             return this;
         }
 
@@ -1290,20 +1279,6 @@ public class AsyncSinkWriterTest {
 
         public AsyncSinkReleaseAndBlockWriterImpl(
                 WriterInitContext context,
-                int maxInFlightRequests,
-                CountDownLatch blockedThreadLatch,
-                CountDownLatch delayedStartLatch,
-                boolean blockForLimitedTime) {
-            this(
-                    new Sink.InitContextWrapper(context),
-                    maxInFlightRequests,
-                    blockedThreadLatch,
-                    delayedStartLatch,
-                    blockForLimitedTime);
-        }
-
-        public AsyncSinkReleaseAndBlockWriterImpl(
-                Sink.InitContext context,
                 int maxInFlightRequests,
                 CountDownLatch blockedThreadLatch,
                 CountDownLatch delayedStartLatch,

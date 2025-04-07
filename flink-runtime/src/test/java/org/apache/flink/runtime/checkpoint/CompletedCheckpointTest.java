@@ -20,7 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -230,7 +230,8 @@ public class CompletedCheckpointTest {
                         null);
 
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
-        checkpoint.registerSharedStatesAfterRestored(sharedStateRegistry, RestoreMode.DEFAULT);
+        checkpoint.registerSharedStatesAfterRestored(
+                sharedStateRegistry, RecoveryClaimMode.DEFAULT);
         verify(state, times(1)).registerSharedStates(sharedStateRegistry, 0L);
     }
 
@@ -262,7 +263,8 @@ public class CompletedCheckpointTest {
                         null);
 
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
-        checkpoint.registerSharedStatesAfterRestored(sharedStateRegistry, RestoreMode.DEFAULT);
+        checkpoint.registerSharedStatesAfterRestored(
+                sharedStateRegistry, RecoveryClaimMode.DEFAULT);
         verify(state, times(1)).registerSharedStates(sharedStateRegistry, 0L);
 
         // Subsume

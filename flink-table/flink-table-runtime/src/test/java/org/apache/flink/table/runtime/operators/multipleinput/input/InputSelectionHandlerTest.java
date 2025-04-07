@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.operators.multipleinput.input;
 import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.table.runtime.operators.multipleinput.MultipleInputTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -30,10 +30,10 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link InputSelectionHandler}. */
-public class InputSelectionHandlerTest extends MultipleInputTestBase {
+class InputSelectionHandlerTest extends MultipleInputTestBase {
 
     @Test
-    public void testWithSamePriority() {
+    void testWithSamePriority() {
         List<InputSpec> inputSpecs =
                 Arrays.asList(
                         new InputSpec(1, 0, createOneInputOperatorWrapper("input1"), 1),
@@ -53,7 +53,7 @@ public class InputSelectionHandlerTest extends MultipleInputTestBase {
     }
 
     @Test
-    public void testWithDifferentPriority() {
+    void testWithDifferentPriority() {
         List<InputSpec> inputSpecs =
                 Arrays.asList(
                         new InputSpec(1, 1, createOneInputOperatorWrapper("input1"), 1),

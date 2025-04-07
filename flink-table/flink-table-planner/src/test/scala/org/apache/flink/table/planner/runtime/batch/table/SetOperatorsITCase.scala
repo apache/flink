@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.runtime.batch.table
 
-import org.apache.flink.api.scala._
 import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.JBigDecimal

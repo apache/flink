@@ -28,8 +28,6 @@ import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
-import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -88,37 +86,6 @@ class StreamContextEnvironmentTest {
 
     @ParameterizedTest
     @MethodSource("provideExecutors")
-    void testDisallowCheckpointStorage(
-            ThrowingConsumer<StreamExecutionEnvironment, Exception> executor) {
-        final Configuration clusterConfig = new Configuration();
-        clusterConfig.set(DeploymentOptions.PROGRAM_CONFIG_ENABLED, false);
-        clusterConfig.set(DeploymentOptions.TARGET, "local");
-        clusterConfig.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file:///flink/checkpoints");
-
-        final StreamContextEnvironment environment =
-                constructStreamContextEnvironment(clusterConfig, Collections.emptyList());
-
-        String disallowedPath = "file:///flink/disallowed/modification";
-        // Change the CheckpointConfig
-        environment.getCheckpointConfig().setCheckpointStorage(disallowedPath);
-
-        environment.fromData(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
-        assertThatThrownBy(() -> executor.accept(environment))
-                .isInstanceOf(MutatedConfigurationException.class)
-                .hasMessageContainingAll(
-                        CheckpointConfig.class.getSimpleName(), "setCheckpointStorage");
-
-        environment.getCheckpointConfig().setCheckpointStorage(new JobManagerCheckpointStorage());
-
-        environment.fromData(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
-        assertThatThrownBy(() -> executor.accept(environment))
-                .isInstanceOf(MutatedConfigurationException.class)
-                .hasMessageContainingAll(
-                        CheckpointConfig.class.getSimpleName(), "setCheckpointStorage");
-    }
-
-    @ParameterizedTest
-    @MethodSource("provideExecutors")
     void testDisallowCheckpointStorageByConfiguration(
             ThrowingConsumer<StreamExecutionEnvironment, Exception> executor) {
         final Configuration clusterConfig = new Configuration();
@@ -145,29 +112,6 @@ class StreamContextEnvironmentTest {
                 .hasMessageContainingAll(
                         CheckpointingOptions.CHECKPOINT_STORAGE.key(),
                         CheckpointingOptions.CHECKPOINTS_DIRECTORY.key());
-    }
-
-    @ParameterizedTest
-    @MethodSource("provideExecutors")
-    void testAllowCheckpointStorage(
-            ThrowingConsumer<StreamExecutionEnvironment, Exception> executor) {
-        final Configuration clusterConfig = new Configuration();
-        clusterConfig.set(DeploymentOptions.PROGRAM_CONFIG_ENABLED, false);
-        clusterConfig.set(DeploymentOptions.TARGET, "local");
-        clusterConfig.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file:///flink/checkpoints");
-
-        final StreamContextEnvironment environment =
-                constructStreamContextEnvironment(
-                        clusterConfig,
-                        Arrays.asList(CheckpointingOptions.CHECKPOINTS_DIRECTORY.key()));
-
-        String allowedPath = "file:///flink/allowed/modification";
-        // Change the CheckpointConfig
-        environment.getCheckpointConfig().setCheckpointStorage(allowedPath);
-
-        environment.fromData(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
-        assertThatThrownBy(() -> executor.accept(environment))
-                .isInstanceOf(ExecutorReachedException.class);
     }
 
     @ParameterizedTest

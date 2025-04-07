@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -41,6 +40,7 @@ import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -186,7 +186,7 @@ class DefaultSchedulerCheckpointCoordinatorTest {
 
     private DefaultScheduler createSchedulerAndEnableCheckpointing(
             CheckpointIDCounter counter, CompletedCheckpointStore store) throws Exception {
-        final Time timeout = Time.days(1L);
+        final Duration timeout = Duration.ofDays(1L);
 
         final JobVertex jobVertex = new JobVertex("MockVertex");
         jobVertex.setParallelism(1);

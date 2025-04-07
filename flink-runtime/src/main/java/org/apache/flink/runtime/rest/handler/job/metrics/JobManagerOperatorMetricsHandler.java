@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.job.metrics;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
@@ -33,6 +32,7 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Map;
 
 /** Handler that returns job manager operator metrics. */
@@ -41,7 +41,7 @@ public class JobManagerOperatorMetricsHandler
         extends AbstractMetricsHandler<JobManagerOperatorMetricsMessageParameters> {
     public JobManagerOperatorMetricsHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> headers,
             MetricFetcher metricFetcher) {
         super(

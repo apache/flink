@@ -102,7 +102,7 @@ public class PartitionerITCase extends AbstractTestBaseJUnit4 {
                 env.fromData(INPUT.stream().map(Tuple1::of).collect(Collectors.toList()));
 
         // partition by hash
-        src.keyBy(0).map(new SubtaskIndexAssigner()).addSink(hashPartitionResultSink);
+        src.keyBy(x -> x.f0).map(new SubtaskIndexAssigner()).addSink(hashPartitionResultSink);
 
         // partition custom
         DataStream<Tuple2<Integer, String>> partitionCustom =
@@ -117,7 +117,7 @@ public class PartitionerITCase extends AbstractTestBaseJUnit4 {
                                         }
                                     }
                                 },
-                                0)
+                                x -> x.f0)
                         .map(new SubtaskIndexAssigner());
 
         partitionCustom.addSink(customPartitionResultSink);

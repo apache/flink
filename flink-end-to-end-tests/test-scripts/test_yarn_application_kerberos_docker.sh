@@ -50,7 +50,7 @@ OUTPUT_PATH=hdfs:///user/hadoop-user/wc-out-$RANDOM
 # it's important to run this with higher parallelism, otherwise we might risk that
 # JM and TM are on the same YARN node and that we therefore don't test the keytab shipping
 if docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
-   /home/hadoop-user/${FLINK_DIRNAME}/bin/flink run-application \
+   /home/hadoop-user/${FLINK_DIRNAME}/bin/flink run \
    -t yarn-application \
    -Dtaskmanager.numberOfTaskSlots=1 \
    -Dtaskmanager.memory.process.size=1000m \
@@ -84,7 +84,7 @@ echo "Running Job without configured keytab, the exception you see below is expe
 docker exec master bash -c "echo \"\" > /home/hadoop-user/${FLINK_DIRNAME}/conf/config.yaml"
 # verify that it doesn't work if we don't configure a keytab
 docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
-    /home/hadoop-user/${FLINK_DIRNAME}/bin/flink run-application \
+    /home/hadoop-user/${FLINK_DIRNAME}/bin/flink run \
     -t yarn-application \
     -Dtaskmanager.numberOfTaskSlots=1 \
     -Dtaskmanager.memory.process.size=1000m \

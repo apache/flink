@@ -319,11 +319,6 @@ public class LimitedConnectionsFileSystem extends FileSystem {
     // ------------------------------------------------------------------------
 
     @Override
-    public FileSystemKind getKind() {
-        return originalFs.getKind();
-    }
-
-    @Override
     public boolean isDistributedFS() {
         return originalFs.isDistributedFS();
     }

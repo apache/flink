@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.benchmark;
 
-import org.apache.flink.api.common.ExecutionMode;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -26,15 +26,15 @@ import org.apache.flink.runtime.jobgraph.JobType;
 
 /**
  * {@link JobConfiguration} contains the configuration of a STREAMING/BATCH job. It concludes {@link
- * DistributionPattern}, {@link ResultPartitionType}, {@link JobType}, {@link ExecutionMode}, {@link
- * HybridPartitionDataConsumeConstraint}.
+ * DistributionPattern}, {@link ResultPartitionType}, {@link JobType}, {@link RuntimeExecutionMode},
+ * {@link HybridPartitionDataConsumeConstraint}.
  */
 public enum JobConfiguration {
     STREAMING(
             DistributionPattern.ALL_TO_ALL,
             ResultPartitionType.PIPELINED,
             JobType.STREAMING,
-            ExecutionMode.PIPELINED,
+            RuntimeExecutionMode.STREAMING,
             4000,
             false),
 
@@ -42,7 +42,7 @@ public enum JobConfiguration {
             DistributionPattern.ALL_TO_ALL,
             ResultPartitionType.BLOCKING,
             JobType.BATCH,
-            ExecutionMode.BATCH,
+            RuntimeExecutionMode.BATCH,
             4000,
             false),
 
@@ -50,7 +50,7 @@ public enum JobConfiguration {
             DistributionPattern.ALL_TO_ALL,
             ResultPartitionType.HYBRID_FULL,
             JobType.BATCH,
-            ExecutionMode.BATCH,
+            RuntimeExecutionMode.BATCH,
             HybridPartitionDataConsumeConstraint.UNFINISHED_PRODUCERS,
             4000,
             false),
@@ -59,7 +59,7 @@ public enum JobConfiguration {
             DistributionPattern.ALL_TO_ALL,
             ResultPartitionType.HYBRID_FULL,
             JobType.BATCH,
-            ExecutionMode.BATCH,
+            RuntimeExecutionMode.BATCH,
             HybridPartitionDataConsumeConstraint.ONLY_FINISHED_PRODUCERS,
             4000,
             false),
@@ -68,7 +68,7 @@ public enum JobConfiguration {
             DistributionPattern.ALL_TO_ALL,
             ResultPartitionType.HYBRID_FULL,
             JobType.BATCH,
-            ExecutionMode.BATCH,
+            RuntimeExecutionMode.BATCH,
             HybridPartitionDataConsumeConstraint.ALL_PRODUCERS_FINISHED,
             4000,
             false),
@@ -77,7 +77,7 @@ public enum JobConfiguration {
             DistributionPattern.ALL_TO_ALL,
             ResultPartitionType.PIPELINED,
             JobType.STREAMING,
-            ExecutionMode.PIPELINED,
+            RuntimeExecutionMode.STREAMING,
             10,
             false),
 
@@ -85,7 +85,7 @@ public enum JobConfiguration {
             DistributionPattern.ALL_TO_ALL,
             ResultPartitionType.BLOCKING,
             JobType.BATCH,
-            ExecutionMode.BATCH,
+            RuntimeExecutionMode.BATCH,
             10,
             false),
 
@@ -93,7 +93,7 @@ public enum JobConfiguration {
             DistributionPattern.ALL_TO_ALL,
             ResultPartitionType.HYBRID_FULL,
             JobType.BATCH,
-            ExecutionMode.BATCH,
+            RuntimeExecutionMode.BATCH,
             HybridPartitionDataConsumeConstraint.UNFINISHED_PRODUCERS,
             10,
             false),
@@ -102,7 +102,7 @@ public enum JobConfiguration {
             DistributionPattern.ALL_TO_ALL,
             ResultPartitionType.HYBRID_FULL,
             JobType.BATCH,
-            ExecutionMode.BATCH,
+            RuntimeExecutionMode.BATCH,
             HybridPartitionDataConsumeConstraint.ONLY_FINISHED_PRODUCERS,
             10,
             false),
@@ -111,7 +111,7 @@ public enum JobConfiguration {
             DistributionPattern.ALL_TO_ALL,
             ResultPartitionType.HYBRID_FULL,
             JobType.BATCH,
-            ExecutionMode.BATCH,
+            RuntimeExecutionMode.BATCH,
             HybridPartitionDataConsumeConstraint.ALL_PRODUCERS_FINISHED,
             10,
             false),
@@ -120,7 +120,7 @@ public enum JobConfiguration {
             DistributionPattern.ALL_TO_ALL,
             ResultPartitionType.PIPELINED,
             JobType.STREAMING,
-            ExecutionMode.PIPELINED,
+            RuntimeExecutionMode.STREAMING,
             4000,
             true),
 
@@ -128,7 +128,7 @@ public enum JobConfiguration {
             DistributionPattern.ALL_TO_ALL,
             ResultPartitionType.BLOCKING,
             JobType.BATCH,
-            ExecutionMode.BATCH,
+            RuntimeExecutionMode.BATCH,
             4000,
             true),
 
@@ -136,7 +136,7 @@ public enum JobConfiguration {
             DistributionPattern.ALL_TO_ALL,
             ResultPartitionType.PIPELINED,
             JobType.STREAMING,
-            ExecutionMode.PIPELINED,
+            RuntimeExecutionMode.STREAMING,
             10,
             true),
 
@@ -144,7 +144,7 @@ public enum JobConfiguration {
             DistributionPattern.ALL_TO_ALL,
             ResultPartitionType.BLOCKING,
             JobType.BATCH,
-            ExecutionMode.BATCH,
+            RuntimeExecutionMode.STREAMING,
             10,
             true);
 
@@ -152,7 +152,7 @@ public enum JobConfiguration {
     private final DistributionPattern distributionPattern;
     private final ResultPartitionType resultPartitionType;
     private final JobType jobType;
-    private final ExecutionMode executionMode;
+    private final RuntimeExecutionMode runtimeExecutionMode;
     private final boolean evenlySpreadOutSlots;
     private final HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint;
 
@@ -160,14 +160,14 @@ public enum JobConfiguration {
             DistributionPattern distributionPattern,
             ResultPartitionType resultPartitionType,
             JobType jobType,
-            ExecutionMode executionMode,
+            RuntimeExecutionMode runtimeExecutionMode,
             int parallelism,
             boolean evenlySpreadOutSlots) {
         this(
                 distributionPattern,
                 resultPartitionType,
                 jobType,
-                executionMode,
+                runtimeExecutionMode,
                 HybridPartitionDataConsumeConstraint.UNFINISHED_PRODUCERS,
                 parallelism,
                 evenlySpreadOutSlots);
@@ -177,14 +177,14 @@ public enum JobConfiguration {
             DistributionPattern distributionPattern,
             ResultPartitionType resultPartitionType,
             JobType jobType,
-            ExecutionMode executionMode,
+            RuntimeExecutionMode runtimeExecutionMode,
             HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint,
             int parallelism,
             boolean evenlySpreadOutSlots) {
         this.distributionPattern = distributionPattern;
         this.resultPartitionType = resultPartitionType;
         this.jobType = jobType;
-        this.executionMode = executionMode;
+        this.runtimeExecutionMode = runtimeExecutionMode;
         this.hybridPartitionDataConsumeConstraint = hybridPartitionDataConsumeConstraint;
         this.parallelism = parallelism;
         this.evenlySpreadOutSlots = evenlySpreadOutSlots;
@@ -206,8 +206,8 @@ public enum JobConfiguration {
         return jobType;
     }
 
-    public ExecutionMode getExecutionMode() {
-        return executionMode;
+    public RuntimeExecutionMode getRuntimeExecutionMode() {
+        return runtimeExecutionMode;
     }
 
     public HybridPartitionDataConsumeConstraint getHybridPartitionDataConsumeConstraint() {

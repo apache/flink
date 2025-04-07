@@ -19,7 +19,6 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.util.NetUtils;
 
@@ -32,11 +31,13 @@ import org.apache.commons.cli.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
+import javax.annotation.Nullable;
+
 import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
@@ -125,24 +126,6 @@ public class CliOptionsParser {
                                     + "functions, table sources, or sinks. Can be used multiple times.")
                     .build();
 
-    @Deprecated
-    public static final Option OPTION_UPDATE =
-            Option.builder("u")
-                    .required(false)
-                    .longOpt("update")
-                    .numberOfArgs(1)
-                    .argName("SQL update statement")
-                    .desc(
-                            String.format(
-                                    "Deprecated Experimental (for testing only!) feature: Instructs the SQL Client to immediately execute "
-                                            + "the given update statement after starting up. The process is shut down after the "
-                                            + "statement has been submitted to the cluster and returns an appropriate return code. "
-                                            + "Currently, this feature is only supported for INSERT INTO statements that declare "
-                                            + "the target sink table."
-                                            + "Please use option -%s to submit update statement.",
-                                    OPTION_FILE.getOpt()))
-                    .build();
-
     public static final Option OPTION_HISTORY =
             Option.builder("hist")
                     .required(false)
@@ -176,7 +159,6 @@ public class CliOptionsParser {
         options.addOption(OPTION_SESSION_CONFIG);
         options.addOption(OPTION_INIT_FILE);
         options.addOption(OPTION_FILE);
-        options.addOption(OPTION_UPDATE);
         options.addOption(OPTION_HISTORY);
     }
 
@@ -268,12 +250,11 @@ public class CliOptionsParser {
             return new CliOptions.EmbeddedCliOptions(
                     line.hasOption(CliOptionsParser.OPTION_HELP.getOpt()),
                     checkSessionId(line),
-                    checkUrl(line, CliOptionsParser.OPTION_INIT_FILE),
-                    checkUrl(line, CliOptionsParser.OPTION_FILE),
-                    line.getOptionValue(CliOptionsParser.OPTION_UPDATE.getOpt()),
+                    parseURI(line, CliOptionsParser.OPTION_INIT_FILE),
+                    parseURI(line, CliOptionsParser.OPTION_FILE),
                     line.getOptionValue(CliOptionsParser.OPTION_HISTORY.getOpt()),
-                    checkUrls(line, CliOptionsParser.OPTION_JAR),
-                    checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
+                    parseURIs(line, CliOptionsParser.OPTION_JAR),
+                    parseURIs(line, CliOptionsParser.OPTION_LIBRARY),
                     getPythonConfiguration(line),
                     line.getOptionProperties(OPTION_SESSION_CONFIG.getOpt()));
         } catch (ParseException e) {
@@ -288,9 +269,8 @@ public class CliOptionsParser {
             return new CliOptions.GatewayCliOptions(
                     line.hasOption(CliOptionsParser.OPTION_HELP.getOpt()),
                     checkSessionId(line),
-                    checkUrl(line, CliOptionsParser.OPTION_INIT_FILE),
-                    checkUrl(line, CliOptionsParser.OPTION_FILE),
-                    line.getOptionValue(CliOptionsParser.OPTION_UPDATE.getOpt()),
+                    parseURI(line, CliOptionsParser.OPTION_INIT_FILE),
+                    parseURI(line, CliOptionsParser.OPTION_FILE),
                     line.getOptionValue(CliOptionsParser.OPTION_HISTORY.getOpt()),
                     line.hasOption(CliOptionsParser.OPTION_ENDPOINT_ADDRESS.getOpt())
                             ? parseGatewayAddress(
@@ -329,46 +309,36 @@ public class CliOptionsParser {
 
     // --------------------------------------------------------------------------------------------
 
-    private static URL checkUrl(CommandLine line, Option option) {
-        final List<URL> urls = checkUrls(line, option);
-        if (urls != null && !urls.isEmpty()) {
-            return urls.get(0);
+    private static @Nullable URI parseURI(CommandLine line, Option option) {
+        List<URI> uris = parseURIs(line, option);
+        if (uris == null || uris.isEmpty()) {
+            return null;
+        } else {
+            return uris.get(0);
         }
-        return null;
     }
 
-    private static List<URL> checkUrls(CommandLine line, Option option) {
+    private static @Nullable List<URI> parseURIs(CommandLine line, Option option) {
         if (line.hasOption(option.getOpt())) {
-            final String[] urls = line.getOptionValues(option.getOpt());
-            return Arrays.stream(urls)
+            final String[] uris = line.getOptionValues(option.getOpt());
+            return Arrays.stream(uris)
                     .distinct()
                     .map(
-                            (url) -> {
-                                checkFilePath(url);
+                            uri -> {
                                 try {
-                                    return Path.fromLocalFile(new File(url).getAbsoluteFile())
-                                            .toUri()
-                                            .toURL();
+                                    return URI.create(uri);
                                 } catch (Exception e) {
                                     throw new SqlClientException(
-                                            "Invalid path for option '"
+                                            "Invalid uri for option '"
                                                     + option.getLongOpt()
                                                     + "': "
-                                                    + url,
+                                                    + uri,
                                             e);
                                 }
                             })
                     .collect(Collectors.toList());
         }
         return null;
-    }
-
-    public static void checkFilePath(String filePath) {
-        Path path = new Path(filePath);
-        String scheme = path.toUri().getScheme();
-        if (scheme != null && !scheme.equals("file")) {
-            throw new SqlClientException("SQL Client only supports to load files in local.");
-        }
     }
 
     private static String checkSessionId(CommandLine line) {

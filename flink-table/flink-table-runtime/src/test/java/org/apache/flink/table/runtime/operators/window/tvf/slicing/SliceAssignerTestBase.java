@@ -25,32 +25,31 @@ import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.operators.window.MergeCallback;
 import org.apache.flink.table.runtime.operators.window.tvf.common.ClockService;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
-import static org.assertj.core.api.HamcrestCondition.matching;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Utilities for testing {@link SliceAssigner}s. */
-public abstract class SliceAssignerTestBase {
+abstract class SliceAssignerTestBase {
 
     private static final ClockService CLOCK_SERVICE = System::currentTimeMillis;
 
     private static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
 
+    static Collection<ZoneId> zoneIds() {
+        return Arrays.asList(ZoneId.of("America/Los_Angeles"), ZoneId.of("Asia/Shanghai"));
+    }
+
     protected static void assertErrorMessage(Runnable runnable, String errorMessage) {
-        try {
-            runnable.run();
-            fail("should fail.");
-        } catch (Exception e) {
-            assertThat(e).satisfies(matching(containsMessage(errorMessage)));
-        }
+        assertThatThrownBy(runnable::run).hasMessageContaining(errorMessage);
     }
 
     protected static long assignSliceEnd(SliceAssigner assigner, long timestamp) {

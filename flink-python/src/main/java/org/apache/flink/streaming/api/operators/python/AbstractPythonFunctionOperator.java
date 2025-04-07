@@ -24,7 +24,6 @@ import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.process.FlinkMetricContainer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionKeyedStateBackend;
@@ -74,7 +73,6 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
 
     public AbstractPythonFunctionOperator(Configuration config) {
         this.config = Preconditions.checkNotNull(config);
-        this.chainingStrategy = ChainingStrategy.ALWAYS;
     }
 
     @Override
@@ -270,6 +268,8 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
 
     protected abstract PythonEnvironmentManager createPythonEnvironmentManager();
 
+    protected void drainUnregisteredTimers() {}
+
     /**
      * Advances the watermark of all managed timer services, potentially firing event time timers.
      * It also ensures that the fired timers are processed in the Python user-defined functions.
@@ -277,10 +277,16 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
     private void advanceWatermark(Watermark watermark) throws Exception {
         if (getTimeServiceManager().isPresent()) {
             InternalTimeServiceManager<?> timeServiceManager = getTimeServiceManager().get();
+            // make sure the registered timer are processed before advancing the watermark to
+            // ensure the timers could be triggered
+            drainUnregisteredTimers();
             timeServiceManager.advanceWatermark(watermark);
 
             while (!isBundleFinished()) {
                 invokeFinishBundle();
+                // make sure the registered timer are processed before advancing the watermark to
+                // ensure the timers could be triggered
+                drainUnregisteredTimers();
                 timeServiceManager.advanceWatermark(watermark);
             }
         }

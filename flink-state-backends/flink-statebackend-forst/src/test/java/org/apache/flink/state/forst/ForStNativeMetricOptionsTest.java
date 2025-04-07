@@ -23,6 +23,8 @@ import org.apache.flink.configuration.Configuration;
 import org.junit.Assert;
 import org.junit.Test;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
+
 /** Test all native metrics can be set using configuration. */
 public class ForStNativeMetricOptionsTest {
     @Test
@@ -32,7 +34,7 @@ public class ForStNativeMetricOptionsTest {
             if (property.getConfigKey().contains("num-files-at-level")) {
                 config.set(ForStNativeMetricOptions.MONITOR_NUM_FILES_AT_LEVEL, true);
             } else {
-                config.setBoolean(property.getConfigKey(), true);
+                config.set(getBooleanConfigOption(property.getConfigKey()), true);
             }
 
             ForStNativeMetricOptions options = ForStNativeMetricOptions.fromConfig(config);

@@ -19,9 +19,9 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
-import org.apache.flink.runtime.state.v2.InternalPartitionedState;
 import org.apache.flink.util.function.FunctionWithException;
 
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.IOException;
@@ -37,8 +37,18 @@ public class ContextKey<K, N> {
 
     private final RecordContext<K> recordContext;
 
-    public ContextKey(RecordContext<K> recordContext) {
+    @Nullable private Object userKey;
+
+    @Nullable private final N namespace;
+
+    public ContextKey(RecordContext<K> recordContext, @Nullable N namespace) {
+        this(recordContext, namespace, null);
+    }
+
+    public ContextKey(RecordContext<K> recordContext, @Nullable N namespace, Object userKey) {
         this.recordContext = recordContext;
+        this.namespace = namespace;
+        this.userKey = userKey;
     }
 
     public K getRawKey() {
@@ -49,8 +59,21 @@ public class ContextKey<K, N> {
         return recordContext.getKeyGroup();
     }
 
-    public N getNamespace(InternalPartitionedState<N> state) {
-        return recordContext.getNamespace(state);
+    public N getNamespace() {
+        return namespace;
+    }
+
+    public Object getUserKey() {
+        return userKey;
+    }
+
+    public void setUserKey(Object userKey) {
+        this.userKey = userKey;
+        resetExtra();
+    }
+
+    public void resetExtra() {
+        recordContext.setExtra(null);
     }
 
     /**
@@ -64,16 +87,18 @@ public class ContextKey<K, N> {
     public byte[] getOrCreateSerializedKey(
             FunctionWithException<ContextKey<K, N>, byte[], IOException> serializeKeyFunc)
             throws IOException {
-        if (recordContext.getExtra() != null) {
-            return (byte[]) recordContext.getExtra();
+        byte[] serializedKey = (byte[]) recordContext.getExtra();
+        if (serializedKey != null) {
+            return serializedKey;
         }
         synchronized (recordContext) {
-            if (recordContext.getExtra() == null) {
-                byte[] serializedKey = serializeKeyFunc.apply(this);
+            serializedKey = (byte[]) recordContext.getExtra();
+            if (serializedKey == null) {
+                serializedKey = serializeKeyFunc.apply(this);
                 recordContext.setExtra(serializedKey);
             }
         }
-        return (byte[]) recordContext.getExtra();
+        return serializedKey;
     }
 
     @Override
@@ -91,5 +116,10 @@ public class ContextKey<K, N> {
         }
         ContextKey<?, ?> that = (ContextKey<?, ?>) o;
         return Objects.equals(recordContext, that.recordContext);
+    }
+
+    @Override
+    public String toString() {
+        return "ContextKey{recordCtx:" + recordContext.toString() + ", userKey:" + userKey + "}";
     }
 }

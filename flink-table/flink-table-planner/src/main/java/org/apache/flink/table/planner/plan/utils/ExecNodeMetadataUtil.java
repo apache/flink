@@ -31,15 +31,23 @@ import org.apache.flink.table.planner.plan.nodes.exec.MultipleExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecCorrelate;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExchange;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExpand;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashAggregate;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecLimit;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecLookupJoin;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecMatch;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNestedLoopJoin;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecOverAggregate;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecRank;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSink;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSort;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortAggregate;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortLimit;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecUnion;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecValues;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecWindowTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecAsyncCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecChangelogNormalize;
@@ -68,6 +76,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMiniBatch
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMultipleInput;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecOverAggregate;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecProcessTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCorrelate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonGroupAggregate;
@@ -116,7 +125,7 @@ public final class ExecNodeMetadataUtil {
     }
 
     private static final Set<Class<? extends ExecNode<?>>> EXEC_NODES =
-            new HashSet<Class<? extends ExecNode<?>>>() {
+            new HashSet<>() {
                 {
                     add(StreamExecCalc.class);
                     add(StreamExecChangelogNormalize.class);
@@ -156,6 +165,7 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecWindowTableFunction.class);
                     add(StreamExecPythonCalc.class);
                     add(StreamExecAsyncCalc.class);
+                    add(StreamExecProcessTableFunction.class);
                     add(StreamExecPythonCorrelate.class);
                     add(StreamExecPythonGroupAggregate.class);
                     add(StreamExecPythonGroupWindowAggregate.class);
@@ -173,6 +183,14 @@ public final class ExecNodeMetadataUtil {
                     add(BatchExecLimit.class);
                     add(BatchExecUnion.class);
                     add(BatchExecHashAggregate.class);
+                    add(BatchExecExpand.class);
+                    add(BatchExecSortAggregate.class);
+                    add(BatchExecSortLimit.class);
+                    add(BatchExecWindowTableFunction.class);
+                    add(BatchExecLookupJoin.class);
+                    add(BatchExecMatch.class);
+                    add(BatchExecOverAggregate.class);
+                    add(BatchExecRank.class);
                 }
             };
 

@@ -59,7 +59,7 @@ class FileInputFormatTest {
     @Test
     void testGetPathWithoutSettingFirst() {
         final DummyFileInputFormat format = new DummyFileInputFormat();
-        assertThat(format.getFilePath()).as("Path should be null.").isNull();
+        assertThat(format.getFilePaths()).as("Path should be null.").isEmpty();
     }
 
     @Test
@@ -116,7 +116,7 @@ class FileInputFormatTest {
     void testSetPath() {
         final DummyFileInputFormat format = new DummyFileInputFormat();
         format.setFilePath("/some/imaginary/path");
-        assertThat("/some/imaginary/path").isEqualTo(format.getFilePath().toString());
+        assertThat("/some/imaginary/path").isEqualTo(format.getFilePaths()[0].toString());
     }
 
     @Test
@@ -130,7 +130,7 @@ class FileInputFormatTest {
         assertThat(filePaths[0].toUri().toString()).isEqualTo(myPath);
 
         // ensure backwards compatibility
-        assertThat(format.filePath.toUri().toString()).isEqualTo(myPath);
+        assertThat(format.getFilePaths()[0].toUri().toString()).isEqualTo(myPath);
     }
 
     @Test
@@ -144,7 +144,7 @@ class FileInputFormatTest {
         assertThat(filePaths[0].toUri().toString()).isEqualTo(myPath);
 
         // ensure backwards compatibility
-        assertThat(format.filePath.toUri().toString()).isEqualTo(myPath);
+        assertThat(format.getFilePaths()[0].toUri().toString()).isEqualTo(myPath);
     }
 
     @Test
@@ -162,37 +162,6 @@ class FileInputFormatTest {
     }
 
     @Test
-    void testMultiPathSetOnSinglePathIF() {
-        final DummyFileInputFormat format = new DummyFileInputFormat();
-        final String myPath = "/an/imaginary/path";
-        final String myPath2 = "/an/imaginary/path2";
-
-        assertThatThrownBy(() -> format.setFilePaths(myPath, myPath2))
-                .isInstanceOf(UnsupportedOperationException.class);
-    }
-
-    @Test
-    void testMultiPathSetOnSinglePathIF2() {
-        final DummyFileInputFormat format = new DummyFileInputFormat();
-        final String myPath = "/an/imaginary/path";
-        final String myPath2 = "/an/imaginary/path2";
-
-        // format.setFilePaths(new Path(myPath), new Path(myPath2));
-        assertThatThrownBy(() -> format.setFilePaths(new Path(myPath), new Path(myPath2)))
-                .isInstanceOf(UnsupportedOperationException.class);
-    }
-
-    @Test
-    void testSinglePathGetOnMultiPathIF() {
-        final MultiDummyFileInputFormat format = new MultiDummyFileInputFormat();
-        final String myPath = "/an/imaginary/path";
-        final String myPath2 = "/an/imaginary/path2";
-
-        format.setFilePaths(myPath, myPath2);
-        assertThatThrownBy(format::getFilePath).isInstanceOf(UnsupportedOperationException.class);
-    }
-
-    @Test
     void testSetFileViaConfiguration() {
         final DummyFileInputFormat format = new DummyFileInputFormat();
         final String filePath = "file:///some/none/existing/directory/";
@@ -200,7 +169,7 @@ class FileInputFormatTest {
         conf.setString("input.file.path", filePath);
         format.configure(conf);
 
-        assertThat(format.getFilePath()).isEqualTo(new Path(filePath));
+        assertThat(format.getFilePaths()[0]).isEqualTo(new Path(filePath));
     }
 
     @Test
@@ -688,6 +657,7 @@ class FileInputFormatTest {
         }
         return splits;
     }
+
     // ------------------------------------------------------------------------
     //  Ignored Files
     // ------------------------------------------------------------------------
@@ -904,11 +874,6 @@ class FileInputFormatTest {
 
     private class MultiDummyFileInputFormat extends DummyFileInputFormat {
         private static final long serialVersionUID = 1L;
-
-        @Override
-        public boolean supportsMultiPaths() {
-            return true;
-        }
     }
 
     private static final class MyDecoratedInputFormat extends FileInputFormat<byte[]> {

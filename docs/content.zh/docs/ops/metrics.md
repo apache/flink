@@ -52,7 +52,7 @@ public class MyMapper extends RichMapFunction<String, String> {
   private transient Counter counter;
 
   @Override
-  public void open(Configuration config) {
+  public void open(OpenContext ctx) {
     this.counter = getRuntimeContext()
       .getMetricGroup()
       .counter("myCounter");
@@ -62,26 +62,6 @@ public class MyMapper extends RichMapFunction<String, String> {
   public String map(String value) throws Exception {
     this.counter.inc();
     return value;
-  }
-}
-
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-class MyMapper extends RichMapFunction[String,String] {
-  @transient private var counter: Counter = _
-
-  override def open(parameters: Configuration): Unit = {
-    counter = getRuntimeContext()
-      .getMetricGroup()
-      .counter("myCounter")
-  }
-
-  override def map(value: String): String = {
-    counter.inc()
-    value
   }
 }
 
@@ -116,7 +96,7 @@ public class MyMapper extends RichMapFunction<String, String> {
   private transient Counter counter;
 
   @Override
-  public void open(Configuration config) {
+  public void open(OpenContext ctx) {
     this.counter = getRuntimeContext()
       .getMetricGroup()
       .counter("myCustomCounter", new CustomCounter());
@@ -129,26 +109,6 @@ public class MyMapper extends RichMapFunction<String, String> {
   }
 }
 
-
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-class MyMapper extends RichMapFunction[String,String] {
-  @transient private var counter: Counter = _
-
-  override def open(parameters: Configuration): Unit = {
-    counter = getRuntimeContext()
-      .getMetricGroup()
-      .counter("myCustomCounter", new CustomCounter())
-  }
-
-  override def map(value: String): String = {
-    counter.inc()
-    value
-  }
-}
 
 ```
 {{< /tab >}}
@@ -173,7 +133,7 @@ public class MyMapper extends RichMapFunction<String, String> {
   private transient int valueToExpose = 0;
 
   @Override
-  public void open(Configuration config) {
+  public void open(OpenContext ctx) {
     getRuntimeContext()
       .getMetricGroup()
       .gauge("MyGauge", new Gauge<Integer>() {
@@ -188,26 +148,6 @@ public class MyMapper extends RichMapFunction<String, String> {
   public String map(String value) throws Exception {
     valueToExpose++;
     return value;
-  }
-}
-
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-new class MyMapper extends RichMapFunction[String,String] {
-  @transient private var valueToExpose = 0
-
-  override def open(parameters: Configuration): Unit = {
-    getRuntimeContext()
-      .getMetricGroup()
-      .gauge[Int, ScalaGauge[Int]]("MyGauge", ScalaGauge[Int]( () => valueToExpose ) )
-  }
-
-  override def map(value: String): String = {
-    valueToExpose += 1
-    value
   }
 }
 
@@ -247,7 +187,7 @@ public class MyMapper extends RichMapFunction<Long, Long> {
   private transient Histogram histogram;
 
   @Override
-  public void open(Configuration config) {
+  public void open(OpenContext ctx) {
     this.histogram = getRuntimeContext()
       .getMetricGroup()
       .histogram("myHistogram", new MyHistogram());
@@ -259,26 +199,6 @@ public class MyMapper extends RichMapFunction<Long, Long> {
     return value;
   }
 }
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-class MyMapper extends RichMapFunction[Long,Long] {
-  @transient private var histogram: Histogram = _
-
-  override def open(parameters: Configuration): Unit = {
-    histogram = getRuntimeContext()
-      .getMetricGroup()
-      .histogram("myHistogram", new MyHistogram())
-  }
-
-  override def map(value: Long): Long = {
-    histogram.update(value)
-    value
-  }
-}
-
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -307,7 +227,7 @@ public class MyMapper extends RichMapFunction<Long, Long> {
   private transient Histogram histogram;
 
   @Override
-  public void open(Configuration config) {
+  public void open(OpenContext ctx) {
     com.codahale.metrics.Histogram dropwizardHistogram =
       new com.codahale.metrics.Histogram(new SlidingWindowReservoir(500));
 
@@ -322,29 +242,6 @@ public class MyMapper extends RichMapFunction<Long, Long> {
     return value;
   }
 }
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-class MyMapper extends RichMapFunction[Long, Long] {
-  @transient private var histogram: Histogram = _
-
-  override def open(config: Configuration): Unit = {
-    val dropwizardHistogram =
-      new com.codahale.metrics.Histogram(new SlidingWindowReservoir(500))
-        
-    histogram = getRuntimeContext()
-      .getMetricGroup()
-      .histogram("myHistogram", new DropwizardHistogramWrapper(dropwizardHistogram))
-  }
-  
-  override def map(value: Long): Long = {
-    histogram.update(value)
-    value
-  }
-}
-
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -366,7 +263,7 @@ public class MyMapper extends RichMapFunction<Long, Long> {
   private transient Meter meter;
 
   @Override
-  public void open(Configuration config) {
+  public void open(OpenContext ctx) {
     this.meter = getRuntimeContext()
       .getMetricGroup()
       .meter("myMeter", new MyMeter());
@@ -378,26 +275,6 @@ public class MyMapper extends RichMapFunction<Long, Long> {
     return value;
   }
 }
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-class MyMapper extends RichMapFunction[Long,Long] {
-  @transient private var meter: Meter = _
-
-  override def open(config: Configuration): Unit = {
-    meter = getRuntimeContext()
-      .getMetricGroup()
-      .meter("myMeter", new MyMeter())
-  }
-
-  override def map(value: Long): Long = {
-    meter.markEvent()
-    value
-  }
-}
-
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -440,7 +317,7 @@ public class MyMapper extends RichMapFunction<Long, Long> {
   private transient Meter meter;
 
   @Override
-  public void open(Configuration config) {
+  public void open(OpenContext ctx) {
     com.codahale.metrics.Meter dropwizardMeter = new com.codahale.metrics.Meter();
 
     this.meter = getRuntimeContext()
@@ -454,28 +331,6 @@ public class MyMapper extends RichMapFunction<Long, Long> {
     return value;
   }
 }
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-class MyMapper extends RichMapFunction[Long,Long] {
-  @transient private var meter: Meter = _
-
-  override def open(config: Configuration): Unit = {
-    val dropwizardMeter: com.codahale.metrics.Meter = new com.codahale.metrics.Meter()
-  
-    meter = getRuntimeContext()
-      .getMetricGroup()
-      .meter("myMeter", new DropwizardMeterWrapper(dropwizardMeter))
-  }
-
-  override def map(value: Long): Long = {
-    meter.markEvent()
-    value
-  }
-}
-
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -512,21 +367,6 @@ counter = getRuntimeContext()
   .getMetricGroup()
   .addGroup("MyMetricsKey", "MyMetricsValue")
   .counter("myCounter");
-
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-counter = getRuntimeContext()
-  .getMetricGroup()
-  .addGroup("MyMetrics")
-  .counter("myCounter")
-
-counter = getRuntimeContext()
-  .getMetricGroup()
-  .addGroup("MyMetricsKey", "MyMetricsValue")
-  .counter("myCounter")
 
 ```
 {{< /tab >}}
@@ -612,16 +452,6 @@ counter = getRuntimeContext()
   .getMetricGroup()
   .addGroup("MyMetricsKey", "MyMetricsValue")
   .counter("myCounter");
-
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-counter = getRuntimeContext()
-  .getMetricGroup()
-  .addGroup("MyMetricsKey", "MyMetricsValue")
-  .counter("myCounter")
 
 ```
 {{< /tab >}}
@@ -1270,13 +1100,13 @@ Whether these metrics are reported depends on the [metrics.job.status.enable]({{
       <td>Gauge</td>
     </tr>
     <tr>
-      <td>fullRestarts</td>
-      <td><span class="label label-danger">Attention:</span> deprecated, use <b>numRestarts</b>.</td>
+      <td>numRestarts</td>
+      <td>The total number of restarts since this job was submitted, including full restarts, fine-grained restarts and restarts triggered by rescaling.</td>
       <td>Gauge</td>
     </tr>
     <tr>
-      <td>numRestarts</td>
-      <td>The total number of restarts since this job was submitted, including full restarts and fine-grained restarts.</td>
+      <td>numRescales</td>
+      <td>The total number of restarts triggered by rescaling, including scale up and scale down.</td>
       <td>Gauge</td>
     </tr>
   </tbody>
@@ -1310,6 +1140,11 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
     <tr>
       <td>lastCompletedCheckpointId</td>
       <td>The identifier of the last completed checkpoint.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lastCheckpointCompletedTimestamp</td>
+      <td>The timestamp of the last completed checkpoint (in milliseconds).</td>
       <td>Gauge</td>
     </tr>
     <tr>
@@ -1535,6 +1370,58 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
 
 ### RocksDB
 Certain RocksDB native metrics are available but disabled by default, you can find full documentation [here]({{< ref "docs/deployment/config" >}}#rocksdb-native-metrics)
+
+### ForSt
+
+Certain ForSt native metrics are available but disabled by default, you can find full documentation [here]({{< ref "docs/deployment/config" >}}#forst-native-metrics)
+
+Besides that, we support the following metrics:
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 15%">Scope</th>
+      <th class="text-left" style="width: 15%">Infix</th>
+      <th class="text-left" style="width: 15%">Metrics</th>
+      <th class="text-left" style="width: 50%">Description</th>
+      <th class="text-left" style="width: 5%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="4"><strong>Task/Operator</strong></th>
+      <td rowspan="4">forst.fileCache</td>
+      <td>hit</td>
+      <td>The hit count of ForSt state backend cache.</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>miss</td>
+      <td>The miss count of ForSt state backend cache.</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>usedBytes</td>
+      <td>The bytes cached in ForSt state backend cache.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>remainingBytes</td>
+      <td>The remaining space in the volume for the configured cache. Only available when 'state.backend.forst.cache.reserve-size' is set above 0. </td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lru.evict</td>
+      <td>The number of cache files that are evicted from LRU.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lru.loadback</td>
+      <td>The number of cache files that are loaded back from remote storage into the LRU. </td>
+      <td>Gauge</td>
+    </tr>
+  </tbody>
+</table>
 
 ### State Changelog
 
@@ -2236,6 +2123,44 @@ logged by `SystemResourcesMetricsInitializer` during the startup.
       <td>numEffectiveSpeculativeExecutions</td>
       <td>有效的预测执行数量，即比初始执行实例更早结束的预测执行实例的数量。</td>
       <td>Counter</td>
+    </tr>
+  </tbody>
+</table>
+
+### Async State Processing
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 15%">Scope</th>
+      <th class="text-left" style="width: 10%">Infix</th>
+      <th class="text-left" style="width: 20%">Metrics</th>
+      <th class="text-left" style="width: 50%">Description</th>
+      <th class="text-left" style="width: 5%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="4"><strong>Operator</strong></th>
+      <td rowspan="4">asyncStateProcessing</td>
+      <td>numInFlightRecords</td>
+      <td>The number of in-flight records in the async execution controller's buffers.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>activeBufferSize</td>
+      <td>The number of records which are pending to be processed.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>blockingBufferSize</td>
+      <td>The number of records which are blocked by the ongoing records.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>numBlockingKeys</td>
+      <td>The number of different keys are blocked in async execution controller.</td>
+      <td>Gauge</td>
     </tr>
   </tbody>
 </table>

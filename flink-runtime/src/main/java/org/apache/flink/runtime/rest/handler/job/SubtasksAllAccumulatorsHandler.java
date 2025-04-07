@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.job;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
@@ -36,6 +35,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -47,7 +47,7 @@ public class SubtasksAllAccumulatorsHandler
 
     public SubtasksAllAccumulatorsHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> responseHeaders,
             MessageHeaders<
                             EmptyRequestBody,
@@ -92,7 +92,6 @@ public class SubtasksAllAccumulatorsHandler
                         new SubtasksAllAccumulatorsInfo.SubtaskAccumulatorsInfo(
                                 execution.getParallelSubtaskIndex(),
                                 execution.getAttemptNumber(),
-                                host,
                                 endpoint,
                                 userAccumulators));
             }

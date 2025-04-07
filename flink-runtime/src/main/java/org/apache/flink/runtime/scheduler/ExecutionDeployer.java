@@ -19,7 +19,6 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -27,6 +26,7 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 import org.slf4j.Logger;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -70,7 +70,7 @@ public interface ExecutionDeployer {
                 final ExecutionSlotAllocator executionSlotAllocator,
                 final ExecutionOperations executionOperations,
                 final ExecutionVertexVersioner executionVertexVersioner,
-                final Time partitionRegistrationTimeout,
+                final Duration partitionRegistrationTimeout,
                 final BiConsumer<ExecutionVertexID, AllocationID> allocationReservationFunc,
                 final ComponentMainThreadExecutor mainThreadExecutor);
     }

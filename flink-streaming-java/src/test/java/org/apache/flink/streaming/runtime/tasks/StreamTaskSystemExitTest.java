@@ -58,8 +58,7 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
-import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -159,7 +158,6 @@ class StreamTaskSystemExitTest {
         final StreamConfig streamConfig = new StreamConfig(taskConfiguration);
         streamConfig.setOperatorID(new OperatorID());
         streamConfig.setStreamOperator(operator);
-        streamConfig.setTimeCharacteristic(TimeCharacteristic.ProcessingTime); // for source run
         streamConfig.serializeAllConfigs();
 
         final JobInformation jobInformation =

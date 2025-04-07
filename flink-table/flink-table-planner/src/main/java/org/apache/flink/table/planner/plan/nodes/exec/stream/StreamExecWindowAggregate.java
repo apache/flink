@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.logical.WindowingStrategy;
@@ -39,6 +40,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
+import org.apache.flink.table.planner.plan.utils.WindowUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
@@ -198,7 +200,7 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
                         InternalTypeInfo.of(inputRowType));
         final LogicalType[] accTypes = convertToLogicalTypes(aggInfoList.getAccTypes());
 
-        final OneInputStreamOperator<RowData, RowData> windowOperator =
+        final WindowAggOperatorBuilder windowAggOperatorBuilder =
                 WindowAggOperatorBuilder.builder()
                         .inputSerializer(new RowDataSerializer(inputRowType))
                         .shiftTimeZone(shiftTimeZone)
@@ -207,8 +209,20 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
                                         selector.getProducedType().toSerializer())
                         .assigner(windowAssigner)
                         .countStarIndex(aggInfoList.getIndexOfCountStar())
-                        .aggregate(generatedAggsHandler, new RowDataSerializer(accTypes))
-                        .build();
+                        .aggregate(generatedAggsHandler, new RowDataSerializer(accTypes));
+
+        if (WindowUtil.isAsyncStateEnabled(config, windowAssigner, aggInfoList)) {
+            windowAggOperatorBuilder
+                    .enableAsyncState()
+                    .generatedKeyEqualiser(
+                            new EqualiserCodeGenerator(
+                                            selector.getProducedType().toRowType(),
+                                            planner.getFlinkContext().getClassLoader())
+                                    .generateRecordEqualiser("WindowKeyEqualiser"));
+        }
+
+        final OneInputStreamOperator<RowData, RowData> windowOperator =
+                windowAggOperatorBuilder.build();
 
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(

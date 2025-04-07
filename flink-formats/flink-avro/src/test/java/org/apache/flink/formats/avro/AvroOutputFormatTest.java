@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -164,7 +165,23 @@ class AvroOutputFormatTest {
 
     private void output(final AvroOutputFormat<User> outputFormat) throws IOException {
         outputFormat.configure(new Configuration());
-        outputFormat.open(1, 1);
+        outputFormat.open(
+                new OutputFormat.InitializationContext() {
+                    @Override
+                    public int getNumTasks() {
+                        return 1;
+                    }
+
+                    @Override
+                    public int getTaskNumber() {
+                        return 1;
+                    }
+
+                    @Override
+                    public int getAttemptNumber() {
+                        return 0;
+                    }
+                });
         for (int i = 0; i < 100; i++) {
             User user = new User();
             user.setName("testUser");
@@ -227,7 +244,23 @@ class AvroOutputFormatTest {
     private void output(final AvroOutputFormat<GenericRecord> outputFormat, Schema schema)
             throws IOException {
         outputFormat.configure(new Configuration());
-        outputFormat.open(1, 1);
+        outputFormat.open(
+                new OutputFormat.InitializationContext() {
+                    @Override
+                    public int getNumTasks() {
+                        return 1;
+                    }
+
+                    @Override
+                    public int getTaskNumber() {
+                        return 1;
+                    }
+
+                    @Override
+                    public int getAttemptNumber() {
+                        return 0;
+                    }
+                });
         for (int i = 0; i < 100; i++) {
             GenericRecord record = new GenericData.Record(schema);
             record.put("user_name", "testUser");

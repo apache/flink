@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.job.metrics;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.metrics.dump.MetricDump;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
@@ -43,6 +42,7 @@ import org.mockito.MockitoAnnotations;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -87,7 +87,7 @@ class AbstractMetricsHandlerTest {
                                 return CompletableFuture.completedFuture(mockDispatcherGateway);
                             }
                         },
-                        Time.milliseconds(50),
+                        Duration.ofMillis(50),
                         Collections.emptyMap(),
                         new TestMetricsHeaders(),
                         mockMetricFetcher);
@@ -181,7 +181,7 @@ class AbstractMetricsHandlerTest {
 
         private TestMetricsHandler(
                 GatewayRetriever<DispatcherGateway> leaderRetriever,
-                Time timeout,
+                Duration timeout,
                 Map<String, String> headers,
                 MessageHeaders<
                                 EmptyRequestBody,
@@ -197,7 +197,7 @@ class AbstractMetricsHandlerTest {
         @Override
         protected MetricStore.ComponentMetricStore getComponentMetricStore(
                 HandlerRequest<EmptyRequestBody> request, MetricStore metricStore) {
-            return returnComponentMetricStore ? metricStore.getJobManager() : null;
+            return returnComponentMetricStore ? metricStore.getJobManagerMetricStore() : null;
         }
     }
 

@@ -18,10 +18,10 @@
 
 package org.apache.flink.client.python;
 
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.program.ProgramAbortException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,7 +69,11 @@ public final class PythonDriver {
         // streaming and batch environments are always set at the same time, for streaming jobs we
         // can
         // also get its configuration from batch environments.
-        Configuration config = ExecutionEnvironment.getExecutionEnvironment().getConfiguration();
+        Configuration config =
+                Configuration.fromMap(
+                        StreamExecutionEnvironment.getExecutionEnvironment()
+                                .getConfiguration()
+                                .toMap());
 
         // start gateway server
         GatewayServer gatewayServer = PythonEnvUtils.startGatewayServer();

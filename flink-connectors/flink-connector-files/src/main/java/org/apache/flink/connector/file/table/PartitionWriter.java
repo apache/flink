@@ -19,6 +19,7 @@
 package org.apache.flink.connector.file.table;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.io.FirstAttemptInitializationContext;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
@@ -58,7 +59,7 @@ public interface PartitionWriter<T> {
             OutputFormat<T> format = factory.createOutputFormat(path);
             format.configure(conf);
             // Here we just think of it as a single file format, so there can only be a single task.
-            format.open(0, 1);
+            format.open(FirstAttemptInitializationContext.of(0, 1));
             return format;
         }
     }

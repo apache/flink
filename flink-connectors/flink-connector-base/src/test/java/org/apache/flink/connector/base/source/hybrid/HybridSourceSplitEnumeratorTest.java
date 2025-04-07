@@ -29,7 +29,7 @@ import org.apache.flink.connector.base.source.reader.mocks.MockBaseSource;
 import org.apache.flink.connector.base.source.reader.mocks.MockSplitEnumerator;
 import org.apache.flink.mock.Whitebox;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.io.IOException;
@@ -41,7 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link HybridSourceSplitEnumerator}. */
-public class HybridSourceSplitEnumeratorTest {
+class HybridSourceSplitEnumeratorTest {
 
     private static final int SUBTASK0 = 0;
     private static final int SUBTASK1 = 1;
@@ -89,7 +89,7 @@ public class HybridSourceSplitEnumeratorTest {
     }
 
     @Test
-    public void testHighCardinalitySources() {
+    void testHighCardinalitySources() {
         context = new MockSplitEnumeratorContext<>(2);
         HybridSource.HybridSourceBuilder<Integer, MockSplitEnumerator> hybridSourceBuilder =
                 HybridSource.builder(MOCK_SOURCE);
@@ -145,7 +145,7 @@ public class HybridSourceSplitEnumeratorTest {
     }
 
     @Test
-    public void testRegisterReaderAfterSwitchAndReaderReset() {
+    void testRegisterReaderAfterSwitchAndReaderReset() {
         setupEnumeratorAndTriggerSourceSwitch();
 
         // add split of previous source back (simulates reader reset during recovery)
@@ -176,7 +176,7 @@ public class HybridSourceSplitEnumeratorTest {
     }
 
     @Test
-    public void testHandleSplitRequestAfterSwitchAndReaderReset() {
+    void testHandleSplitRequestAfterSwitchAndReaderReset() {
         setupEnumeratorAndTriggerSourceSwitch();
 
         UnderlyingEnumeratorWrapper underlyingEnumeratorWrapper =
@@ -212,7 +212,7 @@ public class HybridSourceSplitEnumeratorTest {
     }
 
     @Test
-    public void testRestoreEnumerator() throws Exception {
+    void testRestoreEnumerator() throws Exception {
         setupEnumeratorAndTriggerSourceSwitch();
         enumerator = (HybridSourceSplitEnumerator) source.createEnumerator(context);
         enumerator.start();
@@ -233,7 +233,7 @@ public class HybridSourceSplitEnumeratorTest {
     }
 
     @Test
-    public void testRestoreEnumeratorAfterFirstSourceWithoutRestoredSplits() throws Exception {
+    void testRestoreEnumeratorAfterFirstSourceWithoutRestoredSplits() throws Exception {
         setupEnumeratorAndTriggerSourceSwitch();
         HybridSourceEnumeratorState enumeratorState = enumerator.snapshotState(0);
         MockSplitEnumerator underlyingEnumerator = getCurrentEnumerator(enumerator);
@@ -254,7 +254,7 @@ public class HybridSourceSplitEnumeratorTest {
     }
 
     @Test
-    public void testDefaultMethodDelegation() throws Exception {
+    void testDefaultMethodDelegation() throws Exception {
         setupEnumeratorAndTriggerSourceSwitch();
         SplitEnumerator<MockSourceSplit, Object> underlyingEnumeratorSpy =
                 Mockito.spy((SplitEnumerator) getCurrentEnumerator(enumerator));
@@ -272,7 +272,7 @@ public class HybridSourceSplitEnumeratorTest {
     }
 
     @Test
-    public void testInterceptNoMoreSplitEvent() {
+    void testInterceptNoMoreSplitEvent() {
         context = new MockSplitEnumeratorContext<>(2);
         source = HybridSource.builder(MOCK_SOURCE).addSource(MOCK_SOURCE).build();
 
@@ -309,7 +309,7 @@ public class HybridSourceSplitEnumeratorTest {
     }
 
     @Test
-    public void testMultiSubtaskSwitchEnumerator() {
+    void testMultiSubtaskSwitchEnumerator() {
         context = new MockSplitEnumeratorContext<>(2);
         source =
                 HybridSource.builder(MOCK_SOURCE)

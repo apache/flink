@@ -27,7 +27,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator;
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,7 +36,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ProcTimeMiniBatchDeduplicateKeepFirstRowFunction}. */
-public class ProcTimeMiniBatchDeduplicateKeepFirstRowFunctionTest
+class ProcTimeMiniBatchDeduplicateKeepFirstRowFunctionTest
         extends ProcTimeDeduplicateFunctionTestBase {
 
     private TypeSerializer<RowData> typeSerializer =
@@ -51,10 +51,10 @@ public class ProcTimeMiniBatchDeduplicateKeepFirstRowFunctionTest
     }
 
     @Test
-    public void testKeepFirstRowWithGenerateUpdateBefore() throws Exception {
+    void testKeepFirstRowWithGenerateUpdateBefore() throws Exception {
         ProcTimeMiniBatchDeduplicateKeepFirstRowFunction func =
                 new ProcTimeMiniBatchDeduplicateKeepFirstRowFunction(
-                        typeSerializer, minTime.toMilliseconds());
+                        typeSerializer, minTime.toMillis());
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.open();
         testHarness.processElement(insertRecord("book", 1L, 12));
@@ -74,10 +74,10 @@ public class ProcTimeMiniBatchDeduplicateKeepFirstRowFunctionTest
     }
 
     @Test
-    public void testKeepFirstRowWithStateTtl() throws Exception {
+    void testKeepFirstRowWithStateTtl() throws Exception {
         ProcTimeMiniBatchDeduplicateKeepFirstRowFunction func =
                 new ProcTimeMiniBatchDeduplicateKeepFirstRowFunction(
-                        typeSerializer, minTime.toMilliseconds());
+                        typeSerializer, minTime.toMillis());
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.setup();
         testHarness.open();

@@ -19,6 +19,7 @@
 package org.apache.flink.table.gateway.service.utils;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptionsInternal;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.service.SqlGatewayServiceImpl;
@@ -35,6 +36,7 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -89,7 +91,12 @@ public class SqlGatewayServiceExtension implements BeforeAllCallback, AfterAllCa
             sessionManager =
                     sessionManagerCreator.apply(
                             DefaultContext.load(
-                                    new Configuration(), Collections.emptyList(), true));
+                                    Configuration.fromMap(
+                                            Collections.singletonMap(
+                                                    DeploymentOptionsInternal.CONF_DIR.key(),
+                                                    "/dummy/conf/")),
+                                    Collections.emptyList(),
+                                    true));
         } finally {
             CommonTestUtils.setEnv(originalEnv);
         }
@@ -112,6 +119,10 @@ public class SqlGatewayServiceExtension implements BeforeAllCallback, AfterAllCa
 
     public SessionManager getSessionManager() {
         return sessionManager;
+    }
+
+    public String getConfDir() {
+        return Paths.get(temporaryFolder.getRoot().getAbsolutePath(), "conf").toString();
     }
 
     private String getFlinkConfContent(Map<String, String> flinkConf) {

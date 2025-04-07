@@ -32,10 +32,10 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link RowKindSetter}. */
-public class RowKindSetterTest {
+class RowKindSetterTest {
 
     @Test
-    public void testSetRowKind() throws Exception {
+    void testSetRowKind() throws Exception {
         // test set to all row kind
         for (RowKind targetRowKind : RowKind.values()) {
             RowKindSetter rowKindSetter = new RowKindSetter(targetRowKind);

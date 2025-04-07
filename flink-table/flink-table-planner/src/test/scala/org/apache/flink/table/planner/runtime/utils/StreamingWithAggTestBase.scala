@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.runtime.utils
 
-import org.apache.flink.api.common.time.Time
 import org.apache.flink.table.api.config.{AggregatePhaseStrategy, OptimizerConfigOptions}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithAggTestBase._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}

@@ -32,7 +32,9 @@ public abstract class CommitterFromPersistRecoverableFsDataOutputStream<
                 RESUME_RECOVERABLE extends RecoverableWriter.ResumeRecoverable>
         extends RecoverableFsDataOutputStream {
 
-    /** @see RecoverableFsDataOutputStream#persist() */
+    /**
+     * @see RecoverableFsDataOutputStream#persist()
+     */
     @Override
     public abstract RESUME_RECOVERABLE persist() throws IOException;
 

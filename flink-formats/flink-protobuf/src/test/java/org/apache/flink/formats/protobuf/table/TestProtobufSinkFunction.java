@@ -20,7 +20,7 @@ package org.apache.flink.formats.protobuf.table;
 
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
 import org.apache.flink.table.data.RowData;
 
 /** Sink Function for protobuf table factory test. Must run in single parallelism. */

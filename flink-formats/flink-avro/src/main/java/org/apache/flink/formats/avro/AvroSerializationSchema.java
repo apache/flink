@@ -101,6 +101,7 @@ public class AvroSerializationSchema<T> implements SerializationSchema<T> {
 
     private String schemaString;
     private transient Schema schema;
+
     /** Writer that writes the serialized record to {@link ByteArrayOutputStream}. */
     private transient GenericDatumWriter<T> datumWriter;
 

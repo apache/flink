@@ -73,9 +73,6 @@ public class GenericCLI implements CustomCommandLine {
                             + "\" config option. For the \"run\" action the "
                             + "currently available targets are: "
                             + getTargetNames()
-                            + ". For the \"run-application\" (deprecated) action"
-                            + " the currently available targets are: "
-                            + String.join(DELIMITER, getApplicationModeTargetNames())
                             + ".");
 
     private final Configuration configuration;
@@ -135,18 +132,10 @@ public class GenericCLI implements CustomCommandLine {
         final Stream<String> executorNames =
                 new DefaultExecutorServiceLoader()
                         .getExecutorNames()
-                        .map(name -> String.format("\"%s\"", name))
-                        .map(GenericCLI::addDeprecationNoticeToYarnPerJobMode);
+                        .map(name -> String.format("\"%s\"", name));
 
         return Stream.concat(executorNames, getApplicationModeTargetNames().stream())
                 .collect(Collectors.joining(DELIMITER));
-    }
-
-    private static String addDeprecationNoticeToYarnPerJobMode(String name) {
-        if (name.contains("yarn-per-job")) {
-            return name + " (deprecated)";
-        }
-        return name;
     }
 
     private static List<String> getApplicationModeTargetNames() {

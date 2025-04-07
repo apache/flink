@@ -62,6 +62,7 @@ The reference documentation covers all the details. Some starting points:
 
 {{< columns >}}
 * [DataStream API]({{< ref "docs/dev/datastream/overview" >}})
+* [DataStream API (V2)]({{< ref "docs/dev/datastream-v2/overview" >}})
 * [Table API & SQL]({{< ref "docs/dev/table/overview" >}})
 * [Stateful Functions](https://nightlies.apache.org/flink/flink-statefun-docs-stable/)
 
@@ -86,6 +87,7 @@ For some reason Hugo will only allow linking to the
 release notes if there is a leading '/' and file extension.
 -->
 See the release notes for
+[Flink 2.0]({{< ref "/release-notes/flink-2.0.md" >}}),
 [Flink 1.20]({{< ref "/release-notes/flink-1.20.md" >}}),
 [Flink 1.19]({{< ref "/release-notes/flink-1.19.md" >}}),
 [Flink 1.18]({{< ref "/release-notes/flink-1.18.md" >}}),

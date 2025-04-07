@@ -18,25 +18,27 @@
 
 package org.apache.flink.sql.parser.dql;
 
-import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
-import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import java.util.Collections;
-import java.util.List;
-
-/** SHOW CATALOGS sql call. */
-public class SqlShowCatalogs extends SqlCall {
+/**
+ * SHOW Catalogs sql call. The full syntax for show catalogs is as followings:
+ *
+ * <pre>{@code
+ * SHOW CATALOGS [ [NOT] (LIKE | ILIKE) <sql_like_pattern> ]
+ * }</pre>
+ */
+public class SqlShowCatalogs extends SqlShowCall {
 
     public static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("SHOW CATALOGS", SqlKind.OTHER);
 
-    public SqlShowCatalogs(SqlParserPos pos) {
-        super(pos);
+    public SqlShowCatalogs(
+            SqlParserPos pos, String likeType, SqlCharStringLiteral likeLiteral, boolean notLike) {
+        super(pos, null, null, likeType, likeLiteral, notLike);
     }
 
     @Override
@@ -45,12 +47,7 @@ public class SqlShowCatalogs extends SqlCall {
     }
 
     @Override
-    public List<SqlNode> getOperandList() {
-        return Collections.emptyList();
-    }
-
-    @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        writer.keyword("SHOW CATALOGS");
+    String getOperationName() {
+        return "SHOW CATALOGS";
     }
 }

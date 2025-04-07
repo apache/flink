@@ -40,7 +40,7 @@ public class SlotSelectionStrategyUtils {
     public static SlotSelectionStrategy selectSlotSelectionStrategy(
             final JobType jobType, final Configuration configuration) {
         TaskManagerLoadBalanceMode taskManagerLoadBalanceMode =
-                TaskManagerOptions.TaskManagerLoadBalanceMode.loadFromConfiguration(configuration);
+                configuration.get(TaskManagerOptions.TASK_MANAGER_LOAD_BALANCE_MODE);
 
         final SlotSelectionStrategy locationPreferenceSlotSelectionStrategy;
 

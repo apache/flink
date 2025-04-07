@@ -20,6 +20,8 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
+import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.fs.FileSystem;
@@ -28,6 +30,7 @@ import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStateToolset;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
+import org.apache.flink.runtime.state.CheckpointStorageFactory;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -41,6 +44,8 @@ import org.apache.flink.runtime.state.ttl.mock.MockStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
+import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
@@ -93,14 +98,20 @@ public class UnalignedCheckpointFailureHandlingITCase {
     @Test
     public void testCheckpointSuccessAfterFailure() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        TestCheckpointStorage storage =
-                new TestCheckpointStorage(
-                        new JobManagerCheckpointStorage(), sharedObjects, temporaryFolder);
+        TestCheckpointStorageFactory.failOnCloseRef = sharedObjects.add(new AtomicBoolean(true));
+        TestCheckpointStorageFactory.tempFolderRef = sharedObjects.add(temporaryFolder);
 
-        configure(env, storage);
+        configure(
+                env,
+                "org.apache.flink.test.checkpointing.UnalignedCheckpointFailureHandlingITCase$TestCheckpointStorageFactory");
         buildGraph(env);
 
-        JobClient jobClient = env.executeAsync();
+        // use non-snapshotting backend to test channel state persistence integration with
+        // checkpoint storage
+        MockStateBackend stateBackend = new MockStateBackend(MockSnapshotSupplier.EMPTY);
+        JobClient jobClient =
+                StateBackendUtils.configureStateBackendAndExecuteAsync(env, stateBackend);
+
         JobID jobID = jobClient.getJobID();
         MiniCluster miniCluster = miniClusterResource.getMiniCluster();
 
@@ -112,15 +123,11 @@ public class UnalignedCheckpointFailureHandlingITCase {
         miniCluster.triggerCheckpoint(jobID).get();
     }
 
-    private void configure(StreamExecutionEnvironment env, TestCheckpointStorage storage) {
+    private void configure(StreamExecutionEnvironment env, String storageFactory) {
         // enable checkpointing but only via API
         env.enableCheckpointing(Long.MAX_VALUE, CheckpointingMode.EXACTLY_ONCE);
 
-        env.getCheckpointConfig().setCheckpointStorage(storage);
-
-        // use non-snapshotting backend to test channel state persistence integration with
-        // checkpoint storage
-        env.setStateBackend(new MockStateBackend(MockSnapshotSupplier.EMPTY));
+        CheckpointStorageUtils.configureCheckpointStorageWithFactory(env, storageFactory);
 
         env.getCheckpointConfig().enableUnalignedCheckpoints();
 
@@ -184,6 +191,19 @@ public class UnalignedCheckpointFailureHandlingITCase {
                 .isPresent();
     }
 
+    public static class TestCheckpointStorageFactory implements CheckpointStorageFactory {
+
+        private static SharedReference<AtomicBoolean> failOnCloseRef;
+        private static SharedReference<TemporaryFolder> tempFolderRef;
+
+        @Override
+        public CheckpointStorage createFromConfig(ReadableConfig config, ClassLoader classLoader)
+                throws IllegalConfigurationException {
+            return new TestCheckpointStorage(
+                    new JobManagerCheckpointStorage(), failOnCloseRef, tempFolderRef);
+        }
+    }
+
     private static class TestCheckpointStorage implements CheckpointStorage {
         private final CheckpointStorage delegate;
         private final SharedReference<AtomicBoolean> failOnCloseRef;
@@ -191,11 +211,11 @@ public class UnalignedCheckpointFailureHandlingITCase {
 
         private TestCheckpointStorage(
                 CheckpointStorage delegate,
-                SharedObjects sharedObjects,
-                TemporaryFolder tempFolder) {
+                SharedReference<AtomicBoolean> failOnCloseRef,
+                SharedReference<TemporaryFolder> tempFolderRef) {
             this.delegate = delegate;
-            this.failOnCloseRef = sharedObjects.add(new AtomicBoolean(true));
-            this.tempFolderRef = sharedObjects.add(tempFolder);
+            this.failOnCloseRef = failOnCloseRef;
+            this.tempFolderRef = tempFolderRef;
         }
 
         @Override

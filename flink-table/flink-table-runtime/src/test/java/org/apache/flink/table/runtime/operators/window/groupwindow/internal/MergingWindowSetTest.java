@@ -27,7 +27,7 @@ import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.MergingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.SessionWindowAssigner;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -47,7 +47,7 @@ import static org.assertj.core.api.Assertions.fail;
  * Tests for verifying that {@link MergingWindowSet} correctly merges windows in various situations
  * and that the merge callback is called with the correct sets of windows.
  */
-public class MergingWindowSetTest {
+class MergingWindowSetTest {
 
     /**
      * This test uses a special (misbehaving) {@code MergingWindowAssigner} that produces cases
@@ -55,7 +55,7 @@ public class MergingWindowSetTest {
      * the merging window set is nevertheless correct and contains all added windows.
      */
     @Test
-    public void testNonEagerMerging() throws Exception {
+    void testNonEagerMerging() throws Exception {
         MapState<TimeWindow, TimeWindow> mockState = new HeapMapState<>();
 
         MergingWindowSet<TimeWindow> windowSet =
@@ -84,7 +84,7 @@ public class MergingWindowSetTest {
     }
 
     @Test
-    public void testIncrementalMerging() throws Exception {
+    void testIncrementalMerging() throws Exception {
         MapState<TimeWindow, TimeWindow> mockState = new HeapMapState<>();
 
         MergingWindowSet<TimeWindow> windowSet =
@@ -203,7 +203,7 @@ public class MergingWindowSetTest {
     }
 
     @Test
-    public void testLateMerging() throws Exception {
+    void testLateMerging() throws Exception {
         MapState<TimeWindow, TimeWindow> mockState = new HeapMapState<>();
 
         MergingWindowSet<TimeWindow> windowSet =
@@ -289,7 +289,7 @@ public class MergingWindowSetTest {
 
     /** Test merging of a large new window that covers one existing windows. */
     @Test
-    public void testMergeLargeWindowCoveringSingleWindow() throws Exception {
+    void testMergeLargeWindowCoveringSingleWindow() throws Exception {
         MapState<TimeWindow, TimeWindow> mockState = new HeapMapState<>();
 
         MergingWindowSet<TimeWindow> windowSet =
@@ -321,7 +321,7 @@ public class MergingWindowSetTest {
      * merge.
      */
     @Test
-    public void testAddingIdenticalWindows() throws Exception {
+    void testAddingIdenticalWindows() throws Exception {
         MapState<TimeWindow, TimeWindow> mockState = new HeapMapState<>();
 
         MergingWindowSet<TimeWindow> windowSet =
@@ -346,7 +346,7 @@ public class MergingWindowSetTest {
 
     /** Test merging of a large new window that covers multiple existing windows. */
     @Test
-    public void testMergeLargeWindowCoveringMultipleWindows() throws Exception {
+    void testMergeLargeWindowCoveringMultipleWindows() throws Exception {
         MapState<TimeWindow, TimeWindow> mockState = new HeapMapState<>();
 
         MergingWindowSet<TimeWindow> windowSet =

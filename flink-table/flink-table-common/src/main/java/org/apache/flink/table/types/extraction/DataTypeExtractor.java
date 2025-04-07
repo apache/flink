@@ -19,8 +19,10 @@
 package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.java.typeutils.AvroUtils;
 import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.StateHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.dataview.DataView;
 import org.apache.flink.table.api.dataview.ListView;
@@ -39,6 +41,7 @@ import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.utils.ClassDataTypeConverter;
+import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter;
 import org.apache.flink.types.Row;
 
 import javax.annotation.Nullable;
@@ -142,8 +145,11 @@ public final class DataTypeExtractor {
         final Parameter parameter = method.getParameters()[paramPos];
         final DataTypeHint hint = parameter.getAnnotation(DataTypeHint.class);
         final ArgumentHint argumentHint = parameter.getAnnotation(ArgumentHint.class);
+        final StateHint stateHint = parameter.getAnnotation(StateHint.class);
         final DataTypeTemplate template;
-        if (argumentHint != null) {
+        if (stateHint != null) {
+            template = DataTypeTemplate.fromAnnotation(typeFactory, stateHint.type());
+        } else if (argumentHint != null) {
             template = DataTypeTemplate.fromAnnotation(typeFactory, argumentHint.type());
         } else if (hint != null) {
             template = DataTypeTemplate.fromAnnotation(typeFactory, hint);
@@ -204,9 +210,9 @@ public final class DataTypeExtractor {
      * Extracts a data type from a method return type by considering surrounding classes and method
      * annotation.
      */
-    public static DataType extractFromMethodOutput(
+    public static DataType extractFromMethodReturnType(
             DataTypeFactory typeFactory, Class<?> baseClass, Method method) {
-        return extractFromMethodOutput(
+        return extractFromMethodReturnType(
                 typeFactory, baseClass, method, method.getGenericReturnType());
     }
 
@@ -214,7 +220,7 @@ public final class DataTypeExtractor {
      * Extracts a data type from a method return type with specifying the method's type explicitly
      * by considering surrounding classes and method annotation.
      */
-    public static DataType extractFromMethodOutput(
+    public static DataType extractFromMethodReturnType(
             DataTypeFactory typeFactory, Class<?> baseClass, Method method, Type methodReturnType) {
         final DataTypeHint hint = method.getAnnotation(DataTypeHint.class);
         final DataTypeTemplate template;
@@ -329,14 +335,20 @@ public final class DataTypeExtractor {
         // early and helpful exception for common mistakes
         checkForCommonErrors(type);
 
-        // PREDEFINED
-        resultDataType = extractPredefinedType(template, type);
+        // PREDEFINED or DESCRIPTOR
+        resultDataType = extractPredefinedOrDescriptorType(template, type);
         if (resultDataType != null) {
             return resultDataType;
         }
 
         // MAP
         resultDataType = extractMapType(template, typeHierarchy, type);
+        if (resultDataType != null) {
+            return resultDataType;
+        }
+
+        // AVRO
+        resultDataType = extractAvroType(type);
         if (resultDataType != null) {
             return resultDataType;
         }
@@ -437,7 +449,8 @@ public final class DataTypeExtractor {
         }
     }
 
-    private @Nullable DataType extractPredefinedType(DataTypeTemplate template, Type type) {
+    private @Nullable DataType extractPredefinedOrDescriptorType(
+            DataTypeTemplate template, Type type) {
         final Class<?> clazz = toClass(type);
         // all predefined types are representable as classes
         if (clazz == null) {
@@ -524,6 +537,16 @@ public final class DataTypeExtractor {
                 extractDataTypeOrRaw(
                         template, typeHierarchy, parameterizedType.getActualTypeArguments()[1]);
         return DataTypes.MAP(key, value);
+    }
+
+    private @Nullable DataType extractAvroType(Type type) {
+        final Class<?> clazz = toClass(type);
+        if (AvroUtils.isAvroSpecificRecord(clazz)) {
+            // refer to TypeExtractor#privateGetForClass to get the AvroTypeInfo
+            return TypeInfoDataTypeConverter.toDataType(
+                    typeFactory, AvroUtils.getAvroUtils().createAvroTypeInfo(clazz));
+        }
+        return null;
     }
 
     private DataType extractStructuredType(

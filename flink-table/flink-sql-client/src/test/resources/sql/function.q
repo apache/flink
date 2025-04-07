@@ -1,4 +1,4 @@
-# function.q - CREATE/DROP/ALTER FUNCTION
+# function.q - CREATE/DROP/ALTER/SHOW/DESCRIBE FUNCTION
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -345,4 +345,160 @@ show user functions;
 # Show functions will not affect the session in sql gateway
 SHOW JARS;
 Empty set
+!ok
+
+# ==========================================================================
+# test describe function
+# ==========================================================================
+
+ADD JAR '$VAR_UDF_JAR_PATH';
+[INFO] Execute statement succeeded.
+!info
+
+describe function `SUM`;
++--------------------+------------+
+|          info name | info value |
++--------------------+------------+
+| is system function |       true |
+|       is temporary |      false |
++--------------------+------------+
+2 rows in set
+!ok
+
+describe function extended `SUM`;
++---------------------------+----------------+
+|                 info name |     info value |
++---------------------------+----------------+
+|        is system function |           true |
+|              is temporary |          false |
+|                      kind |      AGGREGATE |
+|              requirements |             [] |
+|          is deterministic |           true |
+| supports constant folding |           true |
+|                 signature | SUM(<NUMERIC>) |
++---------------------------+----------------+
+7 rows in set
+!ok
+
+describe function temp_upperudf;
++--------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+|          info name |                                 $VAR_UDF_JAR_PATH_SPACE info value |
++--------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+| is system function |                                      $VAR_UDF_JAR_PATH_SPACE false |
+|       is temporary |                                       $VAR_UDF_JAR_PATH_SPACE true |
+|         class name |                                   $VAR_UDF_JAR_PATH_SPACE UpperUDF |
+|  function language |                                       $VAR_UDF_JAR_PATH_SPACE JAVA |
+|      resource uris | [ResourceUri{resourceType=JAR, uri='$VAR_UDF_JAR_PATH'}] |
++--------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+5 rows in set
+!ok
+
+describe function extended temp_upperudf;
++---------------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+|                 info name |                                 $VAR_UDF_JAR_PATH_SPACE info value |
++---------------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+|        is system function |                                      $VAR_UDF_JAR_PATH_SPACE false |
+|              is temporary |                                       $VAR_UDF_JAR_PATH_SPACE true |
+|                class name |                                   $VAR_UDF_JAR_PATH_SPACE UpperUDF |
+|         function language |                                       $VAR_UDF_JAR_PATH_SPACE JAVA |
+|             resource uris | [ResourceUri{resourceType=JAR, uri='$VAR_UDF_JAR_PATH'}] |
+|                      kind |                                     $VAR_UDF_JAR_PATH_SPACE SCALAR |
+|              requirements |                                         $VAR_UDF_JAR_PATH_SPACE [] |
+|          is deterministic |                                       $VAR_UDF_JAR_PATH_SPACE true |
+| supports constant folding |                                       $VAR_UDF_JAR_PATH_SPACE true |
+|                 signature |        $VAR_UDF_JAR_PATH_SPACE c1.db.temp_upperudf(arg0 => STRING) |
++---------------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+10 rows in set
+!ok
+
+desc function temp_upperudf;
++--------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+|          info name |                                 $VAR_UDF_JAR_PATH_SPACE info value |
++--------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+| is system function |                                      $VAR_UDF_JAR_PATH_SPACE false |
+|       is temporary |                                       $VAR_UDF_JAR_PATH_SPACE true |
+|         class name |                                   $VAR_UDF_JAR_PATH_SPACE UpperUDF |
+|  function language |                                       $VAR_UDF_JAR_PATH_SPACE JAVA |
+|      resource uris | [ResourceUri{resourceType=JAR, uri='$VAR_UDF_JAR_PATH'}] |
++--------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+5 rows in set
+!ok
+
+desc function extended temp_upperudf;
++---------------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+|                 info name |                                 $VAR_UDF_JAR_PATH_SPACE info value |
++---------------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+|        is system function |                                      $VAR_UDF_JAR_PATH_SPACE false |
+|              is temporary |                                       $VAR_UDF_JAR_PATH_SPACE true |
+|                class name |                                   $VAR_UDF_JAR_PATH_SPACE UpperUDF |
+|         function language |                                       $VAR_UDF_JAR_PATH_SPACE JAVA |
+|             resource uris | [ResourceUri{resourceType=JAR, uri='$VAR_UDF_JAR_PATH'}] |
+|                      kind |                                     $VAR_UDF_JAR_PATH_SPACE SCALAR |
+|              requirements |                                         $VAR_UDF_JAR_PATH_SPACE [] |
+|          is deterministic |                                       $VAR_UDF_JAR_PATH_SPACE true |
+| supports constant folding |                                       $VAR_UDF_JAR_PATH_SPACE true |
+|                 signature |        $VAR_UDF_JAR_PATH_SPACE c1.db.temp_upperudf(arg0 => STRING) |
++---------------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+10 rows in set
+!ok
+
+# test that system functions get resolved before catalog functions
+create temporary system function temp_upperudf AS 'UpperUDF' using jar '$VAR_UDF_JAR_PATH';
+[INFO] Execute statement succeeded.
+!info
+
+# we see both the temp system function and the catalog function for temp_upperudf
+show user functions;
++---------------+
+| function name |
++---------------+
+|        func11 |
+|         func3 |
+|         func4 |
+| temp_upperudf |
+| temp_upperudf |
+|      tmp_func |
+|      upperudf |
++---------------+
+7 rows in set
+!ok
+
+# but the system function gets resolved first
+describe function temp_upperudf;
++--------------------+------------+
+|          info name | info value |
++--------------------+------------+
+| is system function |       true |
+|       is temporary |       true |
++--------------------+------------+
+2 rows in set
+!ok
+
+# but the catalog function should get resolved when using the full name
+describe function `c1`.`db`.temp_upperudf;
++--------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+|          info name |                                 $VAR_UDF_JAR_PATH_SPACE info value |
++--------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+| is system function |                                      $VAR_UDF_JAR_PATH_SPACE false |
+|       is temporary |                                       $VAR_UDF_JAR_PATH_SPACE true |
+|         class name |                                   $VAR_UDF_JAR_PATH_SPACE UpperUDF |
+|  function language |                                       $VAR_UDF_JAR_PATH_SPACE JAVA |
+|      resource uris | [ResourceUri{resourceType=JAR, uri='$VAR_UDF_JAR_PATH'}] |
++--------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+5 rows in set
+!ok
+
+describe function extended temp_upperudf;
++---------------------------+-------------------------------+
+|                 info name |                    info value |
++---------------------------+-------------------------------+
+|        is system function |                          true |
+|              is temporary |                          true |
+|                      kind |                        SCALAR |
+|              requirements |                            [] |
+|          is deterministic |                          true |
+| supports constant folding |                          true |
+|                 signature | temp_upperudf(arg0 => STRING) |
++---------------------------+-------------------------------+
+7 rows in set
 !ok

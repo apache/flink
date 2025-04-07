@@ -60,9 +60,6 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
     /** The log. */
     private static final Logger LOG = LoggerFactory.getLogger(BinaryInputFormat.class);
 
-    /** The config parameter which defines the fixed length of a record. */
-    @Deprecated public static final String BLOCK_SIZE_PARAMETER_KEY = "input.block_size";
-
     public static final long NATIVE_BLOCK_SIZE = Long.MIN_VALUE;
 
     /** The block size to use. */
@@ -85,14 +82,6 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
     @Override
     public void configure(Configuration parameters) {
         super.configure(parameters);
-
-        // the if is to prevent the configure() method from
-        // overwriting the value set by the setter
-
-        if (this.blockSize == NATIVE_BLOCK_SIZE) {
-            long blockSize = parameters.getLong(BLOCK_SIZE_PARAMETER_KEY, NATIVE_BLOCK_SIZE);
-            setBlockSize(blockSize);
-        }
     }
 
     public void setBlockSize(long blockSize) {

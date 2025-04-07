@@ -54,7 +54,6 @@ import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
@@ -286,6 +285,7 @@ public class Task
 
     /** atomic flag that makes sure the invokable is canceled exactly once upon error. */
     private final AtomicBoolean invokableHasBeenCanceled;
+
     /**
      * The invokable of this task, if initialized. All accesses must copy the reference and check
      * for null, as this field is cleared as part of the disposal logic.
@@ -431,13 +431,6 @@ public class Task
             inputGates[counter++] =
                     new InputGateWithMetrics(
                             gate, metrics.getIOMetricGroup().getNumBytesInCounter());
-        }
-
-        if (shuffleEnvironment instanceof NettyShuffleEnvironment) {
-            //noinspection deprecation
-            ((NettyShuffleEnvironment) shuffleEnvironment)
-                    .registerLegacyNetworkMetrics(
-                            metrics.getIOMetricGroup(), resultPartitionWriters, gates);
         }
 
         invokableHasBeenCanceled = new AtomicBoolean(false);
@@ -1210,10 +1203,17 @@ public class Task
                 return;
             }
 
-            if (current == ExecutionState.DEPLOYING || current == ExecutionState.CREATED) {
+            if (current == ExecutionState.CREATED) {
                 if (transitionState(current, targetState, cause)) {
                     // if we manage this state transition, then the invokable gets never called
                     // we need not call cancel on it
+                    return;
+                }
+            } else if (current == ExecutionState.DEPLOYING) {
+                if (transitionState(current, targetState, cause)) {
+                    // task may hang on the invokable constructor or static code
+                    // we need watchdog to ensure the task does not remain hanging
+                    startTaskCancellationWatchDog();
                     return;
                 }
             } else if (current == ExecutionState.INITIALIZING
@@ -1278,29 +1278,7 @@ public class Task
                                 FatalExitExceptionHandler.INSTANCE);
                         interruptingThread.start();
 
-                        // if a cancellation timeout is set, the watchdog thread kills the process
-                        // if graceful cancellation does not succeed
-                        if (taskCancellationTimeout > 0) {
-                            Runnable cancelWatchdog =
-                                    new TaskCancelerWatchDog(
-                                            taskInfo,
-                                            executingThread,
-                                            taskManagerActions,
-                                            taskCancellationTimeout,
-                                            jobId);
-
-                            Thread watchDogThread =
-                                    new Thread(
-                                            executingThread.getThreadGroup(),
-                                            cancelWatchdog,
-                                            String.format(
-                                                    "Cancellation Watchdog for %s (%s).",
-                                                    taskNameWithSubtask, executionId));
-                            watchDogThread.setDaemon(true);
-                            watchDogThread.setUncaughtExceptionHandler(
-                                    FatalExitExceptionHandler.INSTANCE);
-                            watchDogThread.start();
-                        }
+                        startTaskCancellationWatchDog();
                     }
                     return;
                 }
@@ -1310,6 +1288,31 @@ public class Task
                                 "Unexpected state: %s of task %s (%s).",
                                 current, taskNameWithSubtask, executionId));
             }
+        }
+    }
+
+    private void startTaskCancellationWatchDog() {
+        // if a cancellation timeout is set, the watchdog thread kills the process
+        // if graceful cancellation does not succeed
+        if (taskCancellationTimeout > 0) {
+            Runnable cancelWatchdog =
+                    new TaskCancelerWatchDog(
+                            taskInfo,
+                            executingThread,
+                            taskManagerActions,
+                            taskCancellationTimeout,
+                            jobId);
+
+            Thread watchDogThread =
+                    new Thread(
+                            executingThread.getThreadGroup(),
+                            cancelWatchdog,
+                            String.format(
+                                    "Cancellation Watchdog for %s (%s).",
+                                    taskNameWithSubtask, executionId));
+            watchDogThread.setDaemon(true);
+            watchDogThread.setUncaughtExceptionHandler(FatalExitExceptionHandler.INSTANCE);
+            watchDogThread.start();
         }
     }
 

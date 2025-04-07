@@ -45,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getLongConfigOption;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** General tests for the {@link InitJobManagerDecorator}. */
@@ -90,9 +91,11 @@ class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
 
         // Set up external resource configs
         flinkConfig.setString(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST.key(), RESOURCE_NAME);
-        flinkConfig.setLong(
-                ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(
-                        RESOURCE_NAME, ExternalResourceOptions.EXTERNAL_RESOURCE_AMOUNT_SUFFIX),
+        flinkConfig.set(
+                getLongConfigOption(
+                        ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(
+                                RESOURCE_NAME,
+                                ExternalResourceOptions.EXTERNAL_RESOURCE_AMOUNT_SUFFIX)),
                 RESOURCE_AMOUNT);
         flinkConfig.setString(
                 ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(

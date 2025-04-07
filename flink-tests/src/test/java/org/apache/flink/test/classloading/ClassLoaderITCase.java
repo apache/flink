@@ -38,9 +38,7 @@ import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
-import org.apache.flink.test.testdata.KMeansData;
 import org.apache.flink.test.util.SuccessException;
-import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
@@ -56,7 +54,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
@@ -114,7 +111,7 @@ public class ClassLoaderITCase extends TestLogger {
 
         // we need to use the "filesystem" state backend to ensure FLINK-2543 is not happening
         // again.
-        config.set(StateBackendOptions.STATE_BACKEND, "filesystem");
+        config.set(StateBackendOptions.STATE_BACKEND, "hashmap");
         config.set(
                 CheckpointingOptions.CHECKPOINTS_DIRECTORY,
                 FOLDER.newFolder().getAbsoluteFile().toURI().toString());
@@ -159,24 +156,6 @@ public class ClassLoaderITCase extends TestLogger {
     @After
     public void tearDown() {
         TestStreamEnvironment.unsetAsContext();
-        TestEnvironment.unsetAsContext();
-    }
-
-    @Test
-    public void testCustomSplitJobWithCustomClassLoaderJar() throws ProgramInvocationException {
-
-        PackagedProgram inputSplitTestProg =
-                PackagedProgram.newBuilder()
-                        .setJarFile(new File(INPUT_SPLITS_PROG_JAR_FILE))
-                        .build();
-
-        TestEnvironment.setAsContext(
-                miniClusterResource.getMiniCluster(),
-                parallelism,
-                Collections.singleton(new Path(INPUT_SPLITS_PROG_JAR_FILE)),
-                Collections.emptyList());
-
-        inputSplitTestProg.invokeInteractiveModeForExecution();
     }
 
     @Test
@@ -194,24 +173,6 @@ public class ClassLoaderITCase extends TestLogger {
                 Collections.emptyList());
 
         streamingInputSplitTestProg.invokeInteractiveModeForExecution();
-    }
-
-    @Test
-    public void testCustomSplitJobWithCustomClassLoaderPath()
-            throws IOException, ProgramInvocationException {
-        URL classpath = new File(INPUT_SPLITS_PROG_JAR_FILE).toURI().toURL();
-        PackagedProgram inputSplitTestProg2 =
-                PackagedProgram.newBuilder()
-                        .setJarFile(new File(INPUT_SPLITS_PROG_JAR_FILE))
-                        .build();
-
-        TestEnvironment.setAsContext(
-                miniClusterResource.getMiniCluster(),
-                parallelism,
-                Collections.emptyList(),
-                Collections.singleton(classpath));
-
-        inputSplitTestProg2.invokeInteractiveModeForExecution();
     }
 
     @Test
@@ -265,31 +226,11 @@ public class ClassLoaderITCase extends TestLogger {
     }
 
     @Test
-    public void testKMeansJobWithCustomClassLoader() throws ProgramInvocationException {
-        PackagedProgram kMeansProg =
-                PackagedProgram.newBuilder()
-                        .setJarFile(new File(KMEANS_JAR_PATH))
-                        .setArguments(
-                                new String[] {
-                                    KMeansData.DATAPOINTS, KMeansData.INITIAL_CENTERS, "25"
-                                })
-                        .build();
-
-        TestEnvironment.setAsContext(
-                miniClusterResource.getMiniCluster(),
-                parallelism,
-                Collections.singleton(new Path(KMEANS_JAR_PATH)),
-                Collections.emptyList());
-
-        kMeansProg.invokeInteractiveModeForExecution();
-    }
-
-    @Test
     public void testUserCodeTypeJobWithCustomClassLoader() throws ProgramInvocationException {
         PackagedProgram userCodeTypeProg =
                 PackagedProgram.newBuilder().setJarFile(new File(USERCODETYPE_JAR_PATH)).build();
 
-        TestEnvironment.setAsContext(
+        TestStreamEnvironment.setAsContext(
                 miniClusterResource.getMiniCluster(),
                 parallelism,
                 Collections.singleton(new Path(USERCODETYPE_JAR_PATH)),

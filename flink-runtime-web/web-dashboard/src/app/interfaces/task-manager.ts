@@ -91,8 +91,6 @@ interface Metrics {
   mappedCount: number;
   mappedUsed: number;
   mappedMax: number;
-  memorySegmentsAvailable: number;
-  memorySegmentsTotal: number;
   garbageCollectors: GarbageCollectorsItem[];
 }
 

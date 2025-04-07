@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.api.constraints;
 
+import org.apache.flink.table.legacy.api.constraints.Constraint;
+import org.apache.flink.table.legacy.api.constraints.UniqueConstraint;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;

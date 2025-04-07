@@ -72,6 +72,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTING_INTERVAL;
 import static org.apache.flink.table.api.config.TableConfigOptions.RESOURCES_DOWNLOAD_DIR;
@@ -169,6 +170,10 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
         long checkpointInterval =
                 getCheckpointIntervalConfig(restClusterClient, activeRefreshHandler.getJobId());
         assertThat(checkpointInterval).isEqualTo(30 * 1000);
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
     }
 
     @Test
@@ -230,6 +235,10 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
         long actualCheckpointInterval =
                 getCheckpointIntervalConfig(restClusterClient, activeRefreshHandler.getJobId());
         assertThat(actualCheckpointInterval).isEqualTo(checkpointInterval);
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
     }
 
     @Test
@@ -330,10 +339,14 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                 .containsKey("table.catalog-store.file.path")
                 .doesNotContainKey(WORKFLOW_SCHEDULER_TYPE.key())
                 .doesNotContainKey(RESOURCES_DOWNLOAD_DIR.key());
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
     }
 
     @Test
-    void testCreateMaterializedTableFailedInInContinuousMode() {
+    void testCreateMaterializedTableFailedInInContinuousMode() throws Exception {
         // create a materialized table with invalid SQL
         String materializedTableDDL =
                 "CREATE MATERIALIZED TABLE users_shops"
@@ -429,6 +442,11 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                                         "SELECT * FROM my_materialized_table where ds = '2024-01-02'")
                                 .size())
                 .isEqualTo(1);
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(
+                        fileSystemCatalogName, TEST_DEFAULT_DATABASE, "my_materialized_table"));
     }
 
     @Test
@@ -509,6 +527,10 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                         "Currently, refreshing materialized table only supports referring to char, varchar and string type partition keys. All specified partition keys in partition specs with unsupported types are:\n"
                                 + "\n"
                                 + "ds2");
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
     }
 
     @Test
@@ -654,6 +676,10 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                 getJobRestoreSavepointPath(restClusterClient, resumeJobId);
         assertThat(actualRestorePath).isNotEmpty();
         assertThat(actualRestorePath.get()).isEqualTo(actualSavepointPath);
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
     }
 
     @Test
@@ -714,6 +740,10 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
                         "Savepoint directory is not configured, can't stop job with savepoint.");
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
     }
 
     @Test
@@ -921,6 +951,10 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                 fromJson((String) jobDetail.getJobDataMap().get(WORKFLOW_INFO), WorkflowInfo.class);
         assertThat(workflowInfo.getDynamicOptions())
                 .containsEntry("debezium-json.ignore-parse-errors", "true");
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
     }
 
     @Test
@@ -994,6 +1028,348 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                                         fileSystemCatalogName,
                                         TEST_DEFAULT_DATABASE,
                                         "users_shops")));
+
+        dropMaterializedTable(
+                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
+    }
+
+    @Test
+    void testAlterMaterializedTableAsQueryInFullMode() throws Exception {
+        createAndVerifyCreateMaterializedTableWithData(
+                "users_shops", Collections.emptyList(), Collections.emptyMap(), RefreshMode.FULL);
+
+        ResolvedCatalogMaterializedTable oldTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+
+        // Alter materialized table as query in full mode
+        String alterMaterializedTableAsQueryDDL =
+                "ALTER MATERIALIZED TABLE users_shops"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  ds,\n"
+                        + "  COUNT(order_id) AS order_cnt,\n"
+                        + "  SUM(order_amount) AS order_amount_sum\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, order_created_at AS ds, order_id, 1 as order_amount FROM my_source"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)";
+
+        OperationHandle alterMaterializedTableAsQueryHandle =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableAsQueryDDL, -1, new Configuration());
+
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableAsQueryHandle);
+
+        // verify the altered materialized table
+        ResolvedCatalogMaterializedTable newTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+
+        assertThat(getAddedColumns(newTable.getResolvedSchema(), oldTable.getResolvedSchema()))
+                .isEqualTo(
+                        Collections.singletonList(
+                                Column.physical("order_amount_sum", DataTypes.INT())));
+        assertThat(newTable.getDefinitionQuery())
+                .isEqualTo(
+                        String.format(
+                                "SELECT `tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`, COUNT(`tmp`.`order_id`) AS `order_cnt`, SUM(`tmp`.`order_amount`) AS `order_amount_sum`\n"
+                                        + "FROM (SELECT `my_source`.`user_id`, `my_source`.`shop_id`, `my_source`.`order_created_at` AS `ds`, `my_source`.`order_id`, 1 AS `order_amount`\n"
+                                        + "FROM `%s`.`test_db`.`my_source`) AS `tmp`\n"
+                                        + "GROUP BY ROW(`tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`)",
+                                fileSystemCatalogName));
+        // the refresh handler in full mode should be the same as the old one
+        assertThat(oldTable.getSerializedRefreshHandler())
+                .isEqualTo(newTable.getSerializedRefreshHandler());
+        assertThat(oldTable.getDefinitionFreshness()).isEqualTo(newTable.getDefinitionFreshness());
+    }
+
+    @Test
+    void testAlterMaterializedTableAsQueryInFullModeWithSuspendStatus() throws Exception {
+        createAndVerifyCreateMaterializedTableWithData(
+                "users_shops", Collections.emptyList(), Collections.emptyMap(), RefreshMode.FULL);
+
+        ResolvedCatalogMaterializedTable oldTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+
+        // Alter materialized table suspend
+        String alterMaterializedTableSuspendDDL = "ALTER MATERIALIZED TABLE users_shops SUSPEND";
+        OperationHandle alterMaterializedTableSuspendHandle =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableSuspendDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableSuspendHandle);
+
+        // Alter materialized table as query in full mode
+        String alterMaterializedTableAsQueryDDL =
+                "ALTER MATERIALIZED TABLE users_shops"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  ds,\n"
+                        + "  COUNT(order_id) AS order_cnt,\n"
+                        + "  SUM(order_amount) AS order_amount_sum\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, order_created_at AS ds, order_id, 1 as order_amount FROM my_source"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)";
+
+        OperationHandle alterMaterializedTableAsQueryHandle =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableAsQueryDDL, -1, new Configuration());
+
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableAsQueryHandle);
+
+        // verify the altered materialized table
+        ResolvedCatalogMaterializedTable newTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+
+        assertThat(getAddedColumns(newTable.getResolvedSchema(), oldTable.getResolvedSchema()))
+                .isEqualTo(
+                        Collections.singletonList(
+                                Column.physical("order_amount_sum", DataTypes.INT())));
+        assertThat(newTable.getDefinitionQuery())
+                .isEqualTo(
+                        String.format(
+                                "SELECT `tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`, COUNT(`tmp`.`order_id`) AS `order_cnt`, SUM(`tmp`.`order_amount`) AS `order_amount_sum`\n"
+                                        + "FROM (SELECT `my_source`.`user_id`, `my_source`.`shop_id`, `my_source`.`order_created_at` AS `ds`, `my_source`.`order_id`, 1 AS `order_amount`\n"
+                                        + "FROM `%s`.`test_db`.`my_source`) AS `tmp`\n"
+                                        + "GROUP BY ROW(`tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`)",
+                                fileSystemCatalogName));
+
+        // the refresh handler in full mode should be the same as the old one
+        assertThat(oldTable.getSerializedRefreshHandler())
+                .isEqualTo(newTable.getSerializedRefreshHandler());
+        assertThat(oldTable.getDefinitionFreshness()).isEqualTo(newTable.getDefinitionFreshness());
+    }
+
+    @Test
+    void testAlterMaterializedTableAsQueryInContinuousMode(@TempDir Path temporaryPath)
+            throws Exception {
+        String materializedTableDDL =
+                "CREATE MATERIALIZED TABLE users_shops ("
+                        + " PRIMARY KEY (ds, user_id) not enforced)"
+                        + " PARTITIONED BY (ds)\n"
+                        + " WITH(\n"
+                        + "   'format' = 'debezium-json'\n"
+                        + " )\n"
+                        + " FRESHNESS = INTERVAL '30' SECOND\n"
+                        + " AS SELECT \n"
+                        + "  coalesce(user_id, 0) as user_id,\n"
+                        + "  shop_id,\n"
+                        + "  coalesce(ds, '') as ds,\n"
+                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)";
+        OperationHandle materializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, materializedTableHandle);
+        ResolvedCatalogMaterializedTable oldTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+
+        // verify background job is running
+        ContinuousRefreshHandler activeRefreshHandler =
+                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
+                        oldTable.getSerializedRefreshHandler(), getClass().getClassLoader());
+        waitUntilAllTasksAreRunning(
+                restClusterClient, JobID.fromHexString(activeRefreshHandler.getJobId()));
+
+        // setup savepoint dir
+        String savepointDir = "file://" + temporaryPath.toAbsolutePath();
+        String setupSavepointDDL =
+                "SET 'execution.checkpointing.savepoint-dir' = '" + savepointDir + "'";
+        OperationHandle setupSavepointHandle =
+                service.executeStatement(sessionHandle, setupSavepointDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, setupSavepointHandle);
+
+        String alterTableDDL =
+                "ALTER MATERIALIZED TABLE users_shops"
+                        + " AS SELECT \n"
+                        + "  coalesce(user_id, 0) as user_id,\n"
+                        + "  shop_id,\n"
+                        + "  coalesce(ds, '') as ds,\n"
+                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum,\n"
+                        + "  SUM (1) AS pv\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)";
+        OperationHandle alterTableHandle =
+                service.executeStatement(sessionHandle, alterTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, alterTableHandle);
+        ResolvedCatalogMaterializedTable newTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+
+        assertThat(getAddedColumns(newTable.getResolvedSchema(), oldTable.getResolvedSchema()))
+                .isEqualTo(Collections.singletonList(Column.physical("pv", DataTypes.INT())));
+        assertThat(newTable.getResolvedSchema().getPrimaryKey())
+                .isEqualTo(oldTable.getResolvedSchema().getPrimaryKey());
+        assertThat(newTable.getResolvedSchema().getWatermarkSpecs())
+                .isEqualTo(oldTable.getResolvedSchema().getWatermarkSpecs());
+        assertThat(newTable.getDefinitionQuery())
+                .isEqualTo(
+                        String.format(
+                                "SELECT COALESCE(`tmp`.`user_id`, 0) AS `user_id`, `tmp`.`shop_id`, COALESCE(`tmp`.`ds`, '') AS `ds`, SUM(`tmp`.`payment_amount_cents`) AS `payed_buy_fee_sum`, SUM(1) AS `pv`\n"
+                                        + "FROM (SELECT `datagenSource`.`user_id`, `datagenSource`.`shop_id`, `DATE_FORMAT`(`datagenSource`.`order_created_at`, 'yyyy-MM-dd') AS `ds`, `datagenSource`.`payment_amount_cents`\n"
+                                        + "FROM `%s`.`test_db`.`datagenSource`) AS `tmp`\n"
+                                        + "GROUP BY ROW(`tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`)",
+                                fileSystemCatalogName));
+        assertThat(oldTable.getSerializedRefreshHandler())
+                .isNotEqualTo(newTable.getSerializedRefreshHandler());
+
+        // verify the new continuous job is start without savepoint
+        ContinuousRefreshHandler newContinuousRefreshHandler =
+                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
+                        newTable.getSerializedRefreshHandler(),
+                        Thread.currentThread().getContextClassLoader());
+        Optional<String> restorePath =
+                getJobRestoreSavepointPath(
+                        restClusterClient, newContinuousRefreshHandler.getJobId());
+        assertThat(restorePath).isEmpty();
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
+    }
+
+    @Test
+    void testAlterMaterializedTableAsQueryInContinuousModeWithSuspendStatus(
+            @TempDir Path temporaryPath) throws Exception {
+        String materializedTableDDL =
+                "CREATE MATERIALIZED TABLE users_shops"
+                        + " PARTITIONED BY (ds)\n"
+                        + " WITH(\n"
+                        + "   'format' = 'debezium-json'\n"
+                        + " )\n"
+                        + " FRESHNESS = INTERVAL '30' SECOND\n"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  ds,\n"
+                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)";
+        OperationHandle materializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, materializedTableHandle);
+        ResolvedCatalogMaterializedTable oldTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+
+        // verify background job is running
+        ContinuousRefreshHandler activeRefreshHandler =
+                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
+                        oldTable.getSerializedRefreshHandler(), getClass().getClassLoader());
+        waitUntilAllTasksAreRunning(
+                restClusterClient, JobID.fromHexString(activeRefreshHandler.getJobId()));
+
+        // setup savepoint dir
+        String savepointDir = "file://" + temporaryPath.toAbsolutePath();
+        String setupSavepointDDL =
+                "SET 'execution.checkpointing.savepoint-dir' = '" + savepointDir + "'";
+        OperationHandle setupSavepointHandle =
+                service.executeStatement(sessionHandle, setupSavepointDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, setupSavepointHandle);
+
+        // suspend materialized table
+        String suspendTableDDL = "ALTER MATERIALIZED TABLE users_shops SUSPEND";
+        OperationHandle suspendTableHandle =
+                service.executeStatement(sessionHandle, suspendTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, suspendTableHandle);
+
+        String alterTableDDL =
+                "ALTER MATERIALIZED TABLE users_shops"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  ds,\n"
+                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum,\n"
+                        + "  SUM (1) AS pv\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)";
+        OperationHandle alterTableHandle =
+                service.executeStatement(sessionHandle, alterTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, alterTableHandle);
+        ResolvedCatalogMaterializedTable newTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+
+        assertThat(getAddedColumns(newTable.getResolvedSchema(), oldTable.getResolvedSchema()))
+                .isEqualTo(Collections.singletonList(Column.physical("pv", DataTypes.INT())));
+        assertThat(newTable.getDefinitionQuery())
+                .isEqualTo(
+                        String.format(
+                                "SELECT `tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`, SUM(`tmp`.`payment_amount_cents`) AS `payed_buy_fee_sum`, SUM(1) AS `pv`\n"
+                                        + "FROM (SELECT `datagenSource`.`user_id`, `datagenSource`.`shop_id`, `DATE_FORMAT`(`datagenSource`.`order_created_at`, 'yyyy-MM-dd') AS `ds`, `datagenSource`.`payment_amount_cents`\n"
+                                        + "FROM `%s`.`test_db`.`datagenSource`) AS `tmp`\n"
+                                        + "GROUP BY ROW(`tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`)",
+                                fileSystemCatalogName));
+        assertThat(oldTable.getSerializedRefreshHandler())
+                .isEqualTo(newTable.getSerializedRefreshHandler());
+        assertThat(oldTable.getDefinitionFreshness()).isEqualTo(newTable.getDefinitionFreshness());
+
+        // verify the restore path is empty
+        ContinuousRefreshHandler newContinuousRefreshHandler =
+                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
+                        newTable.getSerializedRefreshHandler(),
+                        Thread.currentThread().getContextClassLoader());
+        assertThat(newContinuousRefreshHandler.getRestorePath()).isEmpty();
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
     }
 
     @Test
@@ -1324,6 +1700,11 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                                         "SELECT * FROM my_materialized_table where ds = '2024-01-01'")
                                 .size())
                 .isNotEqualTo(getPartitionSize(data, "2024-01-01"));
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(
+                        fileSystemCatalogName, TEST_DEFAULT_DATABASE, "my_materialized_table"));
     }
 
     @Test
@@ -1387,6 +1768,13 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                                         "SELECT * FROM my_materialized_table_without_partition_options where ds = '2024-01-02'")
                                 .size())
                 .isEqualTo(getPartitionSize(data, "2024-01-02"));
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(
+                        fileSystemCatalogName,
+                        TEST_DEFAULT_DATABASE,
+                        "my_materialized_table_without_partition_options"));
     }
 
     @Test
@@ -1448,6 +1836,11 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                                         "SELECT * FROM my_materialized_table where ds = '2024-01-01'")
                                 .size())
                 .isNotEqualTo(getPartitionSize(data, "2024-01-01"));
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(
+                        fileSystemCatalogName, TEST_DEFAULT_DATABASE, "my_materialized_table"));
     }
 
     @Test
@@ -1517,6 +1910,17 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                                                 TEST_DEFAULT_DATABASE,
                                                 "my_materialized_table")
                                         .asSerializableString()));
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(
+                        fileSystemCatalogName, TEST_DEFAULT_DATABASE, "my_materialized_table"));
+    }
+
+    private List<Column> getAddedColumns(ResolvedSchema newSchema, ResolvedSchema oldSchema) {
+        return newSchema.getColumns().stream()
+                .filter(column -> !oldSchema.getColumns().contains(column))
+                .collect(Collectors.toList());
     }
 
     private int getPartitionSize(List<Row> data, String partition) {

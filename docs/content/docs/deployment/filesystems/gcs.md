@@ -38,10 +38,23 @@ The endpoint can either be a single file or a directory, for example:
 
 ```java
 // Read from GCS bucket
-env.readTextFile("gs://<bucket>/<endpoint>");
+FileSource<String> fileSource = FileSource.forRecordStreamFormat(
+        new TextLineInputFormat(),
+        new Path("gs://<bucket>/<endpoint>")
+    ).build();
+env.fromSource(
+    fileSource,
+    WatermarkStrategy.noWatermarks(),
+    "gcs-input"
+);
 
 // Write to GCS bucket
-stream.writeAsText("gs://<bucket>/<endpoint>");
+stream.sinkTo(
+    FileSink.forRowFormat(
+        new Path("gs://<bucket>/<endpoint>"), 
+        new SimpleStringEncoder<>()
+    ).build()
+);
 
 // Use GCS as checkpoint storage
 Configuration config = new Configuration();

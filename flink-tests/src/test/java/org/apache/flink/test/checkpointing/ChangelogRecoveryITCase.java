@@ -53,11 +53,11 @@ public class ChangelogRecoveryITCase extends ChangelogRecoveryITCaseBase {
         SharedReference<MiniCluster> miniCluster = sharedObjects.add(cluster.getMiniCluster());
         SharedReference<AtomicBoolean> hasMaterialization =
                 sharedObjects.add(new AtomicBoolean(true));
-        StreamExecutionEnvironment env =
-                getEnv(delegatedStateBackend, checkpointFolder, 1000, 1, 10, 0);
+        StreamExecutionEnvironment env = getEnv(checkpointFolder, 1000, 1, 10, 0);
         env.getConfig().enablePeriodicMaterialize(false);
         waitAndAssert(
                 buildJobGraph(
+                        delegatedStateBackend,
                         env,
                         new ControlledSource() {
                             @Override
@@ -91,10 +91,10 @@ public class ChangelogRecoveryITCase extends ChangelogRecoveryITCaseBase {
                 sharedObjects.add(new AtomicInteger());
         SharedReference<Set<StateHandleID>> currentMaterializationId =
                 sharedObjects.add(ConcurrentHashMap.newKeySet());
-        StreamExecutionEnvironment env =
-                getEnv(delegatedStateBackend, checkpointFolder, 100, 2, 200, 0);
+        StreamExecutionEnvironment env = getEnv(checkpointFolder, 100, 2, 200, 0);
         waitAndAssert(
                 buildJobGraph(
+                        delegatedStateBackend,
                         env,
                         new ControlledSource() {
                             @Override
@@ -158,8 +158,11 @@ public class ChangelogRecoveryITCase extends ChangelogRecoveryITCaseBase {
         SharedReference<AtomicBoolean> hasFailed = sharedObjects.add(new AtomicBoolean());
         SharedReference<Set<StateHandleID>> currentMaterializationId =
                 sharedObjects.add(ConcurrentHashMap.newKeySet());
-        StreamExecutionEnvironment env =
-                getEnv(
+        StreamExecutionEnvironment env = getEnv(checkpointFolder, 100, 0, 10, 1);
+
+        env.setParallelism(1);
+        waitAndAssert(
+                buildJobGraph(
                         StateBackendTestUtils.wrapStateBackendWithSnapshotFunction(
                                 delegatedStateBackend,
                                 snapshotResultFuture -> {
@@ -169,14 +172,6 @@ public class ChangelogRecoveryITCase extends ChangelogRecoveryITCaseBase {
                                         return snapshotResultFuture;
                                     }
                                 }),
-                        checkpointFolder,
-                        100,
-                        0,
-                        10,
-                        1);
-        env.setParallelism(1);
-        waitAndAssert(
-                buildJobGraph(
                         env,
                         new ControlledSource() {
                             @Override

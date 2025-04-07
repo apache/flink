@@ -17,14 +17,13 @@
  */
 package org.apache.flink.table.planner.runtime.stream.table
 
-import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.functions.sink.SinkFunction
-import org.apache.flink.streaming.api.scala.DataStream
+import org.apache.flink.api.common.eventtime._
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.TestSinkContextTableSink
-import org.apache.flink.table.planner.runtime.utils.{AbstractExactlyOnceSink, StreamingTestBase, TestingRetractSink, TestSinkUtil}
+import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
@@ -143,10 +142,22 @@ final class TableToDataStreamITCase extends StreamingTestBase {
   def testHasRowtimeFromDataStreamToTableBackDataStream(): Unit = {
     val data = Seq((1L, "A"), (2L, "B"), (3L, "C"), (4L, "D"), (7L, "E"))
 
-    val ds1 = env
-      .fromCollection(data)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, data)
       // second to millisecond
-      .assignAscendingTimestamps(_._1 * 1000L)
+      .assignTimestampsAndWatermarks(new WatermarkStrategy[(Long, String)]() {
+
+        override def createWatermarkGenerator(
+            context: WatermarkGeneratorSupplier.Context): WatermarkGenerator[(Long, String)] = {
+          new AscendingTimestampsWatermarks[(Long, String)]
+        }
+
+        override def createTimestampAssigner(
+            context: TimestampAssignerSupplier.Context): TimestampAssigner[(Long, String)] = {
+          (e: (Long, String), _: Long) => e._1 * 1000L
+        }
+      })
+
     val table = ds1.toTable(tEnv, 'ts, 'a, 'rowtime.rowtime)
     tEnv.createTemporaryView("t1", table)
 
@@ -282,17 +293,28 @@ final class TableToDataStreamITCase extends StreamingTestBase {
 
     val expected =
       "ROW<`a` STRING, `ts` TIMESTAMP(3), `proctime` TIMESTAMP_LTZ(3) NOT NULL> NOT NULL(org.apache.flink.types.Row, org.apache.flink.table.runtime.typeutils.ExternalSerializer)"
-    assertThat(dataStream.dataType.toString).isEqualTo(expected)
+    assertThat(dataStream.getType.toString).isEqualTo(expected)
   }
 
   @Test
   def testHasFromDataStreamToTableBackDataStreamWithProctime(): Unit = {
     val data = Seq((1L, "A"))
 
-    val ds1 = env
-      .fromCollection(data)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, data)
       // second to millisecond
-      .assignAscendingTimestamps(_._1 * 1000L)
+      .assignTimestampsAndWatermarks(new WatermarkStrategy[(Long, String)]() {
+
+        override def createWatermarkGenerator(
+            context: WatermarkGeneratorSupplier.Context): WatermarkGenerator[(Long, String)] = {
+          new AscendingTimestampsWatermarks[(Long, String)]
+        }
+
+        override def createTimestampAssigner(
+            context: TimestampAssignerSupplier.Context): TimestampAssigner[(Long, String)] = {
+          (e: (Long, String), _: Long) => e._1 * 1000L
+        }
+      })
     val table = ds1.toTable(tEnv, 'ts, 'a, 'proctime.proctime())
     tEnv.createTemporaryView("t1", table)
 
@@ -307,7 +329,7 @@ final class TableToDataStreamITCase extends StreamingTestBase {
 
     val expected =
       "ROW<`EXPR$0` STRING, `ts` BIGINT, `proctime` TIMESTAMP_LTZ(3)> NOT NULL(org.apache.flink.types.Row, org.apache.flink.table.runtime.typeutils.ExternalSerializer)"
-    assertThat(ds2.dataType.toString).isEqualTo(expected)
+    assertThat(ds2.getType.toString).isEqualTo(expected)
   }
 
   private def localDateTime(epochSecond: Long): LocalDateTime = {

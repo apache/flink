@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor.retriever.impl;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.dispatcher.cleanup.TestingRetryStrategies;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -34,6 +33,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -45,7 +45,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for the {@link RpcGatewayRetriever}. */
 class RpcGatewayRetrieverTest {
 
-    private static final Time TIMEOUT = Time.seconds(10L);
+    private static final Duration TIMEOUT = Duration.ofSeconds(10L);
     private static TestingRpcService rpcService;
 
     @BeforeAll
@@ -103,7 +103,7 @@ class RpcGatewayRetrieverTest {
                     dummyRpcEndpoint.getAddress(), leaderSessionId);
 
             final DummyGateway dummyGateway =
-                    gatewayFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+                    gatewayFuture.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
 
             assertThat(dummyGateway.getAddress()).isEqualTo(dummyRpcEndpoint.getAddress());
             FlinkAssertions.assertThatFuture(dummyGateway.foobar(TIMEOUT))
@@ -116,7 +116,7 @@ class RpcGatewayRetrieverTest {
 
             final CompletableFuture<DummyGateway> gatewayFuture2 = gatewayRetriever.getFuture();
             final DummyGateway dummyGateway2 =
-                    gatewayFuture2.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+                    gatewayFuture2.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
 
             assertThat(dummyGateway2.getAddress()).isEqualTo(dummyRpcEndpoint2.getAddress());
             FlinkAssertions.assertThatFuture(dummyGateway2.foobar(TIMEOUT))
@@ -129,7 +129,7 @@ class RpcGatewayRetrieverTest {
 
     /** Testing RpcGateway. */
     public interface DummyGateway extends FencedRpcGateway<UUID> {
-        CompletableFuture<String> foobar(@RpcTimeout Time timeout);
+        CompletableFuture<String> foobar(@RpcTimeout Duration timeout);
     }
 
     static class DummyRpcEndpoint extends RpcEndpoint implements DummyGateway {
@@ -142,7 +142,7 @@ class RpcGatewayRetrieverTest {
         }
 
         @Override
-        public CompletableFuture<String> foobar(Time timeout) {
+        public CompletableFuture<String> foobar(Duration timeout) {
             return CompletableFuture.completedFuture(value);
         }
 

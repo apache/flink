@@ -33,16 +33,17 @@ import org.apache.flink.annotation.Experimental;
  * together.
  *
  * @param <IN> Type of the value that can be added to the state.
- * @param <OUT> Type of the value that can be retrieved from the state.
+ * @param <OUT> Type of the value that can be retrieved from the state by asynchronous interface.
+ * @param <SYNCOUT> Type of the value that can be retrieved from the state by synchronous interface.
  */
 @Experimental
-public interface AppendingState<IN, OUT> extends State {
+public interface AppendingState<IN, OUT, SYNCOUT> extends State {
 
     /**
-     * Returns the current value for the state. When the state is not partitioned the returned value
-     * is the same for all inputs in a given operator instance. If state partitioning is applied,
-     * the value returned depends on the current operator input, as the operator maintains an
-     * independent state for each partition.
+     * Returns the current value for the state asynchronously. When the state is not partitioned the
+     * returned value is the same for all inputs in a given operator instance. If state partitioning
+     * is applied, the value returned depends on the current operator input, as the operator
+     * maintains an independent state for each partition.
      *
      * <p><b>NOTE TO IMPLEMENTERS:</b> if the state is empty, then this method should return {@code
      * null} wrapped by a StateFuture.
@@ -54,12 +55,37 @@ public interface AppendingState<IN, OUT> extends State {
 
     /**
      * Updates the operator state accessible by {@link #asyncGet()} by adding the given value to the
-     * list of values. The next time {@link #asyncGet()} is called (for the same state partition)
-     * the returned state will represent the updated list.
+     * list of values asynchronously. The next time {@link #asyncGet()} is called (for the same
+     * state partition) the returned state will represent the updated list.
      *
      * <p>null value is not allowed to be passed in.
      *
      * @param value The new value for the state.
      */
     StateFuture<Void> asyncAdd(IN value);
+
+    /**
+     * Returns the current value for the state. When the state is not partitioned the returned value
+     * is the same for all inputs in a given operator instance. If state partitioning is applied,
+     * the value returned depends on the current operator input, as the operator maintains an
+     * independent state for each partition.
+     *
+     * <p><b>NOTE TO IMPLEMENTERS:</b> if the state is empty, then this method should return {@code
+     * null}.
+     *
+     * @return The operator state value corresponding to the current input or {@code null} if the
+     *     state is empty.
+     */
+    SYNCOUT get();
+
+    /**
+     * Updates the operator state accessible by {@link #get()} by adding the given value to the list
+     * of values. The next time {@link #get()} is called (for the same state partition) the returned
+     * state will represent the updated list.
+     *
+     * <p>If null is passed in, the behaviour is undefined (implementation related).
+     *
+     * @param value The new value for the state.
+     */
+    void add(IN value);
 }

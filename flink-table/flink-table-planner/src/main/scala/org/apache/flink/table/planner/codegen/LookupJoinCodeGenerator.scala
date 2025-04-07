@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.api.common.functions.{FlatMapFunction, Function}
+import org.apache.flink.api.common.functions.{FlatMapFunction, Function, OpenContext}
 import org.apache.flink.configuration.{Configuration, ReadableConfig}
 import org.apache.flink.streaming.api.functions.async.AsyncFunction
 import org.apache.flink.table.api.ValidationException
@@ -381,7 +381,7 @@ object LookupJoinCodeGenerator {
         }
 
         @Override
-        public void open(${className[Configuration]} parameters) throws Exception {
+        public void open(${className[OpenContext]} openContext) throws Exception {
           ${ctx.reuseOpenCode()}
         }
 
@@ -492,7 +492,7 @@ object LookupJoinCodeGenerator {
         }
 
         @Override
-        public void open(${className[Configuration]} parameters) throws Exception {
+        public void open(${className[OpenContext]} openContext) throws Exception {
           ${ctx.reuseOpenCode()}
         }
 
@@ -531,32 +531,5 @@ object LookupJoinCodeGenerator {
       tableConfig,
       classLoader
     )
-  }
-
-  /**
-   * Generates pre-filter condition for lookup join which can be applied before access the dimension
-   * table.
-   */
-  def generatePreFilterCondition(
-      tableConfig: ReadableConfig,
-      classLoader: ClassLoader,
-      preFilterCondition: RexNode,
-      leftType: LogicalType): GeneratedFilterCondition = {
-    val ctx = new CodeGeneratorContext(tableConfig, classLoader)
-    // should consider null fields
-    val exprGenerator =
-      new ExprCodeGenerator(ctx, false).bindInput(leftType, CodeGenUtils.DEFAULT_INPUT_TERM)
-
-    val bodyCode = if (preFilterCondition == null) {
-      "return true;"
-    } else {
-      val condition = exprGenerator.generateExpression(preFilterCondition)
-      s"""
-         |${condition.code}
-         |return ${condition.resultTerm};
-         |""".stripMargin
-    }
-
-    FunctionCodeGenerator.generateFilterCondition(ctx, "PreFilterCondition", bodyCode)
   }
 }

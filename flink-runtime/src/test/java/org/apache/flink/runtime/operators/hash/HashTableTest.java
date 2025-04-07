@@ -143,7 +143,8 @@ class HashTableTest {
                                 while (table.nextRecord()) {
                                     MutableObjectIterator<Tuple2<Long, byte[]>> matches =
                                             table.getBuildSideIterator();
-                                    while (matches.next() != null) ;
+                                    while (matches.next() != null)
+                                        ;
                                 }
                             })
                     .withFailMessage("Test failed with unexpected exception")

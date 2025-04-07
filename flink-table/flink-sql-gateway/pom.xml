@@ -26,7 +26,7 @@
     <parent>
         <artifactId>flink-table</artifactId>
         <groupId>org.apache.flink</groupId>
-        <version>2.0-SNAPSHOT</version>
+        <version>2.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>flink-sql-gateway</artifactId>
@@ -39,7 +39,11 @@
 			SqlGatewayTest/CommonTestUtils.setEnv
 			-->--add-opens=java.base/java.util=ALL-UNNAMED <!--
 			OperationManager#getThreadInFuture
-			-->--add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+			-->--add-opens=java.base/java.util.concurrent=ALL-UNNAMED <!--
+			SqlGatewayRestEndpointStatementITCase has to override AbstractSqlGatewayStatementITCase methods
+			JUnit changed this behavior since 5.11.x, to restore it back need this flag as mentioned at
+			https://junit.org/junit5/docs/current/user-guide/#extensions-supported-utilities-search-semantics
+			-->-Djunit.platform.reflection.search.useLegacySemantics=true
 		</surefire.module.config>
 	</properties>
 

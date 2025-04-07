@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.operators.collect.utils.MockOperatorStateS
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -60,21 +61,32 @@ class DefaultTwoOutputNonPartitionedContextTest {
                         1,
                         2,
                         "mock-task",
+                        0,
+                        0,
                         operatorRuntimeContext.getMetricGroup());
+        DefaultTwoOutputPartitionedContext<Integer, Long> partitionedContext =
+                new DefaultTwoOutputPartitionedContext<>(
+                        runtimeContext,
+                        Optional::empty,
+                        (r, k) -> {
+                            cf.complete(null);
+                            r.run();
+                            cf.complete(null);
+                        },
+                        UnsupportedProcessingTimeManager.INSTANCE,
+                        ContextTestUtils.createStreamingRuntimeContext(),
+                        new MockOperatorStateStore());
         DefaultTwoOutputNonPartitionedContext<Integer, Long> nonPartitionedContext =
                 new DefaultTwoOutputNonPartitionedContext<>(
                         runtimeContext,
-                        new DefaultPartitionedContext(
-                                runtimeContext,
-                                Optional::empty,
-                                (key) -> cf.complete(null),
-                                UnsupportedProcessingTimeManager.INSTANCE,
-                                ContextTestUtils.createStreamingRuntimeContext(),
-                                new MockOperatorStateStore()),
+                        partitionedContext,
                         firstCollector,
                         secondCollector,
                         false,
-                        null);
+                        null,
+                        null,
+                        Collections.emptyMap());
+        partitionedContext.setNonPartitionedContext(nonPartitionedContext);
 
         nonPartitionedContext.applyToAllPartitions(
                 (firstOutput, secondOutput, ctx) -> {
@@ -118,21 +130,33 @@ class DefaultTwoOutputNonPartitionedContextTest {
                         1,
                         2,
                         "mock-task",
+                        0,
+                        0,
                         operatorRuntimeContext.getMetricGroup());
+        DefaultTwoOutputPartitionedContext<Integer, Long> partitionedContext =
+                new DefaultTwoOutputPartitionedContext<>(
+                        runtimeContext,
+                        currentKey::get,
+                        (r, k) -> {
+                            Integer oldKey = currentKey.get();
+                            currentKey.set((Integer) k);
+                            r.run();
+                            currentKey.set(oldKey);
+                        },
+                        UnsupportedProcessingTimeManager.INSTANCE,
+                        ContextTestUtils.createStreamingRuntimeContext(),
+                        new MockOperatorStateStore());
         DefaultTwoOutputNonPartitionedContext<Integer, Long> nonPartitionedContext =
                 new DefaultTwoOutputNonPartitionedContext<>(
                         runtimeContext,
-                        new DefaultPartitionedContext(
-                                runtimeContext,
-                                currentKey::get,
-                                (key) -> currentKey.set((Integer) key),
-                                UnsupportedProcessingTimeManager.INSTANCE,
-                                ContextTestUtils.createStreamingRuntimeContext(),
-                                new MockOperatorStateStore()),
+                        partitionedContext,
                         firstCollector,
                         secondCollector,
                         true,
-                        allKeys);
+                        allKeys,
+                        null,
+                        Collections.emptyMap());
+        partitionedContext.setNonPartitionedContext(nonPartitionedContext);
         nonPartitionedContext.applyToAllPartitions(
                 (firstOut, secondOut, ctx) -> {
                     counter.incrementAndGet();

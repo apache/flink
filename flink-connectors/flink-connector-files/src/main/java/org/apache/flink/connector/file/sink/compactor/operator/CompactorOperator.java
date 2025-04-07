@@ -43,10 +43,9 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.BucketWriter;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -109,10 +108,12 @@ public class CompactorOperator
     private ListState<Map<Long, List<CompactorRequest>>> remainingRequestsState;
 
     public CompactorOperator(
+            StreamOperatorParameters<CommittableMessage<FileSinkCommittable>> parameters,
             FileCompactStrategy strategy,
             SimpleVersionedSerializer<FileSinkCommittable> committableSerializer,
             FileCompactor fileCompactor,
             BucketWriter<?, String> bucketWriter) {
+        super(parameters);
         this.strategy = strategy;
         this.committableSerializer = committableSerializer;
         this.fileCompactor = fileCompactor;
@@ -138,15 +139,15 @@ public class CompactorOperator
     @Override
     public void endInput() throws Exception {
         // add collecting requests into the final snapshot
-        checkpointRequests.put(Long.MAX_VALUE, collectingRequests);
+        checkpointRequests.put(CommittableMessage.EOI, collectingRequests);
         collectingRequests = new ArrayList<>();
 
         // submit all requests and wait until they are done
-        submitUntil(Long.MAX_VALUE);
+        submitUntil(CommittableMessage.EOI);
         assert checkpointRequests.isEmpty();
 
         getAllTasksFuture().join();
-        emitCompacted(null);
+        emitCompacted(CommittableMessage.EOI);
         assert compactingRequests.isEmpty();
     }
 
@@ -223,7 +224,7 @@ public class CompactorOperator
         canSubmit.clear();
     }
 
-    private void emitCompacted(@Nullable Long checkpointId) throws Exception {
+    private void emitCompacted(long checkpointId) throws Exception {
         List<FileSinkCommittable> compacted = new ArrayList<>();
         Iterator<Tuple2<CompactorRequest, CompletableFuture<Iterable<FileSinkCommittable>>>> iter =
                 compactingRequests.iterator();

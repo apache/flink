@@ -17,15 +17,12 @@
  */
 package org.apache.flink.table.planner.runtime.utils
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.configuration.{CheckpointingOptions, Configuration}
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend
+import org.apache.flink.configuration.{CheckpointingOptions, Configuration, RestartStrategyOptions, StateBackendOptions}
 import org.apache.flink.core.execution.CheckpointingMode
-import org.apache.flink.runtime.state.memory.MemoryStateBackend
-import org.apache.flink.streaming.api.functions.source.FromElementsFunction
-import org.apache.flink.streaming.api.scala.DataStream
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.functions.source.legacy.FromElementsFunction
 import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 import org.apache.flink.table.data.{RowData, StringData}
 import org.apache.flink.table.data.binary.BinaryRowData
@@ -41,6 +38,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.{AfterEach, BeforeEach}
 
 import java.nio.file.Files
+import java.time.Duration
 import java.util
 
 import scala.collection.JavaConversions._
@@ -66,13 +64,15 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
     state match {
       case HEAP_BACKEND =>
         val conf = new Configuration()
-        env.setStateBackend(
-          new MemoryStateBackend("file://" + baseCheckpointPath, null).configure(conf, classLoader))
+        conf.set(StateBackendOptions.STATE_BACKEND, "hashmap")
+        conf.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file://" + baseCheckpointPath)
+        env.configure(conf, classLoader)
       case ROCKSDB_BACKEND =>
         val conf = new Configuration()
         conf.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, Boolean.box(true))
-        env.setStateBackend(
-          new RocksDBStateBackend("file://" + baseCheckpointPath).configure(conf, classLoader))
+        conf.set(StateBackendOptions.STATE_BACKEND, "rocksdb")
+        conf.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file://" + baseCheckpointPath)
+        env.configure(conf, classLoader)
     }
     this.tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     FailingCollectionSource.failedBefore = true
@@ -114,7 +114,13 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
   /** Creates a DataStream from the given non-empty [[Seq]]. */
   def failingDataSource[T: TypeInformation](data: Seq[T]): DataStream[T] = {
     env.enableCheckpointing(100, CheckpointingMode.EXACTLY_ONCE)
-    env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0))
+    val configuration = new Configuration()
+    configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay")
+    configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Int.box(1))
+    configuration.set(
+      RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
+      Duration.ofMillis(0))
+    env.configure(configuration, Thread.currentThread.getContextClassLoader)
     // reset failedBefore flag to false
     FailingCollectionSource.reset()
 
@@ -131,7 +137,7 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
       data.length / 2
     ) // fail after half elements
 
-    env.addSource(function)(typeInfo).setMaxParallelism(1)
+    env.addSource(function, typeInfo).setMaxParallelism(1)
   }
 
   private def mapStrEquals(str1: String, str2: String): Boolean = {
@@ -233,6 +239,7 @@ object StreamingWithStateTestBase {
     override def toString: String = backend.toString
   }
 
+  // TODO FLINK-36354: test FORSTDB_BACKEND after 2.0-preview
   val HEAP_BACKEND = StateBackendMode("HEAP")
   val ROCKSDB_BACKEND = StateBackendMode("ROCKSDB")
 

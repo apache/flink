@@ -24,10 +24,10 @@ import java.util.List;
 /** The mocked {@link StateRequestContainer} for testing. */
 public class MockStateRequestContainer implements StateRequestContainer {
 
-    private final List<StateRequest<?, ?, ?>> stateRequestList = new ArrayList<>();
+    private final List<StateRequest<?, ?, ?, ?>> stateRequestList = new ArrayList<>();
 
     @Override
-    public void offer(StateRequest<?, ?, ?> stateRequest) {
+    public void offer(StateRequest<?, ?, ?, ?> stateRequest) {
         stateRequestList.add(stateRequest);
     }
 
@@ -36,7 +36,7 @@ public class MockStateRequestContainer implements StateRequestContainer {
         return stateRequestList.isEmpty();
     }
 
-    public List<StateRequest<?, ?, ?>> getStateRequestList() {
+    public List<StateRequest<?, ?, ?, ?>> getStateRequestList() {
         return stateRequestList;
     }
 }

@@ -22,16 +22,17 @@ import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
+import org.apache.flink.util.ParameterTool;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -52,6 +53,7 @@ public class SessionWindowing {
         env.setParallelism(1);
 
         final boolean fileOutput = params.has("output");
+        final boolean asyncState = params.has("async-state");
 
         final List<Tuple3<String, Long, Integer>> input = new ArrayList<>();
 
@@ -81,11 +83,15 @@ public class SessionWindowing {
                                 .withTimestampAssigner((event, timestamp) -> event.f1),
                         "Generated data source");
 
+        KeyedStream<Tuple3<String, Long, Integer>, String> keyedStream =
+                source.keyBy(value -> value.f0);
+        if (asyncState) {
+            keyedStream = keyedStream.enableAsyncState();
+        }
+
         // We create sessions for each id with max timeout of 3 time units
         DataStream<Tuple3<String, Long, Integer>> aggregated =
-                source.keyBy(value -> value.f0)
-                        .window(EventTimeSessionWindows.withGap(Duration.ofMillis(3L)))
-                        .sum(2);
+                keyedStream.window(EventTimeSessionWindows.withGap(Duration.ofMillis(3L))).sum(2);
 
         if (fileOutput) {
             aggregated

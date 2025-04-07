@@ -23,7 +23,7 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
@@ -31,12 +31,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link SlidingWindowAssigner}. */
-public class SlidingWindowAssignerTest {
+class SlidingWindowAssignerTest {
 
     private static final RowData ELEMENT = GenericRowData.of("String");
 
     @Test
-    public void testWindowAssignment() {
+    void testWindowAssignment() {
         SlidingWindowAssigner assigner =
                 SlidingWindowAssigner.of(Duration.ofMillis(5000), Duration.ofMillis(1000));
 
@@ -90,7 +90,7 @@ public class SlidingWindowAssignerTest {
     }
 
     @Test
-    public void testWindowAssignmentWithOffset() {
+    void testWindowAssignmentWithOffset() {
         SlidingWindowAssigner assigner =
                 SlidingWindowAssigner.of(Duration.ofMillis(5000), Duration.ofMillis(1000))
                         .withOffset(Duration.ofMillis(100));
@@ -145,7 +145,7 @@ public class SlidingWindowAssignerTest {
     }
 
     @Test
-    public void testInvalidParameters() {
+    void testInvalidParameters() {
         assertThatThrownBy(
                         () ->
                                 SlidingWindowAssigner.of(
@@ -165,7 +165,7 @@ public class SlidingWindowAssignerTest {
     }
 
     @Test
-    public void testProperties() {
+    void testProperties() {
         SlidingWindowAssigner assigner =
                 SlidingWindowAssigner.of(Duration.ofMillis(5000), Duration.ofMillis(1000));
 

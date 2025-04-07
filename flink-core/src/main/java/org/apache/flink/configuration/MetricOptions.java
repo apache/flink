@@ -89,14 +89,6 @@ public class MetricOptions {
                 configuration, ConfigConstants.METRICS_REPORTER_PREFIX + reporterName + ".");
     }
 
-    /** @deprecated use {@link MetricOptions#REPORTER_FACTORY_CLASS} instead. */
-    @Deprecated
-    public static final ConfigOption<String> REPORTER_CLASS =
-            key("class")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription("The reporter class to use for the reporter named <name>.");
-
     @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
     @Documentation.Section(value = Documentation.Sections.METRIC_REPORTERS, position = 1)
     public static final ConfigOption<String> REPORTER_FACTORY_CLASS =
@@ -355,6 +347,7 @@ public class MetricOptions {
                     .withDescription(
                             "Flag indicating whether Flink should report system resource metrics such as machine's CPU,"
                                     + " memory or network usage.");
+
     /**
      * Interval between probing of system resource metrics specified in milliseconds. Has an effect
      * only when {@link #SYSTEM_RESOURCE_METRICS} is enabled.
@@ -397,6 +390,7 @@ public class MetricOptions {
                                     + " by Pekko's thread pool executor. "
                                     + "The range of the priority is from 1 (MIN_PRIORITY) to 10 (MAX_PRIORITY). "
                                     + "Warning, increasing this value may bring the main Flink components down.");
+
     /**
      * The config parameter defining the update interval for the metric fetcher used by the web UI
      * in milliseconds.

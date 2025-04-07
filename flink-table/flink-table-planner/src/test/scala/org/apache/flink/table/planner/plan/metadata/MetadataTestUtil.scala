@@ -18,10 +18,11 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
-import org.apache.flink.table.api.{DataTypes, TableConfig, TableException, TableSchema}
+import org.apache.flink.table.api.{DataTypes, TableConfig, TableException}
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.connector.source.{DynamicTableSource, ScanTableSource}
+import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkContextImpl, FlinkTypeFactory}
@@ -339,21 +340,21 @@ object MetadataTestUtil {
   }
 
   private def createTableSourceTable1(): Table = {
-    val catalogTable = CatalogTable.of(
-      org.apache.flink.table.api.Schema.newBuilder
-        .column("a", DataTypes.BIGINT.notNull)
-        .column("b", DataTypes.INT.notNull)
-        .column("c", DataTypes.VARCHAR(2147483647).notNull)
-        .column("d", DataTypes.BIGINT.notNull)
-        .primaryKeyNamed("PK_1", "a", "b")
-        .build,
-      null,
-      Collections.emptyList(),
-      Map(
+    val catalogTable = CatalogTable
+      .newBuilder()
+      .schema(
+        org.apache.flink.table.api.Schema.newBuilder
+          .column("a", DataTypes.BIGINT.notNull)
+          .column("b", DataTypes.INT.notNull)
+          .column("c", DataTypes.VARCHAR(2147483647).notNull)
+          .column("d", DataTypes.BIGINT.notNull)
+          .primaryKeyNamed("PK_1", "a", "b")
+          .build)
+      .options(Map(
         "connector" -> "values",
         "bounded" -> "true"
-      )
-    )
+      ))
+      .build()
 
     val resolvedSchema = new ResolvedSchema(
       util.Arrays.asList(
@@ -467,15 +468,15 @@ object MetadataTestUtil {
   }
 
   private def getCatalogTable(resolvedSchema: ResolvedSchema) = {
-    CatalogTable.of(
-      org.apache.flink.table.api.Schema.newBuilder.fromResolvedSchema(resolvedSchema).build,
-      null,
-      Collections.emptyList(),
-      Map(
-        "connector" -> "values",
-        "bounded" -> "true"
-      )
-    )
+    CatalogTable
+      .newBuilder()
+      .schema(org.apache.flink.table.api.Schema.newBuilder.fromResolvedSchema(resolvedSchema).build)
+      .options(
+        Map(
+          "connector" -> "values",
+          "bounded" -> "true"
+        ))
+      .build()
   }
 
   private def getMetadataTable(

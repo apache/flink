@@ -21,7 +21,6 @@ package org.apache.flink.runtime.rest.handler.job;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -41,6 +40,7 @@ import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -62,12 +62,12 @@ class SubtaskExecutionAttemptAccumulatorsHandlerTest {
         final SubtaskExecutionAttemptAccumulatorsHandler handler =
                 new SubtaskExecutionAttemptAccumulatorsHandler(
                         () -> null,
-                        Time.milliseconds(100L),
+                        Duration.ofMillis(100L),
                         Collections.emptyMap(),
                         SubtaskExecutionAttemptAccumulatorsHeaders.getInstance(),
                         new DefaultExecutionGraphCache(
                                 restHandlerConfiguration.getTimeout(),
-                                Time.milliseconds(restHandlerConfiguration.getRefreshInterval())),
+                                Duration.ofMillis(restHandlerConfiguration.getRefreshInterval())),
                         Executors.directExecutor());
 
         // Instance a empty request.

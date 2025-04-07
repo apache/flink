@@ -19,7 +19,7 @@
 package org.apache.flink.connector.testframe.external;
 
 import org.apache.flink.annotation.Experimental;
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.source.Source;
 
 import java.net.URL;

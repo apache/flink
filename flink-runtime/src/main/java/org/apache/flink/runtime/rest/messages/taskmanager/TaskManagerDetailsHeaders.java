@@ -72,6 +72,6 @@ public class TaskManagerDetailsHeaders
 
     @Override
     public String getDescription() {
-        return "Returns details for a task manager. \"metrics.memorySegmentsAvailable\" and \"metrics.memorySegmentsTotal\" are deprecated. Please use \"metrics.nettyShuffleMemorySegmentsAvailable\" and \"metrics.nettyShuffleMemorySegmentsTotal\" instead.";
+        return "Returns details for a task manager.";
     }
 }

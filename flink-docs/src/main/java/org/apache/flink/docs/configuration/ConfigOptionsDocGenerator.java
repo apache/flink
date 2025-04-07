@@ -90,6 +90,7 @@ public class ConfigOptionsDocGenerator {
                             + ">[a-zA-Z]*)(?:Options|Config|Parameters))(?:\\.java)?");
 
     private static final Formatter formatter = new HtmlFormatter();
+
     /**
      * This method generates html tables from set of classes containing {@link ConfigOption
      * ConfigOptions}.
@@ -259,6 +260,8 @@ public class ConfigOptionsDocGenerator {
 
     @VisibleForTesting
     static String toSnakeCase(String name) {
+        // We prefer lower case 'forst' for 'ForSt' instead of 'for_st'
+        name = name.replaceAll("(ForSt)([A-Z]|$)", "forst$2");
         return name.replaceAll("(.)([A-Z][a-z])", "$1_$2").toLowerCase();
     }
 

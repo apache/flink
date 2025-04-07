@@ -18,8 +18,9 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.BiConsumerWithException;
-import org.apache.flink.util.function.TriConsumer;
+import org.apache.flink.util.function.TriFunction;
 
 import org.junit.jupiter.api.Test;
 
@@ -104,6 +105,8 @@ class DefaultLeaderElectionTest {
                                     componentIdRef.set(componentId);
                                     leaderSessionIDRef.set(leaderSessionID);
                                     leaderAddressRef.set(address);
+
+                                    return FutureUtils.completedVoidFuture();
                                 })
                         .build();
         try (final DefaultLeaderElection testInstance =
@@ -111,7 +114,7 @@ class DefaultLeaderElectionTest {
 
             final UUID expectedLeaderSessionID = UUID.randomUUID();
             final String expectedAddress = "random-address";
-            testInstance.confirmLeadership(expectedLeaderSessionID, expectedAddress);
+            testInstance.confirmLeadershipAsync(expectedLeaderSessionID, expectedAddress);
 
             assertThat(componentIdRef).hasValue(DEFAULT_TEST_COMPONENT_ID);
             assertThat(leaderSessionIDRef).hasValue(expectedLeaderSessionID);
@@ -155,16 +158,16 @@ class DefaultLeaderElectionTest {
     }
 
     @Test
-    void testHasLeadershipTrue() throws Exception {
-        testHasLeadership(true);
+    void testHasLeadershipAsyncTrue() throws Exception {
+        testHasLeadershipAsync(true);
     }
 
     @Test
-    void testHasLeadershipFalse() throws Exception {
-        testHasLeadership(false);
+    void testHasLeadershipAsyncFalse() throws Exception {
+        testHasLeadershipAsync(false);
     }
 
-    private void testHasLeadership(boolean expectedReturnValue) throws Exception {
+    private void testHasLeadershipAsync(boolean expectedReturnValue) throws Exception {
         final AtomicReference<String> componentIdRef = new AtomicReference<>();
         final AtomicReference<UUID> leaderSessionIDRef = new AtomicReference<>();
         final DefaultLeaderElection.ParentService parentService =
@@ -173,14 +176,15 @@ class DefaultLeaderElectionTest {
                                 (actualComponentId, actualLeaderSessionID) -> {
                                     componentIdRef.set(actualComponentId);
                                     leaderSessionIDRef.set(actualLeaderSessionID);
-                                    return expectedReturnValue;
+                                    return CompletableFuture.completedFuture(expectedReturnValue);
                                 })
                         .build();
         try (final DefaultLeaderElection testInstance =
                 new DefaultLeaderElection(parentService, DEFAULT_TEST_COMPONENT_ID)) {
 
             final UUID expectedLeaderSessionID = UUID.randomUUID();
-            assertThat(testInstance.hasLeadership(expectedLeaderSessionID))
+            assertThatFuture(testInstance.hasLeadershipAsync(expectedLeaderSessionID))
+                    .eventuallySucceeds()
                     .isEqualTo(expectedReturnValue);
             assertThat(componentIdRef).hasValue(DEFAULT_TEST_COMPONENT_ID);
             assertThat(leaderSessionIDRef).hasValue(expectedLeaderSessionID);
@@ -192,14 +196,16 @@ class DefaultLeaderElectionTest {
 
         private final BiConsumerWithException<String, LeaderContender, Exception> registerConsumer;
         private final Consumer<String> removeConsumer;
-        private final TriConsumer<String, UUID, String> confirmLeadershipConsumer;
-        private final BiFunction<String, UUID, Boolean> hasLeadershipFunction;
+        private final TriFunction<String, UUID, String, CompletableFuture<Void>>
+                confirmLeadershipConsumer;
+        private final BiFunction<String, UUID, CompletableFuture<Boolean>> hasLeadershipFunction;
 
         private TestingAbstractLeaderElectionService(
                 BiConsumerWithException<String, LeaderContender, Exception> registerConsumer,
                 Consumer<String> removeConsumer,
-                TriConsumer<String, UUID, String> confirmLeadershipConsumer,
-                BiFunction<String, UUID, Boolean> hasLeadershipFunction) {
+                TriFunction<String, UUID, String, CompletableFuture<Void>>
+                        confirmLeadershipConsumer,
+                BiFunction<String, UUID, CompletableFuture<Boolean>> hasLeadershipFunction) {
             super();
 
             this.registerConsumer = registerConsumer;
@@ -219,13 +225,14 @@ class DefaultLeaderElectionTest {
         }
 
         @Override
-        protected void confirmLeadership(
+        protected CompletableFuture<Void> confirmLeadershipAsync(
                 String componentId, UUID leaderSessionID, String leaderAddress) {
-            confirmLeadershipConsumer.accept(componentId, leaderSessionID, leaderAddress);
+            return confirmLeadershipConsumer.apply(componentId, leaderSessionID, leaderAddress);
         }
 
         @Override
-        protected boolean hasLeadership(String componentId, UUID leaderSessionId) {
+        protected CompletableFuture<Boolean> hasLeadershipAsync(
+                String componentId, UUID leaderSessionId) {
             return hasLeadershipFunction.apply(componentId, leaderSessionId);
         }
 
@@ -252,8 +259,9 @@ class DefaultLeaderElectionTest {
 
             private BiConsumerWithException<String, LeaderContender, Exception> registerConsumer;
             private Consumer<String> removeConsumer;
-            private TriConsumer<String, UUID, String> confirmLeadershipConsumer;
-            private BiFunction<String, UUID, Boolean> hasLeadershipFunction;
+            private TriFunction<String, UUID, String, CompletableFuture<Void>>
+                    confirmLeadershipConsumer;
+            private BiFunction<String, UUID, CompletableFuture<Boolean>> hasLeadershipFunction;
 
             private Builder() {}
 
@@ -269,13 +277,14 @@ class DefaultLeaderElectionTest {
             }
 
             public Builder setConfirmLeadershipConsumer(
-                    TriConsumer<String, UUID, String> confirmLeadershipConsumer) {
+                    TriFunction<String, UUID, String, CompletableFuture<Void>>
+                            confirmLeadershipConsumer) {
                 this.confirmLeadershipConsumer = confirmLeadershipConsumer;
                 return this;
             }
 
             public Builder setHasLeadershipFunction(
-                    BiFunction<String, UUID, Boolean> hasLeadershipFunction) {
+                    BiFunction<String, UUID, CompletableFuture<Boolean>> hasLeadershipFunction) {
                 this.hasLeadershipFunction = hasLeadershipFunction;
                 return this;
             }

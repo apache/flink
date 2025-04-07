@@ -186,7 +186,12 @@ class AvroBulkFormatTest {
 
         FileSourceSplit split =
                 new FileSourceSplit(
-                        splitId, new Path(tmpFile.toString()), splitLength * 2, tmpFile.length());
+                        splitId,
+                        new Path(tmpFile.toString()),
+                        splitLength * 2,
+                        tmpFile.length(),
+                        0,
+                        0);
         BulkFormat.Reader<RowData> reader = bulkFormat.createReader(new Configuration(), split);
         long offset1 = assertBatch(reader, new BatchInfo(3, 5));
         assertBatch(reader, new BatchInfo(5, 6));
@@ -199,6 +204,8 @@ class AvroBulkFormatTest {
                         new Path(tmpFile.toString()),
                         splitLength * 2,
                         tmpFile.length(),
+                        0,
+                        0,
                         StringUtils.EMPTY_STRING_ARRAY,
                         new CheckpointedPosition(offset1, 1));
         reader = bulkFormat.restoreReader(new Configuration(), split);
@@ -219,7 +226,9 @@ class AvroBulkFormatTest {
                             UUID.randomUUID().toString(),
                             new Path(tmpFile.toString()),
                             splitInfo.start,
-                            splitInfo.end - splitInfo.start);
+                            splitInfo.end - splitInfo.start,
+                            0,
+                            0);
             BulkFormat.Reader<RowData> reader = bulkFormat.createReader(new Configuration(), split);
             List<Long> offsets = new ArrayList<>();
             for (BatchInfo batch : splitInfo.batches) {

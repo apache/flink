@@ -21,12 +21,6 @@ package org.apache.flink.test.state;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend.PriorityQueueStateType;
-import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
-import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackendBuilder;
-import org.apache.flink.contrib.streaming.state.RocksDBPriorityQueueConfig;
-import org.apache.flink.contrib.streaming.state.RocksDBResourceContainer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -42,6 +36,12 @@ import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend;
+import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend.PriorityQueueStateType;
+import org.apache.flink.state.rocksdb.RocksDBKeyedStateBackend;
+import org.apache.flink.state.rocksdb.RocksDBKeyedStateBackendBuilder;
+import org.apache.flink.state.rocksdb.RocksDBPriorityQueueConfig;
+import org.apache.flink.state.rocksdb.RocksDBResourceContainer;
 
 import org.junit.rules.TemporaryFolder;
 

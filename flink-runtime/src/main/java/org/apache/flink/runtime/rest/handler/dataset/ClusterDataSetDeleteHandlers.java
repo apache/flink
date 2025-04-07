@@ -17,7 +17,6 @@
 
 package org.apache.flink.runtime.rest.handler.dataset;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -63,7 +62,7 @@ public class ClusterDataSetDeleteHandlers
 
         public ClusterDataSetDeleteTriggerHandler(
                 GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-                Time timeout,
+                Duration timeout,
                 Map<String, String> responseHeaders,
                 GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever) {
             super(
@@ -103,7 +102,7 @@ public class ClusterDataSetDeleteHandlers
 
         public ClusterDataSetDeleteStatusHandler(
                 GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-                Time timeout,
+                Duration timeout,
                 Map<String, String> responseHeaders) {
             super(
                     leaderRetriever,

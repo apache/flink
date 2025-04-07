@@ -75,7 +75,7 @@ class DefaultCheckpointPlanTest {
         CheckpointPlan checkpointPlan = createCheckpointPlan(executionGraph);
 
         Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
-        OperatorState operatorState = new OperatorState(operatorId, 2, 2);
+        OperatorState operatorState = new OperatorState(null, null, operatorId, 2, 2);
         operatorState.putState(
                 0, createSubtaskStateWithUnionListState(TempDirUtils.newFile(temporaryFolder)));
         operatorStates.put(operatorId, operatorState);
@@ -109,7 +109,7 @@ class DefaultCheckpointPlanTest {
         CheckpointPlan checkpointPlan = createCheckpointPlan(executionGraph);
 
         Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
-        OperatorState operatorState = new OperatorState(operatorId, 2, 2);
+        OperatorState operatorState = new OperatorState(null, null, operatorId, 2, 2);
         operatorState.putState(
                 0, createSubtaskStateWithUnionListState(TempDirUtils.newFile(temporaryFolder)));
 
@@ -210,7 +210,7 @@ class DefaultCheckpointPlanTest {
         CheckpointPlan checkpointPlan = createCheckpointPlan(executionGraph);
 
         Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
-        OperatorState operatorState = new OperatorState(finishedOperatorID, 1, 256);
+        OperatorState operatorState = new OperatorState(null, null, finishedOperatorID, 1, 256);
         operatorState.setCoordinatorState(new TestingStreamStateHandle());
         operatorStates.put(finishedOperatorID, operatorState);
 

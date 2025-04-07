@@ -82,26 +82,6 @@ public class ClusterOptions {
                                     + "By default it will use 4 * the number of CPU cores (hardware contexts) that the cluster process has access to. "
                                     + "Increasing the pool size allows to run more IO operations concurrently.");
 
-    /**
-     * @deprecated Please use {@link TaskManagerOptions#TASK_MANAGER_LOAD_BALANCE_MODE} instead.
-     *     Note: The 'taskmanager.load-balance.mode: SLOTS' is equal to
-     *     'cluster.evenly-spread-out-slots: true'. The 'taskmanager.load-balance.mode: NONE' is
-     *     equal to 'cluster.evenly-spread-out-slots: false'.
-     */
-    @Deprecated
-    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
-    public static final ConfigOption<Boolean> EVENLY_SPREAD_OUT_SLOTS_STRATEGY =
-            ConfigOptions.key("cluster.evenly-spread-out-slots")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Enable the slot spread out allocation strategy. This strategy tries to spread out "
-                                                    + "the slots evenly across all available %s.",
-                                            code("TaskExecutors"))
-                                    .build());
-
     @Documentation.Section(Documentation.Sections.EXPERT_CLUSTER)
     public static final ConfigOption<Boolean> HALT_ON_FATAL_ERROR =
             key("cluster.processes.halt-on-fatal-error")
@@ -140,17 +120,6 @@ public class ClusterOptions {
                     .defaultValue(50)
                     .withDescription(
                             "The maximum stacktrace depth of TaskManager and JobManager's thread dump web-frontend displayed.");
-
-    /**
-     * @deprecated The option is unnecessary. It is deprecated in 1.20 and will be removed in 2.0.
-     */
-    @Deprecated
-    public static final ConfigOption<Boolean> FINE_GRAINED_SHUFFLE_MODE_ALL_BLOCKING =
-            ConfigOptions.key("fine-grained.shuffle-mode.all-blocking")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "Whether to convert all PIPELINE edges to BLOCKING when apply fine-grained resource management in batch jobs.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_CLUSTER)
     public static final ConfigOption<UncaughtExceptionHandleMode> UNCAUGHT_EXCEPTION_HANDLING =
@@ -245,7 +214,9 @@ public class ClusterOptions {
         }
     }
 
-    /** @see ClusterOptions#UNCAUGHT_EXCEPTION_HANDLING */
+    /**
+     * @see ClusterOptions#UNCAUGHT_EXCEPTION_HANDLING
+     */
     public enum UncaughtExceptionHandleMode {
         LOG,
         FAIL

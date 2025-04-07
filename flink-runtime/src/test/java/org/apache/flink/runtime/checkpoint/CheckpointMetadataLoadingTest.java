@@ -168,7 +168,7 @@ class CheckpointMetadataLoadingTest {
         final int maxParallelism = 1234;
 
         final OperatorState state =
-                new OperatorState(operatorID, maxParallelism / 2, maxParallelism);
+                new OperatorState(null, null, operatorID, maxParallelism / 2, maxParallelism);
         state.setCoordinatorState(new ByteStreamStateHandle("coordinatorState", new byte[0]));
 
         final CompletedCheckpointStorageLocation testSavepoint =
@@ -226,7 +226,8 @@ class CheckpointMetadataLoadingTest {
                                 singleton(createNewResultSubpartitionStateHandle(10, rnd)))
                         .build();
 
-        final OperatorState state = new OperatorState(operatorId, parallelism, parallelism);
+        final OperatorState state =
+                new OperatorState(null, null, operatorId, parallelism, parallelism);
         state.putState(0, subtaskState);
 
         return createSavepointWithOperatorState(checkpointId, state);

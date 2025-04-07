@@ -43,7 +43,6 @@ function run_example() {
     fi
 }
 
-run_example "Iteration"
 run_example "SessionWindowing"
 run_example "StateMachineExample"
 run_example "TopSpeedWindowing"

@@ -20,7 +20,9 @@ package org.apache.flink.state.forst;
 
 import org.apache.flink.core.state.InternalStateFuture;
 
-import org.rocksdb.ColumnFamilyHandle;
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.RocksDB;
+import org.forstdb.RocksDBException;
 
 import java.io.IOException;
 
@@ -28,19 +30,27 @@ import java.io.IOException;
  * The Get access request for ForStDB.
  *
  * @param <K> The type of key in get access request.
+ * @param <N> The type of namespace in put access request.
  * @param <V> The type of value returned by get request.
+ * @param <R> The type of returned value in state future.
  */
-public class ForStDBGetRequest<K, N, V> {
+public abstract class ForStDBGetRequest<K, N, V, R> {
 
-    private final ContextKey<K, N> key;
-    private final ForStInnerTable<K, N, V> table;
-    private final InternalStateFuture<V> future;
+    final ContextKey<K, N> key;
+    final ForStInnerTable<K, N, V> table;
+    final InternalStateFuture<R> future;
 
-    private ForStDBGetRequest(
-            ContextKey<K, N> key, ForStInnerTable<K, N, V> table, InternalStateFuture<V> future) {
+    ForStDBGetRequest(
+            ContextKey<K, N> key, ForStInnerTable<K, N, V> table, InternalStateFuture<R> future) {
         this.key = key;
         this.table = table;
         this.future = future;
+    }
+
+    public void process(RocksDB db) throws IOException, RocksDBException {
+        byte[] key = buildSerializedKey();
+        byte[] value = db.get(getColumnFamilyHandle(), key);
+        completeStateFuture(value);
     }
 
     public byte[] buildSerializedKey() throws IOException {
@@ -51,21 +61,9 @@ public class ForStDBGetRequest<K, N, V> {
         return table.getColumnFamilyHandle();
     }
 
-    public void completeStateFuture(byte[] bytesValue) throws IOException {
-        if (bytesValue == null) {
-            future.complete(null);
-            return;
-        }
-        V value = table.deserializeValue(bytesValue);
-        future.complete(value);
-    }
+    public abstract void completeStateFuture(byte[] bytesValue) throws IOException;
 
     public void completeStateFutureExceptionally(String message, Throwable ex) {
         future.completeExceptionally(message, ex);
-    }
-
-    static <K, N, V> ForStDBGetRequest<K, N, V> of(
-            ContextKey<K, N> key, ForStInnerTable<K, N, V> table, InternalStateFuture<V> future) {
-        return new ForStDBGetRequest<>(key, table, future);
     }
 }

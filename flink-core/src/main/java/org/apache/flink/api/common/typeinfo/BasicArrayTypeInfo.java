@@ -20,7 +20,6 @@ package org.apache.flink.api.common.typeinfo;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -135,13 +134,6 @@ public final class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
                             this.componentInfo.getTypeClass(),
                             this.componentInfo.createSerializer(serializerConfig));
         }
-    }
-
-    @Override
-    @Deprecated
-    @PublicEvolving
-    public TypeSerializer<T> createSerializer(ExecutionConfig config) {
-        return createSerializer(config.getSerializerConfig());
     }
 
     @Override

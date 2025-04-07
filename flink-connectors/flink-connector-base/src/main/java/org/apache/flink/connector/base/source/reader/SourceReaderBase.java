@@ -108,45 +108,6 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
     @Nullable protected final RecordEvaluator<T> eofRecordEvaluator;
 
     /**
-     * @deprecated Please use {@link #SourceReaderBase(SplitFetcherManager, RecordEmitter,
-     *     Configuration, SourceReaderContext)} instead.
-     */
-    @Deprecated
-    public SourceReaderBase(
-            FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
-            SplitFetcherManager<E, SplitT> splitFetcherManager,
-            RecordEmitter<E, T, SplitStateT> recordEmitter,
-            Configuration config,
-            SourceReaderContext context) {
-        this(elementsQueue, splitFetcherManager, recordEmitter, null, config, context);
-    }
-
-    /**
-     * @deprecated Please use {@link #SourceReaderBase(SplitFetcherManager, RecordEmitter,
-     *     RecordEvaluator, Configuration, SourceReaderContext)} instead.
-     */
-    @Deprecated
-    public SourceReaderBase(
-            FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
-            SplitFetcherManager<E, SplitT> splitFetcherManager,
-            RecordEmitter<E, T, SplitStateT> recordEmitter,
-            @Nullable RecordEvaluator<T> eofRecordEvaluator,
-            Configuration config,
-            SourceReaderContext context) {
-        this.elementsQueue = elementsQueue;
-        this.splitFetcherManager = splitFetcherManager;
-        this.recordEmitter = recordEmitter;
-        this.splitStates = new HashMap<>();
-        this.options = new SourceReaderOptions(config);
-        this.config = config;
-        this.context = context;
-        this.noMoreSplitsAssignment = false;
-        this.eofRecordEvaluator = eofRecordEvaluator;
-
-        numRecordsInCounter = context.metricGroup().getIOMetricGroup().getNumRecordsInCounter();
-    }
-
-    /**
      * The primary constructor for the source reader.
      *
      * <p>The reader will use a handover queue sized as configured via {@link

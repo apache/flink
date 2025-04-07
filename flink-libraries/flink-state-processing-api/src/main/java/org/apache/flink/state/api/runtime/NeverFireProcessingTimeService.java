@@ -19,6 +19,8 @@ package org.apache.flink.state.api.runtime;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.runtime.tasks.TimerService;
+import org.apache.flink.util.clock.Clock;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.NeverCompleteFuture;
 
 import java.util.concurrent.CompletableFuture;
@@ -33,8 +35,8 @@ public final class NeverFireProcessingTimeService implements TimerService {
     private AtomicBoolean shutdown = new AtomicBoolean(true);
 
     @Override
-    public long getCurrentProcessingTime() {
-        return System.currentTimeMillis();
+    public Clock getClock() {
+        return SystemClock.getInstance();
     }
 
     @Override

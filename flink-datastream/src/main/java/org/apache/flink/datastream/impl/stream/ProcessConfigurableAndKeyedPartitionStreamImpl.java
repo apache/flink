@@ -30,6 +30,7 @@ import org.apache.flink.datastream.api.stream.KeyedPartitionStream;
 import org.apache.flink.datastream.api.stream.KeyedPartitionStream.ProcessConfigurableAndKeyedPartitionStream;
 import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream;
 import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream.ProcessConfigurableAndNonKeyedPartitionStream;
+import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream.ProcessConfigurableAndTwoNonKeyedPartitionStream;
 import org.apache.flink.datastream.api.stream.ProcessConfigurable;
 
 /**
@@ -60,7 +61,7 @@ public class ProcessConfigurableAndKeyedPartitionStreamImpl<K, T>
     }
 
     @Override
-    public <OUT1, OUT2> TwoKeyedPartitionStreams<K, OUT1, OUT2> process(
+    public <OUT1, OUT2> ProcessConfigurableAndTwoKeyedPartitionStreams<K, OUT1, OUT2> process(
             TwoOutputStreamProcessFunction<T, OUT1, OUT2> processFunction,
             KeySelector<OUT1, K> keySelector1,
             KeySelector<OUT2, K> keySelector2) {
@@ -68,7 +69,7 @@ public class ProcessConfigurableAndKeyedPartitionStreamImpl<K, T>
     }
 
     @Override
-    public <OUT1, OUT2> NonKeyedPartitionStream.TwoNonKeyedPartitionStreams<OUT1, OUT2> process(
+    public <OUT1, OUT2> ProcessConfigurableAndTwoNonKeyedPartitionStream<OUT1, OUT2> process(
             TwoOutputStreamProcessFunction<T, OUT1, OUT2> processFunction) {
         return stream.process(processFunction);
     }
@@ -126,5 +127,9 @@ public class ProcessConfigurableAndKeyedPartitionStreamImpl<K, T>
     @Override
     public ProcessConfigurable<?> toSink(Sink<T> sink) {
         return stream.toSink(sink);
+    }
+
+    public KeyedPartitionStreamImpl<K, T> getKeyedPartitionStream() {
+        return stream;
     }
 }

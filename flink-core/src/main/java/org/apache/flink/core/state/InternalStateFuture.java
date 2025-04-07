@@ -27,6 +27,16 @@ import org.apache.flink.util.function.ThrowingConsumer;
  */
 @Internal
 public interface InternalStateFuture<T> extends StateFuture<T> {
+    /**
+     * Returns {@code true} if completed in any fashion: normally, exceptionally, or via
+     * cancellation.
+     *
+     * @return {@code true} if completed
+     */
+    boolean isDone();
+
+    /** Waits if necessary for the computation to complete, and then retrieves its result. */
+    T get();
 
     /** Complete this future. */
     void complete(T result);

@@ -95,8 +95,8 @@ class FunctionOperation(Operation):
         if not self._has_side_output:
             self._main_output_processor = self._output_processors[DEFAULT_OUTPUT_TAG][0]
 
-    def setup(self):
-        super(FunctionOperation, self).setup()
+    def setup(self, data_sampler=None):
+        super().setup(data_sampler)
 
     def start(self):
         with self.scoped_start_state:

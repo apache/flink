@@ -21,7 +21,7 @@ import org.apache.flink.table.functions.ScalarFunction;
 
 /** Scala UDF for testing. */
 public class AddOne extends ScalarFunction {
-    public long eval(long input) {
+    public long eval(Long input) {
         return input + 1;
     }
 }

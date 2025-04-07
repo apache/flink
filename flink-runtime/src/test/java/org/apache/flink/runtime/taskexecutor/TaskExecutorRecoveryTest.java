@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -43,6 +42,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -130,7 +130,7 @@ class TaskExecutorRecoveryTest {
                         slotStatus.getResourceProfile(),
                         "localhost",
                         testingResourceManagerGateway.getFencingToken(),
-                        Time.seconds(10L))
+                        Duration.ofSeconds(10L))
                 .join();
 
         taskExecutor.close();

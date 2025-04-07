@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.common
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.plan.stats.TableStats
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram
 import org.apache.flink.table.planner.plan.rules.logical.FlinkAggregateRemoveRule

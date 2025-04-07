@@ -61,6 +61,22 @@ class EncodingUtilsTest {
         assertThat(EncodingUtils.repeat("we", 3)).isEqualTo("wewewe");
     }
 
+    @Test
+    void testUnhex() {
+        assertThat(EncodingUtils.unhex("".getBytes())).isEqualTo(new byte[0]);
+        assertThat(EncodingUtils.unhex("1".getBytes())).isEqualTo(new byte[] {0});
+        assertThat(EncodingUtils.unhex("146".getBytes())).isEqualTo(new byte[] {0, 0x46});
+        assertThat(EncodingUtils.unhex("z".getBytes())).isEqualTo(null);
+        assertThat(EncodingUtils.unhex("1-".getBytes())).isEqualTo(null);
+        assertThat(EncodingUtils.unhex("466C696E6B".getBytes()))
+                .isEqualTo(new byte[] {0x46, 0x6c, 0x69, 0x6E, 0x6B});
+        assertThat(EncodingUtils.unhex("4D7953514C".getBytes()))
+                .isEqualTo(new byte[] {0x4D, 0x79, 0x53, 0x51, 0x4C});
+        assertThat(EncodingUtils.unhex("\uD83D\uDE00".getBytes())).isEqualTo(null);
+        assertThat(EncodingUtils.unhex(EncodingUtils.hex("\uD83D\uDE00").getBytes()))
+                .isEqualTo("\uD83D\uDE00".getBytes());
+    }
+
     // --------------------------------------------------------------------------------------------
 
     private static class MyPojo implements Serializable {

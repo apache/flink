@@ -39,6 +39,18 @@
             <td>If true, RocksDB will use block-based filter instead of full filter, this only take effect when bloom filter is used. The default value is 'false'.</td>
         </tr>
         <tr>
+            <td><h5>state.backend.rocksdb.compaction.filter.periodic-compaction-time</h5></td>
+            <td style="word-wrap: break-word;">30 d</td>
+            <td>Duration</td>
+            <td>Periodic compaction could speed up expired state entries cleanup, especially for state entries rarely accessed. Files older than this value will be picked up for compaction, and re-written to the same level as they were before. It makes sure a file goes through compaction filters periodically. 0 means turning off periodic compaction.The default value is '30days'.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.compaction.filter.query-time-after-num-entries</h5></td>
+            <td style="word-wrap: break-word;">1000</td>
+            <td>Long</td>
+            <td>Number of state entries to process by compaction filter before updating current timestamp. Updating the timestamp more often can improve cleanup speed, but it decreases compaction performance because it uses JNI calls from native code.The default value is '1000L'.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.rocksdb.compaction.level.max-size-level-base</h5></td>
             <td style="word-wrap: break-word;">256 mb</td>
             <td>MemorySize</td>

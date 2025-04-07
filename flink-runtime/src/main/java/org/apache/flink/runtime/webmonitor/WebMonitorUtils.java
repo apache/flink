@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -35,6 +34,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -125,7 +125,7 @@ public final class WebMonitorUtils {
      * @throws IOException if we cannot create the StaticFileServerHandler
      */
     public static <T extends RestfulGateway> Optional<StaticFileServerHandler<T>> tryLoadWebContent(
-            GatewayRetriever<? extends T> leaderRetriever, Time timeout, File tmpDir)
+            GatewayRetriever<? extends T> leaderRetriever, Duration timeout, File tmpDir)
             throws IOException {
 
         if (isFlinkRuntimeWebInClassPath()) {
@@ -150,7 +150,7 @@ public final class WebMonitorUtils {
      */
     public static WebMonitorExtension loadWebSubmissionExtension(
             GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> responseHeaders,
             CompletableFuture<String> localAddressFuture,
             java.nio.file.Path uploadDir,
@@ -169,7 +169,7 @@ public final class WebMonitorUtils {
                                         CompletableFuture.class,
                                         java.nio.file.Path.class,
                                         Executor.class,
-                                        Time.class);
+                                        Duration.class);
 
                 return (WebMonitorExtension)
                         webSubmissionExtensionConstructor.newInstance(

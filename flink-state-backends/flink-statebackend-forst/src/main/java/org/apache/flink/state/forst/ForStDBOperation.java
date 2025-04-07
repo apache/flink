@@ -36,4 +36,11 @@ public interface ForStDBOperation {
      * @return The future which indicates whether the operation is completed.
      */
     CompletableFuture<Void> process();
+
+    /**
+     * The count of sub-processes. Each sub-process is an atomic operation in one single thread.
+     *
+     * @return the count.
+     */
+    int subProcessCount();
 }

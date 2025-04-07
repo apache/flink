@@ -32,6 +32,7 @@ public abstract class TestFileSystemCatalogTestBase extends AbstractTestBase {
     protected static final String TEST_CATALOG = "test_catalog";
     protected static final String TEST_DEFAULT_DATABASE = "test_db";
     protected static final String NONE_EXIST_DATABASE = "none_exist_database";
+    protected static final String NONE_EXIST_TABLE = "none_exist_table";
 
     protected TestFileSystemCatalog catalog;
 
@@ -42,7 +43,7 @@ public abstract class TestFileSystemCatalogTestBase extends AbstractTestBase {
         File testDb = new File(tempFile, TEST_DEFAULT_DATABASE);
         testDb.mkdir();
 
-        String catalogPathStr = tempFile.getAbsolutePath();
+        String catalogPathStr = "file:" + tempFile.getAbsolutePath();
         catalog = new TestFileSystemCatalog(catalogPathStr, TEST_CATALOG, TEST_DEFAULT_DATABASE);
         catalog.open();
     }

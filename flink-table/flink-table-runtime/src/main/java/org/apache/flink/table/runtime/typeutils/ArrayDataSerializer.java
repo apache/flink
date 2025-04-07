@@ -89,7 +89,7 @@ public class ArrayDataSerializer extends TypeSerializer<ArrayData> {
         } else if (from instanceof BinaryArrayData) {
             return ((BinaryArrayData) from).copy();
         } else {
-            return toBinaryArray(from);
+            return toBinaryArray(from).copy();
         }
     }
 
@@ -310,8 +310,10 @@ public class ArrayDataSerializer extends TypeSerializer<ArrayData> {
                 throws IOException {
             try {
                 DataInputViewStream inStream = new DataInputViewStream(in);
-                this.eleType = InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
-                this.eleSer = InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
+                this.eleType =
+                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader, true);
+                this.eleSer =
+                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader, true);
             } catch (ClassNotFoundException e) {
                 throw new IOException(e);
             }

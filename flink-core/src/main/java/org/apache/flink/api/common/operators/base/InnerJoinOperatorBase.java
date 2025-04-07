@@ -44,7 +44,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** @see org.apache.flink.api.common.functions.FlatJoinFunction */
+/**
+ * @see org.apache.flink.api.common.functions.FlatJoinFunction
+ */
 @Internal
 public class InnerJoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN1, IN2, OUT>>
         extends JoinOperatorBase<IN1, IN2, OUT, FT> {

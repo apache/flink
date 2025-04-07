@@ -19,7 +19,6 @@
 package org.apache.flink.test.streaming.experimental;
 
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 
@@ -46,7 +45,7 @@ public class CollectITCase extends AbstractTestBaseJUnit4 {
         DataStream<Long> stream = env.fromSequence(1, n);
 
         long i = 1;
-        for (Iterator<Long> it = DataStreamUtils.collect(stream); it.hasNext(); ) {
+        for (Iterator<Long> it = stream.executeAndCollect(); it.hasNext(); ) {
             long x = it.next();
             assertEquals("received wrong element", i, x);
             i++;

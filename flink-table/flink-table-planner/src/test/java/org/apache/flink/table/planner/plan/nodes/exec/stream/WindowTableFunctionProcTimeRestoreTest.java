@@ -18,13 +18,14 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.planner.plan.nodes.exec.common.WindowTableFunctionTestPrograms;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
 import java.util.List;
 
-/** Restore tests for {@link StreamExecWindowTableFunction}. */
+/** Restore tests for {@link StreamExecWindowTableFunction} which use processing time. */
 public class WindowTableFunctionProcTimeRestoreTest extends RestoreTestBase {
 
     public WindowTableFunctionProcTimeRestoreTest() {

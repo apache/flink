@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
@@ -54,6 +53,7 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -76,7 +76,7 @@ public class JobVertexTaskManagersHandler
 
     public JobVertexTaskManagersHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> responseHeaders,
             MessageHeaders<EmptyRequestBody, JobVertexTaskManagersInfo, JobVertexMessageParameters>
                     messageHeaders,
@@ -265,7 +265,6 @@ public class JobVertexTaskManagersHandler
             }
             taskManagersInfoList.add(
                     new JobVertexTaskManagersInfo.TaskManagersInfo(
-                            host,
                             endpoint,
                             jobVertexState,
                             startTime,

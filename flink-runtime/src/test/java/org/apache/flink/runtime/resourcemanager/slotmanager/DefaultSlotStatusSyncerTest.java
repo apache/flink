@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -40,6 +39,7 @@ import org.apache.flink.util.function.QuadConsumer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -52,7 +52,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link DefaultSlotStatusSyncer}. */
 class DefaultSlotStatusSyncerTest {
-    private static final Time TASK_MANAGER_REQUEST_TIMEOUT = Time.seconds(10);
+    private static final Duration TASK_MANAGER_REQUEST_TIMEOUT = Duration.ofSeconds(10);
     private static final TaskExecutorConnection TASK_EXECUTOR_CONNECTION =
             new TaskExecutorConnection(
                     ResourceID.generate(),
@@ -233,8 +233,12 @@ class DefaultSlotStatusSyncerTest {
                                 assertThat(taskManagerInfo.getAvailableResource())
                                         .isEqualTo(ResourceProfile.fromResources(2, 8)));
         final AllocationID allocationId3 =
-                taskManagerTracker.getRegisteredTaskManager(taskExecutorConnection.getInstanceID())
-                        .get().getAllocatedSlots().keySet().stream()
+                taskManagerTracker
+                        .getRegisteredTaskManager(taskExecutorConnection.getInstanceID())
+                        .get()
+                        .getAllocatedSlots()
+                        .keySet()
+                        .stream()
                         .filter(
                                 allocationId ->
                                         !allocationId.equals(allocationId1)

@@ -21,7 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 
 import javax.annotation.Nullable;
@@ -43,7 +43,7 @@ public class PerJobCheckpointRecoveryFactory<T extends CompletedCheckpointStore>
     public static <T extends CompletedCheckpointStore>
             CheckpointRecoveryFactory withoutCheckpointStoreRecovery(IntFunction<T> storeFn) {
         return new PerJobCheckpointRecoveryFactory<>(
-                (maxCheckpoints, previous, sharedStateRegistry, ioExecutor, restoreMode) -> {
+                (maxCheckpoints, previous, sharedStateRegistry, ioExecutor, recoveryClaimMode) -> {
                     if (previous != null) {
                         throw new UnsupportedOperationException(
                                 "Checkpoint store recovery is not supported.");
@@ -77,7 +77,7 @@ public class PerJobCheckpointRecoveryFactory<T extends CompletedCheckpointStore>
             int maxNumberOfCheckpointsToRetain,
             SharedStateRegistryFactory sharedStateRegistryFactory,
             Executor ioExecutor,
-            RestoreMode restoreMode) {
+            RecoveryClaimMode recoveryClaimMode) {
         return store.compute(
                 jobId,
                 (key, previous) ->
@@ -86,7 +86,7 @@ public class PerJobCheckpointRecoveryFactory<T extends CompletedCheckpointStore>
                                 previous,
                                 sharedStateRegistryFactory,
                                 ioExecutor,
-                                restoreMode));
+                                recoveryClaimMode));
     }
 
     @Override
@@ -102,6 +102,6 @@ public class PerJobCheckpointRecoveryFactory<T extends CompletedCheckpointStore>
                 @Nullable StoreType previousStore,
                 SharedStateRegistryFactory sharedStateRegistryFactory,
                 Executor ioExecutor,
-                RestoreMode restoreMode);
+                RecoveryClaimMode recoveryClaimMode);
     }
 }

@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -67,6 +66,7 @@ import java.net.InetSocketAddress;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -438,16 +438,14 @@ public abstract class RestServerEndpoint implements RestService {
                     () -> {
                         CompletableFuture<?> groupFuture = new CompletableFuture<>();
                         CompletableFuture<?> childGroupFuture = new CompletableFuture<>();
-                        final Time gracePeriod = Time.seconds(10L);
+                        final Duration gracePeriod = Duration.ofSeconds(10L);
 
                         if (bootstrap != null) {
                             final ServerBootstrapConfig config = bootstrap.config();
                             final EventLoopGroup group = config.group();
                             if (group != null) {
                                 group.shutdownGracefully(
-                                                0L,
-                                                gracePeriod.toMilliseconds(),
-                                                TimeUnit.MILLISECONDS)
+                                                0L, gracePeriod.toMillis(), TimeUnit.MILLISECONDS)
                                         .addListener(
                                                 finished -> {
                                                     if (finished.isSuccess()) {
@@ -465,9 +463,7 @@ public abstract class RestServerEndpoint implements RestService {
                             if (childGroup != null) {
                                 childGroup
                                         .shutdownGracefully(
-                                                0L,
-                                                gracePeriod.toMilliseconds(),
-                                                TimeUnit.MILLISECONDS)
+                                                0L, gracePeriod.toMillis(), TimeUnit.MILLISECONDS)
                                         .addListener(
                                                 finished -> {
                                                     if (finished.isSuccess()) {

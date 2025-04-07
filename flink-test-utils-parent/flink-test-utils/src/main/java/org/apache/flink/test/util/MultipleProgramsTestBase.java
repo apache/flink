@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.util;
 
+import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
@@ -38,14 +39,14 @@ import java.util.Collection;
  * <pre>{@code
  * {@literal @}Test
  * public void someTest() {
- *     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+ *     StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
  *     // test code
  *     env.execute();
  * }
  *
  * {@literal @}Test
  * public void anotherTest() {
- *     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+ *     StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
  *     // test code
  *     env.execute();
  * }
@@ -60,8 +61,7 @@ public class MultipleProgramsTestBase extends AbstractTestBase {
      */
     public enum TestExecutionMode {
         CLUSTER,
-        CLUSTER_OBJECT_REUSE,
-        COLLECTION,
+        CLUSTER_OBJECT_REUSE
     }
 
     // ------------------------------------------------------------------------
@@ -74,24 +74,21 @@ public class MultipleProgramsTestBase extends AbstractTestBase {
 
     @BeforeEach
     public void setupEnvironment() {
-        TestEnvironment testEnvironment;
+        TestStreamEnvironment testStreamEnvironment;
         switch (mode) {
             case CLUSTER:
                 // This only works because of the quirks we built in the TestEnvironment.
                 // We should refactor this in the future!!!
-                testEnvironment = MINI_CLUSTER_EXTENSION.getTestEnvironment();
-                testEnvironment.getConfig().disableObjectReuse();
-                testEnvironment.setAsContext();
+                testStreamEnvironment = MINI_CLUSTER_EXTENSION.getTestStreamEnvironment();
+                testStreamEnvironment.getConfig().disableObjectReuse();
+                testStreamEnvironment.setAsContext();
                 break;
             case CLUSTER_OBJECT_REUSE:
                 // This only works because of the quirks we built in the TestEnvironment.
                 // We should refactor this in the future!!!
-                testEnvironment = MINI_CLUSTER_EXTENSION.getTestEnvironment();
-                testEnvironment.getConfig().enableObjectReuse();
-                testEnvironment.setAsContext();
-                break;
-            case COLLECTION:
-                new CollectionTestEnvironment().setAsContext();
+                testStreamEnvironment = MINI_CLUSTER_EXTENSION.getTestStreamEnvironment();
+                testStreamEnvironment.getConfig().enableObjectReuse();
+                testStreamEnvironment.setAsContext();
                 break;
         }
     }
@@ -101,10 +98,7 @@ public class MultipleProgramsTestBase extends AbstractTestBase {
         switch (mode) {
             case CLUSTER:
             case CLUSTER_OBJECT_REUSE:
-                TestEnvironment.unsetAsContext();
-                break;
-            case COLLECTION:
-                CollectionTestEnvironment.unsetAsContext();
+                TestStreamEnvironment.unsetAsContext();
                 break;
         }
     }
@@ -115,6 +109,6 @@ public class MultipleProgramsTestBase extends AbstractTestBase {
 
     @Parameters(name = "Execution mode = {0}")
     public static Collection<TestExecutionMode> executionModes() {
-        return Arrays.asList(TestExecutionMode.CLUSTER, TestExecutionMode.COLLECTION);
+        return Arrays.asList(TestExecutionMode.CLUSTER);
     }
 }

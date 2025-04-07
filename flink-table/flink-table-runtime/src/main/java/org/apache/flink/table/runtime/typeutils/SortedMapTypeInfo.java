@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -83,11 +82,6 @@ public class SortedMapTypeInfo<K, V> extends AbstractMapTypeInfo<K, V, SortedMap
         TypeSerializer<V> valueTypeSerializer = valueTypeInfo.createSerializer(config);
 
         return new SortedMapSerializer<>(comparator, keyTypeSerializer, valueTypeSerializer);
-    }
-
-    @Override
-    public TypeSerializer<SortedMap<K, V>> createSerializer(ExecutionConfig config) {
-        return createSerializer(config.getSerializerConfig());
     }
 
     @Override

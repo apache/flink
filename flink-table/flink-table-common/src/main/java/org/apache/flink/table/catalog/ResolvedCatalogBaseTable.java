@@ -19,7 +19,7 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.legacy.api.TableSchema;
 
 /**
  * A common parent that describes the <i>resolved</i> metadata of a table or view in a catalog.

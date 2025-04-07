@@ -592,8 +592,6 @@ env = StreamExecutionEnvironment.get_execution_environment()
 # set various configuration early
 env.set_max_parallelism(256)
 
-env.get_config().add_default_kryo_serializer("type_class_name", "serializer_class_name")
-
 env.get_checkpoint_config().set_checkpointing_mode(CheckpointingMode.EXACTLY_ONCE)
 
 # then switch to Python Table API
@@ -959,11 +957,11 @@ a custom operator that deduplicates the user name using a `KeyedProcessFunction`
 {{< tabs "3f5f5d4e-cd03-48d1-9309-917a6cf66aba" >}}
 {{< tab "Java" >}}
 ```java
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;

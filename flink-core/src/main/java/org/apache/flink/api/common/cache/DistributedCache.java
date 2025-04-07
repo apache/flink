@@ -41,6 +41,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
+import static org.apache.flink.configuration.ConfigurationUtils.getIntConfigOption;
+
 /**
  * DistributedCache provides static methods to write the registered cache files into job
  * configuration or decode them from job configuration. It also provides user access to the file
@@ -172,12 +175,16 @@ public class DistributedCache {
 
     public static void writeFileInfoToConfig(
             String name, DistributedCacheEntry e, Configuration conf) {
-        int num = conf.getInteger(CACHE_FILE_NUM, 0) + 1;
-        conf.setInteger(CACHE_FILE_NUM, num);
+        int num = conf.get(getIntConfigOption(CACHE_FILE_NUM), 0) + 1;
+        conf.set(getIntConfigOption(CACHE_FILE_NUM), num);
         conf.setString(CACHE_FILE_NAME + num, name);
         conf.setString(CACHE_FILE_PATH + num, e.filePath);
-        conf.setBoolean(CACHE_FILE_EXE + num, e.isExecutable || new File(e.filePath).canExecute());
-        conf.setBoolean(CACHE_FILE_DIR + num, e.isZipped || new File(e.filePath).isDirectory());
+        conf.set(
+                getBooleanConfigOption(CACHE_FILE_EXE + num),
+                e.isExecutable || new File(e.filePath).canExecute());
+        conf.set(
+                getBooleanConfigOption(CACHE_FILE_DIR + num),
+                e.isZipped || new File(e.filePath).isDirectory());
         if (e.blobKey != null) {
             conf.setBytes(CACHE_FILE_BLOB_KEY + num, e.blobKey);
         }
@@ -185,7 +192,7 @@ public class DistributedCache {
 
     public static Set<Entry<String, DistributedCacheEntry>> readFileInfoFromConfig(
             Configuration conf) {
-        int num = conf.getInteger(CACHE_FILE_NUM, 0);
+        int num = conf.get(getIntConfigOption(CACHE_FILE_NUM), 0);
         if (num == 0) {
             return Collections.emptySet();
         }
@@ -195,8 +202,8 @@ public class DistributedCache {
         for (int i = 1; i <= num; i++) {
             String name = conf.getString(CACHE_FILE_NAME + i, null);
             String filePath = conf.getString(CACHE_FILE_PATH + i, null);
-            boolean isExecutable = conf.getBoolean(CACHE_FILE_EXE + i, false);
-            boolean isDirectory = conf.getBoolean(CACHE_FILE_DIR + i, false);
+            boolean isExecutable = conf.get(getBooleanConfigOption(CACHE_FILE_EXE + i), false);
+            boolean isDirectory = conf.get(getBooleanConfigOption(CACHE_FILE_DIR + i), false);
 
             byte[] blobKey = conf.getBytes(CACHE_FILE_BLOB_KEY + i, null);
             cacheFiles.put(

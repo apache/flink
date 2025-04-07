@@ -19,7 +19,9 @@
 package org.apache.flink.table.sources;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.legacy.api.TableSchema;
+import org.apache.flink.table.legacy.sources.ProjectableTableSource;
+import org.apache.flink.table.legacy.sources.TableSource;
 
 import org.junit.jupiter.api.Test;
 

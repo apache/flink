@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.job.checkpoints;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.runtime.dispatcher.UnknownOperationKeyException;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -51,6 +50,7 @@ import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -63,7 +63,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 /** Test for {@link CheckpointHandlers}. */
 class CheckpointHandlersTest {
 
-    private static final Time TIMEOUT = Time.seconds(10);
+    private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
     private static final JobID JOB_ID = new JobID();
 

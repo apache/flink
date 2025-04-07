@@ -19,7 +19,6 @@
 package org.apache.flink.api.java.typeutils;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -35,7 +34,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <T> The type of the elements in the list.
  */
 @PublicEvolving
-public final class ListTypeInfo<T> extends TypeInformation<List<T>> {
+public class ListTypeInfo<T> extends TypeInformation<List<T>> {
 
     private static final long serialVersionUID = 1L;
 
@@ -99,11 +98,6 @@ public final class ListTypeInfo<T> extends TypeInformation<List<T>> {
     public TypeSerializer<List<T>> createSerializer(SerializerConfig config) {
         TypeSerializer<T> elementTypeSerializer = elementTypeInfo.createSerializer(config);
         return new ListSerializer<>(elementTypeSerializer);
-    }
-
-    @Override
-    public TypeSerializer<List<T>> createSerializer(ExecutionConfig config) {
-        return createSerializer(config.getSerializerConfig());
     }
 
     // ------------------------------------------------------------------------

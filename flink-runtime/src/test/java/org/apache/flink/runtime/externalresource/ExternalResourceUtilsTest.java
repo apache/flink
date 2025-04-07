@@ -38,6 +38,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getLongConfigOption;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.core.Is.is;
@@ -228,8 +229,9 @@ public class ExternalResourceUtilsTest extends TestLogger {
         config.set(
                 ExternalResourceOptions.EXTERNAL_RESOURCE_LIST,
                 Collections.singletonList(RESOURCE_NAME_1));
-        config.setLong(
-                ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_1),
+        config.set(
+                getLongConfigOption(
+                        ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_1)),
                 RESOURCE_AMOUNT_1);
 
         final Map<String, Long> externalResourceAmountMap =
@@ -246,8 +248,10 @@ public class ExternalResourceUtilsTest extends TestLogger {
         config.set(
                 ExternalResourceOptions.EXTERNAL_RESOURCE_LIST,
                 Collections.singletonList(RESOURCE_NAME_1));
-        config.setLong(
-                ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_1), 0);
+        config.set(
+                getLongConfigOption(
+                        ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_1)),
+                0L);
 
         final Map<String, Long> externalResourceAmountMap =
                 ExternalResourceUtils.getExternalResourceAmountMap(config);
@@ -261,8 +265,9 @@ public class ExternalResourceUtilsTest extends TestLogger {
         config.set(
                 ExternalResourceOptions.EXTERNAL_RESOURCE_LIST,
                 Collections.singletonList(RESOURCE_NAME_1));
-        config.setLong(
-                ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_1),
+        config.set(
+                getLongConfigOption(
+                        ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_1)),
                 RESOURCE_AMOUNT_1);
 
         final Collection<ExternalResource> externalResources =
@@ -279,8 +284,9 @@ public class ExternalResourceUtilsTest extends TestLogger {
         final Configuration config = new Configuration();
         config.setString(
                 ExternalResourceOptions.EXTERNAL_RESOURCE_LIST.key(), ExternalResourceOptions.NONE);
-        config.setLong(
-                ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_1),
+        config.set(
+                getLongConfigOption(
+                        ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_1)),
                 RESOURCE_AMOUNT_1);
 
         final Collection<ExternalResource> externalResources =

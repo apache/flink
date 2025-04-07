@@ -41,27 +41,6 @@ GroupWindowAggregate(window=[TumblingGroupWindow('w$, proctime, 600000)], select
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testResolvingSchemaOfCustomCatalogTableTableApi[streamingMode = true]">
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(EXPR$0=[$0])
-+- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT()], window=[TumblingGroupWindow('w, rowtime, 600000)], properties=[])
-   +- LogicalProject(count=[$0], rowtime=[$1], proctime=[$2], $f3=[1])
-      +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($1, 5000:INTERVAL SECOND)])
-         +- LogicalProject(count=[$0], rowtime=[$1], proctime=[PROCTIME()])
-            +- LogicalTableScan(table=[[testCatalog, default, testTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-GroupWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 600000)], select=[COUNT(*) AS EXPR$0])
-+- Exchange(distribution=[single])
-   +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 5000:INTERVAL SECOND)])
-      +- Calc(select=[count, rowtime, PROCTIME() AS proctime])
-         +- TableSourceScan(table=[[testCatalog, default, testTable]], fields=[count, rowtime])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testResolvingProctimeOfCustomTableTableApi[streamingMode = true]">
     <Resource name="ast">
       <![CDATA[
@@ -130,6 +109,27 @@ GroupWindowAggregate(window=[TumblingGroupWindow('w$, rowtime, 600000)], select=
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testResolvingSchemaOfCustomCatalogTableTableApi[streamingMode = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0])
++- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT()], window=[TumblingGroupWindow('w, rowtime, 600000)], properties=[])
+   +- LogicalProject(count=[$0], rowtime=[$1], proctime=[$2], $f3=[1])
+      +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($1, 5000:INTERVAL SECOND)])
+         +- LogicalProject(count=[$0], rowtime=[$1], proctime=[PROCTIME()])
+            +- LogicalTableScan(table=[[testCatalog, default, testTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 600000)], select=[COUNT(*) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 5000:INTERVAL SECOND)])
+      +- Calc(select=[count, rowtime, PROCTIME() AS proctime])
+         +- TableSourceScan(table=[[testCatalog, default, testTable]], fields=[count, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testResolvingSchemaOfCustomCatalogTableTableApi[streamingMode = false]">
     <Resource name="ast">
       <![CDATA[
@@ -145,6 +145,63 @@ HashWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 600000)], select=[F
 +- Exchange(distribution=[single])
    +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 600000)], select=[Partial_COUNT(*) AS count1$0])
       +- TableSourceScan(table=[[testCatalog, default, testTable]], fields=[count, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTimeAttributeOfView[streamingMode = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT sum(i), window_start FROM TUMBLE(
+     DATA => TABLE `cat`.`default`.v,
+     TIMECOL => DESCRIPTOR(ts),
+     SIZE => INTERVAL '10' MINUTES)
+GROUP BY window_start, window_end]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$2], window_start=[$0])
++- LogicalAggregate(group=[{0, 1}], EXPR$0=[SUM($2)])
+   +- LogicalProject(window_start=[$2], window_end=[$3], i=[$0])
+      +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'ts'), 600000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER i, TIMESTAMP_LTZ(3) *ROWTIME* ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP_LTZ(3) *ROWTIME* window_time)])
+         +- LogicalProject(i=[$0], ts=[$1])
+            +- LogicalProject(i=[$0], ts=[$1])
+               +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$1])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[EXPR$0, window_start])
++- GlobalWindowAggregate(window=[TUMBLE(slice_end=[$slice_end], size=[10 min])], select=[SUM(sum$0) AS EXPR$0, start('w$) AS window_start, end('w$) AS window_end])
+   +- Exchange(distribution=[single])
+      +- LocalWindowAggregate(window=[TUMBLE(time_col=[ts], size=[10 min])], select=[SUM(i) AS sum$0, slice_end('w$) AS $slice_end])
+         +- WatermarkAssigner(rowtime=[ts], watermark=[ts])
+            +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTimeAttributeOfViewSelect[streamingMode = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM `cat`.`default`.v]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(order_id=[$0], customer_id=[$1], product_id=[$2], ts=[$3])
++- LogicalProject(order_id=[$0], customer_id=[$1], product_id=[$5], ts=[$4])
+   +- LogicalCorrelate(correlation=[$cor2], joinType=[inner], requiredColumns=[{3}])
+      :- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$4])
+      :  +- LogicalTableScan(table=[[cat, default, t]])
+      +- LogicalProject(product_id=[$0])
+         +- Uncollect
+            +- LogicalProject(product_ids=[$cor2.product_ids])
+               +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[order_id, customer_id, f0 AS product_id, ts])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor2.product_ids)], correlate=[table($UNNEST_ROWS$1($cor2.product_ids))], select=[order_id,customer_id,product_id,product_ids,ts,f0], rowType=[RecordType(INTEGER order_id, INTEGER customer_id, INTEGER product_id, INTEGER ARRAY product_ids, TIMESTAMP_LTZ(3) *ROWTIME* ts, INTEGER f0)], joinType=[INNER])
+   +- WatermarkAssigner(rowtime=[ts], watermark=[ts])
+      +- TableSourceScan(table=[[cat, default, t]], fields=[order_id, customer_id, product_id, product_ids, ts])
 ]]>
     </Resource>
   </TestCase>

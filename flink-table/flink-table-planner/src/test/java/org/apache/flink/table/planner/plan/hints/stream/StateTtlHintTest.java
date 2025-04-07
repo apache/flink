@@ -66,6 +66,31 @@ class StateTtlHintTest extends TableTestBase {
                                 + " 'connector' = 'values'\n"
                                 + ")");
 
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE tableWithWatermark1 (\n"
+                                + "  a INT,\n"
+                                + "  b BIGINT,\n"
+                                + "  c TIMESTAMP(3),"
+                                + "  WATERMARK FOR c AS c"
+                                + ") WITH ("
+                                + "  'connector' = 'values',\n"
+                                + "  'bounded' = 'false'\n"
+                                + ")");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE tableWithWatermark2 ("
+                                + "  a int,\n"
+                                + "  b BIGINT,\n"
+                                + "  c ROW<c1 TIMESTAMP(3)>,\n"
+                                + "  d AS c.c1 + INTERVAL '5' SECOND,\n"
+                                + "  WATERMARK FOR d as d - INTERVAL '5' second"
+                                + ") WITH ("
+                                + "  'connector' = 'values',\n"
+                                + "  'bounded' = 'false'\n"
+                                + ")");
+
         util.tableEnv().executeSql("CREATE View V4 as select a3 as a4, b3 as b4 from T3");
 
         util.tableEnv()
@@ -295,6 +320,26 @@ class StateTtlHintTest extends TableTestBase {
                 .isInstanceOf(AssertionError.class)
                 .hasMessageContaining(
                         "Invalid STATE_TTL hint, expecting at least one key-value options specified.");
+    }
+
+    @Test
+    void testWatermarkAssigner() {
+        String sql =
+                "\n"
+                        + "SELECT /*+ STATE_TTL('tableWithWatermark1'='1d', 'tww2' = '3d') */ tableWithWatermark1.* FROM tableWithWatermark1\n"
+                        + "LEFT JOIN(SELECT DISTINCT b FROM tableWithWatermark2) tww2\n"
+                        + "ON tableWithWatermark1.b = tww2.b WHERE tww2.b IS NOT NULL";
+        verify(sql);
+    }
+
+    @Test
+    void testWatermarkAssignerWithAliases() {
+        String sql =
+                "\n"
+                        + "SELECT /*+ STATE_TTL('tww1'='1d', 'tww2' = '3d') */ tww1.* FROM tableWithWatermark1 tww1\n"
+                        + "LEFT JOIN(SELECT DISTINCT b FROM tableWithWatermark2) tww2\n"
+                        + "ON tww1.b = tww2.b WHERE tww2.b IS NOT NULL";
+        verify(sql);
     }
 
     private void verify(String sql) {

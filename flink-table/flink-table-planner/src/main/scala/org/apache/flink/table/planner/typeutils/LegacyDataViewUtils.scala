@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.typeutils
 
-import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
@@ -158,71 +157,44 @@ object LegacyDataViewUtils {
           "MapView, SortedMapView and ListView only supported at first level of " +
             "accumulators of Pojo type.")
       case map: MapViewTypeInfo[_, _] =>
-        val mapView = instance match {
-          case b: BinaryRawValueData[_] =>
-            b.getJavaObject.asInstanceOf[MapView[_, _]]
-          case _ =>
-            instance.asInstanceOf[MapView[_, _]]
-        }
-
-        val newTypeInfo =
-          if (mapView != null && mapView.keyType != null && mapView.valueType != null) {
-            // use explicit key value type if user has defined
-            new MapViewTypeInfo(mapView.keyType, mapView.valueType)
-          } else {
-            map
-          }
-
         if (!isStateBackedDataViews) {
           // add data view field if it is not backed by a state backend.
           // data view fields which are backed by state backend are not serialized.
-          newTypeInfo.setNullSerializer(false)
+          map.setNullSerializer(false)
         } else {
-          newTypeInfo.setNullSerializer(true)
+          map.setNullSerializer(true)
 
           // create map view specs with unique id (used as state name)
           val mapViewSpec = new MapViewSpec(
             "agg" + aggIndex + "$" + fieldName,
             fieldIndex, // dataview field index in pojo
-            fromLegacyInfoToDataType(newTypeInfo),
+            fromLegacyInfoToDataType(map),
             false,
-            newTypeInfo.getKeyType.createSerializer(new SerializerConfigImpl),
-            newTypeInfo.getValueType.createSerializer(new SerializerConfigImpl)
+            map.getKeyType.createSerializer(new SerializerConfigImpl),
+            map.getValueType.createSerializer(new SerializerConfigImpl)
           )
           spec = Some(mapViewSpec)
         }
-        newTypeInfo
+        map
 
       case list: ListViewTypeInfo[_] =>
-        val listView = instance match {
-          case b: BinaryRawValueData[_] =>
-            b.getJavaObject.asInstanceOf[ListView[_]]
-          case _ =>
-            instance.asInstanceOf[ListView[_]]
-        }
-        val newTypeInfo = if (listView != null && listView.elementType != null) {
-          // use explicit element type if user has defined
-          new ListViewTypeInfo(listView.elementType)
-        } else {
-          list
-        }
         if (!isStateBackedDataViews) {
           // add data view field if it is not backed by a state backend.
           // data view fields which are backed by state backend are not serialized.
-          newTypeInfo.setNullSerializer(false)
+          list.setNullSerializer(false)
         } else {
-          newTypeInfo.setNullSerializer(true)
+          list.setNullSerializer(true)
 
           // create list view specs with unique is (used as state name)
           val listViewSpec = new ListViewSpec(
             "agg" + aggIndex + "$" + fieldName,
             fieldIndex, // dataview field index in pojo
-            fromLegacyInfoToDataType(newTypeInfo),
-            newTypeInfo.getElementType.createSerializer(new SerializerConfigImpl)
+            fromLegacyInfoToDataType(list),
+            list.getElementType.createSerializer(new SerializerConfigImpl)
           )
           spec = Some(listViewSpec)
         }
-        newTypeInfo
+        list
 
       case t: TypeInformation[_] => t
     }

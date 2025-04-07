@@ -42,19 +42,17 @@ Example:
 :func:`~EnvironmentSettings.in_streaming_mode` or :func:`~EnvironmentSettings.in_batch_mode`
 might be convenient as shortcuts.
 
-.. currentmodule:: pyflink.table.environment_settings
+.. currentmodule:: pyflink.table
 
 .. autosummary::
     :toctree: api/
 
     EnvironmentSettings.new_instance
-    EnvironmentSettings.from_configuration
     EnvironmentSettings.in_streaming_mode
     EnvironmentSettings.in_batch_mode
     EnvironmentSettings.get_built_in_catalog_name
     EnvironmentSettings.get_built_in_database_name
     EnvironmentSettings.is_streaming_mode
-    EnvironmentSettings.to_configuration
     EnvironmentSettings.get_configuration
     EnvironmentSettings.Builder.with_configuration
     EnvironmentSettings.Builder.in_batch_mode
@@ -72,7 +70,7 @@ programs.
 This class is a pure API class that abstracts configuration from various sources. Currently,
 configuration can be set in any of the following layers (in the given order):
 
-- flink-conf.yaml
+- config.yaml
 - CLI parameters
 - :class:`~pyflink.datastream.StreamExecutionEnvironment` when bridging to DataStream API
 - :func:`~EnvironmentSettings.Builder.with_configuration`
@@ -146,13 +144,14 @@ keyword, thus must be escaped) in a catalog named 'cat.1' and database named 'db
     other Flink APIs, it might be necessary to use one of the available language-specific table
     environments in the corresponding bridging modules.
 
-.. currentmodule:: pyflink.table.table_environment
+.. currentmodule:: pyflink.table
 
 .. autosummary::
     :toctree: api/
 
     TableEnvironment.add_python_archive
     TableEnvironment.add_python_file
+    TableEnvironment.compile_plan_sql
     TableEnvironment.create
     TableEnvironment.create_java_function
     TableEnvironment.create_java_temporary_function
@@ -163,18 +162,21 @@ keyword, thus must be escaped) in a catalog named 'cat.1' and database named 'db
     TableEnvironment.create_temporary_system_function
     TableEnvironment.create_temporary_table
     TableEnvironment.create_temporary_view
+    TableEnvironment.create_view
     TableEnvironment.drop_function
+    TableEnvironment.drop_table
     TableEnvironment.drop_temporary_function
     TableEnvironment.drop_temporary_system_function
     TableEnvironment.drop_temporary_table
     TableEnvironment.drop_temporary_view
+    TableEnvironment.drop_view
+    TableEnvironment.execute_plan
     TableEnvironment.execute_sql
     TableEnvironment.explain_sql
     TableEnvironment.from_descriptor
     TableEnvironment.from_elements
     TableEnvironment.from_pandas
     TableEnvironment.from_path
-    TableEnvironment.from_table_source
     TableEnvironment.get_catalog
     TableEnvironment.get_config
     TableEnvironment.get_current_catalog
@@ -190,13 +192,9 @@ keyword, thus must be escaped) in a catalog named 'cat.1' and database named 'db
     TableEnvironment.list_user_defined_functions
     TableEnvironment.list_views
     TableEnvironment.load_module
+    TableEnvironment.load_plan
+    TableEnvironment.create_catalog
     TableEnvironment.register_catalog
-    TableEnvironment.register_function
-    TableEnvironment.register_java_function
-    TableEnvironment.register_table
-    TableEnvironment.register_table_sink
-    TableEnvironment.register_table_source
-    TableEnvironment.scan
     TableEnvironment.set_python_requirements
     TableEnvironment.sql_query
     TableEnvironment.unload_module
@@ -207,7 +205,7 @@ keyword, thus must be escaped) in a catalog named 'cat.1' and database named 'db
 StreamTableEnvironment
 ----------------------
 
-.. currentmodule:: pyflink.table.table_environment
+.. currentmodule:: pyflink.table
 
 .. autosummary::
     :toctree: api/
@@ -235,7 +233,6 @@ StreamTableEnvironment
     StreamTableEnvironment.from_elements
     StreamTableEnvironment.from_pandas
     StreamTableEnvironment.from_path
-    StreamTableEnvironment.from_table_source
     StreamTableEnvironment.from_data_stream
     StreamTableEnvironment.from_changelog_stream
     StreamTableEnvironment.get_catalog
@@ -253,13 +250,8 @@ StreamTableEnvironment
     StreamTableEnvironment.list_user_defined_functions
     StreamTableEnvironment.list_views
     StreamTableEnvironment.load_module
+    StreamTableEnvironment.create_catalog
     StreamTableEnvironment.register_catalog
-    StreamTableEnvironment.register_function
-    StreamTableEnvironment.register_java_function
-    StreamTableEnvironment.register_table
-    StreamTableEnvironment.register_table_sink
-    StreamTableEnvironment.register_table_source
-    StreamTableEnvironment.scan
     StreamTableEnvironment.set_python_requirements
     StreamTableEnvironment.sql_query
     StreamTableEnvironment.to_data_stream

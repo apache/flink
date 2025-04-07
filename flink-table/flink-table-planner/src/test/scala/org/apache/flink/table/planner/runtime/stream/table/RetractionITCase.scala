@@ -17,10 +17,10 @@
  */
 package org.apache.flink.table.planner.runtime.stream.table
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingRetractSink}
+import org.apache.flink.table.api.bridge.scala.{dataStreamConversions, tableConversions}
+import org.apache.flink.table.planner.runtime.utils.{StreamingEnvUtil, StreamingWithStateTestBase, TestingRetractSink}
+import org.apache.flink.table.planner.runtime.utils.StreamingEnvUtil.fromCollection
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.utils.TableFunc0
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
@@ -50,7 +50,7 @@ class RetractionITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
   // keyed groupby + keyed groupby
   @TestTemplate
   def testWordCount(): Unit = {
-    val stream = env.fromCollection(data)
+    val stream = StreamingEnvUtil.fromCollection(env, data)
     val table = stream.toTable(tEnv, 'word, 'num)
     val resultTable = table
       .groupBy('word)
@@ -69,7 +69,7 @@ class RetractionITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
   // keyed groupby + non-keyed groupby
   @TestTemplate
   def testGroupByAndNonKeyedGroupBy(): Unit = {
-    val stream = env.fromCollection(data)
+    val stream = StreamingEnvUtil.fromCollection(env, data)
     val table = stream.toTable(tEnv, 'word, 'num)
     val resultTable = table
       .groupBy('word)
@@ -87,7 +87,7 @@ class RetractionITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
   // non-keyed groupby + keyed groupby
   @TestTemplate
   def testNonKeyedGroupByAndGroupBy(): Unit = {
-    val stream = env.fromCollection(data)
+    val stream = StreamingEnvUtil.fromCollection(env, data)
     val table = stream.toTable(tEnv, 'word, 'num)
     val resultTable = table
       .select('num.sum.as('count))
@@ -123,7 +123,7 @@ class RetractionITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       (7, 8L)
     )
 
-    val stream = env.fromCollection(data)
+    val stream = StreamingEnvUtil.fromCollection(env, data)
     val table = stream.toTable(tEnv, 'pk, 'value)
     val resultTable = table
       .groupBy('pk)
@@ -162,7 +162,7 @@ class RetractionITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
   def testCorrelate(): Unit = {
     val func0 = new TableFunc0
 
-    val stream = env.fromCollection(data)
+    val stream = fromCollection(env, data)
     val table = stream.toTable(tEnv, 'word, 'num)
     val resultTable = table
       .groupBy('word)

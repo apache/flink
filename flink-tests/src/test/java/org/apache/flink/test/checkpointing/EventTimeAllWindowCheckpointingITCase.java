@@ -20,7 +20,6 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.Configuration;
@@ -32,8 +31,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.windowing.RichAllWindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.checkpointing.utils.FailingSource;
 import org.apache.flink.test.checkpointing.utils.IntType;
 import org.apache.flink.test.checkpointing.utils.ValidatingSink;
@@ -89,7 +88,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(PARALLELISM);
             env.enableCheckpointing(100);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
 
             env.addSource(
                             new FailingSource(
@@ -97,7 +96,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                             numKeys, windowSize),
                                     numElementsPerKey))
                     .rebalance()
-                    .windowAll(TumblingEventTimeWindows.of(Time.milliseconds(windowSize)))
+                    .windowAll(TumblingEventTimeWindows.of(Duration.ofMillis(windowSize)))
                     .apply(
                             new RichAllWindowFunction<
                                     Tuple2<Long, IntType>,
@@ -166,7 +165,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(PARALLELISM);
             env.enableCheckpointing(100);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
 
             env.addSource(
                             new FailingSource(
@@ -176,7 +175,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                     .rebalance()
                     .windowAll(
                             SlidingEventTimeWindows.of(
-                                    Time.milliseconds(windowSize), Time.milliseconds(windowSlide)))
+                                    Duration.ofMillis(windowSize), Duration.ofMillis(windowSlide)))
                     .apply(
                             new RichAllWindowFunction<
                                     Tuple2<Long, IntType>,
@@ -244,7 +243,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(PARALLELISM);
             env.enableCheckpointing(100);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
 
             env.addSource(
                             new FailingSource(
@@ -252,7 +251,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                             numKeys, windowSize),
                                     numElementsPerKey))
                     .rebalance()
-                    .windowAll(TumblingEventTimeWindows.of(Time.milliseconds(windowSize)))
+                    .windowAll(TumblingEventTimeWindows.of(Duration.ofMillis(windowSize)))
                     .reduce(
                             new ReduceFunction<Tuple2<Long, IntType>>() {
 
@@ -325,7 +324,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(PARALLELISM);
             env.enableCheckpointing(100);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
 
             env.addSource(
                             new FailingSource(
@@ -335,7 +334,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                     .rebalance()
                     .windowAll(
                             SlidingEventTimeWindows.of(
-                                    Time.milliseconds(windowSize), Time.milliseconds(windowSlide)))
+                                    Duration.ofMillis(windowSize), Duration.ofMillis(windowSlide)))
                     .reduce(
                             new ReduceFunction<Tuple2<Long, IntType>>() {
 

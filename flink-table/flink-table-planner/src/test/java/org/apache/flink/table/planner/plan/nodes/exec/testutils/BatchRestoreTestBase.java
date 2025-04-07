@@ -228,10 +228,9 @@ public abstract class BatchRestoreTestBase implements TableTestProgramRunner {
 
         compiledPlan.execute().await();
         for (SinkTestStep sinkTestStep : program.getSetupSinkTestSteps()) {
-            List<String> expectedResults = getExpectedResults(sinkTestStep, sinkTestStep.name);
-            assertThat(expectedResults)
-                    .containsExactlyInAnyOrder(
-                            sinkTestStep.getExpectedAsStrings().toArray(new String[0]));
+            List<String> actualResults = getActualResults(sinkTestStep, sinkTestStep.name);
+            List<String> expectResults = sinkTestStep.getExpectedMaterializedResultsAsStrings();
+            assertThat(actualResults).containsExactlyInAnyOrderElementsOf(expectResults);
         }
     }
 
@@ -246,7 +245,7 @@ public abstract class BatchRestoreTestBase implements TableTestProgramRunner {
                 System.getProperty("user.dir"), metadata.name(), metadata.version(), program.id);
     }
 
-    private static List<String> getExpectedResults(SinkTestStep sinkTestStep, String tableName) {
+    private static List<String> getActualResults(SinkTestStep sinkTestStep, String tableName) {
         if (sinkTestStep.shouldTestChangelogData()) {
             return TestValuesTableFactory.getRawResultsAsStrings(tableName);
         } else {

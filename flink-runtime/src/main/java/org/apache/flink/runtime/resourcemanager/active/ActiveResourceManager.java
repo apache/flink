@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.resourcemanager.active;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.runtime.blocklist.BlocklistHandler;
@@ -47,7 +46,6 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.util.FlinkExpectedException;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
@@ -163,9 +161,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
                 clusterInformation,
                 fatalErrorHandler,
                 resourceManagerMetricGroup,
-                Time.fromDuration(
-                        Preconditions.checkNotNull(flinkConfig)
-                                .get(RpcOptions.ASK_TIMEOUT_DURATION)),
+                Preconditions.checkNotNull(flinkConfig).get(RpcOptions.ASK_TIMEOUT_DURATION),
                 ioExecutor);
 
         this.flinkConfig = flinkConfig;
@@ -721,7 +717,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
     // ------------------------------------------------------------------------
 
     @VisibleForTesting
-    <T> CompletableFuture<T> runInMainThread(Callable<T> callable, Time timeout) {
-        return callAsync(callable, TimeUtils.toDuration(timeout));
+    <T> CompletableFuture<T> runInMainThread(Callable<T> callable, Duration timeout) {
+        return callAsync(callable, timeout);
     }
 }

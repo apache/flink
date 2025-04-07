@@ -21,6 +21,7 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -35,6 +36,7 @@ import java.util.stream.Collectors;
 @Internal
 public class SortQueryOperation implements QueryOperation {
 
+    private static final String INPUT_ALIAS = "$$T_SORT";
     private final List<ResolvedExpression> order;
     private final QueryOperation child;
     private final int offset;
@@ -89,10 +91,17 @@ public class SortQueryOperation implements QueryOperation {
         final StringBuilder s =
                 new StringBuilder(
                         String.format(
-                                "SELECT %s FROM (%s\n) ORDER BY %s",
-                                OperationUtils.formatSelectColumns(getResolvedSchema()),
+                                "SELECT %s FROM (%s\n) %s ORDER BY %s",
+                                OperationUtils.formatSelectColumns(
+                                        getResolvedSchema(), INPUT_ALIAS),
                                 OperationUtils.indent(child.asSerializableString()),
+                                INPUT_ALIAS,
                                 order.stream()
+                                        .map(
+                                                expr ->
+                                                        OperationExpressionsUtils
+                                                                .scopeReferencesWithAlias(
+                                                                        INPUT_ALIAS, expr))
                                         .map(ResolvedExpression::asSerializableString)
                                         .collect(Collectors.joining(", "))));
 

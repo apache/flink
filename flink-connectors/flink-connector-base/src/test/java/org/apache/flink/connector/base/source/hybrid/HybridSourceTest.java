@@ -25,7 +25,7 @@ import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.connector.base.source.reader.mocks.MockBaseSource;
 import org.apache.flink.connector.base.source.reader.mocks.MockSplitEnumerator;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
@@ -33,10 +33,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link HybridSource}. */
-public class HybridSourceTest {
+class HybridSourceTest {
 
     @Test
-    public void testBoundedness() {
+    void testBoundedness() {
         HybridSource<Integer> source;
 
         source =
@@ -64,7 +64,7 @@ public class HybridSourceTest {
     }
 
     @Test
-    public void testBuilderWithSourceFactory() {
+    void testBuilderWithSourceFactory() {
         HybridSource.SourceFactory<Integer, Source<Integer, ?, ?>, MockSplitEnumerator>
                 sourceFactory =
                         new HybridSource.SourceFactory<
@@ -94,7 +94,7 @@ public class HybridSourceTest {
     }
 
     @Test
-    public void testBuilderWithEnumeratorSuperclass() {
+    void testBuilderWithEnumeratorSuperclass() {
         HybridSource.SourceFactory<Integer, Source<Integer, ?, ?>, MockSplitEnumerator>
                 sourceFactory =
                         (HybridSource.SourceFactory<

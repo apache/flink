@@ -45,7 +45,9 @@ public final class SplitsAssignment<SplitT extends SourceSplit> {
         this.assignment.put(subtask, Collections.singletonList(split));
     }
 
-    /** @return A mapping from subtask ID to their split assignment. */
+    /**
+     * @return A mapping from subtask ID to their split assignment.
+     */
     public Map<Integer, List<SplitT>> assignment() {
         return assignment;
     }

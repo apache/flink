@@ -17,23 +17,21 @@
  */
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase
-import org.apache.flink.api.scala.createTuple2TypeInformation
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{createTuple2TypeInformation, TableException}
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.data.util.RowDataUtil
+import org.apache.flink.table.legacy.sinks.TableSink
 import org.apache.flink.table.planner.codegen.CodeGenUtils.genToExternalConverterWithLegacy
 import org.apache.flink.table.planner.codegen.GeneratedExpression.NO_CODE
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.{generateCollect, generateCollectWithTimestamp}
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
-import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.RowType
 

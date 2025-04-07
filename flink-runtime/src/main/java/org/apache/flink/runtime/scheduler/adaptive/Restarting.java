@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.util.Preconditions;
 
@@ -32,6 +33,7 @@ import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 
@@ -42,7 +44,9 @@ class Restarting extends StateWithExecutionGraph {
 
     private final Duration backoffTime;
 
-    @Nullable private ScheduledFuture<?> goToWaitingForResourcesFuture;
+    @Nullable private ScheduledFuture<?> goToSubsequentStateFuture;
+
+    private final @Nullable VertexParallelism restartWithParallelism;
 
     Restarting(
             Context context,
@@ -51,6 +55,7 @@ class Restarting extends StateWithExecutionGraph {
             OperatorCoordinatorHandler operatorCoordinatorHandler,
             Logger logger,
             Duration backoffTime,
+            @Nullable VertexParallelism restartWithParallelism,
             ClassLoader userCodeClassLoader,
             List<ExceptionHistoryEntry> failureCollection) {
         super(
@@ -63,14 +68,15 @@ class Restarting extends StateWithExecutionGraph {
                 failureCollection);
         this.context = context;
         this.backoffTime = backoffTime;
+        this.restartWithParallelism = restartWithParallelism;
 
         getExecutionGraph().cancel();
     }
 
     @Override
     public void onLeave(Class<? extends State> newState) {
-        if (goToWaitingForResourcesFuture != null) {
-            goToWaitingForResourcesFuture.cancel(false);
+        if (goToSubsequentStateFuture != null) {
+            goToSubsequentStateFuture.cancel(false);
         }
 
         super.onLeave(newState);
@@ -103,18 +109,42 @@ class Restarting extends StateWithExecutionGraph {
     @Override
     void onGloballyTerminalState(JobStatus globallyTerminalState) {
         Preconditions.checkArgument(globallyTerminalState == JobStatus.CANCELED);
-        goToWaitingForResourcesFuture =
-                context.runIfState(
-                        this,
-                        () -> context.goToWaitingForResources(getExecutionGraph()),
-                        backoffTime);
+        goToSubsequentStateFuture =
+                context.runIfState(this, this::goToSubsequentState, backoffTime);
+    }
+
+    private void goToSubsequentState() {
+        if (availableParallelismNotChanged(restartWithParallelism)) {
+            context.goToCreatingExecutionGraph(getExecutionGraph());
+        } else {
+            context.goToWaitingForResources(getExecutionGraph());
+        }
+    }
+
+    private boolean availableParallelismNotChanged(VertexParallelism restartWithParallelism) {
+        if (this.restartWithParallelism == null) {
+            return false;
+        }
+
+        return context.getAvailableVertexParallelism()
+                .map(
+                        vertexParallelism ->
+                                vertexParallelism.getVertices().stream()
+                                        .allMatch(
+                                                vertex ->
+                                                        restartWithParallelism.getParallelism(
+                                                                        vertex)
+                                                                == vertexParallelism.getParallelism(
+                                                                        vertex)))
+                .orElse(false);
     }
 
     /** Context of the {@link Restarting} state. */
     interface Context
             extends StateWithExecutionGraph.Context,
                     StateTransitions.ToCancelling,
-                    StateTransitions.ToWaitingForResources {
+                    StateTransitions.ToWaitingForResources,
+                    StateTransitions.ToCreatingExecutionGraph {
 
         /**
          * Runs the given action after the specified delay if the state is the expected state at
@@ -127,6 +157,12 @@ class Restarting extends StateWithExecutionGraph {
          * @return a ScheduledFuture representing pending completion of the task
          */
         ScheduledFuture<?> runIfState(State expectedState, Runnable action, Duration delay);
+
+        /**
+         * Returns the {@link VertexParallelism} that can be provided by the currently available
+         * slots.
+         */
+        Optional<VertexParallelism> getAvailableVertexParallelism();
     }
 
     static class Factory implements StateFactory<Restarting> {
@@ -137,6 +173,7 @@ class Restarting extends StateWithExecutionGraph {
         private final ExecutionGraphHandler executionGraphHandler;
         private final OperatorCoordinatorHandler operatorCoordinatorHandler;
         private final Duration backoffTime;
+        private final @Nullable VertexParallelism restartWithParallelism;
         private final ClassLoader userCodeClassLoader;
         private final List<ExceptionHistoryEntry> failureCollection;
 
@@ -147,6 +184,7 @@ class Restarting extends StateWithExecutionGraph {
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
                 Logger log,
                 Duration backoffTime,
+                @Nullable VertexParallelism restartWithParallelism,
                 ClassLoader userCodeClassLoader,
                 List<ExceptionHistoryEntry> failureCollection) {
             this.context = context;
@@ -155,6 +193,7 @@ class Restarting extends StateWithExecutionGraph {
             this.executionGraphHandler = executionGraphHandler;
             this.operatorCoordinatorHandler = operatorCoordinatorHandler;
             this.backoffTime = backoffTime;
+            this.restartWithParallelism = restartWithParallelism;
             this.userCodeClassLoader = userCodeClassLoader;
             this.failureCollection = failureCollection;
         }
@@ -171,6 +210,7 @@ class Restarting extends StateWithExecutionGraph {
                     operatorCoordinatorHandler,
                     log,
                     backoffTime,
+                    restartWithParallelism,
                     userCodeClassLoader,
                     failureCollection);
         }

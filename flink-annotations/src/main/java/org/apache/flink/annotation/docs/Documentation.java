@@ -77,6 +77,7 @@ public final class Documentation {
         public static final String SECURITY_AUTH_ZOOKEEPER = "security_auth_zk";
 
         public static final String STATE_BACKEND_ROCKSDB = "state_backend_rocksdb";
+        public static final String STATE_BACKEND_FORST = "state_backend_forst";
 
         public static final String STATE_LATENCY_TRACKING = "state_latency_tracking";
 
@@ -95,6 +96,7 @@ public final class Documentation {
                 "expert_high_availability_k8s";
         public static final String EXPERT_SECURITY_SSL = "expert_security_ssl";
         public static final String EXPERT_ROCKSDB = "expert_rocksdb";
+        public static final String EXPERT_FORST = "expert_forst";
         public static final String EXPERT_CLUSTER = "expert_cluster";
         public static final String EXPERT_JOB_MANAGER = "expert_jobmanager";
 
@@ -107,6 +109,8 @@ public final class Documentation {
         public static final String METRIC_REPORTERS = "metric_reporters";
 
         public static final String TRACE_REPORTERS = "trace_reporters";
+
+        public static final String EVENT_REPORTERS = "event_reporters";
 
         public static final String CHECKPOINT_FILE_MERGING = "checkpoint_file_merging";
 

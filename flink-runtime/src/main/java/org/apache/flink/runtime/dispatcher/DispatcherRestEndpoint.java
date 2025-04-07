@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.dispatcher;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.TransientBlobService;
@@ -41,6 +40,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -88,7 +88,7 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
 
         // Add the Dispatcher specific handlers
 
-        final Time timeout = restConfiguration.getTimeout();
+        final Duration timeout = restConfiguration.getTimeout();
 
         JobSubmitHandler jobSubmitHandler =
                 new JobSubmitHandler(
@@ -104,7 +104,7 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
             initializeWebSubmissionHandlers(CompletableFuture<String> localAddressFuture) {
         if (restConfiguration.isWebSubmitEnabled()) {
             try {
-                final Time timeout = restConfiguration.getTimeout();
+                final Duration timeout = restConfiguration.getTimeout();
 
                 webSubmissionExtension =
                         WebMonitorUtils.loadWebSubmissionExtension(

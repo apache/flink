@@ -21,7 +21,6 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
@@ -63,6 +62,7 @@ import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -140,7 +140,7 @@ public class Execution
      */
     private final long[] stateEndTimestamps;
 
-    private final Time rpcTimeout;
+    private final Duration rpcTimeout;
 
     private final Collection<PartitionInfo> partitionInfos;
 
@@ -206,7 +206,7 @@ public class Execution
             ExecutionVertex vertex,
             int attemptNumber,
             long startTimestamp,
-            Time rpcTimeout) {
+            Duration rpcTimeout) {
 
         this.executor = checkNotNull(executor);
         this.vertex = checkNotNull(vertex);

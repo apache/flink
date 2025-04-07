@@ -38,21 +38,19 @@ def to_jarray(j_type, arr):
     return j_arr
 
 
-def to_j_flink_time(time_delta):
+def to_j_duration(time_delta):
     gateway = get_gateway()
-    TimeUnit = gateway.jvm.java.util.concurrent.TimeUnit
-    Time = gateway.jvm.org.apache.flink.api.common.time.Time
+    Duration = gateway.jvm.java.time.Duration
     if isinstance(time_delta, timedelta):
-        total_microseconds = round(time_delta.total_seconds() * 1000 * 1000)
-        return Time.of(total_microseconds, TimeUnit.MICROSECONDS)
+        total_milliseconds = round(time_delta.total_seconds() * 1000)
     else:
-        # time delta in milliseconds
         total_milliseconds = time_delta
-        return Time.milliseconds(total_milliseconds)
+
+    return Duration.ofMillis(total_milliseconds)
 
 
-def from_j_flink_time(j_flink_time):
-    total_milliseconds = j_flink_time.toMilliseconds()
+def from_j_duration(j_duration):
+    total_milliseconds = j_duration.toMillis()
     return timedelta(milliseconds=total_milliseconds)
 
 

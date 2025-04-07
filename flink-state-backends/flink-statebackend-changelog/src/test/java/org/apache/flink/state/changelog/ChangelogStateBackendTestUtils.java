@@ -19,6 +19,7 @@
 package org.apache.flink.state.changelog;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -275,8 +276,7 @@ public class ChangelogStateBackendTestUtils {
 
             // ============================ restore snapshot ===============================
 
-            env.getExecutionConfig()
-                    .getSerializerConfig()
+            ((SerializerConfigImpl) env.getExecutionConfig().getSerializerConfig())
                     .registerKryoType(StateBackendTestBase.TestPojo.class);
 
             keyedBackend =

@@ -34,7 +34,7 @@ import org.apache.flink.table.types.logical.RowType;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for adaptive {@link LongHashJoinGenerator}. */
-public class LongAdaptiveHashJoinGeneratorTest extends Int2AdaptiveHashJoinOperatorTest {
+class LongAdaptiveHashJoinGeneratorTest extends Int2AdaptiveHashJoinOperatorTest {
 
     @Override
     public Object newOperator(
@@ -47,19 +47,19 @@ public class LongAdaptiveHashJoinGeneratorTest extends Int2AdaptiveHashJoinOpera
     }
 
     @Override
-    public void testBuildLeftAntiJoinFallbackToSMJ() {}
+    protected void testBuildLeftAntiJoinFallbackToSMJ() {}
 
     @Override
-    public void testBuildLeftSemiJoinFallbackToSMJ() {}
+    protected void testBuildLeftSemiJoinFallbackToSMJ() {}
 
     @Override
-    public void testBuildFirstHashLeftOutJoinFallbackToSMJ() {}
+    protected void testBuildFirstHashLeftOutJoinFallbackToSMJ() {}
 
     @Override
-    public void testBuildSecondHashRightOutJoinFallbackToSMJ() {}
+    protected void testBuildSecondHashRightOutJoinFallbackToSMJ() {}
 
     @Override
-    public void testBuildFirstHashFullOutJoinFallbackToSMJ() {}
+    protected void testBuildFirstHashFullOutJoinFallbackToSMJ() {}
 
     static Object getLongHashJoinOperator(
             FlinkJoinType flinkJoinType,

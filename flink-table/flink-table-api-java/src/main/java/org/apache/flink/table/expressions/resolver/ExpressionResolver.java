@@ -367,7 +367,7 @@ public class ExpressionResolver {
                 overWindow.getAlias(),
                 prepareExpressions(overWindow.getPartitioning()),
                 resolveFieldsInSingleExpression(overWindow.getOrder()),
-                resolveFieldsInSingleExpression(overWindow.getPreceding()),
+                overWindow.getPreceding().map(this::resolveFieldsInSingleExpression).orElse(null),
                 overWindow.getFollowing().map(this::resolveFieldsInSingleExpression).orElse(null));
     }
 

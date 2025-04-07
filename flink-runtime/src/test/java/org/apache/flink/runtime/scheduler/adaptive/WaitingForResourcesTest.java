@@ -20,7 +20,6 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.core.testutils.ScheduledTask;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.ManualClock;
 
 import org.junit.jupiter.api.Test;
@@ -38,7 +37,9 @@ import java.util.Queue;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -49,162 +50,154 @@ class WaitingForResourcesTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(WaitingForResourcesTest.class);
 
-    private static final Duration STABILIZATION_TIMEOUT = Duration.ofSeconds(1);
+    private static final Duration DISABLED_RESOURCE_WAIT_TIMEOUT = Duration.ofSeconds(-1);
 
     @RegisterExtension private MockContext ctx = new MockContext();
 
     /** WaitingForResources is transitioning to Executing if there are enough resources. */
     @Test
     void testTransitionToCreatingExecutionGraph() {
-        ctx.setHasDesiredResources(() -> true);
+        final AtomicBoolean onTriggerCalled = new AtomicBoolean();
+        final Function<StateTransitionManager.Context, StateTransitionManager>
+                stateTransitionManagerFactory =
+                        context ->
+                                new TestingStateTransitionManager(
+                                        () -> {
+                                            assertThat(context.hasDesiredResources()).isTrue();
+                                            assertThat(context.hasSufficientResources()).isTrue();
 
+                                            context.transitionToSubsequentState();
+                                        },
+                                        () -> onTriggerCalled.set(true));
+
+        ctx.setHasDesiredResources(() -> true);
+        ctx.setHasSufficientResources(() -> true);
         ctx.setExpectCreatingExecutionGraph();
 
-        new WaitingForResources(ctx, LOG, Duration.ZERO, STABILIZATION_TIMEOUT);
+        new WaitingForResources(
+                ctx, LOG, DISABLED_RESOURCE_WAIT_TIMEOUT, stateTransitionManagerFactory);
 
         ctx.runScheduledTasks();
+
+        assertThat(onTriggerCalled.get()).isTrue();
     }
 
     @Test
     void testNotEnoughResources() {
-        ctx.setHasDesiredResources(() -> false);
-        WaitingForResources wfr =
-                new WaitingForResources(ctx, LOG, Duration.ZERO, STABILIZATION_TIMEOUT);
+        final AtomicBoolean onChangeCalled = new AtomicBoolean();
+        final AtomicBoolean onTriggerCalled = new AtomicBoolean();
+        final Function<StateTransitionManager.Context, StateTransitionManager>
+                stateTransitionManagerFactory =
+                        context ->
+                                new TestingStateTransitionManager(
+                                        () -> {
+                                            onChangeCalled.set(true);
 
+                                            assertThat(context.hasDesiredResources()).isFalse();
+                                            assertThat(context.hasSufficientResources()).isFalse();
+                                        },
+                                        () -> onTriggerCalled.set(true));
+
+        ctx.setHasDesiredResources(() -> false);
+        ctx.setHasSufficientResources(() -> false);
+        WaitingForResources wfr =
+                new WaitingForResources(
+                        ctx, LOG, DISABLED_RESOURCE_WAIT_TIMEOUT, stateTransitionManagerFactory);
+
+        ctx.runScheduledTasks();
         // we expect no state transition.
-        wfr.onNewResourcesAvailable();
+        assertThat(ctx.hasStateTransition()).isFalse();
+        assertThat(onChangeCalled.get()).isTrue();
+        assertThat(onTriggerCalled.get()).isTrue();
     }
 
     @Test
     void testNotifyNewResourcesAvailable() {
-        ctx.setHasDesiredResources(() -> false); // initially, not enough resources
+        final AtomicInteger callsCounter = new AtomicInteger();
+        final Function<StateTransitionManager.Context, StateTransitionManager>
+                stateTransitionManagerFactory =
+                        context ->
+                                TestingStateTransitionManager.withOnChangeEventOnly(
+                                        () -> {
+                                            if (callsCounter.incrementAndGet() == 0) {
+                                                // initially, not enough resources
+                                                assertThat(context.hasDesiredResources()).isFalse();
+                                                assertThat(context.hasSufficientResources())
+                                                        .isFalse();
+                                            }
+
+                                            if (context.hasDesiredResources()
+                                                    && context.hasSufficientResources()) {
+                                                context.transitionToSubsequentState();
+                                            }
+                                        });
+
+        // initially, not enough resources
+        ctx.setHasDesiredResources(() -> false);
+        ctx.setHasSufficientResources(() -> false);
+
         WaitingForResources wfr =
-                new WaitingForResources(ctx, LOG, Duration.ZERO, STABILIZATION_TIMEOUT);
-        ctx.setHasDesiredResources(() -> true); // make resources available
+                new WaitingForResources(
+                        ctx, LOG, DISABLED_RESOURCE_WAIT_TIMEOUT, stateTransitionManagerFactory);
+        ctx.runScheduledTasks();
+
+        // make resources available
+        ctx.setHasDesiredResources(() -> true);
+        ctx.setHasSufficientResources(() -> true);
         ctx.setExpectCreatingExecutionGraph();
         wfr.onNewResourcesAvailable(); // .. and notify
     }
 
     @Test
-    void testSchedulingWithSufficientResourcesAndNoStabilizationTimeout() {
-        Duration noStabilizationTimeout = Duration.ofMillis(0);
-        WaitingForResources wfr =
-                new WaitingForResources(ctx, LOG, Duration.ofSeconds(1000), noStabilizationTimeout);
-
-        ctx.setHasDesiredResources(() -> false);
-        ctx.setHasSufficientResources(() -> true);
-        ctx.setExpectCreatingExecutionGraph();
-        wfr.onNewResourcesAvailable();
-    }
-
-    @Test
-    void testNoSchedulingIfStabilizationTimeoutIsConfigured() {
-        Duration stabilizationTimeout = Duration.ofMillis(50000);
-
-        WaitingForResources wfr =
-                new WaitingForResources(ctx, LOG, Duration.ofSeconds(1000), stabilizationTimeout);
-
-        ctx.setHasDesiredResources(() -> false);
-        ctx.setHasSufficientResources(() -> true);
-        wfr.onNewResourcesAvailable();
-        // we are not triggering the scheduled tasks, to simulate a long stabilization timeout
-
-        assertThat(ctx.hasStateTransition()).isFalse();
-    }
-
-    @Test
-    void testSchedulingWithSufficientResourcesAfterStabilizationTimeout() {
-        Duration initialResourceTimeout = Duration.ofMillis(-1);
-        Duration stabilizationTimeout = Duration.ofMillis(50_000L);
-
+    void testSchedulingWithSufficientResources() {
+        final Function<StateTransitionManager.Context, StateTransitionManager>
+                stateTransitionManagerFactory =
+                        context ->
+                                TestingStateTransitionManager.withOnChangeEventOnly(
+                                        () -> {
+                                            assertThat(context.hasDesiredResources()).isFalse();
+                                            if (context.hasSufficientResources()) {
+                                                context.transitionToSubsequentState();
+                                            }
+                                        });
         WaitingForResources wfr =
                 new WaitingForResources(
-                        ctx,
-                        LOG,
-                        initialResourceTimeout,
-                        stabilizationTimeout,
-                        ctx.getClock(),
-                        null);
-        // sufficient resources available
-        ctx.setHasDesiredResources(() -> false);
-        ctx.setHasSufficientResources(() -> true);
-
-        // notify about sufficient resources
-        wfr.onNewResourcesAvailable();
-
-        ctx.setExpectCreatingExecutionGraph();
-
-        // execute all runnables and trigger expected state transition
-        final Duration afterStabilizationTimeout = stabilizationTimeout.plusMillis(1);
-        ctx.advanceTimeByMillis(afterStabilizationTimeout.toMillis());
-
-        ctx.runScheduledTasks(afterStabilizationTimeout.toMillis());
-
-        assertThat(ctx.hasStateTransition()).isTrue();
-    }
-
-    @Test
-    void testStabilizationTimeoutReset() {
-        Duration initialResourceTimeout = Duration.ofMillis(-1);
-        Duration stabilizationTimeout = Duration.ofMillis(50L);
-
-        WaitingForResources wfr =
-                new WaitingForResources(
-                        ctx,
-                        LOG,
-                        initialResourceTimeout,
-                        stabilizationTimeout,
-                        ctx.getClock(),
-                        null);
-
-        ctx.setHasDesiredResources(() -> false);
-
-        // notify about resources, trigger stabilization timeout
-        ctx.setHasSufficientResources(() -> true);
-        ctx.advanceTimeByMillis(40); // advance time, but don't trigger stabilizationTimeout
-        wfr.onNewResourcesAvailable();
-
-        // notify again, but insufficient (reset stabilization timeout)
-        ctx.setHasSufficientResources(() -> false);
-        ctx.advanceTimeByMillis(40);
-        wfr.onNewResourcesAvailable();
-
-        // notify again, but sufficient, trigger timeout
-        ctx.setHasSufficientResources(() -> true);
-        ctx.advanceTimeByMillis(40);
-        wfr.onNewResourcesAvailable();
-
-        // sanity check: no state transition has been triggered so far
-        assertThat(ctx.hasStateTransition()).isFalse();
-        assertThat(ctx.getTestDuration()).isGreaterThan(stabilizationTimeout);
-
-        ctx.setExpectCreatingExecutionGraph();
-
-        ctx.advanceTimeByMillis(1);
+                        ctx, LOG, DISABLED_RESOURCE_WAIT_TIMEOUT, stateTransitionManagerFactory);
+        ctx.runScheduledTasks();
+        // we expect no state transition.
         assertThat(ctx.hasStateTransition()).isFalse();
 
-        ctx.advanceTimeByMillis(stabilizationTimeout.toMillis());
-        assertThat(ctx.hasStateTransition()).isTrue();
+        ctx.setHasDesiredResources(() -> false);
+        ctx.setHasSufficientResources(() -> true);
+        ctx.setExpectCreatingExecutionGraph();
+        wfr.onNewResourcesAvailable();
     }
 
     @Test
     void testNoStateTransitionOnNoResourceTimeout() {
         ctx.setHasDesiredResources(() -> false);
-        WaitingForResources wfr =
-                new WaitingForResources(ctx, LOG, Duration.ofMillis(-1), STABILIZATION_TIMEOUT);
+        ctx.setHasSufficientResources(() -> false);
 
+        WaitingForResources wfr =
+                new WaitingForResources(
+                        ctx,
+                        LOG,
+                        DISABLED_RESOURCE_WAIT_TIMEOUT,
+                        context -> TestingStateTransitionManager.withNoOp());
         ctx.runScheduledTasks();
+
         assertThat(ctx.hasStateTransition()).isFalse();
     }
 
     @Test
     void testStateTransitionOnResourceTimeout() {
-        ctx.setHasDesiredResources(() -> false);
         WaitingForResources wfr =
-                new WaitingForResources(ctx, LOG, Duration.ZERO, STABILIZATION_TIMEOUT);
-
+                new WaitingForResources(
+                        ctx,
+                        LOG,
+                        Duration.ZERO,
+                        context -> TestingStateTransitionManager.withNoOp());
         ctx.setExpectCreatingExecutionGraph();
-
         ctx.runScheduledTasks();
     }
 
@@ -227,13 +220,15 @@ class WaitingForResourcesTest {
                 };
 
         ctx.runIfState(
-                new AdaptiveSchedulerTest.DummyState(),
+                new AdaptiveSchedulerTest.DummyState(ctx),
                 runLastBecauseOfHighDelay,
                 Duration.ofMillis(999));
         ctx.runIfState(
-                new AdaptiveSchedulerTest.DummyState(), runFirstBecauseOfLowDelay, Duration.ZERO);
+                new AdaptiveSchedulerTest.DummyState(ctx),
+                runFirstBecauseOfLowDelay,
+                Duration.ZERO);
         ctx.runIfState(
-                new AdaptiveSchedulerTest.DummyState(),
+                new AdaptiveSchedulerTest.DummyState(ctx),
                 runSecondBecauseOfScheduleOrder,
                 Duration.ZERO);
 
@@ -251,7 +246,7 @@ class WaitingForResourcesTest {
                     executed.set(true);
                 };
 
-        ctx.runIfState(new AdaptiveSchedulerTest.DummyState(), executeOnce, Duration.ZERO);
+        ctx.runIfState(new AdaptiveSchedulerTest.DummyState(ctx), executeOnce, Duration.ZERO);
 
         // execute at least twice
         ctx.runScheduledTasks();
@@ -263,14 +258,15 @@ class WaitingForResourcesTest {
     void testInternalRunScheduledTasks_upperBoundRespected() {
         Runnable executeNever = () -> fail("Not expected");
 
-        ctx.runIfState(new AdaptiveSchedulerTest.DummyState(), executeNever, Duration.ofMillis(10));
+        ctx.runIfState(
+                new AdaptiveSchedulerTest.DummyState(ctx), executeNever, Duration.ofMillis(10));
 
         ctx.runScheduledTasks(4);
     }
 
     @Test
     void testInternalRunScheduledTasks_scheduleTaskFromRunnable() {
-        final State state = new AdaptiveSchedulerTest.DummyState();
+        final State state = new AdaptiveSchedulerTest.DummyState(ctx);
 
         AtomicBoolean executed = new AtomicBoolean(false);
         ctx.runIfState(
@@ -301,10 +297,7 @@ class WaitingForResourcesTest {
                 new PriorityQueue<>(
                         Comparator.comparingLong(o -> o.getDelay(TimeUnit.MILLISECONDS)));
 
-        private final ManualTestTime testTime =
-                new ManualTestTime(
-                        (durationSinceTestStart) ->
-                                runScheduledTasks(durationSinceTestStart.toMillis()));
+        private final ManualClock testingClock = new ManualClock();
 
         public void setHasDesiredResources(Supplier<Boolean> sup) {
             hasDesiredResourcesSupplier = sup;
@@ -361,7 +354,7 @@ class WaitingForResourcesTest {
             LOG.info(
                     "Scheduling work with delay {} for earliest execution at {}",
                     delay.toMillis(),
-                    testTime.getClock().absoluteTimeMillis() + delay.toMillis());
+                    testingClock.absoluteTimeMillis() + delay.toMillis());
             final ScheduledTask<Void> scheduledTask =
                     new ScheduledTask<>(
                             () -> {
@@ -371,7 +364,7 @@ class WaitingForResourcesTest {
 
                                 return null;
                             },
-                            testTime.getClock().absoluteTimeMillis() + delay.toMillis());
+                            testingClock.absoluteTimeMillis() + delay.toMillis());
 
             scheduledTasks.add(scheduledTask);
 
@@ -382,51 +375,6 @@ class WaitingForResourcesTest {
         public void goToCreatingExecutionGraph(@Nullable ExecutionGraph previousExecutionGraph) {
             creatingExecutionGraphStateValidator.validateInput(null);
             registerStateTransition();
-        }
-
-        public Clock getClock() {
-            return testTime.getClock();
-        }
-
-        public void advanceTimeByMillis(long millis) {
-            testTime.advanceMillis(millis);
-        }
-
-        public Duration getTestDuration() {
-            return testTime.getTestDuration();
-        }
-    }
-
-    private static final class ManualTestTime {
-        private static final Logger LOG = LoggerFactory.getLogger(ManualTestTime.class);
-
-        private final ManualClock testingClock = new ManualClock();
-        private final Consumer<Duration> runOnAdvance;
-
-        private Duration durationSinceTestStart = Duration.ZERO;
-
-        private ManualTestTime(Consumer<Duration> runOnAdvance) {
-            this.runOnAdvance = runOnAdvance;
-        }
-
-        private Clock getClock() {
-            return testingClock;
-        }
-
-        public void advanceMillis(long millis) {
-            durationSinceTestStart = durationSinceTestStart.plusMillis(millis);
-
-            LOG.info(
-                    "Advance testing time by {} ms to time {} ms",
-                    millis,
-                    durationSinceTestStart.toMillis());
-
-            testingClock.advanceTime(millis, TimeUnit.MILLISECONDS);
-            runOnAdvance.accept(durationSinceTestStart);
-        }
-
-        public Duration getTestDuration() {
-            return durationSinceTestStart;
         }
     }
 

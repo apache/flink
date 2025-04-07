@@ -19,12 +19,12 @@ package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.connector.source.LookupTableSource
+import org.apache.flink.table.legacy.sources.LookupableTableSource
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.isRowtimeIndicatorType
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalLegacyTableSourceScan, FlinkLogicalTableSourceScan}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalLookupJoin, StreamPhysicalTemporalJoin}
 import org.apache.flink.table.planner.plan.schema.{LegacyTableSourceTable, TableSourceTable, TimeIndicatorRelDataType}
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil
-import org.apache.flink.table.sources.LookupableTableSource
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand, RelOptUtil}
 import org.apache.calcite.plan.RelOptRule.{any, operand}

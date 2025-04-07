@@ -18,7 +18,7 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.ParallelSourceFunction;
 
 /** Parallel data source that produces no data, i.e., finishes immediately. */
 public class NoDataSource implements ParallelSourceFunction<Integer> {

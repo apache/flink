@@ -35,7 +35,7 @@ import org.apache.flink.connector.testutils.source.reader.TestingReaderOutput;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.mock.Whitebox;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.util.Collections;
@@ -46,10 +46,10 @@ import java.util.function.Supplier;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link HybridSourceReader}. */
-public class HybridSourceReaderTest {
+class HybridSourceReaderTest {
 
     @Test
-    public void testReader() throws Exception {
+    void testReader() throws Exception {
         TestingReaderContext readerContext = new TestingReaderContext();
         TestingReaderOutput<Integer> readerOutput = new TestingReaderOutput<>();
         MockBaseSource source = new MockBaseSource(1, 1, Boundedness.BOUNDED);
@@ -128,7 +128,7 @@ public class HybridSourceReaderTest {
     }
 
     @Test
-    public void testAvailabilityFutureSwitchover() throws Exception {
+    void testAvailabilityFutureSwitchover() throws Exception {
         TestingReaderContext readerContext = new TestingReaderContext();
         TestingReaderOutput<Integer> readerOutput = new TestingReaderOutput<>();
         MockBaseSource source = new MockBaseSource(1, 1, Boundedness.BOUNDED);
@@ -242,7 +242,7 @@ public class HybridSourceReaderTest {
     }
 
     @Test
-    public void testReaderRecovery() throws Exception {
+    void testReaderRecovery() throws Exception {
         TestingReaderContext readerContext = new TestingReaderContext();
         TestingReaderOutput<Integer> readerOutput = new TestingReaderOutput<>();
         MockBaseSource source = new MockBaseSource(1, 1, Boundedness.BOUNDED);
@@ -282,7 +282,7 @@ public class HybridSourceReaderTest {
     }
 
     @Test
-    public void testDefaultMethodDelegation() throws Exception {
+    void testDefaultMethodDelegation() throws Exception {
         TestingReaderContext readerContext = new TestingReaderContext();
         TestingReaderOutput<Integer> readerOutput = new TestingReaderOutput<>();
         MockBaseSource source =

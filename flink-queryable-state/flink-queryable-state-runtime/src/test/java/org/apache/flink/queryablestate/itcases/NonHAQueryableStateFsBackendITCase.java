@@ -25,9 +25,10 @@ import org.apache.flink.configuration.QueryableStateOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.queryablestate.client.QueryableStateClient;
-import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
+import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 
@@ -38,7 +39,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
 
-/** Several integration tests for queryable state using the {@link FsStateBackend}. */
+/** Several integration tests for queryable state. */
 public class NonHAQueryableStateFsBackendITCase extends AbstractQueryableStateTestBase {
 
     // NUM_TMS * NUM_SLOTS_PER_TM must match the parallelism of the pipelines so that
@@ -63,8 +64,12 @@ public class NonHAQueryableStateFsBackendITCase extends AbstractQueryableStateTe
                                     .build());
 
     @Override
-    protected StateBackend createStateBackend() throws Exception {
-        return new FsStateBackend(tmpStateBackendDir.toUri().toString());
+    protected StreamExecutionEnvironment createEnv() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StateBackendUtils.configureHashMapStateBackend(env);
+        CheckpointStorageUtils.configureFileSystemCheckpointStorage(
+                env, tmpStateBackendDir.toUri().toString());
+        return env;
     }
 
     @BeforeAll

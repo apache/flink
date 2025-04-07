@@ -16,13 +16,13 @@
 # limitations under the License.
 ################################################################################
 import json
+import unittest
 from typing import Dict
 
 import pyflink.datastream.data_stream as data_stream
 from pyflink.common import typeinfo
-
 from pyflink.common.configuration import Configuration
-from pyflink.common.serialization import SimpleStringSchema, DeserializationSchema
+from pyflink.common.serialization import SimpleStringSchema, ByteArraySchema, DeserializationSchema
 from pyflink.common.typeinfo import Types
 from pyflink.common.types import Row
 from pyflink.common.watermark_strategy import WatermarkStrategy
@@ -43,8 +43,10 @@ from pyflink.testing.test_case_utils import (
 from pyflink.util.java_utils import to_jarray, is_instance_of, get_field_value
 
 
+@unittest.skip("Disable due to Kafka connector need to release a new version 2.0")
 class KafkaSourceTests(PyFlinkStreamingTestCase):
 
+    @unittest.skip("Disabled due to cyclic dependencies: Should be removed with Flink 2.0")
     def test_legacy_kafka_connector(self):
         source_topic = 'test_source_topic'
         sink_topic = 'test_sink_topic'
@@ -315,6 +317,7 @@ class KafkaSourceTests(PyFlinkStreamingTestCase):
                              class_name)
 
         _check(SimpleStringSchema(), 'org.apache.flink.api.common.serialization.SimpleStringSchema')
+        _check(ByteArraySchema(), 'org.apache.flink.api.common.serialization.ByteArraySchema')
         _check(
             JsonRowDeserializationSchema.builder().type_info(Types.ROW([Types.STRING()])).build(),
             'org.apache.flink.formats.json.JsonRowDeserializationSchema'
@@ -419,6 +422,7 @@ class KafkaSourceTests(PyFlinkStreamingTestCase):
         return Configuration(j_configuration=j_configuration)
 
 
+@unittest.skip("Disable due to Kafka connector need to release a new version 2.0")
 class KafkaSinkTests(PyFlinkStreamingTestCase):
 
     def test_compile(self):
@@ -508,6 +512,7 @@ class KafkaSinkTests(PyFlinkStreamingTestCase):
             .build()
 
 
+@unittest.skip("Disable due to Kafka connector need to release a new version 2.0")
 class KafkaRecordSerializationSchemaTests(PyFlinkTestCase):
 
     def test_set_topic(self):
@@ -531,6 +536,7 @@ class KafkaRecordSerializationSchemaTests(PyFlinkTestCase):
         self.assertIsNone(j_record.key())
         self.assertEqual(j_record.value(), b'{"f0":"test"}')
 
+    @unittest.skip("Disable due to Kafka connector need to release a new version 2.0")
     def test_set_topic_selector(self):
         def _select(data):
             data = data[0]
@@ -628,6 +634,10 @@ class KafkaRecordSerializationSchemaTests(PyFlinkTestCase):
         check_function(
             SimpleStringSchema(),
             'org.apache.flink.api.common.serialization.SimpleStringSchema'
+        )
+        check_function(
+            ByteArraySchema(),
+            'org.apache.flink.api.common.serialization.ByteArraySchema'
         )
 
 

@@ -19,7 +19,7 @@
 
 source "$(dirname "$0")"/common_kubernetes.sh
 
-export FLINK_JOB=org.apache.flink.examples.java.wordcount.WordCount
+export FLINK_JOB=org.apache.flink.streaming.examples.wordcount.WordCount
 export FLINK_IMAGE_NAME=test_kubernetes_embedded_job
 export OUTPUT_VOLUME=${TEST_DATA_DIR}/out
 export OUTPUT_FILE=kubernetes_wc_out
@@ -44,7 +44,7 @@ if ! retry_times $IMAGE_BUILD_RETRIES $IMAGE_BUILD_BACKOFF "build_image ${FLINK_
     exit 1
 fi
 
-export USER_LIB=${FLINK_DIR}/examples/batch
+export USER_LIB=${FLINK_DIR}/examples/streaming
 kubectl create -f ${CONTAINER_SCRIPTS}/job-cluster-service.yaml
 envsubst '${FLINK_IMAGE_NAME} ${FLINK_JOB} ${FLINK_JOB_PARALLELISM} ${FLINK_JOB_ARGUMENTS} ${USER_LIB}' < ${CONTAINER_SCRIPTS}/job-cluster-job.yaml.template | kubectl create -f -
 envsubst '${FLINK_IMAGE_NAME} ${FLINK_JOB_PARALLELISM} ${USER_LIB}' < ${CONTAINER_SCRIPTS}/task-manager-deployment.yaml.template | kubectl create -f -

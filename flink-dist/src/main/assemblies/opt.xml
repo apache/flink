@@ -29,13 +29,6 @@
 	<baseDirectory>flink-${project.version}</baseDirectory>
 
 	<files>
-		<!-- CEP -->
-		<file>
-			<source>../flink-libraries/flink-cep-scala/target/flink-cep-scala_${scala.binary.version}-${project.version}.jar</source>
-			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-cep-scala_${scala.binary.version}-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
 
 		<!-- Table/SQL dependencies -->
 		<file>

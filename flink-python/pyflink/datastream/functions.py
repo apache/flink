@@ -645,8 +645,7 @@ class ProcessFunction(Function):
             """
             Timestamp of the element currently being processed or timestamp of a firing timer.
 
-            This might be None, for example if the time characteristic of your program is set to
-            TimeCharacteristic.ProcessTime.
+            This might be None, depending on the stream's watermark strategy.
             """
             pass
 
@@ -697,8 +696,7 @@ class KeyedProcessFunction(Function):
             """
             Timestamp of the element currently being processed or timestamp of a firing timer.
 
-            This might be None, for example if the time characteristic of your program is set to
-            TimeCharacteristic.ProcessTime.
+            This might be None, depending on the stream's watermark strategy.
             """
             pass
 
@@ -772,8 +770,7 @@ class CoProcessFunction(Function):
             """
             Timestamp of the element currently being processed or timestamp of a firing timer.
 
-            This might be None, for example if the time characteristic of your program is set to
-            TimeCharacteristic.ProcessTime.
+            This might be None, depending on the stream's watermark strategy.
             """
             pass
 
@@ -843,8 +840,7 @@ register a timer that will trigger an action in the future.
             """
             Timestamp of the element currently being processed or timestamp of a firing timer.
 
-            This might be None, for example if the time characteristic of your program is set to
-            TimeCharacteristic.ProcessTime.
+            This might be None, depending on the stream's watermark strategy.
             """
             pass
 
@@ -1347,8 +1343,7 @@ class BaseBroadcastProcessFunction(Function):
         def timestamp(self) -> int:
             """
             Timestamp of the element currently being processed or timestamp of a firing timer.
-            This might be None, for example if the time characteristic of your program is
-            set to :attr:`TimeCharacteristic.ProcessingTime`.
+            This might be None, depending on the stream's watermark strategy.
             """
             pass
 

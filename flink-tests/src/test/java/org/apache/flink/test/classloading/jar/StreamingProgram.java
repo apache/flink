@@ -19,6 +19,9 @@
 package org.apache.flink.test.classloading.jar;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
@@ -36,12 +39,16 @@ public class StreamingProgram {
 
         DataStream<String> text = env.fromData(WordCountData.TEXT).rebalance();
 
-        DataStream<Word> counts = text.flatMap(new Tokenizer()).keyBy("word").sum("frequency");
+        DataStream<Word> counts =
+                text.flatMap(new Tokenizer())
+                        .keyBy(x -> (Tuple) Tuple1.of(x.word), Types.TUPLE(Types.STRING))
+                        .sum("frequency");
 
         counts.sinkTo(new DiscardingSink<>());
 
         env.execute();
     }
+
     // --------------------------------------------------------------------------------------------
 
     /** POJO with word and count. */

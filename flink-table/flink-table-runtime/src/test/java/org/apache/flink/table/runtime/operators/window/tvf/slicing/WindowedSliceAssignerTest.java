@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.runtime.operators.window.tvf.slicing;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.time.ZoneId;
@@ -31,13 +33,13 @@ import java.util.Collection;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link SliceAssigners.WindowedSliceAssigner}. */
-@RunWith(Parameterized.class)
-public class WindowedSliceAssignerTest extends SliceAssignerTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class WindowedSliceAssignerTest extends SliceAssignerTestBase {
 
-    @Parameterized.Parameter public ZoneId shiftTimeZone;
+    private ZoneId shiftTimeZone;
 
-    @Parameterized.Parameters(name = "timezone = {0}")
-    public static Collection<ZoneId> parameters() {
+    @Parameters(name = "timezone = {0}")
+    private static Collection<ZoneId> parameters() {
         return Arrays.asList(ZoneId.of("America/Los_Angeles"), ZoneId.of("Asia/Shanghai"));
     }
 
@@ -45,8 +47,8 @@ public class WindowedSliceAssignerTest extends SliceAssignerTestBase {
     private SliceAssigner hopAssigner;
     private SliceAssigner cumulateAssigner;
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         this.tumbleAssigner = SliceAssigners.tumbling(-1, shiftTimeZone, Duration.ofHours(4));
         this.hopAssigner =
                 SliceAssigners.hopping(0, shiftTimeZone, Duration.ofHours(5), Duration.ofHours(1));
@@ -55,8 +57,8 @@ public class WindowedSliceAssignerTest extends SliceAssignerTestBase {
                         0, shiftTimeZone, Duration.ofHours(5), Duration.ofHours(1));
     }
 
-    @Test
-    public void testSliceAssignment() {
+    @TestTemplate
+    void testSliceAssignment() {
         SliceAssigner assigner = SliceAssigners.windowed(0, tumbleAssigner);
 
         assertThat(assignSliceEnd(assigner, utcMills("1970-01-01T00:00:00")))
@@ -67,8 +69,8 @@ public class WindowedSliceAssignerTest extends SliceAssignerTestBase {
                 .isEqualTo(utcMills("1970-01-01T10:00:00"));
     }
 
-    @Test
-    public void testGetWindowStartForTumble() {
+    @TestTemplate
+    void testGetWindowStartForTumble() {
         SliceAssigner assigner = SliceAssigners.windowed(0, tumbleAssigner);
 
         assertThat(assigner.getWindowStart(utcMills("1970-01-01T00:00:00")))
@@ -79,8 +81,8 @@ public class WindowedSliceAssignerTest extends SliceAssignerTestBase {
                 .isEqualTo(utcMills("1970-01-01T04:00:00"));
     }
 
-    @Test
-    public void testGetWindowStartForHop() {
+    @TestTemplate
+    void testGetWindowStartForHop() {
         SliceAssigner assigner = SliceAssigners.windowed(0, hopAssigner);
 
         assertThat(assigner.getWindowStart(utcMills("1970-01-01T00:00:00")))
@@ -101,8 +103,8 @@ public class WindowedSliceAssignerTest extends SliceAssignerTestBase {
                 .isEqualTo(utcMills("1970-01-01T05:00:00"));
     }
 
-    @Test
-    public void testGetWindowStartForCumulate() {
+    @TestTemplate
+    void testGetWindowStartForCumulate() {
         SliceAssigner assigner = SliceAssigners.windowed(0, cumulateAssigner);
 
         assertThat(assigner.getWindowStart(utcMills("1970-01-01T00:00:00")))
@@ -123,8 +125,8 @@ public class WindowedSliceAssignerTest extends SliceAssignerTestBase {
                 .isEqualTo(utcMills("1970-01-01T05:00:00"));
     }
 
-    @Test
-    public void testExpiredSlices() {
+    @TestTemplate
+    void testExpiredSlices() {
         SliceAssigner assigner = SliceAssigners.windowed(0, tumbleAssigner);
 
         assertThat(expiredSlices(assigner, utcMills("1970-01-01T00:00:00")))
@@ -135,14 +137,14 @@ public class WindowedSliceAssignerTest extends SliceAssignerTestBase {
                 .containsExactly(utcMills("1970-01-01T10:00:00"));
     }
 
-    @Test
-    public void testEventTime() {
+    @TestTemplate
+    void testEventTime() {
         SliceAssigner assigner = SliceAssigners.windowed(0, tumbleAssigner);
         assertThat(assigner.isEventTime()).isTrue();
     }
 
-    @Test
-    public void testInvalidParameters() {
+    @TestTemplate
+    void testInvalidParameters() {
         assertErrorMessage(
                 () -> SliceAssigners.windowed(-1, tumbleAssigner),
                 "Windowed slice assigner must have a positive window end index.");

@@ -43,10 +43,11 @@ import org.apache.flink.table.runtime.operators.sort.StringNormalizedKeyComputer
 import org.apache.flink.table.runtime.operators.sort.StringRecordComparator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -56,8 +57,8 @@ import static org.apache.flink.table.runtime.operators.join.String2HashJoinOpera
 import static org.apache.flink.table.runtime.operators.join.String2HashJoinOperatorTest.transformToBinary;
 
 /** Test for {@link SortMergeJoinOperator}. */
-@RunWith(Parameterized.class)
-public class String2SortMergeJoinOperatorTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class String2SortMergeJoinOperatorTest {
 
     private boolean leftIsSmall;
     InternalTypeInfo<RowData> typeInfo =
@@ -69,17 +70,17 @@ public class String2SortMergeJoinOperatorTest {
                     VarCharType.STRING_TYPE,
                     VarCharType.STRING_TYPE);
 
-    public String2SortMergeJoinOperatorTest(boolean leftIsSmall) {
+    String2SortMergeJoinOperatorTest(boolean leftIsSmall) {
         this.leftIsSmall = leftIsSmall;
     }
 
-    @Parameterized.Parameters
-    public static Collection<Boolean> parameters() {
+    @Parameters(name = "leftIsSmall = {0}")
+    private static Collection<Boolean> parameters() {
         return Arrays.asList(true, false);
     }
 
-    @Test
-    public void testInnerJoin() throws Exception {
+    @TestTemplate
+    void testInnerJoin() throws Exception {
         StreamOperator joinOperator = newOperator(FlinkJoinType.INNER, leftIsSmall);
         TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness =
                 buildSortMergeJoin(joinOperator);
@@ -94,8 +95,8 @@ public class String2SortMergeJoinOperatorTest {
                 transformToBinary(testHarness.getOutput()));
     }
 
-    @Test
-    public void testLeftOuterJoin() throws Exception {
+    @TestTemplate
+    void testLeftOuterJoin() throws Exception {
         StreamOperator joinOperator = newOperator(FlinkJoinType.LEFT, leftIsSmall);
         TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness =
                 buildSortMergeJoin(joinOperator);
@@ -111,8 +112,8 @@ public class String2SortMergeJoinOperatorTest {
                 transformToBinary(testHarness.getOutput()));
     }
 
-    @Test
-    public void testRightOuterJoin() throws Exception {
+    @TestTemplate
+    void testRightOuterJoin() throws Exception {
         StreamOperator joinOperator = newOperator(FlinkJoinType.RIGHT, leftIsSmall);
         TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness =
                 buildSortMergeJoin(joinOperator);
@@ -128,8 +129,8 @@ public class String2SortMergeJoinOperatorTest {
                 transformToBinary(testHarness.getOutput()));
     }
 
-    @Test
-    public void testFullJoin() throws Exception {
+    @TestTemplate
+    void testFullJoin() throws Exception {
         StreamOperator joinOperator = newOperator(FlinkJoinType.FULL, leftIsSmall);
         TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness =
                 buildSortMergeJoin(joinOperator);

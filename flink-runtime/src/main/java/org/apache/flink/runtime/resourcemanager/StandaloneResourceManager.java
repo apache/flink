@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.blocklist.BlocklistHandler;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -37,6 +36,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -52,7 +52,7 @@ import java.util.concurrent.TimeUnit;
 public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 
     /** The duration of the startup period. A duration of zero means there is no startup period. */
-    private final Time startupPeriodTime;
+    private final Duration startupPeriodTime;
 
     public StandaloneResourceManager(
             RpcService rpcService,
@@ -67,8 +67,8 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
             ClusterInformation clusterInformation,
             FatalErrorHandler fatalErrorHandler,
             ResourceManagerMetricGroup resourceManagerMetricGroup,
-            Time startupPeriodTime,
-            Time rpcTimeout,
+            Duration startupPeriodTime,
+            Duration rpcTimeout,
             Executor ioExecutor) {
         super(
                 rpcService,
@@ -110,7 +110,7 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
     private void startStartupPeriod() {
         setFailUnfulfillableRequest(false);
 
-        final long startupPeriodMillis = startupPeriodTime.toMilliseconds();
+        final long startupPeriodMillis = startupPeriodTime.toMillis();
 
         if (startupPeriodMillis > 0) {
             scheduleRunAsync(

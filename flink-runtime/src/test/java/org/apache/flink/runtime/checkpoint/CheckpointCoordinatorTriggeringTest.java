@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -211,7 +211,7 @@ class CheckpointCoordinatorTriggeringTest {
                 createCheckpointCoordinator(graph, checkpointStore, checkpointIDCounter);
         checkpointCoordinator.restoreSavepoint(
                 SavepointRestoreSettings.forPath(
-                        savepoint.getExternalPointer(), true, RestoreMode.NO_CLAIM),
+                        savepoint.getExternalPointer(), true, RecoveryClaimMode.NO_CLAIM),
                 graph.getAllVertices(),
                 this.getClass().getClassLoader());
         checkpointCoordinator.shutdown();
@@ -265,7 +265,7 @@ class CheckpointCoordinatorTriggeringTest {
                 createCheckpointCoordinator(graph, checkpointStore, checkpointIDCounter);
         checkpointCoordinator.restoreSavepoint(
                 SavepointRestoreSettings.forPath(
-                        savepoint.getExternalPointer(), true, RestoreMode.NO_CLAIM),
+                        savepoint.getExternalPointer(), true, RecoveryClaimMode.NO_CLAIM),
                 graph.getAllVertices(),
                 this.getClass().getClassLoader());
 
@@ -431,7 +431,7 @@ class CheckpointCoordinatorTriggeringTest {
                 createCheckpointCoordinator(graph, checkpointStore, checkpointIDCounter);
         checkpointCoordinator.restoreSavepoint(
                 SavepointRestoreSettings.forPath(
-                        savepoint.getExternalPointer(), true, RestoreMode.NO_CLAIM),
+                        savepoint.getExternalPointer(), true, RecoveryClaimMode.NO_CLAIM),
                 graph.getAllVertices(),
                 this.getClass().getClassLoader());
 

@@ -16,8 +16,11 @@
 jobs:
   - job: build_wheels_on_Linux
     pool:
-      vmImage: 'ubuntu-20.04'
+      vmImage: 'ubuntu-22.04'
     steps:
+      - task: UsePythonVersion@0
+        inputs:
+          versionSpec: '3.11'
       - script: |
           cd flink-python
           bash dev/build-wheels.sh

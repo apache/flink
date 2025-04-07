@@ -57,7 +57,9 @@ public interface WriterInitContext extends org.apache.flink.api.connector.sink2.
      */
     ProcessingTimeService getProcessingTimeService();
 
-    /** @return The metric group this writer belongs to. */
+    /**
+     * @return The metric group this writer belongs to.
+     */
     SinkWriterMetricGroup metricGroup();
 
     /** Provides a view on this context as a {@link SerializationSchema.InitializationContext}. */

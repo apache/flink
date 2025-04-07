@@ -51,17 +51,6 @@ ExecutionConfig
     ExecutionConfig
 
 
-ExecutionMode
--------------
-
-.. currentmodule:: pyflink.common.execution_mode
-
-.. autosummary::
-    :toctree: api/
-
-    ExecutionMode
-
-
 RestartStrategy
 ---------------
 

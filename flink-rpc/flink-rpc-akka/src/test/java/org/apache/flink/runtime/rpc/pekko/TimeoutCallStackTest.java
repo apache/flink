@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rpc.pekko;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.pekko.ScalaFutureUtils;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
@@ -80,7 +79,7 @@ class TimeoutCallStackTest {
 
     @Test
     void testTimeoutExceptionWithTime() throws Exception {
-        testTimeoutException(gateway -> gateway.callThatTimesOut(Time.milliseconds(1)));
+        testTimeoutException(gateway -> gateway.callThatTimesOut(Duration.ofMillis(1)));
     }
 
     @Test
@@ -120,8 +119,6 @@ class TimeoutCallStackTest {
 
     private interface TestingGateway extends RpcGateway {
 
-        CompletableFuture<Void> callThatTimesOut(@RpcTimeout Time timeout);
-
         CompletableFuture<Void> callThatTimesOut(@RpcTimeout Duration timeout);
     }
 
@@ -129,12 +126,6 @@ class TimeoutCallStackTest {
 
         TestingRpcEndpoint(RpcService rpcService, String endpointId) {
             super(rpcService, endpointId);
-        }
-
-        @Override
-        public CompletableFuture<Void> callThatTimesOut(@RpcTimeout Time timeout) {
-            // return a future that never completes, so the call is guaranteed to time out
-            return new CompletableFuture<>();
         }
 
         @Override

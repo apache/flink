@@ -236,11 +236,7 @@ class FileWriterBucketTest {
         Path path = new Path(outDir.toURI());
 
         FileSystemTableSink.TableRollingPolicy tableRollingPolicy =
-                new FileSystemTableSink.TableRollingPolicy(
-                        false,
-                        Long.MAX_VALUE,
-                        Duration.ofMillis(20).toMillis(),
-                        Duration.ofMillis(10).toMillis());
+                new FileSystemTableSink.TableRollingPolicy(false, Long.MAX_VALUE, 20L, 10L);
 
         TestRecoverableWriter recoverableWriter = getRecoverableWriter(path);
         FileWriterBucket<RowData> bucket =

@@ -18,11 +18,10 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.core.fs.DuplicatingFileSystem;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.PathsCopyingFileSystem;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
@@ -123,9 +122,16 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
 
     // ------------------------------------------------------------------------
 
-    @VisibleForTesting
-    Path getCheckpointsDirectory() {
+    public Path getCheckpointsDirectory() {
         return checkpointsDirectory;
+    }
+
+    public Path getSharedStateDirectory() {
+        return sharedStateDirectory;
+    }
+
+    public FileSystem getFileSystem() {
+        return fileSystem;
     }
 
     // ------------------------------------------------------------------------
@@ -213,9 +219,9 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
 
     @Override
     public CheckpointStateToolset createTaskOwnedCheckpointStateToolset() {
-        if (fileSystem instanceof DuplicatingFileSystem) {
+        if (fileSystem instanceof PathsCopyingFileSystem) {
             return new FsCheckpointStateToolset(
-                    taskOwnedStateDirectory, (DuplicatingFileSystem) fileSystem);
+                    taskOwnedStateDirectory, (PathsCopyingFileSystem) fileSystem);
         } else {
             return new NotDuplicatingCheckpointStateToolset();
         }

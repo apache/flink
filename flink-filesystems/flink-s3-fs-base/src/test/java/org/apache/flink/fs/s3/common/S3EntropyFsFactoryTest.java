@@ -19,36 +19,29 @@
 package org.apache.flink.fs.s3.common;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
-import org.apache.flink.runtime.util.HadoopConfigLoader;
-import org.apache.flink.util.TestLogger;
 
-import org.apache.hadoop.fs.FileSystem;
-import org.junit.Test;
-import org.mockito.Mockito;
-
-import javax.annotation.Nullable;
+import org.junit.jupiter.api.Test;
 
 import java.net.URI;
-import java.util.Collections;
 
-import static org.junit.Assert.assertEquals;
+import static org.apache.flink.configuration.ConfigurationUtils.getIntConfigOption;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests that the file system factory picks up the entropy configuration properly. */
-public class S3EntropyFsFactoryTest extends TestLogger {
+class S3EntropyFsFactoryTest {
 
     @Test
-    public void testEntropyInjectionConfig() throws Exception {
+    void testEntropyInjectionConfig() throws Exception {
         final Configuration conf = new Configuration();
         conf.setString("s3.entropy.key", "__entropy__");
-        conf.setInteger("s3.entropy.length", 7);
+        conf.set(getIntConfigOption("s3.entropy.length"), 7);
 
-        TestFsFactory factory = new TestFsFactory();
+        TestS3FileSystemFactory factory = new TestS3FileSystemFactory();
         factory.configure(conf);
 
         FlinkS3FileSystem fs = (FlinkS3FileSystem) factory.create(new URI("s3://test"));
-        assertEquals("__entropy__", fs.getEntropyInjectionKey());
-        assertEquals(7, fs.generateEntropy().length());
+        assertThat(fs.getEntropyInjectionKey()).isEqualTo("__entropy__");
+        assertThat(fs.generateEntropy().length()).isEqualTo(7);
     }
 
     /**
@@ -56,54 +49,16 @@ public class S3EntropyFsFactoryTest extends TestLogger {
      * first path from multiple paths in config.
      */
     @Test
-    public void testMultipleTempDirsConfig() throws Exception {
+    void testMultipleTempDirsConfig() throws Exception {
         final Configuration conf = new Configuration();
         String dir1 = "/tmp/dir1";
         String dir2 = "/tmp/dir2";
         conf.setString("io.tmp.dirs", dir1 + "," + dir2);
 
-        TestFsFactory factory = new TestFsFactory();
+        TestS3FileSystemFactory factory = new TestS3FileSystemFactory();
         factory.configure(conf);
 
         FlinkS3FileSystem fs = (FlinkS3FileSystem) factory.create(new URI("s3://test"));
-        assertEquals(fs.getLocalTmpDir(), dir1);
-    }
-
-    // ------------------------------------------------------------------------
-
-    private static final class TestFsFactory extends AbstractS3FileSystemFactory {
-
-        TestFsFactory() {
-            super(
-                    "testFs",
-                    new HadoopConfigLoader(
-                            new String[0],
-                            new String[0][],
-                            "",
-                            Collections.emptySet(),
-                            Collections.emptySet(),
-                            ""));
-        }
-
-        @Override
-        protected org.apache.hadoop.fs.FileSystem createHadoopFileSystem() {
-            return Mockito.mock(org.apache.hadoop.fs.FileSystem.class);
-        }
-
-        @Override
-        protected URI getInitURI(URI fsUri, org.apache.hadoop.conf.Configuration hadoopConfig) {
-            return fsUri;
-        }
-
-        @Nullable
-        @Override
-        protected S3AccessHelper getS3AccessHelper(FileSystem fs) {
-            return null;
-        }
-
-        @Override
-        public String getScheme() {
-            return "test";
-        }
+        assertThat(fs.getLocalTmpDir()).isEqualTo(dir1);
     }
 }

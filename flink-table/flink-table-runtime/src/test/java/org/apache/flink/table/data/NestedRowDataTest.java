@@ -33,17 +33,17 @@ import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.StringDataSerializer;
 import org.apache.flink.table.types.logical.LogicalType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.table.data.util.DataFormatTestUtil.MyObj;
 import static org.apache.flink.table.data.util.DataFormatTestUtil.splitBytes;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link NestedRowData}s. */
-public class NestedRowDataTest {
+class NestedRowDataTest {
 
     @Test
-    public void testNestedRowDataWithOneSegment() {
+    void testNestedRowDataWithOneSegment() {
         BinaryRowData row = getBinaryRowData();
         GenericTypeInfo<MyObj> info = new GenericTypeInfo<>(MyObj.class);
         TypeSerializer<MyObj> genericSerializer = info.createSerializer(new SerializerConfigImpl());
@@ -58,7 +58,7 @@ public class NestedRowDataTest {
     }
 
     @Test
-    public void testNestedRowDataWithMultipleSegments() {
+    void testNestedRowDataWithMultipleSegments() {
         BinaryRowData row = getBinaryRowData();
         GenericTypeInfo<MyObj> info = new GenericTypeInfo<>(MyObj.class);
         TypeSerializer<MyObj> genericSerializer = info.createSerializer(new SerializerConfigImpl());
@@ -77,7 +77,7 @@ public class NestedRowDataTest {
     }
 
     @Test
-    public void testNestInNestedRowData() {
+    void testNestInNestedRowData() {
         // layer1
         GenericRowData gRow = new GenericRowData(4);
         gRow.setField(0, 1);

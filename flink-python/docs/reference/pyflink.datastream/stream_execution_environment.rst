@@ -51,19 +51,10 @@ access).
     StreamExecutionEnvironment.enable_checkpointing
     StreamExecutionEnvironment.get_checkpoint_interval
     StreamExecutionEnvironment.get_checkpointing_mode
-    StreamExecutionEnvironment.get_state_backend
-    StreamExecutionEnvironment.set_state_backend
     StreamExecutionEnvironment.enable_changelog_state_backend
     StreamExecutionEnvironment.is_changelog_state_backend_enabled
     StreamExecutionEnvironment.set_default_savepoint_directory
     StreamExecutionEnvironment.get_default_savepoint_directory
-    StreamExecutionEnvironment.set_restart_strategy
-    StreamExecutionEnvironment.get_restart_strategy
-    StreamExecutionEnvironment.add_default_kryo_serializer
-    StreamExecutionEnvironment.register_type_with_kryo_serializer
-    StreamExecutionEnvironment.register_type
-    StreamExecutionEnvironment.set_stream_time_characteristic
-    StreamExecutionEnvironment.get_stream_time_characteristic
     StreamExecutionEnvironment.configure
     StreamExecutionEnvironment.add_python_file
     StreamExecutionEnvironment.set_python_requirements
@@ -81,7 +72,6 @@ access).
     StreamExecutionEnvironment.create_input
     StreamExecutionEnvironment.add_source
     StreamExecutionEnvironment.from_source
-    StreamExecutionEnvironment.read_text_file
     StreamExecutionEnvironment.from_collection
     StreamExecutionEnvironment.is_unaligned_checkpoints_enabled
     StreamExecutionEnvironment.is_force_unaligned_checkpoints

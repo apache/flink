@@ -28,12 +28,15 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.rex.RexProgramBuilder;
+import org.apache.calcite.rex.RexSlot;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.rex.RexVisitorImpl;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /** Utilities for {@link RelNode}. */
@@ -168,6 +171,22 @@ public class FlinkRelUtil {
         final int[] array = new int[length];
         Arrays.fill(array, initVal);
         return array;
+    }
+
+    /** Extracts the out from source field index mapping of the given projects. */
+    public static Map<Integer, List<Integer>> extractSourceMapping(final List<RexNode> projects) {
+        Map<Integer, List<Integer>> mapOutFromInPos = new HashMap<>();
+
+        for (int index = 0; index < projects.size(); index++) {
+            RexNode expr = projects.get(index);
+            mapOutFromInPos.put(
+                    index,
+                    FlinkRexUtil.findAllInputRefs(expr).stream()
+                            .mapToInt(RexSlot::getIndex)
+                            .boxed()
+                            .collect(Collectors.toList()));
+        }
+        return mapOutFromInPos;
     }
 
     /**

@@ -253,7 +253,7 @@ DataStream<Click> clicks = ...;
 
 clicks
     .keyBy(click -> click.userId)
-    .window(TumblingEventTimeWindows.of(Time.minutes(1)))
+    .window(TumblingEventTimeWindows.of(Duration.ofMinutes(1)))
     .aggregate(new ClickCounter())
     .uid("click-window")
     .addSink(new Sink());
@@ -297,7 +297,7 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 SavepointReader savepoint = SavepointReader.read(env, "hdfs://checkpoint-dir", new HashMapStateBackend());
 
 savepoint
-    .window(TumblingEventTimeWindows.of(Time.minutes(1)))
+    .window(TumblingEventTimeWindows.of(Duration.ofMinutes(1)))
     .aggregate("click-window", new ClickCounter(), new ClickReader(), Types.String, Types.INT, Types.INT)
     .print();
 
@@ -312,10 +312,6 @@ State processor API 可以用来生成 savepoint，这使得用户可以基于�
 
 {{< hint info >}}
 当使用 `SavepointWriter` 时，您的应用程序必须在 [批]({{< ref "docs/dev/datastream/execution_mode" >}}) 执行模式下运行。
-{{< /hint >}}
-
-{{< hint info >}}
-**注意** State processor API 目前不支持 Scala API。 因此它将自动使用 Java 类型的序列化器。 为了能让 Scala DataStream API 从 state processor API 生成的 savepoint 中启动，请手动传递所有类型信息。 
 {{< /hint >}}
 
 ```java
@@ -459,7 +455,7 @@ DataStream<Account> accountDataSet = env.fromCollection(accounts);
 StateBootstrapTransformation<Account> transformation = OperatorTransformation
     .bootstrapWith(accountDataSet)
     .keyBy(acc -> acc.id)
-    .window(TumblingEventTimeWindows.of(Time.minutes(5)))
+    .window(TumblingEventTimeWindows.of(Duration.ofMinutes(5)))
     .reduce((left, right) -> left + right);
 ```
 

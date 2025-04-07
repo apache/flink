@@ -23,7 +23,7 @@ import org.apache.flink.table.data.binary.BinaryArrayData
 import org.apache.flink.table.data.util.MapDataUtil
 import org.apache.flink.table.data.utils.CastExecutor
 import org.apache.flink.table.data.writer.{BinaryArrayWriter, BinaryRowWriter}
-import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenException, GeneratedExpression}
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenException, EqualiserCodeGenerator, GeneratedExpression}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.GenerateUtils._
@@ -38,12 +38,14 @@ import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.LogicalTypeFamily.DATETIME
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldTypes
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldTypes, getPrecision, getScale}
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findCommonType
 import org.apache.flink.table.utils.DateTimeUtils.MILLIS_PER_DAY
+import org.apache.flink.types.ColumnList
 import org.apache.flink.util.Preconditions.checkArgument
 
 import java.time.ZoneId
+import java.util.Collections
 
 import scala.collection.JavaConversions._
 
@@ -107,6 +109,8 @@ object ScalarOperatorGens {
     // use it as is during calculation.
     def castToDec(t: LogicalType): String => String = t match {
       case _: DecimalType => (operandTerm: String) => s"$operandTerm"
+      case _: TinyIntType | _: SmallIntType | _: IntType | _: BigIntType =>
+        numericCasting(ctx, t, new DecimalType(getPrecision(t), getScale(t)))
       case _ => numericCasting(ctx, t, resultType)
     }
     val methods =
@@ -412,6 +416,10 @@ object ScalarOperatorGens {
           mapType.getValueType,
           resultType),
         resultType)
+    }
+    // row types
+    else if (isRow(left.resultType) && canEqual) {
+      wrapExpressionIfNonEq(nonEq, generateRowComparison(ctx, left, right, resultType), resultType)
     }
     // multiset types
     else if (isMultiset(left.resultType) && canEqual) {
@@ -1093,6 +1101,20 @@ object ScalarOperatorGens {
   // ----------------------------------------------------------------------------------------
   // value construction and accessing generate utils
   // ----------------------------------------------------------------------------------------
+
+  def generateDescriptor(
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      resultType: LogicalType): GeneratedExpression = {
+    val columnNames = operands
+      .map(_.literalValue)
+      .map(
+        _.getOrElse(throw new CodeGenException("String literals expected for DESCRIPTOR operands")))
+      .map(_.toString)
+    val columnList = ColumnList.of(columnNames.toList)
+    val columnListTerm = ctx.addReusableObject(columnList, "columnList", className[ColumnList])
+    GeneratedExpression(columnListTerm, NEVER_NULL, NO_CODE, resultType)
+  }
 
   def generateRow(
       ctx: CodeGeneratorContext,
@@ -1817,6 +1839,26 @@ object ScalarOperatorGens {
              """.stripMargin
         (stmt, resultTerm)
     }
+
+  private def generateRowComparison(
+      ctx: CodeGeneratorContext,
+      left: GeneratedExpression,
+      right: GeneratedExpression,
+      resultType: LogicalType): GeneratedExpression = {
+    generateCallWithStmtIfArgsNotNull(ctx, resultType, Seq(left, right)) {
+      args =>
+        val leftTerm = args.head
+        val rightTerm = args(1)
+
+        EqualiserCodeGenerator.generateRecordEqualiserCode(
+          ctx,
+          left.resultType,
+          right.resultType,
+          leftTerm,
+          rightTerm,
+          "rowGeneratedEqualiser")
+    }
+  }
 
   // ------------------------------------------------------------------------------------------
 

@@ -18,11 +18,14 @@
 
 package org.apache.flink.table.runtime.operators.join.stream;
 
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessingOperator;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec;
+import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.CharType;
@@ -100,13 +103,14 @@ public abstract class StreamingJoinOperatorTestBase {
             testHarness;
 
     @BeforeEach
-    public void beforeEach(TestInfo testInfo) throws Exception {
+    void beforeEach(TestInfo testInfo) throws Exception {
+        TwoInputStreamOperator<RowData, RowData, RowData> operator = createJoinOperator(testInfo);
         testHarness =
-                new KeyedTwoInputStreamOperatorTestHarness<>(
-                        createJoinOperator(testInfo),
-                        leftKeySelector,
-                        rightKeySelector,
-                        joinKeyTypeInfo);
+                operator instanceof AsyncStateProcessingOperator
+                        ? AsyncKeyedTwoInputStreamOperatorTestHarness.create(
+                                operator, leftKeySelector, rightKeySelector, joinKeyTypeInfo)
+                        : new KeyedTwoInputStreamOperatorTestHarness<>(
+                                operator, leftKeySelector, rightKeySelector, joinKeyTypeInfo);
         testHarness.open();
         // extend for mini-batch join test
         assertor =
@@ -115,7 +119,7 @@ public abstract class StreamingJoinOperatorTestBase {
     }
 
     @AfterEach
-    public void afterEach() throws Exception {
+    void afterEach() throws Exception {
         testHarness.close();
     }
 
@@ -138,7 +142,8 @@ public abstract class StreamingJoinOperatorTestBase {
             };
 
     /** Create streaming join operator according to {@link TestInfo}. */
-    protected abstract AbstractStreamingJoinOperator createJoinOperator(TestInfo testInfo);
+    protected abstract TwoInputStreamOperator<RowData, RowData, RowData> createJoinOperator(
+            TestInfo testInfo);
 
     /** Get the output row type of join operator. */
     protected abstract RowType getOutputType();

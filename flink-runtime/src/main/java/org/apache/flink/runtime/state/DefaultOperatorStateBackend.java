@@ -28,6 +28,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.state.v2.StateDescriptorUtils;
+import org.apache.flink.runtime.state.v2.adaptor.OperatorListStateAdaptor;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
 
@@ -214,6 +216,33 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
     public <S> ListState<S> getUnionListState(ListStateDescriptor<S> stateDescriptor)
             throws Exception {
         return getListState(stateDescriptor, OperatorStateHandle.Mode.UNION);
+    }
+
+    // -------------------------------------------------------------------------------------------
+    //  State creating methods for state v2
+    // -------------------------------------------------------------------------------------------
+
+    @Override
+    public <K, V> BroadcastState<K, V> getBroadcastState(
+            org.apache.flink.api.common.state.v2.MapStateDescriptor<K, V> stateDescriptor)
+            throws Exception {
+        return getBroadcastState(StateDescriptorUtils.transformFromV2ToV1(stateDescriptor));
+    }
+
+    @Override
+    public <S> org.apache.flink.api.common.state.v2.ListState<S> getListState(
+            org.apache.flink.api.common.state.v2.ListStateDescriptor<S> stateDescriptor)
+            throws Exception {
+        return new OperatorListStateAdaptor<>(
+                getListState(StateDescriptorUtils.transformFromV2ToV1(stateDescriptor)));
+    }
+
+    @Override
+    public <S> org.apache.flink.api.common.state.v2.ListState<S> getUnionListState(
+            org.apache.flink.api.common.state.v2.ListStateDescriptor<S> stateDescriptor)
+            throws Exception {
+        return new OperatorListStateAdaptor<>(
+                getListState(StateDescriptorUtils.transformFromV2ToV1(stateDescriptor)));
     }
 
     // -------------------------------------------------------------------------------------------

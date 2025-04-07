@@ -246,6 +246,16 @@ This file is based on the checkstyle file of Apache Beam.
 			<property name="message" value="Use import javax.annotation.Nonnull"/>
 		</module>
 
+		<module name="RegexpSinglelineJava">
+			<property name="format" value="^\s*@org.jetbrains.annotations.Nullable\s*$"/>
+			<property name="message" value="Use import javax.annotation.Nullable"/>
+		</module>
+
+		<module name="RegexpSinglelineJava">
+			<property name="format" value="^\s*@org.jetbrains.annotations.Nonnull\s*$"/>
+			<property name="message" value="Use import javax.annotation.Nonnull"/>
+		</module>
+
 		<!--
 
 		JAVADOC CHECKS

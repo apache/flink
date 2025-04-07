@@ -21,11 +21,12 @@ package org.apache.flink.test.io;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.io.RichOutputFormat;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.legacy.OutputFormatSinkFunction;
+import org.apache.flink.streaming.api.legacy.io.TextInputFormat;
 import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 
 import java.io.IOException;
@@ -54,8 +55,9 @@ public class RichInputOutputITCase extends JavaProgramTestBaseJUnit4 {
 
         readCalls = new ConcurrentLinkedQueue<Integer>();
         writeCalls = new ConcurrentLinkedQueue<Integer>();
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        env.createInput(new TestInputFormat(new Path(inputPath))).output(new TestOutputFormat());
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.createInput(new TestInputFormat(new Path(inputPath)))
+                .addSink(new OutputFormatSinkFunction<>(new TestOutputFormat()));
 
         JobExecutionResult result = env.execute();
         Object a = result.getAllAccumulatorResults().get("DATA_SOURCE_ACCUMULATOR");
@@ -101,7 +103,7 @@ public class RichInputOutputITCase extends JavaProgramTestBaseJUnit4 {
         public void configure(Configuration parameters) {}
 
         @Override
-        public void open(int a, int b) {
+        public void open(InitializationContext context) {
             try {
                 getRuntimeContext().addAccumulator("DATA_SINK_ACCUMULATOR", counter);
             } catch (UnsupportedOperationException e) {

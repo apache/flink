@@ -24,9 +24,9 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.fs.s3.common.FlinkS3FileSystem;
 import org.apache.flink.testutils.s3.S3TestCredentials;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.net.URI;
@@ -34,9 +34,10 @@ import java.util.UUID;
 
 import static org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory.MAX_CONCURRENT_UPLOADS;
 import static org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory.PART_UPLOAD_MIN_SIZE;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link org.apache.flink.core.fs.RecoverableWriter} of the Presto S3 FS. */
-public class PrestoS3RecoverableWriterTest {
+class PrestoS3RecoverableWriterTest {
 
     // ----------------------- S3 general configuration -----------------------
 
@@ -49,8 +50,8 @@ public class PrestoS3RecoverableWriterTest {
 
     // ----------------------- Test Lifecycle -----------------------
 
-    @BeforeClass
-    public static void checkCredentialsAndSetup() throws IOException {
+    @BeforeAll
+    static void checkCredentialsAndSetup() throws IOException {
         // check whether credentials exist
         S3TestCredentials.assumeCredentialsAvailable();
 
@@ -68,17 +69,18 @@ public class PrestoS3RecoverableWriterTest {
         FileSystem.initialize(conf);
     }
 
-    @AfterClass
-    public static void cleanUp() throws IOException {
+    @AfterAll
+    static void cleanUp() throws IOException {
         FileSystem.initialize(new Configuration());
     }
 
     // ----------------------- Tests -----------------------
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void requestingRecoverableWriterShouldThroughException() throws Exception {
+    @Test
+    void requestingRecoverableWriterShouldThroughException() throws Exception {
         URI s3Uri = URI.create(S3TestCredentials.getTestBucketUri());
         FlinkS3FileSystem fileSystem = (FlinkS3FileSystem) FileSystem.get(s3Uri);
-        fileSystem.createRecoverableWriter();
+        assertThatThrownBy(() -> fileSystem.createRecoverableWriter())
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 }

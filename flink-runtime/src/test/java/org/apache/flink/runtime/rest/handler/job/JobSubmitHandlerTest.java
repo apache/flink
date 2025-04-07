@@ -34,6 +34,7 @@ import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
@@ -227,13 +228,13 @@ public class JobSubmitHandlerTest {
     void testFileHandling() throws Exception {
         final String dcEntryName = "entry";
 
-        CompletableFuture<JobGraph> submittedJobGraphFuture = new CompletableFuture<>();
+        CompletableFuture<ExecutionPlan> submittedExecutionPlanFuture = new CompletableFuture<>();
         DispatcherGateway dispatcherGateway =
                 TestingDispatcherGateway.newBuilder()
                         .setBlobServerPort(blobServer.getPort())
                         .setSubmitFunction(
-                                submittedJobGraph -> {
-                                    submittedJobGraphFuture.complete(submittedJobGraph);
+                                submittedExecutionPlan -> {
+                                    submittedExecutionPlanFuture.complete(submittedExecutionPlan);
                                     return CompletableFuture.completedFuture(Acknowledge.get());
                                 })
                         .build();
@@ -278,11 +279,13 @@ public class JobSubmitHandlerTest {
                         dispatcherGateway)
                 .get();
 
-        assertThat(submittedJobGraphFuture).as("No JobGraph was submitted.").isCompleted();
-        final JobGraph submittedJobGraph = submittedJobGraphFuture.get();
-        assertThat(submittedJobGraph.getUserJarBlobKeys()).hasSize(1);
-        assertThat(submittedJobGraph.getUserArtifacts()).hasSize(1);
-        assertThat(submittedJobGraph.getUserArtifacts().get(dcEntryName).blobKey).isNotNull();
+        assertThat(submittedExecutionPlanFuture)
+                .as("No ExecutionPlan was submitted.")
+                .isCompleted();
+        final ExecutionPlan submittedExecutionPlan = submittedExecutionPlanFuture.get();
+        assertThat(submittedExecutionPlan.getUserJarBlobKeys()).hasSize(1);
+        assertThat(submittedExecutionPlan.getUserArtifacts()).hasSize(1);
+        assertThat(submittedExecutionPlan.getUserArtifacts().get(dcEntryName).blobKey).isNotNull();
     }
 
     @TestTemplate

@@ -24,10 +24,11 @@ import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 import java.util.Arrays;
 
-/** {@link TableTestProgram} definitions for testing {@link StreamExecDeduplicate}. */
+/** {@link TableTestProgram} definitions for testing {@link StreamExecSink}. */
 public class TableSinkTestPrograms {
 
     public static final Row[] BEFORE_DATA = {
@@ -116,6 +117,7 @@ public class TableSinkTestPrograms {
                                     .build())
                     .runSql("INSERT OVERWRITE sink_t SELECT * FROM source_t")
                     .build();
+
     public static final TableTestProgram SINK_WRITING_METADATA =
             TableTestProgram.of("sink-writing-metadata", "validates writing metadata to sink")
                     .setupTableSource(
@@ -192,5 +194,32 @@ public class TableSinkTestPrograms {
                                             "+I[5, 2, foo bar, null, null]")
                                     .build())
                     .runSql("INSERT INTO sink_t (a, b, c) SELECT a, b, c FROM source_t")
+                    .build();
+
+    public static final TableTestProgram SINK_UPSERT =
+            TableTestProgram.of("sink-upsert", "validates sink with primary key")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addSchema(SOURCE_SCHEMA)
+                                    .addSchema("PRIMARY KEY (a) NOT ENFORCED")
+                                    .producedBeforeRestore(BEFORE_DATA)
+                                    .producedAfterRestore(
+                                            new Row[] {
+                                                Row.ofKind(RowKind.DELETE, 1, 1L, "hi"),
+                                                Row.of(4, 4L, "foo")
+                                            })
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("a INT", "b BIGINT", "c VARCHAR")
+                                    .addSchema("PRIMARY KEY (a) NOT ENFORCED")
+                                    .consumedBeforeRestore(
+                                            "+I[1, 1, hi]",
+                                            "+I[2, 2, hello]",
+                                            "+I[3, 2, hello world]")
+                                    .consumedAfterRestore("-D[1, 1, hi]", "+I[4, 4, foo]")
+                                    .build())
+                    .runSql("INSERT INTO sink_t SELECT * FROM source_t")
                     .build();
 }

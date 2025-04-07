@@ -26,32 +26,11 @@ CheckpointConfig
 
 Configuration that captures all checkpointing related settings.
 
-:data:`DEFAULT_MODE`:
-
-The default checkpoint mode: exactly once.
-
-:data:`DEFAULT_TIMEOUT`:
-
-The default timeout of a checkpoint attempt: 10 minutes.
-
-:data:`DEFAULT_MIN_PAUSE_BETWEEN_CHECKPOINTS`:
-
-The default minimum pause to be made between checkpoints: none.
-
-:data:`DEFAULT_MAX_CONCURRENT_CHECKPOINTS`:
-
-The default limit of concurrently happening checkpoints: one.
-
 .. currentmodule:: pyflink.datastream.checkpoint_config
 
 .. autosummary::
     :toctree: api/
 
-    CheckpointConfig.DEFAULT_MODE
-    CheckpointConfig.DEFAULT_TIMEOUT
-    CheckpointConfig.DEFAULT_MIN_PAUSE_BETWEEN_CHECKPOINTS
-    CheckpointConfig.DEFAULT_MIN_PAUSE_BETWEEN_CHECKPOINTS
-    CheckpointConfig.DEFAULT_MAX_CONCURRENT_CHECKPOINTS
     CheckpointConfig.is_checkpointing_enabled
     CheckpointConfig.get_checkpointing_mode
     CheckpointConfig.set_checkpointing_mode
@@ -67,21 +46,16 @@ The default limit of concurrently happening checkpoints: one.
     CheckpointConfig.set_fail_on_checkpointing_errors
     CheckpointConfig.get_tolerable_checkpoint_failure_number
     CheckpointConfig.set_tolerable_checkpoint_failure_number
-    CheckpointConfig.enable_externalized_checkpoints
-    CheckpointConfig.set_externalized_checkpoint_cleanup
     CheckpointConfig.is_externalized_checkpoints_enabled
-    CheckpointConfig.get_externalized_checkpoint_cleanup
     CheckpointConfig.is_unaligned_checkpoints_enabled
     CheckpointConfig.enable_unaligned_checkpoints
     CheckpointConfig.disable_unaligned_checkpoints
+    CheckpointConfig.set_aligned_checkpoint_timeout
+    CheckpointConfig.get_aligned_checkpoint_timeout
     CheckpointConfig.set_alignment_timeout
     CheckpointConfig.get_alignment_timeout
     CheckpointConfig.set_force_unaligned_checkpoints
     CheckpointConfig.is_force_unaligned_checkpoints
-    CheckpointConfig.set_checkpoint_storage
-    CheckpointConfig.set_checkpoint_storage_dir
-    CheckpointConfig.get_checkpoint_storage
-    ExternalizedCheckpointCleanup
     ExternalizedCheckpointRetention
 
 

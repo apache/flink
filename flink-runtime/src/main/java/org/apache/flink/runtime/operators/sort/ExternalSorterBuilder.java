@@ -23,7 +23,6 @@ import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.AlgorithmOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -42,6 +41,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import static org.apache.flink.configuration.AlgorithmOptions.USE_LARGE_RECORDS_HANDLER;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -75,7 +75,7 @@ public final class ExternalSorterBuilder<T> {
     private InMemorySorterFactory<T> inMemorySorterFactory;
     private int maxNumFileHandles = AlgorithmOptions.SPILLING_MAX_FAN.defaultValue();
     private boolean objectReuseEnabled = false;
-    private boolean handleLargeRecords = ConfigConstants.DEFAULT_USE_LARGE_RECORD_HANDLER;
+    private boolean handleLargeRecords = USE_LARGE_RECORDS_HANDLER.defaultValue();
     private double memoryFraction = 1.0;
     private int numSortBuffers = -1;
     private double startSpillingFraction = AlgorithmOptions.SORT_SPILLING_THRESHOLD.defaultValue();

@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerConditions;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.test.util.MigrationTest;
 
 import org.assertj.core.api.Condition;
 
@@ -35,6 +36,13 @@ class LockableTypeSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<Lockable<String>, Lockable<String>> {
 
     private static final String SPEC_NAME = "lockable-type-serializer";
+
+    // we dropped support for old versions and only test against versions since 1.20.
+    @Override
+    public Collection<FlinkVersion> getMigrationVersions() {
+        return FlinkVersion.rangeOf(
+                FlinkVersion.v1_20, MigrationTest.getMostRecentlyPublishedVersion());
+    }
 
     public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
             throws Exception {

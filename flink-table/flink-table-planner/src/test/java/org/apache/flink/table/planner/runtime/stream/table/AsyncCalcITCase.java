@@ -145,6 +145,21 @@ public class AsyncCalcITCase extends StreamingTestBase {
     }
 
     @Test
+    public void testJoin() {
+        Table t1 = tEnv.fromValues(1, 2, 3).as("f1");
+        Table t2 = tEnv.fromValues(1, 2, 3).as("f1");
+        tEnv.createTemporaryView("t1", t1);
+        tEnv.createTemporaryView("t2", t2);
+        tEnv.createTemporarySystemFunction("func", new Sum());
+        final List<Row> results =
+                executeSql(
+                        "select * from t1 right join t2 on t1.f1 = t2.f1 WHERE t1.f1 = t2.f1 AND "
+                                + "func(t1.f1, t2.f1) > 5");
+        final List<Row> expectedRows = Collections.singletonList(Row.of(3, 3));
+        assertThat(results).containsSequence(expectedRows);
+    }
+
+    @Test
     public void testWhereConditionAndProjection() {
         Table t1 = tEnv.fromValues(1, 2, 3).as("f1");
         tEnv.createTemporaryView("t1", t1);
@@ -356,6 +371,15 @@ public class AsyncCalcITCase extends StreamingTestBase {
             if (null != executor && !executor.isShutdown()) {
                 executor.shutdownNow();
             }
+        }
+    }
+
+    public static class Sum extends AsyncFuncBase {
+
+        private static final long serialVersionUID = 3L;
+
+        public void eval(CompletableFuture<Integer> future, Integer param1, Integer param2) {
+            executor.schedule(() -> future.complete(param1 + param2), 10, TimeUnit.MILLISECONDS);
         }
     }
 }

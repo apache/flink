@@ -45,7 +45,6 @@ import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.runtime.throughput.BufferDebloatConfiguration;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.NonChainedOutput;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig.InputConfig;
@@ -117,7 +116,6 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
             TypeInformation<OUT> outputType) {
         this.taskFactory = checkNotNull(taskFactory);
         outputSerializer = outputType.createSerializer(executionConfig.getSerializerConfig());
-        streamConfig.setTimeCharacteristic(TimeCharacteristic.EventTime);
     }
 
     public <T> StreamTaskMailboxTestHarnessBuilder<OUT> modifyExecutionConfig(
@@ -381,7 +379,6 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
                         ResultPartitionType.PIPELINED_BOUNDED));
 
         StreamConfig sourceConfig = new StreamConfig(new Configuration());
-        sourceConfig.setTimeCharacteristic(streamConfig.getTimeCharacteristic());
         sourceConfig.setVertexNonChainedOutputs(streamOutputsInOrder);
         sourceConfig.setChainedOutputs(chainedOutputs);
         sourceConfig.setTypeSerializerOut(sourceInput.getSourceSerializer());

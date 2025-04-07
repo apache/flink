@@ -27,12 +27,10 @@ import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
-import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
-import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.MockedEndpointVersion;
@@ -47,7 +45,6 @@ import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Order;
@@ -57,12 +54,10 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -179,32 +174,6 @@ public abstract class AbstractMaterializedTableStatementITCase {
 
         // init rest cluster client
         restClusterClient = injectClusterClient;
-    }
-
-    @AfterEach
-    void after() throws Exception {
-        Set<TableInfo> tableInfos =
-                service.listTables(
-                        sessionHandle,
-                        fileSystemCatalogName,
-                        TEST_DEFAULT_DATABASE,
-                        Collections.singleton(CatalogBaseTable.TableKind.TABLE));
-
-        // drop all materialized tables
-        for (TableInfo tableInfo : tableInfos) {
-            ResolvedCatalogBaseTable<?> resolvedTable =
-                    service.getTable(sessionHandle, tableInfo.getIdentifier());
-            if (CatalogBaseTable.TableKind.MATERIALIZED_TABLE == resolvedTable.getTableKind()) {
-                String dropTableDDL =
-                        String.format(
-                                "DROP MATERIALIZED TABLE %s",
-                                tableInfo.getIdentifier().asSerializableString());
-                OperationHandle dropTableHandle =
-                        service.executeStatement(
-                                sessionHandle, dropTableDDL, -1, new Configuration());
-                awaitOperationTermination(service, sessionHandle, dropTableHandle);
-            }
-        }
     }
 
     private SessionHandle initializeSession() {
@@ -363,5 +332,15 @@ public abstract class AbstractMaterializedTableStatementITCase {
                 Duration.ofMillis(timeout),
                 Duration.ofMillis(pause),
                 "Failed to verify whether the job is finished.");
+    }
+
+    public void dropMaterializedTable(ObjectIdentifier objectIdentifier) throws Exception {
+        String dropMaterializedTableDDL =
+                String.format(
+                        "DROP MATERIALIZED TABLE %s", objectIdentifier.asSerializableString());
+        OperationHandle dropMaterializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, dropMaterializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, dropMaterializedTableHandle);
     }
 }

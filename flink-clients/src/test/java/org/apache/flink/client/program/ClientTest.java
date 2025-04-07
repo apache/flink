@@ -21,13 +21,9 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.client.cli.ExecutionConfigAccessor;
@@ -45,14 +41,13 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
-import org.apache.flink.optimizer.DataStatistics;
-import org.apache.flink.optimizer.Optimizer;
-import org.apache.flink.optimizer.costs.DefaultCostEstimator;
-import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.testutils.InternalMiniClusterExtension;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -80,7 +75,7 @@ class ClientTest {
             new InternalMiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder().build());
 
-    private Plan plan;
+    private StreamGraph streamGraph;
 
     private Configuration config;
 
@@ -94,9 +89,9 @@ class ClientTest {
     @BeforeEach
     void setUp() {
 
-        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-        env.generateSequence(1, 1000).output(new DiscardingOutputFormat<>());
-        plan = env.createProgramPlan();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+        env.fromSequence(1, 1000).sinkTo(new DiscardingSink<>());
+        streamGraph = env.getStreamGraph();
 
         config = new Configuration();
         config.set(JobManagerOptions.ADDRESS, "localhost");
@@ -135,7 +130,7 @@ class ClientTest {
                             final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
                             ClientUtils.executeProgram(
-                                    new TestExecutorServiceLoader(clusterClient, plan),
+                                    new TestExecutorServiceLoader(clusterClient, streamGraph),
                                     configuration,
                                     prg,
                                     false,
@@ -157,7 +152,7 @@ class ClientTest {
                             final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
                             ClientUtils.executeProgram(
-                                    new TestExecutorServiceLoader(clusterClient, plan),
+                                    new TestExecutorServiceLoader(clusterClient, streamGraph),
                                     configuration,
                                     prg,
                                     false,
@@ -179,7 +174,7 @@ class ClientTest {
                             final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
                             ClientUtils.executeProgram(
-                                    new TestExecutorServiceLoader(clusterClient, plan),
+                                    new TestExecutorServiceLoader(clusterClient, streamGraph),
                                     configuration,
                                     prg,
                                     false,
@@ -202,7 +197,7 @@ class ClientTest {
                             final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
                             ClientUtils.executeProgram(
-                                    new TestExecutorServiceLoader(clusterClient, plan),
+                                    new TestExecutorServiceLoader(clusterClient, streamGraph),
                                     configuration,
                                     prg,
                                     false,
@@ -250,7 +245,7 @@ class ClientTest {
             final Configuration configuration = fromPackagedProgram(program, 1, false);
 
             ClientUtils.executeProgram(
-                    new TestExecutorServiceLoader(clusterClient, plan),
+                    new TestExecutorServiceLoader(clusterClient, streamGraph),
                     configuration,
                     program,
                     enforceSingleJobExecution,
@@ -263,12 +258,7 @@ class ClientTest {
     void shouldSubmitToJobClient() {
         final ClusterClient<?> clusterClient =
                 new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
-        JobGraph jobGraph =
-                FlinkPipelineTranslationUtil.getJobGraph(
-                        Thread.currentThread().getContextClassLoader(),
-                        plan,
-                        new Configuration(),
-                        1);
+        JobGraph jobGraph = streamGraph.getJobGraph();
 
         jobGraph.addJars(Collections.emptyList());
         jobGraph.setClasspaths(Collections.emptyList());
@@ -278,7 +268,7 @@ class ClientTest {
 
     public static class TestEntrypoint {
         public static void main(String[] args) {
-            ExecutionEnvironment.createLocalEnvironment();
+            StreamExecutionEnvironment.createLocalEnvironment();
         }
     }
 
@@ -301,7 +291,7 @@ class ClientTest {
                                 final Configuration configuration =
                                         fromPackagedProgram(packagedProgramMock, 1, true);
                                 ClientUtils.executeProgram(
-                                        new TestExecutorServiceLoader(client, plan),
+                                        new TestExecutorServiceLoader(client, streamGraph),
                                         configuration,
                                         packagedProgramMock,
                                         false,
@@ -318,28 +308,24 @@ class ClientTest {
     void testGetExecutionPlan() throws ProgramInvocationException {
         PackagedProgram prg =
                 PackagedProgram.newBuilder()
-                        .setEntryPointClassName(TestOptimizerPlan.class.getName())
+                        .setEntryPointClassName(TestExecutionPlan.class.getName())
                         .setArguments("/dev/random", "/tmp")
                         .build();
 
-        Optimizer optimizer =
-                new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
-        Plan plan =
-                (Plan)
-                        PackagedProgramUtils.getPipelineFromProgram(
-                                prg, new Configuration(), 1, true);
-        OptimizedPlan op = optimizer.compile(plan);
-        assertThat(op).isNotNull();
-
-        PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
-        assertThat(dumper.getOptimizerPlanAsJSON(op)).isNotNull();
-
-        // test HTML escaping
-        PlanJSONDumpGenerator dumper2 = new PlanJSONDumpGenerator();
-        dumper2.setEncodeForHTML(true);
-        String htmlEscaped = dumper2.getOptimizerPlanAsJSON(op);
-
-        assertThat(htmlEscaped).doesNotContain("\\");
+        Pipeline pipeline =
+                PackagedProgramUtils.getPipelineFromProgram(prg, new Configuration(), 666, true);
+        String jsonExecutionPlan =
+                FlinkPipelineTranslationUtil.translateToJSONExecutionPlan(
+                        prg.getUserCodeClassLoader(), pipeline);
+        assertThat(jsonExecutionPlan).isNotNull();
+        assertThat(jsonExecutionPlan)
+                .contains(
+                        "\"type\" : \"Source: MySource\"",
+                        "\"type\" : \"MyMap\",",
+                        "\"type\" : \"MySink: Writer\",");
+        assertThat(jsonExecutionPlan).contains("\"parallelism\" : 666");
+        assertThat(jsonExecutionPlan).doesNotContain("\\");
+        System.out.println(jsonExecutionPlan);
     }
 
     @Test
@@ -359,7 +345,8 @@ class ClientTest {
             assertThatThrownBy(
                             () ->
                                     ClientUtils.executeProgram(
-                                            new TestExecutorServiceLoader(clusterClient, plan),
+                                            new TestExecutorServiceLoader(
+                                                    clusterClient, streamGraph),
                                             configuration,
                                             program,
                                             true,
@@ -371,34 +358,38 @@ class ClientTest {
     // --------------------------------------------------------------------------------------------
 
     /** A test job. */
-    public static class TestOptimizerPlan implements ProgramDescription {
+    public static class TestExecutionPlan implements ProgramDescription {
 
         @SuppressWarnings("serial")
         public static void main(String[] args) throws Exception {
             if (args.length < 2) {
-                System.err.println("Usage: TestOptimizerPlan <input-file-path> <output-file-path>");
+                System.err.println("Usage: TestExecutionPlan");
                 return;
             }
 
-            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-            DataSet<Tuple2<Long, Long>> input =
-                    env.readCsvFile(args[0]).fieldDelimiter("\t").types(Long.class, Long.class);
+            DataStream<Long> input = env.fromSequence(0, 999).name("MySource");
 
-            DataSet<Tuple2<Long, Long>> result =
+            DataStream<Long> result =
                     input.map(
-                            new MapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>>() {
-                                public Tuple2<Long, Long> map(Tuple2<Long, Long> value) {
-                                    return new Tuple2<Long, Long>(value.f0, value.f1 + 1);
-                                }
-                            });
-            result.writeAsCsv(args[1], "\n", "\t");
+                                    new MapFunction<Long, Long>() {
+
+                                        @Override
+                                        public Long map(Long value) throws Exception {
+                                            return value * 2 + 1;
+                                        }
+                                    })
+                            .name("MyMap");
+
+            result.sinkTo(new DiscardingSink<>()).name("MySink");
+
             env.execute();
         }
 
         @Override
         public String getDescription() {
-            return "TestOptimizerPlan <input-file-path> <output-file-path>";
+            return "TestExecutionPlan";
         }
     }
 
@@ -406,8 +397,11 @@ class ClientTest {
     public static final class TestEager {
 
         public static void main(String[] args) throws Exception {
-            final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-            env.fromElements(1, 2).collect();
+            final StreamExecutionEnvironment env =
+                    StreamExecutionEnvironment.getExecutionEnvironment();
+            env.fromData(1, 2).sinkTo(new DiscardingSink<>());
+            JobExecutionResult result = env.execute();
+            result.getAccumulatorResult("dummy");
         }
     }
 
@@ -415,10 +409,11 @@ class ClientTest {
     public static final class TestMultiExecute {
 
         public static void main(String[] args) throws Exception {
-            final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            final StreamExecutionEnvironment env =
+                    StreamExecutionEnvironment.getExecutionEnvironment();
 
             for (int i = 0; i < 2; i++) {
-                env.fromElements(1, 2).output(new DiscardingOutputFormat<>());
+                env.fromData(1, 2).sinkTo(new DiscardingSink<>());
                 JobClient jc = env.executeAsync();
 
                 jc.getJobExecutionResult();
@@ -430,8 +425,9 @@ class ClientTest {
     public static final class TestGetRuntime {
 
         public static void main(String[] args) throws Exception {
-            final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-            env.fromElements(1, 2).output(new DiscardingOutputFormat<Integer>());
+            final StreamExecutionEnvironment env =
+                    StreamExecutionEnvironment.getExecutionEnvironment();
+            env.fromData(1, 2).sinkTo(new DiscardingSink<>());
             env.execute().getNetRuntime();
         }
     }
@@ -440,8 +436,9 @@ class ClientTest {
     public static final class TestGetJobID {
 
         public static void main(String[] args) throws Exception {
-            final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-            env.fromElements(1, 2).output(new DiscardingOutputFormat<Integer>());
+            final StreamExecutionEnvironment env =
+                    StreamExecutionEnvironment.getExecutionEnvironment();
+            env.fromData(1, 2).sinkTo(new DiscardingSink<>());
             env.execute().getJobID();
         }
     }
@@ -450,8 +447,9 @@ class ClientTest {
     public static final class TestGetAccumulator {
 
         public static void main(String[] args) throws Exception {
-            final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-            env.fromElements(1, 2).output(new DiscardingOutputFormat<Integer>());
+            final StreamExecutionEnvironment env =
+                    StreamExecutionEnvironment.getExecutionEnvironment();
+            env.fromData(1, 2).sinkTo(new DiscardingSink<>());
             env.execute().getAccumulatorResult(ACCUMULATOR_NAME);
         }
     }
@@ -460,8 +458,9 @@ class ClientTest {
     public static final class TestGetAllAccumulator {
 
         public static void main(String[] args) throws Exception {
-            final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-            env.fromElements(1, 2).output(new DiscardingOutputFormat<Integer>());
+            final StreamExecutionEnvironment env =
+                    StreamExecutionEnvironment.getExecutionEnvironment();
+            env.fromData(1, 2).sinkTo(new DiscardingSink<>());
             env.execute().getAllAccumulatorResults();
         }
     }
@@ -470,11 +469,12 @@ class ClientTest {
 
         private final ClusterClient<?> clusterClient;
 
-        private final Plan plan;
+        private final StreamGraph streamGraph;
 
-        TestExecutorServiceLoader(final ClusterClient<?> clusterClient, final Plan plan) {
+        TestExecutorServiceLoader(
+                final ClusterClient<?> clusterClient, final StreamGraph streamGraph) {
             this.clusterClient = checkNotNull(clusterClient);
-            this.plan = checkNotNull(plan);
+            this.streamGraph = checkNotNull(streamGraph);
         }
 
         @Override
@@ -496,9 +496,11 @@ class ClientTest {
                 public PipelineExecutor getExecutor(@Nonnull Configuration configuration) {
                     return (pipeline, config, classLoader) -> {
                         final int parallelism = config.get(CoreOptions.DEFAULT_PARALLELISM);
-                        final JobGraph jobGraph =
-                                FlinkPipelineTranslationUtil.getJobGraph(
-                                        classLoader, plan, config, parallelism);
+                        final JobGraph jobGraph = streamGraph.getJobGraph();
+                        // The job graphs from different cases are generated from the same stream
+                        // graph, resulting in the same job ID, which can lead to exceptions.
+                        // Therefore, we manually set a unique job ID here.
+                        jobGraph.setJobID(new JobID());
 
                         final ExecutionConfigAccessor accessor =
                                 ExecutionConfigAccessor.fromConfiguration(config);

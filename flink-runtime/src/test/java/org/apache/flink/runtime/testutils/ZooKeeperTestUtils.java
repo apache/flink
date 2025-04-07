@@ -120,7 +120,7 @@ public class ZooKeeperTestUtils {
                 HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, Duration.ofMillis(connTimeout));
 
         // File system state backend
-        config.set(StateBackendOptions.STATE_BACKEND, "FILESYSTEM");
+        config.set(StateBackendOptions.STATE_BACKEND, "hashmap");
         config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, fsStateHandlePath + "/checkpoints");
         config.set(HighAvailabilityOptions.HA_STORAGE_PATH, fsStateHandlePath + "/recovery");
 
@@ -129,7 +129,9 @@ public class ZooKeeperTestUtils {
         return config;
     }
 
-    /** @return true, if a CI environment is detected. */
+    /**
+     * @return true, if a CI environment is detected.
+     */
     public static boolean runsOnCIInfrastructure() {
         return System.getenv().containsKey("CI") || System.getenv().containsKey("TF_BUILD");
     }

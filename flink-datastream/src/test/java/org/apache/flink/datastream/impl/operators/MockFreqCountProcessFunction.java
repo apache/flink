@@ -18,10 +18,10 @@
 
 package org.apache.flink.datastream.impl.operators;
 
-import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDeclaration;
 import org.apache.flink.api.common.state.StateDeclaration;
 import org.apache.flink.api.common.state.StateDeclarations;
+import org.apache.flink.api.common.state.v2.MapState;
 import org.apache.flink.api.common.typeinfo.TypeDescriptors;
 import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.PartitionedContext;
@@ -44,10 +44,11 @@ public class MockFreqCountProcessFunction
     }
 
     @Override
-    public void processRecord(Integer record, Collector<Integer> output, PartitionedContext ctx)
+    public void processRecord(
+            Integer record, Collector<Integer> output, PartitionedContext<Integer> ctx)
             throws Exception {
         Optional<MapState<Integer, Integer>> stateOptional =
-                ctx.getStateManager().getState(mapStateDeclaration);
+                ctx.getStateManager().getStateOptional(mapStateDeclaration);
         if (!stateOptional.isPresent()) {
             throw new RuntimeException("State is not available");
         }

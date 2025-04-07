@@ -48,16 +48,10 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.CatalogStoreFactory;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.factories.TableFactoryUtil;
-import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.functions.TableAggregateFunction;
-import org.apache.flink.table.functions.TableFunction;
-import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.ExternalQueryOperation;
 import org.apache.flink.table.operations.OutputConversionModifyOperation;
 import org.apache.flink.table.resource.ResourceManager;
-import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
@@ -173,39 +167,6 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
                 planner,
                 executor,
                 settings.isStreamingMode());
-    }
-
-    @Override
-    public <T> void registerFunction(String name, TableFunction<T> tableFunction) {
-        TypeInformation<T> typeInfo =
-                UserDefinedFunctionHelper.getReturnTypeOfTableFunction(tableFunction);
-
-        functionCatalog.registerTempSystemTableFunction(name, tableFunction, typeInfo);
-    }
-
-    @Override
-    public <T, ACC> void registerFunction(
-            String name, AggregateFunction<T, ACC> aggregateFunction) {
-        TypeInformation<T> typeInfo =
-                UserDefinedFunctionHelper.getReturnTypeOfAggregateFunction(aggregateFunction);
-        TypeInformation<ACC> accTypeInfo =
-                UserDefinedFunctionHelper.getAccumulatorTypeOfAggregateFunction(aggregateFunction);
-
-        functionCatalog.registerTempSystemAggregateFunction(
-                name, aggregateFunction, typeInfo, accTypeInfo);
-    }
-
-    @Override
-    public <T, ACC> void registerFunction(
-            String name, TableAggregateFunction<T, ACC> tableAggregateFunction) {
-        TypeInformation<T> typeInfo =
-                UserDefinedFunctionHelper.getReturnTypeOfAggregateFunction(tableAggregateFunction);
-        TypeInformation<ACC> accTypeInfo =
-                UserDefinedFunctionHelper.getAccumulatorTypeOfAggregateFunction(
-                        tableAggregateFunction);
-
-        functionCatalog.registerTempSystemAggregateFunction(
-                name, tableAggregateFunction, typeInfo, accTypeInfo);
     }
 
     @Override
@@ -350,11 +311,6 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
     }
 
     @Override
-    public <T> void registerDataStream(String name, DataStream<T> dataStream) {
-        createTemporaryView(name, dataStream);
-    }
-
-    @Override
     public <T> void createTemporaryView(
             String path, DataStream<T> dataStream, Expression... fields) {
         createTemporaryView(path, fromDataStream(dataStream, fields));
@@ -391,11 +347,5 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
                         wrapWithChangeFlag(typeInfo),
                         OutputConversionModifyOperation.UpdateMode.RETRACT);
         return toStreamInternal(table, modifyOperation);
-    }
-
-    @Override
-    protected void validateTableSource(TableSource<?> tableSource) {
-        super.validateTableSource(tableSource);
-        validateTimeCharacteristic(TableSourceValidation.hasRowtimeAttribute(tableSource));
     }
 }

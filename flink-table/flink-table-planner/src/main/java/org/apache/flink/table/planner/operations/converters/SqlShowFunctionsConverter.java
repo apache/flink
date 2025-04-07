@@ -19,50 +19,43 @@
 package org.apache.flink.table.planner.operations.converters;
 
 import org.apache.flink.sql.parser.dql.SqlShowFunctions;
-import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
+import org.apache.flink.table.operations.ShowFunctionsOperation.FunctionScope;
+import org.apache.flink.table.operations.utils.ShowLikeOperator;
+
+import javax.annotation.Nullable;
 
 /** A converter for {@link SqlShowFunctions}. */
-public class SqlShowFunctionsConverter implements SqlNodeConverter<SqlShowFunctions> {
+public class SqlShowFunctionsConverter extends AbstractSqlShowConverter<SqlShowFunctions> {
+
+    @Override
+    public Operation getOperationWithoutPrep(
+            SqlShowFunctions sqlShowFunctions,
+            @Nullable String catalogName,
+            @Nullable String databaseName,
+            @Nullable ShowLikeOperator likeOp) {
+        final FunctionScope functionScope = getFunctionScope(sqlShowFunctions);
+        return new ShowFunctionsOperation(functionScope, catalogName, databaseName, likeOp);
+    }
+
+    @Override
+    public Operation getOperation(
+            SqlShowFunctions sqlShowFunctions,
+            @Nullable String catalogName,
+            @Nullable String databaseName,
+            String prep,
+            @Nullable ShowLikeOperator likeOp) {
+        final FunctionScope functionScope = getFunctionScope(sqlShowFunctions);
+        return new ShowFunctionsOperation(functionScope, prep, catalogName, databaseName, likeOp);
+    }
 
     @Override
     public Operation convertSqlNode(SqlShowFunctions sqlShowFunctions, ConvertContext context) {
-        ShowFunctionsOperation.FunctionScope functionScope =
-                sqlShowFunctions.requireUser()
-                        ? ShowFunctionsOperation.FunctionScope.USER
-                        : ShowFunctionsOperation.FunctionScope.ALL;
+        return convertShowOperation(sqlShowFunctions, context);
+    }
 
-        if (sqlShowFunctions.getPreposition() == null) {
-            return new ShowFunctionsOperation(
-                    functionScope,
-                    sqlShowFunctions.getLikeType(),
-                    sqlShowFunctions.getLikeSqlPattern(),
-                    sqlShowFunctions.isNotLike());
-        }
-
-        String[] fullDatabaseName = sqlShowFunctions.fullDatabaseName();
-        if (fullDatabaseName.length > 2) {
-            throw new ValidationException(
-                    String.format(
-                            "Show functions from/in identifier [ %s ] format error, it should be [catalog_name.]database_name.",
-                            String.join(".", fullDatabaseName)));
-        }
-        CatalogManager catalogManager = context.getCatalogManager();
-        String catalogName =
-                (fullDatabaseName.length == 1)
-                        ? catalogManager.getCurrentCatalog()
-                        : fullDatabaseName[0];
-        String databaseName =
-                (fullDatabaseName.length == 1) ? fullDatabaseName[0] : fullDatabaseName[1];
-        return new ShowFunctionsOperation(
-                functionScope,
-                sqlShowFunctions.getPreposition(),
-                catalogName,
-                databaseName,
-                sqlShowFunctions.getLikeType(),
-                sqlShowFunctions.getLikeSqlPattern(),
-                sqlShowFunctions.isNotLike());
+    private static FunctionScope getFunctionScope(SqlShowFunctions sqlShowFunctions) {
+        return sqlShowFunctions.requireUser() ? FunctionScope.USER : FunctionScope.ALL;
     }
 }

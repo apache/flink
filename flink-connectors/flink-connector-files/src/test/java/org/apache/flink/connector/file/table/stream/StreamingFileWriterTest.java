@@ -24,12 +24,11 @@ import org.apache.flink.connector.file.table.FileSystemTableSink;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.streaming.api.functions.sink.filesystem.RollingPolicy;
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
+import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.GenericRowData;
@@ -375,7 +374,6 @@ class StreamingFileWriterTest {
                         conf);
         OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness =
                 new OneInputStreamOperatorTestHarness<>(writer, 1, 1, 0);
-        harness.getStreamConfig().setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
         return harness;
     }
 
@@ -384,7 +382,7 @@ class StreamingFileWriterTest {
         configuration.set(SINK_PARTITION_COMMIT_POLICY_KIND, "success-file");
         configuration.setString(PARTITION_TIME_EXTRACTOR_TIMESTAMP_FORMATTER.key(), "yyyy-MM-dd");
         configuration.setString(SINK_PARTITION_COMMIT_TRIGGER.key(), "partition-time");
-        configuration.setLong(SINK_PARTITION_COMMIT_DELAY.key(), commitDelay);
+        configuration.set(SINK_PARTITION_COMMIT_DELAY, Duration.ofMillis(commitDelay));
         configuration.setString(SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE.key(), "UTC");
         return configuration;
     }
@@ -393,7 +391,7 @@ class StreamingFileWriterTest {
         Configuration configuration = new Configuration();
         configuration.set(SINK_PARTITION_COMMIT_POLICY_KIND, "success-file");
         configuration.setString(SINK_PARTITION_COMMIT_TRIGGER.key(), "process-time");
-        configuration.setLong(SINK_PARTITION_COMMIT_DELAY.key(), commitDelay);
+        configuration.set(SINK_PARTITION_COMMIT_DELAY, Duration.ofMillis(commitDelay));
         configuration.setString(SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE.key(), "UTC");
         return configuration;
     }

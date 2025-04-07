@@ -31,9 +31,9 @@
 >
   <thead>
     <tr>
-      <th nzWidth="33%">SubTask</th>
-      <th nzWidth="33%">Watermark</th>
-      <th nzWidth="34%">
+      <th nzWidth="20%">SubTask</th>
+      <th nzWidth="40%" [nzSortFn]="sortWatermark">Watermark</th>
+      <th nzWidth="40%" [nzSortFn]="sortWatermark">
         Datetime of Watermark Timestamp
         <i
           class="header-icon"

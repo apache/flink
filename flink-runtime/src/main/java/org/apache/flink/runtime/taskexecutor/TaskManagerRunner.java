@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JMXServerOptions;
@@ -50,8 +49,8 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
-import org.apache.flink.runtime.metrics.ReporterSetup;
-import org.apache.flink.runtime.metrics.TraceReporterSetup;
+import org.apache.flink.runtime.metrics.ReporterSetupBuilder;
+import org.apache.flink.runtime.metrics.filter.DefaultReporterFilters;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.rpc.AddressResolution;
@@ -123,7 +122,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
     private final Configuration configuration;
 
-    private final Time timeout;
+    private final Duration timeout;
 
     private final PluginManager pluginManager;
 
@@ -171,7 +170,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
         this.pluginManager = checkNotNull(pluginManager);
         this.taskExecutorServiceFactory = checkNotNull(taskExecutorServiceFactory);
 
-        timeout = Time.fromDuration(configuration.get(RpcOptions.ASK_TIMEOUT_DURATION));
+        timeout = configuration.get(RpcOptions.ASK_TIMEOUT_DURATION);
 
         this.terminationFuture = new CompletableFuture<>();
         this.shutdown = false;
@@ -222,8 +221,18 @@ public class TaskManagerRunner implements FatalErrorHandler {
                             MetricRegistryConfiguration.fromConfiguration(
                                     configuration,
                                     rpcSystem.getMaximumMessageSizeInBytes(configuration)),
-                            ReporterSetup.fromConfiguration(configuration, pluginManager),
-                            TraceReporterSetup.fromConfiguration(configuration, pluginManager));
+                            ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
+                                    configuration,
+                                    DefaultReporterFilters::metricsFromConfiguration,
+                                    pluginManager),
+                            ReporterSetupBuilder.TRACE_SETUP_BUILDER.fromConfiguration(
+                                    configuration,
+                                    DefaultReporterFilters::tracesFromConfiguration,
+                                    pluginManager),
+                            ReporterSetupBuilder.EVENT_SETUP_BUILDER.fromConfiguration(
+                                    configuration,
+                                    DefaultReporterFilters::eventsFromConfiguration,
+                                    pluginManager));
 
             final RpcService metricQueryServiceRpcService =
                     MetricUtils.startRemoteMetricsRpcService(
@@ -408,7 +417,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
             if (executor != null) {
                 terminationFutures.add(
                         ExecutorUtils.nonBlockingShutdown(
-                                timeout.toMilliseconds(), TimeUnit.MILLISECONDS, executor));
+                                timeout.toMillis(), TimeUnit.MILLISECONDS, executor));
             }
 
             if (exception != null) {

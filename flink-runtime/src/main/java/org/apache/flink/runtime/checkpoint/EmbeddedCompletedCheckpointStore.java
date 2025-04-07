@@ -20,7 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.Executors;
@@ -61,18 +61,18 @@ public class EmbeddedCompletedCheckpointStore extends AbstractCompleteCheckpoint
                 maxRetainedCheckpoints,
                 Collections.emptyList(),
                 /* Using the default claim mode in tests to detect any breaking changes early. */
-                RestoreMode.DEFAULT);
+                RecoveryClaimMode.DEFAULT);
     }
 
     public EmbeddedCompletedCheckpointStore(
             int maxRetainedCheckpoints,
             Collection<CompletedCheckpoint> initialCheckpoints,
-            RestoreMode restoreMode) {
+            RecoveryClaimMode recoveryClaimMode) {
         this(
                 maxRetainedCheckpoints,
                 initialCheckpoints,
                 SharedStateRegistry.DEFAULT_FACTORY.create(
-                        Executors.directExecutor(), initialCheckpoints, restoreMode));
+                        Executors.directExecutor(), initialCheckpoints, recoveryClaimMode));
     }
 
     public EmbeddedCompletedCheckpointStore(

@@ -29,20 +29,25 @@ import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.KeyContextHandler;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskITCase;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.MockOutput;
 import org.apache.flink.streaming.util.MockStreamConfig;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.clock.Clock;
 
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -150,7 +155,14 @@ class RecordProcessorUtilsTest {
         boolean setCurrentKeyCalled = false;
 
         NoOverrideOperator() throws Exception {
-            super();
+            super(
+                    new StreamOperatorParameters<>(
+                            new StreamTaskITCase.NoOpStreamTask<>(new DummyEnvironment()),
+                            new MockStreamConfig(new Configuration(), 1),
+                            new MockOutput<>(new ArrayList<>()),
+                            NoOpProcessingTimeService::new,
+                            null,
+                            null));
             // For case that "SetKeyContextElement" has not been overridden,
             // we can determine whether the "SetKeyContextElement" is called through
             // "setCurrentKey". According to the implementation, we need to make the
@@ -161,10 +173,6 @@ class RecordProcessorUtilsTest {
             KeySelector keySelector = x -> x;
             InstantiationUtil.writeObjectToConfig(keySelector, configuration, "statePartitioner0");
             InstantiationUtil.writeObjectToConfig(keySelector, configuration, "statePartitioner1");
-            setup(
-                    new StreamTaskITCase.NoOpStreamTask<>(new DummyEnvironment()),
-                    new MockStreamConfig(configuration, 1),
-                    new MockOutput<>(new ArrayList<>()));
         }
 
         @Override
@@ -402,6 +410,36 @@ class RecordProcessorUtilsTest {
         @Override
         public boolean hasKeyContext2() {
             return hasKeyContext2;
+        }
+    }
+
+    private static class NoOpProcessingTimeService implements ProcessingTimeService {
+
+        @Override
+        public Clock getClock() {
+            return null;
+        }
+
+        @Override
+        public ScheduledFuture<?> scheduleAtFixedRate(
+                ProcessingTimeCallback callback, long initialDelay, long period) {
+            return null;
+        }
+
+        @Override
+        public ScheduledFuture<?> scheduleWithFixedDelay(
+                ProcessingTimeCallback callback, long initialDelay, long period) {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<Void> quiesce() {
+            return null;
+        }
+
+        @Override
+        public ScheduledFuture<?> registerTimer(long timestamp, ProcessingTimeCallback target) {
+            return null;
         }
     }
 }

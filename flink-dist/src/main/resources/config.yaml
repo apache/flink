@@ -22,6 +22,11 @@ env:
   java:
     opts:
       all: --add-exports=java.base/sun.net.util=ALL-UNNAMED --add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED --add-exports=java.security.jgss/sun.security.krb5=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.text=ALL-UNNAMED --add-opens=java.base/java.time=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.locks=ALL-UNNAMED
+#  # log4j 2 configuration
+#  log:
+#    level: TRACE
+#    max: 5
+#    dir: /tmp/flink_logs
 
 #==============================================================================
 # Common
@@ -144,22 +149,21 @@ parallelism:
 #     timeout: 10min
 #     tolerable-failed-checkpoints: 0
 #     unaligned: false
+#     # Flag to enable/disable incremental checkpoints for backends that
+#     # support incremental checkpoints (like the RocksDB state backend).
+#     incremental: false
+#     # Directory for checkpoints filesystem, when using any of the default bundled
+#     # state backends.
+#     dir: hdfs://namenode-host:port/flink-checkpoints
+#     # Default target directory for savepoints, optional.
+#     savepoint-dir: hdfs://namenode-host:port/flink-savepoints
+
 
 # state:
 #   backend:
 #     # Supported backends are 'hashmap', 'rocksdb', or the
 #     # <class-name-of-factory>.
 #     type: hashmap
-#     # Flag to enable/disable incremental checkpoints for backends that
-#     # support incremental checkpoints (like the RocksDB state backend).
-#     incremental: false
-#   checkpoints:
-#       # Directory for checkpoints filesystem, when using any of the default bundled
-#       # state backends.
-#       dir: hdfs://namenode-host:port/flink-checkpoints
-#   savepoints:
-#       # Default target directory for savepoints, optional.
-#       dir: hdfs://namenode-host:port/flink-savepoints
 
 #==============================================================================
 # Rest & web frontend
@@ -174,7 +178,7 @@ rest:
   #
   # To enable this, set the bind address to one that has access to outside-facing
   # network interface, such as 0.0.0.0.
-  bind-address: localhost
+  # bind-address: localhost
   # # The port to which the REST client connects to. If rest.bind-port has
   # # not been specified, then the server will bind to this port as well.
   # port: 8081

@@ -38,7 +38,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
 
 /** A test base to test window table function operator . */
-public abstract class WindowTableFunctionOperatorTestBase {
+abstract class WindowTableFunctionOperatorTestBase {
 
     protected static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
     protected static final ZoneId SHANGHAI_ZONE_ID = ZoneId.of("Asia/Shanghai");

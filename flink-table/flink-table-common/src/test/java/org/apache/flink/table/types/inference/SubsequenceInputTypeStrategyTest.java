@@ -23,12 +23,14 @@ import org.apache.flink.table.types.inference.strategies.SubsequenceInputTypeStr
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
+import java.util.Arrays;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.inference.InputTypeStrategies.ANY;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.commonType;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.explicit;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.logical;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.sequence;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.varyingSequence;
 
 /** Tests for {@link SubsequenceInputTypeStrategy}. */
@@ -113,6 +115,34 @@ class SubsequenceInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 DataTypes.DECIMAL(13, 3).notNull(),
                                 DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE().notNull(),
                                 DataTypes.SMALLINT(),
-                                DataTypes.BIGINT()));
+                                DataTypes.BIGINT()),
+                TestSpec.forStrategy(
+                                "A strategy with named argument",
+                                InputTypeStrategies.compositeSequence()
+                                        .argument("arg1", logical(LogicalTypeRoot.BOOLEAN))
+                                        .subsequence(
+                                                sequence(
+                                                        Arrays.asList("arg2", "arg3"),
+                                                        Arrays.asList(
+                                                                logical(
+                                                                        LogicalTypeFamily
+                                                                                .INTEGER_NUMERIC),
+                                                                logical(
+                                                                        LogicalTypeFamily
+                                                                                .INTEGER_NUMERIC))))
+                                        .argument(logical(LogicalTypeRoot.INTEGER))
+                                        .finish())
+                        .calledWithArgumentTypes(
+                                DataTypes.BOOLEAN(),
+                                DataTypes.SMALLINT(),
+                                DataTypes.BIGINT(),
+                                DataTypes.INT())
+                        .expectSignature(
+                                "f(arg1 <BOOLEAN>, arg2 <INTEGER_NUMERIC>, arg3 <INTEGER_NUMERIC>, <INTEGER>)")
+                        .expectArgumentTypes(
+                                DataTypes.BOOLEAN(),
+                                DataTypes.SMALLINT(),
+                                DataTypes.BIGINT(),
+                                DataTypes.INT()));
     }
 }

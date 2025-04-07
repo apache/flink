@@ -54,8 +54,6 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 
     public static final String FIELD_NAME_ATTEMPT = "attempt";
 
-    @Deprecated public static final String FIELD_NAME_HOST = "host";
-
     public static final String FIELD_NAME_ENDPOINT = "endpoint";
 
     public static final String FIELD_NAME_START_TIME = "start-time";
@@ -82,9 +80,6 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 
     @JsonProperty(FIELD_NAME_ATTEMPT)
     private final int attempt;
-
-    @JsonProperty(FIELD_NAME_HOST)
-    private final String host;
 
     @JsonProperty(FIELD_NAME_ENDPOINT)
     private final String endpoint;
@@ -122,7 +117,6 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
             @JsonProperty(FIELD_NAME_SUBTASK_INDEX) int subtaskIndex,
             @JsonProperty(FIELD_NAME_STATUS) ExecutionState status,
             @JsonProperty(FIELD_NAME_ATTEMPT) int attempt,
-            @JsonProperty(FIELD_NAME_HOST) String host,
             @JsonProperty(FIELD_NAME_ENDPOINT) String endpoint,
             @JsonProperty(FIELD_NAME_START_TIME) long startTime,
             @JsonProperty(FIELD_NAME_END_TIME) long endTime,
@@ -136,7 +130,6 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
         this.subtaskIndex = subtaskIndex;
         this.status = Preconditions.checkNotNull(status);
         this.attempt = attempt;
-        this.host = Preconditions.checkNotNull(host);
         this.endpoint = Preconditions.checkNotNull(endpoint);
         this.startTime = startTime;
         this.startTimeCompatible = startTime;
@@ -158,11 +151,6 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 
     public int getAttempt() {
         return attempt;
-    }
-
-    @Deprecated
-    public String getHost() {
-        return host;
     }
 
     public String getEndpoint() {
@@ -215,7 +203,6 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
         final long now = System.currentTimeMillis();
 
         final TaskManagerLocation location = execution.getAssignedResourceLocation();
-        final String host = location == null ? "(unassigned)" : location.getHostname();
         final String endpoint = location == null ? "(unassigned)" : location.getEndpoint();
         String taskmanagerId =
                 location == null ? "(unassigned)" : location.getResourceID().toString();
@@ -248,7 +235,6 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
                 execution.getParallelSubtaskIndex(),
                 status,
                 execution.getAttemptNumber(),
-                host,
                 endpoint,
                 startTime,
                 endTime,
@@ -273,7 +259,6 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
         return subtaskIndex == that.subtaskIndex
                 && status == that.status
                 && attempt == that.attempt
-                && Objects.equals(host, that.host)
                 && Objects.equals(endpoint, that.endpoint)
                 && startTime == that.startTime
                 && startTimeCompatible == that.startTimeCompatible
@@ -291,7 +276,6 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
                 subtaskIndex,
                 status,
                 attempt,
-                host,
                 endpoint,
                 startTime,
                 startTimeCompatible,

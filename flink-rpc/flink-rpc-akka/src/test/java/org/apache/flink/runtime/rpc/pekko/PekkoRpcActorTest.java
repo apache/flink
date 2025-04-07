@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rpc.pekko;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -372,9 +371,9 @@ class PekkoRpcActorTest {
             assertThat(terminationFuture).isNotDone();
 
             final CompletableFuture<Integer> firstAsyncOperationFuture =
-                    asyncOperationGateway.asyncOperation(Time.fromDuration(timeout));
+                    asyncOperationGateway.asyncOperation(timeout);
             final CompletableFuture<Integer> secondAsyncOperationFuture =
-                    asyncOperationGateway.asyncOperation(Time.fromDuration(timeout));
+                    asyncOperationGateway.asyncOperation(timeout);
 
             endpoint.awaitEnterAsyncOperation();
 
@@ -845,7 +844,7 @@ class PekkoRpcActorTest {
     // ------------------------------------------------------------------------
 
     interface AsyncOperationGateway extends RpcGateway {
-        CompletableFuture<Integer> asyncOperation(@RpcTimeout Time timeout);
+        CompletableFuture<Integer> asyncOperation(@RpcTimeout Duration timeout);
     }
 
     private static class TerminatingAfterOnStopFutureCompletionEndpoint extends RpcEndpoint
@@ -866,7 +865,7 @@ class PekkoRpcActorTest {
         }
 
         @Override
-        public CompletableFuture<Integer> asyncOperation(Time timeout) {
+        public CompletableFuture<Integer> asyncOperation(Duration timeout) {
             asyncOperationCounter.incrementAndGet();
             enterAsyncOperation.trigger();
 

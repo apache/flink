@@ -153,7 +153,7 @@ class JobResourceRequirementsTest {
     }
 
     @Test
-    void testWriteToJobGraphAndReadFromJobGraph() throws IOException {
+    void testWriteToJobGraphAndReadFromExecutionPlan() throws IOException {
         final JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
         final JobResourceRequirements jobResourceRequirements =
                 JobResourceRequirements.newBuilder()
@@ -161,15 +161,15 @@ class JobResourceRequirementsTest {
                         .setParallelismForJobVertex(secondVertexId, 10, 10)
                         .build();
 
-        JobResourceRequirements.writeToJobGraph(jobGraph, jobResourceRequirements);
-        assertThat(JobResourceRequirements.readFromJobGraph(jobGraph))
+        JobResourceRequirements.writeToExecutionPlan(jobGraph, jobResourceRequirements);
+        assertThat(JobResourceRequirements.readFromExecutionPlan(jobGraph))
                 .get()
                 .isEqualTo(jobResourceRequirements);
     }
 
     @Test
     void testReadNonExistentResourceRequirementsFromJobGraph() throws IOException {
-        assertThat(JobResourceRequirements.readFromJobGraph(JobGraphTestUtils.emptyJobGraph()))
+        assertThat(JobResourceRequirements.readFromExecutionPlan(JobGraphTestUtils.emptyJobGraph()))
                 .isEmpty();
     }
 }

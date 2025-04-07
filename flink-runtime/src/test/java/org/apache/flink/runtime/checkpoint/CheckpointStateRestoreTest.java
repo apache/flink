@@ -232,7 +232,7 @@ class CheckpointStateRestoreTest {
         // --- (2) Checkpoint misses state for a jobVertex (should work) ---
         Map<OperatorID, OperatorState> checkpointTaskStates = new HashMap<>();
         {
-            OperatorState taskState = new OperatorState(operatorId1, 3, 3);
+            OperatorState taskState = new OperatorState(null, null, operatorId1, 3, 3);
             taskState.putState(0, OperatorSubtaskState.builder().build());
             taskState.putState(1, OperatorSubtaskState.builder().build());
             taskState.putState(2, OperatorSubtaskState.builder().build());
@@ -264,7 +264,7 @@ class CheckpointStateRestoreTest {
 
         // There is no task for this
         {
-            OperatorState taskState = new OperatorState(newOperatorID, 1, 1);
+            OperatorState taskState = new OperatorState(null, null, newOperatorID, 1, 1);
             taskState.putState(0, OperatorSubtaskState.builder().build());
 
             checkpointTaskStates.put(newOperatorID, taskState);

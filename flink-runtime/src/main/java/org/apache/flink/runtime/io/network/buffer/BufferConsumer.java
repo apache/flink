@@ -93,7 +93,9 @@ public class BufferConsumer implements Closeable {
         return slice.retainBuffer();
     }
 
-    /** @param bytesToSkip number of bytes to skip from currentReaderPosition */
+    /**
+     * @param bytesToSkip number of bytes to skip from currentReaderPosition
+     */
     void skip(int bytesToSkip) {
         writerPosition.update();
         int cachedWriterPosition = writerPosition.getCached();

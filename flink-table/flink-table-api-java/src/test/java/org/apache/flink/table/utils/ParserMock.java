@@ -27,13 +27,14 @@ import org.apache.flink.table.types.logical.RowType;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.List;
 
 /** Mocks {@link Parser} for tests. */
 public class ParserMock implements Parser {
     @Override
     public List<Operation> parse(String statement) {
-        return null;
+        return Collections.emptyList();
     }
 
     @Override

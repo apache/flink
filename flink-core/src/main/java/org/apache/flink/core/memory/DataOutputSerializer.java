@@ -53,12 +53,6 @@ public class DataOutputSerializer implements DataOutputView, MemorySegmentWritab
         return this.wrapper;
     }
 
-    /** @deprecated Replaced by {@link #getSharedBuffer()} for a better, safer name. */
-    @Deprecated
-    public byte[] getByteArray() {
-        return getSharedBuffer();
-    }
-
     /**
      * Gets a reference to the internal byte buffer. This buffer may be larger than the actual
      * serialized data. Only the bytes from zero to {@link #length()} are valid. The buffer will

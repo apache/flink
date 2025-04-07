@@ -37,7 +37,7 @@ under the License.
 
 {{< tabs "Keyed Windows" >}}
 
-{{< tab "Java/Scala" >}}
+{{< tab "Java" >}}
     stream
            .keyBy(...)               <-  仅 keyed 窗口需要
            .window(...)              <-  必填项："assigner"
@@ -67,7 +67,7 @@ under the License.
 
 {{< tabs "Non-Keyed Windows" >}}
 
-{{< tab "Java/Scala" >}}
+{{< tab "Java" >}}
     stream
            .windowAll(...)           <-  必填项："assigner"
           [.trigger(...)]            <-  可选项："trigger" (else default trigger)
@@ -176,43 +176,20 @@ DataStream<T> input = ...;
 // 滚动 event-time 窗口
 input
     .keyBy(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
     .<windowed transformation>(<window function>);
 
 // 滚动 processing-time 窗口
 input
     .keyBy(<key selector>)
-    .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+    .window(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5)))
     .<windowed transformation>(<window function>);
 
 // 长度为一天的滚动 event-time 窗口， 偏移量为 -8 小时。
 input
     .keyBy(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.days(1), Time.hours(-8)))
+    .window(TumblingEventTimeWindows.of(Duration.ofDays(1), Duration.ofHours(-8)))
     .<windowed transformation>(<window function>);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val input: DataStream[T] = ...
-
-// 滚动 event-time 窗口
-input
-    .keyBy(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
-    .<windowed transformation>(<window function>)
-
-// 滚动 processing-time 窗口
-input
-    .keyBy(<key selector>)
-    .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
-    .<windowed transformation>(<window function>)
-
-// 长度为一天的滚动 event-time 窗口，偏移量为 -8 小时。
-input
-    .keyBy(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.days(1), Time.hours(-8)))
-    .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -222,32 +199,32 @@ input = ...  # type: DataStream
 # 滚动 event-time 窗口
 input \
     .key_by(<key selector>) \
-    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5))) \
     .<windowed transformation>(<window function>)
 
 # 滚动 processing-time 窗口
 input \
     .key_by(<key selector>) \
-    .window(TumblingProcessingTimeWindows.of(Time.seconds(5))) \
+    .window(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5))) \
     .<windowed transformation>(<window function>)
 
 # 长度为一天的滚动 event-time 窗口，偏移量为 -8 小时。
 input \
     .key_by(<key selector>) \
-    .window(TumblingEventTimeWindows.of(Time.days(1), Time.hours(-8))) \
+    .window(TumblingEventTimeWindows.of(Duration.ofDays(1), Duration.ofHours(-8))) \
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-时间间隔可以用 `Time.milliseconds(x)`、`Time.seconds(x)`、`Time.minutes(x)` 等来指定。
+时间间隔可以用 `Duration.ofMillis(x)`、`Duration.ofSeconds(x)`、`Duration.ofMinutes(x)` 等来指定。
 
 如上一个例子所示，滚动窗口的 assigners 也可以传入可选的 `offset` 参数。这个参数可以用来对齐窗口。
 比如说，不设置 offset 时，长度为一小时的滚动窗口会与 linux 的 epoch 对齐。
 你会得到如 `1:00:00.000 - 1:59:59.999`、`2:00:00.000 - 2:59:59.999` 等。
 如果你想改变对齐方式，你可以设置一个 offset。如果设置了 15 分钟的 offset，
 你会得到 `1:15:00.000 - 2:14:59.999`、`2:15:00.000 - 3:14:59.999` 等。
-一个重要的 offset 用例是根据 UTC-0 调整窗口的时差。比如说，在中国你可能会设置 offset 为 `Time.hours(-8)`。
+一个重要的 offset 用例是根据 UTC-0 调整窗口的时差。比如说，在中国你可能会设置 offset 为 `Duration.ofHours(-8)`。
 
 ### 滑动窗口（Sliding Windows）
 
@@ -270,43 +247,20 @@ DataStream<T> input = ...;
 // 滑动 event-time 窗口
 input
     .keyBy(<key selector>)
-    .window(SlidingEventTimeWindows.of(Time.seconds(10), Time.seconds(5)))
+    .window(SlidingEventTimeWindows.of(Duration.ofSeconds(10), Duration.ofSeconds(5)))
     .<windowed transformation>(<window function>);
 
 // 滑动 processing-time 窗口
 input
     .keyBy(<key selector>)
-    .window(SlidingProcessingTimeWindows.of(Time.seconds(10), Time.seconds(5)))
+    .window(SlidingProcessingTimeWindows.of(Duration.ofSeconds(10), Duration.ofSeconds(5)))
     .<windowed transformation>(<window function>);
 
 // 滑动 processing-time 窗口，偏移量为 -8 小时
 input
     .keyBy(<key selector>)
-    .window(SlidingProcessingTimeWindows.of(Time.hours(12), Time.hours(1), Time.hours(-8)))
+    .window(SlidingProcessingTimeWindows.of(Duration.ofHours(12), Duration.ofHours(1), Duration.ofHours(-8)))
     .<windowed transformation>(<window function>);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val input: DataStream[T] = ...
-
-// 滑动 event-time 窗口
-input
-    .keyBy(<key selector>)
-    .window(SlidingEventTimeWindows.of(Time.seconds(10), Time.seconds(5)))
-    .<windowed transformation>(<window function>)
-
-// 滑动 processing-time 窗口
-input
-    .keyBy(<key selector>)
-    .window(SlidingProcessingTimeWindows.of(Time.seconds(10), Time.seconds(5)))
-    .<windowed transformation>(<window function>)
-
-// 滑动 processing-time 窗口，偏移量为 -8 小时
-input
-    .keyBy(<key selector>)
-    .window(SlidingProcessingTimeWindows.of(Time.hours(12), Time.hours(1), Time.hours(-8)))
-    .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -316,32 +270,32 @@ input = ...  # type: DataStream
 # 滑动 event-time 窗口
 input \
     .key_by(<key selector>) \
-    .window(SlidingEventTimeWindows.of(Time.seconds(10), Time.seconds(5))) \
+    .window(SlidingEventTimeWindows.of(Duration.ofSeconds(10), Duration.ofSeconds(5))) \
     .<windowed transformation>(<window function>)
 
 # 滑动 processing-time 窗口
 input \
     .key_by(<key selector>) \
-    .window(SlidingProcessingTimeWindows.of(Time.seconds(10), Time.seconds(5))) \
+    .window(SlidingProcessingTimeWindows.of(Duration.ofSeconds(10), Duration.ofSeconds(5))) \
     .<windowed transformation>(<window function>)
 
 # 滑动 processing-time 窗口，偏移量为 -8 小时
 input \
     .key_by(<key selector>) \
-    .window(SlidingProcessingTimeWindows.of(Time.hours(12), Time.hours(1), Time.hours(-8))) \
+    .window(SlidingProcessingTimeWindows.of(Duration.ofHours(12), Duration.ofHours(1), Duration.ofHours(-8))) \
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-时间间隔可以使用 `Time.milliseconds(x)`、`Time.seconds(x)`、`Time.minutes(x)` 等来指定。
+时间间隔可以使用 `Duration.ofMillis(x)`、`Duration.ofSeconds(x)`、`Duration.ofMinutes(x)` 等来指定。
 
 如上一个例子所示，滚动窗口的 assigners 也可以传入可选的 `offset` 参数。这个参数可以用来对齐窗口。
 比如说，不设置 offset 时，长度为一小时、滑动距离为 30 分钟的滑动窗口会与 linux 的 epoch 对齐。
 你会得到如 `1:00:00.000 - 1:59:59.999`, `1:30:00.000 - 2:29:59.999` 等。
 如果你想改变对齐方式，你可以设置一个 offset。
 如果设置了 15 分钟的 offset，你会得到 `1:15:00.000 - 2:14:59.999`、`1:45:00.000 - 2:44:59.999` 等。
-一个重要的 offset 用例是根据 UTC-0 调整窗口的时差。比如说，在中国你可能会设置 offset 为 `Time.hours(-8)`。
+一个重要的 offset 用例是根据 UTC-0 调整窗口的时差。比如说，在中国你可能会设置 offset 为 `Duration.ofHours(-8)`。
 
 ### 会话窗口（Session Windows）
 
@@ -364,7 +318,7 @@ DataStream<T> input = ...;
 // 设置了固定间隔的 event-time 会话窗口
 input
     .keyBy(<key selector>)
-    .window(EventTimeSessionWindows.withGap(Time.minutes(10)))
+    .window(EventTimeSessionWindows.withGap(Duration.ofMinutes(10)))
     .<windowed transformation>(<window function>);
     
 // 设置了动态间隔的 event-time 会话窗口
@@ -378,7 +332,7 @@ input
 // 设置了固定间隔的 processing-time session 窗口
 input
     .keyBy(<key selector>)
-    .window(ProcessingTimeSessionWindows.withGap(Time.minutes(10)))
+    .window(ProcessingTimeSessionWindows.withGap(Duration.ofMinutes(10)))
     .<windowed transformation>(<window function>);
     
 // 设置了动态间隔的 processing-time 会话窗口
@@ -388,44 +342,6 @@ input
         // 决定并返回会话间隔
     }))
     .<windowed transformation>(<window function>);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val input: DataStream[T] = ...
-
-// 设置了固定间隔的 event-time 会话窗口
-input
-    .keyBy(<key selector>)
-    .window(EventTimeSessionWindows.withGap(Time.minutes(10)))
-    .<windowed transformation>(<window function>)
-
-// 设置了动态间隔的 event-time 会话窗口
-input
-    .keyBy(<key selector>)
-    .window(EventTimeSessionWindows.withDynamicGap(new SessionWindowTimeGapExtractor[String] {
-      override def extract(element: String): Long = {
-        // 决定并返回会话间隔
-      }
-    }))
-    .<windowed transformation>(<window function>)
-
-// 设置了固定间隔的 processing-time 会话窗口
-input
-    .keyBy(<key selector>)
-    .window(ProcessingTimeSessionWindows.withGap(Time.minutes(10)))
-    .<windowed transformation>(<window function>)
-
-
-// 设置了动态间隔的 processing-time 会话窗口
-input
-    .keyBy(<key selector>)
-    .window(DynamicProcessingTimeSessionWindows.withDynamicGap(new SessionWindowTimeGapExtractor[String] {
-      override def extract(element: String): Long = {
-        // 决定并返回会话间隔
-      }
-    }))
-    .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -440,7 +356,7 @@ class MySessionWindowTimeGapExtractor(SessionWindowTimeGapExtractor):
 # 设置了固定间隔的 event-time 会话窗口
 input \
     .key_by(<key selector>) \
-    .window(EventTimeSessionWindows.with_gap(Time.minutes(10))) \
+    .window(EventTimeSessionWindows.with_gap(Duration.ofMinutes(10))) \
     .<windowed transformation>(<window function>)
 
 # 设置了动态间隔的 event-time 会话窗口
@@ -452,7 +368,7 @@ input \
 # 设置了固定间隔的 processing-time 会话窗口
 input \
     .key_by(<key selector>) \
-    .window(ProcessingTimeSessionWindows.with_gap(Time.minutes(10))) \
+    .window(ProcessingTimeSessionWindows.with_gap(Duration.ofMinutes(10))) \
     .<windowed transformation>(<window function>)
 
 # 设置了动态间隔的 processing-time 会话窗口
@@ -464,7 +380,7 @@ input \
 {{< /tab >}}
 {{< /tabs >}}
 
-固定间隔可以使用 `Time.milliseconds(x)`、`Time.seconds(x)`、`Time.minutes(x)` 等来设置。
+固定间隔可以使用 `Duration.ofMillis(x)`、`Duration.ofSeconds(x)`、`Duration.ofMinutes(x)` 等来设置。
 
 动态间隔可以通过实现 `SessionWindowTimeGapExtractor` 接口来指定。
 
@@ -494,16 +410,6 @@ input
     .keyBy(<key selector>)
     .window(GlobalWindows.create())
     .<windowed transformation>(<window function>);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val input: DataStream[T] = ...
-
-input
-    .keyBy(<key selector>)
-    .window(GlobalWindows.create())
-    .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -553,16 +459,6 @@ input
         return new Tuple2<>(v1.f0, v1.f1 + v2.f1);
       }
     });
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val input: DataStream[(String, Long)] = ...
-
-input
-    .keyBy(<key selector>)
-    .window(<window assigner>)
-    .reduce { (v1, v2) => (v1._1, v1._2 + v2._2) }
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -628,33 +524,6 @@ input
     .keyBy(<key selector>)
     .window(<window assigner>)
     .aggregate(new AverageAggregate());
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-/**
- * The accumulator is used to keep a running sum and a count. The [getResult] method
- * computes the average.
- */
-class AverageAggregate extends AggregateFunction[(String, Long), (Long, Long), Double] {
-  override def createAccumulator() = (0L, 0L)
-
-  override def add(value: (String, Long), accumulator: (Long, Long)) =
-    (accumulator._1 + value._2, accumulator._2 + 1L)
-
-  override def getResult(accumulator: (Long, Long)) = accumulator._1 / accumulator._2
-
-  override def merge(a: (Long, Long), b: (Long, Long)) =
-    (a._1 + b._1, a._2 + b._2)
-}
-
-val input: DataStream[(String, Long)] = ...
-
-input
-    .keyBy(<key selector>)
-    .window(<window assigner>)
-    .aggregate(new AverageAggregate)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -766,68 +635,6 @@ public abstract class ProcessWindowFunction<IN, OUT, KEY, W extends Window> impl
 }
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-abstract class ProcessWindowFunction[IN, OUT, KEY, W <: Window] extends Function {
-
-  /**
-    * Evaluates the window and outputs none or several elements.
-    *
-    * @param key      The key for which this window is evaluated.
-    * @param context  The context in which the window is being evaluated.
-    * @param elements The elements in the window being evaluated.
-    * @param out      A collector for emitting elements.
-    * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
-    */
-  def process(
-      key: KEY,
-      context: Context,
-      elements: Iterable[IN],
-      out: Collector[OUT])
-
-  /**
-   * Deletes any state in the [[Context]] when the Window expires
-   * (the watermark passes its `maxTimestamp` + `allowedLateness`).
-   *
-   * @param context The context to which the window is being evaluated
-   * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
-   */
-  @throws[Exception]
-  def clear(context: Context) {}
-
-  /**
-    * The context holding window metadata
-    */
-  abstract class Context {
-    /**
-      * Returns the window that is being evaluated.
-      */
-    def window: W
-
-    /**
-      * Returns the current processing time.
-      */
-    def currentProcessingTime: Long
-
-    /**
-      * Returns the current event-time watermark.
-      */
-    def currentWatermark: Long
-
-    /**
-      * State accessor for per-key and per-window state.
-      */
-    def windowState: KeyedStateStore
-
-    /**
-      * State accessor for per-key global state.
-      */
-    def globalState: KeyedStateStore
-  }
-
-}
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 class ProcessWindowFunction(Function, Generic[IN, OUT, KEY, W]):
@@ -919,7 +726,7 @@ DataStream<Tuple2<String, Long>> input = ...;
 
 input
   .keyBy(t -> t.f0)
-  .window(TumblingEventTimeWindows.of(Time.minutes(5)))
+  .window(TumblingEventTimeWindows.of(Duration.ofMinutes(5)))
   .process(new MyProcessWindowFunction());
 
 /* ... */
@@ -939,36 +746,13 @@ public class MyProcessWindowFunction
 
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val input: DataStream[(String, Long)] = ...
-
-input
-  .keyBy(_._1)
-  .window(TumblingEventTimeWindows.of(Time.minutes(5)))
-  .process(new MyProcessWindowFunction())
-
-/* ... */
-
-class MyProcessWindowFunction extends ProcessWindowFunction[(String, Long), String, String, TimeWindow] {
-
-  def process(key: String, context: Context, input: Iterable[(String, Long)], out: Collector[String]) = {
-    var count = 0L
-    for (in <- input) {
-      count = count + 1
-    }
-    out.collect(s"Window ${context.window} count: $count")
-  }
-}
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 input = ...  # type: DataStream
 
 input \
     .key_by(lambda v: v[0]) \
-    .window(TumblingEventTimeWindows.of(Time.minutes(5))) \
+    .window(TumblingEventTimeWindows.of(Duration.ofMinutes(5))) \
     .process(MyProcessWindowFunction())
 
 # ...
@@ -1035,28 +819,6 @@ private static class MyProcessWindowFunction
       out.collect(new Tuple2<Long, SensorReading>(context.window().getStart(), min));
   }
 }
-
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-val input: DataStream[SensorReading] = ...
-
-input
-  .keyBy(<key selector>)
-  .window(<window assigner>)
-  .reduce(
-    (r1: SensorReading, r2: SensorReading) => { if (r1.value > r2.value) r2 else r1 },
-    ( key: String,
-      context: ProcessWindowFunction[_, _, _, TimeWindow]#Context,
-      minReadings: Iterable[SensorReading],
-      out: Collector[(Long, SensorReading)] ) =>
-      {
-        val min = minReadings.iterator.next()
-        out.collect((context.window.getStart, min))
-      }
-  )
 
 ```
 {{< /tab >}}
@@ -1135,44 +897,6 @@ private static class MyProcessWindowFunction
                     Collector<Tuple2<String, Double>> out) {
       Double average = averages.iterator().next();
       out.collect(new Tuple2<>(key, average));
-  }
-}
-
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-val input: DataStream[(String, Long)] = ...
-
-input
-  .keyBy(<key selector>)
-  .window(<window assigner>)
-  .aggregate(new AverageAggregate(), new MyProcessWindowFunction())
-
-// Function definitions
-
-/**
- * The accumulator is used to keep a running sum and a count. The [getResult] method
- * computes the average.
- */
-class AverageAggregate extends AggregateFunction[(String, Long), (Long, Long), Double] {
-  override def createAccumulator() = (0L, 0L)
-
-  override def add(value: (String, Long), accumulator: (Long, Long)) =
-    (accumulator._1 + value._2, accumulator._2 + 1L)
-
-  override def getResult(accumulator: (Long, Long)) = accumulator._1 / accumulator._2
-
-  override def merge(a: (Long, Long), b: (Long, Long)) =
-    (a._1 + b._1, a._2 + b._2)
-}
-
-class MyProcessWindowFunction extends ProcessWindowFunction[Double, (String, Double), String, TimeWindow] {
-
-  def process(key: String, context: Context, averages: Iterable[Double], out: Collector[(String, Double)]) = {
-    val average = averages.iterator.next()
-    out.collect((key, average))
   }
 }
 
@@ -1273,23 +997,6 @@ public interface WindowFunction<IN, OUT, KEY, W extends Window> extends Function
 }
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-trait WindowFunction[IN, OUT, KEY, W <: Window] extends Function with Serializable {
-
-  /**
-    * Evaluates the window and outputs none or several elements.
-    *
-    * @param key    The key for which this window is evaluated.
-    * @param window The window that is being evaluated.
-    * @param input  The elements in the window being evaluated.
-    * @param out    A collector for emitting elements.
-    * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
-    */
-  def apply(key: KEY, window: W, input: Iterable[IN], out: Collector[OUT])
-}
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 class WindowFunction(Function, Generic[IN, OUT, KEY, W]):
@@ -1319,16 +1026,6 @@ input
     .keyBy(<key selector>)
     .window(<window assigner>)
     .apply(new MyWindowFunction());
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val input: DataStream[(String, Long)] = ...
-
-input
-    .keyBy(<key selector>)
-    .window(<window assigner>)
-    .apply(new MyWindowFunction())
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -1494,17 +1191,6 @@ input
     .<windowed transformation>(<window function>);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val input: DataStream[T] = ...
-
-input
-    .keyBy(<key selector>)
-    .window(<window assigner>)
-    .allowedLateness(<time>)
-    .<windowed transformation>(<window function>)
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 input = ...  # type: DataStream
@@ -1543,22 +1229,6 @@ SingleOutputStreamOperator<T> result = input
     .<windowed transformation>(<window function>);
 
 DataStream<T> lateStream = result.getSideOutput(lateOutputTag);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val lateOutputTag = OutputTag[T]("late-data")
-
-val input: DataStream[T] = ...
-
-val result = input
-    .keyBy(<key selector>)
-    .window(<window assigner>)
-    .allowedLateness(<time>)
-    .sideOutputLateData(lateOutputTag)
-    .<windowed transformation>(<window function>)
-
-val lateStream = result.getSideOutput(lateOutputTag)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -1627,27 +1297,13 @@ DataStream<Integer> input = ...;
 
 DataStream<Integer> resultsPerKey = input
     .keyBy(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
     .reduce(new Summer());
 
 DataStream<Integer> globalResults = resultsPerKey
-    .windowAll(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .windowAll(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
     .process(new TopKWindowFunction());
 
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val input: DataStream[Int] = ...
-
-val resultsPerKey = input
-    .keyBy(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
-    .reduce(new Summer())
-
-val globalResults = resultsPerKey
-    .windowAll(TumblingEventTimeWindows.of(Time.seconds(5)))
-    .process(new TopKWindowFunction())
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -1656,11 +1312,11 @@ input = ...  # type: DataStream
 
 results_per_key = input \
     .key_by(<key selector>) \
-    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5))) \
     .reduce(Summer())
 
 global_results = results_per_key \
-    .window_all(TumblingProcessingTimeWindows.of(Time.seconds(5))) \
+    .window_all(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5))) \
     .process(TopKWindowFunction())
 ```
 {{< /tab >}}

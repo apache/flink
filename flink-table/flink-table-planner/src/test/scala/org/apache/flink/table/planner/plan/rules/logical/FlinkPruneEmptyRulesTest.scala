@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContext, FlinkChainedProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.planner.utils.TableTestBase
@@ -27,7 +26,10 @@ import org.apache.calcite.rel.rules.{CoreRules, PruneEmptyRules}
 import org.apache.calcite.tools.RuleSets
 import org.junit.jupiter.api.{BeforeEach, Test}
 
-/** Test for [[FlinkPruneEmptyRules]]. */
+/**
+ * Former test for [[FlinkPruneEmptyRules]] which now replaced by Calcite's
+ * [[PruneEmptyRules.JOIN_RIGHT_INSTANCE]].
+ */
 class FlinkPruneEmptyRulesTest extends TableTestBase {
 
   private val util = batchTestUtil()
@@ -46,7 +48,7 @@ class FlinkPruneEmptyRulesTest extends TableTestBase {
           CoreRules.PROJECT_REDUCE_EXPRESSIONS,
           PruneEmptyRules.FILTER_INSTANCE,
           PruneEmptyRules.PROJECT_INSTANCE,
-          FlinkPruneEmptyRules.JOIN_RIGHT_INSTANCE
+          PruneEmptyRules.JOIN_RIGHT_INSTANCE
         ))
         .build()
     )

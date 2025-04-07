@@ -19,8 +19,7 @@
 package org.apache.flink.test.runtime;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -29,9 +28,13 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
@@ -83,13 +86,13 @@ public class IPv6HostnamesITCase extends TestLogger {
     public void testClusterWithIPv6host() {
         try {
 
-            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(4);
 
             // get input data
-            DataSet<String> text = env.fromElements(WordCountData.TEXT.split("\n"));
+            DataStream<String> text = env.fromData(WordCountData.TEXT.split("\n"));
 
-            DataSet<Tuple2<String, Integer>> counts =
+            DataStream<Tuple2<String, Integer>> counts =
                     text.flatMap(
                                     new FlatMapFunction<String, Tuple2<String, Integer>>() {
                                         @Override
@@ -105,10 +108,21 @@ public class IPv6HostnamesITCase extends TestLogger {
                                             }
                                         }
                                     })
-                            .groupBy(0)
-                            .sum(1);
+                            .keyBy(x -> x.f0)
+                            .window(GlobalWindows.createWithEndOfStreamTrigger())
+                            .reduce(
+                                    new ReduceFunction<Tuple2<String, Integer>>() {
+                                        @Override
+                                        public Tuple2<String, Integer> reduce(
+                                                Tuple2<String, Integer> value1,
+                                                Tuple2<String, Integer> value2)
+                                                throws Exception {
+                                            return Tuple2.of(value1.f0, value1.f1 + value2.f1);
+                                        }
+                                    });
 
-            List<Tuple2<String, Integer>> result = counts.collect();
+            List<Tuple2<String, Integer>> result =
+                    CollectionUtil.iteratorToList(counts.executeAndCollect());
 
             TestBaseUtils.compareResultAsText(result, WordCountData.COUNTS_AS_TUPLES);
         } catch (Exception e) {

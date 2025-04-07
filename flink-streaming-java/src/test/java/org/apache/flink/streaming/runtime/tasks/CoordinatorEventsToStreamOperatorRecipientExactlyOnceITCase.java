@@ -34,7 +34,7 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
@@ -236,11 +236,7 @@ class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
         @Override
         public <T extends StreamOperator<OUT>> T createStreamOperator(
                 StreamOperatorParameters<OUT> parameters) {
-            EventReceivingOperator<OUT> operator = new EventReceivingOperator<>();
-            operator.setup(
-                    parameters.getContainingTask(),
-                    parameters.getStreamConfig(),
-                    parameters.getOutput());
+            EventReceivingOperator<OUT> operator = new EventReceivingOperator<>(parameters);
             parameters
                     .getOperatorEventDispatcher()
                     .registerEventHandler(parameters.getStreamConfig().getOperatorID(), operator);
@@ -380,6 +376,18 @@ class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
 
         protected ListState<Integer> state;
 
+        private EventReceivingOperator(StreamOperatorParameters<T> parameters) {
+            super(parameters);
+        }
+
+        @Override
+        public void setup(
+                StreamTask<?, ?> containingTask,
+                StreamConfig config,
+                Output<StreamRecord<T>> output) {
+            super.setup(containingTask, config, output);
+        }
+
         @Override
         public void open() throws Exception {
             super.open();
@@ -465,7 +473,7 @@ class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
         public <T extends StreamOperator<OUT>> T createStreamOperator(
                 StreamOperatorParameters<OUT> parameters) {
             EventReceivingOperator<OUT> operator =
-                    new EventReceivingOperatorWithFailure<>(name, numEvents);
+                    new EventReceivingOperatorWithFailure<>(parameters, name, numEvents);
             operator.setup(
                     parameters.getContainingTask(),
                     parameters.getStreamConfig(),
@@ -490,7 +498,9 @@ class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
 
         private TestScript testScript;
 
-        private EventReceivingOperatorWithFailure(String name, int numEvents) {
+        private EventReceivingOperatorWithFailure(
+                StreamOperatorParameters<T> parameters, String name, int numEvents) {
+            super(parameters);
             this.name = name;
             this.maxNumberBeforeFailure = numEvents / 3 + new Random().nextInt(numEvents / 6);
         }

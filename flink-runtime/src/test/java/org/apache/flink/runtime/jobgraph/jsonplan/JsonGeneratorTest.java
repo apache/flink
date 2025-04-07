@@ -25,16 +25,27 @@ import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.graph.StreamEdge;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.TextNode;
 
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -61,25 +72,37 @@ public class JsonGeneratorTest {
             JobVertex sink1 = new JobVertex("sink 1");
             JobVertex sink2 = new JobVertex("sink 2");
 
-            intermediate1.connectNewDataSetAsInput(
-                    source1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-            intermediate2.connectNewDataSetAsInput(
-                    source2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    intermediate1,
+                    source1,
+                    DistributionPattern.POINTWISE,
+                    ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    intermediate2,
+                    source2,
+                    DistributionPattern.ALL_TO_ALL,
+                    ResultPartitionType.PIPELINED);
 
-            join1.connectNewDataSetAsInput(
-                    intermediate1, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-            join1.connectNewDataSetAsInput(
-                    intermediate2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+            connectNewDataSetAsInput(
+                    join1,
+                    intermediate1,
+                    DistributionPattern.POINTWISE,
+                    ResultPartitionType.BLOCKING);
+            connectNewDataSetAsInput(
+                    join1,
+                    intermediate2,
+                    DistributionPattern.ALL_TO_ALL,
+                    ResultPartitionType.BLOCKING);
 
-            join2.connectNewDataSetAsInput(
-                    join1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-            join2.connectNewDataSetAsInput(
-                    source3, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+            connectNewDataSetAsInput(
+                    join2, join1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    join2, source3, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
 
-            sink1.connectNewDataSetAsInput(
-                    join2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-            sink2.connectNewDataSetAsInput(
-                    join1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    sink1, join2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    sink2, join1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
             JobGraph jg =
                     JobGraphTestUtils.batchJobGraph(
@@ -137,5 +160,73 @@ public class JsonGeneratorTest {
             }
         }
         fail("could not find vertex with id " + vertexId + " in JobGraph");
+    }
+
+    @Test
+    public void testGenerateStreamGraphJson() throws JsonProcessingException {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.fromSequence(0L, 1L).disableChaining().print();
+        StreamGraph streamGraph = env.getStreamGraph();
+        Map<Integer, JobVertexID> jobVertexIdMap = new HashMap<>();
+        String streamGraphJson =
+                JsonPlanGenerator.generateStreamGraphJson(streamGraph, jobVertexIdMap);
+
+        ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
+        StreamGraphJsonSchema parsedStreamGraph =
+                mapper.readValue(streamGraphJson, StreamGraphJsonSchema.class);
+
+        List<String> expectedJobVertexIds = new ArrayList<>();
+        expectedJobVertexIds.add(null);
+        expectedJobVertexIds.add(null);
+        validateStreamGraph(streamGraph, parsedStreamGraph, expectedJobVertexIds);
+
+        for (StreamNode node : streamGraph.getStreamNodes()) {
+            jobVertexIdMap.put(node.getId(), new JobVertexID());
+        }
+        streamGraphJson = JsonPlanGenerator.generateStreamGraphJson(streamGraph, jobVertexIdMap);
+
+        parsedStreamGraph = mapper.readValue(streamGraphJson, StreamGraphJsonSchema.class);
+        validateStreamGraph(
+                streamGraph,
+                parsedStreamGraph,
+                jobVertexIdMap.values().stream()
+                        .map(JobVertexID::toString)
+                        .collect(Collectors.toList()));
+    }
+
+    private static void validateStreamGraph(
+            StreamGraph streamGraph,
+            StreamGraphJsonSchema parsedStreamGraph,
+            List<String> expectedJobVertexIds) {
+        List<String> realJobVertexIds = new ArrayList<>();
+        parsedStreamGraph
+                .getNodes()
+                .forEach(
+                        node -> {
+                            StreamNode streamNode =
+                                    streamGraph.getStreamNode(Integer.parseInt(node.getId()));
+                            assertEquals(node.getOperator(), streamNode.getOperatorName());
+                            assertEquals(
+                                    node.getParallelism(), (Integer) streamNode.getParallelism());
+                            assertEquals(
+                                    node.getDescription(), streamNode.getOperatorDescription());
+                            validateStreamEdge(node.getInputs(), streamNode.getInEdges());
+                            realJobVertexIds.add(node.getJobVertexId());
+                        });
+        assertEquals(expectedJobVertexIds, realJobVertexIds);
+    }
+
+    private static void validateStreamEdge(
+            List<StreamGraphJsonSchema.JsonStreamEdgeSchema> jsonStreamEdges,
+            List<StreamEdge> streamEdges) {
+        assertEquals(jsonStreamEdges.size(), streamEdges.size());
+        for (int i = 0; i < jsonStreamEdges.size(); i++) {
+            StreamGraphJsonSchema.JsonStreamEdgeSchema edgeToValidate = jsonStreamEdges.get(i);
+            StreamEdge expectedEdge = streamEdges.get(i);
+            assertEquals(String.valueOf(expectedEdge.getSourceId()), edgeToValidate.getId());
+            assertEquals(
+                    expectedEdge.getPartitioner().toString(), edgeToValidate.getShipStrategy());
+            assertEquals(expectedEdge.getExchangeMode().name(), edgeToValidate.getExchange());
+        }
     }
 }

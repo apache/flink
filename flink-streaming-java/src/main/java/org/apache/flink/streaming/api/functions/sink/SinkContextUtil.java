@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.functions.sink;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 
 /** Utility for creating Sink {@link SinkFunction.Context Contexts}. */
 @Internal

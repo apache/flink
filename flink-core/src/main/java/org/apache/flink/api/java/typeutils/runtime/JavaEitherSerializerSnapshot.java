@@ -19,13 +19,10 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.types.Either;
-
-import java.util.Objects;
 
 /** Snapshot class for the {@link EitherSerializer}. */
 public class JavaEitherSerializerSnapshot<L, R>
@@ -49,14 +46,6 @@ public class JavaEitherSerializerSnapshot<L, R>
     @Override
     public TypeSerializerSchemaCompatibility<Either<L, R>> resolveSchemaCompatibility(
             TypeSerializerSnapshot<Either<L, R>> oldSerializerSnapshot) {
-        if (oldSerializerSnapshot instanceof EitherSerializerSnapshot) {
-            return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
-                    oldSerializerSnapshot,
-                    this,
-                    Objects.requireNonNull(
-                            ((EitherSerializerSnapshot<L, R>) oldSerializerSnapshot)
-                                    .getNestedSerializerSnapshots()));
-        }
         return super.resolveSchemaCompatibility(oldSerializerSnapshot);
     }
 

@@ -31,7 +31,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
@@ -188,7 +188,7 @@ public class SavepointFormatITCase extends TestLogger {
 
             @Override
             protected String getConfigName() {
-                return "filesystem";
+                return "hashmap";
             }
 
             @Override
@@ -296,7 +296,7 @@ public class SavepointFormatITCase extends TestLogger {
         final JobGraph jobGraph = createJobGraph(config);
         jobGraph.setSavepointRestoreSettings(
                 SavepointRestoreSettings.forPath(
-                        renamedSavepointDir.toUri().toString(), false, RestoreMode.CLAIM));
+                        renamedSavepointDir.toUri().toString(), false, RecoveryClaimMode.CLAIM));
 
         final JobID jobId = jobGraph.getJobID();
         ClusterClient<?> client = cluster.getClusterClient();

@@ -18,16 +18,12 @@
 
 package org.apache.flink.test.recovery;
 
-import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.functions.RichMapPartitionFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -50,7 +46,14 @@ import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.test.util.TestEnvironment;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
+import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.streaming.util.TestStreamEnvironment;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.ExceptionUtils;
@@ -73,6 +76,7 @@ import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -128,10 +132,9 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
     private static final int EMITTED_RECORD_NUMBER = 1000;
     private static final int MAP_NUMBER = 3;
 
-    private static final String MAP_PARTITION_TEST_PARTITION_MAPPER =
-            "MapPartition (Test partition mapper ";
+    private static final String MAP_PARTITION_TEST_PARTITION_MAPPER = "Test partition mapper ";
     private static final Pattern MAPPER_NUMBER_IN_TASK_NAME_PATTERN =
-            Pattern.compile("MapPartition \\(Test partition mapper (\\d+)\\)");
+            Pattern.compile("Test partition mapper (\\d+)");
 
     /**
      * Number of job failures for all mappers due to backtracking when the produced partitions get
@@ -215,18 +218,21 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 
     @Test
     public void testProgram() throws Exception {
-        ExecutionEnvironment env = createExecutionEnvironment();
-
-        DataSet<Long> input = env.generateSequence(0, EMITTED_RECORD_NUMBER - 1);
+        StreamExecutionEnvironment env = createExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        DataStream<Long> input = env.fromSequence(0, EMITTED_RECORD_NUMBER - 1);
+        env.disableOperatorChaining();
         for (int trackingIndex = 0; trackingIndex < MAP_NUMBER; trackingIndex++) {
             input =
-                    input.mapPartition(
+                    input.windowAll(GlobalWindows.createWithEndOfStreamTrigger())
+                            .apply(
                                     new TestPartitionMapper(
                                             trackingIndex, createFailureStrategy(trackingIndex)))
                             .name(TASK_NAME_PREFIX + trackingIndex);
         }
 
-        assertThat(input.collect(), is(EXPECTED_JOB_OUTPUT));
+        assertThat(
+                CollectionUtil.iteratorToList(input.executeAndCollect()), is(EXPECTED_JOB_OUTPUT));
         failureTracker.verify(getMapperAttempts());
     }
 
@@ -235,6 +241,12 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
         configuration.set(
                 JobManagerOptions.EXECUTION_FAILOVER_STRATEGY,
                 PIPELINED_REGION_RESTART_STRATEGY_NAME);
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS,
+                MAX_JOB_RESTART_ATTEMPTS);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(10));
         return configuration;
     }
 
@@ -256,15 +268,12 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
         return failureStrategy;
     }
 
-    private static ExecutionEnvironment createExecutionEnvironment() {
+    private static StreamExecutionEnvironment createExecutionEnvironment() {
         @SuppressWarnings("StaticVariableUsedBeforeInitialization")
-        ExecutionEnvironment env = new TestEnvironment(miniCluster, 1, true);
-        env.setRestartStrategy(
-                RestartStrategies.fixedDelayRestart(
-                        MAX_JOB_RESTART_ATTEMPTS, Time.milliseconds(10)));
-        env.getConfig()
-                .setExecutionMode(
-                        ExecutionMode.BATCH_FORCED); // forces all partitions to be blocking
+        StreamExecutionEnvironment env = new TestStreamEnvironment(miniCluster, 1);
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(
+                env, MAX_JOB_RESTART_ATTEMPTS, Duration.ofMillis(10));
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         return env;
     }
 
@@ -532,7 +541,8 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
         }
     }
 
-    private static class TestPartitionMapper extends RichMapPartitionFunction<Long, Long> {
+    private static class TestPartitionMapper
+            implements AllWindowFunction<Long, Long, GlobalWindow> {
         private static final long serialVersionUID = 1L;
 
         private final int trackingIndex;
@@ -544,7 +554,8 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
         }
 
         @Override
-        public void mapPartition(Iterable<Long> values, Collector<Long> out) throws Exception {
+        public void apply(GlobalWindow window, Iterable<Long> values, Collector<Long> out)
+                throws Exception {
             for (Long value : values) {
                 failureStrategy.failOrNot(trackingIndex);
                 out.collect(value + 1);
@@ -581,7 +592,8 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
                                     getJobVertexDetailsInfo(
                                                     vertexInfoWithJobId.f0,
                                                     vertexInfoWithJobId.f1.getJobVertexID())
-                                            .getSubtasks().stream()
+                                            .getSubtasks()
+                                            .stream()
                                             .map(
                                                     subtask ->
                                                             new InternalTaskInfo(

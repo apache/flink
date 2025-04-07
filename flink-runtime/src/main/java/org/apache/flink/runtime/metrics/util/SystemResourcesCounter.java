@@ -17,8 +17,6 @@
 
 package org.apache.flink.runtime.metrics.util;
 
-import org.apache.flink.api.common.time.Time;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import oshi.SystemInfo;
@@ -29,6 +27,7 @@ import oshi.hardware.NetworkIF;
 
 import javax.annotation.concurrent.ThreadSafe;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLongArray;
 import java.util.concurrent.atomic.AtomicReferenceArray;
@@ -79,8 +78,8 @@ public class SystemResourcesCounter extends Thread {
     private AtomicLongArray receiveRatePerInterface;
     private AtomicLongArray sendRatePerInterface;
 
-    public SystemResourcesCounter(Time probeInterval) {
-        probeIntervalMs = probeInterval.toMilliseconds();
+    public SystemResourcesCounter(Duration probeInterval) {
+        probeIntervalMs = probeInterval.toMillis();
         checkState(this.probeIntervalMs > 0);
 
         setName(SystemResourcesCounter.class.getSimpleName() + " probing thread");

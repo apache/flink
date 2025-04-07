@@ -34,7 +34,7 @@ import org.apache.flink.runtime.operators.testutils.TestData.TupleGeneratorItera
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -46,7 +46,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Random test for sort merge outer join. */
-public class RandomSortMergeOuterJoinTest {
+class RandomSortMergeOuterJoinTest {
 
     // random seeds for the left and right input data generators
     private static final long SEED1 = 561349061987311L;
@@ -54,19 +54,19 @@ public class RandomSortMergeOuterJoinTest {
     private static final long SEED2 = 231434613412342L;
 
     @Test
-    public void testFullOuterJoinWithHighNumberOfCommonKeys() throws Exception {
+    void testFullOuterJoinWithHighNumberOfCommonKeys() throws Exception {
         testOuterJoinWithHighNumberOfCommonKeys(
                 FlinkJoinType.FULL, 200, 500, 2048, 0.02f, 200, 500, 2048, 0.02f);
     }
 
     @Test
-    public void testLeftOuterJoinWithHighNumberOfCommonKeys() throws Exception {
+    void testLeftOuterJoinWithHighNumberOfCommonKeys() throws Exception {
         testOuterJoinWithHighNumberOfCommonKeys(
                 FlinkJoinType.LEFT, 200, 10, 4096, 0.02f, 100, 4000, 2048, 0.02f);
     }
 
     @Test
-    public void testRightOuterJoinWithHighNumberOfCommonKeys() throws Exception {
+    void testRightOuterJoinWithHighNumberOfCommonKeys() throws Exception {
         testOuterJoinWithHighNumberOfCommonKeys(
                 FlinkJoinType.RIGHT, 100, 10, 2048, 0.02f, 200, 4000, 4096, 0.02f);
     }

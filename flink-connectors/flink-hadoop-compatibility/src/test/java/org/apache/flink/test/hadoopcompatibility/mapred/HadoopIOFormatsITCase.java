@@ -18,11 +18,16 @@
 
 package org.apache.flink.test.hadoopcompatibility.mapred;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.java.hadoop.mapred.HadoopInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.connector.file.sink.FileSink;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
@@ -39,6 +44,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.SequenceFileInputFormat;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -52,6 +58,11 @@ import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Integration tests for Hadoop IO formats. */
 @ExtendWith(ParameterizedTestExtension.class)
+// This test case has been updated from dataset to a datastream.
+// It is essentially a batch job, but the HadoopInputFormat is an unbounded source.
+// As a result, the test case cannot be set to batch runtime mode and should not run with the
+// adaptive scheduler.
+@Tag("org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler")
 public class HadoopIOFormatsITCase extends JavaProgramTestBase {
 
     private static final int NUM_PROGRAMS = 2;
@@ -80,12 +91,6 @@ public class HadoopIOFormatsITCase extends JavaProgramTestBase {
     @TestTemplate
     public void testJobWithoutObjectReuse() throws Exception {
         super.testJobWithoutObjectReuse();
-    }
-
-    @Override
-    @TestTemplate
-    public void testJobCollectionExecution() throws Exception {
-        super.testJobCollectionExecution();
     }
 
     @Override
@@ -147,10 +152,12 @@ public class HadoopIOFormatsITCase extends JavaProgramTestBase {
     }
 
     @Override
-    protected void testProgram() throws Exception {
-        expectedResult =
+    protected JobExecutionResult testProgram() throws Exception {
+        Tuple2<String[], JobExecutionResult> expectedResultAndJobExecutionResult =
                 HadoopIOFormatPrograms.runProgram(
                         curProgId, resultPath, sequenceFileInPath, sequenceFileInPathNull);
+        expectedResult = expectedResultAndJobExecutionResult.f0;
+        return expectedResultAndJobExecutionResult.f1;
     }
 
     @Override
@@ -174,7 +181,7 @@ public class HadoopIOFormatsITCase extends JavaProgramTestBase {
 
     private static class HadoopIOFormatPrograms {
 
-        public static String[] runProgram(
+        public static Tuple2<String[], JobExecutionResult> runProgram(
                 int progId,
                 String[] resultPath,
                 String sequenceFileInPath,
@@ -185,8 +192,8 @@ public class HadoopIOFormatsITCase extends JavaProgramTestBase {
                 case 1:
                     {
                         /** Test sequence file, including a key access. */
-                        final ExecutionEnvironment env =
-                                ExecutionEnvironment.getExecutionEnvironment();
+                        final StreamExecutionEnvironment env =
+                                StreamExecutionEnvironment.getExecutionEnvironment();
 
                         SequenceFileInputFormat<LongWritable, Text> sfif =
                                 new SequenceFileInputFormat<LongWritable, Text>();
@@ -195,8 +202,22 @@ public class HadoopIOFormatsITCase extends JavaProgramTestBase {
                         HadoopInputFormat<LongWritable, Text> hif =
                                 new HadoopInputFormat<LongWritable, Text>(
                                         sfif, LongWritable.class, Text.class, hdconf);
-                        DataSet<Tuple2<LongWritable, Text>> ds = env.createInput(hif);
-                        DataSet<Tuple2<Long, Text>> sumed =
+                        DataStream<Tuple2<LongWritable, Text>> ds = env.createInput(hif);
+
+                        ds.map(
+                                        new MapFunction<
+                                                Tuple2<LongWritable, Text>, Tuple2<Long, Text>>() {
+                                            @Override
+                                            public Tuple2<Long, Text> map(
+                                                    Tuple2<LongWritable, Text> value)
+                                                    throws Exception {
+                                                return new Tuple2<Long, Text>(
+                                                        value.f0.get(), value.f1);
+                                            }
+                                        })
+                                .print();
+
+                        DataStream<Tuple2<Long, Text>> sumed =
                                 ds.map(
                                                 new MapFunction<
                                                         Tuple2<LongWritable, Text>,
@@ -209,10 +230,37 @@ public class HadoopIOFormatsITCase extends JavaProgramTestBase {
                                                                 value.f0.get(), value.f1);
                                                     }
                                                 })
-                                        .sum(0);
-                        sumed.writeAsText(resultPath[0]);
-                        DataSet<String> res =
-                                ds.distinct(0)
+                                        .windowAll(GlobalWindows.createWithEndOfStreamTrigger())
+                                        .reduce(
+                                                new ReduceFunction<Tuple2<Long, Text>>() {
+
+                                                    @Override
+                                                    public Tuple2<Long, Text> reduce(
+                                                            Tuple2<Long, Text> value1,
+                                                            Tuple2<Long, Text> value2) {
+                                                        return Tuple2.of(
+                                                                value1.f0 + value2.f0, value2.f1);
+                                                    }
+                                                });
+                        sumed.sinkTo(
+                                FileSink.forRowFormat(
+                                                new org.apache.flink.core.fs.Path(resultPath[0]),
+                                                new SimpleStringEncoder<Tuple2<Long, Text>>())
+                                        .build());
+
+                        DataStream<String> res =
+                                ds.keyBy(x -> x.f0)
+                                        .window(GlobalWindows.createWithEndOfStreamTrigger())
+                                        .reduce(
+                                                new ReduceFunction<Tuple2<LongWritable, Text>>() {
+                                                    @Override
+                                                    public Tuple2<LongWritable, Text> reduce(
+                                                            Tuple2<LongWritable, Text> value1,
+                                                            Tuple2<LongWritable, Text> value2)
+                                                            throws Exception {
+                                                        return value1;
+                                                    }
+                                                })
                                         .map(
                                                 new MapFunction<
                                                         Tuple2<LongWritable, Text>, String>() {
@@ -223,22 +271,28 @@ public class HadoopIOFormatsITCase extends JavaProgramTestBase {
                                                         return value.f1 + " - " + value.f0.get();
                                                     }
                                                 });
-                        res.writeAsText(resultPath[1]);
-                        env.execute();
+                        res.sinkTo(
+                                FileSink.forRowFormat(
+                                                new org.apache.flink.core.fs.Path(resultPath[1]),
+                                                new SimpleStringEncoder<String>())
+                                        .build());
+                        JobExecutionResult jobExecutionResult = env.execute();
 
                         // return expected result
-                        return new String[] {
-                            "(21,3 - somestring)",
-                            "0 - somestring - 0\n"
-                                    + "1 - somestring - 1\n"
-                                    + "2 - somestring - 2\n"
-                                    + "3 - somestring - 3\n"
-                        };
+                        return Tuple2.of(
+                                new String[] {
+                                    "(21,3 - somestring)",
+                                    "0 - somestring - 0\n"
+                                            + "1 - somestring - 1\n"
+                                            + "2 - somestring - 2\n"
+                                            + "3 - somestring - 3\n"
+                                },
+                                jobExecutionResult);
                     }
                 case 2:
                     {
-                        final ExecutionEnvironment env =
-                                ExecutionEnvironment.getExecutionEnvironment();
+                        final StreamExecutionEnvironment env =
+                                StreamExecutionEnvironment.getExecutionEnvironment();
 
                         SequenceFileInputFormat<NullWritable, LongWritable> sfif =
                                 new SequenceFileInputFormat<NullWritable, LongWritable>();
@@ -248,8 +302,8 @@ public class HadoopIOFormatsITCase extends JavaProgramTestBase {
                         HadoopInputFormat<NullWritable, LongWritable> hif =
                                 new HadoopInputFormat<NullWritable, LongWritable>(
                                         sfif, NullWritable.class, LongWritable.class, hdconf);
-                        DataSet<Tuple2<NullWritable, LongWritable>> ds = env.createInput(hif);
-                        DataSet<Tuple2<Void, Long>> res =
+                        DataStream<Tuple2<NullWritable, LongWritable>> ds = env.createInput(hif);
+                        DataStream<Tuple2<Void, Long>> res =
                                 ds.map(
                                         new MapFunction<
                                                 Tuple2<NullWritable, LongWritable>,
@@ -261,16 +315,28 @@ public class HadoopIOFormatsITCase extends JavaProgramTestBase {
                                                 return new Tuple2<Void, Long>(null, value.f1.get());
                                             }
                                         });
-                        DataSet<Tuple2<Void, Long>> res1 = res.groupBy(1).sum(1);
-                        res1.writeAsText(resultPath[1]);
-                        res.writeAsText(resultPath[0]);
-                        env.execute();
+                        DataStream<Tuple2<Void, Long>> res1 = res.keyBy(x -> x.f1).sum(1);
+
+                        res1.sinkTo(
+                                FileSink.forRowFormat(
+                                                new org.apache.flink.core.fs.Path(resultPath[1]),
+                                                new SimpleStringEncoder<Tuple2<Void, Long>>())
+                                        .build());
+
+                        res.sinkTo(
+                                FileSink.forRowFormat(
+                                                new org.apache.flink.core.fs.Path(resultPath[0]),
+                                                new SimpleStringEncoder<Tuple2<Void, Long>>())
+                                        .build());
+                        JobExecutionResult jobExecutionResult = env.execute();
 
                         // return expected result
-                        return new String[] {
-                            "(null,2)\n" + "(null,0)\n" + "(null,1)\n" + "(null,3)",
-                            "(null,0)\n" + "(null,1)\n" + "(null,2)\n" + "(null,3)"
-                        };
+                        return Tuple2.of(
+                                new String[] {
+                                    "(null,2)\n" + "(null,0)\n" + "(null,1)\n" + "(null,3)",
+                                    "(null,0)\n" + "(null,1)\n" + "(null,2)\n" + "(null,3)"
+                                },
+                                jobExecutionResult);
                     }
                 default:
                     throw new IllegalArgumentException("Invalid program id");

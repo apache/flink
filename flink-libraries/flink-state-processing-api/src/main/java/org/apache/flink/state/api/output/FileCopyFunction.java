@@ -38,13 +38,15 @@ public final class FileCopyFunction implements OutputFormat<Path> {
 
     private final String path;
 
-    /** @param path the destination path to copy file */
+    /**
+     * @param path the destination path to copy file
+     */
     public FileCopyFunction(String path) {
         this.path = Preconditions.checkNotNull(path, "The destination path cannot be null");
     }
 
     @Override
-    public void open(int taskNumber, int numTasks) throws IOException {
+    public void open(InitializationContext context) throws IOException {
         // Create the destination parent directory before copy.
         // It is not a problem if it exists already.
         Path destParent = new Path(path);

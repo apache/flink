@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.planner.plan.nodes.exec.common.LookupJoinTestPrograms;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
@@ -41,6 +42,7 @@ public class LookupJoinRestoreTest extends RestoreTestBase {
                 LookupJoinTestPrograms.LOOKUP_JOIN_POST_FILTER,
                 LookupJoinTestPrograms.LOOKUP_JOIN_PRE_POST_FILTER,
                 LookupJoinTestPrograms.LOOKUP_JOIN_ASYNC_HINT,
-                LookupJoinTestPrograms.LOOKUP_JOIN_RETRY_HINT);
+                LookupJoinTestPrograms.LOOKUP_JOIN_RETRY_HINT,
+                LookupJoinTestPrograms.LOOKUP_JOIN_WITH_TRY_RESOLVE);
     }
 }

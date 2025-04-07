@@ -28,7 +28,9 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateBackendOptions;
+import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -37,6 +39,8 @@ import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.state.api.functions.BroadcastStateBootstrapFunction;
 import org.apache.flink.state.api.functions.KeyedStateBootstrapFunction;
 import org.apache.flink.state.api.functions.StateBootstrapFunction;
+import org.apache.flink.state.api.runtime.SavepointLoader;
+import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -64,6 +68,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** IT test for writing savepoints. */
 public class SavepointWriterITCase extends AbstractTestBaseJUnit4 {
 
+    private static final long CHECKPOINT_ID = 42;
+
     private static final String ACCOUNT_UID = "accounts";
 
     private static final String CURRENCY_UID = "currency";
@@ -81,31 +87,36 @@ public class SavepointWriterITCase extends AbstractTestBaseJUnit4 {
 
     @Test
     public void testDefaultStateBackend() throws Exception {
-        testStateBootstrapAndModification(null);
+        testStateBootstrapAndModification(new Configuration(), null);
     }
 
     @Test
     public void testHashMapStateBackend() throws Exception {
-        testStateBootstrapAndModification(new HashMapStateBackend());
+        testStateBootstrapAndModification(
+                new Configuration().set(StateBackendOptions.STATE_BACKEND, "hashmap"),
+                new HashMapStateBackend());
     }
 
     @Test
     public void testEmbeddedRocksDBStateBackend() throws Exception {
-        testStateBootstrapAndModification(new EmbeddedRocksDBStateBackend());
+        testStateBootstrapAndModification(
+                new Configuration().set(StateBackendOptions.STATE_BACKEND, "rocksdb"),
+                new EmbeddedRocksDBStateBackend());
     }
 
-    public void testStateBootstrapAndModification(StateBackend backend) throws Exception {
+    public void testStateBootstrapAndModification(Configuration config, StateBackend backend)
+            throws Exception {
         final String savepointPath = getTempDirPath(new AbstractID().toHexString());
 
         bootstrapState(backend, savepointPath);
 
-        validateBootstrap(backend, savepointPath);
+        validateBootstrap(config, savepointPath);
 
         final String modifyPath = getTempDirPath(new AbstractID().toHexString());
 
         modifySavepoint(backend, savepointPath, modifyPath);
 
-        validateModification(backend, modifyPath);
+        validateModification(config, modifyPath);
     }
 
     private void bootstrapState(StateBackend backend, String savepointPath) throws Exception {
@@ -113,18 +124,18 @@ public class SavepointWriterITCase extends AbstractTestBaseJUnit4 {
         env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
 
         StateBootstrapTransformation<Account> transformation =
-                OperatorTransformation.bootstrapWith(env.fromData(accounts))
+                OperatorTransformation.bootstrapWith(env.fromData(accounts), CHECKPOINT_ID)
                         .keyBy(acc -> acc.id)
                         .transform(new AccountBootstrapper());
 
         StateBootstrapTransformation<CurrencyRate> broadcastTransformation =
-                OperatorTransformation.bootstrapWith(env.fromData(currencyRates))
+                OperatorTransformation.bootstrapWith(env.fromData(currencyRates), CHECKPOINT_ID)
                         .transform(new CurrencyBootstrapFunction());
 
         SavepointWriter writer =
                 backend == null
-                        ? SavepointWriter.newSavepoint(env, 128)
-                        : SavepointWriter.newSavepoint(env, backend, 128);
+                        ? SavepointWriter.newSavepoint(env, CHECKPOINT_ID, 128)
+                        : SavepointWriter.newSavepoint(env, backend, CHECKPOINT_ID, 128);
 
         writer.withOperator(OperatorIdentifier.forUid(ACCOUNT_UID), transformation)
                 .withOperator(getUidHashFromUid(CURRENCY_UID), broadcastTransformation)
@@ -133,12 +144,13 @@ public class SavepointWriterITCase extends AbstractTestBaseJUnit4 {
         env.execute("Bootstrap");
     }
 
-    private void validateBootstrap(StateBackend backend, String savepointPath) throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+    private void validateBootstrap(Configuration configuration, String savepointPath)
+            throws Exception {
+        CheckpointMetadata metadata = SavepointLoader.loadSavepointMetadata(savepointPath);
+        assertThat(metadata.getCheckpointId()).isEqualTo(CHECKPOINT_ID);
 
-        if (backend != null) {
-            env.setStateBackend(backend);
-        }
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
 
         DataStream<Account> stream =
                 env.fromData(accounts)
@@ -185,11 +197,13 @@ public class SavepointWriterITCase extends AbstractTestBaseJUnit4 {
         env.execute("Modifying");
     }
 
-    private void validateModification(StateBackend backend, String savepointPath) throws Exception {
-        StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-        if (backend != null) {
-            sEnv.setStateBackend(backend);
-        }
+    private void validateModification(Configuration configuration, String savepointPath)
+            throws Exception {
+        CheckpointMetadata metadata = SavepointLoader.loadSavepointMetadata(savepointPath);
+        assertThat(metadata.getCheckpointId()).isEqualTo(CHECKPOINT_ID);
+
+        StreamExecutionEnvironment sEnv =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
 
         DataStream<Account> stream =
                 sEnv.fromData(accounts)

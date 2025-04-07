@@ -70,7 +70,7 @@ import org.apache.flink.state.changelog.restore.FunctionDelegationHelper;
 import org.apache.flink.state.common.PeriodicMaterializationManager.MaterializationTarget;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.apache.flink.shaded.guava32.com.google.common.io.Closer;
+import org.apache.flink.shaded.guava33.com.google.common.io.Closer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -173,6 +173,7 @@ public class ChangelogKeyedStateBackend<K>
      * #stateChangelogWriter} about changelog ranges that were confirmed or aborted by JM.
      */
     @Nullable private SequenceNumber lastUploadedFrom;
+
     /**
      * {@link SequenceNumber} denoting last upload range <b>end</b>, exclusive. Updated to {@link
      * StateChangelogWriter#nextSequenceNumber()} when {@link #snapshot(long, long,
@@ -299,6 +300,11 @@ public class ChangelogKeyedStateBackend<K>
     }
 
     @Override
+    public void setCurrentKeyAndKeyGroup(K newKey, int newKeyGroupIndex) {
+        keyedStateBackend.setCurrentKeyAndKeyGroup(newKey, newKeyGroupIndex);
+    }
+
+    @Override
     public TypeSerializer<K> getKeySerializer() {
         return keyedStateBackend.getKeySerializer();
     }
@@ -306,6 +312,11 @@ public class ChangelogKeyedStateBackend<K>
     @Override
     public <N> Stream<K> getKeys(String state, N namespace) {
         return keyedStateBackend.getKeys(state, namespace);
+    }
+
+    @Override
+    public <N> Stream<K> getKeys(List<String> states, N namespace) {
+        return keyedStateBackend.getKeys(states, namespace);
     }
 
     @Override

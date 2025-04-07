@@ -19,6 +19,7 @@
 package org.apache.flink.table.connector.source;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.legacy.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -50,16 +51,6 @@ public interface DataStreamScanProvider
      *
      * @see SingleOutputStreamOperator#uid(String)
      */
-    default DataStream<RowData> produceDataStream(
-            ProviderContext providerContext, StreamExecutionEnvironment execEnv) {
-        return produceDataStream(execEnv);
-    }
-
-    /** Creates a scan Java {@link DataStream} from a {@link StreamExecutionEnvironment}. */
-    @Deprecated
-    default DataStream<RowData> produceDataStream(StreamExecutionEnvironment execEnv) {
-        throw new UnsupportedOperationException(
-                "This method is deprecated. "
-                        + "Use produceDataStream(ProviderContext, StreamExecutionEnvironment) instead");
-    }
+    DataStream<RowData> produceDataStream(
+            ProviderContext providerContext, StreamExecutionEnvironment execEnv);
 }

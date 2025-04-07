@@ -23,6 +23,8 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -34,6 +36,7 @@ import java.util.Objects;
  *   <li>type
  *   <li>index of an input the field belongs to
  *   <li>index of a field within the corresponding input
+ *   <li>optional: alias of the input, if it needs to be referenced by name
  * </ul>
  */
 @PublicEvolving
@@ -52,14 +55,26 @@ public final class FieldReferenceExpression implements ResolvedExpression {
     /** index of a field within the corresponding input. */
     private final int fieldIndex;
 
+    private final @Nullable String inputAlias;
+
     public FieldReferenceExpression(
             String name, DataType dataType, int inputIndex, int fieldIndex) {
+        this(name, dataType, inputIndex, fieldIndex, null);
+    }
+
+    public FieldReferenceExpression(
+            String name,
+            DataType dataType,
+            int inputIndex,
+            int fieldIndex,
+            @Nullable String inputAlias) {
         Preconditions.checkArgument(inputIndex >= 0, "Index of input should be a positive number");
         Preconditions.checkArgument(fieldIndex >= 0, "Index of field should be a positive number");
         this.name = Preconditions.checkNotNull(name, "Field name must not be null.");
         this.dataType = Preconditions.checkNotNull(dataType, "Field data type must not be null.");
         this.inputIndex = inputIndex;
         this.fieldIndex = fieldIndex;
+        this.inputAlias = inputAlias;
     }
 
     public String getName() {
@@ -91,6 +106,12 @@ public final class FieldReferenceExpression implements ResolvedExpression {
 
     @Override
     public String asSerializableString() {
+        if (inputAlias != null) {
+            return String.format(
+                    "%s.%s",
+                    EncodingUtils.escapeIdentifier(inputAlias),
+                    EncodingUtils.escapeIdentifier(name));
+        }
         return EncodingUtils.escapeIdentifier(name);
     }
 
@@ -116,12 +137,13 @@ public final class FieldReferenceExpression implements ResolvedExpression {
         return name.equals(that.name)
                 && dataType.equals(that.dataType)
                 && inputIndex == that.inputIndex
-                && fieldIndex == that.fieldIndex;
+                && fieldIndex == that.fieldIndex
+                && Objects.equals(inputAlias, that.inputAlias);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, dataType, inputIndex, fieldIndex);
+        return Objects.hash(name, dataType, inputIndex, fieldIndex, inputAlias);
     }
 
     @Override

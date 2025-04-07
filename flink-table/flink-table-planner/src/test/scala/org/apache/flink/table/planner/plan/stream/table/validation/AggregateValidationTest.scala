@@ -17,10 +17,8 @@
  */
 package org.apache.flink.table.planner.plan.stream.table.validation
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.{TableFunc0, TableTestBase}
-import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable
@@ -131,7 +129,7 @@ class AggregateValidationTest extends TableTestBase {
     // If there are two parameters, second one must be character literal.
     expectExceptionThrown(
       "SELECT listagg(c, d) FROM T GROUP BY a",
-      "Supported form(s): 'LISTAGG(<CHARACTER>)'\n'LISTAGG(<CHARACTER>, <CHARACTER_LITERAL>)",
+      "Argument to function 'LISTAGG' must be a literal",
       classOf[ValidationException]
     )
   }

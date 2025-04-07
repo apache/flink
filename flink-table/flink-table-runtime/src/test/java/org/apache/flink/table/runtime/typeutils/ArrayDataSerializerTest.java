@@ -90,6 +90,7 @@ class ArrayDataSerializerTest extends SerializerTestBase<ArrayData> {
             createArray("11", "lele", "haa", "ke"),
             createColumnarArray("11", "lele", "haa", "ke"),
             createCustomTypeArray("11", "lele", "haa", "ke"),
+            createCustomTypeArray("111", "lelele", "haaa", "kee")
         };
     }
 

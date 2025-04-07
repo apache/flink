@@ -20,6 +20,7 @@ package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.gateway.result.ChangelogCollectResult;
@@ -31,7 +32,6 @@ import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.table.client.config.ResultMode.CHANGELOG;
 import static org.apache.flink.table.client.config.ResultMode.TABLE;
-import static org.apache.flink.table.client.config.SqlClientOptions.DISPLAY_MAX_COLUMN_WIDTH;
 import static org.apache.flink.table.client.config.SqlClientOptions.DISPLAY_QUERY_TIME_COST;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_MAX_TABLE_RESULT_ROWS;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
@@ -92,7 +92,7 @@ public class ResultDescriptor {
     }
 
     public int maxColumnWidth() {
-        return config.get(DISPLAY_MAX_COLUMN_WIDTH);
+        return config.get(TableConfigOptions.DISPLAY_MAX_COLUMN_WIDTH);
     }
 
     public boolean isPrintQueryTimeCost() {

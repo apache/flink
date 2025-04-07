@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.util.concurrent.Executors;
 
@@ -49,7 +49,7 @@ class PerJobCheckpointRecoveryTest {
                                 1,
                                 SharedStateRegistry.DEFAULT_FACTORY,
                                 Executors.directExecutor(),
-                                RestoreMode.DEFAULT))
+                                RecoveryClaimMode.DEFAULT))
                 .isSameAs(store);
         assertThatExceptionOfType(UnsupportedOperationException.class)
                 .isThrownBy(
@@ -59,7 +59,7 @@ class PerJobCheckpointRecoveryTest {
                                         1,
                                         SharedStateRegistry.DEFAULT_FACTORY,
                                         Executors.directExecutor(),
-                                        RestoreMode.DEFAULT));
+                                        RecoveryClaimMode.DEFAULT));
 
         final JobID secondJobId = new JobID();
         assertThat(
@@ -68,7 +68,7 @@ class PerJobCheckpointRecoveryTest {
                                 1,
                                 SharedStateRegistry.DEFAULT_FACTORY,
                                 Executors.directExecutor(),
-                                RestoreMode.DEFAULT))
+                                RecoveryClaimMode.DEFAULT))
                 .isSameAs(store);
         assertThatExceptionOfType(UnsupportedOperationException.class)
                 .isThrownBy(
@@ -78,6 +78,6 @@ class PerJobCheckpointRecoveryTest {
                                         1,
                                         SharedStateRegistry.DEFAULT_FACTORY,
                                         Executors.directExecutor(),
-                                        RestoreMode.DEFAULT));
+                                        RecoveryClaimMode.DEFAULT));
     }
 }

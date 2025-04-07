@@ -57,11 +57,6 @@ unioned, connected, or merged.
 WatermarkStrategy.forMonotonousTimestamps();
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-WatermarkStrategy.forMonotonousTimestamps()
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 WatermarkStrategy.for_monotonous_timestamps()
@@ -91,11 +86,6 @@ about working with late elements.
 {{< tab "Java" >}}
 ```java
 WatermarkStrategy.forBoundedOutOfOrderness(Duration.ofSeconds(10));
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-WatermarkStrategy.forBoundedOutOfOrderness(Duration.ofSeconds(10))
 ```
 {{< /tab >}}
 {{< tab "Python" >}}

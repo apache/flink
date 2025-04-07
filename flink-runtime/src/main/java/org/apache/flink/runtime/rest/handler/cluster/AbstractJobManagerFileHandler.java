@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.cluster;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.rest.handler.AbstractHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
@@ -37,6 +36,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import javax.annotation.Nullable;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -48,7 +48,7 @@ public abstract class AbstractJobManagerFileHandler<M extends MessageParameters>
 
     protected AbstractJobManagerFileHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> responseHeaders,
             UntypedResponseMessageHeaders<EmptyRequestBody, M> messageHeaders) {
         super(leaderRetriever, timeout, responseHeaders, messageHeaders);

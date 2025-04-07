@@ -34,7 +34,7 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -42,9 +42,10 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link TableOperatorWrapperGenerator}. */
-public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
+class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
 
     /**
      * Test for simple sub-graph in a multiple input node.
@@ -60,7 +61,7 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
      * </pre>
      */
     @Test
-    public void testSimple() {
+    void testSimple() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         Transformation<RowData> source1 = createSource(env, "source1");
         Transformation<RowData> source2 = createSource(env, "source2");
@@ -128,7 +129,7 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
      * </pre>
      */
     @Test
-    public void testComplex() {
+    void testComplex() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         Transformation<RowData> source1 = createSource(env, "source1");
         Transformation<RowData> source2 = createSource(env, "source2");
@@ -253,7 +254,7 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
      * </pre>
      */
     @Test
-    public void testWithUnion() {
+    void testWithUnion() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         Transformation<RowData> source1 = createSource(env, "source1");
         Transformation<RowData> source2 = createSource(env, "source2");
@@ -332,7 +333,7 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
      * </pre>
      */
     @Test
-    public void testDifferentParallelisms() {
+    void testDifferentParallelisms() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         Transformation<RowData> source1 = createSource(env, "source1");
         Transformation<RowData> source2 = createSource(env, "source2");
@@ -400,8 +401,8 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
         assertThat(generator.getPreferredResources()).isEqualTo(ResourceSpec.UNKNOWN);
     }
 
-    @Test(expected = RuntimeException.class)
-    public void testUnsupportedTransformation() {
+    @Test
+    void testUnsupportedTransformation() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         Transformation<RowData> source1 = createSource(env, "source1");
         Transformation<RowData> source2 = createSource(env, "source2");
@@ -421,7 +422,7 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
         TableOperatorWrapperGenerator generator =
                 new TableOperatorWrapperGenerator(
                         Arrays.asList(source1, source2), join, new int[] {0, 0});
-        generator.generate();
+        assertThatThrownBy(() -> generator.generate()).isInstanceOf(RuntimeException.class);
     }
 
     @SafeVarargs

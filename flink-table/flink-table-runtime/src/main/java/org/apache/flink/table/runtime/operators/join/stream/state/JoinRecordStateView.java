@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.join.stream.state;
 
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 
 /**
  * A {@link JoinRecordStateView} is a view to the join state. It encapsulates the join state and

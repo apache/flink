@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.util;
 
+import java.net.URI;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -78,8 +79,20 @@ public class SQLJobSubmission {
             return this;
         }
 
+        public SQLJobSubmissionBuilder addJar(URI jarFile) {
+            this.jars.add(jarFile.toString());
+            return this;
+        }
+
         public SQLJobSubmissionBuilder addJar(Path jarFile) {
             this.jars.add(jarFile.toAbsolutePath().toString());
+            return this;
+        }
+
+        public SQLJobSubmissionBuilder addJars(URI... jarFiles) {
+            for (URI jarFile : jarFiles) {
+                addJar(jarFile);
+            }
             return this;
         }
 

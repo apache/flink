@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.testutils.BlockerSync;
 import org.apache.flink.metrics.CharacterFilter;
+import org.apache.flink.metrics.LogicalScopeProvider;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -32,7 +33,7 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
-import org.apache.flink.runtime.metrics.ReporterSetup;
+import org.apache.flink.runtime.metrics.ReporterSetupBuilder;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
@@ -58,7 +59,7 @@ class AbstractMetricGroupTest {
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration());
 
-        AbstractMetricGroup group =
+        AbstractMetricGroup<?> group =
                 new AbstractMetricGroup<AbstractMetricGroup<?>>(registry, new String[0], null) {
                     @Override
                     protected QueryScopeInfo createQueryServiceMetricInfo(CharacterFilter filter) {
@@ -161,8 +162,10 @@ class AbstractMetricGroupTest {
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.fromConfiguration(config),
                         Arrays.asList(
-                                ReporterSetup.forReporter("test1", metricConfig1, reporter1),
-                                ReporterSetup.forReporter("test2", metricConfig2, reporter2)));
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
+                                        "test1", metricConfig1, reporter1),
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
+                                        "test2", metricConfig2, reporter2)));
         try {
             MetricGroup tmGroup =
                     TaskManagerMetricGroup.createTaskManagerMetricGroup(
@@ -239,8 +242,10 @@ class AbstractMetricGroupTest {
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Arrays.asList(
-                                ReporterSetup.forReporter("test1", reporter1),
-                                ReporterSetup.forReporter("test2", reporter2)));
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
+                                        "test1", reporter1),
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
+                                        "test2", reporter2)));
         try {
             MetricGroup tmGroup =
                     TaskManagerMetricGroup.createTaskManagerMetricGroup(
@@ -252,13 +257,11 @@ class AbstractMetricGroupTest {
                     .withFailMessage("Reporters were not properly instantiated")
                     .hasSize(2);
             assertThat(
-                            ((FrontMetricGroup<AbstractMetricGroup<?>>)
-                                            reporter1.findAdded(counterName).group)
+                            LogicalScopeProvider.castFrom(reporter1.findAdded(counterName).group)
                                     .getLogicalScope(reporter1, '-'))
                     .isEqualTo("taskmanager-X-C");
             assertThat(
-                            ((FrontMetricGroup<AbstractMetricGroup<?>>)
-                                            reporter2.findAdded(counterName).group)
+                            LogicalScopeProvider.castFrom(reporter2.findAdded(counterName).group)
                                     .getLogicalScope(reporter2, ','))
                     .isEqualTo("taskmanager,B,X");
         } finally {

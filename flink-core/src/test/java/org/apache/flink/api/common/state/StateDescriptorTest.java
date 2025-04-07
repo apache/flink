@@ -20,7 +20,6 @@ package org.apache.flink.api.common.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
@@ -34,6 +33,7 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -127,7 +127,7 @@ class StateDescriptorTest {
                 .isEqualTo(-1);
 
         final ExecutionConfig config = new ExecutionConfig();
-        config.getSerializerConfig().registerKryoType(File.class);
+        ((SerializerConfigImpl) config.getSerializerConfig()).registerKryoType(File.class);
 
         final TestStateDescriptor<Path> original = new TestStateDescriptor<>("test", Path.class);
         TestStateDescriptor<Path> clone = CommonTestUtils.createCopySerializable(original);
@@ -249,7 +249,7 @@ class StateDescriptorTest {
     void testStateTTlConfig() {
         ValueStateDescriptor<Integer> stateDescriptor =
                 new ValueStateDescriptor<>("test-state", IntSerializer.INSTANCE);
-        stateDescriptor.enableTimeToLive(StateTtlConfig.newBuilder(Time.minutes(60)).build());
+        stateDescriptor.enableTimeToLive(StateTtlConfig.newBuilder(Duration.ofMinutes(60)).build());
         assertThat(stateDescriptor.getTtlConfig().isEnabled()).isTrue();
 
         stateDescriptor.enableTimeToLive(StateTtlConfig.DISABLED);

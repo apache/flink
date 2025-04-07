@@ -26,6 +26,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanCompilation;
 import org.apache.flink.table.dataview.NullSerializer;
+import org.apache.flink.table.legacy.types.logical.TypeInformationRawType;
 import org.apache.flink.table.runtime.typeutils.ExternalSerializer;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -42,7 +43,6 @@ import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.logical.StructuredType.StructuredComparison;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
@@ -246,7 +246,7 @@ final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
                             (RawType<?>) logicalType, jsonGenerator, serializerProvider);
                     break;
                 }
-                // fall through
+            // fall through
             default:
                 throw new ValidationException(
                         String.format(
@@ -514,7 +514,7 @@ final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
                     if (serializer.equals(NullSerializer.INSTANCE)) {
                         return false;
                     }
-                    // fall through
+                // fall through
                 case BOOLEAN:
                 case DECIMAL:
                 case TINYINT:

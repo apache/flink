@@ -18,7 +18,6 @@
 
 package org.apache.flink.connector.file.src.impl;
 
-import org.apache.flink.connector.file.src.reader.FileRecordFormat;
 import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -29,14 +28,8 @@ import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
 
-/**
- * Simple reader for integers, that is both a {@link StreamFormat.Reader} and a {@link
- * FileRecordFormat.Reader}.
- *
- * <p>The interface {@link FileRecordFormat} is deprecated, use {@link StreamFormat} instead. This
- * test class will be refactored once we remove the {@link FileRecordFormat}.
- */
-class TestIntReader implements StreamFormat.Reader<Integer>, FileRecordFormat.Reader<Integer> {
+/** Simple reader for integers, that is a {@link StreamFormat.Reader}. */
+class TestIntReader implements StreamFormat.Reader<Integer> {
 
     private static final int SKIPS_PER_OFFSET = 7;
 

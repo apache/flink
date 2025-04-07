@@ -40,7 +40,7 @@ import java.time.Duration;
 import java.util.Locale;
 
 /** {@code MinioTestContainer} provides a {@code Minio} test instance. */
-public class MinioTestContainer extends GenericContainer<MinioTestContainer> {
+class MinioTestContainer extends GenericContainer<MinioTestContainer> {
 
     private static final int DEFAULT_PORT = 9000;
 

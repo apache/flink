@@ -18,10 +18,11 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
-import org.apache.flink.core.fs.DuplicatingFileSystem;
-import org.apache.flink.core.fs.DuplicatingFileSystem.CopyRequest;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.EntropyInjector;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.PathsCopyingFileSystem;
+import org.apache.flink.core.fs.PathsCopyingFileSystem.CopyRequest;
 import org.apache.flink.runtime.state.CheckpointStateToolset;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
@@ -33,14 +34,14 @@ import java.util.stream.IntStream;
 
 /**
  * An implementation of {@link CheckpointStateToolset} that does file based duplicating with as
- * {@link DuplicatingFileSystem}.
+ * {@link PathsCopyingFileSystem}.
  */
 public class FsCheckpointStateToolset implements CheckpointStateToolset {
 
     private final Path basePath;
-    private final DuplicatingFileSystem fs;
+    private final PathsCopyingFileSystem fs;
 
-    public FsCheckpointStateToolset(Path basePath, DuplicatingFileSystem fs) {
+    public FsCheckpointStateToolset(Path basePath, PathsCopyingFileSystem fs) {
         this.basePath = basePath;
         this.fs = fs;
     }
@@ -52,7 +53,7 @@ public class FsCheckpointStateToolset implements CheckpointStateToolset {
         }
         final Path srcPath = ((FileStateHandle) stateHandle).getFilePath();
         final Path dst = getNewDstPath(srcPath.getName());
-        return fs.canFastDuplicate(srcPath, dst);
+        return fs.canCopyPaths(srcPath, dst);
     }
 
     @Override
@@ -65,9 +66,11 @@ public class FsCheckpointStateToolset implements CheckpointStateToolset {
                 throw new IllegalArgumentException("We can duplicate only FileStateHandles.");
             }
             final Path srcPath = ((FileStateHandle) handle).getFilePath();
-            requests.add(CopyRequest.of(srcPath, getNewDstPath(srcPath.getName())));
+            requests.add(
+                    CopyRequest.of(
+                            srcPath, getNewDstPath(srcPath.getName()), handle.getStateSize()));
         }
-        fs.duplicate(requests);
+        fs.copyFiles(requests, new CloseableRegistry());
 
         return IntStream.range(0, stateHandles.size())
                 .mapToObj(

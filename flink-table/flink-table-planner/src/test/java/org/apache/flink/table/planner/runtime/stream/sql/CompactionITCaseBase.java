@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.connector.datagen.source.TestDataGenerators;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.streaming.api.scala.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
@@ -88,13 +88,10 @@ public abstract class CompactionITCaseBase extends StreamingTestBase {
                         new String[] {"a", "b", "c"});
 
         DataStream<Row> stream =
-                new DataStream<>(
-                                env().getJavaEnv()
-                                        .fromSource(
-                                                TestDataGenerators.fromDataWithSnapshotsLatch(
-                                                        rows, rowTypeInfo),
-                                                WatermarkStrategy.noWatermarks(),
-                                                "Test Source"))
+                env().fromSource(
+                                TestDataGenerators.fromDataWithSnapshotsLatch(rows, rowTypeInfo),
+                                WatermarkStrategy.noWatermarks(),
+                                "Test Source")
                         .filter((FilterFunction<Row>) value -> true)
                         .setParallelism(3); // to parallel tasks
 

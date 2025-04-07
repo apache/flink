@@ -60,7 +60,14 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
                 QueryOperationTestPrograms.WINDOW_AGGREGATE_QUERY_OPERATION,
                 QueryOperationTestPrograms.UNION_ALL_QUERY_OPERATION,
                 QueryOperationTestPrograms.LATERAL_JOIN_QUERY_OPERATION,
-                QueryOperationTestPrograms.SQL_QUERY_OPERATION);
+                QueryOperationTestPrograms.SQL_QUERY_OPERATION,
+                QueryOperationTestPrograms.OVER_WINDOW_RANGE,
+                QueryOperationTestPrograms.OVER_WINDOW_ROWS,
+                QueryOperationTestPrograms.OVER_WINDOW_ROWS_UNBOUNDED_NO_PARTITION,
+                QueryOperationTestPrograms.OVER_WINDOW_LAG,
+                QueryOperationTestPrograms.ACCESSING_NESTED_COLUMN,
+                QueryOperationTestPrograms.TABLE_AS_ROW_PTF,
+                QueryOperationTestPrograms.TABLE_AS_SET_PTF);
     }
 
     @ParameterizedTest
@@ -125,19 +132,17 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
         program.getSetupSourceTestSteps().forEach(s -> s.apply(env, connectorOptions));
         program.getSetupSinkTestSteps().forEach(s -> s.apply(env, connectorOptions));
         program.getSetupFunctionTestSteps().forEach(f -> f.apply(env));
+        program.getSetupSqlTestSteps().forEach(s -> s.apply(env));
         return env;
     }
 
     @Override
     public EnumSet<TestKind> supportedSetupSteps() {
         return EnumSet.of(
+                TestKind.SQL,
                 TestKind.FUNCTION,
                 TestKind.SOURCE_WITH_DATA,
-                TestKind.SOURCE_WITHOUT_DATA,
-                TestKind.SOURCE_WITH_RESTORE_DATA, // restore data is ignored
-                TestKind.SINK_WITH_DATA,
-                TestKind.SINK_WITH_RESTORE_DATA // restore data is ignored
-                );
+                TestKind.SINK_WITH_DATA);
     }
 
     @Override

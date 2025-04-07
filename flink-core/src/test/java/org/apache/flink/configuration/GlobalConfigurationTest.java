@@ -42,49 +42,6 @@ class GlobalConfigurationTest {
     @TempDir private File tmpDir;
 
     @Test
-    void testConfigurationWithLegacyYAML() throws FileNotFoundException {
-        File confFile = new File(tmpDir, GlobalConfiguration.LEGACY_FLINK_CONF_FILENAME);
-        try (PrintWriter pw = new PrintWriter(confFile)) {
-            pw.println("###########################"); // should be skipped
-            pw.println("# Some : comments : to skip"); // should be skipped
-            pw.println("###########################"); // should be skipped
-            pw.println("mykey1: myvalue1"); // OK, simple correct case
-            pw.println("mykey2       : myvalue2"); // OK, whitespace before colon is correct
-            pw.println("mykey3:myvalue3"); // SKIP, missing white space after colon
-            pw.println(" some nonsense without colon and whitespace separator"); // SKIP
-            pw.println(" :  "); // SKIP
-            pw.println("   "); // SKIP (silently)
-            pw.println(" "); // SKIP (silently)
-            pw.println("mykey4: myvalue4# some comments"); // OK, skip comments only
-            pw.println("   mykey5    :    myvalue5    "); // OK, trim unnecessary whitespace
-            pw.println("mykey6: my: value6"); // OK, only use first ': ' as separator
-            pw.println("mykey7: "); // SKIP, no value provided
-            pw.println(": myvalue8"); // SKIP, no key provided
-
-            pw.println("mykey9: myvalue9"); // OK
-            pw.println("mykey9: myvalue10"); // OK, overwrite last value
-        }
-        Configuration conf = GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath());
-
-        // all distinct keys from confFile1 + confFile2 key
-        assertThat(conf.keySet()).hasSize(6);
-
-        // keys 1, 2, 4, 5, 6, 7, 8 should be OK and match the expected values
-        assertThat(conf.getString("mykey1", null)).isEqualTo("myvalue1");
-        assertThat(conf.getString("mykey1", null)).isEqualTo("myvalue1");
-        assertThat(conf.getString("mykey2", null)).isEqualTo("myvalue2");
-        assertThat(conf.getString("mykey3", "null")).isEqualTo("null");
-        assertThat(conf.getString("mykey4", null)).isEqualTo("myvalue4");
-        assertThat(conf.getString("mykey5", null)).isEqualTo("myvalue5");
-        assertThat(conf.getString("mykey6", null)).isEqualTo("my: value6");
-        assertThat(conf.getString("mykey7", "null")).isEqualTo("null");
-        assertThat(conf.getString("mykey8", "null")).isEqualTo("null");
-        assertThat(conf.getString("mykey9", null)).isEqualTo("myvalue10");
-        // Clear the standard yaml flag to avoid impact to other cases.
-        GlobalConfiguration.setStandardYaml(true);
-    }
-
-    @Test
     void testConfigurationWithStandardYAML() throws FileNotFoundException {
         File confFile = new File(tmpDir, GlobalConfiguration.FLINK_CONF_FILENAME);
 
@@ -152,21 +109,6 @@ class GlobalConfigurationTest {
     void testInvalidConfiguration() {
         assertThatThrownBy(() -> GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath()))
                 .isInstanceOf(IllegalConfigurationException.class);
-    }
-
-    @Test
-    // We allow malformed YAML files if loaded legacy flink conf
-    void testInvalidLegacyYamlFile() throws IOException {
-        final File confFile =
-                new File(tmpDir.getPath(), GlobalConfiguration.LEGACY_FLINK_CONF_FILENAME);
-
-        try (PrintWriter pw = new PrintWriter(confFile)) {
-            pw.append("invalid");
-        }
-
-        assertThat(GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath())).isNotNull();
-        // Clear the standard yaml flag to avoid impact to other cases.
-        GlobalConfiguration.setStandardYaml(true);
     }
 
     @Test

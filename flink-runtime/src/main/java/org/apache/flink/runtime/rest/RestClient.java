@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
@@ -98,6 +97,7 @@ import java.net.URL;
 import java.nio.channels.spi.SelectorProvider;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -298,21 +298,21 @@ public class RestClient implements AutoCloseableAsync {
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        return shutdownInternally(Time.seconds(10L));
+        return shutdownInternally(Duration.ofSeconds(10L));
     }
 
-    public void shutdown(Time timeout) {
+    public void shutdown(Duration timeout) {
         final CompletableFuture<Void> shutDownFuture = shutdownInternally(timeout);
 
         try {
-            shutDownFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+            shutDownFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
             LOG.debug("Rest endpoint shutdown complete.");
         } catch (Exception e) {
             LOG.warn("Rest endpoint shutdown failed.", e);
         }
     }
 
-    private CompletableFuture<Void> shutdownInternally(Time timeout) {
+    private CompletableFuture<Void> shutdownInternally(Duration timeout) {
         if (isRunning.compareAndSet(true, false)) {
             LOG.debug("Shutting down rest endpoint.");
 
@@ -321,7 +321,7 @@ public class RestClient implements AutoCloseableAsync {
                     bootstrap
                             .config()
                             .group()
-                            .shutdownGracefully(0L, timeout.toMilliseconds(), TimeUnit.MILLISECONDS)
+                            .shutdownGracefully(0L, timeout.toMillis(), TimeUnit.MILLISECONDS)
                             .addListener(
                                     finished -> {
                                         notifyResponseFuturesOfShutdown();

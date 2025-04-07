@@ -19,43 +19,36 @@
 package org.apache.flink.table.planner.operations.converters;
 
 import org.apache.flink.sql.parser.dql.SqlShowProcedures;
-import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ShowProceduresOperation;
+import org.apache.flink.table.operations.utils.ShowLikeOperator;
+
+import javax.annotation.Nullable;
 
 /** A converter for {@link SqlShowProcedures}. */
-public class SqlShowProcedureConverter implements SqlNodeConverter<SqlShowProcedures> {
+public class SqlShowProcedureConverter extends AbstractSqlShowConverter<SqlShowProcedures> {
+
+    @Override
+    public Operation getOperationWithoutPrep(
+            SqlShowProcedures sqlShowCall,
+            @Nullable String catalogName,
+            @Nullable String databaseName,
+            @Nullable ShowLikeOperator likeOp) {
+        return new ShowProceduresOperation(catalogName, databaseName, likeOp);
+    }
+
+    @Override
+    public Operation getOperation(
+            SqlShowProcedures sqlShowCall,
+            @Nullable String catalogName,
+            @Nullable String databaseName,
+            String prep,
+            @Nullable ShowLikeOperator likeOp) {
+        return new ShowProceduresOperation(catalogName, databaseName, prep, likeOp);
+    }
 
     @Override
     public Operation convertSqlNode(SqlShowProcedures sqlShowProcedures, ConvertContext context) {
-        if (sqlShowProcedures.getPreposition() == null) {
-            return new ShowProceduresOperation(
-                    sqlShowProcedures.isNotLike(),
-                    sqlShowProcedures.getLikeType(),
-                    sqlShowProcedures.getLikeSqlPattern());
-        }
-
-        String[] fullDatabaseName = sqlShowProcedures.fullDatabaseName();
-        if (fullDatabaseName.length > 2) {
-            throw new ValidationException(
-                    String.format(
-                            "Show procedures from/in identifier [ %s ] format error, it should be [catalog_name.]database_name.",
-                            String.join(".", fullDatabaseName)));
-        }
-        CatalogManager catalogManager = context.getCatalogManager();
-        String catalogName =
-                (fullDatabaseName.length == 1)
-                        ? catalogManager.getCurrentCatalog()
-                        : fullDatabaseName[0];
-        String databaseName =
-                (fullDatabaseName.length == 1) ? fullDatabaseName[0] : fullDatabaseName[1];
-        return new ShowProceduresOperation(
-                sqlShowProcedures.getPreposition(),
-                catalogName,
-                databaseName,
-                sqlShowProcedures.isNotLike(),
-                sqlShowProcedures.getLikeType(),
-                sqlShowProcedures.getLikeSqlPattern());
+        return convertShowOperation(sqlShowProcedures, context);
     }
 }

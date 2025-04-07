@@ -25,12 +25,19 @@ import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.Histogram;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.legacy.OutputFormatSinkFunction;
+import org.apache.flink.streaming.api.legacy.io.TextInputFormat;
+import org.apache.flink.streaming.api.legacy.io.TextOutputFormat;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
@@ -78,7 +85,6 @@ public class AccumulatorITCase extends JavaProgramTestBaseJUnit4 {
         System.out.println(AccumulatorHelper.getResultsFormatted(res.getAllAccumulatorResults()));
 
         Assert.assertEquals(Integer.valueOf(3), res.getAccumulatorResult("num-lines"));
-        Assert.assertEquals(Integer.valueOf(3), res.getIntCounterResult("num-lines"));
 
         Assert.assertEquals(
                 Double.valueOf(getParallelism()), res.getAccumulatorResult("open-close-counter"));
@@ -100,14 +106,35 @@ public class AccumulatorITCase extends JavaProgramTestBaseJUnit4 {
 
     @Override
     protected void testProgram() throws Exception {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataSet<String> input = env.readTextFile(dataPath);
+        DataStreamSource<String> input =
+                env.createInput(new TextInputFormat(new Path(dataPath)))
+                        .setParallelism(getParallelism());
 
         input.flatMap(new TokenizeLine())
-                .groupBy(0)
-                .reduceGroup(new CountWords())
-                .writeAsCsv(resultPath, "\n", " ");
+                .keyBy(x -> x.f0)
+                .window(GlobalWindows.createWithEndOfStreamTrigger())
+                .reduce(
+                        new ReduceFunction<Tuple2<String, Integer>>() {
+                            @Override
+                            public Tuple2<String, Integer> reduce(
+                                    Tuple2<String, Integer> value1, Tuple2<String, Integer> value2)
+                                    throws Exception {
+                                return Tuple2.of(value2.f0, value1.f1 + value2.f1);
+                            }
+                        })
+                .map(
+                        new MapFunction<Tuple2<String, Integer>, String>() {
+
+                            @Override
+                            public String map(Tuple2<String, Integer> value) throws Exception {
+                                return value.f0 + " " + value.f1;
+                            }
+                        })
+                .addSink(
+                        new OutputFormatSinkFunction<>(
+                                new TextOutputFormat<>(new Path(resultPath))));
 
         this.result = env.execute();
     }

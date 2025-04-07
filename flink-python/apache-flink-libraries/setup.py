@@ -49,8 +49,8 @@ def find_file_path(pattern):
     return files[0]
 
 
-in_flink_source = os.path.isfile("../../flink-java/src/main/java/org/apache/flink/api/java/"
-                                 "ExecutionEnvironment.java")
+in_flink_source = os.path.isfile("../../flink-runtime/src/main/java/org/apache/flink/streaming"
+                                 "/api/environment/StreamExecutionEnvironment.java")
 this_directory = os.path.abspath(os.path.dirname(__file__))
 pyflink_directory = os.path.join(this_directory, "pyflink")
 if in_flink_source:

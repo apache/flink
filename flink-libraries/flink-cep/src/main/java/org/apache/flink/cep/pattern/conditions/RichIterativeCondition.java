@@ -22,7 +22,6 @@ import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
 
 /**
@@ -68,12 +67,6 @@ public abstract class RichIterativeCondition<T> extends IterativeCondition<T>
 
     @Override
     public void open(OpenContext openContext) throws Exception {}
-
-    @Override
-    public void open(Configuration parameters) throws Exception {
-        throw new UnsupportedOperationException(
-                "This method is deprecated and shouldn't be invoked. Please use open(OpenContext) instead.");
-    }
 
     @Override
     public void close() throws Exception {}

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
@@ -28,8 +27,6 @@ import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
 import org.apache.flink.runtime.state.delegate.DelegatingStateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackendFactory;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackendFactory;
 import org.apache.flink.util.DynamicCodeLoadingException;
 
 import org.slf4j.Logger;
@@ -61,7 +58,11 @@ public class StateBackendLoader {
 
     /** Used for loading RocksDBStateBackend. */
     private static final String ROCKSDB_STATE_BACKEND_FACTORY =
-            "org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendFactory";
+            "org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackendFactory";
+
+    /** Used for loading ForStStateBackend. */
+    private static final String FORST_STATE_BACKEND_FACTORY =
+            "org.apache.flink.state.forst.ForStStateBackendFactory";
 
     // ------------------------------------------------------------------------
     //  Configuration shortcut names
@@ -69,17 +70,10 @@ public class StateBackendLoader {
     /** The shortcut configuration name of the HashMap state backend. */
     public static final String HASHMAP_STATE_BACKEND_NAME = "hashmap";
 
-    /**
-     * The shortcut configuration name for the MemoryState backend that checkpoints to the
-     * JobManager.
-     */
-    @Deprecated public static final String MEMORY_STATE_BACKEND_NAME = "jobmanager";
-
-    /** The shortcut configuration name for the FileSystem State backend. */
-    @Deprecated public static final String FS_STATE_BACKEND_NAME = "filesystem";
-
     /** The shortcut configuration name for the RocksDB State Backend. */
     public static final String ROCKSDB_STATE_BACKEND_NAME = "rocksdb";
+
+    public static final String FORST_STATE_BACKEND_NAME = "forst";
 
     // ------------------------------------------------------------------------
     //  Loading the state backend from a configuration
@@ -95,9 +89,7 @@ public class StateBackendLoader {
      * StateBackendFactory#createFromConfig(ReadableConfig, ClassLoader)} method is called.
      *
      * <p>Recognized shortcut names are '{@value StateBackendLoader#HASHMAP_STATE_BACKEND_NAME}',
-     * '{@value StateBackendLoader#ROCKSDB_STATE_BACKEND_NAME}' '{@value
-     * StateBackendLoader#MEMORY_STATE_BACKEND_NAME}' (Deprecated), and '{@value
-     * StateBackendLoader#FS_STATE_BACKEND_NAME}' (Deprecated).
+     * '{@value StateBackendLoader#ROCKSDB_STATE_BACKEND_NAME}'
      *
      * @param config The configuration to load the state backend from
      * @param classLoader The class loader that should be used to load the state backend
@@ -124,29 +116,6 @@ public class StateBackendLoader {
         String factoryClassName = backendName;
 
         switch (backendName.toLowerCase()) {
-            case MEMORY_STATE_BACKEND_NAME:
-                MemoryStateBackend backend =
-                        new MemoryStateBackendFactory().createFromConfig(config, classLoader);
-
-                if (logger != null) {
-                    logger.warn(
-                            "MemoryStateBackend has been deprecated. Please use 'hashmap' state "
-                                    + "backend instead with JobManagerCheckpointStorage for equivalent "
-                                    + "functionality");
-
-                    logger.info("State backend is set to job manager {}", backend);
-                }
-
-                return backend;
-            case FS_STATE_BACKEND_NAME:
-                if (logger != null) {
-                    logger.warn(
-                            "{} state backend has been deprecated. Please use 'hashmap' state "
-                                    + "backend instead.",
-                            backendName.toLowerCase());
-                }
-                // fall through and use the HashMapStateBackend instead which
-                // utilizes the same HeapKeyedStateBackend runtime implementation.
             case HASHMAP_STATE_BACKEND_NAME:
                 HashMapStateBackend hashMapStateBackend =
                         new HashMapStateBackendFactory().createFromConfig(config, classLoader);
@@ -158,44 +127,51 @@ public class StateBackendLoader {
             case ROCKSDB_STATE_BACKEND_NAME:
                 factoryClassName = ROCKSDB_STATE_BACKEND_FACTORY;
 
-                // fall through to the 'default' case that uses reflection to load the backend
+                // fall through to the case that uses reflection to load the backend
                 // that way we can keep RocksDB in a separate module
+                break;
 
-            default:
-                if (logger != null) {
-                    logger.info("Loading state backend via factory {}", factoryClassName);
-                }
+            case FORST_STATE_BACKEND_NAME:
+                factoryClassName = FORST_STATE_BACKEND_FACTORY;
 
-                StateBackendFactory<?> factory;
-                try {
-                    @SuppressWarnings("rawtypes")
-                    Class<? extends StateBackendFactory> clazz =
-                            Class.forName(factoryClassName, false, classLoader)
-                                    .asSubclass(StateBackendFactory.class);
-
-                    factory = clazz.newInstance();
-                } catch (ClassNotFoundException e) {
-                    throw new DynamicCodeLoadingException(
-                            "Cannot find configured state backend factory class: " + backendName,
-                            e);
-                } catch (ClassCastException | InstantiationException | IllegalAccessException e) {
-                    throw new DynamicCodeLoadingException(
-                            "The class configured under '"
-                                    + StateBackendOptions.STATE_BACKEND.key()
-                                    + "' is not a valid state backend factory ("
-                                    + backendName
-                                    + ')',
-                            e);
-                }
-
-                return factory.createFromConfig(config, classLoader);
+                // fall through to the case that uses reflection to load the backend
+                // that way we can keep ForSt in a separate module
+                break;
         }
+
+        // The reflection loading path
+        if (logger != null) {
+            logger.info("Loading state backend via factory {}", factoryClassName);
+        }
+
+        StateBackendFactory<?> factory;
+        try {
+            @SuppressWarnings("rawtypes")
+            Class<? extends StateBackendFactory> clazz =
+                    Class.forName(factoryClassName, false, classLoader)
+                            .asSubclass(StateBackendFactory.class);
+
+            factory = clazz.newInstance();
+        } catch (ClassNotFoundException e) {
+            throw new DynamicCodeLoadingException(
+                    "Cannot find configured state backend factory class: " + backendName, e);
+        } catch (ClassCastException | InstantiationException | IllegalAccessException e) {
+            throw new DynamicCodeLoadingException(
+                    "The class configured under '"
+                            + StateBackendOptions.STATE_BACKEND.key()
+                            + "' is not a valid state backend factory ("
+                            + backendName
+                            + ')',
+                    e);
+        }
+
+        return factory.createFromConfig(config, classLoader);
     }
 
     /**
      * Checks if an application-defined state backend is given, and if not, loads the state backend
      * from the configuration, from the parameter 'state.backend', as defined in {@link
-     * CheckpointingOptions#STATE_BACKEND}. If no state backend is configured, this instantiates the
+     * StateBackendOptions#STATE_BACKEND}. If no state backend is configured, this instantiates the
      * default state backend (the {@link HashMapStateBackend}).
      *
      * <p>If an application-defined state backend is found, and the state backend is a {@link

@@ -20,127 +20,82 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.functions.SqlLikeUtils;
+import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.operations.utils.ShowLikeOperator;
+
+import javax.annotation.Nullable;
 
 import java.util.Set;
 
-import static org.apache.flink.table.api.internal.TableResultUtils.buildStringArrayResult;
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
-/** Operation to describe a SHOW TABLES statement. */
+/**
+ * Operation to describe a SHOW TABLES statement. The full syntax for SHOW TABLES is as followings:
+ *
+ * <pre>{@code
+ * SHOW TABLES [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] LIKE
+ * &lt;sql_like_pattern&gt; ] statement
+ * }</pre>
+ */
 @Internal
-public class ShowTablesOperation implements ShowOperation {
+public class ShowTablesOperation extends AbstractShowOperation {
 
-    private final String catalogName;
-    private final String databaseName;
-    private final boolean useLike;
-    private final boolean notLike;
-    private final String likePattern;
-    private final String preposition;
+    private final @Nullable String databaseName;
 
-    public ShowTablesOperation() {
-        this.catalogName = null;
-        this.databaseName = null;
-        this.likePattern = null;
-        this.useLike = false;
-        this.notLike = false;
-        this.preposition = null;
-    }
-
-    public ShowTablesOperation(String likePattern, boolean useLike, boolean notLike) {
-        this.catalogName = null;
-        this.databaseName = null;
-        this.likePattern =
-                useLike ? checkNotNull(likePattern, "Like pattern must not be null") : null;
-        this.useLike = useLike;
-        this.notLike = notLike;
-        this.preposition = null;
+    public ShowTablesOperation(
+            @Nullable String catalogName,
+            @Nullable String databaseName,
+            @Nullable String preposition,
+            @Nullable ShowLikeOperator likeOp) {
+        super(catalogName, preposition, likeOp);
+        this.databaseName = databaseName;
     }
 
     public ShowTablesOperation(
-            String catalogName,
-            String databaseName,
-            String likePattern,
-            boolean useLike,
-            boolean notLike,
-            String preposition) {
-        this.catalogName = checkNotNull(catalogName, "Catalog name must not be null");
-        this.databaseName = checkNotNull(databaseName, "Database name must not be null");
-        this.likePattern =
-                useLike ? checkNotNull(likePattern, "Like pattern must not be null") : null;
-        this.useLike = useLike;
-        this.notLike = notLike;
-        this.preposition = checkNotNull(preposition, "Preposition must not be null");
+            @Nullable String catalogName,
+            @Nullable String databaseName,
+            @Nullable ShowLikeOperator likeOp) {
+        this(catalogName, databaseName, null, likeOp);
     }
 
-    public String getLikePattern() {
-        return likePattern;
-    }
-
-    public String getPreposition() {
-        return preposition;
-    }
-
-    public boolean isUseLike() {
-        return useLike;
-    }
-
-    public boolean isNotLike() {
-        return notLike;
-    }
-
-    public String getCatalogName() {
-        return catalogName;
-    }
-
-    public String getDatabaseName() {
-        return databaseName;
+    public ShowTablesOperation(@Nullable String catalogName, @Nullable String databaseName) {
+        this(catalogName, databaseName, null);
     }
 
     @Override
-    public String asSummaryString() {
-        StringBuilder builder = new StringBuilder().append("SHOW TABLES");
-        if (this.preposition != null) {
-            builder.append(String.format(" %s %s.%s", preposition, catalogName, databaseName));
-        }
-        if (this.useLike) {
-            if (notLike) {
-                builder.append(String.format(" %s LIKE %s", "NOT", likePattern));
-            } else {
-                builder.append(String.format(" LIKE %s", likePattern));
-            }
-        }
-        return builder.toString();
-    }
-
-    @Override
-    public TableResultInternal execute(Context ctx) {
-        final Set<String> tables;
+    protected Set<String> retrieveDataForTableResult(Context ctx) {
+        final CatalogManager catalogManager = ctx.getCatalogManager();
+        final String qualifiedCatalogName = catalogManager.qualifyCatalog(catalogName);
+        final String qualifiedDatabaseName = catalogManager.qualifyDatabase(databaseName);
         if (preposition == null) {
-            tables = ctx.getCatalogManager().listTables();
+            return catalogManager.listTables();
         } else {
-            Catalog catalog = ctx.getCatalogManager().getCatalogOrThrowException(catalogName);
-            if (catalog.databaseExists(databaseName)) {
-                tables = ctx.getCatalogManager().listTables(catalogName, databaseName);
+            Catalog catalog = catalogManager.getCatalogOrThrowException(qualifiedCatalogName);
+            if (catalog.databaseExists(qualifiedDatabaseName)) {
+                return catalogManager.listTables(qualifiedCatalogName, qualifiedDatabaseName);
             } else {
                 throw new ValidationException(
                         String.format(
-                                "Database '%s'.'%s' doesn't exist.", catalogName, databaseName));
+                                "Database '%s'.'%s' doesn't exist.",
+                                qualifiedCatalogName, qualifiedDatabaseName));
             }
         }
+    }
 
-        final String[] rows;
-        if (useLike) {
-            rows =
-                    tables.stream()
-                            .filter(row -> notLike != SqlLikeUtils.like(row, likePattern, "\\"))
-                            .sorted()
-                            .toArray(String[]::new);
-        } else {
-            rows = tables.stream().sorted().toArray(String[]::new);
+    @Override
+    protected String getOperationName() {
+        return "SHOW TABLES";
+    }
+
+    @Override
+    protected String getColumnName() {
+        return "table name";
+    }
+
+    @Override
+    public String getPrepositionSummaryString() {
+        if (databaseName == null) {
+            return super.getPrepositionSummaryString();
         }
-        return buildStringArrayResult("table name", rows);
+        return super.getPrepositionSummaryString() + "." + databaseName;
     }
 }

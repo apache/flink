@@ -127,7 +127,7 @@ class LimitableBulkFormatTest {
         BulkFormat.Reader<String> reader =
                 format.createReader(
                         new Configuration(),
-                        new FileSourceSplit("id", new Path(file.toURI()), 0, file.length()));
+                        new FileSourceSplit("id", new Path(file.toURI()), 0, file.length(), 0, 0));
 
         format.globalNumberRead().set(limit + 1);
 

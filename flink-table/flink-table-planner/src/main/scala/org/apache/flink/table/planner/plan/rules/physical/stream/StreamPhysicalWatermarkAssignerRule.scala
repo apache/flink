@@ -26,6 +26,8 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.convert.ConverterRule.Config
 
+import java.util.Collections
+
 /** Rule that converts [[FlinkLogicalWatermarkAssigner]] to [[StreamPhysicalWatermarkAssigner]]. */
 class StreamPhysicalWatermarkAssignerRule(config: Config) extends ConverterRule(config) {
 
@@ -39,6 +41,7 @@ class StreamPhysicalWatermarkAssignerRule(config: Config) extends ConverterRule(
       watermarkAssigner.getCluster,
       traitSet,
       convertInput,
+      Collections.emptyList(),
       watermarkAssigner.rowtimeFieldIndex,
       watermarkAssigner.watermarkExpr
     )

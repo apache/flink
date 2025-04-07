@@ -52,7 +52,7 @@ class RemoteTierMasterAgentTest {
         RemoteTierMasterAgent masterAgent =
                 new RemoteTierMasterAgent(tempFolder.getAbsolutePath(), resourceRegistry);
         TierShuffleDescriptor tierShuffleDescriptor =
-                masterAgent.addPartitionAndGetShuffleDescriptor(new JobID(), resultPartitionID);
+                masterAgent.addPartitionAndGetShuffleDescriptor(new JobID(), 1, resultPartitionID);
         assertThat(partitionFile.exists()).isTrue();
         masterAgent.releasePartition(tierShuffleDescriptor);
 

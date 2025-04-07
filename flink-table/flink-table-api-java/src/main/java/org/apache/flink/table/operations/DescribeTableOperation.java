@@ -61,8 +61,7 @@ public class DescribeTableOperation implements Operation, ExecutableOperation {
     @Override
     public TableResultInternal execute(Context ctx) {
         // DESCRIBE <table> is a synonym for SHOW COLUMNS without LIKE pattern.
-        ShowColumnsOperation showColumns =
-                new ShowColumnsOperation(sqlIdentifier, null, false, false, "FROM");
+        ShowColumnsOperation showColumns = new ShowColumnsOperation(sqlIdentifier, "FROM", null);
         return showColumns.execute(ctx);
     }
 }

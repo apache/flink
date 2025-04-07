@@ -29,13 +29,14 @@ import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream.OutputMode;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.AsyncRetryStrategy;
+import org.apache.flink.streaming.api.functions.async.CollectionSupplier;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.async.queue.OrderedStreamElementQueue;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueue;
@@ -139,6 +140,7 @@ public class AsyncWaitOperator<IN, OUT>
     private transient AtomicBoolean retryDisabledOnFinish;
 
     public AsyncWaitOperator(
+            StreamOperatorParameters<OUT> parameters,
             @Nonnull AsyncFunction<IN, OUT> asyncFunction,
             long timeout,
             int capacity,
@@ -146,9 +148,7 @@ public class AsyncWaitOperator<IN, OUT>
             @Nonnull AsyncRetryStrategy<OUT> asyncRetryStrategy,
             @Nonnull ProcessingTimeService processingTimeService,
             @Nonnull MailboxExecutor mailboxExecutor) {
-        super(asyncFunction);
-
-        setChainingStrategy(ChainingStrategy.ALWAYS);
+        super(null, asyncFunction);
 
         Preconditions.checkArgument(
                 capacity > 0, "The number of concurrent async operation should be greater than 0.");
@@ -172,10 +172,12 @@ public class AsyncWaitOperator<IN, OUT>
         this.processingTimeService = Preconditions.checkNotNull(processingTimeService);
 
         this.mailboxExecutor = mailboxExecutor;
+
+        setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
     }
 
     @Override
-    public void setup(
+    protected void setup(
             StreamTask<?, ?> containingTask,
             StreamConfig config,
             Output<StreamRecord<OUT>> output) {
@@ -504,6 +506,27 @@ public class AsyncWaitOperator<IN, OUT>
             }
         }
 
+        @Override
+        public void complete(CollectionSupplier<OUT> supplier) {
+            Preconditions.checkNotNull(
+                    supplier, "Runnable must not be null, return empty collection to emit nothing");
+            if (!retryDisabledOnFinish.get() && resultHandler.inputRecord.isRecord()) {
+                mailboxExecutor.submit(
+                        () -> {
+                            try {
+                                processRetry(supplier.get(), null);
+                            } catch (Throwable t) {
+                                processRetry(null, t);
+                            }
+                        },
+                        "RetryableResultHandlerDelegator#complete");
+            } else {
+                cancelRetryTimer();
+
+                resultHandler.complete(supplier);
+            }
+        }
+
         private void processRetryInMailBox(Collection<OUT> results, Throwable error) {
             mailboxExecutor.execute(
                     () -> processRetry(results, error), "delayed retry or complete");
@@ -564,13 +587,16 @@ public class AsyncWaitOperator<IN, OUT>
     private class ResultHandler implements ResultFuture<OUT> {
         /** Optional timeout timer used to signal the timeout to the AsyncFunction. */
         private ScheduledFuture<?> timeoutTimer;
+
         /** Record for which this result handler exists. Used only to report errors. */
         private final StreamRecord<IN> inputRecord;
+
         /**
          * The handle received from the queue to update the entry. Should only be used to inject the
          * result; exceptions are handled here.
          */
         private final ResultFuture<OUT> resultFuture;
+
         /**
          * A guard against ill-written AsyncFunction. Additional (parallel) invokations of {@link
          * #complete(Collection)} or {@link #completeExceptionally(Throwable)} will be ignored. This
@@ -594,6 +620,21 @@ public class AsyncWaitOperator<IN, OUT>
             }
 
             processInMailbox(results);
+        }
+
+        @Override
+        public void complete(CollectionSupplier<OUT> supplier) {
+            // already completed (exceptionally or with previous complete call from ill-written
+            // AsyncFunction), so ignore additional result
+            if (!completed.compareAndSet(false, true)) {
+                return;
+            }
+            mailboxExecutor.execute(
+                    () -> {
+                        // If there is an exception, let it bubble up and fail the job.
+                        processResults(supplier.get());
+                    },
+                    "ResultHandler#complete");
         }
 
         private void processInMailbox(Collection<OUT> results) {

@@ -21,24 +21,18 @@ package org.apache.flink.table.planner.utils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.cache.DistributedCache;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.execution.CheckpointingMode;
-import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.legacy.table.sinks.StreamTableSink;
+import org.apache.flink.legacy.table.sources.StreamTableSource;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.delegation.Planner;
-import org.apache.flink.table.sinks.StreamTableSink;
-import org.apache.flink.table.sources.StreamTableSource;
 
-import com.esotericsoftware.kryo.Serializer;
-
-import java.io.Serializable;
 import java.util.List;
 
 /**
@@ -165,26 +159,8 @@ public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment 
     }
 
     @Override
-    public StreamExecutionEnvironment enableCheckpointing(
-            long interval, org.apache.flink.streaming.api.CheckpointingMode mode, boolean force) {
-        throw new UnsupportedOperationException(
-                "This is a dummy StreamExecutionEnvironment, enableCheckpointing method is unsupported.");
-    }
-
-    @Override
-    public StreamExecutionEnvironment enableCheckpointing() {
-        throw new UnsupportedOperationException(
-                "This is a dummy StreamExecutionEnvironment, enableCheckpointing method is unsupported.");
-    }
-
-    @Override
     public long getCheckpointInterval() {
         return realExecEnv.getCheckpointInterval();
-    }
-
-    @Override
-    public boolean isForceCheckpointing() {
-        return realExecEnv.isForceCheckpointing();
     }
 
     @Override
@@ -195,85 +171,6 @@ public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment 
     @Override
     public CheckpointingMode getCheckpointingConsistencyMode() {
         return realExecEnv.getCheckpointingConsistencyMode();
-    }
-
-    @Override
-    public StreamExecutionEnvironment setStateBackend(StateBackend backend) {
-        throw new UnsupportedOperationException(
-                "This is a dummy StreamExecutionEnvironment, setStateBackend method is unsupported.");
-    }
-
-    @Override
-    public StateBackend getStateBackend() {
-        return realExecEnv.getStateBackend();
-    }
-
-    @Override
-    public void setRestartStrategy(
-            RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration) {
-        throw new UnsupportedOperationException(
-                "This is a dummy StreamExecutionEnvironment, setRestartStrategy method is unsupported.");
-    }
-
-    @Override
-    public RestartStrategies.RestartStrategyConfiguration getRestartStrategy() {
-        return realExecEnv.getRestartStrategy();
-    }
-
-    @Override
-    public void setNumberOfExecutionRetries(int numberOfExecutionRetries) {
-        throw new UnsupportedOperationException(
-                "This is a dummy StreamExecutionEnvironment, setNumberOfExecutionRetries method is unsupported.");
-    }
-
-    @Override
-    public int getNumberOfExecutionRetries() {
-        return realExecEnv.getNumberOfExecutionRetries();
-    }
-
-    @Override
-    public <T extends Serializer<?> & Serializable> void addDefaultKryoSerializer(
-            Class<?> type, T serializer) {
-        throw new UnsupportedOperationException(
-                "This is a dummy StreamExecutionEnvironment, addDefaultKryoSerializer method is unsupported.");
-    }
-
-    @Override
-    public void addDefaultKryoSerializer(
-            Class<?> type, Class<? extends Serializer<?>> serializerClass) {
-        throw new UnsupportedOperationException(
-                "This is a dummy StreamExecutionEnvironment, addDefaultKryoSerializer method is unsupported.");
-    }
-
-    @Override
-    public <T extends Serializer<?> & Serializable> void registerTypeWithKryoSerializer(
-            Class<?> type, T serializer) {
-        throw new UnsupportedOperationException(
-                "This is a dummy StreamExecutionEnvironment, registerTypeWithKryoSerializer method is unsupported.");
-    }
-
-    @Override
-    public void registerTypeWithKryoSerializer(
-            Class<?> type, Class<? extends Serializer> serializerClass) {
-        throw new UnsupportedOperationException(
-                "This is a dummy StreamExecutionEnvironment, registerTypeWithKryoSerializer method is unsupported.");
-    }
-
-    @Override
-    public void registerType(Class<?> type) {
-        throw new UnsupportedOperationException(
-                "This is a dummy StreamExecutionEnvironment, registerType method is unsupported.");
-    }
-
-    @Override
-    public void setStreamTimeCharacteristic(TimeCharacteristic characteristic) {
-        throw new UnsupportedOperationException(
-                "This is a dummy StreamExecutionEnvironment, setStreamTimeCharacteristic method is unsupported.");
-    }
-
-    @Override
-    public TimeCharacteristic getStreamTimeCharacteristic() {
-        return realExecEnv.getStreamTimeCharacteristic();
     }
 
     @Override

@@ -19,7 +19,6 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -35,6 +34,7 @@ import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -62,7 +62,7 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
 
     private final ExecutionVertexVersioner executionVertexVersioner;
 
-    private final Time partitionRegistrationTimeout;
+    private final Duration partitionRegistrationTimeout;
 
     private final BiConsumer<ExecutionVertexID, AllocationID> allocationReservationFunc;
 
@@ -73,7 +73,7 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
             final ExecutionSlotAllocator executionSlotAllocator,
             final ExecutionOperations executionOperations,
             final ExecutionVertexVersioner executionVertexVersioner,
-            final Time partitionRegistrationTimeout,
+            final Duration partitionRegistrationTimeout,
             final BiConsumer<ExecutionVertexID, AllocationID> allocationReservationFunc,
             final ComponentMainThreadExecutor mainThreadExecutor) {
 
@@ -277,13 +277,12 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
 
                 return FutureUtils.orTimeout(
                         partitionRegistrationFuture,
-                        partitionRegistrationTimeout.toMilliseconds(),
+                        partitionRegistrationTimeout.toMillis(),
                         TimeUnit.MILLISECONDS,
                         mainThreadExecutor,
                         String.format(
                                 "Registering produced partitions for execution %s timed out after %d ms.",
-                                execution.getAttemptId(),
-                                partitionRegistrationTimeout.toMilliseconds()));
+                                execution.getAttemptId(), partitionRegistrationTimeout.toMillis()));
             } else {
                 return FutureUtils.completedVoidFuture();
             }
@@ -373,7 +372,7 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
                 ExecutionSlotAllocator executionSlotAllocator,
                 ExecutionOperations executionOperations,
                 ExecutionVertexVersioner executionVertexVersioner,
-                Time partitionRegistrationTimeout,
+                Duration partitionRegistrationTimeout,
                 BiConsumer<ExecutionVertexID, AllocationID> allocationReservationFunc,
                 ComponentMainThreadExecutor mainThreadExecutor) {
             return new DefaultExecutionDeployer(

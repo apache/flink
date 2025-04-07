@@ -30,8 +30,6 @@ import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.util.config.memory.CommonProcessMemorySpec;
 import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverhead;
 import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverheadOptions;
-import org.apache.flink.runtime.util.config.memory.LegacyMemoryOptions;
-import org.apache.flink.runtime.util.config.memory.MemoryBackwardsCompatibilityUtils;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryOptions;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.runtime.util.config.memory.taskmanager.TaskExecutorFlinkMemory;
@@ -64,18 +62,8 @@ public class TaskExecutorProcessUtils {
                             TaskManagerOptions.JVM_OVERHEAD_MAX,
                             TaskManagerOptions.JVM_OVERHEAD_FRACTION));
 
-    @SuppressWarnings("deprecation")
-    static final LegacyMemoryOptions TM_LEGACY_HEAP_OPTIONS =
-            new LegacyMemoryOptions(
-                    "FLINK_TM_HEAP",
-                    TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY,
-                    TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB);
-
     private static final ProcessMemoryUtils<TaskExecutorFlinkMemory> PROCESS_MEMORY_UTILS =
             new ProcessMemoryUtils<>(TM_PROCESS_MEMORY_OPTIONS, new TaskExecutorFlinkMemoryUtils());
-
-    private static final MemoryBackwardsCompatibilityUtils LEGACY_MEMORY_UTILS =
-            new MemoryBackwardsCompatibilityUtils(TM_LEGACY_HEAP_OPTIONS);
 
     private TaskExecutorProcessUtils() {}
 
@@ -242,18 +230,5 @@ public class TaskExecutorProcessUtils {
         }
 
         return new CPUResource(cpuCores);
-    }
-
-    public static Configuration getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
-            final Configuration configuration, final ConfigOption<MemorySize> configOption) {
-        try {
-            return LEGACY_MEMORY_UTILS.getConfWithLegacyHeapSizeMappedToNewConfigOption(
-                    configuration, configOption);
-        } catch (IllegalConfigurationException e) {
-            throw new IllegalConfigurationException(
-                    "TaskManager failed to map legacy JVM heap option to the new one: "
-                            + e.getMessage(),
-                    e);
-        }
     }
 }

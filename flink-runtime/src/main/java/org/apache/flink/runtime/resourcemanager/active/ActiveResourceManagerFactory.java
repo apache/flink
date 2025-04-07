@@ -25,7 +25,6 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.blocklist.BlocklistUtils;
-import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -52,13 +51,6 @@ import java.util.concurrent.Executor;
  */
 public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceIDRetrievable>
         extends ResourceManagerFactory<WorkerType> {
-
-    @Override
-    protected Configuration getEffectiveConfigurationForResourceManagerAndRuntimeServices(
-            Configuration configuration) {
-        return TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
-                configuration, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
-    }
 
     @Override
     protected Configuration getEffectiveConfigurationForResourceManager(

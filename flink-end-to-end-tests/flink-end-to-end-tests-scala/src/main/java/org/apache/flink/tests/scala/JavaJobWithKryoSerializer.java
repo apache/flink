@@ -17,17 +17,23 @@
 
 package org.apache.flink.tests.scala;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 /** Simple batch job in pure Java that uses a custom Kryo serializer. */
 public class JavaJobWithKryoSerializer {
     public static void main(String[] args) throws Exception {
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Configuration configuration = new Configuration();
+        configuration.setString(
+                PipelineOptions.SERIALIZATION_CONFIG.key(),
+                "{org.apache.flink.tests.scala.NonPojo: "
+                        + "{type: kryo, kryo-type: default, class: org.apache.flink.tests.scala.NonPojoSerializer}}");
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
 
         // we want to go through serialization to check for kryo issues
         env.disableOperatorChaining();
-
-        env.addDefaultKryoSerializer(NonPojo.class, NonPojoSerializer.class);
 
         env.fromData(new NonPojo()).map(x -> x);
 

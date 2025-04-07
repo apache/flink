@@ -16,3 +16,4 @@
 org.apache.flink.connector.datagen.table.DataGenTableSourceFactory
 org.apache.flink.connector.blackhole.table.BlackHoleTableSinkFactory
 org.apache.flink.connector.print.table.PrintTableSinkFactory
+org.apache.flink.table.sinks.LegacyCsvDynamicTableSinkFactory

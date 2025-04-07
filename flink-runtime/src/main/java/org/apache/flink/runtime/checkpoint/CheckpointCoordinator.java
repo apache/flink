@@ -1890,7 +1890,7 @@ public class CheckpointCoordinator {
 
         // convert to checkpoint so the system can fall back to it
         final CheckpointProperties checkpointProperties;
-        switch (restoreSettings.getRestoreMode()) {
+        switch (restoreSettings.getRecoveryClaimMode()) {
             case CLAIM:
                 checkpointProperties = this.checkpointProperties;
                 break;
@@ -1923,7 +1923,7 @@ public class CheckpointCoordinator {
         // because the latter might trigger subsumption so the ref counts must be up-to-date
         savepoint.registerSharedStatesAfterRestored(
                 completedCheckpointStore.getSharedStateRegistry(),
-                restoreSettings.getRestoreMode());
+                restoreSettings.getRecoveryClaimMode());
 
         completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
                 savepoint, checkpointsCleaner, this::scheduleTriggerRequest);
@@ -1998,7 +1998,9 @@ public class CheckpointCoordinator {
         return checkpointTimeout;
     }
 
-    /** @deprecated use {@link #getNumQueuedRequests()} */
+    /**
+     * @deprecated use {@link #getNumQueuedRequests()}
+     */
     @Deprecated
     @VisibleForTesting
     PriorityQueue<CheckpointTriggerRequest> getTriggerRequestQueue() {

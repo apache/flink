@@ -18,13 +18,16 @@
 
 package org.apache.flink.test.hadoopcompatibility.mapreduce;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.hadoop.mapreduce.HadoopOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.hadoopcompatibility.HadoopInputs;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.legacy.OutputFormatSinkFunction;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
@@ -37,11 +40,17 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 
 import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Test WordCount with Hadoop input and output "mapreduce" (modern) formats. */
+// This test case has been updated from dataset to a datastream.
+// It is essentially a batch job, but the HadoopInputFormat is an unbounded source.
+// As a result, the test case cannot be set to batch runtime mode and should not run with the
+// adaptive scheduler.
+@Tag("org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler")
 class WordCountMapreduceITCase extends JavaProgramTestBase {
 
     private String textPath;
@@ -67,21 +76,22 @@ class WordCountMapreduceITCase extends JavaProgramTestBase {
     }
 
     @Override
-    protected void testProgram() throws Exception {
-        internalRun();
+    protected JobExecutionResult testProgram() throws Exception {
+        JobExecutionResult jobExecutionResult = internalRun();
         postSubmit();
+        return jobExecutionResult;
     }
 
-    private void internalRun() throws Exception {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    private JobExecutionResult internalRun() throws Exception {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataSet<Tuple2<LongWritable, Text>> input;
+        DataStream<Tuple2<LongWritable, Text>> input;
         input =
                 env.createInput(
                         HadoopInputs.readHadoopFile(
                                 new TextInputFormat(), LongWritable.class, Text.class, textPath));
 
-        DataSet<String> text =
+        DataStream<String> text =
                 input.map(
                         new MapFunction<Tuple2<LongWritable, Text>, String>() {
                             @Override
@@ -90,14 +100,15 @@ class WordCountMapreduceITCase extends JavaProgramTestBase {
                             }
                         });
 
-        DataSet<Tuple2<String, Integer>> counts =
+        DataStream<Tuple2<String, Integer>> counts =
                 // split up the lines in pairs (2-tuples) containing: (word,1)
                 text.flatMap(new Tokenizer())
-                        // group by the tuple field "0" and sum up tuple field "1"
-                        .groupBy(0)
+                        // key by the tuple field "f0" and sum up tuple field "f1"
+                        .keyBy(x -> x.f0)
+                        .window(GlobalWindows.createWithEndOfStreamTrigger())
                         .sum(1);
 
-        DataSet<Tuple2<Text, LongWritable>> words =
+        DataStream<Tuple2<Text, LongWritable>> words =
                 counts.map(
                         new MapFunction<Tuple2<String, Integer>, Tuple2<Text, LongWritable>>() {
 
@@ -118,8 +129,8 @@ class WordCountMapreduceITCase extends JavaProgramTestBase {
         TextOutputFormat.setOutputPath(job, new Path(resultPath));
 
         // Output & Execute
-        words.output(hadoopOutputFormat);
-        env.execute("Hadoop Compat WordCount");
+        words.addSink(new OutputFormatSinkFunction<>(hadoopOutputFormat));
+        return env.execute("Hadoop Compat WordCount");
     }
 
     static final class Tokenizer implements FlatMapFunction<String, Tuple2<String, Integer>> {

@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{TableException, _}
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils._
@@ -89,7 +88,7 @@ class LimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mod
       ("fruit", 3, 44),
       ("fruit", 5, 22))
 
-    val t = env.fromCollection(data).toTable(tEnv, 'category, 'shopId, 'num)
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'category, 'shopId, 'num)
     tEnv.createTemporaryView("T", t)
 
     val sql = "SELECT * FROM T OFFSET 2"

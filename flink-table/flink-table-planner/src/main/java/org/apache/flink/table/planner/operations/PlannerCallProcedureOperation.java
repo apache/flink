@@ -48,6 +48,7 @@ import org.apache.flink.table.procedures.Procedure;
 import org.apache.flink.table.procedures.ProcedureDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.extraction.ExtractionUtils;
+import org.apache.flink.table.types.extraction.ExtractionUtils.Autoboxing;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.utils.print.RowDataToStringConverter;
@@ -171,12 +172,14 @@ public class PlannerCallProcedureOperation implements CallProcedureOperation {
                 methods.stream()
                         .filter(
                                 method ->
-                                        ExtractionUtils.isInvokable(method, inputClz)
+                                        // Strict autoboxing is disabled for backwards compatibility
+                                        ExtractionUtils.isInvokable(
+                                                        Autoboxing.JVM, method, inputClz)
                                                 && method.getReturnType().isArray()
                                                 && isAssignable(
                                                         outputType.getConversionClass(),
                                                         method.getReturnType().getComponentType(),
-                                                        true))
+                                                        Autoboxing.JVM))
                         .collect(Collectors.toList());
         if (callMethods.isEmpty()) {
             throw new ValidationException(

@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical.subquery
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
@@ -27,7 +26,8 @@ import java.sql.{Date, Timestamp}
 
 class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
 
-  util.addTableSource[(String, Short, Int, Long, Float, Double, BigDecimal, Timestamp, Date)](
+  util.addTableSource[
+    (String, Short, Int, Long, Float, Double, java.math.BigDecimal, Timestamp, Date)](
     "t1",
     't1a,
     't1b,
@@ -38,7 +38,8 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
     't1g,
     't1h,
     't1i)
-  util.addTableSource[(String, Short, Int, Long, Float, Double, BigDecimal, Timestamp, Date)](
+  util.addTableSource[
+    (String, Short, Int, Long, Float, Double, java.math.BigDecimal, Timestamp, Date)](
     "t2",
     't2a,
     't2b,
@@ -49,7 +50,8 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
     't2g,
     't2h,
     't2i)
-  util.addTableSource[(String, Short, Int, Long, Float, Double, BigDecimal, Timestamp, Date)](
+  util.addTableSource[
+    (String, Short, Int, Long, Float, Double, java.math.BigDecimal, Timestamp, Date)](
     "t3",
     't3a,
     't3b,

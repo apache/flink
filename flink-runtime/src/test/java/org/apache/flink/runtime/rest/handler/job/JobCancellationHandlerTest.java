@@ -19,7 +19,6 @@ package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.FlinkJobTerminatedWithoutCancellationException;
@@ -39,6 +38,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
@@ -132,7 +132,7 @@ class JobCancellationHandlerTest {
     private static JobCancellationHandler createHandler(RestfulGateway gateway) {
         return new JobCancellationHandler(
                 () -> CompletableFuture.completedFuture(gateway),
-                Time.hours(1),
+                Duration.ofHours(1),
                 Collections.emptyMap(),
                 JobCancellationHeaders.getInstance(),
                 TerminationModeQueryParameter.TerminationMode.CANCEL);

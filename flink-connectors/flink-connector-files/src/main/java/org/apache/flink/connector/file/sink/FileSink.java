@@ -28,7 +28,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.CommitterInitContext;
 import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.connector.sink2.SupportsCommitter;
 import org.apache.flink.api.connector.sink2.SupportsWriterState;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
@@ -71,6 +70,8 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -142,11 +143,6 @@ public class FileSink<IN>
 
     private FileSink(BucketsBuilder<IN, ? extends BucketsBuilder<IN, ?>> bucketsBuilder) {
         this.bucketsBuilder = checkNotNull(bucketsBuilder);
-    }
-
-    @Override
-    public SinkWriter<IN> createWriter(InitContext context) throws IOException {
-        throw new UnsupportedOperationException("Not supported");
     }
 
     @Override
@@ -526,6 +522,10 @@ public class FileSink<IN>
 
         private CheckpointRollingPolicy<IN, String> rollingPolicy;
 
+        private Map<String, String> writerConfig = new HashMap<>();
+
+        private static final String HDFS_NO_LOCAL_WRITE = "fs.hdfs.no-local-write";
+
         private OutputFileConfig outputFileConfig;
 
         private boolean isCompactDisabledExplicitly = false;
@@ -580,6 +580,11 @@ public class FileSink<IN>
             return self();
         }
 
+        public T disableLocalWriting() {
+            this.writerConfig.put(HDFS_NO_LOCAL_WRITE, String.valueOf(true));
+            return self();
+        }
+
         public T withOutputFileConfig(final OutputFileConfig outputFileConfig) {
             this.outputFileConfig = outputFileConfig;
             return self();
@@ -619,15 +624,6 @@ public class FileSink<IN>
 
         @Override
         FileWriter<IN> createWriter(WriterInitContext context) throws IOException {
-            return createWriter(new InitContextWrapper(context));
-        }
-
-        /**
-         * Should be removed along {@link
-         * org.apache.flink.api.connector.sink2.StatefulSink.StatefulSinkWriter}.
-         */
-        @Deprecated
-        FileWriter<IN> createWriter(InitContext context) throws IOException {
             OutputFileConfig writerFileConfig;
             if (compactStrategy == null) {
                 writerFileConfig = outputFileConfig;
@@ -695,7 +691,8 @@ public class FileSink<IN>
 
         BucketWriter<IN, String> createBucketWriter() throws IOException {
             return new BulkBucketWriter<>(
-                    FileSystem.get(basePath.toUri()).createRecoverableWriter(), writerFactory);
+                    FileSystem.get(basePath.toUri()).createRecoverableWriter(writerConfig),
+                    writerFactory);
         }
     }
 

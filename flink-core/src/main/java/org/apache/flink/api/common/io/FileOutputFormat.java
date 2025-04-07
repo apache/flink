@@ -91,9 +91,6 @@ public abstract class FileOutputFormat<IT> extends RichOutputFormat<IT>
     /** The LOG for logging messages in this class. */
     private static final Logger LOG = LoggerFactory.getLogger(FileOutputFormat.class);
 
-    /** The key under which the name of the target path is stored in the configuration. */
-    @Deprecated public static final String FILE_PARAMETER_KEY = "flink.output.file";
-
     /** The path of the file to be written. */
     protected Path outputFilePath;
 
@@ -168,23 +165,8 @@ public abstract class FileOutputFormat<IT> extends RichOutputFormat<IT>
 
     @Override
     public void configure(Configuration parameters) {
-        // get the output file path, if it was not yet set
         if (this.outputFilePath == null) {
-            // get the file parameter
-            String filePath = parameters.getString(FILE_PARAMETER_KEY, null);
-            if (filePath == null) {
-                throw new IllegalArgumentException(
-                        "The output path has been specified neither via constructor/setters"
-                                + ", nor via the Configuration.");
-            }
-
-            try {
-                this.outputFilePath = new Path(filePath);
-            } catch (RuntimeException rex) {
-                throw new RuntimeException(
-                        "Could not create a valid URI from the given file path name: "
-                                + rex.getMessage());
-            }
+            throw new IllegalArgumentException("Output file path may not be null.");
         }
 
         // check if have not been set and use the defaults in that case
@@ -198,7 +180,10 @@ public abstract class FileOutputFormat<IT> extends RichOutputFormat<IT>
     }
 
     @Override
-    public void open(int taskNumber, int numTasks) throws IOException {
+    public void open(InitializationContext context) throws IOException {
+        int numTasks = context.getNumTasks();
+        int taskNumber = context.getTaskNumber();
+
         if (taskNumber < 0 || numTasks < 1) {
             throw new IllegalArgumentException(
                     "TaskNumber: " + taskNumber + ", numTasks: " + numTasks);

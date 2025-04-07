@@ -52,7 +52,7 @@ class FileOutputFormatTest {
 
                             dfof.configure(new Configuration());
 
-                            dfof.open(0, 1);
+                            dfof.open(FirstAttemptInitializationContext.of(0, 1));
                             dfof.close();
                         })
                 .isInstanceOf(Exception.class);
@@ -70,7 +70,7 @@ class FileOutputFormatTest {
 
                             dfof.configure(new Configuration());
 
-                            dfof.open(0, 1);
+                            dfof.open(FirstAttemptInitializationContext.of(0, 1));
                             dfof.close();
                         })
                 .isInstanceOf(Exception.class);
@@ -85,7 +85,7 @@ class FileOutputFormatTest {
 
             dfof.configure(new Configuration());
 
-            dfof.open(0, 1);
+            dfof.open(FirstAttemptInitializationContext.of(0, 1));
             dfof.close();
         }
         assertThat(tmpOutPath).exists().isFile();
@@ -100,7 +100,7 @@ class FileOutputFormatTest {
 
             dfof.configure(new Configuration());
 
-            dfof.open(0, 1);
+            dfof.open(FirstAttemptInitializationContext.of(0, 1));
             dfof.close();
         }
         assertThat(tmpOutPath).exists().isFile();
@@ -120,7 +120,7 @@ class FileOutputFormatTest {
 
                             dfof.configure(new Configuration());
 
-                            dfof.open(0, 1);
+                            dfof.open(FirstAttemptInitializationContext.of(0, 1));
                             dfof.close();
                         })
                 .isInstanceOf(Exception.class);
@@ -137,7 +137,7 @@ class FileOutputFormatTest {
 
             dfof.configure(new Configuration());
 
-            dfof.open(0, 1);
+            dfof.open(FirstAttemptInitializationContext.of(0, 1));
             dfof.close();
         }
         assertThat(tmpOutPath).exists().isDirectory();
@@ -154,7 +154,7 @@ class FileOutputFormatTest {
             Configuration c = new Configuration();
             dfof.configure(c);
 
-            dfof.open(0, 1);
+            dfof.open(FirstAttemptInitializationContext.of(0, 1));
             dfof.close();
         }
         File customOutFile = new File(tmpOutPath.getAbsolutePath() + "/fancy-1-0.avro");
@@ -176,7 +176,7 @@ class FileOutputFormatTest {
 
                             dfof.configure(new Configuration());
 
-                            dfof.open(0, 1);
+                            dfof.open(FirstAttemptInitializationContext.of(0, 1));
                             dfof.close();
                         })
                 .isInstanceOf(Exception.class);
@@ -192,7 +192,7 @@ class FileOutputFormatTest {
 
             dfof.configure(new Configuration());
 
-            dfof.open(0, 1);
+            dfof.open(FirstAttemptInitializationContext.of(0, 1));
             dfof.close();
         }
         assertThat(tmpOutPath).exists().isDirectory();
@@ -209,7 +209,7 @@ class FileOutputFormatTest {
 
             dfof.configure(new Configuration());
 
-            dfof.open(0, 1);
+            dfof.open(FirstAttemptInitializationContext.of(0, 1));
             dfof.close();
         }
         assertThat(tmpOutPath).exists().isDirectory();
@@ -239,7 +239,7 @@ class FileOutputFormatTest {
 
                             dfof.configure(new Configuration());
 
-                            dfof.open(0, 2);
+                            dfof.open(FirstAttemptInitializationContext.of(0, 2));
                             dfof.close();
                         })
                 .isInstanceOf(Exception.class);
@@ -257,7 +257,7 @@ class FileOutputFormatTest {
 
             dfof.configure(new Configuration());
 
-            dfof.open(0, 2);
+            dfof.open(FirstAttemptInitializationContext.of(0, 2));
             dfof.close();
         }
         assertThat(tmpOutPath).exists().isDirectory();
@@ -278,7 +278,7 @@ class FileOutputFormatTest {
 
                             dfof.configure(new Configuration());
 
-                            dfof.open(0, 2);
+                            dfof.open(FirstAttemptInitializationContext.of(0, 2));
                             dfof.close();
                         })
                 .isInstanceOf(Exception.class);
@@ -294,7 +294,7 @@ class FileOutputFormatTest {
 
             dfof.configure(new Configuration());
 
-            dfof.open(0, 2);
+            dfof.open(FirstAttemptInitializationContext.of(0, 2));
             dfof.close();
         }
         assertThat(tmpOutPath).exists().isDirectory();
@@ -311,7 +311,7 @@ class FileOutputFormatTest {
 
             dfof.configure(new Configuration());
 
-            dfof.open(0, 2);
+            dfof.open(FirstAttemptInitializationContext.of(0, 2));
             dfof.close();
         }
         assertThat(tmpOutPath).exists().isDirectory();
@@ -340,7 +340,7 @@ class FileOutputFormatTest {
 
             dfof.configure(new Configuration());
 
-            dfof.open(0, 1);
+            dfof.open(FirstAttemptInitializationContext.of(0, 1));
             dfof.close();
         }
         assertThat(tmpOutPath).exists().isFile();
@@ -357,7 +357,7 @@ class FileOutputFormatTest {
 
             dfof.configure(new Configuration());
 
-            dfof.open(0, 1);
+            dfof.open(FirstAttemptInitializationContext.of(0, 1));
             dfof.close();
         }
         assertThat(tmpOutPath).exists().isFile();
@@ -372,7 +372,7 @@ class FileOutputFormatTest {
 
             dfof.configure(new Configuration());
 
-            dfof.open(0, 1);
+            dfof.open(FirstAttemptInitializationContext.of(0, 1));
             dfof.close();
         }
         assertThat(tmpOutPath).exists().isFile();
@@ -387,7 +387,7 @@ class FileOutputFormatTest {
 
             dfof.configure(new Configuration());
 
-            dfof.open(0, 1);
+            dfof.open(FirstAttemptInitializationContext.of(0, 1));
             dfof.close();
         }
         assertThat(tmpOutPath).exists().isFile();
@@ -406,7 +406,7 @@ class FileOutputFormatTest {
 
             dfof.configure(new Configuration());
 
-            dfof.open(0, 1);
+            dfof.open(FirstAttemptInitializationContext.of(0, 1));
             dfof.close();
         }
         assertThat(tmpOutPath).exists().isDirectory();
@@ -426,7 +426,7 @@ class FileOutputFormatTest {
 
             dfof.configure(new Configuration());
 
-            dfof.open(0, 1);
+            dfof.open(FirstAttemptInitializationContext.of(0, 1));
             dfof.close();
         }
         assertThat(tmpOutPath).exists().isDirectory();
@@ -446,7 +446,7 @@ class FileOutputFormatTest {
 
             dfof.configure(new Configuration());
 
-            dfof.open(0, 1);
+            dfof.open(FirstAttemptInitializationContext.of(0, 1));
             dfof.close();
         }
         assertThat(tmpOutPath).exists().isDirectory();
@@ -463,7 +463,7 @@ class FileOutputFormatTest {
 
             dfof.configure(new Configuration());
 
-            dfof.open(0, 1);
+            dfof.open(FirstAttemptInitializationContext.of(0, 1));
             dfof.close();
         }
 
@@ -481,7 +481,7 @@ class FileOutputFormatTest {
 
             dfof.configure(new Configuration());
 
-            dfof.open(0, 1);
+            dfof.open(FirstAttemptInitializationContext.of(0, 1));
             dfof.close();
         }
         assertThat(tmpOutPath).exists().isDirectory();
@@ -510,7 +510,7 @@ class FileOutputFormatTest {
 
             dfof.configure(new Configuration());
 
-            dfof.open(0, 2);
+            dfof.open(FirstAttemptInitializationContext.of(0, 2));
             dfof.close();
         }
         assertThat(tmpOutPath).exists().isDirectory();
@@ -529,7 +529,7 @@ class FileOutputFormatTest {
 
             dfof.configure(new Configuration());
 
-            dfof.open(0, 2);
+            dfof.open(FirstAttemptInitializationContext.of(0, 2));
             dfof.close();
         }
         assertThat(tmpOutPath).exists().isDirectory();
@@ -549,7 +549,7 @@ class FileOutputFormatTest {
 
             dfof.configure(new Configuration());
 
-            dfof.open(0, 2);
+            dfof.open(FirstAttemptInitializationContext.of(0, 2));
             dfof.close();
         }
         assertThat(tmpOutPath).exists().isDirectory();
@@ -566,7 +566,7 @@ class FileOutputFormatTest {
 
             dfof.configure(new Configuration());
 
-            dfof.open(0, 2);
+            dfof.open(FirstAttemptInitializationContext.of(0, 2));
             dfof.close();
         }
         assertThat(tmpOutPath).exists().isDirectory();
@@ -583,7 +583,7 @@ class FileOutputFormatTest {
 
             dfof.configure(new Configuration());
 
-            dfof.open(0, 2);
+            dfof.open(FirstAttemptInitializationContext.of(0, 2));
             dfof.close();
         }
         assertThat(tmpOutPath).exists().isDirectory();

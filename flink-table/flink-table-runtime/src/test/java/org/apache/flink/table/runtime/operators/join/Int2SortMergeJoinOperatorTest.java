@@ -37,13 +37,14 @@ import org.apache.flink.table.runtime.operators.join.Int2HashJoinOperatorTestBas
 import org.apache.flink.table.runtime.operators.sort.IntNormalizedKeyComputer;
 import org.apache.flink.table.runtime.operators.sort.IntRecordComparator;
 import org.apache.flink.table.runtime.util.UniformBinaryRowGenerator;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -52,8 +53,8 @@ import static org.apache.flink.table.runtime.operators.join.Int2HashJoinOperator
 import static org.assertj.core.api.Assertions.fail;
 
 /** Random test for {@link SortMergeJoinOperator}. */
-@RunWith(Parameterized.class)
-public class Int2SortMergeJoinOperatorTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class Int2SortMergeJoinOperatorTest {
 
     private boolean leftIsSmaller;
 
@@ -64,19 +65,19 @@ public class Int2SortMergeJoinOperatorTest {
         this.leftIsSmaller = leftIsSmaller;
     }
 
-    @Parameterized.Parameters
-    public static Collection<Boolean> parameters() {
+    @Parameters(name = "leftIsSmaller={0}")
+    private static Collection<Boolean> parameters() {
         return Arrays.asList(true, false);
     }
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         this.memManager = MemoryManagerBuilder.newBuilder().setMemorySize(36 * 1024 * 1024).build();
         this.ioManager = new IOManagerAsync();
     }
 
-    @After
-    public void tearDown() throws Exception {
+    @AfterEach
+    void tearDown() throws Exception {
         // shut down I/O manager and Memory Manager and verify the correct shutdown
         this.ioManager.close();
         if (!this.memManager.verifyEmpty()) {
@@ -84,8 +85,8 @@ public class Int2SortMergeJoinOperatorTest {
         }
     }
 
-    @Test
-    public void testInnerJoin() throws Exception {
+    @TestTemplate
+    void testInnerJoin() throws Exception {
         int numKeys = 100;
         int buildValsPerKey = 3;
         int probeValsPerKey = 10;
@@ -104,8 +105,8 @@ public class Int2SortMergeJoinOperatorTest {
                 165);
     }
 
-    @Test
-    public void testLeftOutJoin() throws Exception {
+    @TestTemplate
+    void testLeftOutJoin() throws Exception {
 
         int numKeys1 = 9;
         int numKeys2 = 10;
@@ -126,8 +127,8 @@ public class Int2SortMergeJoinOperatorTest {
                 165);
     }
 
-    @Test
-    public void testRightOutJoin() throws Exception {
+    @TestTemplate
+    void testRightOutJoin() throws Exception {
         int numKeys1 = 9;
         int numKeys2 = 10;
         int buildValsPerKey = 3;
@@ -141,8 +142,8 @@ public class Int2SortMergeJoinOperatorTest {
         buildJoin(buildInput, probeInput, FlinkJoinType.RIGHT, 280, numKeys2, -1);
     }
 
-    @Test
-    public void testFullOutJoin() throws Exception {
+    @TestTemplate
+    void testFullOutJoin() throws Exception {
         int numKeys1 = 9;
         int numKeys2 = 10;
         int buildValsPerKey = 3;
@@ -156,8 +157,8 @@ public class Int2SortMergeJoinOperatorTest {
         buildJoin(buildInput, probeInput, FlinkJoinType.FULL, 280, numKeys2, -1);
     }
 
-    @Test
-    public void testSemiJoin() throws Exception {
+    @TestTemplate
+    void testSemiJoin() throws Exception {
 
         int numKeys1 = 10;
         int numKeys2 = 9;
@@ -172,8 +173,8 @@ public class Int2SortMergeJoinOperatorTest {
         joinAndAssert(operator, buildInput, probeInput, 90, 9, 45, true);
     }
 
-    @Test
-    public void testAntiJoin() throws Exception {
+    @TestTemplate
+    void testAntiJoin() throws Exception {
 
         int numKeys1 = 10;
         int numKeys2 = 9;

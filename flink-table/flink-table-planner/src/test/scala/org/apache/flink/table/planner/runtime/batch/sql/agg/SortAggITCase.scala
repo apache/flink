@@ -19,10 +19,11 @@ package org.apache.flink.table.planner.runtime.batch.sql.agg
 
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.table.annotation.{DataTypeHint, FunctionHint}
-import org.apache.flink.table.api.{DataTypes, Types}
+import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.api.config.ExecutionConfigOptions.{TABLE_EXEC_DISABLED_OPERATORS, TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM}
 import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.planner.{JInt, JLong}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
@@ -264,7 +265,7 @@ class SortAggITCase extends AggregateITCaseBase("SortAggregate") {
     tEnv.getConfig.set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(1))
     env.setParallelism(1)
     checkResult(
-      "SELECT myPrimitiveArrayUdaf(a, b) FROM Table3",
+      "SELECT myPrimitiveArrayUdaf(IFNULL(a, 0), IFNULL(b, 0)) FROM Table3",
       Seq(row(Array(231, 91)))
     )
     checkResult(
@@ -272,7 +273,7 @@ class SortAggITCase extends AggregateITCaseBase("SortAggregate") {
       Seq(row(Array("HHHHILCCCCCCCCCCCCCCC", "iod?.r123456789012345")))
     )
     checkResult(
-      "SELECT myNestedLongArrayUdaf(a, b)[2] FROM Table3",
+      "SELECT myNestedLongArrayUdaf(IFNULL(a, 0), IFNULL(b, 0))[2] FROM Table3",
       Seq(row(Array(91, 231)))
     )
     checkResult(
@@ -284,11 +285,11 @@ class SortAggITCase extends AggregateITCaseBase("SortAggregate") {
   @Test
   def testMapUdaf(): Unit = {
     checkResult(
-      "SELECT myPrimitiveMapUdaf(a, b)[3] FROM Table3",
+      "SELECT myPrimitiveMapUdaf(IFNULL(a, 0), IFNULL(b, 0))[3] FROM Table3",
       Seq(row(15))
     )
     checkResult(
-      "SELECT myPrimitiveMapUdaf(a, b)[6] FROM Table3",
+      "SELECT myPrimitiveMapUdaf(IFNULL(a, 0), IFNULL(b, 0))[6] FROM Table3",
       Seq(row(111))
     )
     checkResult(
@@ -508,10 +509,7 @@ class MyPrimitiveArrayUdaf extends AggregateFunction[Array[Long], Array[Long]] {
 
   override def getValue(accumulator: Array[Long]): Array[Long] = accumulator
 
-  def accumulate(
-      accumulator: Array[Long],
-      @DataTypeHint("INT") a: Int,
-      @DataTypeHint("BIGINT") b: Long): Unit = {
+  def accumulate(accumulator: Array[Long], a: Int, b: Long): Unit = {
     accumulator(0) += a
     accumulator(1) += b
   }
@@ -535,10 +533,7 @@ class MyNestedLongArrayUdaf extends AggregateFunction[Array[Array[Long]], Array[
 
   override def getValue(accumulator: Array[Array[Long]]): Array[Array[Long]] = accumulator
 
-  def accumulate(
-      accumulator: Array[Array[Long]],
-      @DataTypeHint("INT") a: Int,
-      @DataTypeHint("BIGINT") b: Long): Unit = {
+  def accumulate(accumulator: Array[Array[Long]], a: Int, b: Long): Unit = {
     accumulator(0)(0) += a
     accumulator(0)(1) += b
     accumulator(1)(0) += b
@@ -561,39 +556,31 @@ class MyNestedStringArrayUdaf
   }
 }
 
-@FunctionHint(
-  input = Array(new DataTypeHint("INT"), new DataTypeHint("BIGINT")),
-  accumulator = new DataTypeHint("MAP<BIGINT, INT>"),
-  output = new DataTypeHint("MAP<BIGINT, INT>"))
 class MyPrimitiveMapUdaf
-  extends AggregateFunction[java.util.Map[Long, Int], java.util.Map[Long, Int]] {
+  extends AggregateFunction[java.util.Map[JLong, JInt], java.util.Map[JLong, JInt]] {
 
-  override def createAccumulator(): java.util.Map[Long, Int] =
-    new java.util.HashMap[Long, Int]()
+  override def createAccumulator(): java.util.Map[JLong, JInt] =
+    new java.util.HashMap[JLong, JInt]()
 
-  override def getValue(accumulator: java.util.Map[Long, Int]): java.util.Map[Long, Int] =
+  override def getValue(accumulator: java.util.Map[JLong, JInt]): java.util.Map[JLong, JInt] =
     accumulator
 
-  def accumulate(accumulator: java.util.Map[Long, Int], a: Int, b: Long): Unit = {
+  def accumulate(accumulator: java.util.Map[JLong, JInt], a: Int, b: Long): Unit = {
     accumulator.putIfAbsent(b, 0)
     accumulator.put(b, accumulator.get(b) + a)
   }
 }
 
-@FunctionHint(
-  input = Array(new DataTypeHint("INT"), new DataTypeHint("STRING")),
-  accumulator = new DataTypeHint("MAP<STRING, INT>"),
-  output = new DataTypeHint("MAP<STRING, INT>"))
 class MyObjectMapUdaf
-  extends AggregateFunction[java.util.Map[String, Int], java.util.Map[String, Int]] {
+  extends AggregateFunction[java.util.Map[String, JInt], java.util.Map[String, JInt]] {
 
-  override def createAccumulator(): java.util.Map[String, Int] =
-    new java.util.HashMap[String, Int]()
+  override def createAccumulator(): java.util.Map[String, JInt] =
+    new java.util.HashMap[String, JInt]()
 
-  override def getValue(accumulator: java.util.Map[String, Int]): java.util.Map[String, Int] =
+  override def getValue(accumulator: java.util.Map[String, JInt]): java.util.Map[String, JInt] =
     accumulator
 
-  def accumulate(accumulator: java.util.Map[String, Int], a: Int, c: String): Unit = {
+  def accumulate(accumulator: java.util.Map[String, JInt], a: JInt, c: String): Unit = {
     val key = c.substring(0, 2)
     accumulator.putIfAbsent(key, 0)
     accumulator.put(key, accumulator.get(key) + a)

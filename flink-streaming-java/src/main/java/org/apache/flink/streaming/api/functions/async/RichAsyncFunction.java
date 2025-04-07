@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.functions.async;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -115,12 +114,6 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
         }
 
         @Override
-        @Deprecated
-        public ExecutionConfig getExecutionConfig() {
-            return runtimeContext.getExecutionConfig();
-        }
-
-        @Override
         public <T> TypeSerializer<T> createSerializer(TypeInformation<T> typeInformation) {
             return runtimeContext.createSerializer(typeInformation);
         }
@@ -189,6 +182,44 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
 
         @Override
         public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
+            throw new UnsupportedOperationException(
+                    "State is not supported in rich async functions.");
+        }
+
+        @Override
+        public <T> org.apache.flink.api.common.state.v2.ValueState<T> getState(
+                org.apache.flink.api.common.state.v2.ValueStateDescriptor<T> stateProperties) {
+            throw new UnsupportedOperationException(
+                    "State is not supported in rich async functions.");
+        }
+
+        @Override
+        public <T> org.apache.flink.api.common.state.v2.ListState<T> getListState(
+                org.apache.flink.api.common.state.v2.ListStateDescriptor<T> stateProperties) {
+            throw new UnsupportedOperationException(
+                    "State is not supported in rich async functions.");
+        }
+
+        @Override
+        public <T> org.apache.flink.api.common.state.v2.ReducingState<T> getReducingState(
+                org.apache.flink.api.common.state.v2.ReducingStateDescriptor<T> stateProperties) {
+            throw new UnsupportedOperationException(
+                    "State is not supported in rich async functions.");
+        }
+
+        @Override
+        public <IN, ACC, OUT>
+                org.apache.flink.api.common.state.v2.AggregatingState<IN, OUT> getAggregatingState(
+                        org.apache.flink.api.common.state.v2.AggregatingStateDescriptor<
+                                        IN, ACC, OUT>
+                                stateProperties) {
+            throw new UnsupportedOperationException(
+                    "State is not supported in rich async functions.");
+        }
+
+        @Override
+        public <UK, UV> org.apache.flink.api.common.state.v2.MapState<UK, UV> getMapState(
+                org.apache.flink.api.common.state.v2.MapStateDescriptor<UK, UV> stateProperties) {
             throw new UnsupportedOperationException(
                     "State is not supported in rich async functions.");
         }

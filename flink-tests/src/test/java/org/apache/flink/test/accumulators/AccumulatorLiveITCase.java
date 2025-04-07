@@ -18,24 +18,18 @@
 
 package org.apache.flink.test.accumulators;
 
-import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.optimizer.DataStatistics;
-import org.apache.flink.optimizer.Optimizer;
-import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.MiniClusterJobClient;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -52,6 +46,8 @@ import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,9 +62,12 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 
 /** Tests the availability of accumulator results during runtime. */
+@RunWith(Parameterized.class)
 public class AccumulatorLiveITCase extends TestLogger {
 
     private static final Logger LOG = LoggerFactory.getLogger(AccumulatorLiveITCase.class);
+
+    @Parameterized.Parameter public boolean testBatchJob;
 
     @ClassRule
     public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
@@ -89,6 +88,11 @@ public class AccumulatorLiveITCase extends TestLogger {
         for (int i = 0; i < NUM_ITERATIONS; i++) {
             inputData.add(i);
         }
+    }
+
+    @Parameterized.Parameters(name = "testBatchJob: {0}")
+    public static Object[] parameters() {
+        return new Object[] {true, false};
     }
 
     @ClassRule
@@ -114,23 +118,11 @@ public class AccumulatorLiveITCase extends TestLogger {
     }
 
     @Test
-    public void testBatch() throws Exception {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
-
-        DataSet<Integer> input = env.fromCollection(inputData);
-        input.flatMap(new NotifyingMapper()).output(new DummyOutputFormat());
-
-        // Extract job graph and set job id for the task to notify of accumulator changes.
-        JobGraph jobGraph = getJobGraph(env.createProgramPlan());
-
-        submitJobAndVerifyResults(jobGraph);
-    }
-
-    @Test
-    public void testStreaming() throws Exception {
-
+    public void testJob() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        RuntimeExecutionMode runtimeExecutionMode =
+                testBatchJob ? RuntimeExecutionMode.BATCH : RuntimeExecutionMode.STREAMING;
+        env.setRuntimeMode(runtimeExecutionMode);
         env.setParallelism(1);
 
         DataStream<Integer> input = env.fromData(inputData);
@@ -176,7 +168,8 @@ public class AccumulatorLiveITCase extends TestLogger {
     }
 
     private static void verifyResults(JobGraph jobGraph, Deadline deadline, ClusterClient<?> client)
-            throws InterruptedException, java.util.concurrent.ExecutionException,
+            throws InterruptedException,
+                    java.util.concurrent.ExecutionException,
                     java.util.concurrent.TimeoutException {
         FutureUtils.retrySuccessfulWithDelay(
                         () -> {
@@ -253,20 +246,12 @@ public class AccumulatorLiveITCase extends TestLogger {
         public void configure(Configuration parameters) {}
 
         @Override
-        public void open(int taskNumber, int numTasks) throws IOException {}
+        public void open(InitializationContext context) throws IOException {}
 
         @Override
         public void writeRecord(Integer record) throws IOException {}
 
         @Override
         public void close() throws IOException {}
-    }
-
-    /** Helpers to generate the JobGraph. */
-    private static JobGraph getJobGraph(Plan plan) {
-        Optimizer pc = new Optimizer(new DataStatistics(), new Configuration());
-        JobGraphGenerator jgg = new JobGraphGenerator();
-        OptimizedPlan op = pc.compile(plan);
-        return jgg.compileJobGraph(op);
     }
 }

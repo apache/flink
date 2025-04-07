@@ -620,7 +620,9 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable
     //                                 Task Setup and Teardown
     // --------------------------------------------------------------------------------------------
 
-    /** @return the last output collector in the collector chain */
+    /**
+     * @return the last output collector in the collector chain
+     */
     @SuppressWarnings("unchecked")
     protected Collector<OT> getLastOutputCollector() {
         int numChained = this.chainedTasks.size();
@@ -1496,7 +1498,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable
             FunctionUtils.openFunction(stub, DefaultOpenContext.INSTANCE);
         } catch (Throwable t) {
             throw new Exception(
-                    "The user defined 'open(Configuration)' method in "
+                    "The user defined 'open(OpenContext)' method in "
                             + stub.getClass().toString()
                             + " caused an exception: "
                             + t.getMessage(),

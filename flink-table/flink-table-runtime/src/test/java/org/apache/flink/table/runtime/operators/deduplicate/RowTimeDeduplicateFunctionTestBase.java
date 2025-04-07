@@ -18,14 +18,14 @@
 
 package org.apache.flink.table.runtime.operators.deduplicate;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessingOperator;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
@@ -34,11 +34,13 @@ import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
+import java.time.Duration;
+
 /** Base class of tests for all kinds of row-time DeduplicateFunction. */
 abstract class RowTimeDeduplicateFunctionTestBase {
 
     protected final long miniBatchSize = 4L;
-    protected Time minTtlTime = Time.milliseconds(10);
+    protected Duration minTtlTime = Duration.ofMillis(10);
     protected InternalTypeInfo inputRowType =
             InternalTypeInfo.ofFields(VarCharType.STRING_TYPE, new IntType(), new BigIntType());
     protected TypeSerializer<RowData> serializer = inputRowType.toSerializer();
@@ -54,14 +56,13 @@ abstract class RowTimeDeduplicateFunctionTestBase {
                             rowKeyIndex, inputRowType.toRowFieldTypes()[rowKeyIndex]));
 
     protected OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
-            KeyedProcessOperator<RowData, RowData, RowData> operator) throws Exception {
-        return new KeyedOneInputStreamOperatorTestHarness<>(
-                operator, rowKeySelector, rowKeySelector.getProducedType());
-    }
-
-    protected OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
-            KeyedMapBundleOperator<RowData, RowData, RowData, RowData> operator) throws Exception {
-        return new KeyedOneInputStreamOperatorTestHarness<>(
-                operator, rowKeySelector, rowKeySelector.getProducedType());
+            OneInputStreamOperator<RowData, RowData> operator) throws Exception {
+        if (operator instanceof AsyncStateProcessingOperator) {
+            return AsyncKeyedOneInputStreamOperatorTestHarness.create(
+                    operator, rowKeySelector, rowKeySelector.getProducedType());
+        } else {
+            return new KeyedOneInputStreamOperatorTestHarness<>(
+                    operator, rowKeySelector, rowKeySelector.getProducedType());
+        }
     }
 }

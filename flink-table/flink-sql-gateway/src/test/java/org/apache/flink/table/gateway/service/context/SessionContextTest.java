@@ -175,7 +175,10 @@ class SessionContextTest {
                                 .build(),
                         EXECUTOR_SERVICE);
         assertThat(
-                        context1.getSessionState().catalogManager.getCatalogModificationListeners()
+                        context1
+                                .getSessionState()
+                                .catalogManager
+                                .getCatalogModificationListeners()
                                 .stream()
                                 .map(l -> l.getClass().getName())
                                 .collect(Collectors.toList()))
@@ -197,7 +200,10 @@ class SessionContextTest {
                                 .build(),
                         EXECUTOR_SERVICE);
         assertThat(
-                        context2.getSessionState().catalogManager.getCatalogModificationListeners()
+                        context2
+                                .getSessionState()
+                                .catalogManager
+                                .getCatalogModificationListeners()
                                 .stream()
                                 .map(l -> l.getClass().getName())
                                 .collect(Collectors.toList()))

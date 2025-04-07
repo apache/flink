@@ -19,11 +19,12 @@ package org.apache.flink.table.planner.`match`
 
 import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy._
 import org.apache.flink.cep.pattern.Pattern
-import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.table.api.TableException
 
 import org.assertj.core.api.Assertions.{assertThatExceptionOfType, assertThatThrownBy}
 import org.junit.jupiter.api.Test
+
+import java.time.Duration
 
 class PatternTranslatorTest extends PatternTranslatorTestBase {
 
@@ -257,7 +258,7 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
       Pattern
         .begin("A", skipToNext())
         .next("B")
-        .within(Time.milliseconds(10 * 24 * 60 * 60 * 1000 + 4))
+        .within(Duration.ofMillis(10 * 24 * 60 * 60 * 1000 + 4))
     )
 
     verifyPattern(
@@ -273,7 +274,7 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
       Pattern
         .begin("A", skipToNext())
         .next("B")
-        .within(Time.milliseconds(10 * 24 * 60 * 60 * 1000))
+        .within(Duration.ofMillis(10 * 24 * 60 * 60 * 1000))
     )
 
     verifyPattern(
@@ -289,7 +290,7 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
       Pattern
         .begin("A", skipToNext())
         .next("B")
-        .within(Time.milliseconds(10 * 60 * 1000))
+        .within(Duration.ofMillis(10 * 60 * 1000))
     )
   }
 

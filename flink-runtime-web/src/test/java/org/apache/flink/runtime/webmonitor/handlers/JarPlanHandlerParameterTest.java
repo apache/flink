@@ -23,11 +23,11 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.webmonitor.testutils.ParameterProgram;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 
@@ -71,7 +71,7 @@ class JarPlanHandlerParameterTest
                         new Configuration(),
                         EXECUTOR_EXTENSION.getExecutor(),
                         jobGraph -> {
-                            LAST_SUBMITTED_JOB_GRAPH_REFERENCE.set(jobGraph);
+                            LAST_SUBMITTED_EXECUTION_PLAN_REFERENCE.set(jobGraph);
                             return new JobPlanInfo(JsonPlanGenerator.generatePlan(jobGraph));
                         });
     }
@@ -82,25 +82,17 @@ class JarPlanHandlerParameterTest
     }
 
     @Override
-    JarPlanMessageParameters getJarMessageParameters(ProgramArgsParType programArgsParType) {
+    JarPlanMessageParameters getJarMessageParameters() {
         final JarPlanMessageParameters parameters = getUnresolvedJarMessageParameters();
         parameters.entryClassQueryParameter.resolve(
                 Collections.singletonList(ParameterProgram.class.getCanonicalName()));
         parameters.parallelismQueryParameter.resolve(Collections.singletonList(PARALLELISM));
-        if (programArgsParType == ProgramArgsParType.String
-                || programArgsParType == ProgramArgsParType.Both) {
-            parameters.programArgsQueryParameter.resolve(
-                    Collections.singletonList(String.join(" ", PROG_ARGS)));
-        }
-        if (programArgsParType == ProgramArgsParType.List
-                || programArgsParType == ProgramArgsParType.Both) {
-            parameters.programArgQueryParameter.resolve(Arrays.asList(PROG_ARGS));
-        }
+        parameters.programArgQueryParameter.resolve(Arrays.asList(PROG_ARGS));
         return parameters;
     }
 
     @Override
-    JarPlanMessageParameters getWrongJarMessageParameters(ProgramArgsParType programArgsParType) {
+    JarPlanMessageParameters getWrongJarMessageParameters() {
         List<String> wrongArgs =
                 Arrays.stream(PROG_ARGS).map(a -> a + "wrong").collect(Collectors.toList());
         String argsWrongStr = String.join(" ", wrongArgs);
@@ -108,14 +100,7 @@ class JarPlanHandlerParameterTest
         parameters.entryClassQueryParameter.resolve(
                 Collections.singletonList("please.dont.run.me"));
         parameters.parallelismQueryParameter.resolve(Collections.singletonList(64));
-        if (programArgsParType == ProgramArgsParType.String
-                || programArgsParType == ProgramArgsParType.Both) {
-            parameters.programArgsQueryParameter.resolve(Collections.singletonList(argsWrongStr));
-        }
-        if (programArgsParType == ProgramArgsParType.List
-                || programArgsParType == ProgramArgsParType.Both) {
-            parameters.programArgQueryParameter.resolve(wrongArgs);
-        }
+        parameters.programArgQueryParameter.resolve(wrongArgs);
         return parameters;
     }
 
@@ -125,11 +110,10 @@ class JarPlanHandlerParameterTest
     }
 
     @Override
-    JarPlanRequestBody getJarRequestBody(ProgramArgsParType programArgsParType) {
+    JarPlanRequestBody getJarRequestBody() {
         return new JarPlanRequestBody(
                 ParameterProgram.class.getCanonicalName(),
-                getProgramArgsString(programArgsParType),
-                getProgramArgsList(programArgsParType),
+                Arrays.asList(PROG_ARGS),
                 PARALLELISM,
                 null,
                 null);
@@ -137,12 +121,12 @@ class JarPlanHandlerParameterTest
 
     @Override
     JarPlanRequestBody getJarRequestBodyWithJobId(JobID jobId) {
-        return new JarPlanRequestBody(null, null, null, null, jobId, null);
+        return new JarPlanRequestBody(null, null, null, jobId, null);
     }
 
     @Override
     JarPlanRequestBody getJarRequestWithConfiguration() {
-        return new JarPlanRequestBody(null, null, null, null, null, FLINK_CONFIGURATION.toMap());
+        return new JarPlanRequestBody(null, null, null, null, FLINK_CONFIGURATION.toMap());
     }
 
     @Override
@@ -151,8 +135,8 @@ class JarPlanHandlerParameterTest
     }
 
     @Override
-    void validateGraphWithFlinkConfig(JobGraph jobGraph) {
-        final ExecutionConfig executionConfig = getExecutionConfig(jobGraph);
+    void validateGraphWithFlinkConfig(ExecutionPlan executionPlan) {
+        final ExecutionConfig executionConfig = getExecutionConfig(executionPlan);
         assertThat(executionConfig.getParallelism())
                 .isEqualTo(FLINK_CONFIGURATION.get(CoreOptions.DEFAULT_PARALLELISM));
         assertThat(executionConfig.getTaskCancellationTimeout())

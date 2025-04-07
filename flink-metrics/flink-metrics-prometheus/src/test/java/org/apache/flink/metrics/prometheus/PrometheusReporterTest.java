@@ -27,9 +27,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
-import org.apache.flink.util.NetUtils;
-
-import org.apache.flink.shaded.curator5.com.google.common.collect.Iterators;
+import org.apache.flink.util.PortRange;
 
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.Unirest;
@@ -39,9 +37,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
@@ -70,7 +66,8 @@ class PrometheusReporterTest {
 
     @BeforeEach
     void setupReporter() {
-        reporter = new PrometheusReporter(portRangeProvider.next());
+        PortRange portRange = new PortRange(portRangeProvider.nextRange());
+        reporter = new PrometheusReporter(portRange);
 
         metricGroup =
                 TestUtils.createTestMetricGroup(
@@ -227,18 +224,17 @@ class PrometheusReporterTest {
 
     @Test
     void cannotStartTwoReportersOnSamePort() {
-        assertThatThrownBy(
-                        () ->
-                                new PrometheusReporter(
-                                        Collections.singleton(reporter.getPort()).iterator()))
-                .isInstanceOf(Exception.class);
+        PortRange portRange = new PortRange(reporter.getPort());
+        assertThatThrownBy(() -> new PrometheusReporter(portRange))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageMatching(
+                        "^Could not start PrometheusReporter HTTP server on any configured port. Ports: \\d+(, \\d+)*");
     }
 
     @Test
     void canStartTwoReportersWhenUsingPortRange() {
-        final Iterator<Integer> portRange =
-                Iterators.concat(
-                        Iterators.singletonIterator(reporter.getPort()), portRangeProvider.next());
+        String ports = reporter.getPort() + ", " + portRangeProvider.nextRange();
+        PortRange portRange = new PortRange(ports);
         new PrometheusReporter(portRange).close();
     }
 
@@ -262,28 +258,27 @@ class PrometheusReporterTest {
     }
 
     /** Utility class providing distinct port ranges. */
-    private static class PortRangeProvider implements Iterator<Iterator<Integer>> {
+    private static class PortRangeProvider {
 
         private int base = 9000;
 
-        @Override
-        public boolean hasNext() {
-            return base < 14000; // arbitrary limit that should be sufficient for test purposes
-        }
-
         /**
-         * Returns the next port range containing exactly 100 ports.
+         * Returns the next port range containing exactly 100 ports as string.
          *
          * @return next port range
          */
-        public Iterator<Integer> next() {
+        public String nextRange() {
             if (!hasNext()) {
                 throw new NoSuchElementException();
             }
             int lowEnd = base;
             int highEnd = base + 99;
             base += 100;
-            return NetUtils.getPortRangeFromString(lowEnd + "-" + highEnd);
+            return lowEnd + "-" + highEnd;
+        }
+
+        private boolean hasNext() {
+            return base < 14000; // arbitrary limit that should be sufficient for test purposes
         }
     }
 }

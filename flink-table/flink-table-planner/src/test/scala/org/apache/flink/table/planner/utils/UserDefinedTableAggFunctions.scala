@@ -19,11 +19,11 @@ package org.apache.flink.table.planner.utils
 
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.table.annotation.{DataTypeHint, FunctionHint}
-import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.dataview.MapView
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.functions.TableAggregateFunction
 import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
+import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.planner.JLong
 import org.apache.flink.util.Collector
 

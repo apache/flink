@@ -71,7 +71,7 @@ class PartitionWriterTest {
                         public void configure(Configuration parameters) {}
 
                         @Override
-                        public void open(int taskNumber, int numTasks) {
+                        public void open(InitializationContext context) {
                             records.put(getKey(), new ArrayList<>());
                         }
 

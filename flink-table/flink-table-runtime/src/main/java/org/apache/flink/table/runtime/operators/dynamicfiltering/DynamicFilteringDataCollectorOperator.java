@@ -27,6 +27,7 @@ import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.connector.source.DynamicFilteringData;
 import org.apache.flink.table.connector.source.DynamicFilteringEvent;
@@ -72,10 +73,12 @@ public class DynamicFilteringDataCollectorOperator extends AbstractStreamOperato
     private transient FieldGetter[] fieldGetters;
 
     public DynamicFilteringDataCollectorOperator(
+            StreamOperatorParameters<Object> parameters,
             RowType dynamicFilteringFieldType,
             List<Integer> dynamicFilteringFieldIndices,
             long threshold,
             OperatorEventGateway operatorEventGateway) {
+        super(parameters);
         this.dynamicFilteringFieldType = checkNotNull(dynamicFilteringFieldType);
         this.dynamicFilteringFieldIndices = checkNotNull(dynamicFilteringFieldIndices);
         this.threshold = threshold;

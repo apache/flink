@@ -31,9 +31,10 @@ import org.apache.flink.table.runtime.generated.WatermarkGenerator
 import org.apache.flink.table.types.logical.{IntType, TimestampType}
 import org.apache.flink.table.utils.CatalogManagerMocks
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
+import org.apache.flink.util.clock.{RelativeClock, SystemClock}
 
-import org.junit.jupiter.api.{Test, TestTemplate}
 import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
+import org.junit.jupiter.api.TestTemplate
 import org.junit.jupiter.api.extension.ExtendWith
 
 import java.lang.{Integer => JInt, Long => JLong}
@@ -167,6 +168,8 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
       val newReferences = generated.getReferences :+
         new WatermarkGeneratorSupplier.Context {
           override def getMetricGroup: MetricGroup = null
+
+          override def getInputActivityClock: RelativeClock = SystemClock.getInstance()
         }
       generated.newInstance(Thread.currentThread().getContextClassLoader, newReferences)
     } else {

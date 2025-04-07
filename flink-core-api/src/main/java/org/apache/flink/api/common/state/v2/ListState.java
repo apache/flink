@@ -41,12 +41,12 @@ import java.util.List;
  * @param <T> Type of values that this list state keeps.
  */
 @Experimental
-public interface ListState<T> extends MergingState<T, StateIterator<T>> {
+public interface ListState<T> extends MergingState<T, StateIterator<T>, Iterable<T>> {
 
     /**
      * Updates the operator state accessible by {@link #asyncGet()} by updating existing values to
-     * the given list of values. The next time {@link #asyncGet()} is called (for the same state
-     * partition) the returned state will represent the updated list.
+     * the given list of values asynchronously. The next time {@link #asyncGet()} is called (for the
+     * same state partition) the returned state will represent the updated list.
      *
      * <p>If an empty list is passed in, the state value will be null.
      *
@@ -58,8 +58,8 @@ public interface ListState<T> extends MergingState<T, StateIterator<T>> {
 
     /**
      * Updates the operator state accessible by {@link #asyncGet()} by adding the given values to
-     * existing list of values. The next time {@link #asyncGet()} is called (for the same state
-     * partition) the returned state will represent the updated list.
+     * existing list of values asynchronously. The next time {@link #asyncGet()} is called (for the
+     * same state partition) the returned state will represent the updated list.
      *
      * <p>If an empty list is passed in, the state value remains unchanged.
      *
@@ -68,4 +68,30 @@ public interface ListState<T> extends MergingState<T, StateIterator<T>> {
      * @param values The new values to be added to the state.
      */
     StateFuture<Void> asyncAddAll(List<T> values);
+
+    /**
+     * Updates the operator state accessible by {@link #get()} by updating existing values to the
+     * given list of values. The next time {@link #get()} is called (for the same state partition)
+     * the returned state will represent the updated list.
+     *
+     * <p>If an empty list is passed in, the state value will be null.
+     *
+     * <p>Null value passed in or any null value in list is not allowed.
+     *
+     * @param values The new values for the state.
+     */
+    void update(List<T> values);
+
+    /**
+     * Updates the operator state accessible by {@link #get()} by adding the given values to
+     * existing list of values. The next time {@link #get()} is called (for the same state
+     * partition) the returned state will represent the updated list.
+     *
+     * <p>If an empty list is passed in, the state value remains unchanged.
+     *
+     * <p>Null value passed in or any null value in list is not allowed.
+     *
+     * @param values The new values to be added to the state.
+     */
+    void addAll(List<T> values);
 }

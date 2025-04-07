@@ -24,6 +24,7 @@ import org.apache.flink.runtime.operators.lifecycle.graph.TestJobBuilders.Testin
 import org.apache.flink.runtime.operators.lifecycle.validation.DrainingValidator;
 import org.apache.flink.runtime.operators.lifecycle.validation.FinishingValidator;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.util.TestLogger;
@@ -101,9 +102,8 @@ public class BoundedSourceITCase extends TestLogger {
                         sharedObjects,
                         cfg -> {},
                         env ->
-                                env.getCheckpointConfig()
-                                        .setCheckpointStorage(
-                                                TEMPORARY_FOLDER.newFolder().toURI()));
+                                CheckpointStorageUtils.configureFileSystemCheckpointStorage(
+                                        env, TEMPORARY_FOLDER.newFolder().toURI()));
 
         TestJobExecutor.execute(testJob, miniClusterResource)
                 .waitForEvent(CheckpointCompletedEvent.class)

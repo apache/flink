@@ -140,8 +140,9 @@ class NonKeyedPartitionStreamImplTest {
         NonKeyedPartitionStreamImpl<Integer> stream =
                 new NonKeyedPartitionStreamImpl<>(
                         env, new TestingTransformation<>("t1", Types.INT, 1));
-        NonKeyedPartitionStream.TwoNonKeyedPartitionStreams<Integer, Long> resultStream =
-                stream.process(new StreamTestUtils.NoOpTwoOutputStreamProcessFunction());
+        NonKeyedPartitionStream.ProcessConfigurableAndTwoNonKeyedPartitionStream<Integer, Long>
+                resultStream =
+                        stream.process(new StreamTestUtils.NoOpTwoOutputStreamProcessFunction());
         assertThat(resultStream.getFirst()).isInstanceOf(NonKeyedPartitionStream.class);
         assertThat(resultStream.getSecond()).isInstanceOf(NonKeyedPartitionStream.class);
         List<Transformation<?>> transformations = env.getTransformations();

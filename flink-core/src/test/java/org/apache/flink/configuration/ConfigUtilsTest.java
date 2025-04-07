@@ -95,13 +95,13 @@ class ConfigUtilsTest {
     }
 
     @Test
-    void emptyCollectionPutsEmptyValueInConfig() {
+    void emptyCollectionPutsNothingInConfig() {
         final Configuration configurationUnderTest = new Configuration();
         ConfigUtils.encodeCollectionToConfig(
                 configurationUnderTest, TEST_OPTION, Collections.emptyList(), Object::toString);
 
         final List<String> recovered = configurationUnderTest.get(TEST_OPTION);
-        assertThat(recovered).isEmpty();
+        assertThat(recovered).isNull();
 
         final List<Integer> recoveredList =
                 ConfigUtils.decodeListFromConfig(
@@ -110,13 +110,13 @@ class ConfigUtilsTest {
     }
 
     @Test
-    void emptyArrayPutsEmptyValueInConfig() {
+    void emptyArrayPutsNothingInConfig() {
         final Configuration configurationUnderTest = new Configuration();
         ConfigUtils.encodeArrayToConfig(
                 configurationUnderTest, TEST_OPTION, new Integer[5], Object::toString);
 
         final List<String> recovered = configurationUnderTest.get(TEST_OPTION);
-        assertThat(recovered).isEmpty();
+        assertThat(recovered).isNull();
 
         final List<Integer> recoveredList =
                 ConfigUtils.decodeListFromConfig(

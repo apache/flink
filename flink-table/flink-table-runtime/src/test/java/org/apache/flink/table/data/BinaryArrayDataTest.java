@@ -36,7 +36,7 @@ import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
@@ -48,10 +48,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Test of {@link BinaryArrayData} and {@link BinaryArrayWriter}. */
-public class BinaryArrayDataTest {
+class BinaryArrayDataTest {
 
     @Test
-    public void testArray() {
+    void testArray() {
         // 1.array test
         BinaryArrayData array = new BinaryArrayData();
         BinaryArrayWriter writer = new BinaryArrayWriter(array, 3, 4);
@@ -98,7 +98,7 @@ public class BinaryArrayDataTest {
     }
 
     @Test
-    public void testArrayTypes() {
+    void testArrayTypes() {
         {
             // test bool
             BinaryArrayData array = new BinaryArrayData();
@@ -356,7 +356,7 @@ public class BinaryArrayDataTest {
     }
 
     @Test
-    public void testMap() {
+    void testMap() {
         BinaryArrayData array1 = new BinaryArrayData();
         BinaryArrayWriter writer1 = new BinaryArrayWriter(array1, 3, 4);
         writer1.writeInt(0, 6);
@@ -417,7 +417,7 @@ public class BinaryArrayDataTest {
     }
 
     @Test
-    public void testToArray() {
+    void testToArray() {
         BinaryArrayData array = new BinaryArrayData();
         BinaryArrayWriter writer = new BinaryArrayWriter(array, 3, 2);
         writer.writeShort(0, (short) 5);
@@ -442,7 +442,7 @@ public class BinaryArrayDataTest {
     }
 
     @Test
-    public void testDecimal() {
+    void testDecimal() {
 
         BinaryArrayData array = new BinaryArrayData();
         BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
@@ -484,7 +484,7 @@ public class BinaryArrayDataTest {
     }
 
     @Test
-    public void testGeneric() {
+    void testGeneric() {
         BinaryArrayData array = new BinaryArrayData();
         BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
         RawValueData<String> generic = RawValueData.fromObject("hahah");
@@ -500,7 +500,7 @@ public class BinaryArrayDataTest {
     }
 
     @Test
-    public void testNested() {
+    void testNested() {
         BinaryArrayData array = new BinaryArrayData();
         BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
         writer.writeRow(
@@ -517,7 +517,7 @@ public class BinaryArrayDataTest {
     }
 
     @Test
-    public void testBinary() {
+    void testBinary() {
         BinaryArrayData array = new BinaryArrayData();
         BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
         byte[] bytes1 = new byte[] {1, -1, 5};
@@ -531,7 +531,7 @@ public class BinaryArrayDataTest {
     }
 
     @Test
-    public void testTimestampData() {
+    void testTimestampData() {
         BinaryArrayData array = new BinaryArrayData();
         BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
 

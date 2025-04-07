@@ -24,7 +24,7 @@ import org.apache.flink.connector.file.table.stream.compact.CompactMessages.Coor
 import org.apache.flink.connector.file.table.stream.compact.CompactMessages.EndCheckpoint;
 import org.apache.flink.connector.file.table.stream.compact.CompactMessages.InputFile;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /** Writer for emitting {@link InputFile} and {@link EndCheckpoint} to downstream. */

@@ -17,9 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
-import org.apache.flink.annotation.Experimental
-import org.apache.flink.configuration.ConfigOption
-import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.PartialFinalType
@@ -31,7 +28,6 @@ import org.apache.flink.util.Preconditions
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 
-import java.lang.{Boolean => JBoolean}
 import java.util.Collections
 
 /**
@@ -155,27 +151,4 @@ class IncrementalAggregateRule
 
 object IncrementalAggregateRule {
   val INSTANCE = new IncrementalAggregateRule
-
-  /**
-   * Whether to enable incremental aggregation.
-   *
-   * @deprecated
-   *   This configuration has been deprecated as part of FLIP-457 and will be removed in Flink 2.0.
-   *   Please use
-   *   [[org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED]]
-   *   instead.
-   */
-  @Deprecated
-  @Experimental
-  val TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED: ConfigOption[JBoolean] =
-    key("table.optimizer.incremental-agg-enabled")
-      .booleanType()
-      .defaultValue(JBoolean.valueOf(true))
-      .withDescription(
-        "When both local aggregation and distinct aggregation splitting " +
-          "are enabled, a distinct aggregation will be optimized into four aggregations, " +
-          "i.e., local-agg1, global-agg1, local-agg2 and global-Agg2. We can combine global-agg1" +
-          " and local-agg2 into a single operator (we call it incremental agg because " +
-          "it receives incremental accumulators and output incremental results). " +
-          "In this way, we can reduce some state overhead and resources. Default is enabled.")
 }

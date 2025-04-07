@@ -19,6 +19,7 @@
 package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.legacy.descriptors.Descriptor;
 
 /**
  * Validator for a descriptor. We put the validation methods and utilities in separate classes to

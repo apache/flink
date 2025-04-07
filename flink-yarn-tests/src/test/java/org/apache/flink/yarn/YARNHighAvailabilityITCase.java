@@ -46,7 +46,7 @@ import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
 import org.apache.flink.yarn.testjob.YarnTestJob;
 import org.apache.flink.yarn.util.TestUtils;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Iterables;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -434,7 +434,7 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
             final RestClusterClient<ApplicationId> restClusterClient, final JobID jobId)
             throws Exception {
 
-        return getJobMetric(restClusterClient, jobId, "fullRestarts")
+        return getJobMetric(restClusterClient, jobId, "numRestarts")
                 .map(Metric::getValue)
                 .map(Integer::parseInt)
                 .orElse(0);

@@ -61,6 +61,7 @@ class SlotSharingSlotAllocatorTest {
                             .build();
     private static final IsSlotAvailableAndFreeFunction TEST_IS_SLOT_FREE_FUNCTION =
             ignored -> true;
+    private static final boolean DISABLE_LOCAL_RECOVERY = false;
 
     private static final SlotSharingGroup slotSharingGroup1 = new SlotSharingGroup();
     private static final SlotSharingGroup slotSharingGroup2 = new SlotSharingGroup();
@@ -77,7 +78,8 @@ class SlotSharingSlotAllocatorTest {
                 SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                         TEST_RESERVE_SLOT_FUNCTION,
                         TEST_FREE_SLOT_FUNCTION,
-                        TEST_IS_SLOT_FREE_FUNCTION);
+                        TEST_IS_SLOT_FREE_FUNCTION,
+                        DISABLE_LOCAL_RECOVERY);
 
         final ResourceCounter resourceCounter =
                 slotAllocator.calculateRequiredSlots(Arrays.asList(vertex1, vertex2, vertex3));
@@ -95,7 +97,8 @@ class SlotSharingSlotAllocatorTest {
                 SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                         TEST_RESERVE_SLOT_FUNCTION,
                         TEST_FREE_SLOT_FUNCTION,
-                        TEST_IS_SLOT_FREE_FUNCTION);
+                        TEST_IS_SLOT_FREE_FUNCTION,
+                        DISABLE_LOCAL_RECOVERY);
 
         final JobInformation jobInformation =
                 new TestJobInformation(Arrays.asList(vertex1, vertex2, vertex3));
@@ -114,7 +117,8 @@ class SlotSharingSlotAllocatorTest {
                 SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                         TEST_RESERVE_SLOT_FUNCTION,
                         TEST_FREE_SLOT_FUNCTION,
-                        TEST_IS_SLOT_FREE_FUNCTION);
+                        TEST_IS_SLOT_FREE_FUNCTION,
+                        DISABLE_LOCAL_RECOVERY);
 
         final JobInformation jobInformation =
                 new TestJobInformation(Arrays.asList(vertex1, vertex2, vertex3));
@@ -136,7 +140,8 @@ class SlotSharingSlotAllocatorTest {
                 SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                         TEST_RESERVE_SLOT_FUNCTION,
                         TEST_FREE_SLOT_FUNCTION,
-                        TEST_IS_SLOT_FREE_FUNCTION);
+                        TEST_IS_SLOT_FREE_FUNCTION,
+                        DISABLE_LOCAL_RECOVERY);
         final SlotSharingGroup slotSharingGroup1 = new SlotSharingGroup();
         final JobInformation.VertexInformation vertex11 =
                 new TestVertexInformation(new JobVertexID(), 4, slotSharingGroup1);
@@ -169,7 +174,8 @@ class SlotSharingSlotAllocatorTest {
                 SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                         TEST_RESERVE_SLOT_FUNCTION,
                         TEST_FREE_SLOT_FUNCTION,
-                        TEST_IS_SLOT_FREE_FUNCTION);
+                        TEST_IS_SLOT_FREE_FUNCTION,
+                        DISABLE_LOCAL_RECOVERY);
 
         final JobInformation jobInformation =
                 new TestJobInformation(Arrays.asList(vertex1, vertex2, vertex3));
@@ -186,7 +192,8 @@ class SlotSharingSlotAllocatorTest {
                 SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                         TEST_RESERVE_SLOT_FUNCTION,
                         TEST_FREE_SLOT_FUNCTION,
-                        TEST_IS_SLOT_FREE_FUNCTION);
+                        TEST_IS_SLOT_FREE_FUNCTION,
+                        DISABLE_LOCAL_RECOVERY);
         final JobInformation.VertexInformation vertex1 =
                 new TestVertexInformation(new JobVertexID(), 1, 8, new SlotSharingGroup());
         final JobInformation.VertexInformation vertex2 =
@@ -214,7 +221,8 @@ class SlotSharingSlotAllocatorTest {
                 SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                         TEST_RESERVE_SLOT_FUNCTION,
                         TEST_FREE_SLOT_FUNCTION,
-                        TEST_IS_SLOT_FREE_FUNCTION);
+                        TEST_IS_SLOT_FREE_FUNCTION,
+                        DISABLE_LOCAL_RECOVERY);
         final JobInformation.VertexInformation vertex1 =
                 new TestVertexInformation(new JobVertexID(), 4, 4, new SlotSharingGroup());
         final JobInformation.VertexInformation vertex2 =
@@ -235,7 +243,8 @@ class SlotSharingSlotAllocatorTest {
                 SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                         TEST_RESERVE_SLOT_FUNCTION,
                         TEST_FREE_SLOT_FUNCTION,
-                        TEST_IS_SLOT_FREE_FUNCTION);
+                        TEST_IS_SLOT_FREE_FUNCTION,
+                        DISABLE_LOCAL_RECOVERY);
         SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
         final JobInformation.VertexInformation vertex1 =
                 new TestVertexInformation(new JobVertexID(), 2, 2, slotSharingGroup);
@@ -256,7 +265,8 @@ class SlotSharingSlotAllocatorTest {
                 SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                         TEST_RESERVE_SLOT_FUNCTION,
                         TEST_FREE_SLOT_FUNCTION,
-                        TEST_IS_SLOT_FREE_FUNCTION);
+                        TEST_IS_SLOT_FREE_FUNCTION,
+                        DISABLE_LOCAL_RECOVERY);
         final JobInformation.VertexInformation vertex1 =
                 new TestVertexInformation(new JobVertexID(), 4, 10, new SlotSharingGroup());
         final JobInformation.VertexInformation vertex2 =
@@ -286,7 +296,8 @@ class SlotSharingSlotAllocatorTest {
                 SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                         TEST_RESERVE_SLOT_FUNCTION,
                         TEST_FREE_SLOT_FUNCTION,
-                        TEST_IS_SLOT_FREE_FUNCTION);
+                        TEST_IS_SLOT_FREE_FUNCTION,
+                        DISABLE_LOCAL_RECOVERY);
         final JobInformation.VertexInformation vertex1 =
                 new TestVertexInformation(new JobVertexID(), 4, 4, new SlotSharingGroup());
         final JobInformation.VertexInformation vertex2 =
@@ -316,7 +327,8 @@ class SlotSharingSlotAllocatorTest {
                 SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                         TEST_RESERVE_SLOT_FUNCTION,
                         TEST_FREE_SLOT_FUNCTION,
-                        TEST_IS_SLOT_FREE_FUNCTION);
+                        TEST_IS_SLOT_FREE_FUNCTION,
+                        DISABLE_LOCAL_RECOVERY);
 
         final JobInformation jobInformation =
                 new TestJobInformation(Arrays.asList(vertex1, vertex2, vertex3));
@@ -357,7 +369,10 @@ class SlotSharingSlotAllocatorTest {
     void testReserveUnavailableResources() {
         final SlotSharingSlotAllocator slotSharingSlotAllocator =
                 SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
-                        TEST_RESERVE_SLOT_FUNCTION, TEST_FREE_SLOT_FUNCTION, ignored -> false);
+                        TEST_RESERVE_SLOT_FUNCTION,
+                        TEST_FREE_SLOT_FUNCTION,
+                        ignored -> false,
+                        DISABLE_LOCAL_RECOVERY);
 
         final JobInformation jobInformation =
                 new TestJobInformation(Arrays.asList(vertex1, vertex2, vertex3));
@@ -422,7 +437,8 @@ class SlotSharingSlotAllocatorTest {
                                 (allocationId, resourceProfile) ->
                                         TestingPhysicalSlot.builder().build(),
                                 (allocationID, cause, ts) -> {},
-                                id -> false)
+                                id -> false,
+                                true)
                         .determineParallelismAndCalculateAssignment(
                                 new TestJobInformation(Arrays.asList(vertex1, vertex2, vertex3)),
                                 freeSlots,

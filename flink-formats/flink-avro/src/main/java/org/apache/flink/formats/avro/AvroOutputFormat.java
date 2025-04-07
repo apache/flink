@@ -121,8 +121,8 @@ public class AvroOutputFormat<E> extends FileOutputFormat<E> implements Serializ
     }
 
     @Override
-    public void open(int taskNumber, int numTasks) throws IOException {
-        super.open(taskNumber, numTasks);
+    public void open(InitializationContext context) throws IOException {
+        super.open(context);
 
         DatumWriter<E> datumWriter;
         Schema schema;

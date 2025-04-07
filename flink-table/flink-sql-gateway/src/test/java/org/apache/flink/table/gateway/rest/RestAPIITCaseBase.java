@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.gateway.rest;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
@@ -38,6 +37,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointTestUtils.getBaseConfig;
@@ -81,7 +81,7 @@ public abstract class RestAPIITCaseBase {
         checkNotNull(sqlGatewayRestEndpoint);
         sqlGatewayRestEndpoint.close();
         checkNotNull(restClient);
-        restClient.shutdown(Time.seconds(3));
+        restClient.shutdown(Duration.ofSeconds(3));
     }
 
     public <

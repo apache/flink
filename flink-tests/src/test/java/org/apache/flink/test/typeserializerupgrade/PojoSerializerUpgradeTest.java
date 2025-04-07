@@ -85,8 +85,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
     @Parameterized.Parameters(name = "StateBackend: {0}")
     public static Collection<String> parameters() {
         return Arrays.asList(
-                StateBackendLoader.MEMORY_STATE_BACKEND_NAME,
-                StateBackendLoader.FS_STATE_BACKEND_NAME,
+                StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
                 StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME);
     }
 

@@ -39,8 +39,6 @@ public class MetricNames {
     public static final String IO_NUM_BUFFERS_OUT_RATE = IO_NUM_BUFFERS_OUT + SUFFIX_RATE;
 
     public static final String IO_CURRENT_INPUT_WATERMARK = "currentInputWatermark";
-    @Deprecated public static final String IO_CURRENT_INPUT_1_WATERMARK = "currentInput1Watermark";
-    @Deprecated public static final String IO_CURRENT_INPUT_2_WATERMARK = "currentInput2Watermark";
     public static final String IO_CURRENT_INPUT_WATERMARK_PATERN = "currentInput%dWatermark";
     public static final String IO_CURRENT_OUTPUT_WATERMARK = "currentOutputWatermark";
 
@@ -54,8 +52,7 @@ public class MetricNames {
     public static final String NUM_PENDING_TASK_MANAGERS = "numPendingTaskManagers";
 
     public static final String NUM_RESTARTS = "numRestarts";
-
-    @Deprecated public static final String FULL_RESTARTS = "fullRestarts";
+    public static final String NUM_RESCALES = "numRescales";
 
     public static final String MEMORY_USED = "Used";
     public static final String MEMORY_COMMITTED = "Committed";
@@ -148,4 +145,13 @@ public class MetricNames {
     public static final String FAILED_COMMITTABLES = "failedCommittables";
     public static final String RETRIED_COMMITTABLES = "retriedCommittables";
     public static final String PENDING_COMMITTABLES = "pendingCommittables";
+
+    // FLIP-513 split level metrics
+    public static final String SPLIT_CURRENT_WATERMARK = "currentWatermark";
+    public static final String SPLIT_ACTIVE_TIME = "activeTimeMs" + SUFFIX_RATE;
+    public static final String SPLIT_PAUSED_TIME = "pausedTimeMs" + SUFFIX_RATE;
+    public static final String SPLIT_IDLE_TIME = "idleTimeMs" + SUFFIX_RATE;
+    public static final String ACC_SPLIT_PAUSED_TIME = "accumulatedPausedTimeMs";
+    public static final String ACC_SPLIT_ACTIVE_TIME = "accumulatedActiveTimeMs";
+    public static final String ACC_SPLIT_IDLE_TIME = "accumulatedIdleTimeMs";
 }

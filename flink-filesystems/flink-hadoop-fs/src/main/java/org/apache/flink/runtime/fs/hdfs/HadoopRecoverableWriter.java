@@ -46,6 +46,8 @@ public class HadoopRecoverableWriter implements RecoverableWriter {
     /** The Hadoop file system on which the writer operates. */
     protected final org.apache.hadoop.fs.FileSystem fs;
 
+    private final boolean noLocalWrite;
+
     /**
      * Creates a new Recoverable writer.
      *
@@ -53,6 +55,13 @@ public class HadoopRecoverableWriter implements RecoverableWriter {
      */
     public HadoopRecoverableWriter(org.apache.hadoop.fs.FileSystem fs) {
         this.fs = checkNotNull(fs);
+        this.noLocalWrite = false;
+        checkSupportedFSSchemes(fs);
+    }
+
+    public HadoopRecoverableWriter(org.apache.hadoop.fs.FileSystem fs, boolean noLocalWrite) {
+        this.fs = checkNotNull(fs);
+        this.noLocalWrite = noLocalWrite;
 
         checkSupportedFSSchemes(fs);
     }
@@ -86,7 +95,7 @@ public class HadoopRecoverableWriter implements RecoverableWriter {
     protected RecoverableFsDataOutputStream getRecoverableFsDataOutputStream(
             org.apache.hadoop.fs.Path targetFile, org.apache.hadoop.fs.Path tempFile)
             throws IOException {
-        return new HadoopRecoverableFsDataOutputStream(fs, targetFile, tempFile);
+        return new HadoopRecoverableFsDataOutputStream(fs, targetFile, tempFile, noLocalWrite);
     }
 
     @Override

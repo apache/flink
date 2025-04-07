@@ -20,9 +20,9 @@ package org.apache.flink.state.forst;
 
 import org.apache.flink.annotation.VisibleForTesting;
 
-import org.rocksdb.Cache;
-import org.rocksdb.LRUCache;
-import org.rocksdb.WriteBufferManager;
+import org.forstdb.Cache;
+import org.forstdb.LRUCache;
+import org.forstdb.WriteBufferManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

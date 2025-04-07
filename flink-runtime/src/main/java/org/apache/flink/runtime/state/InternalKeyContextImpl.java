@@ -29,11 +29,13 @@ import javax.annotation.Nonnull;
 public class InternalKeyContextImpl<K> implements InternalKeyContext<K> {
     /** Range of key-groups for which this backend is responsible. */
     private final KeyGroupRange keyGroupRange;
+
     /** The number of key-groups aka max parallelism. */
     private final int numberOfKeyGroups;
 
     /** The currently active key. */
     private K currentKey;
+
     /** The key group of the currently active key. */
     private int currentKeyGroupIndex;
 

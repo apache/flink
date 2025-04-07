@@ -42,6 +42,7 @@ under the License.
 				<include>org.apache.logging.log4j:log4j-core</include>
 				<include>org.apache.logging.log4j:log4j-slf4j-impl</include>
 				<include>org.apache.logging.log4j:log4j-1.2-api</include>
+				<include>org.apache.logging.log4j:log4j-layout-template-json</include>
 			</includes>
 		</dependencySet>
 	</dependencySets>
@@ -228,24 +229,6 @@ under the License.
 			<directory>src/main/flink-bin/tools</directory>
 			<outputDirectory>tools</outputDirectory>
 			<fileMode>0644</fileMode>
-		</fileSet>
-
-		<!-- copy jar files of the batch examples
-		All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a future
-		Flink major version. The examples are retained for testing purposes.
-		See https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741.
-		-->
-		<fileSet>
-			<directory>../flink-examples/flink-examples-batch/target</directory>
-			<outputDirectory>examples/batch</outputDirectory>
-			<fileMode>0644</fileMode>
-			<includes>
-				<include>*.jar</include>
-			</includes>
-			<excludes>
-				<exclude>flink-examples-batch*.jar</exclude>
-				<exclude>original-flink-examples-batch*.jar</exclude>
-			</excludes>
 		</fileSet>
 
 		<!-- copy jar files of the streaming examples -->

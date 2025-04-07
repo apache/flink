@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
@@ -29,6 +30,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
@@ -38,19 +40,43 @@ import org.apache.flink.table.runtime.operators.sort.SortLimitOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.Collections;
+import java.util.List;
+
+import static org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecLimit.FIELD_NAME_IS_GLOBAL;
+import static org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecLimit.FIELD_NAME_LIMIT_END;
+import static org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecLimit.FIELD_NAME_LIMIT_START;
+import static org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSort.FIELD_NAME_SORT_SPEC;
 
 /**
  * {@link BatchExecNode} for Sort with limit.
  *
  * <p>This node will output data rank from `limitStart` to `limitEnd`.
  */
+@ExecNodeMetadata(
+        name = "batch-exec-sort-limit",
+        version = 1,
+        producedTransformations = BatchExecSortLimit.SORT_LIMIT_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v2_0,
+        minStateVersion = FlinkVersion.v2_0)
 public class BatchExecSortLimit extends ExecNodeBase<RowData>
         implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
+    public static final String SORT_LIMIT_TRANSFORMATION = "sort-limit";
+
+    @JsonProperty(FIELD_NAME_SORT_SPEC)
     private final SortSpec sortSpec;
+
+    @JsonProperty(FIELD_NAME_LIMIT_START)
     private final long limitStart;
+
+    @JsonProperty(FIELD_NAME_LIMIT_END)
     private final long limitEnd;
+
+    @JsonProperty(FIELD_NAME_IS_GLOBAL)
     private final boolean isGlobal;
 
     public BatchExecSortLimit(
@@ -69,6 +95,25 @@ public class BatchExecSortLimit extends ExecNodeBase<RowData>
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
+        this.sortSpec = sortSpec;
+        this.limitStart = limitStart;
+        this.limitEnd = limitEnd;
+        this.isGlobal = isGlobal;
+    }
+
+    @JsonCreator
+    public BatchExecSortLimit(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
+            @JsonProperty(FIELD_NAME_SORT_SPEC) SortSpec sortSpec,
+            @JsonProperty(FIELD_NAME_LIMIT_START) long limitStart,
+            @JsonProperty(FIELD_NAME_LIMIT_END) long limitEnd,
+            @JsonProperty(FIELD_NAME_IS_GLOBAL) boolean isGlobal,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         this.sortSpec = sortSpec;
         this.limitStart = limitStart;
         this.limitEnd = limitEnd;
@@ -103,8 +148,7 @@ public class BatchExecSortLimit extends ExecNodeBase<RowData>
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                createTransformationName(config),
-                createTransformationDescription(config),
+                createTransformationMeta(SORT_LIMIT_TRANSFORMATION, config),
                 SimpleOperatorFactory.of(operator),
                 InternalTypeInfo.of(inputType),
                 inputTransform.getParallelism(),

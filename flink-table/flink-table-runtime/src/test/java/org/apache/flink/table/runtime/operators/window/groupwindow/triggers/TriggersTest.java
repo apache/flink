@@ -18,17 +18,17 @@
 
 package org.apache.flink.table.runtime.operators.window.groupwindow.triggers;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for triggers. */
-public class TriggersTest {
+class TriggersTest {
 
     @Test
-    public void testEventTime() {
+    void testEventTime() {
         Trigger<?> trigger;
         String expected;
 
@@ -83,7 +83,7 @@ public class TriggersTest {
     }
 
     @Test
-    public void testProcessingTime() {
+    void testProcessingTime() {
         Trigger<?> trigger;
         String expected;
 

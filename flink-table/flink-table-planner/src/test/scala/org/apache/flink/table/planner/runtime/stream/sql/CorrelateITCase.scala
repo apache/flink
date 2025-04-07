@@ -17,11 +17,12 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendSink, TestingAppendTableSink, TestSinkUtil}
+import org.apache.flink.table.connector.ChangelogMode
+import org.apache.flink.table.legacy.api.Types
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.UdfWithOpen
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.{NonDeterministicTableFunc, StringSplit}
 import org.apache.flink.table.planner.utils.{RF, TableFunc7}
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.{BeforeEach, Test}
 
 import java.lang.{Boolean => JBoolean}
 
+import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 class CorrelateITCase extends StreamingTestBase {
@@ -50,10 +52,14 @@ class CorrelateITCase extends StreamingTestBase {
 
     val data2 = List((1, "abc-bcd"), (1, "hhh"), (1, "xxx"))
 
-    val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data)
+      .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T1", t1)
 
-    val t2 = env.fromCollection(data2).toTable(tEnv, 'a, 'c)
+    val t2 = StreamingEnvUtil
+      .fromCollection(env, data2)
+      .toTable(tEnv, 'a, 'c)
     tEnv.createTemporaryView("T2", t2)
 
     val query1 = "SELECT a, v FROM T1, lateral table(STRING_SPLIT(c, '-')) as T(v)"
@@ -105,7 +111,9 @@ class CorrelateITCase extends StreamingTestBase {
   def testConstantTableFunc3(): Unit = {
     val data = List((1, 2, "abc-bcd"), (1, 2, "hhh"), (1, 2, "xxx"))
 
-    val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data)
+      .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T1", t1)
 
     tEnv.createTemporarySystemFunction("str_split", new StringSplit())
@@ -141,7 +149,9 @@ class CorrelateITCase extends StreamingTestBase {
   def testConstantNonDeterministicTableFunc2(): Unit = {
     val data = List((1, 2, "abc-bcd"), (1, 2, "hhh"), (1, 2, "xxx"))
 
-    val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data)
+      .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T1", t1)
 
     tEnv.createTemporarySystemFunction("str_split", new NonDeterministicTableFunc())
@@ -158,7 +168,9 @@ class CorrelateITCase extends StreamingTestBase {
   def testUdfIsOpenedAfterUdtf(): Unit = {
     val data = List((1, 2, "abc-bcd"), (1, 2, "hhh"), (1, 2, "xxx"))
 
-    val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data)
+      .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T1", t1)
 
     // UdfWithOpen checks open method is opened, and add a '$' prefix to the given string
@@ -185,7 +197,9 @@ class CorrelateITCase extends StreamingTestBase {
     data.+=(("1", "1,L", "A,B"))
     data.+=(("2", "2,L", "B,C"))
 
-    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t = StreamingEnvUtil
+      .fromCollection(env, data)
+      .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T1", t)
     tEnv.createTemporarySystemFunction("str_split", new StringSplit())
     val sink1 = new TestingAppendSink
@@ -221,7 +235,7 @@ class CorrelateITCase extends StreamingTestBase {
     )
 
     val rowType = Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT))
-    val in = env.fromElements(row, row)(rowType).toTable(tEnv, 'a, 'b, 'c)
+    val in = env.fromData(rowType, row, row).toTable(tEnv, 'a, 'b, 'c)
 
     val sink = new TestingAppendSink
 
@@ -242,7 +256,9 @@ class CorrelateITCase extends StreamingTestBase {
   def testReUsePerRecord(): Unit = {
     val data = List((1, 2, "3018-06-10|2018-06-03"), (1, 2, "2018-06-01"), (1, 2, "2018-06-02"))
 
-    val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data)
+      .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T1", t1)
 
     val query1 = "SELECT a, v FROM T1, lateral table(STRING_SPLIT(c, '|')) as T(v)"
@@ -266,146 +282,184 @@ class CorrelateITCase extends StreamingTestBase {
   def testLeftJoinWithEmptyOutput(): Unit = {
     val data = List((1, 2, ""), (1, 3, ""))
 
-    val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data)
+      .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T1", t1)
 
     val sql = "SELECT * FROM T1 left join lateral table(STRING_SPLIT(c, '|')) as T(v) on true"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    TestSinkUtil.addValuesSink(tEnv, "MySink", result, ChangelogMode.insertOnly())
     result.executeInsert("MySink").await()
 
-    val expected = List("1,2,,null", "1,3,,null")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    val expected = List("+I[1, 2, , null]", "+I[1, 3, , null]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
   @Test
   def testProjectCorrelateInput(): Unit = {
     val data = List((1, 2, "3018-06-10|2018-06-03"), (1, 2, "2018-06-01"), (1, 2, "2018-06-02"))
 
-    val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data)
+      .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T1", t1)
 
     val sql = "SELECT v FROM T1, lateral table(STRING_SPLIT(c, '|')) as T(v)"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    TestSinkUtil.addValuesSink(tEnv, "MySink", result, ChangelogMode.insertOnly())
     result.executeInsert("MySink").await()
 
-    val expected = List("3018-06-10", "2018-06-03", "2018-06-01", "2018-06-02")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    val expected = List("+I[3018-06-10]", "+I[2018-06-03]", "+I[2018-06-01]", "+I[2018-06-02]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
   @Test
   def testPartialProjectCorrelate(): Unit = {
     val data = List((1, 2, "3018-06-10|2018-06-03"), (1, 2, "2018-06-01"), (1, 2, "2018-06-02"))
 
-    val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data)
+      .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T1", t1)
 
     val sql = "SELECT a, v FROM T1, lateral table(STRING_SPLIT(c, '|')) as T(v)"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    TestSinkUtil.addValuesSink(tEnv, "MySink", result, ChangelogMode.insertOnly())
     result.executeInsert("MySink").await()
 
-    val expected = List("1,3018-06-10", "1,2018-06-03", "1,2018-06-01", "1,2018-06-02")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    val expected =
+      List("+I[1, 3018-06-10]", "+I[1, 2018-06-03]", "+I[1, 2018-06-01]", "+I[1, 2018-06-02]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
   @Test
   def testProjectCorrelateInputWithEmptyOutput(): Unit = {
     val data = List((1, 2, "a"), (1, 3, ""))
 
-    val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data)
+      .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T1", t1)
 
     val sql = "SELECT v FROM T1, lateral table(STRING_SPLIT(c, '|')) as T(v)"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    TestSinkUtil.addValuesSink(tEnv, "MySink", result, ChangelogMode.insertOnly())
     result.executeInsert("MySink").await()
 
-    val expected = List("a")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    val expected = List("+I[a]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
   @Test
   def testLeftJoinProjectCorrelateInputWithEmptyOutput(): Unit = {
     val data = List((1, 2, ""), (1, 3, ""))
 
-    val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data)
+      .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T1", t1)
 
     val sql = "SELECT v FROM T1 left join lateral table(STRING_SPLIT(c, '|')) as T(v) on true"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    TestSinkUtil.addValuesSink(tEnv, "MySink", result, ChangelogMode.insertOnly())
     result.executeInsert("MySink").await()
 
     // output two null
-    val expected = List("null", "null")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    val expected = List("+I[null]", "+I[null]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
   @Test
   def testPartialProjectWithEmptyOutput(): Unit = {
     val data = List((1, 2, "a"), (1, 3, ""))
 
-    val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data)
+      .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T1", t1)
 
     val sql = "SELECT a, v FROM T1, lateral table(STRING_SPLIT(c, '|')) as T(v)"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    TestSinkUtil.addValuesSink(tEnv, "MySink", result, ChangelogMode.insertOnly())
     result.executeInsert("MySink").await()
 
-    val expected = List("1,a")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    val expected = List("+I[1, a]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
   @Test
   def testLeftJoinPartialProjectWithEmptyOutput(): Unit = {
     val data = List((1, 2, ""), (1, 3, ""))
 
-    val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data)
+      .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T1", t1)
 
     val sql = "SELECT b, v FROM T1 left join lateral table(STRING_SPLIT(c, '|')) as T(v) on true"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    TestSinkUtil.addValuesSink(tEnv, "MySink", result, ChangelogMode.insertOnly())
     result.executeInsert("MySink").await()
 
-    val expected = List("2,null", "3,null")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    val expected = List("+I[2, null]", "+I[3, null]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
   @Test
   def testLateralCrossJoin(): Unit = {
     val data = List((1, 2, "x|y"))
 
-    val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data)
+      .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T1", t1)
 
     val sql =
       "SELECT * FROM T1 as t, LATERAL TABLE(STRING_SPLIT(t.c,'|')) CROSS JOIN (VALUES ('A'), ('B'));"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+
+    TestSinkUtil.addValuesSink(tEnv, "MySink", result, ChangelogMode.insertOnly())
     result.executeInsert("MySink").await()
 
-    val expected = List("1,2,x|y,x,A", "1,2,x|y,x,B", "1,2,x|y,y,A", "1,2,x|y,y,B")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    val expected = List(
+      "+I[1, 2, x|y, x, A]",
+      "+I[1, 2, x|y, x, B]",
+      "+I[1, 2, x|y, y, A]",
+      "+I[1, 2, x|y, y, B]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
   // TODO support agg

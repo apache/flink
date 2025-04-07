@@ -18,12 +18,12 @@
 
 package org.apache.flink.test.recovery.utils;
 
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
+import org.apache.flink.util.ParameterTool;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

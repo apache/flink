@@ -32,13 +32,11 @@ Flink 使用 `OVER` 窗口子句和过滤条件的组合来表达一个 Top-N �
 下面展示了 Top-N 的语法：
 
 ```sql
-SELECT [column_list]
-FROM (
-   SELECT [column_list],
-     ROW_NUMBER() OVER ([PARTITION BY col1[, col2...]]
-       ORDER BY col1 [asc|desc][, col2 [asc|desc]...]) AS rownum
-   FROM table_name)
-WHERE rownum <= N [AND conditions]
+SELECT [column_list],
+    ROW_NUMBER() OVER ([PARTITION BY col1[, col2...]] ORDER BY time_attr [asc|desc]) AS rownum
+FROM table_name
+QUALIFY rownum <= N
+[WHERE conditions]
 ```
 
 **参数说明：**

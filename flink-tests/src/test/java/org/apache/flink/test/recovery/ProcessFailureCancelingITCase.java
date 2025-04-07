@@ -19,15 +19,13 @@
 package org.apache.flink.test.recovery;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
@@ -53,6 +51,8 @@ import org.apache.flink.runtime.util.BlobServerExtension;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.impl.VoidMetricQueryServiceRetriever;
 import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.test.recovery.utils.TaskExecutorProcessEntryPoint;
 import org.apache.flink.test.util.TestProcessBuilder;
 import org.apache.flink.test.util.TestProcessBuilder.TestProcess;
@@ -176,13 +176,17 @@ class ProcessFailureCancelingITCase {
                         @Override
                         public void run() {
                             try {
-                                ExecutionEnvironment env =
-                                        ExecutionEnvironment.createRemoteEnvironment(
+                                StreamExecutionEnvironment env =
+                                        StreamExecutionEnvironment.createRemoteEnvironment(
                                                 "localhost", 1337, config);
                                 env.setParallelism(2);
-                                env.setRestartStrategy(RestartStrategies.noRestart());
+                                Configuration configuration = new Configuration();
+                                configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+                                env.configure(
+                                        configuration,
+                                        Thread.currentThread().getContextClassLoader());
 
-                                env.generateSequence(0, Long.MAX_VALUE)
+                                env.fromSequence(0, Long.MAX_VALUE)
                                         .map(
                                                 new MapFunction<Long, Long>() {
 
@@ -196,7 +200,7 @@ class ProcessFailureCancelingITCase {
                                                         return 0L;
                                                     }
                                                 })
-                                        .output(new DiscardingOutputFormat<>());
+                                        .sinkTo(new DiscardingSink<>());
 
                                 env.execute();
                             } catch (Throwable t) {

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -80,7 +79,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Tests for the {@link JobMasterServiceLeadershipRunner}. */
 class JobMasterServiceLeadershipRunnerTest {
 
-    private static final Time TESTING_TIMEOUT = Time.seconds(10);
+    private static final Duration TESTING_TIMEOUT = Duration.ofSeconds(10);
 
     private static JobGraph jobGraph;
 

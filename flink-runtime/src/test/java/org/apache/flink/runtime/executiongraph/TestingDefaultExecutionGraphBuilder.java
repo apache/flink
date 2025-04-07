@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.runtime.JobException;
@@ -42,12 +41,15 @@ import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
+import org.apache.flink.runtime.scheduler.adaptivebatch.ExecutionPlanSchedulingContext;
+import org.apache.flink.runtime.scheduler.adaptivebatch.NonAdaptiveExecutionPlanSchedulingContext;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
@@ -62,7 +64,7 @@ public class TestingDefaultExecutionGraphBuilder {
         return new TestingDefaultExecutionGraphBuilder();
     }
 
-    private Time rpcTimeout = Time.fromDuration(RpcOptions.ASK_TIMEOUT_DURATION.defaultValue());
+    private Duration rpcTimeout = RpcOptions.ASK_TIMEOUT_DURATION.defaultValue();
     private ClassLoader userClassLoader = DefaultExecutionGraph.class.getClassLoader();
     private BlobWriter blobWriter = VoidBlobWriter.getInstance();
     private ShuffleMaster<?> shuffleMaster = ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER;
@@ -86,6 +88,8 @@ public class TestingDefaultExecutionGraphBuilder {
             checkpointStatsTrackerFactory = metricGroup -> NoOpCheckpointStatsTracker.INSTANCE;
 
     private boolean nonFinishedHybridPartitionShouldBeUnknown = false;
+    private ExecutionPlanSchedulingContext executionPlanSchedulingContext =
+            NonAdaptiveExecutionPlanSchedulingContext.INSTANCE;
 
     private TestingDefaultExecutionGraphBuilder() {}
 
@@ -99,7 +103,7 @@ public class TestingDefaultExecutionGraphBuilder {
         return this;
     }
 
-    public TestingDefaultExecutionGraphBuilder setRpcTimeout(Time rpcTimeout) {
+    public TestingDefaultExecutionGraphBuilder setRpcTimeout(Duration rpcTimeout) {
         this.rpcTimeout = rpcTimeout;
         return this;
     }
@@ -180,6 +184,12 @@ public class TestingDefaultExecutionGraphBuilder {
         return this;
     }
 
+    public TestingDefaultExecutionGraphBuilder setExecutionPlanSchedulingContext(
+            ExecutionPlanSchedulingContext executionPlanSchedulingContext) {
+        this.executionPlanSchedulingContext = executionPlanSchedulingContext;
+        return this;
+    }
+
     private DefaultExecutionGraph build(
             boolean isDynamicGraph, ScheduledExecutorService executorService)
             throws JobException, JobExecutionException {
@@ -212,7 +222,8 @@ public class TestingDefaultExecutionGraphBuilder {
                 executionJobVertexFactory,
                 markPartitionFinishedStrategy,
                 nonFinishedHybridPartitionShouldBeUnknown,
-                metricGroup);
+                metricGroup,
+                executionPlanSchedulingContext);
     }
 
     public DefaultExecutionGraph build(ScheduledExecutorService executorService)

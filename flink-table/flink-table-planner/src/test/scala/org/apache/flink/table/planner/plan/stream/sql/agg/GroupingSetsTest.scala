@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql.agg
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
@@ -496,6 +495,25 @@ class GroupingSetsTest extends TableTestBase {
 
     verifyPlanIdentical(rollupQuery, groupingSetsQuery)
     util.verifyExecPlan(rollupQuery)
+  }
+
+  @Test
+  def testCaseWhenRefGroupingSetsNullableCols(): Unit = {
+    // https://issues.apache.org/jira/browse/CALCITE-6317
+    val groupingSetsQuery =
+      """
+        |SELECT
+        |    case
+        |     when g1 = 1 then 'aaa'
+        |     when g2 = 1 then 'bbb'
+        |    end as gt,
+        |    b, c,
+        |    AVG(a) AS a
+        |FROM (select *, 1 g1, 1 g2 from MyTable) t
+        |    GROUP BY GROUPING SETS ((g1, b), (g2, b, c))
+      """.stripMargin
+
+    util.verifyExecPlan(groupingSetsQuery)
   }
 
   def verifyPlanIdentical(sql1: String, sql2: String): Unit = {

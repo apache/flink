@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
@@ -40,10 +39,12 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTrackerDeploymentListenerAdapter;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.scheduler.adaptivebatch.ExecutionPlanSchedulingContext;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 
 import org.slf4j.Logger;
 
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
@@ -58,7 +59,7 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
     private final ExecutionDeploymentTracker executionDeploymentTracker;
     private final ScheduledExecutorService futureExecutor;
     private final Executor ioExecutor;
-    private final Time rpcTimeout;
+    private final Duration rpcTimeout;
     private final JobManagerJobMetricGroup jobManagerJobMetricGroup;
     private final BlobWriter blobWriter;
     private final ShuffleMaster<?> shuffleMaster;
@@ -74,7 +75,7 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
             ExecutionDeploymentTracker executionDeploymentTracker,
             ScheduledExecutorService futureExecutor,
             Executor ioExecutor,
-            Time rpcTimeout,
+            Duration rpcTimeout,
             JobManagerJobMetricGroup jobManagerJobMetricGroup,
             BlobWriter blobWriter,
             ShuffleMaster<?> shuffleMaster,
@@ -101,7 +102,7 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
             ExecutionDeploymentTracker executionDeploymentTracker,
             ScheduledExecutorService futureExecutor,
             Executor ioExecutor,
-            Time rpcTimeout,
+            Duration rpcTimeout,
             JobManagerJobMetricGroup jobManagerJobMetricGroup,
             BlobWriter blobWriter,
             ShuffleMaster<?> shuffleMaster,
@@ -137,6 +138,7 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
             VertexParallelismStore vertexParallelismStore,
             ExecutionStateUpdateListener executionStateUpdateListener,
             MarkPartitionFinishedStrategy markPartitionFinishedStrategy,
+            ExecutionPlanSchedulingContext executionPlanSchedulingContext,
             Logger log)
             throws Exception {
         ExecutionDeploymentListener executionDeploymentListener =
@@ -175,7 +177,8 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
                         executionJobVertexFactory,
                         markPartitionFinishedStrategy,
                         nonFinishedHybridPartitionShouldBeUnknown,
-                        jobManagerJobMetricGroup);
+                        jobManagerJobMetricGroup,
+                        executionPlanSchedulingContext);
 
         final CheckpointCoordinator checkpointCoordinator =
                 newExecutionGraph.getCheckpointCoordinator();

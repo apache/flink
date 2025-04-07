@@ -75,160 +75,8 @@ public final class DelegatingConfiguration extends Configuration {
     }
 
     @Override
-    public String getString(ConfigOption<String> configOption) {
-        return this.backingConfig.get(prefixOption(configOption, prefix));
-    }
-
-    @Override
-    public String getString(ConfigOption<String> configOption, String overrideDefault) {
-        return this.backingConfig.get(prefixOption(configOption, prefix), overrideDefault);
-    }
-
-    @Override
     public void setString(String key, String value) {
         this.backingConfig.setString(this.prefix + key, value);
-    }
-
-    @Override
-    public void setString(ConfigOption<String> key, String value) {
-        this.backingConfig.set(prefixOption(key, prefix), value);
-    }
-
-    @Override
-    public <T> Class<T> getClass(
-            String key, Class<? extends T> defaultValue, ClassLoader classLoader)
-            throws ClassNotFoundException {
-        return this.backingConfig.getClass(this.prefix + key, defaultValue, classLoader);
-    }
-
-    @Override
-    public void setClass(String key, Class<?> klazz) {
-        this.backingConfig.setClass(this.prefix + key, klazz);
-    }
-
-    @Override
-    public int getInteger(String key, int defaultValue) {
-        return this.backingConfig.getInteger(this.prefix + key, defaultValue);
-    }
-
-    @Override
-    public int getInteger(ConfigOption<Integer> configOption) {
-        return this.backingConfig.get(prefixOption(configOption, prefix));
-    }
-
-    @Override
-    public int getInteger(ConfigOption<Integer> configOption, int overrideDefault) {
-        return this.backingConfig.get(prefixOption(configOption, prefix), overrideDefault);
-    }
-
-    @Override
-    public void setInteger(String key, int value) {
-        this.backingConfig.setInteger(this.prefix + key, value);
-    }
-
-    @Override
-    public void setInteger(ConfigOption<Integer> key, int value) {
-        this.backingConfig.set(prefixOption(key, prefix), value);
-    }
-
-    @Override
-    public long getLong(String key, long defaultValue) {
-        return this.backingConfig.getLong(this.prefix + key, defaultValue);
-    }
-
-    @Override
-    public long getLong(ConfigOption<Long> configOption) {
-        return this.backingConfig.get(prefixOption(configOption, prefix));
-    }
-
-    @Override
-    public long getLong(ConfigOption<Long> configOption, long overrideDefault) {
-        return this.backingConfig.get(prefixOption(configOption, prefix), overrideDefault);
-    }
-
-    @Override
-    public void setLong(String key, long value) {
-        this.backingConfig.setLong(this.prefix + key, value);
-    }
-
-    @Override
-    public void setLong(ConfigOption<Long> key, long value) {
-        this.backingConfig.set(prefixOption(key, prefix), value);
-    }
-
-    @Override
-    public boolean getBoolean(String key, boolean defaultValue) {
-        return this.backingConfig.getBoolean(this.prefix + key, defaultValue);
-    }
-
-    @Override
-    public boolean getBoolean(ConfigOption<Boolean> configOption) {
-        return this.backingConfig.get(prefixOption(configOption, prefix));
-    }
-
-    @Override
-    public void setBoolean(String key, boolean value) {
-        this.backingConfig.setBoolean(this.prefix + key, value);
-    }
-
-    @Override
-    public void setBoolean(ConfigOption<Boolean> key, boolean value) {
-        this.backingConfig.set(prefixOption(key, prefix), value);
-    }
-
-    @Override
-    public boolean getBoolean(ConfigOption<Boolean> configOption, boolean overrideDefault) {
-        return this.backingConfig.get(prefixOption(configOption, prefix), overrideDefault);
-    }
-
-    @Override
-    public float getFloat(String key, float defaultValue) {
-        return this.backingConfig.getFloat(this.prefix + key, defaultValue);
-    }
-
-    @Override
-    public float getFloat(ConfigOption<Float> configOption) {
-        return this.backingConfig.get(prefixOption(configOption, prefix));
-    }
-
-    @Override
-    public float getFloat(ConfigOption<Float> configOption, float overrideDefault) {
-        return this.backingConfig.get(prefixOption(configOption, prefix), overrideDefault);
-    }
-
-    @Override
-    public void setFloat(String key, float value) {
-        this.backingConfig.setFloat(this.prefix + key, value);
-    }
-
-    @Override
-    public void setFloat(ConfigOption<Float> key, float value) {
-        this.backingConfig.set(prefixOption(key, prefix), value);
-    }
-
-    @Override
-    public double getDouble(String key, double defaultValue) {
-        return this.backingConfig.getDouble(this.prefix + key, defaultValue);
-    }
-
-    @Override
-    public double getDouble(ConfigOption<Double> configOption) {
-        return this.backingConfig.get(prefixOption(configOption, prefix));
-    }
-
-    @Override
-    public double getDouble(ConfigOption<Double> configOption, double overrideDefault) {
-        return this.backingConfig.get(prefixOption(configOption, prefix), overrideDefault);
-    }
-
-    @Override
-    public void setDouble(String key, double value) {
-        this.backingConfig.setDouble(this.prefix + key, value);
-    }
-
-    @Override
-    public void setDouble(ConfigOption<Double> key, double value) {
-        this.backingConfig.set(prefixOption(key, prefix), value);
     }
 
     @Override
@@ -322,19 +170,15 @@ public final class DelegatingConfiguration extends Configuration {
 
     @Override
     public Map<String, String> toFileWritableMap() {
-        if (backingConfig.standardYaml) {
-            Map<String, String> map = backingConfig.toFileWritableMap();
-            Map<String, String> prefixed = new HashMap<>();
-            for (Map.Entry<String, String> entry : map.entrySet()) {
-                if (entry.getKey().startsWith(prefix)) {
-                    String keyWithoutPrefix = entry.getKey().substring(prefix.length());
-                    prefixed.put(keyWithoutPrefix, YamlParserUtils.toYAMLString(entry.getValue()));
-                }
+        Map<String, String> map = backingConfig.toFileWritableMap();
+        Map<String, String> prefixed = new HashMap<>();
+        for (Map.Entry<String, String> entry : map.entrySet()) {
+            if (entry.getKey().startsWith(prefix)) {
+                String keyWithoutPrefix = entry.getKey().substring(prefix.length());
+                prefixed.put(keyWithoutPrefix, YamlParserUtils.toYAMLString(entry.getValue()));
             }
-            return prefixed;
-        } else {
-            return toMap();
         }
+        return prefixed;
     }
 
     @Override

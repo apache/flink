@@ -17,8 +17,7 @@
  */
 package org.apache.flink.table.planner.runtime.batch.sql.agg
 
-import org.apache.flink.api.scala._
-import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.api.{DataTypes, _}
 import org.apache.flink.table.api.config.{AggregatePhaseStrategy, ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row

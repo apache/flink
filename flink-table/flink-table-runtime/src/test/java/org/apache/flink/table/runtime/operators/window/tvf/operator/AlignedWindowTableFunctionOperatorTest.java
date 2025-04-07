@@ -26,11 +26,12 @@ import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.Cum
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.GroupWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.SlidingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.TumblingWindowAssigner;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.RowKind;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.time.ZoneId;
@@ -42,20 +43,20 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link AlignedWindowTableFunctionOperator}. */
-@RunWith(Parameterized.class)
-public class AlignedWindowTableFunctionOperatorTest extends WindowTableFunctionOperatorTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class AlignedWindowTableFunctionOperatorTest extends WindowTableFunctionOperatorTestBase {
 
-    public AlignedWindowTableFunctionOperatorTest(ZoneId shiftTimeZone) {
+    AlignedWindowTableFunctionOperatorTest(ZoneId shiftTimeZone) {
         super(shiftTimeZone);
     }
 
-    @Parameterized.Parameters(name = "TimeZone = {0}")
-    public static Collection<Object[]> runMode() {
+    @Parameters(name = "TimeZone = {0}")
+    private static Collection<Object[]> runMode() {
         return Arrays.asList(new Object[] {UTC_ZONE_ID}, new Object[] {SHANGHAI_ZONE_ID});
     }
 
-    @Test
-    public void testTumblingWindows() throws Exception {
+    @TestTemplate
+    void testTumblingWindows() throws Exception {
         final TumblingWindowAssigner assigner = TumblingWindowAssigner.of(Duration.ofSeconds(3));
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createTestHarness(assigner, shiftTimeZone);
@@ -92,8 +93,8 @@ public class AlignedWindowTableFunctionOperatorTest extends WindowTableFunctionO
         testHarness.close();
     }
 
-    @Test
-    public void testProcessingTimeTumblingWindows() throws Exception {
+    @TestTemplate
+    void testProcessingTimeTumblingWindows() throws Exception {
         final TumblingWindowAssigner assigner =
                 TumblingWindowAssigner.of(Duration.ofSeconds(3)).withProcessingTime();
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
@@ -119,8 +120,8 @@ public class AlignedWindowTableFunctionOperatorTest extends WindowTableFunctionO
         testHarness.close();
     }
 
-    @Test
-    public void testHopWindows() throws Exception {
+    @TestTemplate
+    void testHopWindows() throws Exception {
         final SlidingWindowAssigner assigner =
                 SlidingWindowAssigner.of(Duration.ofSeconds(3), Duration.ofSeconds(1));
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
@@ -161,8 +162,8 @@ public class AlignedWindowTableFunctionOperatorTest extends WindowTableFunctionO
         testHarness.close();
     }
 
-    @Test
-    public void testProcessingTimeHopWindows() throws Exception {
+    @TestTemplate
+    void testProcessingTimeHopWindows() throws Exception {
         final SlidingWindowAssigner assigner =
                 SlidingWindowAssigner.of(Duration.ofSeconds(3), Duration.ofSeconds(1))
                         .withProcessingTime();
@@ -201,8 +202,8 @@ public class AlignedWindowTableFunctionOperatorTest extends WindowTableFunctionO
         testHarness.close();
     }
 
-    @Test
-    public void testCumulativeWindows() throws Exception {
+    @TestTemplate
+    void testCumulativeWindows() throws Exception {
         final CumulativeWindowAssigner assigner =
                 CumulativeWindowAssigner.of(Duration.ofSeconds(3), Duration.ofSeconds(1));
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
@@ -239,8 +240,8 @@ public class AlignedWindowTableFunctionOperatorTest extends WindowTableFunctionO
         testHarness.close();
     }
 
-    @Test
-    public void testProcessingCumulativeWindows() throws Exception {
+    @TestTemplate
+    void testProcessingCumulativeWindows() throws Exception {
         final CumulativeWindowAssigner assigner =
                 CumulativeWindowAssigner.of(Duration.ofSeconds(3), Duration.ofSeconds(1))
                         .withProcessingTime();
@@ -277,8 +278,8 @@ public class AlignedWindowTableFunctionOperatorTest extends WindowTableFunctionO
         testHarness.close();
     }
 
-    @Test
-    public void testConsumingChangelogRecords() throws Exception {
+    @TestTemplate
+    void testConsumingChangelogRecords() throws Exception {
         final TumblingWindowAssigner assigner = TumblingWindowAssigner.of(Duration.ofSeconds(3));
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createTestHarness(assigner, shiftTimeZone);

@@ -63,9 +63,10 @@ public class SavepointOutputFormat extends RichOutputFormat<CheckpointMetadata> 
     public void configure(Configuration parameters) {}
 
     @Override
-    public void open(int taskNumber, int numTasks) throws IOException {
+    public void open(InitializationContext context) throws IOException {
         Preconditions.checkState(
-                numTasks == 1, "SavepointOutputFormat should only be executed with parallelism 1");
+                context.getNumTasks() == 1,
+                "SavepointOutputFormat should only be executed with parallelism 1");
 
         targetLocation = createSavepointLocation(savepointPath);
     }

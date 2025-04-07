@@ -29,9 +29,9 @@ public class MockStateExecutor implements StateExecutor {
     public CompletableFuture<Void> executeBatchRequests(
             StateRequestContainer stateRequestContainer) {
         Preconditions.checkArgument(stateRequestContainer instanceof MockStateRequestContainer);
-        for (StateRequest<?, ?, ?> request :
+        for (StateRequest<?, ?, ?, ?> request :
                 ((MockStateRequestContainer) stateRequestContainer).getStateRequestList()) {
-            request.getFuture().complete(null);
+            executeRequestSync(request);
         }
         return CompletableFuture.completedFuture(null);
     }
@@ -39,6 +39,16 @@ public class MockStateExecutor implements StateExecutor {
     @Override
     public StateRequestContainer createStateRequestContainer() {
         return new MockStateRequestContainer();
+    }
+
+    @Override
+    public void executeRequestSync(StateRequest<?, ?, ?, ?> stateRequest) {
+        stateRequest.getFuture().complete(null);
+    }
+
+    @Override
+    public boolean fullyLoaded() {
+        return false;
     }
 
     @Override

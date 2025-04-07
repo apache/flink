@@ -45,11 +45,6 @@ side output stream:
 OutputTag<String> outputTag = new OutputTag<String>("side-output") {};
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val outputTag = OutputTag[String]("side-output")
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 output_tag = OutputTag("side-output", Types.STRING())
@@ -99,27 +94,6 @@ SingleOutputStreamOperator<Integer> mainDataStream = input
 ```
 
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-val input: DataStream[Int] = ...
-val outputTag = OutputTag[String]("side-output")
-
-val mainDataStream = input
-  .process(new ProcessFunction[Int, Int] {
-    override def processElement(
-        value: Int,
-        ctx: ProcessFunction[Int, Int]#Context,
-        out: Collector[Int]): Unit = {
-      // emit data to regular output
-      out.collect(value)
-
-      // emit data to side output
-      ctx.output(outputTag, "sideout-" + String.valueOf(value))
-    }
-  })
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 input = ...  # type: DataStream
@@ -156,15 +130,6 @@ SingleOutputStreamOperator<Integer> mainDataStream = ...;
 DataStream<String> sideOutputStream = mainDataStream.getSideOutput(outputTag);
 ```
 
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val outputTag = OutputTag[String]("side-output")
-
-val mainDataStream = ...
-
-val sideOutputStream: DataStream[String] = mainDataStream.getSideOutput(outputTag)
-```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python

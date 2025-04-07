@@ -18,8 +18,8 @@
 
 package org.apache.flink.state.forst;
 
-import org.rocksdb.Cache;
-import org.rocksdb.WriteBufferManager;
+import org.forstdb.Cache;
+import org.forstdb.WriteBufferManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

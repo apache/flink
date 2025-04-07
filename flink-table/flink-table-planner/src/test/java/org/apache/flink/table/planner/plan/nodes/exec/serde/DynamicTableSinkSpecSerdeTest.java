@@ -88,11 +88,10 @@ class DynamicTableSinkSpecSerdeTest {
                         Collections.emptyList(),
                         null);
         final CatalogTable catalogTable1 =
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(resolvedSchema1).build(),
-                        null,
-                        Collections.emptyList(),
-                        options1);
+                CatalogTable.newBuilder()
+                        .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema1).build())
+                        .options(options1)
+                        .build();
 
         DynamicTableSinkSpec spec1 =
                 new DynamicTableSinkSpec(
@@ -119,11 +118,10 @@ class DynamicTableSinkSpecSerdeTest {
                         Collections.emptyList(),
                         null);
         final CatalogTable catalogTable2 =
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(resolvedSchema2).build(),
-                        null,
-                        Collections.emptyList(),
-                        options2);
+                CatalogTable.newBuilder()
+                        .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema2).build())
+                        .options(options2)
+                        .build();
 
         DynamicTableSinkSpec spec2 =
                 new DynamicTableSinkSpec(
@@ -156,11 +154,10 @@ class DynamicTableSinkSpecSerdeTest {
                         Collections.emptyList(),
                         null);
         final CatalogTable catalogTable3 =
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(resolvedSchema3).build(),
-                        null,
-                        Collections.emptyList(),
-                        options3);
+                CatalogTable.newBuilder()
+                        .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema3).build())
+                        .options(options3)
+                        .build();
 
         DynamicTableSinkSpec spec3 =
                 new DynamicTableSinkSpec(

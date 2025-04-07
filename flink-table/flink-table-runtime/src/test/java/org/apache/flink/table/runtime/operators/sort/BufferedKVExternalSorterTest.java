@@ -32,14 +32,15 @@ import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.MutableObjectIterator;
 
 import org.apache.commons.lang3.RandomStringUtils;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -50,8 +51,8 @@ import java.util.Random;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** UT for BufferedKVExternalSorter. */
-@RunWith(Parameterized.class)
-public class BufferedKVExternalSorterTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class BufferedKVExternalSorterTest {
     private static final int PAGE_SIZE = MemoryManager.DEFAULT_PAGE_SIZE;
 
     private IOManager ioManager;
@@ -65,8 +66,7 @@ public class BufferedKVExternalSorterTest {
 
     private Configuration conf;
 
-    public BufferedKVExternalSorterTest(
-            int spillNumber, int recordNumberPerFile, boolean spillCompress) {
+    BufferedKVExternalSorterTest(int spillNumber, int recordNumberPerFile, boolean spillCompress) {
         ioManager = new IOManagerAsync();
         conf = new Configuration();
         conf.set(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES, 5);
@@ -77,8 +77,8 @@ public class BufferedKVExternalSorterTest {
         this.recordNumberPerFile = recordNumberPerFile;
     }
 
-    @Parameterized.Parameters
-    public static List<Object[]> getDataSize() {
+    @Parameters(name = "spillNumber-{0} recordNumberPerFile-{1} spillCompress-{2}")
+    private static List<Object[]> getDataSize() {
         List<Object[]> paras = new ArrayList<>();
         paras.add(new Object[] {3, 1000, true});
         paras.add(new Object[] {3, 1000, false});
@@ -89,8 +89,8 @@ public class BufferedKVExternalSorterTest {
         return paras;
     }
 
-    @Before
-    public void beforeTest() throws InstantiationException, IllegalAccessException {
+    @BeforeEach
+    void beforeTest() throws InstantiationException, IllegalAccessException {
         this.ioManager = new IOManagerAsync();
 
         this.keySerializer = new BinaryRowDataSerializer(2);
@@ -100,13 +100,13 @@ public class BufferedKVExternalSorterTest {
         this.comparator = IntRecordComparator.INSTANCE;
     }
 
-    @After
-    public void afterTest() throws Exception {
+    @AfterEach
+    void afterTest() throws Exception {
         this.ioManager.close();
     }
 
-    @Test
-    public void test() throws Exception {
+    @TestTemplate
+    void test() throws Exception {
         BufferedKVExternalSorter sorter =
                 new BufferedKVExternalSorter(
                         ioManager,

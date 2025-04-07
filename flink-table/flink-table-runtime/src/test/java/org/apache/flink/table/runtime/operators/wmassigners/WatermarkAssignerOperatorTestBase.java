@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Base class for watermark assigner operator test. */
-public abstract class WatermarkAssignerOperatorTestBase {
+abstract class WatermarkAssignerOperatorTestBase {
 
     protected Tuple2<Long, Long> validateElement(
             Object element, long nextElementValue, long currentWatermark) {

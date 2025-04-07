@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -37,6 +36,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
@@ -59,7 +59,7 @@ class JarUploadHandlerTest {
         jarUploadHandler =
                 new JarUploadHandler(
                         () -> CompletableFuture.completedFuture(mockDispatcherGateway),
-                        Time.seconds(10),
+                        Duration.ofSeconds(10),
                         Collections.emptyMap(),
                         JarUploadHeaders.getInstance(),
                         jarDir,

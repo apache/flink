@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rpc;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
@@ -29,6 +28,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -42,7 +42,7 @@ import static org.assertj.core.api.Fail.fail;
 /** Tests for the FencedRpcEndpoint. */
 class FencedRpcEndpointTest {
 
-    private static final Time timeout = Time.seconds(10L);
+    private static final Duration timeout = Duration.ofSeconds(10L);
     private static RpcService rpcService;
 
     @BeforeAll
@@ -75,25 +75,23 @@ class FencedRpcEndpointTest {
                                     fencedTestingEndpoint.getAddress(),
                                     fencingToken,
                                     FencedTestingGateway.class)
-                            .get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+                            .get(timeout.toMillis(), TimeUnit.MILLISECONDS);
             final FencedTestingGateway wronglyFencedGateway =
                     rpcService
                             .connect(
                                     fencedTestingEndpoint.getAddress(),
                                     wrongFencingToken,
                                     FencedTestingGateway.class)
-                            .get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+                            .get(timeout.toMillis(), TimeUnit.MILLISECONDS);
 
             assertThat(
                             properFencedGateway
                                     .foobar(timeout)
-                                    .get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS))
+                                    .get(timeout.toMillis(), TimeUnit.MILLISECONDS))
                     .isEqualTo(value);
 
             try {
-                wronglyFencedGateway
-                        .foobar(timeout)
-                        .get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+                wronglyFencedGateway.foobar(timeout).get(timeout.toMillis(), TimeUnit.MILLISECONDS);
                 fail("This should fail since we have the wrong fencing token.");
             } catch (ExecutionException e) {
                 assertThat(ExceptionUtils.stripExecutionException(e))
@@ -124,12 +122,10 @@ class FencedRpcEndpointTest {
             FencedTestingGateway unfencedGateway =
                     rpcService
                             .connect(fencedTestingEndpoint.getAddress(), FencedTestingGateway.class)
-                            .get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+                            .get(timeout.toMillis(), TimeUnit.MILLISECONDS);
 
             try {
-                unfencedGateway
-                        .foobar(timeout)
-                        .get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+                unfencedGateway.foobar(timeout).get(timeout.toMillis(), TimeUnit.MILLISECONDS);
                 fail("This should have failed because we have an unfenced gateway.");
             } catch (ExecutionException e) {
                 assertThat(ExceptionUtils.stripExecutionException(e))
@@ -148,9 +144,9 @@ class FencedRpcEndpointTest {
     }
 
     public interface FencedTestingGateway extends FencedRpcGateway<UUID> {
-        CompletableFuture<String> foobar(@RpcTimeout Time timeout);
+        CompletableFuture<String> foobar(@RpcTimeout Duration timeout);
 
-        CompletableFuture<Acknowledge> triggerComputationLatch(@RpcTimeout Time timeout);
+        CompletableFuture<Acknowledge> triggerComputationLatch(@RpcTimeout Duration timeout);
     }
 
     private static class FencedTestingEndpoint extends FencedRpcEndpoint<UUID>
@@ -170,12 +166,12 @@ class FencedRpcEndpointTest {
         }
 
         @Override
-        public CompletableFuture<String> foobar(Time timeout) {
+        public CompletableFuture<String> foobar(Duration timeout) {
             return CompletableFuture.completedFuture(value);
         }
 
         @Override
-        public CompletableFuture<Acknowledge> triggerComputationLatch(Time timeout) {
+        public CompletableFuture<Acknowledge> triggerComputationLatch(Duration timeout) {
             computationLatch.trigger();
 
             return CompletableFuture.completedFuture(Acknowledge.get());

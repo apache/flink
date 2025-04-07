@@ -51,7 +51,7 @@ class DynamicFilteringDataCollectorOperatorTest {
         MockOperatorEventGateway gateway = new MockOperatorEventGateway();
 
         DynamicFilteringDataCollectorOperator operator =
-                new DynamicFilteringDataCollectorOperator(rowType, indexes, -1, gateway);
+                new DynamicFilteringDataCollectorOperator(null, rowType, indexes, -1, gateway);
         ConcurrentLinkedQueue<Object> output;
         try (OneInputStreamOperatorTestHarness<RowData, Object> harness =
                 new OneInputStreamOperatorTestHarness<>(operator)) {
@@ -91,7 +91,8 @@ class DynamicFilteringDataCollectorOperatorTest {
         int thresholds = 100;
 
         DynamicFilteringDataCollectorOperator operator =
-                new DynamicFilteringDataCollectorOperator(rowType, indexes, thresholds, gateway);
+                new DynamicFilteringDataCollectorOperator(
+                        null, rowType, indexes, thresholds, gateway);
         try (OneInputStreamOperatorTestHarness<RowData, Object> harness =
                 new OneInputStreamOperatorTestHarness<>(operator)) {
             harness.setup();

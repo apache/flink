@@ -18,7 +18,6 @@
 
 package org.apache.flink.client.program;
 
-import org.apache.flink.api.java.DataSet;
 import org.apache.flink.streaming.api.datastream.DataStream;
 
 import org.junit.jupiter.api.Test;
@@ -33,7 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests {@link PackagedProgramUtils}.
  *
  * <p>See also {@link PackagedProgramUtilsPipelineTest} for tests that need to test behaviour of
- * {@link DataStream} and {@link DataSet} programs.
+ * {@link DataStream} programs.
  */
 class PackagedProgramUtilsTest {
 

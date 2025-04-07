@@ -6,6 +6,6 @@ The Apache Software Foundation (http://www.apache.org/).
 
 The following dependencies all share the same BSD license which you find under licenses/LICENSE.scala.
 
-- org.scala-lang:scala-compiler:2.12.7
-- org.scala-lang:scala-library:2.12.7
-- org.scala-lang:scala-reflect:2.12.7
+- org.scala-lang:scala-compiler:2.12.20
+- org.scala-lang:scala-library:2.12.20
+- org.scala-lang:scala-reflect:2.12.20

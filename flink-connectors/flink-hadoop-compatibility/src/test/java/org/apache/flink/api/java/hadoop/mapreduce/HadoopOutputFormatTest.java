@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.java.hadoop.mapreduce;
 
+import org.apache.flink.api.common.io.FinalizeOnMaster;
+import org.apache.flink.api.common.io.FirstAttemptInitializationContext;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 import org.apache.hadoop.conf.Configurable;
@@ -80,7 +82,7 @@ class HadoopOutputFormatTest {
                         setupOutputCommitter(true),
                         new Configuration());
 
-        hadoopOutputFormat.open(1, 4);
+        hadoopOutputFormat.open(FirstAttemptInitializationContext.of(1, 4));
 
         verify(hadoopOutputFormat.outputCommitter, times(1)).setupJob(any(JobContext.class));
         verify(hadoopOutputFormat.mapreduceOutputFormat, times(1))
@@ -152,7 +154,18 @@ class HadoopOutputFormatTest {
                         null,
                         new Configuration());
 
-        hadoopOutputFormat.finalizeGlobal(1);
+        hadoopOutputFormat.finalizeGlobal(
+                new FinalizeOnMaster.FinalizationContext() {
+                    @Override
+                    public int getParallelism() {
+                        return 1;
+                    }
+
+                    @Override
+                    public int getFinishedAttempt(int subtaskIndex) {
+                        return 0;
+                    }
+                });
 
         verify(hadoopOutputFormat.outputCommitter, times(1)).commitJob(any(JobContext.class));
     }

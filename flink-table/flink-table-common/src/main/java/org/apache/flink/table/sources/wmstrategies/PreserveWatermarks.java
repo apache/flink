@@ -19,7 +19,7 @@
 package org.apache.flink.table.sources.wmstrategies;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.descriptors.Rowtime;
+import org.apache.flink.table.legacy.descriptors.Rowtime;
 
 import java.util.HashMap;
 import java.util.Map;

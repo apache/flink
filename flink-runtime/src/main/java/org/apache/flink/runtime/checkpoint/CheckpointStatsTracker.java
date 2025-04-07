@@ -27,8 +27,6 @@ import javax.annotation.Nullable;
 import java.util.Map;
 import java.util.Set;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * Tracker for checkpoint statistics.
  *
@@ -46,21 +44,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * frontend and the {@link Metric} system.
  */
 public interface CheckpointStatsTracker {
-
-    /**
-     * Callback when a checkpoint is restored.
-     *
-     * @param restored The restored checkpoint stats.
-     */
-    @Deprecated
-    default void reportRestoredCheckpoint(RestoredCheckpointStats restored) {
-        checkNotNull(restored, "Restored checkpoint");
-        reportRestoredCheckpoint(
-                restored.getCheckpointId(),
-                restored.getProperties(),
-                restored.getExternalPath(),
-                restored.getStateSize());
-    }
 
     void reportRestoredCheckpoint(
             long checkpointID,

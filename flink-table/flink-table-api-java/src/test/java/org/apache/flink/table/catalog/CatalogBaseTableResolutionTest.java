@@ -21,18 +21,19 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.TableColumn;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver.ExpressionResolverBuilder;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
+import org.apache.flink.table.legacy.api.TableColumn;
+import org.apache.flink.table.legacy.api.TableSchema;
 import org.apache.flink.table.refresh.ContinuousRefreshHandler;
 import org.apache.flink.table.refresh.ContinuousRefreshHandlerSerializer;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.table.utils.ExpressionResolverMocks;
+import org.apache.flink.table.utils.ParserMock;
 
 import org.junit.jupiter.api.Test;
 
@@ -44,13 +45,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_CATALOG;
 import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_DATABASE;
 import static org.apache.flink.table.utils.EncodingUtils.encodeBytesToBase64;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
-import static org.assertj.core.api.HamcrestCondition.matching;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests for {@link CatalogTable} to {@link ResolvedCatalogTable}, {@link CatalogMaterializedTable}
@@ -146,7 +145,8 @@ class CatalogBaseTableResolutionTest {
                             "primary_constraint", Collections.singletonList("id")));
 
     private static final ContinuousRefreshHandler CONTINUOUS_REFRESH_HANDLER =
-            new ContinuousRefreshHandler("remote", JobID.generate().toHexString());
+            new ContinuousRefreshHandler(
+                    "remote", "StandaloneClusterId", JobID.generate().toHexString());
 
     private static final String DEFINITION_QUERY =
             String.format(
@@ -252,41 +252,30 @@ class CatalogBaseTableResolutionTest {
 
     @Test
     void testPropertyDeserializationError() {
-        try {
-            final Map<String, String> properties = catalogTableAsProperties();
-            properties.remove("schema.4.data-type");
-            CatalogTable.fromProperties(properties);
-            fail("unknown failure");
-        } catch (Exception e) {
-            assertThat(e)
-                    .satisfies(
-                            matching(
-                                    containsMessage(
-                                            "Could not find property key 'schema.4.data-type'.")));
-        }
+        assertThatThrownBy(
+                        () -> {
+                            final Map<String, String> properties = catalogTableAsProperties();
+                            properties.remove("schema.4.data-type");
+                            CatalogTable.fromProperties(properties);
+                        })
+                .hasRootCauseMessage("Could not find property key 'schema.4.data-type'.");
     }
 
     @Test
     void testInvalidPartitionKeys() {
         final CatalogTable catalogTable =
-                CatalogTable.of(
-                        TABLE_SCHEMA,
-                        null,
-                        Arrays.asList("region", "countyINVALID"),
-                        Collections.emptyMap());
+                CatalogTable.newBuilder()
+                        .schema(TABLE_SCHEMA)
+                        .comment(null)
+                        .partitionKeys(Arrays.asList("region", "countyINVALID"))
+                        .options(Collections.emptyMap())
+                        .build();
 
-        try {
-            resolveCatalogBaseTable(ResolvedCatalogTable.class, catalogTable);
-            fail("Invalid partition keys expected.");
-        } catch (Exception e) {
-            assertThat(e)
-                    .satisfies(
-                            matching(
-                                    containsMessage(
-                                            "Invalid partition key 'countyINVALID'. A partition key must "
-                                                    + "reference a physical column in the schema. Available "
-                                                    + "columns are: [id, region, county]")));
-        }
+        assertThatThrownBy(() -> resolveCatalogBaseTable(ResolvedCatalogTable.class, catalogTable))
+                .hasRootCauseMessage(
+                        "Invalid partition key 'countyINVALID'. A partition key must "
+                                + "reference a physical column in the schema. Available "
+                                + "columns are: [id, region, county]");
     }
 
     @Test
@@ -317,18 +306,11 @@ class CatalogBaseTableResolutionTest {
                         Collections.emptyMap(),
                         null,
                         TableDistribution.ofHash(Collections.singletonList("countyINVALID"), 6));
-        try {
-            resolveCatalogBaseTable(ResolvedCatalogTable.class, catalogTable);
-            fail("Invalid bucket keys expected.");
-        } catch (Exception e) {
-            assertThat(e)
-                    .satisfies(
-                            matching(
-                                    containsMessage(
-                                            "Invalid bucket key 'countyINVALID'. A bucket key for a distribution must "
-                                                    + "reference a physical column in the schema. "
-                                                    + "Available columns are: [id, region, county]")));
-        }
+        assertThatThrownBy(() -> resolveCatalogBaseTable(ResolvedCatalogTable.class, catalogTable))
+                .hasRootCauseMessage(
+                        "Invalid bucket key 'countyINVALID'. A bucket key for a distribution must "
+                                + "reference a physical column in the schema. "
+                                + "Available columns are: [id, region, county]");
     }
 
     @Test
@@ -342,17 +324,10 @@ class CatalogBaseTableResolutionTest {
                         null,
                         TableDistribution.ofHash(Collections.singletonList("id"), 0));
 
-        try {
-            resolveCatalogBaseTable(ResolvedCatalogTable.class, catalogTable);
-            fail("Invalid bucket keys expected.");
-        } catch (Exception e) {
-            assertThat(e)
-                    .satisfies(
-                            matching(
-                                    containsMessage(
-                                            "Invalid bucket count '0'. The number of buckets for a "
-                                                    + "distributed table must be at least 1.")));
-        }
+        assertThatThrownBy(() -> resolveCatalogBaseTable(ResolvedCatalogTable.class, catalogTable))
+                .hasRootCauseMessage(
+                        "Invalid bucket count '0'. The number of buckets for a "
+                                + "distributed table must be at least 1.");
     }
 
     // --------------------------------------------------------------------------------------------
@@ -368,7 +343,12 @@ class CatalogBaseTableResolutionTest {
         options.put("connector", "custom");
         options.put("version", "12");
 
-        return CatalogTable.of(TABLE_SCHEMA, comment, partitionKeys, options);
+        return CatalogTable.newBuilder()
+                .schema(TABLE_SCHEMA)
+                .comment(comment)
+                .partitionKeys(partitionKeys)
+                .options(options)
+                .build();
     }
 
     private static Map<String, String> catalogTableAsProperties() {
@@ -482,7 +462,7 @@ class CatalogBaseTableResolutionTest {
                 ExpressionResolverMocks.forSqlExpression(
                         CatalogBaseTableResolutionTest::resolveSqlExpression);
 
-        catalogManager.initSchemaResolver(true, expressionResolverBuilder);
+        catalogManager.initSchemaResolver(true, expressionResolverBuilder, new ParserMock());
 
         return catalogManager;
     }

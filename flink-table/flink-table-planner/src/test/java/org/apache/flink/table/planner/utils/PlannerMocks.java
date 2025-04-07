@@ -40,6 +40,7 @@ import org.apache.calcite.plan.RelTraitDef;
 import java.net.URL;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
 
@@ -105,7 +106,8 @@ public class PlannerMocks {
                         },
                         functionCatalog.asLookup(parser::parseIdentifier),
                         catalogManager.getDataTypeFactory(),
-                        parser::parseSqlExpression));
+                        parser::parseSqlExpression),
+                parser);
     }
 
     public FlinkPlannerImpl getPlanner() {
@@ -134,7 +136,13 @@ public class PlannerMocks {
 
     public PlannerMocks registerTemporaryTable(String tableName, Schema tableSchema) {
         final CatalogTable table =
-                CatalogTable.of(tableSchema, null, Collections.emptyList(), Collections.emptyMap());
+                CatalogTable.newBuilder()
+                        .schema(tableSchema)
+                        .options(
+                                Map.of(
+                                        "connector",
+                                        TestSimpleDynamicTableSourceFactory.IDENTIFIER()))
+                        .build();
 
         this.getCatalogManager()
                 .createTemporaryTable(

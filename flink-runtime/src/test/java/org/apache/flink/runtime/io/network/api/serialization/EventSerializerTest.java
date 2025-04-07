@@ -18,11 +18,14 @@
 
 package org.apache.flink.runtime.io.network.api.serialization;
 
+import org.apache.flink.api.common.watermark.BoolWatermark;
+import org.apache.flink.api.common.watermark.LongWatermark;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
@@ -114,7 +117,9 @@ class EventSerializerTest {
                 44),
         new SubtaskConnectionDescriptor(23, 42),
         EndOfSegmentEvent.INSTANCE,
-        new RecoveryMetadata(3)
+        new RecoveryMetadata(3),
+        new WatermarkEvent(new LongWatermark(42L, "test"), false),
+        new WatermarkEvent(new BoolWatermark(true, "test"), true),
     };
 
     @Test
@@ -148,6 +153,14 @@ class EventSerializerTest {
             } else if (evt instanceof EndOfPartitionEvent) {
                 assertThat(bufferConsumer.build().getDataType())
                         .isEqualTo(Buffer.DataType.END_OF_PARTITION);
+            } else if (evt instanceof WatermarkEvent) {
+                if (((WatermarkEvent) evt).isAligned()) {
+                    assertThat(bufferConsumer.build().getDataType())
+                            .isEqualTo(Buffer.DataType.ALIGNED_WATERMARK_EVENT);
+                } else {
+                    assertThat(bufferConsumer.build().getDataType())
+                            .isEqualTo(Buffer.DataType.UNALIGNED_WATERMARK_EVENT);
+                }
             } else {
                 assertThat(bufferConsumer.build().getDataType())
                         .isEqualTo(Buffer.DataType.EVENT_BUFFER);
@@ -170,6 +183,14 @@ class EventSerializerTest {
                 assertThat(buffer.getDataType()).isEqualTo(Buffer.DataType.END_OF_DATA);
             } else if (evt instanceof EndOfPartitionEvent) {
                 assertThat(buffer.getDataType()).isEqualTo(Buffer.DataType.END_OF_PARTITION);
+            } else if (evt instanceof WatermarkEvent) {
+                if (((WatermarkEvent) evt).isAligned()) {
+                    assertThat(buffer.getDataType())
+                            .isEqualTo(Buffer.DataType.ALIGNED_WATERMARK_EVENT);
+                } else {
+                    assertThat(buffer.getDataType())
+                            .isEqualTo(Buffer.DataType.UNALIGNED_WATERMARK_EVENT);
+                }
             } else {
                 assertThat(buffer.getDataType()).isEqualTo(Buffer.DataType.EVENT_BUFFER);
             }

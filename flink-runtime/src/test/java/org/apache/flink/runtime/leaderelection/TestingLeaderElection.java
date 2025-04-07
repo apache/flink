@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nullable;
 
@@ -65,15 +66,21 @@ public class TestingLeaderElection implements LeaderElection {
     }
 
     @Override
-    public synchronized void confirmLeadership(UUID leaderSessionID, String leaderAddress) {
-        if (confirmationFuture != null && !confirmationFuture.isDone()) {
+    public synchronized CompletableFuture<Void> confirmLeadershipAsync(
+            UUID leaderSessionID, String leaderAddress) {
+        if (leaderSessionID.equals(this.issuedLeaderSessionId)
+                && confirmationFuture != null
+                && !confirmationFuture.isDone()) {
             confirmationFuture.complete(LeaderInformation.known(leaderSessionID, leaderAddress));
         }
+
+        return FutureUtils.completedVoidFuture();
     }
 
     @Override
-    public synchronized boolean hasLeadership(UUID leaderSessionId) {
-        return hasLeadership() && leaderSessionId.equals(issuedLeaderSessionId);
+    public synchronized CompletableFuture<Boolean> hasLeadershipAsync(UUID leaderSessionId) {
+        return CompletableFuture.completedFuture(
+                hasLeadership() && leaderSessionId.equals(issuedLeaderSessionId));
     }
 
     private boolean hasLeadership() {

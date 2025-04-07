@@ -113,16 +113,12 @@ public class SubtasksTimesInfo implements ResponseBody {
     public static final class SubtaskTimeInfo {
 
         public static final String FIELD_NAME_SUBTASK = "subtask";
-        @Deprecated public static final String FIELD_NAME_HOST = "host";
         public static final String FIELD_NAME_ENDPOINT = "endpoint";
         public static final String FIELD_NAME_DURATION = "duration";
         public static final String FIELD_NAME_TIMESTAMPS = "timestamps";
 
         @JsonProperty(FIELD_NAME_SUBTASK)
         private final int subtask;
-
-        @JsonProperty(FIELD_NAME_HOST)
-        private final String host;
 
         @JsonProperty(FIELD_NAME_ENDPOINT)
         private final String endpoint;
@@ -135,12 +131,10 @@ public class SubtasksTimesInfo implements ResponseBody {
 
         public SubtaskTimeInfo(
                 @JsonProperty(FIELD_NAME_SUBTASK) int subtask,
-                @JsonProperty(FIELD_NAME_HOST) String host,
                 @JsonProperty(FIELD_NAME_ENDPOINT) String endpoint,
                 @JsonProperty(FIELD_NAME_DURATION) long duration,
                 @JsonProperty(FIELD_NAME_TIMESTAMPS) Map<ExecutionState, Long> timestamps) {
             this.subtask = subtask;
-            this.host = checkNotNull(host);
             this.endpoint = checkNotNull(endpoint);
             this.duration = duration;
             this.timestamps = checkNotNull(timestamps);
@@ -149,11 +143,6 @@ public class SubtasksTimesInfo implements ResponseBody {
         @JsonIgnore
         public int getSubtask() {
             return subtask;
-        }
-
-        @JsonIgnore
-        public String getHost() {
-            return host;
         }
 
         @JsonIgnore
@@ -183,7 +172,6 @@ public class SubtasksTimesInfo implements ResponseBody {
 
             SubtaskTimeInfo that = (SubtaskTimeInfo) o;
             return subtask == that.subtask
-                    && Objects.equals(host, that.host)
                     && Objects.equals(endpoint, that.endpoint)
                     && duration == that.duration
                     && Objects.equals(timestamps, that.timestamps);
@@ -191,7 +179,7 @@ public class SubtasksTimesInfo implements ResponseBody {
 
         @Override
         public int hashCode() {
-            return Objects.hash(subtask, host, endpoint, duration, timestamps);
+            return Objects.hash(subtask, endpoint, duration, timestamps);
         }
     }
 }

@@ -31,6 +31,7 @@ import org.apache.flink.state.api.functions.StateBootstrapFunction;
 import org.apache.flink.state.api.output.operators.BroadcastStateBootstrapOperator;
 import org.apache.flink.state.api.output.operators.StateBootstrapOperator;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 
 import java.util.OptionalInt;
@@ -48,11 +49,15 @@ public class OneInputStateTransformation<T> {
     /** The data stream containing the data to bootstrap the operator state with. */
     private final DataStream<T> stream;
 
+    /** Checkpoint ID. */
+    private final long checkpointId;
+
     /** Local max parallelism for the bootstrapped operator. */
     private OptionalInt operatorMaxParallelism = OptionalInt.empty();
 
-    OneInputStateTransformation(DataStream<T> stream) {
+    OneInputStateTransformation(DataStream<T> stream, long checkpointId) {
         this.stream = stream;
+        this.checkpointId = checkpointId;
     }
 
     /**
@@ -81,7 +86,10 @@ public class OneInputStateTransformation<T> {
      */
     public StateBootstrapTransformation<T> transform(StateBootstrapFunction<T> processFunction) {
         SavepointWriterOperatorFactory factory =
-                (timestamp, path) -> new StateBootstrapOperator<>(timestamp, path, processFunction);
+                (timestamp, path) ->
+                        SimpleOperatorFactory.of(
+                                new StateBootstrapOperator<>(
+                                        checkpointId, timestamp, path, processFunction));
 
         return transform(factory);
     }
@@ -100,7 +108,9 @@ public class OneInputStateTransformation<T> {
             BroadcastStateBootstrapFunction<T> processFunction) {
         SavepointWriterOperatorFactory factory =
                 (timestamp, path) ->
-                        new BroadcastStateBootstrapOperator<>(timestamp, path, processFunction);
+                        SimpleOperatorFactory.of(
+                                new BroadcastStateBootstrapOperator<>(
+                                        checkpointId, timestamp, path, processFunction));
 
         return transform(factory);
     }
@@ -128,7 +138,8 @@ public class OneInputStateTransformation<T> {
     public <K> KeyedStateTransformation<K, T> keyBy(KeySelector<T, K> keySelector) {
         TypeInformation<K> keyType =
                 TypeExtractor.getKeySelectorTypes(keySelector, stream.getType());
-        return new KeyedStateTransformation<>(stream, operatorMaxParallelism, keySelector, keyType);
+        return new KeyedStateTransformation<>(
+                stream, checkpointId, operatorMaxParallelism, keySelector, keyType);
     }
 
     /**
@@ -141,7 +152,8 @@ public class OneInputStateTransformation<T> {
      */
     public <K> KeyedStateTransformation<K, T> keyBy(
             KeySelector<T, K> keySelector, TypeInformation<K> keyType) {
-        return new KeyedStateTransformation<>(stream, operatorMaxParallelism, keySelector, keyType);
+        return new KeyedStateTransformation<>(
+                stream, checkpointId, operatorMaxParallelism, keySelector, keyType);
     }
 
     /**
@@ -181,6 +193,7 @@ public class OneInputStateTransformation<T> {
 
         TypeInformation<Tuple> keyType =
                 TypeExtractor.getKeySelectorTypes(keySelector, stream.getType());
-        return new KeyedStateTransformation<>(stream, operatorMaxParallelism, keySelector, keyType);
+        return new KeyedStateTransformation<>(
+                stream, checkpointId, operatorMaxParallelism, keySelector, keyType);
     }
 }

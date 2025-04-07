@@ -20,7 +20,6 @@ package org.apache.flink.runtime.resourcemanager.utils;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.blob.TransientBlobKey;
@@ -275,7 +274,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
             ResourceID jobMasterResourceId,
             String jobMasterAddress,
             JobID jobId,
-            Time timeout) {
+            Duration timeout) {
         final QuadFunction<
                         JobMasterId,
                         ResourceID,
@@ -306,7 +305,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
             ResourceID taskManagerResourceId,
             InstanceID taskManagerRegistrationId,
             SlotReport slotReport,
-            Time timeout) {
+            Duration timeout) {
         final Function<Tuple3<ResourceID, InstanceID, SlotReport>, CompletableFuture<Acknowledge>>
                 currentSendSlotReportFunction = sendSlotReportFunction;
 
@@ -320,7 +319,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
     @Override
     public CompletableFuture<RegistrationResponse> registerTaskExecutor(
-            TaskExecutorRegistration taskExecutorRegistration, Time timeout) {
+            TaskExecutorRegistration taskExecutorRegistration, Duration timeout) {
         final Function<TaskExecutorRegistration, CompletableFuture<RegistrationResponse>>
                 currentFunction = registerTaskExecutorFunction;
 
@@ -405,13 +404,13 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     }
 
     @Override
-    public CompletableFuture<Collection<TaskManagerInfo>> requestTaskManagerInfo(Time timeout) {
+    public CompletableFuture<Collection<TaskManagerInfo>> requestTaskManagerInfo(Duration timeout) {
         return CompletableFuture.completedFuture(Collections.emptyList());
     }
 
     @Override
     public CompletableFuture<TaskManagerInfoWithSlots> requestTaskManagerDetailsInfo(
-            ResourceID resourceId, Time timeout) {
+            ResourceID resourceId, Duration timeout) {
         final Function<ResourceID, CompletableFuture<TaskManagerInfoWithSlots>> function =
                 requestTaskManagerDetailsInfoFunction;
 
@@ -424,20 +423,20 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     }
 
     @Override
-    public CompletableFuture<ResourceOverview> requestResourceOverview(Time timeout) {
+    public CompletableFuture<ResourceOverview> requestResourceOverview(Duration timeout) {
         return CompletableFuture.completedFuture(
                 new ResourceOverview(1, 1, 1, 0, 0, ResourceProfile.ZERO, ResourceProfile.ZERO));
     }
 
     @Override
     public CompletableFuture<Collection<Tuple2<ResourceID, String>>>
-            requestTaskManagerMetricQueryServiceAddresses(Time timeout) {
+            requestTaskManagerMetricQueryServiceAddresses(Duration timeout) {
         return CompletableFuture.completedFuture(Collections.emptyList());
     }
 
     @Override
     public CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByType(
-            ResourceID taskManagerId, FileType fileType, Time timeout) {
+            ResourceID taskManagerId, FileType fileType, Duration timeout) {
         final Function<Tuple2<ResourceID, FileType>, CompletableFuture<TransientBlobKey>> function =
                 requestTaskManagerFileUploadByTypeFunction;
 
@@ -463,7 +462,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
     @Override
     public CompletableFuture<Collection<LogInfo>> requestTaskManagerLogList(
-            ResourceID taskManagerId, Time timeout) {
+            ResourceID taskManagerId, Duration timeout) {
         final Function<ResourceID, CompletableFuture<Collection<LogInfo>>> function =
                 this.requestTaskManagerLogListFunction;
         if (function != null) {
@@ -476,7 +475,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
     @Override
     public CompletableFuture<ThreadDumpInfo> requestThreadDump(
-            ResourceID taskManagerId, Time timeout) {
+            ResourceID taskManagerId, Duration timeout) {
         final Function<ResourceID, CompletableFuture<ThreadDumpInfo>> function =
                 this.requestThreadDumpFunction;
 
@@ -490,7 +489,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
     @Override
     public CompletableFuture<TaskExecutorThreadInfoGateway> requestTaskExecutorThreadInfoGateway(
-            ResourceID taskManagerId, Time timeout) {
+            ResourceID taskManagerId, Duration timeout) {
         final Function<ResourceID, CompletableFuture<TaskExecutorThreadInfoGateway>> function =
                 this.requestTaskExecutorThreadInfoGateway;
 

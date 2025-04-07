@@ -241,6 +241,7 @@ public class TestFileSystemCatalog extends AbstractCatalog {
             return Arrays.stream(fs.listStatus(dbPath))
                     .filter(FileStatus::isDir)
                     .map(fileStatus -> fileStatus.getPath().getName())
+                    .filter(name -> tableExists(new ObjectPath(databaseName, name)))
                     .collect(Collectors.toList());
         } catch (IOException e) {
             throw new CatalogException(
@@ -272,7 +273,7 @@ public class TestFileSystemCatalog extends AbstractCatalog {
             return deserializeTable(
                     tableInfo.getTableKind(),
                     tableInfo.getCatalogTableInfo(),
-                    tableDataPath.getPath());
+                    tableDataPath.toString());
         } catch (IOException e) {
             throw new CatalogException(
                     String.format("Getting table %s occur exception.", tablePath), e);
@@ -355,10 +356,12 @@ public class TestFileSystemCatalog extends AbstractCatalog {
         try {
             if (!fs.exists(path)) {
                 fs.mkdirs(path);
+            }
+            if (!fs.exists(tableSchemaPath)) {
                 fs.mkdirs(tableSchemaPath);
-                if (isFileSystemTable(catalogTable.getOptions())) {
-                    fs.mkdirs(tableDataPath);
-                }
+            }
+            if (isFileSystemTable(catalogTable.getOptions()) && !fs.exists(tableDataPath)) {
+                fs.mkdirs(tableDataPath);
             }
 
             // write table schema
@@ -426,8 +429,10 @@ public class TestFileSystemCatalog extends AbstractCatalog {
     @Override
     public List<CatalogPartitionSpec> listPartitions(
             ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
-            throws TableNotExistException, TableNotPartitionedException,
-                    PartitionSpecInvalidException, CatalogException {
+            throws TableNotExistException,
+                    TableNotPartitionedException,
+                    PartitionSpecInvalidException,
+                    CatalogException {
         return Collections.emptyList();
     }
 
@@ -456,8 +461,10 @@ public class TestFileSystemCatalog extends AbstractCatalog {
             CatalogPartitionSpec partitionSpec,
             CatalogPartition partition,
             boolean ignoreIfExists)
-            throws TableNotExistException, TableNotPartitionedException,
-                    PartitionSpecInvalidException, PartitionAlreadyExistsException,
+            throws TableNotExistException,
+                    TableNotPartitionedException,
+                    PartitionSpecInvalidException,
+                    PartitionAlreadyExistsException,
                     CatalogException {
         throw new UnsupportedOperationException("createPartition is not implemented.");
     }

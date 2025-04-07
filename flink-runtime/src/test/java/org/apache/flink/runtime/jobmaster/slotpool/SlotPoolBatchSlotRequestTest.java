@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -80,7 +79,7 @@ class SlotPoolBatchSlotRequestTest {
     @Test
     void testPendingBatchSlotRequestTimeout() throws Exception {
         try (final SlotPool slotPool =
-                createAndSetUpSlotPool(mainThreadExecutor, null, Time.milliseconds(2L))) {
+                createAndSetUpSlotPool(mainThreadExecutor, null, Duration.ofMillis(2L))) {
             final CompletableFuture<PhysicalSlot> slotFuture =
                     SlotPoolUtils.requestNewAllocatedBatchSlot(
                             slotPool, mainThreadExecutor, ResourceProfile.UNKNOWN);
@@ -98,7 +97,7 @@ class SlotPoolBatchSlotRequestTest {
      */
     @Test
     void testPendingBatchSlotRequestDoesNotTimeoutIfFulfillingSlotExists() throws Exception {
-        final Time batchSlotTimeout = Time.milliseconds(2L);
+        final Duration batchSlotTimeout = Duration.ofMillis(2L);
         final ManualClock clock = new ManualClock();
 
         try (final DeclarativeSlotPoolBridge slotPool =
@@ -140,7 +139,7 @@ class SlotPoolBatchSlotRequestTest {
                 (jobMasterId, resourceRequirements) ->
                         FutureUtils.completedExceptionally(new FlinkException("Failed request")));
 
-        final Time batchSlotTimeout = Time.milliseconds(1000L);
+        final Duration batchSlotTimeout = Duration.ofMillis(1000L);
         try (final SlotPool slotPool =
                 createAndSetUpSlotPool(
                         mainThreadExecutor, testingResourceManagerGateway, batchSlotTimeout)) {
@@ -160,7 +159,7 @@ class SlotPoolBatchSlotRequestTest {
     @Test
     void testPendingBatchSlotRequestTimeoutAfterSlotRelease() throws Exception {
         final ManualClock clock = new ManualClock();
-        final Time batchSlotTimeout = Time.milliseconds(10000L);
+        final Duration batchSlotTimeout = Duration.ofMillis(10000L);
 
         try (final DeclarativeSlotPoolBridge slotPool =
                 createAndSetUpSlotPool(mainThreadExecutor, null, batchSlotTimeout, clock)) {
@@ -211,12 +210,12 @@ class SlotPoolBatchSlotRequestTest {
             DeclarativeSlotPoolBridge slotPool,
             ComponentMainThreadExecutor componentMainThreadExecutor,
             ManualClock clock,
-            Time batchSlotTimeout) {
+            Duration batchSlotTimeout) {
         // trigger batch slot timeout check which marks unfulfillable slots
         runBatchSlotTimeoutCheck(slotPool, componentMainThreadExecutor);
 
         // advance clock behind timeout
-        clock.advanceTime(batchSlotTimeout.toMilliseconds() + 1L, TimeUnit.MILLISECONDS);
+        clock.advanceTime(batchSlotTimeout.toMillis() + 1L, TimeUnit.MILLISECONDS);
 
         // timeout all as unfulfillable marked slots
         runBatchSlotTimeoutCheck(slotPool, componentMainThreadExecutor);
@@ -232,12 +231,12 @@ class SlotPoolBatchSlotRequestTest {
     private DeclarativeSlotPoolBridge createAndSetUpSlotPool(
             final ComponentMainThreadExecutor componentMainThreadExecutor,
             @Nullable final ResourceManagerGateway resourceManagerGateway,
-            final Time batchSlotTimeout)
+            final Duration batchSlotTimeout)
             throws Exception {
 
         return new DeclarativeSlotPoolBridgeBuilder()
                 .setResourceManagerGateway(resourceManagerGateway)
-                .setBatchSlotTimeout(batchSlotTimeout.toDuration())
+                .setBatchSlotTimeout(batchSlotTimeout)
                 .setMainThreadExecutor(componentMainThreadExecutor)
                 .buildAndStart();
     }
@@ -245,13 +244,13 @@ class SlotPoolBatchSlotRequestTest {
     private DeclarativeSlotPoolBridge createAndSetUpSlotPool(
             final ComponentMainThreadExecutor componentMainThreadExecutor,
             @Nullable final ResourceManagerGateway resourceManagerGateway,
-            final Time batchSlotTimeout,
+            final Duration batchSlotTimeout,
             final Clock clock)
             throws Exception {
 
         return new DeclarativeSlotPoolBridgeBuilder()
                 .setResourceManagerGateway(resourceManagerGateway)
-                .setBatchSlotTimeout(batchSlotTimeout.toDuration())
+                .setBatchSlotTimeout(batchSlotTimeout)
                 .setClock(clock)
                 .setMainThreadExecutor(componentMainThreadExecutor)
                 .buildAndStart();

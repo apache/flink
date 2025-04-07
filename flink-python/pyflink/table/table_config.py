@@ -106,7 +106,7 @@ class TableConfig(object):
         jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
         classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
         if key in [jars_key, classpaths_key]:
-            jar_urls = Configuration.parse_jars_value(value, jvm)
+            jar_urls = Configuration.parse_list_value(value)
             add_jars_to_context_class_loader(jar_urls)
         return self
 
@@ -151,50 +151,6 @@ class TableConfig(object):
         else:
             raise Exception("TableConfig.max_generated_code_length should be a int value!")
 
-    def set_idle_state_retention_time(self,
-                                      min_time: datetime.timedelta,
-                                      max_time: datetime.timedelta):
-        """
-        Specifies a minimum and a maximum time interval for how long idle state, i.e., state which
-        was not updated, will be retained.
-
-        State will never be cleared until it was idle for less than the minimum time and will never
-        be kept if it was idle for more than the maximum time.
-
-        When new data arrives for previously cleaned-up state, the new data will be handled as if it
-        was the first data. This can result in previous results being overwritten.
-
-        Set to 0 (zero) to never clean-up the state.
-
-        Example:
-        ::
-
-            >>> table_config = TableConfig() \\
-            ...     .set_idle_state_retention_time(datetime.timedelta(days=1),
-            ...                                    datetime.timedelta(days=3))
-
-        .. note::
-
-            Cleaning up state requires additional bookkeeping which becomes less expensive for
-            larger differences of minTime and maxTime. The difference between minTime and maxTime
-            must be at least 5 minutes.
-
-            Method set_idle_state_retention_time is deprecated now. The suggested way to set idle
-            state retention time is :func:`~pyflink.table.TableConfig.set_idle_state_retention`
-            Currently, setting max_time will not work and the max_time is directly derived from the
-            min_time as 1.5 x min_time.
-
-        :param min_time: The minimum time interval for which idle state is retained. Set to
-                         0 (zero) to never clean-up the state.
-        :param max_time: The maximum time interval for which idle state is retained. Must be at
-                         least 5 minutes greater than minTime. Set to
-                         0 (zero) to never clean-up the state.
-        """
-        j_time_class = get_gateway().jvm.org.apache.flink.api.common.time.Time
-        j_min_time = j_time_class.milliseconds(long(round(min_time.total_seconds() * 1000)))
-        j_max_time = j_time_class.milliseconds(long(round(max_time.total_seconds() * 1000)))
-        self._j_table_config.setIdleStateRetentionTime(j_min_time, j_max_time)
-
     def set_idle_state_retention(self, duration: datetime.timedelta):
         """
         Specifies a retention time interval for how long idle state, i.e., state which
@@ -225,36 +181,6 @@ class TableConfig(object):
         j_duration_class = get_gateway().jvm.java.time.Duration
         j_duration = j_duration_class.ofMillis(long(round(duration.total_seconds() * 1000)))
         self._j_table_config.setIdleStateRetention(j_duration)
-
-    def get_min_idle_state_retention_time(self) -> int:
-        """
-        State might be cleared and removed if it was not updated for the defined period of time.
-
-        .. note::
-
-            Currently the concept of min/max idle state retention has been deprecated and only
-            idle state retention time is supported. The min idle state retention is regarded as
-            idle state retention and the max idle state retention is derived from idle state
-            retention as 1.5 x idle state retention.
-
-        :return: The minimum time until state which was not updated will be retained.
-        """
-        return self._j_table_config.getMinIdleStateRetentionTime()
-
-    def get_max_idle_state_retention_time(self) -> int:
-        """
-        State will be cleared and removed if it was not updated for the defined period of time.
-
-        .. note::
-
-            Currently the concept of min/max idle state retention has been deprecated and only
-            idle state retention time is supported. The min idle state retention is regarded as
-            idle state retention and the max idle state retention is derived from idle state
-            retention as 1.5 x idle state retention.
-
-        :return: The maximum time until state which was not updated will be retained.
-        """
-        return self._j_table_config.getMaxIdleStateRetentionTime()
 
     def get_idle_state_retention(self) -> datetime.timedelta:
         """
@@ -332,7 +258,7 @@ class TableConfig(object):
 
         .. note::
 
-            The python udf worker depends on Apache Beam (version == 2.43.0).
+            The python udf worker depends on Apache Beam (version >= 2.54.0, <= 2.61.0).
             Please ensure that the specified environment meets the above requirements.
 
         :param python_exec: The path of python interpreter.

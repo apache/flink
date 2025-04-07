@@ -17,12 +17,11 @@
  */
 package org.apache.flink.table.planner.runtime.stream.table
 
-import org.apache.flink.api.scala._
 import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.plan.utils.NonPojo
-import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink}
+import org.apache.flink.table.planner.runtime.utils.{StreamingEnvUtil, StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.utils.LegacyRowExtension
@@ -43,8 +42,8 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
 
   @TestTemplate
   def testUnion(): Unit = {
-    val ds1 = env.fromCollection(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = env.fromCollection(smallTupleData3).toTable(tEnv, 'd, 'e, 'f)
+    val ds1 = StreamingEnvUtil.fromCollection(env, smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamingEnvUtil.fromCollection(env, smallTupleData3).toTable(tEnv, 'd, 'e, 'f)
 
     val unionDs = ds1.unionAll(ds2).select('c)
 
@@ -58,8 +57,8 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
 
   @TestTemplate
   def testUnionWithFilter(): Unit = {
-    val ds1 = env.fromCollection(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = env.fromCollection(tupleData5).toTable(tEnv, 'a, 'b, 'd, 'c, 'e)
+    val ds1 = StreamingEnvUtil.fromCollection(env, smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamingEnvUtil.fromCollection(env, tupleData5).toTable(tEnv, 'a, 'b, 'd, 'c, 'e)
 
     val unionDs = ds1.unionAll(ds2.select('a, 'b, 'c)).filter('b < 2).select('c)
 
@@ -82,8 +81,10 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
           classOf[NonPojo],
           DataTypes.FIELD("x", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING()))))
       .build()
-    val s1 = env.fromElements((1, new NonPojo), (2, new NonPojo)).toTable(tEnv, schema)
-    val s2 = env.fromElements((3, new NonPojo), (4, new NonPojo)).toTable(tEnv, schema)
+    val s1 =
+      StreamingEnvUtil.fromElements(env, (1, new NonPojo), (2, new NonPojo)).toTable(tEnv, schema)
+    val s2 =
+      StreamingEnvUtil.fromElements(env, (3, new NonPojo), (4, new NonPojo)).toTable(tEnv, schema)
 
     val sink = new TestingAppendSink
     s1.unionAll(s2)
@@ -102,11 +103,11 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
 
   @TestTemplate
   def testUnionWithCompositeType(): Unit = {
-    val s1 = env
-      .fromElements((1, (1, "a")), (2, (2, "b")))
+    val s1 = StreamingEnvUtil
+      .fromElements(env, (1, (1, "a")), (2, (2, "b")))
       .toTable(tEnv, 'a, 'b)
-    val s2 = env
-      .fromElements(((3, "c"), 3), ((4, "d"), 4))
+    val s2 = StreamingEnvUtil
+      .fromElements(env, ((3, "c"), 3), ((4, "d"), 4))
       .toTable(tEnv, 'a, 'b)
 
     val sink = new TestingAppendSink
@@ -136,9 +137,9 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       (4, "hello")
     )
 
-    val tableA = env.fromCollection(dataA).toTable(tEnv, 'a, 'b, 'c)
+    val tableA = StreamingEnvUtil.fromCollection(env, dataA).toTable(tEnv, 'a, 'b, 'c)
 
-    val tableB = env.fromCollection(dataB).toTable(tEnv, 'x, 'y)
+    val tableB = StreamingEnvUtil.fromCollection(env, dataB).toTable(tEnv, 'x, 'y)
 
     val sink = new TestingRetractSink
     tableA.where('a.in(tableB.select('x))).toRetractStream[Row].addSink(sink)
@@ -171,9 +172,9 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       (-1, "Hanoi-1")
     )
 
-    val tableA = env.fromCollection(dataA).toTable(tEnv, 'a, 'b, 'c)
+    val tableA = StreamingEnvUtil.fromCollection(env, dataA).toTable(tEnv, 'a, 'b, 'c)
 
-    val tableB = env.fromCollection(dataB).toTable(tEnv, 'x, 'y)
+    val tableB = StreamingEnvUtil.fromCollection(env, dataB).toTable(tEnv, 'x, 'y)
 
     val sink = new TestingRetractSink
 
@@ -212,11 +213,11 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       (2L, "Cool")
     )
 
-    val tableA = env.fromCollection(dataA).toTable(tEnv, 'a, 'b, 'c)
+    val tableA = StreamingEnvUtil.fromCollection(env, dataA).toTable(tEnv, 'a, 'b, 'c)
 
-    val tableB = env.fromCollection(dataB).toTable(tEnv, 'x, 'y)
+    val tableB = StreamingEnvUtil.fromCollection(env, dataB).toTable(tEnv, 'x, 'y)
 
-    val tableC = env.fromCollection(dataC).toTable(tEnv, 'w, 'z)
+    val tableC = StreamingEnvUtil.fromCollection(env, dataC).toTable(tEnv, 'w, 'z)
 
     val sink = new TestingRetractSink
 

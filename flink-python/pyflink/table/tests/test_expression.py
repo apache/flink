@@ -124,7 +124,16 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('end(a)', str(expr1.end))
         self.assertEqual('bin(a)', str(expr1.bin))
         self.assertEqual('hex(a)', str(expr1.hex))
+        self.assertEqual("UNHEX(a)", str(expr1.unhex))
         self.assertEqual('truncate(a, 3)', str(expr1.truncate(3)))
+        self.assertEqual('PERCENTILE(a, 0.5)', str(expr1.percentile(0.5)))
+        self.assertEqual('PERCENTILE(a, 0.5, b)',
+                         str(expr1.percentile(0.5, expr2)))
+        self.assertEqual('PERCENTILE(a, array(0.1, 0.5))', str(expr1.percentile(array(0.1, 0.5))))
+        self.assertEqual('PERCENTILE(a, array(0.1, 0.5), b)',
+                         str(expr1.percentile(array(0.1, 0.5), expr2)))
+        self.assertEqual("ASSIGNMENT('a2', a)", str(expr1.as_argument('a2')))
+        self.assertEqual("ASSIGNMENT('a', 10)", str(expr5.as_argument('a')))
 
         # string functions
         self.assertEqual('substring(a, b)', str(expr1.substring(expr2)))
@@ -139,15 +148,13 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('upper(a)', str(expr1.upper_case))
         self.assertEqual('lower(a)', str(expr1.lower_case))
         self.assertEqual('initCap(a)', str(expr1.init_cap))
-        self.assertEqual("like(a, 'Jo_n%')", str(expr1.like('Jo_n%')))
+        self.assertEqual("LIKE(a, 'Jo_n%')", str(expr1.like('Jo_n%')))
+        self.assertEqual("LIKE(a, 'Jo_n%', '\\')", str(expr1.like('Jo_n%', '\\')))
         self.assertEqual("similar(a, 'A+')", str(expr1.similar('A+')))
         self.assertEqual('position(a, b)', str(expr1.position(expr2)))
         self.assertEqual('lpad(a, 4, b)', str(expr1.lpad(4, expr2)))
         self.assertEqual('rpad(a, 4, b)', str(expr1.rpad(4, expr2)))
         self.assertEqual('overlay(a, b, 6, 2)', str(expr1.overlay(expr2, 6, 2)))
-        self.assertEqual("regexp(a, b)", str(expr1.regexp(expr2)))
-        self.assertEqual("regexpReplace(a, b, 'abc')", str(expr1.regexp_replace(expr2, 'abc')))
-        self.assertEqual('regexpExtract(a, b, 3)', str(expr1.regexp_extract(expr2, 3)))
         self.assertEqual('fromBase64(a)', str(expr1.from_base64))
         self.assertEqual('toBase64(a)', str(expr1.to_base64))
         self.assertEqual('ascii(a)', str(expr1.ascii))
@@ -161,14 +168,32 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('locate(a, b, 2)', str(expr1.locate(expr2, 2)))
         self.assertEqual('parseUrl(a, b)', str(expr1.parse_url(expr2)))
         self.assertEqual("parseUrl(a, b, 'query')", str(expr1.parse_url(expr2, 'query')))
-        self.assertEqual('ltrim(a)', str(expr1.ltrim))
-        self.assertEqual('rtrim(a)', str(expr1.rtrim))
+        self.assertEqual('ltrim(a)', str(expr1.ltrim()))
+        self.assertEqual('ltrim(a, b)', str(expr1.ltrim(expr2)))
+        self.assertEqual('rtrim(a)', str(expr1.rtrim()))
+        self.assertEqual('rtrim(a, b)', str(expr1.rtrim(expr2)))
         self.assertEqual('repeat(a, 3)', str(expr1.repeat(3)))
         self.assertEqual("over(a, 'w')", str(expr1.over('w')))
         self.assertEqual('reverse(a)', str(expr1.reverse))
         self.assertEqual("splitIndex(a, ',', 3)", str(expr1.split_index(',', 3)))
         self.assertEqual("strToMap(a)", str(expr1.str_to_map()))
         self.assertEqual("strToMap(a, ';', ':')", str(expr1.str_to_map(';', ':')))
+        self.assertEqual("ELT(1, a)", str(lit(1).elt(expr1)))
+        self.assertEqual('ELT(3, a, b, c)', str(lit(3).elt(expr1, expr2, expr3)))
+        self.assertEqual("PRINTF('%d %s', a, b)", str(lit("%d %s").printf(expr1, expr2)))
+        self.assertEqual("STARTSWITH(a, b)", str(expr1.starts_with(expr2)))
+        self.assertEqual("ENDSWITH(a, b)", str(expr1.ends_with(expr2)))
+
+        # regexp functions
+        self.assertEqual("regexp(a, b)", str(expr1.regexp(expr2)))
+        self.assertEqual("REGEXP_COUNT(a, b)", str(expr1.regexp_count(expr2)))
+        self.assertEqual('regexpExtract(a, b)', str(expr1.regexp_extract(expr2)))
+        self.assertEqual('regexpExtract(a, b, 3)', str(expr1.regexp_extract(expr2, 3)))
+        self.assertEqual('REGEXP_EXTRACT_ALL(a, b)', str(expr1.regexp_extract_all(expr2)))
+        self.assertEqual('REGEXP_EXTRACT_ALL(a, b, 3)', str(expr1.regexp_extract_all(expr2, 3)))
+        self.assertEqual("regexpReplace(a, b, 'abc')", str(expr1.regexp_replace(expr2, 'abc')))
+        self.assertEqual("REGEXP_INSTR(a, b)", str(expr1.regexp_instr(expr2)))
+        self.assertEqual("REGEXP_SUBSTR(a, b)", str(expr1.regexp_substr(expr2)))
 
         # temporal functions
         self.assertEqual('cast(a, DATE)', str(expr1.to_date))
@@ -262,7 +287,14 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual("toDate('2018-03-18')", str(to_date('2018-03-18')))
         self.assertEqual("toDate('2018-03-18', 'yyyy-MM-dd')",
                          str(to_date('2018-03-18', 'yyyy-MM-dd')))
-        self.assertEqual('toTimestampLtz(123, 0)', str(to_timestamp_ltz(123, 0)))
+        self.assertEqual('TO_TIMESTAMP_LTZ(100)', str(to_timestamp_ltz(100)))
+        self.assertEqual("TO_TIMESTAMP_LTZ('2023-01-01 00:00:00')",
+                         str(to_timestamp_ltz('2023-01-01 00:00:00')))
+        self.assertEqual("TO_TIMESTAMP_LTZ('01/01/2023 00:00:00', 'MM/dd/yyyy HH:mm:ss')",
+                         str(to_timestamp_ltz("01/01/2023 00:00:00", "MM/dd/yyyy HH:mm:ss")))
+        self.assertEqual("TO_TIMESTAMP_LTZ('2023-01-01 00:00:00', 'yyyy-MM-dd HH:mm:ss', 'UTC')",
+                         str(to_timestamp_ltz("2023-01-01 00:00:00", "yyyy-MM-dd HH:mm:ss", "UTC")))
+        self.assertEqual("TO_TIMESTAMP_LTZ(123, 0)", str(to_timestamp_ltz(123, 0)))
         self.assertEqual("toTimestamp('1970-01-01 08:01:40')",
                          str(to_timestamp('1970-01-01 08:01:40')))
         self.assertEqual("toTimestamp('1970-01-01 08:01:40', 'yyyy-MM-dd HH:mm:ss')",

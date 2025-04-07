@@ -62,17 +62,16 @@ Rate Limiting
 -----
 
 `DataGeneratorSource` has built-in support for rate limiting. The following code will produce a stream of
-`Long` values at the overall source rate (across all source subtasks) not exceeding 100 events per second.
+`String` values at the overall source rate (across all source subtasks) not exceeding 100 events per second.
 
 ```java
-GeneratorFunction<Long, Long> generatorFunction = index -> index;
-double recordsPerSecond = 100;
+GeneratorFunction<Long, String> generatorFunction = index -> "Number: " + index;
 
 DataGeneratorSource<String> source =
         new DataGeneratorSource<>(
              generatorFunction,
              Long.MAX_VALUE,
-             RateLimiterStrategy.perSecond(recordsPerSecond),
+             RateLimiterStrategy.perSecond(100),
              Types.STRING);
 ```
 

@@ -35,4 +35,4 @@ import org.apache.flink.annotation.Experimental;
  * @param <T> Type of the value in the operator state
  */
 @Experimental
-public interface ReducingState<T> extends MergingState<T, T> {}
+public interface ReducingState<T> extends MergingState<T, T, T> {}

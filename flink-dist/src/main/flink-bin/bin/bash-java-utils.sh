@@ -35,10 +35,7 @@ setJavaHome() {
     # NOTE: we need to obtain JAVA_HOME before using BashJavaUtils, so the value for env.java.home must
     # be in a flattened format, rather than nested, allowing us to retrieve the corresponding value via
     # shell script.
-    CONF_FILE="$1/flink-conf.yaml"
-    if [ ! -e "$1/flink-conf.yaml" ]; then
-        CONF_FILE="$1/config.yaml"
-    fi;
+    CONF_FILE="$1"
     
     KEY_ENV_JAVA_HOME="env.java.home"
     MY_JAVA_HOME=$(readFromConfigFile ${KEY_ENV_JAVA_HOME} "" "${CONF_FILE}")

@@ -20,7 +20,6 @@ package org.apache.flink.core.failure;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.metrics.MetricGroup;
 
@@ -80,36 +79,6 @@ public interface FailureEnricher {
              * timeout}.
              */
             TASK_MANAGER
-        }
-
-        /**
-         * Get the ID of the job.
-         *
-         * @return the ID of the job
-         * @deprecated This method is deprecated since Flink 1.19. All metadata about the job should
-         *     be provided uniformly by {@link #getJobInfo()}.
-         * @see <a
-         *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
-         *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
-         */
-        @Deprecated
-        default JobID getJobId() {
-            return getJobInfo().getJobId();
-        }
-
-        /**
-         * Get the name of the job.
-         *
-         * @return the name of the job
-         * @deprecated This method is deprecated since Flink 1.19. All metadata about the job should
-         *     be provided uniformly by {@link #getJobInfo()}.
-         * @see <a
-         *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
-         *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
-         */
-        @Deprecated
-        default String getJobName() {
-            return getJobInfo().getJobName();
         }
 
         /**

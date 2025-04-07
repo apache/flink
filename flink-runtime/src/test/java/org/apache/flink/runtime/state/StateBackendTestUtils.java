@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -28,12 +29,15 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
+import org.apache.flink.runtime.state.v2.internal.InternalKeyedState;
 import org.apache.flink.util.function.FunctionWithException;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.List;
 import java.util.concurrent.RunnableFuture;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -110,16 +114,18 @@ public class StateBackendTestUtils {
         }
     }
 
-    private static class TestAsyncKeyedStateBackend implements AsyncKeyedStateBackend {
+    private static class TestAsyncKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
 
         private final Supplier<org.apache.flink.api.common.state.v2.State> innerStateSupplier;
         private final StateExecutor stateExecutor;
+        private final PriorityQueueSetFactory factory;
 
         public TestAsyncKeyedStateBackend(
                 Supplier<org.apache.flink.api.common.state.v2.State> innerStateSupplier,
                 StateExecutor stateExecutor) {
             this.innerStateSupplier = innerStateSupplier;
             this.stateExecutor = stateExecutor;
+            this.factory = new HeapPriorityQueueSetFactory(new KeyGroupRange(0, 127), 128, 128);
         }
 
         @Override
@@ -127,12 +133,25 @@ public class StateBackendTestUtils {
             // do nothing
         }
 
+        @Override
+        public <N, S extends org.apache.flink.api.common.state.v2.State, SV>
+                S getOrCreateKeyedState(
+                        N defaultNamespace,
+                        TypeSerializer<N> namespaceSerializer,
+                        org.apache.flink.api.common.state.v2.StateDescriptor<SV> stateDesc)
+                        throws Exception {
+            stateDesc.initializeSerializerUnlessSet(new ExecutionConfig());
+            return (S) innerStateSupplier.get();
+        }
+
         @Nonnull
         @Override
-        @SuppressWarnings("unchecked")
-        public <N, S extends org.apache.flink.api.common.state.v2.State, SV> S createState(
-                TypeSerializer<N> namespaceSerializer,
-                @Nonnull org.apache.flink.runtime.state.v2.StateDescriptor<SV> stateDesc) {
+        public <N, S extends InternalKeyedState, SV> S createStateInternal(
+                @Nonnull N defaultNamespace,
+                @Nonnull TypeSerializer<N> namespaceSerializer,
+                @Nonnull org.apache.flink.api.common.state.v2.StateDescriptor<SV> stateDesc)
+                throws Exception {
+            stateDesc.initializeSerializerUnlessSet(new ExecutionConfig());
             return (S) innerStateSupplier.get();
         }
 
@@ -143,6 +162,11 @@ public class StateBackendTestUtils {
         }
 
         @Override
+        public KeyGroupRange getKeyGroupRange() {
+            return new KeyGroupRange(0, 127);
+        }
+
+        @Override
         public void dispose() {
             // do nothing
         }
@@ -150,6 +174,36 @@ public class StateBackendTestUtils {
         @Override
         public void close() {
             // do nothing
+        }
+
+        @Override
+        public void notifyCheckpointSubsumed(long checkpointId) throws Exception {
+            // do nothing
+        }
+
+        @Override
+        public void notifyCheckpointComplete(long checkpointId) throws Exception {
+            // do nothing
+        }
+
+        @Override
+        public RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot(
+                long checkpointId,
+                long timestamp,
+                CheckpointStreamFactory streamFactory,
+                CheckpointOptions checkpointOptions)
+                throws Exception {
+            // do nothing
+            return null;
+        }
+
+        @Nonnull
+        @Override
+        public <T extends HeapPriorityQueueElement & PriorityComparable<? super T> & Keyed<?>>
+                KeyGroupedInternalPriorityQueue<T> create(
+                        @Nonnull String stateName,
+                        @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
+            return factory.create(stateName, byteOrderedElementSerializer);
         }
     }
 
@@ -215,6 +269,11 @@ public class StateBackendTestUtils {
                 @Override
                 public <N> Stream<K> getKeys(String state, N namespace) {
                     return delegatedKeyedStateBackend.getKeys(state, namespace);
+                }
+
+                @Override
+                public <N> Stream<K> getKeys(List<String> states, N namespace) {
+                    return delegatedKeyedStateBackend.getKeys(states, namespace);
                 }
 
                 @Override

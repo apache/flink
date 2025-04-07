@@ -32,11 +32,12 @@ import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.Ses
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.RowKind;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.time.ZoneId;
@@ -48,15 +49,20 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link UnalignedWindowTableFunctionOperator}. */
-@RunWith(Parameterized.class)
-public class UnalignedWindowTableFunctionOperatorTest extends WindowTableFunctionOperatorTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class UnalignedWindowTableFunctionOperatorTest extends WindowTableFunctionOperatorTestBase {
 
-    public UnalignedWindowTableFunctionOperatorTest(ZoneId shiftTimeZone) {
+    UnalignedWindowTableFunctionOperatorTest(ZoneId shiftTimeZone) {
         super(shiftTimeZone);
     }
 
-    @Test
-    public void testEventTimeSessionWindows() throws Exception {
+    @Parameters(name = "TimeZone = {0}")
+    private static Collection<Object[]> runMode() {
+        return Arrays.asList(new Object[] {UTC_ZONE_ID}, new Object[] {SHANGHAI_ZONE_ID});
+    }
+
+    @TestTemplate
+    void testEventTimeSessionWindows() throws Exception {
         final SessionWindowAssigner assigner = SessionWindowAssigner.withGap(Duration.ofSeconds(3));
         UnalignedWindowTableFunctionOperator operator = createOperator(assigner, ROW_TIME_INDEX);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
@@ -158,8 +164,8 @@ public class UnalignedWindowTableFunctionOperatorTest extends WindowTableFunctio
         testHarness.close();
     }
 
-    @Test
-    public void testEventTimeSessionWindowsWithChangelog() throws Exception {
+    @TestTemplate
+    void testEventTimeSessionWindowsWithChangelog() throws Exception {
         final SessionWindowAssigner assigner = SessionWindowAssigner.withGap(Duration.ofSeconds(3));
         UnalignedWindowTableFunctionOperator operator = createOperator(assigner, ROW_TIME_INDEX);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
@@ -292,8 +298,8 @@ public class UnalignedWindowTableFunctionOperatorTest extends WindowTableFunctio
         testHarness.close();
     }
 
-    @Test
-    public void testProcessTimeSessionWindows() throws Exception {
+    @TestTemplate
+    void testProcessTimeSessionWindows() throws Exception {
         final SessionWindowAssigner assigner =
                 SessionWindowAssigner.withGap(Duration.ofSeconds(3)).withProcessingTime();
         UnalignedWindowTableFunctionOperator operator = createOperator(assigner, -1);
@@ -382,8 +388,8 @@ public class UnalignedWindowTableFunctionOperatorTest extends WindowTableFunctio
         testHarness.close();
     }
 
-    @Test
-    public void testProcessTimeSessionWindowsWithChangelog() throws Exception {
+    @TestTemplate
+    void testProcessTimeSessionWindowsWithChangelog() throws Exception {
         final SessionWindowAssigner assigner =
                 SessionWindowAssigner.withGap(Duration.ofSeconds(3)).withProcessingTime();
         UnalignedWindowTableFunctionOperator operator = createOperator(assigner, -1);
@@ -477,8 +483,8 @@ public class UnalignedWindowTableFunctionOperatorTest extends WindowTableFunctio
         testHarness.close();
     }
 
-    @Test
-    public void testSessionWindowsWithoutPartitionKeys() throws Exception {
+    @TestTemplate
+    void testSessionWindowsWithoutPartitionKeys() throws Exception {
         final SessionWindowAssigner assigner = SessionWindowAssigner.withGap(Duration.ofSeconds(3));
         UnalignedWindowTableFunctionOperator operator = createOperator(assigner, ROW_TIME_INDEX);
 
@@ -558,10 +564,5 @@ public class UnalignedWindowTableFunctionOperatorTest extends WindowTableFunctio
                 new RowDataSerializer(INPUT_ROW_TYPE),
                 rowTimeIndex,
                 shiftTimeZone);
-    }
-
-    @Parameterized.Parameters(name = "TimeZone = {0}")
-    public static Collection<Object[]> runMode() {
-        return Arrays.asList(new Object[] {UTC_ZONE_ID}, new Object[] {SHANGHAI_ZONE_ID});
     }
 }

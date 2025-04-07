@@ -38,10 +38,10 @@ import static org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * {@code JobExceptionsInfoWithHistory} extends {@link JobExceptionsInfo} providing a history of
- * previously caused failures. It's the response type of the {@link JobExceptionsHandler}.
+ * {@code JobExceptionsInfoWithHistory} providing a history of previously caused failures. It's the
+ * response type of the {@link JobExceptionsHandler}.
  */
-public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements ResponseBody {
+public class JobExceptionsInfoWithHistory implements ResponseBody {
 
     public static final String FIELD_NAME_EXCEPTION_HISTORY = "exceptionHistory";
 
@@ -50,17 +50,8 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
 
     @JsonCreator
     public JobExceptionsInfoWithHistory(
-            @JsonProperty(FIELD_NAME_ROOT_EXCEPTION) String rootException,
-            @JsonProperty(FIELD_NAME_TIMESTAMP) Long rootTimestamp,
-            @JsonProperty(FIELD_NAME_ALL_EXCEPTIONS) List<ExecutionExceptionInfo> allExceptions,
-            @JsonProperty(FIELD_NAME_TRUNCATED) boolean truncated,
             @JsonProperty(FIELD_NAME_EXCEPTION_HISTORY) JobExceptionHistory exceptionHistory) {
-        super(rootException, rootTimestamp, allExceptions, truncated);
         this.exceptionHistory = exceptionHistory;
-    }
-
-    public JobExceptionsInfoWithHistory(JobExceptionHistory exceptionHistory) {
-        this(null, null, Collections.emptyList(), false, exceptionHistory);
     }
 
     @JsonIgnore
@@ -79,30 +70,17 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
             return false;
         }
         JobExceptionsInfoWithHistory that = (JobExceptionsInfoWithHistory) o;
-        return this.isTruncated() == that.isTruncated()
-                && Objects.equals(this.getRootException(), that.getRootException())
-                && Objects.equals(this.getRootTimestamp(), that.getRootTimestamp())
-                && Objects.equals(this.getAllExceptions(), that.getAllExceptions())
-                && Objects.equals(exceptionHistory, that.exceptionHistory);
+        return Objects.equals(exceptionHistory, that.exceptionHistory);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(
-                isTruncated(),
-                getRootException(),
-                getRootTimestamp(),
-                getAllExceptions(),
-                exceptionHistory);
+        return Objects.hash(exceptionHistory);
     }
 
     @Override
     public String toString() {
         return new StringJoiner(", ", JobExceptionsInfoWithHistory.class.getSimpleName() + "[", "]")
-                .add("rootException='" + getRootException() + "'")
-                .add("rootTimestamp=" + getRootTimestamp())
-                .add("allExceptions=" + getAllExceptions())
-                .add("truncated=" + isTruncated())
                 .add("exceptionHistory=" + exceptionHistory)
                 .toString();
     }
@@ -176,7 +154,6 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
         public static final String FIELD_NAME_EXCEPTION_STACKTRACE = "stacktrace";
         public static final String FIELD_NAME_EXCEPTION_TIMESTAMP = "timestamp";
         public static final String FIELD_NAME_TASK_NAME = "taskName";
-        @Deprecated public static final String FIELD_NAME_LOCATION = "location";
         public static final String FIELD_NAME_ENDPOINT = "endpoint";
         public static final String FIELD_NAME_TASK_MANAGER_ID = "taskManagerId";
         public static final String FIELD_NAME_FAILURE_LABELS = "failureLabels";
@@ -195,13 +172,6 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
         @Nullable
         private final String taskName;
 
-        /** @deprecated Use {@link ExceptionInfo#endpoint} instead. */
-        @Deprecated
-        @JsonInclude(NON_NULL)
-        @JsonProperty(FIELD_NAME_LOCATION)
-        @Nullable
-        private final String location;
-
         @JsonInclude(NON_NULL)
         @JsonProperty(FIELD_NAME_ENDPOINT)
         @Nullable
@@ -216,15 +186,7 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
         private final Map<String, String> failureLabels;
 
         public ExceptionInfo(String exceptionName, String stacktrace, long timestamp) {
-            this(
-                    exceptionName,
-                    stacktrace,
-                    timestamp,
-                    Collections.emptyMap(),
-                    null,
-                    null,
-                    null,
-                    null);
+            this(exceptionName, stacktrace, timestamp, Collections.emptyMap(), null, null, null);
         }
 
         @JsonCreator
@@ -234,7 +196,6 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
                 @JsonProperty(FIELD_NAME_EXCEPTION_TIMESTAMP) long timestamp,
                 @JsonProperty(FIELD_NAME_FAILURE_LABELS) Map<String, String> failureLabels,
                 @JsonProperty(FIELD_NAME_TASK_NAME) @Nullable String taskName,
-                @JsonProperty(FIELD_NAME_LOCATION) @Nullable String location,
                 @JsonProperty(FIELD_NAME_ENDPOINT) @Nullable String endpoint,
                 @JsonProperty(FIELD_NAME_TASK_MANAGER_ID) @Nullable String taskManagerId) {
             this.exceptionName = checkNotNull(exceptionName);
@@ -242,7 +203,6 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
             this.timestamp = timestamp;
             this.failureLabels = checkNotNull(failureLabels);
             this.taskName = taskName;
-            this.location = location;
             this.endpoint = endpoint;
             this.taskManagerId = taskManagerId;
         }
@@ -266,13 +226,6 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
         @Nullable
         public String getTaskName() {
             return taskName;
-        }
-
-        @Deprecated
-        @JsonIgnore
-        @Nullable
-        public String getLocation() {
-            return location;
         }
 
         @JsonIgnore
@@ -308,20 +261,13 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
                     && Objects.equals(timestamp, that.timestamp)
                     && Objects.equals(failureLabels, that.failureLabels)
                     && Objects.equals(taskName, that.taskName)
-                    && Objects.equals(location, that.location)
-                    && Objects.equals(location, that.endpoint);
+                    && Objects.equals(endpoint, that.endpoint);
         }
 
         @Override
         public int hashCode() {
             return Objects.hash(
-                    exceptionName,
-                    stacktrace,
-                    timestamp,
-                    failureLabels,
-                    taskName,
-                    location,
-                    endpoint);
+                    exceptionName, stacktrace, timestamp, failureLabels, taskName, endpoint);
         }
 
         @Override
@@ -362,7 +308,6 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
                     null,
                     null,
                     null,
-                    null,
                     concurrentExceptions);
         }
 
@@ -373,7 +318,6 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
                 @JsonProperty(FIELD_NAME_EXCEPTION_TIMESTAMP) long timestamp,
                 @JsonProperty(FIELD_NAME_FAILURE_LABELS) Map<String, String> failureLabels,
                 @JsonProperty(FIELD_NAME_TASK_NAME) @Nullable String taskName,
-                @JsonProperty(FIELD_NAME_LOCATION) @Nullable String location,
                 @JsonProperty(FIELD_NAME_ENDPOINT) @Nullable String endpoint,
                 @JsonProperty(FIELD_NAME_TASK_MANAGER_ID) @Nullable String taskManagerId,
                 @JsonProperty(FIELD_NAME_CONCURRENT_EXCEPTIONS)
@@ -384,7 +328,6 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
                     timestamp,
                     failureLabels,
                     taskName,
-                    location,
                     endpoint,
                     taskManagerId);
             this.concurrentExceptions = concurrentExceptions;

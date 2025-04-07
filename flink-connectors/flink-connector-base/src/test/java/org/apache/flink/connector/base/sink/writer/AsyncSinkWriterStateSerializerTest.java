@@ -18,7 +18,7 @@
 
 package org.apache.flink.connector.base.sink.writer;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -29,10 +29,10 @@ import static org.apache.flink.connector.base.sink.writer.AsyncSinkWriterTestUti
 import static org.apache.flink.connector.base.sink.writer.AsyncSinkWriterTestUtils.getTestState;
 
 /** Test class for {@link AsyncSinkWriterStateSerializer}. */
-public class AsyncSinkWriterStateSerializerTest {
+class AsyncSinkWriterStateSerializerTest {
 
     @Test
-    public void testSerializeAndDeSerialize() throws IOException {
+    void testSerializeAndDeSerialize() throws IOException {
         AsyncSinkWriterStateSerializerImpl stateSerializer =
                 new AsyncSinkWriterStateSerializerImpl();
         BufferedRequestState<String> state =

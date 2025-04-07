@@ -22,8 +22,10 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
 import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
@@ -42,15 +44,19 @@ public abstract class ChangelogRecoverySwitchEnvTestBase extends ChangelogRecove
     }
 
     protected void testSwitchEnv(
-            StreamExecutionEnvironment firstEnv, StreamExecutionEnvironment secondEnv)
+            StateBackend stateBackend,
+            StreamExecutionEnvironment firstEnv,
+            StreamExecutionEnvironment secondEnv)
             throws Exception {
         File firstCheckpointFolder = TEMPORARY_FOLDER.newFolder();
         SharedReference<MiniCluster> miniCluster = sharedObjects.add(cluster.getMiniCluster());
         SharedReference<Set<StateHandleID>> currentMaterializationId =
                 sharedObjects.add(ConcurrentHashMap.newKeySet());
-        firstEnv.getCheckpointConfig().setCheckpointStorage(firstCheckpointFolder.toURI());
+
+        CheckpointStorageUtils.configureFileSystemCheckpointStorage(
+                firstEnv, firstCheckpointFolder.toURI());
         JobGraph firstJobGraph =
-                firstNormalJobGraph(firstEnv, miniCluster, currentMaterializationId);
+                firstNormalJobGraph(stateBackend, firstEnv, miniCluster, currentMaterializationId);
 
         try {
             cluster.getMiniCluster().submitJob(firstJobGraph).get();
@@ -61,8 +67,10 @@ public abstract class ChangelogRecoverySwitchEnvTestBase extends ChangelogRecove
         }
 
         File secondCheckpointFolder = TEMPORARY_FOLDER.newFolder();
-        secondEnv.getCheckpointConfig().setCheckpointStorage(secondCheckpointFolder.toURI());
-        JobGraph jobGraph = nextNormalJobGraph(secondEnv, miniCluster, currentMaterializationId);
+        CheckpointStorageUtils.configureFileSystemCheckpointStorage(
+                secondEnv, secondCheckpointFolder.toURI());
+        JobGraph jobGraph =
+                nextNormalJobGraph(stateBackend, secondEnv, miniCluster, currentMaterializationId);
         File checkpointFile = getMostRecentCompletedCheckpoint(firstCheckpointFolder);
         jobGraph.setSavepointRestoreSettings(
                 SavepointRestoreSettings.forPath(checkpointFile.getPath()));
@@ -70,11 +78,13 @@ public abstract class ChangelogRecoverySwitchEnvTestBase extends ChangelogRecove
     }
 
     private JobGraph firstNormalJobGraph(
+            StateBackend stateBackend,
             StreamExecutionEnvironment env,
             SharedReference<MiniCluster> miniCluster,
             SharedReference<Set<StateHandleID>> currentMaterializationId) {
         SharedReference<JobID> jobID = sharedObjects.add(generateJobID());
         return buildJobGraph(
+                stateBackend,
                 env,
                 new ControlledSource() {
                     @Override
@@ -104,11 +114,13 @@ public abstract class ChangelogRecoverySwitchEnvTestBase extends ChangelogRecove
     }
 
     private JobGraph nextNormalJobGraph(
+            StateBackend stateBackend,
             StreamExecutionEnvironment env,
             SharedReference<MiniCluster> miniCluster,
             SharedReference<Set<StateHandleID>> currentMaterializationId) {
         SharedReference<JobID> jobID = sharedObjects.add(generateJobID());
         return buildJobGraph(
+                stateBackend,
                 env,
                 new ControlledSource() {
                     @Override
@@ -130,12 +142,14 @@ public abstract class ChangelogRecoverySwitchEnvTestBase extends ChangelogRecove
     }
 
     protected JobGraph buildJobGraph(
+            StateBackend stateBackend,
             StreamExecutionEnvironment env,
             int waitingOnIndex,
             int failIndex,
             SharedReference<MiniCluster> miniCluster) {
         SharedReference<JobID> jobID = sharedObjects.add(generateJobID());
         return buildJobGraph(
+                stateBackend,
                 env,
                 new ControlledSource() {
                     @Override

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.job.metrics;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.metrics.dump.MetricDump;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
@@ -34,6 +33,7 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -47,7 +47,7 @@ abstract class MetricsHandlerTestBase<T extends AbstractMetricsHandler> {
 
     private static final int TEST_METRIC_VALUE = 1000;
 
-    static final Time TIMEOUT = Time.milliseconds(50);
+    static final Duration TIMEOUT = Duration.ofMillis(50);
 
     static final Map<String, String> TEST_HEADERS = Collections.emptyMap();
 

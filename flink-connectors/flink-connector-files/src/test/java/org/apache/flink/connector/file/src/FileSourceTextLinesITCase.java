@@ -21,10 +21,10 @@ package org.apache.flink.connector.file.src;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
@@ -33,12 +33,12 @@ import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.operators.collect.ClientAndIterator;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.junit5.InjectMiniCluster;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -148,7 +148,7 @@ class FileSourceTextLinesITCase {
                         .build();
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
         env.setParallelism(PARALLELISM);
 
         if (batchMode) {
@@ -162,17 +162,17 @@ class FileSourceTextLinesITCase {
         final DataStream<String> streamFailingInTheMiddleOfReading =
                 RecordCounterToFail.wrapWithFailureAfter(stream, LINES.length / 2);
 
-        final ClientAndIterator<String> client =
-                DataStreamUtils.collectWithClient(
-                        streamFailingInTheMiddleOfReading, "Bounded TextFiles Test");
-        final JobID jobId = client.client.getJobID();
+        CloseableIterator<String> iterator = streamFailingInTheMiddleOfReading.collectAsync();
+        JobClient client = env.executeAsync("Bounded TextFiles Test");
+
+        final JobID jobId = client.getJobID();
 
         RecordCounterToFail.waitToFail();
         triggerFailover(failoverType, jobId, RecordCounterToFail::continueProcessing, miniCluster);
 
         final List<String> result = new ArrayList<>();
-        while (client.iterator.hasNext()) {
-            result.add(client.iterator.next());
+        while (iterator.hasNext()) {
+            result.add(iterator.next());
         }
 
         verifyResult(result);
@@ -235,21 +235,26 @@ class FileSourceTextLinesITCase {
 
         final DataStream<String> stream =
                 env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source");
-
-        final ClientAndIterator<String> client =
-                DataStreamUtils.collectWithClient(stream, "Continuous TextFiles Monitoring Test");
-        final JobID jobId = client.client.getJobID();
-
         // write one file, execute, and wait for its result
         // that way we know that the application was running and the source has
         // done its first chunk of work already
+
+        CloseableIterator<String> iter = stream.collectAsync();
+        JobClient client = env.executeAsync("jobExecutionName");
+        JobID jobId = client.getJobID();
 
         final int numLinesFirst = LINES_PER_FILE[0].length;
         final int numLinesAfter = LINES.length - numLinesFirst;
 
         writeFile(testDir, 0);
-        final List<String> result1 =
-                DataStreamUtils.collectRecordsFromUnboundedStream(client, numLinesFirst);
+
+        final ArrayList<String> result1 = new ArrayList<>(numLinesFirst);
+        while (iter.hasNext()) {
+            result1.add(iter.next());
+            if (result1.size() == numLinesFirst) {
+                break;
+            }
+        }
 
         // write the remaining files over time, after that collect the final result
         for (int i = 1; i < LINES_PER_FILE.length; i++) {
@@ -261,11 +266,16 @@ class FileSourceTextLinesITCase {
             }
         }
 
-        final List<String> result2 =
-                DataStreamUtils.collectRecordsFromUnboundedStream(client, numLinesAfter);
+        final ArrayList<String> result2 = new ArrayList<>(numLinesAfter);
+        while (iter.hasNext()) {
+            result2.add(iter.next());
+            if (result2.size() == numLinesAfter) {
+                break;
+            }
+        }
 
         // shut down the job, now that we have all the results we expected.
-        client.client.cancel().get();
+        client.cancel().get();
 
         result1.addAll(result2);
         verifyResult(result1);

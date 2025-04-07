@@ -35,21 +35,21 @@ import org.apache.flink.table.runtime.operators.multipleinput.TestingTwoInputStr
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for the sub-classes of {@link Output}. */
-public class OutputTest extends MultipleInputTestBase {
+class OutputTest extends MultipleInputTestBase {
 
     private StreamRecord<RowData> element;
     private Watermark watermark;
     private LatencyMarker latencyMarker;
     private TypeSerializer<RowData> serializer;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         element = new StreamRecord<>(GenericRowData.of(StringData.fromString("123")), 456);
         watermark = new Watermark(1223456789);
         latencyMarker = new LatencyMarker(122345678, new OperatorID(123, 456), 1);
@@ -59,7 +59,7 @@ public class OutputTest extends MultipleInputTestBase {
     }
 
     @Test
-    public void testOneInput() throws Exception {
+    void testOneInput() throws Exception {
         TestingOneInputStreamOperator op = createOneInputStreamOperator();
         OneInputStreamOperatorOutput output = new OneInputStreamOperatorOutput(op);
 
@@ -74,7 +74,7 @@ public class OutputTest extends MultipleInputTestBase {
     }
 
     @Test
-    public void testCopyingOneInput() throws Exception {
+    void testCopyingOneInput() throws Exception {
         TestingOneInputStreamOperator op = createOneInputStreamOperator();
         CopyingOneInputStreamOperatorOutput output =
                 new CopyingOneInputStreamOperatorOutput(op, serializer);
@@ -91,7 +91,7 @@ public class OutputTest extends MultipleInputTestBase {
     }
 
     @Test
-    public void testFirstInputOfTwoInput() throws Exception {
+    void testFirstInputOfTwoInput() throws Exception {
         TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
         FirstInputOfTwoInputStreamOperatorOutput output =
                 new FirstInputOfTwoInputStreamOperatorOutput(op);
@@ -110,7 +110,7 @@ public class OutputTest extends MultipleInputTestBase {
     }
 
     @Test
-    public void testCopyingFirstInputOfTwoInput() throws Exception {
+    void testCopyingFirstInputOfTwoInput() throws Exception {
         TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
         CopyingFirstInputOfTwoInputStreamOperatorOutput output =
                 new CopyingFirstInputOfTwoInputStreamOperatorOutput(op, serializer);
@@ -130,7 +130,7 @@ public class OutputTest extends MultipleInputTestBase {
     }
 
     @Test
-    public void testSecondInputOfTwoInput() throws Exception {
+    void testSecondInputOfTwoInput() throws Exception {
         TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
         SecondInputOfTwoInputStreamOperatorOutput output =
                 new SecondInputOfTwoInputStreamOperatorOutput(op);
@@ -149,7 +149,7 @@ public class OutputTest extends MultipleInputTestBase {
     }
 
     @Test
-    public void testCopyingSecondInputOfTwoInput() throws Exception {
+    void testCopyingSecondInputOfTwoInput() throws Exception {
         TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
         CopyingSecondInputOfTwoInputStreamOperatorOutput output =
                 new CopyingSecondInputOfTwoInputStreamOperatorOutput(op, serializer);
@@ -169,7 +169,7 @@ public class OutputTest extends MultipleInputTestBase {
     }
 
     @Test
-    public void testBroadcasting() throws Exception {
+    void testBroadcasting() throws Exception {
         TestingOneInputStreamOperator op1 = createOneInputStreamOperator();
         TestingOneInputStreamOperator op2 = createOneInputStreamOperator();
         BroadcastingOutput output =
@@ -198,7 +198,7 @@ public class OutputTest extends MultipleInputTestBase {
     }
 
     @Test
-    public void testCopyingBroadcasting() throws Exception {
+    void testCopyingBroadcasting() throws Exception {
         TestingOneInputStreamOperator op1 = createOneInputStreamOperator();
         TestingOneInputStreamOperator op2 = createOneInputStreamOperator();
         CopyingBroadcastingOutput output =

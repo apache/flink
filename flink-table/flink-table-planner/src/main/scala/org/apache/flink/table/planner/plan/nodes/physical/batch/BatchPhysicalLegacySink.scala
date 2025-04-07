@@ -17,13 +17,14 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
+import org.apache.flink.legacy.table.sinks.UpsertStreamTableSink
+import org.apache.flink.table.legacy.sinks.TableSink
 import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecLegacySink
 import org.apache.flink.table.planner.plan.utils.UpdatingPlanChecker
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.sinks.{TableSink, UpsertStreamTableSink}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode

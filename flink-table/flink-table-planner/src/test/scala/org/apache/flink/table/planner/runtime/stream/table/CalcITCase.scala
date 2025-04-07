@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.runtime.stream.table
 
-import org.apache.flink.api.scala._
 import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.annotation.{DataTypeHint, InputGroup}
 import org.apache.flink.table.api._
@@ -25,14 +24,14 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.catalog.CatalogDatabaseImpl
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.expressions.utils._
-import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink, UserDefinedFunctionTestUtils}
+import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
-import org.assertj.core.api.Assertions.{assertThat, assertThatExceptionOfType, assertThatThrownBy}
+import org.assertj.core.api.Assertions.{assertThat, assertThatExceptionOfType}
 import org.junit.jupiter.api.{Disabled, TestTemplate}
 import org.junit.jupiter.api.extension.{ExtendWith, RegisterExtension}
 
@@ -55,8 +54,8 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     tEnv.createTemporarySystemFunction("RichFunc2", new RichFunc2)
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "Abc"))
 
-    val result = env
-      .fromCollection(tupleData3)
+    val result = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
       .toTable(tEnv, 'a, 'b, 'c)
       .where(call("RichFunc2", $"c") === "Abc#Hello" || call("RichFunc1", $"a") === 3 && $"b" === 2)
       .select('c, udfLen('c).as('len))
@@ -71,7 +70,9 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
   @TestTemplate
   def testSimpleSelectAll(): Unit = {
-    val ds = env.fromCollection(smallTupleData3).toTable(tEnv)
+    val ds = StreamingEnvUtil
+      .fromCollection(env, smallTupleData3)
+      .toTable(tEnv)
 
     val sink = new TestingAppendSink
     ds.toDataStream.addSink(sink)
@@ -83,8 +84,8 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
   @TestTemplate
   def testSimpleSelectEmpty(): Unit = {
-    val ds = env
-      .fromCollection(smallTupleData3)
+    val ds = StreamingEnvUtil
+      .fromCollection(env, smallTupleData3)
       .toTable(tEnv)
       .select()
       .select(lit("1").count())
@@ -99,7 +100,10 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
   @TestTemplate
   def testSelectStar(): Unit = {
-    val ds = env.fromCollection(smallNestedTupleData).toTable(tEnv, '_1, '_2).select('*)
+    val ds = StreamingEnvUtil
+      .fromCollection(env, smallNestedTupleData)
+      .toTable(tEnv, '_1, '_2)
+      .select('*)
 
     val sink = new TestingAppendSink
     ds.toDataStream(
@@ -113,7 +117,10 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
   @TestTemplate
   def testSelectFirst(): Unit = {
-    val ds = env.fromCollection(smallTupleData3).toTable(tEnv).select('_1)
+    val ds = StreamingEnvUtil
+      .fromCollection(env, smallTupleData3)
+      .toTable(tEnv)
+      .select('_1)
 
     val sink = new TestingAppendSink
     ds.toDataStream.addSink(sink)
@@ -127,8 +134,8 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   def testSimpleSelectWithNaming(): Unit = {
 
     // verify ProjectMergeRule.
-    val ds = env
-      .fromCollection(tupleData3)
+    val ds = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
       .toTable(tEnv)
       .select('_1.as('a), '_2.as('b), '_1.as('c))
       .select('a, 'b)
@@ -164,8 +171,8 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
   @TestTemplate
   def testSimpleSelectAllWithAs(): Unit = {
-    val ds = env
-      .fromCollection(smallTupleData3)
+    val ds = StreamingEnvUtil
+      .fromCollection(env, smallTupleData3)
       .toTable(tEnv, 'a, 'b, 'c)
       .select('a, 'b, 'c)
 
@@ -182,7 +189,9 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     /*
      * Test simple filter
      */
-    val ds = env.fromCollection(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
+    val ds = StreamingEnvUtil
+      .fromCollection(env, smallTupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
 
     val sink = new TestingAppendSink
     ds.filter('a === 3).toDataStream.addSink(sink)
@@ -197,7 +206,9 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     /*
      * Test all-rejecting filter
      */
-    val ds = env.fromCollection(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
+    val ds = StreamingEnvUtil
+      .fromCollection(env, smallTupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
 
     val filterDs = ds.filter(false)
     val sink = new TestingAppendSink
@@ -212,7 +223,9 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     /*
      * Test all-passing filter
      */
-    val ds = env.fromCollection(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
+    val ds = StreamingEnvUtil
+      .fromCollection(env, smallTupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
     val sink = new TestingAppendSink
     ds.filter(true).toDataStream.addSink(sink)
     env.execute()
@@ -226,7 +239,9 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     /*
      * Test filter on Integer tuple field.
      */
-    val ds = env.fromCollection(tupleData3).toTable(tEnv, 'a, 'b, 'c)
+    val ds = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
 
     val filterDs = ds
       .filter('a % 2 === 0)
@@ -250,7 +265,9 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     /*
      * Test filter on Integer tuple field.
      */
-    val ds = env.fromCollection(tupleData3).toTable(tEnv, 'a, 'b, 'c)
+    val ds = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
 
     val filterDs = ds
       .filter('a % 2 !== 0)
@@ -274,8 +291,8 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   def testUserDefinedFunctionWithParameter(): Unit = {
     tEnv.createTemporarySystemFunction("RichFunc2", new RichFunc2)
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "ABC"))
-    val ds = env
-      .fromCollection(tupleData3)
+    val ds = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
       .toTable(tEnv, 'a, 'b, 'c)
       .where(call("RichFunc2", $"c") === "ABC#Hello")
       .select('c)
@@ -294,8 +311,8 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     tEnv.createTemporarySystemFunction("RichFunc2", new RichFunc2)
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "Abc"))
 
-    val result = env
-      .fromCollection(tupleData3)
+    val result = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
       .toTable(tEnv, 'a, 'b, 'c)
       .where(
         call("RichFunc2", $"c") === "Abc#Hello" ||
@@ -319,7 +336,10 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     testData.+=((3, 2L, "Anna#44"))
     testData.+=((4, 3L, "nosharp"))
 
-    val t = env.fromCollection(testData).toTable(tEnv).as("a", "b", "c")
+    val t = StreamingEnvUtil
+      .fromCollection(env, testData)
+      .toTable(tEnv)
+      .as("a", "b", "c")
     val func0 = new Func13("default")
     val func1 = new Func13("Sunny")
     val func2 = new Func13("kevin2")
@@ -420,7 +440,8 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   def testCallFunctionWithStarArgument(): Unit = {
     val table = tEnv
       .fromDataStream(
-        env.fromCollection(
+        StreamingEnvUtil.fromCollection(
+          env,
           Seq(
             ("Foo", 0, 3),
             ("Bar", 1, 4),
@@ -486,7 +507,10 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
   @TestTemplate
   def testMapType(): Unit = {
-    val ds = env.fromCollection(tupleData3).toTable(tEnv).select(map('_1, '_3))
+    val ds = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .toTable(tEnv)
+      .select(map('_1, '_3))
 
     val sink = new TestingAppendSink
     ds.toDataStream.addSink(sink)
@@ -524,7 +548,10 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     testData.+=((1, 1L, "Kevin"))
     testData.+=((2, 2L, "Sunny"))
 
-    val t = env.fromCollection(testData).toTable(tEnv).as("a", "b", "c")
+    val t = StreamingEnvUtil
+      .fromCollection(env, testData)
+      .toTable(tEnv)
+      .as("a", "b", "c")
 
     val result = t
       // Adds simple column
@@ -559,8 +586,8 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
   @TestTemplate
   def testMap(): Unit = {
-    val ds = env
-      .fromCollection(smallTupleData3)
+    val ds = StreamingEnvUtil
+      .fromCollection(env, smallTupleData3)
       .toTable(tEnv, 'a, 'b, 'c)
       .map(Func23('a, 'b, 'c))
       .as("a", "b", "c", "d")
@@ -578,8 +605,8 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
   @TestTemplate
   def testMapWithStarArgument(): Unit = {
-    val ds = env
-      .fromCollection(smallTupleData3)
+    val ds = StreamingEnvUtil
+      .fromCollection(env, smallTupleData3)
       .toTable(tEnv, 'a, 'b, 'c)
       .map(Func23('*))
       .as("a", "b", "c", "d")
@@ -598,8 +625,8 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   @Disabled("Will be open when FLINK-10834 has been fixed.")
   @TestTemplate
   def testNonDeterministic(): Unit = {
-    val ds = env
-      .fromCollection(smallTupleData3)
+    val ds = StreamingEnvUtil
+      .fromCollection(env, smallTupleData3)
       .toTable(tEnv, 'a, 'b, 'c)
       .map(Func25('a))
 
@@ -616,8 +643,8 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
   @TestTemplate
   def testPrimitiveMapType(): Unit = {
-    val ds = env
-      .fromCollection(smallTupleData3)
+    val ds = StreamingEnvUtil
+      .fromCollection(env, smallTupleData3)
       .toTable(tEnv)
       .select(map('_2, 30, 10L, '_1))
 
@@ -632,8 +659,8 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
   @TestTemplate
   def testNonPrimitiveType(): Unit = {
-    val ds = env
-      .fromCollection(smallTupleData3)
+    val ds = StreamingEnvUtil
+      .fromCollection(env, smallTupleData3)
       .toTable(tEnv)
       .select(map('_1, '_3))
 
@@ -650,7 +677,8 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   def testSelectStarFromNestedTable(): Unit = {
     val table = tEnv
       .fromDataStream(
-        env.fromCollection(
+        StreamingEnvUtil.fromCollection(
+          env,
           Seq(
             ((0, 0), "0"),
             ((1, 1), "1"),
@@ -674,8 +702,8 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   @TestTemplate
   def testCurrentDatabase(): Unit = {
     val result1 =
-      env
-        .fromCollection(tupleData3)
+      StreamingEnvUtil
+        .fromCollection(env, tupleData3)
         .toTable(tEnv)
         .limit(1)
         .select(currentDatabase())
@@ -693,8 +721,8 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
         new CatalogDatabaseImpl(new util.HashMap[String, String](), "db1"),
         false)
     tEnv.useDatabase("db1")
-    val result2 = env
-      .fromCollection(tupleData3)
+    val result2 = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
       .toTable(tEnv)
       .limit(1)
       .select(currentDatabase())

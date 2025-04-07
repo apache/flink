@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.rest.messages.RestRequestMarshallingTestBase;
 import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
 
@@ -43,13 +43,12 @@ class JarRunRequestBodyTest extends RestRequestMarshallingTestBase<JarRunRequest
     protected JarRunRequestBody getTestRequestInstance() {
         return new JarRunRequestBody(
                 "hello",
-                "world",
                 Arrays.asList("boo", "far"),
                 4,
                 new JobID(),
                 true,
                 "foo/bar",
-                RestoreMode.CLAIM,
+                RecoveryClaimMode.CLAIM,
                 Collections.singletonMap("key", "value"));
     }
 
@@ -57,14 +56,13 @@ class JarRunRequestBodyTest extends RestRequestMarshallingTestBase<JarRunRequest
     protected void assertOriginalEqualsToUnmarshalled(
             final JarRunRequestBody expected, final JarRunRequestBody actual) {
         assertThat(actual.getEntryClassName()).isEqualTo(expected.getEntryClassName());
-        assertThat(actual.getProgramArguments()).isEqualTo(expected.getProgramArguments());
         assertThat(actual.getProgramArgumentsList()).isEqualTo(expected.getProgramArgumentsList());
         assertThat(actual.getParallelism()).isEqualTo(expected.getParallelism());
         assertThat(actual.getJobId()).isEqualTo(expected.getJobId());
         assertThat(actual.getAllowNonRestoredState())
                 .isEqualTo(expected.getAllowNonRestoredState());
         assertThat(actual.getSavepointPath()).isEqualTo(expected.getSavepointPath());
-        assertThat(actual.getRestoreMode()).isEqualTo(expected.getRestoreMode());
+        assertThat(actual.getRecoveryClaimMode()).isEqualTo(expected.getRecoveryClaimMode());
         assertThat(actual.getFlinkConfiguration().toMap())
                 .containsExactlyEntriesOf(expected.getFlinkConfiguration().toMap());
     }

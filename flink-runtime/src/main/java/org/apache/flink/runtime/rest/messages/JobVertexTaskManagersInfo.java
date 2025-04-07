@@ -100,7 +100,6 @@ public class JobVertexTaskManagersInfo implements ResponseBody {
     /** Detailed information about task managers. */
     @Schema(name = "JobVertexTaskManagerInfo")
     public static class TaskManagersInfo {
-        @Deprecated public static final String TASK_MANAGERS_FIELD_HOST = "host";
         public static final String TASK_MANAGERS_FIELD_ENDPOINT = "endpoint";
         public static final String TASK_MANAGERS_FIELD_STATUS = "status";
         public static final String TASK_MANAGERS_FIELD_START_TIME = "start-time";
@@ -110,9 +109,6 @@ public class JobVertexTaskManagersInfo implements ResponseBody {
         public static final String TASK_MANAGERS_FIELD_STATUS_COUNTS = "status-counts";
         public static final String TASK_MANAGERS_FIELD_TASKMANAGER_ID = "taskmanager-id";
         public static final String TASK_MANAGERS_FIELD_AGGREGATED = "aggregated";
-
-        @JsonProperty(TASK_MANAGERS_FIELD_HOST)
-        private final String host;
 
         @JsonProperty(TASK_MANAGERS_FIELD_ENDPOINT)
         private final String endpoint;
@@ -143,7 +139,6 @@ public class JobVertexTaskManagersInfo implements ResponseBody {
 
         @JsonCreator
         public TaskManagersInfo(
-                @JsonProperty(TASK_MANAGERS_FIELD_HOST) String host,
                 @JsonProperty(TASK_MANAGERS_FIELD_ENDPOINT) String endpoint,
                 @JsonProperty(TASK_MANAGERS_FIELD_STATUS) ExecutionState status,
                 @JsonProperty(TASK_MANAGERS_FIELD_START_TIME) long startTime,
@@ -155,7 +150,6 @@ public class JobVertexTaskManagersInfo implements ResponseBody {
                 @JsonProperty(TASK_MANAGERS_FIELD_TASKMANAGER_ID) String taskmanagerId,
                 @JsonProperty(TASK_MANAGERS_FIELD_AGGREGATED)
                         AggregatedTaskDetailsInfo aggregated) {
-            this.host = checkNotNull(host);
             this.endpoint = checkNotNull(endpoint);
             this.status = checkNotNull(status);
             this.startTime = startTime;
@@ -176,8 +170,7 @@ public class JobVertexTaskManagersInfo implements ResponseBody {
                 return false;
             }
             TaskManagersInfo that = (TaskManagersInfo) o;
-            return Objects.equals(host, that.host)
-                    && Objects.equals(endpoint, that.endpoint)
+            return Objects.equals(endpoint, that.endpoint)
                     && Objects.equals(status, that.status)
                     && startTime == that.startTime
                     && endTime == that.endTime
@@ -191,7 +184,6 @@ public class JobVertexTaskManagersInfo implements ResponseBody {
         @Override
         public int hashCode() {
             return Objects.hash(
-                    host,
                     endpoint,
                     status,
                     startTime,

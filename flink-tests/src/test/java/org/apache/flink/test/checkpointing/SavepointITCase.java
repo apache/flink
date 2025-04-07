@@ -20,11 +20,9 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -32,7 +30,6 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -41,9 +38,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.StateBackendOptions;
-import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
@@ -74,20 +69,21 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.IterativeStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.functions.source.legacy.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.EntropyInjectingTestFileSystem;
 import org.apache.flink.testutils.TestingUtils;
@@ -208,8 +204,7 @@ public class SavepointITCase extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
-        BoundedPassThroughOperator<Long> operator =
-                new BoundedPassThroughOperator<>(ChainingStrategy.ALWAYS);
+        BoundedPassThroughOperator<Long> operator = new BoundedPassThroughOperator<>();
         DataStream<Long> stream =
                 env.fromSequence(0, Long.MAX_VALUE)
                         .transform("pass-through", BasicTypeInfo.LONG_TYPE_INFO, operator);
@@ -252,7 +247,7 @@ public class SavepointITCase extends TestLogger {
                                 .build());
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+        RestartStrategyUtils.configureNoRestartStrategy(env);
         env.addSource(new InfiniteTestSource())
                 .setParallelism(1)
                 .name("Infinite Source")
@@ -315,7 +310,7 @@ public class SavepointITCase extends TestLogger {
                                 .build());
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.getConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 10));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 3, 10);
         env.setParallelism(1);
         env.addSource(new InfiniteTestSource())
                 .name("Infinite Source")
@@ -421,7 +416,7 @@ public class SavepointITCase extends TestLogger {
         restoreJobAndVerifyState(
                 clusterFactory,
                 parallelism,
-                SavepointRestoreSettings.forPath(savepointPath, false, RestoreMode.CLAIM),
+                SavepointRestoreSettings.forPath(savepointPath, false, RecoveryClaimMode.CLAIM),
                 cluster -> {
                     cluster.after();
 
@@ -446,7 +441,7 @@ public class SavepointITCase extends TestLogger {
         restoreJobAndVerifyState(
                 clusterFactory,
                 parallelism,
-                SavepointRestoreSettings.forPath(savepointPath, false, RestoreMode.LEGACY),
+                SavepointRestoreSettings.forPath(savepointPath, false, RecoveryClaimMode.LEGACY),
                 cluster -> {
                     cluster.after();
 
@@ -466,11 +461,12 @@ public class SavepointITCase extends TestLogger {
         final int parallelism = numTaskManagers * numSlotsPerTaskManager;
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(new EmbeddedRocksDBStateBackend(true));
+        StateBackendUtils.configureRocksDBStateBackend(env, true);
         env.getCheckpointConfig()
                 .setExternalizedCheckpointRetention(
                         ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
-        env.getCheckpointConfig().setCheckpointStorage(folder.newFolder().toURI());
+        CheckpointStorageUtils.configureFileSystemCheckpointStorage(
+                env, folder.newFolder().toURI());
         env.setParallelism(parallelism);
 
         final SharedReference<CountDownLatch> counter =
@@ -533,7 +529,8 @@ public class SavepointITCase extends TestLogger {
 
             cluster.getClusterClient().cancel(jobID1).get();
             jobGraph.setSavepointRestoreSettings(
-                    SavepointRestoreSettings.forPath(firstCheckpoint, false, RestoreMode.NO_CLAIM));
+                    SavepointRestoreSettings.forPath(
+                            firstCheckpoint, false, RecoveryClaimMode.NO_CLAIM));
             final JobID jobID2 = new JobID();
             jobGraph.setJobID(jobID2);
             cluster.getClusterClient().submitJob(jobGraph).get();
@@ -548,7 +545,7 @@ public class SavepointITCase extends TestLogger {
             // on top of the first checkpoint
             jobGraph.setSavepointRestoreSettings(
                     SavepointRestoreSettings.forPath(
-                            secondCheckpoint, false, RestoreMode.NO_CLAIM));
+                            secondCheckpoint, false, RecoveryClaimMode.NO_CLAIM));
             final JobID jobID3 = new JobID();
             jobGraph.setJobID(jobID3);
             cluster.getClusterClient().submitJob(jobGraph).get();
@@ -853,9 +850,7 @@ public class SavepointITCase extends TestLogger {
 
         private transient boolean processed;
 
-        BoundedPassThroughOperator(ChainingStrategy chainingStrategy) {
-            this.chainingStrategy = chainingStrategy;
-        }
+        BoundedPassThroughOperator() {}
 
         private static void allowSnapshots() {
             snapshotAllowedLatch.countDown();
@@ -915,8 +910,7 @@ public class SavepointITCase extends TestLogger {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(1);
 
-            BoundedPassThroughOperator<Integer> operator =
-                    new BoundedPassThroughOperator<>(chainingStrategy);
+            BoundedPassThroughOperator<Integer> operator = new BoundedPassThroughOperator<>();
             DataStream<Integer> stream =
                     env.addSource(new InfiniteTestSource())
                             .transform("pass-through", BasicTypeInfo.INT_TYPE_INFO, operator);
@@ -1048,8 +1042,7 @@ public class SavepointITCase extends TestLogger {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(parallelism);
-        env.getConfig()
-                .setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 0L);
         env.addSource(new InfiniteTestSource())
                 .name("Infinite test source")
                 .sinkTo(new DiscardingSink<>());
@@ -1134,9 +1127,8 @@ public class SavepointITCase extends TestLogger {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
-        env.getConfig()
-                .setRestartStrategy(
-                        RestartStrategies.fixedDelayRestart(expectedMaximumNumberOfRestarts, 0));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(
+                env, expectedMaximumNumberOfRestarts, 0L);
         env.addSource(failingSource)
                 .name("Failing Source")
                 .map(
@@ -1360,9 +1352,7 @@ public class SavepointITCase extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(parallelism);
         env.disableOperatorChaining();
-        env.getConfig()
-                .setRestartStrategy(
-                        RestartStrategies.fixedDelayRestart(numberOfRetries, restartDelay));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, numberOfRetries, restartDelay);
 
         DataStream<Integer> stream =
                 env.addSource(new InfiniteTestSource()).shuffle().map(new StatefulCounter());
@@ -1544,117 +1534,6 @@ public class SavepointITCase extends TestLogger {
     private static OneShotLatch[] iterTestRestoreWait = new OneShotLatch[ITER_TEST_PARALLELISM];
     private static int[] iterTestCheckpointVerify = new int[ITER_TEST_PARALLELISM];
 
-    @Test
-    public void testSavepointForJobWithIteration() throws Exception {
-
-        for (int i = 0; i < ITER_TEST_PARALLELISM; ++i) {
-            iterTestSnapshotWait[i] = new OneShotLatch();
-            iterTestRestoreWait[i] = new OneShotLatch();
-            iterTestCheckpointVerify[i] = 0;
-        }
-
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        final IntegerStreamSource source = new IntegerStreamSource();
-        IterativeStream<Integer> iteration =
-                env.addSource(source)
-                        .flatMap(
-                                new RichFlatMapFunction<Integer, Integer>() {
-
-                                    private static final long serialVersionUID = 1L;
-
-                                    @Override
-                                    public void flatMap(Integer in, Collector<Integer> clctr)
-                                            throws Exception {
-                                        clctr.collect(in);
-                                    }
-                                })
-                        .setParallelism(ITER_TEST_PARALLELISM)
-                        .keyBy(
-                                new KeySelector<Integer, Object>() {
-
-                                    private static final long serialVersionUID = 1L;
-
-                                    @Override
-                                    public Object getKey(Integer value) throws Exception {
-                                        return value;
-                                    }
-                                })
-                        .flatMap(new DuplicateFilter())
-                        .setParallelism(ITER_TEST_PARALLELISM)
-                        .iterate();
-
-        DataStream<Integer> iterationBody =
-                iteration
-                        .map(
-                                new MapFunction<Integer, Integer>() {
-                                    private static final long serialVersionUID = 1L;
-
-                                    @Override
-                                    public Integer map(Integer value) throws Exception {
-                                        return value;
-                                    }
-                                })
-                        .setParallelism(ITER_TEST_PARALLELISM);
-
-        iteration.closeWith(iterationBody);
-
-        StreamGraph streamGraph = env.getStreamGraph();
-
-        JobGraph jobGraph = streamGraph.getJobGraph();
-
-        Configuration config = getFileBasedCheckpointsConfig();
-        config.addAll(jobGraph.getJobConfiguration());
-        config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.ZERO);
-
-        MiniClusterWithClientResource cluster =
-                new MiniClusterWithClientResource(
-                        new MiniClusterResourceConfiguration.Builder()
-                                .setConfiguration(config)
-                                .setNumberTaskManagers(1)
-                                .setNumberSlotsPerTaskManager(2 * jobGraph.getMaximumParallelism())
-                                .build());
-        cluster.before();
-        ClusterClient<?> client = cluster.getClusterClient();
-
-        String savepointPath = null;
-        try {
-            client.submitJob(jobGraph).get();
-
-            waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID(), false);
-
-            for (OneShotLatch latch : iterTestSnapshotWait) {
-                latch.await();
-            }
-            savepointPath =
-                    client.triggerSavepoint(
-                                    jobGraph.getJobID(), null, SavepointFormatType.CANONICAL)
-                            .get();
-
-            client.cancel(jobGraph.getJobID()).get();
-            while (!client.getJobStatus(jobGraph.getJobID()).get().isGloballyTerminalState()) {
-                Thread.sleep(100);
-            }
-
-            jobGraph = streamGraph.getJobGraph();
-            jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
-
-            client.submitJob(jobGraph).get();
-            for (OneShotLatch latch : iterTestRestoreWait) {
-                latch.await();
-            }
-
-            client.cancel(jobGraph.getJobID()).get();
-            while (!client.getJobStatus(jobGraph.getJobID()).get().isGloballyTerminalState()) {
-                Thread.sleep(100);
-            }
-        } finally {
-            if (null != savepointPath) {
-                client.disposeSavepoint(savepointPath);
-            }
-            cluster.after();
-        }
-    }
-
     private static final class IntegerStreamSource extends RichSourceFunction<Integer>
             implements ListCheckpointed<Integer> {
 
@@ -1766,7 +1645,7 @@ public class SavepointITCase extends TestLogger {
 
     private Configuration getFileBasedCheckpointsConfig(final String savepointDir) {
         final Configuration config = new Configuration();
-        config.set(StateBackendOptions.STATE_BACKEND, "filesystem");
+        config.set(StateBackendOptions.STATE_BACKEND, "hashmap");
         config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
         config.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, MemorySize.ZERO);
         config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
@@ -1884,6 +1763,7 @@ public class SavepointITCase extends TestLogger {
             return URI.create(SCHEME + ":///");
         }
     }
+
     // ------------------------------------------------------------------------
 
     /**

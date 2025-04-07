@@ -36,6 +36,7 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.common.utils.Bytes;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
@@ -188,6 +189,7 @@ public class SqlClientITCase {
     }
 
     @Test
+    @Disabled("Disable due to Kafka connector need to release a new version 2.0.")
     void testMatchRecognize() throws Exception {
         String outputFilepath = "/flink/records-matchrecognize.out";
 

@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.legacy.metrics;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Counter;
@@ -44,6 +43,7 @@ import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -57,7 +57,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MetricFetcherTest {
     @Test
     void testUpdate() {
-        final Time timeout = Time.seconds(10L);
+        final Duration timeout = Duration.ofSeconds(10L);
         JobID jobID = new JobID();
         ResourceID tmRID = ResourceID.generate();
 
@@ -232,7 +232,7 @@ class MetricFetcherTest {
     void testIgnoreUpdateRequestWhenFetchingMetrics() throws InterruptedException {
         final long updateInterval = 1000L;
         final long waitTimeBeforeReturnMetricResults = updateInterval * 2;
-        final Time timeout = Time.seconds(10L);
+        final Duration timeout = Duration.ofSeconds(10L);
         final AtomicInteger requestMetricQueryServiceGatewaysCounter = new AtomicInteger(0);
         final JobID jobID = new JobID();
         final ResourceID tmRID = ResourceID.generate();
@@ -265,7 +265,7 @@ class MetricFetcherTest {
     private MetricFetcher createMetricFetcherWithServiceGateways(
             JobID jobID,
             ResourceID tmRID,
-            Time timeout,
+            Duration timeout,
             long updateInterval,
             long waitTimeBeforeReturnMetricResults,
             @Nullable AtomicInteger requestMetricQueryServiceGatewaysCounter) {
@@ -366,7 +366,7 @@ class MetricFetcherTest {
                 () -> CompletableFuture.completedFuture(restfulGateway),
                 address -> null,
                 Executors.directExecutor(),
-                Time.seconds(10L),
+                Duration.ofSeconds(10L),
                 updateInterval);
     }
 

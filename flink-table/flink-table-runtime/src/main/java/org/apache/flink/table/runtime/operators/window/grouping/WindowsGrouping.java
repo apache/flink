@@ -121,7 +121,9 @@ public abstract class WindowsGrouping implements Closeable {
         return nextWindow != null && nextWindow.getEnd() <= watermark;
     }
 
-    /** @return the iterator of the next triggerable window's elements. */
+    /**
+     * @return the iterator of the next triggerable window's elements.
+     */
     public RowIterator<BinaryRowData> buildTriggerWindowElementsIterator() {
         currentWindow = nextWindow;
         // It is illegal to call this method after [[hasTriggerWindow()]] has returned `false`.
@@ -143,7 +145,9 @@ public abstract class WindowsGrouping implements Closeable {
         return new WindowsElementsIterator(newBufferIterator(triggerWindowStartIndex));
     }
 
-    /** @return the last triggered window. */
+    /**
+     * @return the last triggered window.
+     */
     public TimeWindow getTriggerWindow() {
         return currentWindow;
     }

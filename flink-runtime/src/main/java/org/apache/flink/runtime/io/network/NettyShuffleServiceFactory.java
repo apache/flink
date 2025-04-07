@@ -50,7 +50,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.Arrays;
-import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -131,7 +130,6 @@ public class NettyShuffleServiceFactory
                                 resultPartitionManager,
                                 taskEventPublisher,
                                 nettyConfig,
-                                config.getMaxNumberOfConnections(),
                                 config.isConnectionReuseEnabled())
                         : new LocalConnectionManager();
         return createNettyShuffleEnvironment(
@@ -202,7 +200,7 @@ public class NettyShuffleServiceFactory
 
         registerShuffleMetrics(metricGroup, networkBufferPool);
 
-        Optional<TieredResultPartitionFactory> tieredResultPartitionFactory = Optional.empty();
+        TieredResultPartitionFactory tieredResultPartitionFactory = null;
         TieredStorageConfiguration tieredStorageConfiguration =
                 config.getTieredStorageConfiguration();
         TieredStorageNettyServiceImpl tieredStorageNettyService = null;
@@ -212,11 +210,10 @@ public class NettyShuffleServiceFactory
             tieredStorageNettyService =
                     new TieredStorageNettyServiceImpl(tieredStorageResourceRegistry);
             tieredResultPartitionFactory =
-                    Optional.of(
-                            new TieredResultPartitionFactory(
-                                    tieredStorageConfiguration,
-                                    tieredStorageNettyService,
-                                    tieredStorageResourceRegistry));
+                    new TieredResultPartitionFactory(
+                            tieredStorageConfiguration,
+                            tieredStorageNettyService,
+                            tieredStorageResourceRegistry);
         }
         ResultPartitionFactory resultPartitionFactory =
                 new ResultPartitionFactory(
@@ -229,6 +226,7 @@ public class NettyShuffleServiceFactory
                         config.networkBuffersPerChannel(),
                         config.floatingNetworkBuffersPerGate(),
                         config.networkBufferSize(),
+                        config.startingBufferSize(),
                         config.isBatchShuffleCompressionEnabled(),
                         config.getCompressionCodec(),
                         config.getMaxBuffersPerChannel(),
@@ -236,8 +234,6 @@ public class NettyShuffleServiceFactory
                         config.sortShuffleMinParallelism(),
                         config.isSSLEnabled(),
                         config.getMaxOverdraftBuffersPerGate(),
-                        config.getHybridShuffleSpilledIndexRegionGroupSize(),
-                        config.getHybridShuffleNumRetainedInMemoryRegionsMax(),
                         tieredResultPartitionFactory);
 
         SingleInputGateFactory singleInputGateFactory =

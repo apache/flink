@@ -17,10 +17,11 @@
 
 package org.apache.flink.runtime.metrics.utils;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.metrics.util.SystemResourcesCounter;
 
 import org.junit.jupiter.api.Test;
+
+import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -32,7 +33,7 @@ class SystemResourcesCounterTest {
 
     @Test
     void testObtainAnyMetrics() throws InterruptedException {
-        SystemResourcesCounter systemResources = new SystemResourcesCounter(Time.milliseconds(10));
+        SystemResourcesCounter systemResources = new SystemResourcesCounter(Duration.ofMillis(10));
         double initialCpuIdle = systemResources.getCpuIdle();
 
         systemResources.start();

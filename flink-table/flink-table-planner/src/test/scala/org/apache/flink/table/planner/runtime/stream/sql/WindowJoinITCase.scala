@@ -17,27 +17,26 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies
-import org.apache.flink.api.scala._
+import org.apache.flink.configuration.{Configuration, RestartStrategyOptions}
 import org.apache.flink.core.execution.CheckpointingMode
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{FailingCollectionSource, StreamingWithStateTestBase, TestData, TestingAppendSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
-import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
-import java.time.ZoneId
+import java.time.{Duration, ZoneId}
 import java.util
 
 import scala.collection.JavaConversions._
 
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
-class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
+class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean, enableAsyncState: Boolean)
   extends StreamingWithStateTestBase(mode) {
 
   val SHANGHAI_ZONE = ZoneId.of("Asia/Shanghai")
@@ -48,8 +47,18 @@ class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
     // enable checkpoint, we are using failing source to force have a complete checkpoint
     // and cover restore path
     env.enableCheckpointing(100, CheckpointingMode.EXACTLY_ONCE)
-    env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0))
+    val configuration = new Configuration()
+    configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay")
+    configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Int.box(1))
+    configuration.set(
+      RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
+      Duration.ofMillis(0))
+    env.configure(configuration, Thread.currentThread.getContextClassLoader)
     FailingCollectionSource.reset()
+
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED,
+      Boolean.box(enableAsyncState))
 
     val dataId1 = TestValuesTableFactory.registerData(TestData.windowDataWithTimestamp)
     val dataIdWithLtz = TestValuesTableFactory.registerData(TestData.windowDataWithLtzInShanghai)
@@ -1155,13 +1164,15 @@ class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
 
 object WindowJoinITCase {
 
-  @Parameters(name = "StateBackend={0}, UseTimestampLtz = {1}")
+  @Parameters(name = "StateBackend={0}, UseTimestampLtz = {1}, EnableAsyncState = {2}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
-      Array(HEAP_BACKEND, java.lang.Boolean.TRUE),
-      Array(HEAP_BACKEND, java.lang.Boolean.FALSE),
-      Array(ROCKSDB_BACKEND, java.lang.Boolean.TRUE),
-      Array(ROCKSDB_BACKEND, java.lang.Boolean.FALSE)
+      Array(HEAP_BACKEND, java.lang.Boolean.TRUE, Boolean.box(false)),
+      Array(HEAP_BACKEND, java.lang.Boolean.FALSE, Boolean.box(false)),
+      Array(HEAP_BACKEND, java.lang.Boolean.TRUE, Boolean.box(true)),
+      Array(HEAP_BACKEND, java.lang.Boolean.FALSE, Boolean.box(true)),
+      Array(ROCKSDB_BACKEND, java.lang.Boolean.TRUE, Boolean.box(false)),
+      Array(ROCKSDB_BACKEND, java.lang.Boolean.FALSE, Boolean.box(false))
     )
   }
 }

@@ -28,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 /** Tests the FatalExceptionClassifier of the Async Sink Writer. */
-public class FatalExceptionClassifierTest {
+class FatalExceptionClassifierTest {
 
     private static Integer nullReference;
 
@@ -51,7 +51,7 @@ public class FatalExceptionClassifierTest {
                                     err));
 
     @Test
-    public void exceptionsAreWrappedInTheContainingExceptionWhenAMatchIsFound() {
+    void exceptionsAreWrappedInTheContainingExceptionWhenAMatchIsFound() {
         AtomicReference<Exception> caughtExceptionReference = new AtomicReference<>();
 
         ARITHMETIC_EXCEPTION_STRATEGY.isFatal(
@@ -63,7 +63,7 @@ public class FatalExceptionClassifierTest {
     }
 
     @Test
-    public void noExceptionIsThrownIfTheExceptionDoesNotMatchTheOneExpected() {
+    void noExceptionIsThrownIfTheExceptionDoesNotMatchTheOneExpected() {
         AtomicReference<Exception> caughtException = new AtomicReference<>();
         try {
             System.out.print(nullReference.toString());
@@ -74,7 +74,7 @@ public class FatalExceptionClassifierTest {
     }
 
     @Test
-    public void chainedFatalExceptionClassifierAcceptExceptionsOnTheFirstItemOfChain() {
+    void chainedFatalExceptionClassifierAcceptExceptionsOnTheFirstItemOfChain() {
         FatalExceptionClassifier fatalExceptionClassifier =
                 FatalExceptionClassifier.createChain(
                         ARITHMETIC_EXCEPTION_STRATEGY, NULL_POINTER_EXCEPTION_STRATEGY);
@@ -89,7 +89,7 @@ public class FatalExceptionClassifierTest {
     }
 
     @Test
-    public void chainedFatalExceptionClassifierAcceptExceptionsOnTheLastItemOfChain() {
+    void chainedFatalExceptionClassifierAcceptExceptionsOnTheLastItemOfChain() {
         FatalExceptionClassifier fatalExceptionClassifier =
                 FatalExceptionClassifier.createChain(
                         ARITHMETIC_EXCEPTION_STRATEGY, NULL_POINTER_EXCEPTION_STRATEGY);
@@ -107,7 +107,7 @@ public class FatalExceptionClassifierTest {
     }
 
     @Test
-    public void circularChainedFatalExceptionClassifierThrowsException() {
+    void circularChainedFatalExceptionClassifierThrowsException() {
         assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(
                         () ->
@@ -120,7 +120,7 @@ public class FatalExceptionClassifierTest {
     }
 
     @Test
-    public void emptyChainedFatalExceptionClassifierThrowsException() {
+    void emptyChainedFatalExceptionClassifierThrowsException() {
         assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(FatalExceptionClassifier::createChain)
                 .withMessageContaining("Cannot create empty classifier chain.");

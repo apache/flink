@@ -525,7 +525,7 @@ SortAggregate(isMerge=[true], select=[Final_MIN(min$0) AS EXPR$0, Final_MAX(max$
   sum(amount),
   name,
   type
-FROM inventory
+FROM inventory_without_agg_push_down
   group by name, type]]>
     </Resource>
     <Resource name="ast">
@@ -533,7 +533,7 @@ FROM inventory
 LogicalProject(EXPR$0=[$2], name=[$0], type=[$1])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[SUM($2)])
    +- LogicalProject(name=[$1], type=[$4], amount=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, inventory]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, inventory_without_agg_push_down]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -542,7 +542,7 @@ Calc(select=[EXPR$0, name, type])
 +- HashAggregate(isMerge=[true], groupBy=[name, type], select=[name, type, Final_SUM(sum$0) AS EXPR$0])
    +- Exchange(distribution=[hash[name, type]])
       +- LocalHashAggregate(groupBy=[name, type], select=[name, type, Partial_SUM(amount) AS sum$0])
-         +- TableSourceScan(table=[[default_catalog, default_database, inventory, project=[name, type, amount], metadata=[]]], fields=[name, type, amount])
+         +- TableSourceScan(table=[[default_catalog, default_database, inventory_without_agg_push_down, project=[name, type, amount], metadata=[]]], fields=[name, type, amount])
 ]]>
     </Resource>
   </TestCase>

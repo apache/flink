@@ -32,11 +32,6 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.changelog.fs.FsStateChangelogOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateChangelogOptions;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
-import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
-import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackendBuilder;
-import org.apache.flink.contrib.streaming.state.RocksDBPriorityQueueConfig;
-import org.apache.flink.contrib.streaming.state.RocksDBResourceContainer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
@@ -62,6 +57,11 @@ import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.state.changelog.ChangelogKeyedStateBackend;
+import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend;
+import org.apache.flink.state.rocksdb.RocksDBKeyedStateBackend;
+import org.apache.flink.state.rocksdb.RocksDBKeyedStateBackendBuilder;
+import org.apache.flink.state.rocksdb.RocksDBPriorityQueueConfig;
+import org.apache.flink.state.rocksdb.RocksDBResourceContainer;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionStateBackend;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
@@ -280,10 +280,22 @@ public class StateBackendBenchmarkUtils {
                 function);
     }
 
-    public static <K, S extends State, T> void compactState(
-            RocksDBKeyedStateBackend<K> backend, StateDescriptor<S, T> stateDescriptor)
+    /**
+     * Compact state if the backend is RocksDBKeyedStateBackend.
+     *
+     * @param backend The backend for which the state is bind to.
+     * @param stateDescriptor The descriptor for the state.
+     * @return true if the backend is RocksDBKeyedStateBackend, false otherwise
+     * @throws RocksDBException thrown if an error occurs within RocksDB
+     */
+    public static <K, S extends State, T> boolean compactState(
+            KeyedStateBackend<K> backend, StateDescriptor<S, T> stateDescriptor)
             throws RocksDBException {
-        backend.compactState(stateDescriptor);
+        if (!(backend instanceof RocksDBKeyedStateBackend)) {
+            return false;
+        }
+        ((RocksDBKeyedStateBackend<K>) backend).compactState(stateDescriptor);
+        return true;
     }
 
     public static void cleanUp(KeyedStateBackend<?> backend) throws IOException {

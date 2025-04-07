@@ -26,8 +26,8 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.MetricsGroupTestUtils;
@@ -163,7 +163,7 @@ class PrintSinkTest {
     }
 
     private static class MockInitContext
-            implements Sink.InitContext, SerializationSchema.InitializationContext {
+            implements WriterInitContext, SerializationSchema.InitializationContext {
 
         private final JobInfo jobInfo;
 

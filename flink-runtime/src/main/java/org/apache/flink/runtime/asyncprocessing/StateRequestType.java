@@ -85,7 +85,7 @@ public enum StateRequestType {
     /** Get an iterator of keys within current partition, {@link MapState#asyncKeys()}. */
     MAP_ITER_KEY,
 
-    /** Get an iterator of values within current partition, {@link MapState#asyncKeys()}. */
+    /** Get an iterator of values within current partition, {@link MapState#asyncValues()}. */
     MAP_ITER_VALUE,
 
     /**
@@ -112,5 +112,8 @@ public enum StateRequestType {
     AGGREGATING_GET,
 
     /** Add element to aggregating state by {@link AggregatingState#asyncAdd(Object)}. */
-    AGGREGATING_ADD
+    AGGREGATING_ADD,
+
+    /** Defined by different state backends. */
+    CUSTOMIZED
 }

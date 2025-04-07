@@ -19,25 +19,24 @@
 package org.apache.flink.connector.base.sink.writer;
 
 import org.apache.flink.api.common.operators.ProcessingTimeService;
-import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.connector.base.sink.writer.config.AsyncSinkWriterConfiguration;
 
 import org.assertj.core.api.Assertions;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
-import java.util.function.Consumer;
 
 /** Test class for rate limiting functionalities of {@link AsyncSinkWriter}. */
-public class AsyncSinkWriterThrottlingTest {
+class AsyncSinkWriterThrottlingTest {
 
     @Test
-    public void testSinkThroughputShouldThrottleToHalfBatchSize() throws Exception {
+    void testSinkThroughputShouldThrottleToHalfBatchSize() throws Exception {
         int maxBatchSize = 32;
         int maxInFlightRequest = 10;
         int numberOfBatchesToSend = 1000;
@@ -79,27 +78,18 @@ public class AsyncSinkWriterThrottlingTest {
                 WriterInitContext context,
                 int maxBatchSize,
                 int maxInFlightRequests) {
-            this(
-                    elementConverter,
-                    new Sink.InitContextWrapper(context),
-                    maxBatchSize,
-                    maxInFlightRequests);
-        }
-
-        public ThrottlingWriter(
-                ElementConverter<String, Long> elementConverter,
-                Sink.InitContext context,
-                int maxBatchSize,
-                int maxInFlightRequests) {
             super(
                     elementConverter,
                     context,
-                    maxBatchSize,
-                    maxInFlightRequests,
-                    10_000,
-                    10_000,
-                    100,
-                    1000);
+                    AsyncSinkWriterConfiguration.builder()
+                            .setMaxBatchSize(maxBatchSize)
+                            .setMaxBatchSizeInBytes(10_000)
+                            .setMaxInFlightRequests(maxInFlightRequests)
+                            .setMaxBufferedRequests(10_000)
+                            .setMaxTimeInBufferMS(100)
+                            .setMaxRecordSizeInBytes(1000)
+                            .build(),
+                    Collections.emptyList());
             this.maxBatchSize = maxBatchSize;
             this.timeService = context.getProcessingTimeService();
             this.requestsData = new ArrayDeque<>();
@@ -117,16 +107,16 @@ public class AsyncSinkWriterThrottlingTest {
 
         @Override
         protected void submitRequestEntries(
-                List<Long> requestEntries, Consumer<List<Long>> requestResult) {
+                List<Long> requestEntries, ResultHandler<Long> resultHandler) {
             long currentProcessingTime = timeService.getCurrentProcessingTime();
             inflightMessagesLimit = requestEntries.size();
 
             addRequestDataToQueue(requestEntries.size(), currentProcessingTime);
 
             if (sizeOfLast100ms > maxBatchSize && requestEntries.size() > 1) {
-                requestResult.accept(requestEntries);
+                resultHandler.retryForEntries(requestEntries);
             } else {
-                requestResult.accept(new ArrayList<>());
+                resultHandler.complete();
             }
         }
 

@@ -21,17 +21,20 @@ package org.apache.flink.streaming.api.lineage;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -48,7 +51,7 @@ class LineageGraphUtilsTest {
     private static final String LEGACY_SINK_DATASET_NAMESPACE = "sink://LineageSinkFunction";
 
     @Test
-    void testExtractLineageGraphFromLegacyTransformations() throws Exception {
+    void testExtractLineageGraphFromLegacyTransformations() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         DataStreamSource<Long> source = env.addSource(new LineageSourceFunction());
         DataStreamSink<Long> sink = source.addSink(new LineageSinkFunction());
@@ -76,7 +79,7 @@ class LineageGraphUtilsTest {
     }
 
     @Test
-    void testExtractLineageGraphFromTransformations() throws Exception {
+    void testExtractLineageGraphFromTransformations() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         DataStreamSource<Long> source =
                 env.fromSource(new LineageSource(1L, 5L), WatermarkStrategy.noWatermarks(), "");
@@ -101,6 +104,84 @@ class LineageGraphUtilsTest {
                 .isEqualTo(SINK_DATASET_NAMESPACE);
 
         assertThat(lineageGraph.relations().size()).isEqualTo(1);
+    }
+
+    @Test
+    void testExtractPartialLineageGraphWithSourceOnly() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStreamSource<Long> source =
+                env.fromSource(new LineageSource(1L, 5L), WatermarkStrategy.noWatermarks(), "");
+        source.sinkTo(new DiscardingSink<>());
+
+        LineageGraph lineageGraph =
+                LineageGraphUtils.convertToLineageGraph(env.getTransformations());
+
+        assertThat(lineageGraph.sources().size()).isEqualTo(1);
+        assertThat(lineageGraph.sources().get(0).boundedness()).isEqualTo(Boundedness.BOUNDED);
+        assertThat(lineageGraph.sources().get(0).datasets().size()).isEqualTo(1);
+        assertThat(lineageGraph.sources().get(0).datasets().get(0).name())
+                .isEqualTo(SOURCE_DATASET_NAME);
+        assertThat(lineageGraph.sources().get(0).datasets().get(0).namespace())
+                .isEqualTo(SOURCE_DATASET_NAMESPACE);
+
+        assertThat(lineageGraph.sinks()).isEmpty();
+        assertThat(lineageGraph.relations()).isEmpty();
+    }
+
+    @Test
+    void testExtractPartialLineageGraphWithSinkOnly() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStreamSource<Long> source =
+                env.fromSource(
+                        new NumberSequenceSource(1L, 5L), WatermarkStrategy.noWatermarks(), "");
+        source.sinkTo(new LineageSink());
+
+        LineageGraph lineageGraph =
+                LineageGraphUtils.convertToLineageGraph(env.getTransformations());
+
+        assertThat(lineageGraph.sinks().size()).isEqualTo(1);
+        assertThat(lineageGraph.sinks().get(0).datasets().size()).isEqualTo(1);
+        assertThat(lineageGraph.sinks().get(0).datasets().get(0).name())
+                .isEqualTo(SINK_DATASET_NAME);
+        assertThat(lineageGraph.sinks().get(0).datasets().get(0).namespace())
+                .isEqualTo(SINK_DATASET_NAMESPACE);
+
+        assertThat(lineageGraph.sources()).isEmpty();
+        assertThat(lineageGraph.relations()).isEmpty();
+    }
+
+    @Test
+    void testSourceDeduplication() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStreamSource<Long> source =
+                env.fromSource(new LineageSource(1L, 5L), WatermarkStrategy.noWatermarks(), "");
+        source.sinkTo(new DiscardingSink<>());
+        List<Transformation<?>> list = new ArrayList<>();
+        list.addAll(env.getTransformations());
+        list.addAll(env.getTransformations());
+        LineageGraph lineageGraph = LineageGraphUtils.convertToLineageGraph(list);
+
+        assertThat(lineageGraph.sources().size()).isEqualTo(1);
+        assertThat(lineageGraph.sinks().size()).isEqualTo(0);
+        assertThat(lineageGraph.relations()).isEmpty();
+    }
+
+    @Test
+    void testSinkDuduplication() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStreamSource<Long> source =
+                env.fromSource(
+                        new NumberSequenceSource(1L, 5L), WatermarkStrategy.noWatermarks(), "");
+        source.sinkTo(new LineageSink());
+
+        List<Transformation<?>> list = new ArrayList<>();
+        list.addAll(env.getTransformations());
+        list.addAll(env.getTransformations());
+        LineageGraph lineageGraph = LineageGraphUtils.convertToLineageGraph(list);
+
+        assertThat(lineageGraph.sources().size()).isEqualTo(0);
+        assertThat(lineageGraph.sinks().size()).isEqualTo(1);
+        assertThat(lineageGraph.relations()).isEmpty();
     }
 
     private static class LineageSink extends DiscardingSink<Long> implements LineageVertexProvider {

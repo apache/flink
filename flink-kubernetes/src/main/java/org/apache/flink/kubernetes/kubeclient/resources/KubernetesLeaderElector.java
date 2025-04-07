@@ -43,8 +43,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
-
 /**
  * Represent {@link KubernetesLeaderElector} in kubernetes. {@link LeaderElector#run()} is a
  * blocking call. It should be run in the IO executor, not the main thread. The lifecycle is bound
@@ -104,8 +102,7 @@ public class KubernetesLeaderElector {
                                                 // ConfigMaps.
                                                 .withLabels(
                                                         KubernetesUtils.getConfigMapLabels(
-                                                                leaderConfig.getClusterId(),
-                                                                LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY))
+                                                                leaderConfig.getClusterId()))
                                                 .build(),
                                         leaderConfig.getLockIdentity()))
                         .withRenewDeadline(leaderConfig.getRenewDeadline())

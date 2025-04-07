@@ -36,6 +36,7 @@ import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -67,7 +68,11 @@ class OneInputTestStreamOperator extends AbstractStreamOperator<TestDataElement>
     private transient ListState<String> state;
 
     OneInputTestStreamOperator(
-            String operatorID, TestEventQueue eventQueue, TestCommandDispatcher dispatcher) {
+            StreamOperatorParameters<TestDataElement> parameters,
+            String operatorID,
+            TestEventQueue eventQueue,
+            TestCommandDispatcher dispatcher) {
+        super(parameters);
         this.operatorID = operatorID;
         this.eventQueue = eventQueue;
         this.receivedCommands = new HashSet<>();

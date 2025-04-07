@@ -220,63 +220,14 @@ object PreValidateReWriter {
       }
     }
 
-    rewriteSqlCall(rewriterUtils, validator, source, targetRowType, assignedFields, targetPosition)
-  }
-
-  private def rewriteSqlCall(
-      rewriterUtils: SqlRewriterUtils,
-      validator: FlinkCalciteSqlValidator,
-      call: SqlCall,
-      targetRowType: RelDataType,
-      assignedFields: util.LinkedHashMap[Integer, SqlNode],
-      targetPosition: util.List[Int]): SqlCall = {
-
-    def rewrite(node: SqlNode): SqlCall = {
-      checkArgument(node.isInstanceOf[SqlCall], node)
-      rewriteSqlCall(
-        rewriterUtils,
-        validator,
-        node.asInstanceOf[SqlCall],
-        targetRowType,
-        assignedFields,
-        targetPosition)
-    }
-
-    call.getKind match {
-      case SqlKind.SELECT =>
-        val sqlSelect = call.asInstanceOf[SqlSelect]
-
-        if (targetPosition.nonEmpty && sqlSelect.getSelectList.size() != targetPosition.size()) {
-          throw newValidationError(call, RESOURCE.columnCountMismatch())
-        }
-        rewriterUtils.rewriteSelect(sqlSelect, targetRowType, assignedFields, targetPosition)
-      case SqlKind.VALUES =>
-        call.getOperandList.toSeq.foreach {
-          case sqlCall: SqlCall => {
-            if (targetPosition.nonEmpty && sqlCall.getOperandList.size() != targetPosition.size()) {
-              throw newValidationError(call, RESOURCE.columnCountMismatch())
-            }
-          }
-        }
-        rewriterUtils.rewriteValues(call, targetRowType, assignedFields, targetPosition)
-      case kind if SqlKind.SET_QUERY.contains(kind) =>
-        call.getOperandList.zipWithIndex.foreach {
-          case (operand, index) => call.setOperand(index, rewrite(operand))
-        }
-        call
-      case SqlKind.ORDER_BY =>
-        val operands = call.getOperandList
-        new SqlOrderBy(
-          call.getParserPosition,
-          rewrite(operands.get(0)),
-          operands.get(1).asInstanceOf[SqlNodeList],
-          operands.get(2),
-          operands.get(3))
-      // Not support:
-      // case SqlKind.WITH =>
-      // case SqlKind.EXPLICIT_TABLE =>
-      case _ => throw new ValidationException(notSupported(call))
-    }
+    rewriterUtils.rewriteCall(
+      rewriterUtils,
+      validator,
+      source,
+      targetRowType,
+      assignedFields,
+      targetPosition,
+      () => notSupported(source))
   }
 
   /**

@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.multipleinput;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -45,10 +46,20 @@ public class TestingOneInputStreamOperator extends AbstractStreamOperator<RowDat
     private final List<StreamRecord<RowData>> receivedElements = new ArrayList<>();
 
     public TestingOneInputStreamOperator() {
-        this(false);
+        this(null, false);
+    }
+
+    public TestingOneInputStreamOperator(StreamOperatorParameters<RowData> parameters) {
+        this(parameters, false);
     }
 
     public TestingOneInputStreamOperator(boolean emitDataInEndInput) {
+        this(null, emitDataInEndInput);
+    }
+
+    public TestingOneInputStreamOperator(
+            StreamOperatorParameters<RowData> parameters, boolean emitDataInEndInput) {
+        super(parameters);
         this.emitDataInEndInput = emitDataInEndInput;
     }
 

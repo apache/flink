@@ -78,10 +78,7 @@ object IntervalJoinUtil {
       classLoader: ClassLoader): (Option[WindowBounds], Option[RexNode]) = {
 
     // Converts the condition to conjunctive normal form (CNF)
-    val cnfCondition = FlinkRexUtil.toCnf(
-      rexBuilder,
-      tableConfig.get(FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT),
-      predicate)
+    val cnfCondition = FlinkRexUtil.toCnf(rexBuilder, predicate)
 
     // split the condition into time predicates and other predicates
     // We need two range predicates or an equality predicate for a properly bounded window join.

@@ -231,7 +231,8 @@ abstract class CompletedCheckpointStoreTest {
         OperatorID operatorID = new OperatorID();
 
         Map<OperatorID, OperatorState> operatorGroupState = new HashMap<>();
-        OperatorState operatorState = new OperatorState(operatorID, numberOfStates, numberOfStates);
+        OperatorState operatorState =
+                new OperatorState(null, null, operatorID, numberOfStates, numberOfStates);
         operatorGroupState.put(operatorID, operatorState);
 
         for (int i = 0; i < numberOfStates; i++) {

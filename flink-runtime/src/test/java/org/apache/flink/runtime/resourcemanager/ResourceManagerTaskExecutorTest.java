@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -48,6 +47,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -63,7 +63,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for the {@link ResourceManager} and {@link TaskExecutor} interaction. */
 class ResourceManagerTaskExecutorTest {
 
-    private static final Time TIMEOUT = TestingUtils.infiniteTime();
+    private static final Duration TIMEOUT = TestingUtils.infiniteTime();
 
     private static final ResourceProfile DEFAULT_SLOT_PROFILE =
             ResourceProfile.fromResources(1.0, 1234);
@@ -192,7 +192,7 @@ class ResourceManagerTaskExecutorTest {
      */
     @Test
     void testDelayedRegisterTaskExecutor() throws Exception {
-        final Time fastTimeout = Time.milliseconds(1L);
+        final Duration fastTimeout = Duration.ofMillis(1L);
         try {
             final OneShotLatch startConnection = new OneShotLatch();
             final OneShotLatch finishConnection = new OneShotLatch();

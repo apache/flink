@@ -19,13 +19,18 @@
 package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.AvroOutputFormat.Codec;
 import org.apache.flink.formats.avro.generated.Colors;
 import org.apache.flink.formats.avro.generated.Fixed2;
 import org.apache.flink.formats.avro.generated.User;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.legacy.OutputFormatSinkFunction;
+import org.apache.flink.streaming.api.legacy.io.TextInputFormat;
 import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 
 import org.apache.avro.file.DataFileReader;
@@ -70,24 +75,33 @@ public class AvroOutputFormatITCase extends JavaProgramTestBaseJUnit4 {
 
     @Override
     protected void testProgram() throws Exception {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-        DataSet<Tuple3<String, Integer, String>> input =
-                env.readCsvFile(inputPath)
-                        .fieldDelimiter("|")
-                        .types(String.class, Integer.class, String.class);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStream<Tuple3<String, Integer, String>> input =
+                env.createInput(new TextInputFormat(new Path(inputPath)))
+                        .map(
+                                x -> {
+                                    String[] splits = x.split("\\|");
+                                    return Tuple3.of(
+                                            splits[0], Integer.valueOf(splits[1]), splits[2]);
+                                })
+                        .returns(
+                                TypeInformation.of(
+                                        new TypeHint<Tuple3<String, Integer, String>>() {}));
 
         // output the data with AvroOutputFormat for specific user type
-        DataSet<User> specificUser = input.map(new ConvertToUser());
-        AvroOutputFormat<User> avroOutputFormat = new AvroOutputFormat<>(User.class);
+        DataStream<User> specificUser = input.map(new ConvertToUser());
+        AvroOutputFormat<User> avroOutputFormat =
+                new AvroOutputFormat<>(new Path(outputPath1), User.class);
         avroOutputFormat.setCodec(Codec.SNAPPY); // FLINK-4771: use a codec
         avroOutputFormat.setSchema(
                 User.SCHEMA$); // FLINK-3304: Ensure the OF is properly serializing the schema
-        specificUser.write(avroOutputFormat, outputPath1);
+        specificUser.addSink(new OutputFormatSinkFunction<>(avroOutputFormat));
 
         // output the data with AvroOutputFormat for reflect user type
-        DataSet<ReflectiveUser> reflectiveUser = specificUser.map(new ConvertToReflective());
-        reflectiveUser.write(new AvroOutputFormat<>(ReflectiveUser.class), outputPath2);
+        DataStream<ReflectiveUser> reflectiveUser = specificUser.map(new ConvertToReflective());
+        reflectiveUser.addSink(
+                new OutputFormatSinkFunction<>(
+                        new AvroOutputFormat<>(new Path(outputPath2), ReflectiveUser.class)));
 
         env.execute();
     }

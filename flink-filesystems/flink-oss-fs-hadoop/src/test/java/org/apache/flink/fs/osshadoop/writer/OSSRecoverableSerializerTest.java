@@ -19,20 +19,16 @@
 package org.apache.flink.fs.osshadoop.writer;
 
 import com.aliyun.oss.model.PartETag;
-import org.hamcrest.Description;
-import org.hamcrest.TypeSafeMatcher;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link OSSRecoverableSerializer}. */
-public class OSSRecoverableSerializerTest {
+class OSSRecoverableSerializerTest {
 
     private final OSSRecoverableSerializer serializer = OSSRecoverableSerializer.INSTANCE;
 
@@ -45,82 +41,43 @@ public class OSSRecoverableSerializerTest {
     private static final String ETAG_PREFIX = "TEST-ETAG-";
 
     @Test
-    public void testSerializeEmptyOSSRecoverable() throws IOException {
+    void testSerializeEmptyOSSRecoverable() throws IOException {
         OSSRecoverable originalEmptyRecoverable = createOSSRecoverable(false);
 
         byte[] serializedRecoverable = serializer.serialize(originalEmptyRecoverable);
         OSSRecoverable copiedEmptyRecoverable = serializer.deserialize(1, serializedRecoverable);
 
-        assertThat(originalEmptyRecoverable, isEqualTo(copiedEmptyRecoverable));
+        assertIsEqualTo(originalEmptyRecoverable, copiedEmptyRecoverable);
     }
 
     @Test
-    public void testSerializeOSSRecoverableOnlyWithIncompleteObject() throws IOException {
+    void testSerializeOSSRecoverableOnlyWithIncompleteObject() throws IOException {
         OSSRecoverable originalEmptyRecoverable = createOSSRecoverable(true);
 
         byte[] serializedRecoverable = serializer.serialize(originalEmptyRecoverable);
         OSSRecoverable copiedEmptyRecoverable = serializer.deserialize(1, serializedRecoverable);
 
-        assertThat(originalEmptyRecoverable, isEqualTo(copiedEmptyRecoverable));
+        assertIsEqualTo(originalEmptyRecoverable, copiedEmptyRecoverable);
     }
 
     @Test
-    public void testSerializeOSSRecoverableWithIncompleteObject() throws IOException {
+    void testSerializeOSSRecoverableWithIncompleteObject() throws IOException {
         OSSRecoverable originalEmptyRecoverable = createOSSRecoverable(true, 2, 4, 6);
 
         byte[] serializedRecoverable = serializer.serialize(originalEmptyRecoverable);
         OSSRecoverable copiedEmptyRecoverable = serializer.deserialize(1, serializedRecoverable);
 
-        assertThat(originalEmptyRecoverable, isEqualTo(copiedEmptyRecoverable));
+        assertIsEqualTo(originalEmptyRecoverable, copiedEmptyRecoverable);
     }
 
     @Test
-    public void testSerializeOSSRecoverableWithoutIncompleteObject() throws IOException {
+    void testSerializeOSSRecoverableWithoutIncompleteObject() throws IOException {
         OSSRecoverable originalEmptyRecoverable = createOSSRecoverable(false, 2, 4, 6);
 
         byte[] serializedRecoverable = serializer.serialize(originalEmptyRecoverable);
         OSSRecoverable copiedEmptyRecoverable = serializer.deserialize(1, serializedRecoverable);
 
-        assertThat(originalEmptyRecoverable, isEqualTo(copiedEmptyRecoverable));
-    }
-
-    // --------------------------------- Matchers ---------------------------------
-
-    private static TypeSafeMatcher<OSSRecoverable> isEqualTo(OSSRecoverable expectedRecoverable) {
-        return new TypeSafeMatcher<OSSRecoverable>() {
-
-            @Override
-            protected boolean matchesSafely(OSSRecoverable actualRecoverable) {
-
-                return Objects.equals(
-                                expectedRecoverable.getObjectName(),
-                                actualRecoverable.getObjectName())
-                        && Objects.equals(
-                                expectedRecoverable.getUploadId(), actualRecoverable.getUploadId())
-                        && expectedRecoverable.getNumBytesInParts()
-                                == actualRecoverable.getNumBytesInParts()
-                        && Objects.equals(
-                                expectedRecoverable.getLastPartObject(),
-                                actualRecoverable.getLastPartObject())
-                        && expectedRecoverable.getLastPartObjectLength()
-                                == actualRecoverable.getLastPartObjectLength()
-                        && compareLists(
-                                expectedRecoverable.getPartETags(),
-                                actualRecoverable.getPartETags());
-            }
-
-            private boolean compareLists(final List<PartETag> first, final List<PartETag> second) {
-                return Arrays.equals(
-                        first.stream().map(PartETag::getETag).toArray(),
-                        second.stream().map(PartETag::getETag).toArray());
-            }
-
-            @Override
-            public void describeTo(Description description) {
-                description.appendText(
-                        expectedRecoverable + " with ignored LAST_PART_OBJECT_NAME.");
-            }
-        };
+        assertIsEqualTo(originalEmptyRecoverable, copiedEmptyRecoverable);
     }
 
     // --------------------------------- Test Utils ---------------------------------
@@ -143,6 +100,16 @@ public class OSSRecoverableSerializerTest {
         } else {
             return new OSSRecoverable(TEST_UPLOAD_ID, TEST_OBJECT_NAME, etags, null, 12345L, 0L);
         }
+    }
+
+    private static void assertIsEqualTo(OSSRecoverable actual, OSSRecoverable expected) {
+        assertThat(actual.getObjectName()).isEqualTo(expected.getObjectName());
+        assertThat(actual.getUploadId()).isEqualTo(expected.getUploadId());
+        assertThat(actual.getNumBytesInParts()).isEqualTo(expected.getNumBytesInParts());
+        assertThat(actual.getLastPartObject()).isEqualTo(expected.getLastPartObject());
+        assertThat(actual.getLastPartObjectLength()).isEqualTo(expected.getLastPartObjectLength());
+        assertThat(actual.getPartETags().stream().map(PartETag::getETag).toArray())
+                .isEqualTo(expected.getPartETags().stream().map(PartETag::getETag).toArray());
     }
 
     private static PartETag createEtag(int partNumber) {

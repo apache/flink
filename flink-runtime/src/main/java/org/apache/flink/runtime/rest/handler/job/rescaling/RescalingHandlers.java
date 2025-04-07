@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.job.rescaling;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -60,7 +59,7 @@ public class RescalingHandlers
 
         public RescalingTriggerHandler(
                 GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-                Time timeout,
+                Duration timeout,
                 Map<String, String> responseHeaders) {
             super(leaderRetriever, timeout, responseHeaders, RescalingTriggerHeaders.getInstance());
         }
@@ -93,7 +92,7 @@ public class RescalingHandlers
 
         public RescalingStatusHandler(
                 GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-                Time timeout,
+                Duration timeout,
                 Map<String, String> responseHeaders) {
             super(leaderRetriever, timeout, responseHeaders, RescalingStatusHeaders.getInstance());
         }

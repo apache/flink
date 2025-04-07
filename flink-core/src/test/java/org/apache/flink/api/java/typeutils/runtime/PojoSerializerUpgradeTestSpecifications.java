@@ -609,7 +609,7 @@ public class PojoSerializerUpgradeTestSpecifications {
 
         @Override
         public TypeSerializer<StaticSchemaPojo> createPriorSerializer() {
-            SerializerConfig serializerConfig = new SerializerConfigImpl();
+            SerializerConfigImpl serializerConfig = new SerializerConfigImpl();
             serializerConfig.registerPojoType(SubclassPojoWithIntField.class);
 
             TypeSerializer<StaticSchemaPojo> serializer =
@@ -646,7 +646,7 @@ public class PojoSerializerUpgradeTestSpecifications {
 
         @Override
         public TypeSerializer<StaticSchemaPojo> createUpgradedSerializer() {
-            SerializerConfig serializerConfig = new SerializerConfigImpl();
+            SerializerConfigImpl serializerConfig = new SerializerConfigImpl();
             serializerConfig.registerPojoType(SubclassPojoWithStringField.class);
 
             TypeSerializer<StaticSchemaPojo> serializer =
@@ -734,7 +734,7 @@ public class PojoSerializerUpgradeTestSpecifications {
 
         @Override
         public TypeSerializer<StaticSchemaPojo> createPriorSerializer() {
-            SerializerConfig serializerConfig = new SerializerConfigImpl();
+            SerializerConfigImpl serializerConfig = new SerializerConfigImpl();
             serializerConfig.registerPojoType(StaticSchemaPojoSubclassA.class);
             serializerConfig.registerPojoType(StaticSchemaPojoSubclassB.class);
 
@@ -756,7 +756,7 @@ public class PojoSerializerUpgradeTestSpecifications {
 
         @Override
         public TypeSerializer<StaticSchemaPojo> createUpgradedSerializer() {
-            SerializerConfig serializerConfig = new SerializerConfigImpl();
+            SerializerConfigImpl serializerConfig = new SerializerConfigImpl();
             // different registration order than setup
             serializerConfig.registerPojoType(StaticSchemaPojoSubclassB.class);
             serializerConfig.registerPojoType(StaticSchemaPojoSubclassA.class);
@@ -795,7 +795,7 @@ public class PojoSerializerUpgradeTestSpecifications {
 
         @Override
         public TypeSerializer<StaticSchemaPojo> createPriorSerializer() {
-            SerializerConfig serializerConfig = new SerializerConfigImpl();
+            SerializerConfigImpl serializerConfig = new SerializerConfigImpl();
             serializerConfig.registerPojoType(StaticSchemaPojoSubclassA.class);
             serializerConfig.registerPojoType(StaticSchemaPojoSubclassB.class);
 
@@ -817,7 +817,7 @@ public class PojoSerializerUpgradeTestSpecifications {
 
         @Override
         public TypeSerializer<StaticSchemaPojo> createUpgradedSerializer() {
-            SerializerConfig serializerConfig = new SerializerConfigImpl();
+            SerializerConfigImpl serializerConfig = new SerializerConfigImpl();
             // missing registration for subclass A compared to setup
             serializerConfig.registerPojoType(StaticSchemaPojoSubclassB.class);
 
@@ -875,7 +875,7 @@ public class PojoSerializerUpgradeTestSpecifications {
 
         @Override
         public TypeSerializer<StaticSchemaPojo> createUpgradedSerializer() {
-            SerializerConfig serializerConfig = new SerializerConfigImpl();
+            SerializerConfigImpl serializerConfig = new SerializerConfigImpl();
             // new registration for subclass A compared to setup
             serializerConfig.registerPojoType(StaticSchemaPojoSubclassA.class);
 
@@ -912,7 +912,7 @@ public class PojoSerializerUpgradeTestSpecifications {
 
         @Override
         public TypeSerializer<StaticSchemaPojo> createPriorSerializer() {
-            SerializerConfig serializerConfig = new SerializerConfigImpl();
+            SerializerConfigImpl serializerConfig = new SerializerConfigImpl();
             serializerConfig.registerPojoType(StaticSchemaPojoSubclassA.class);
             serializerConfig.registerPojoType(StaticSchemaPojoSubclassB.class);
 
@@ -934,7 +934,7 @@ public class PojoSerializerUpgradeTestSpecifications {
 
         @Override
         public TypeSerializer<StaticSchemaPojo> createUpgradedSerializer() {
-            SerializerConfig serializerConfig = new SerializerConfigImpl();
+            SerializerConfigImpl serializerConfig = new SerializerConfigImpl();
             serializerConfig.registerPojoType(StaticSchemaPojoSubclassB.class);
             serializerConfig.registerPojoType(StaticSchemaPojoSubclassC.class);
 

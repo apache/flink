@@ -72,11 +72,27 @@ Starting taskexecutor daemon on host.
 
 ## 步骤 3：提交作业（Job）
 
-Flink 的 Releases 附带了许多的示例作业。你可以任意选择一个，快速部署到已运行的集群上。
+Flink 提供了一个 CLI 工具 bin/flink，它可以运行打包为 Java ARchives (JAR) 的程序，并控制其执行。
+提交作业({{< ref "docs/concepts/glossary" >}}#ﬂink-job) 意味着将作业的 JAR 文件和相关依赖项上载到运行中的 Flink 集群并执行它。
+并执行它。
+
+Flink 的 Releases 附带了许多的示例作业。您可以在 examples/ 文件夹中找到。
+
+要将字数统计作业示例部署到运行中的群集，请执行以下命令：
 
 ```bash
 $ ./bin/flink run examples/streaming/WordCount.jar
+```
+
+您可以通过查看日志来验证输出结果：
+
+```bash
 $ tail log/flink-*-taskexecutor-*.out
+```
+
+输出示例：
+
+```bash
   (nymph,1)
   (in,3)
   (thy,1)
@@ -90,6 +106,20 @@ $ tail log/flink-*-taskexecutor-*.out
 ```
 
 另外，你可以通过 Flink 的 [Web UI](http://localhost:8081) 来监视集群的状态和正在运行的作业。
+
+您可以查看执行的数据流计划（data flow plan）：
+
+{{< img src="/fig/try-flink/dataflowplan.png" alt="data flow plan" >}}
+
+在这里，Flink 有两个操作符（operator）来执行作业。第一个操作符是源操作符，它从收集源中读取数据。
+第二个运算符是转换运算符，用于汇总单词计数。了解更多信息，请参阅[数据流操作符]({{< ref "docs/dev/datastream/operators/overview" >}}) 。
+
+您还可以查看任务执行的时间轴：
+
+{{< img src="/fig/try-flink/timeline.png" alt="data flow timeline" >}}
+
+您已成功运行了 [Flink 应用程序]({{< ref "docs/concepts/glossary" >}}#ﬂink-application) ！
+请从 __examples/__ 文件夹中选择任何其他 JAR 归档文件或部署您自己的作业！
 
 <a name="step-4-stop-the-cluster"></a>
 

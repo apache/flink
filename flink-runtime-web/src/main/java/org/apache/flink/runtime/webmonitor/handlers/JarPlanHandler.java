@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -35,6 +34,7 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import javax.annotation.Nonnull;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -57,7 +57,7 @@ public class JarPlanHandler
 
     public JarPlanHandler(
             final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            final Time timeout,
+            final Duration timeout,
             final Map<String, String> responseHeaders,
             final MessageHeaders<JarPlanRequestBody, JobPlanInfo, JarPlanMessageParameters>
                     messageHeaders,
@@ -77,7 +77,7 @@ public class JarPlanHandler
 
     public JarPlanHandler(
             final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            final Time timeout,
+            final Duration timeout,
             final Map<String, String> responseHeaders,
             final MessageHeaders<JarPlanRequestBody, JobPlanInfo, JarPlanMessageParameters>
                     messageHeaders,

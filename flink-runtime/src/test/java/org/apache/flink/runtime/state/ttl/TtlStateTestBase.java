@@ -21,7 +21,6 @@ package org.apache.flink.runtime.state.ttl;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.StateTtlConfig;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
@@ -39,6 +38,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.RunnableFuture;
@@ -109,7 +109,7 @@ public abstract class TtlStateTestBase {
         return (TtlMergingStateTestContext<?, UV, ?>) ctx;
     }
 
-    private void initTest() throws Exception {
+    protected void initTest() throws Exception {
         initTest(
                 StateTtlConfig.UpdateType.OnCreateAndWrite,
                 StateTtlConfig.StateVisibility.NeverReturnExpired);
@@ -135,7 +135,7 @@ public abstract class TtlStateTestBase {
     }
 
     protected static StateTtlConfig.Builder getConfBuilder(long ttl) {
-        return StateTtlConfig.newBuilder(Time.milliseconds(ttl));
+        return StateTtlConfig.newBuilder(Duration.ofMillis(ttl));
     }
 
     protected <S extends State> StateDescriptor<S, Object> initTest(StateTtlConfig ttlConfig)
@@ -496,7 +496,7 @@ public abstract class TtlStateTestBase {
     }
 
     @TestTemplate
-    void testRestoreTtlAndRegisterNonTtlStateCompatFailure() throws Exception {
+    protected void testRestoreTtlAndRegisterNonTtlStateCompatFailure() throws Exception {
         assumeThat(this).isNotInstanceOf(MockTtlStateTest.class);
 
         initTest();

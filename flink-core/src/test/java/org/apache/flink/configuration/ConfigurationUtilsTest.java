@@ -18,20 +18,14 @@
 
 package org.apache.flink.configuration;
 
-import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
-import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.TimeUtils;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestTemplate;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -44,17 +38,9 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link ConfigurationUtils}. */
-@ExtendWith(ParameterizedTestExtension.class)
 class ConfigurationUtilsTest {
 
-    @Parameter private boolean standardYaml;
-
-    @Parameters(name = "standardYaml: {0}")
-    private static Collection<Boolean> parameters() {
-        return Arrays.asList(true, false);
-    }
-
-    @TestTemplate
+    @Test
     void testPropertiesToConfiguration() {
         final Properties properties = new Properties();
         final int entries = 10;
@@ -82,7 +68,7 @@ class ConfigurationUtilsTest {
         expectedMap.put("k2", "v2");
         String legacyMapPattern = "k1:v1,k2:v2";
 
-        Configuration configuration = new Configuration(true);
+        Configuration configuration = new Configuration();
         configuration.setString("listKey", legacyListPattern);
         configuration.setString("mapKey", legacyMapPattern);
 
@@ -97,18 +83,18 @@ class ConfigurationUtilsTest {
                 .isEqualTo(expectedMap);
     }
 
-    @TestTemplate
+    @Test
     void testConvertConfigToWritableLinesAndFlattenYaml() {
         testConvertConfigToWritableLines(true);
     }
 
-    @TestTemplate
+    @Test
     void testConvertConfigToWritableLinesAndNoFlattenYaml() {
         testConvertConfigToWritableLines(false);
     }
 
     private void testConvertConfigToWritableLines(boolean flattenYaml) {
-        final Configuration configuration = new Configuration(standardYaml);
+        final Configuration configuration = new Configuration();
         ConfigOption<List<String>> nestedListOption =
                 ConfigOptions.key("nested.test-list-key").stringType().asList().noDefaultValue();
         final String listValues = "value1;value2;value3";
@@ -143,47 +129,35 @@ class ConfigurationUtilsTest {
         List<String> actualData =
                 ConfigurationUtils.convertConfigToWritableLines(configuration, flattenYaml);
         List<String> expected;
-        if (standardYaml) {
-            if (flattenYaml) {
-                expected =
-                        Arrays.asList(
-                                nestedListOption.key() + ": " + yamlListValues,
-                                nestedMapOption.key() + ": " + yamlMapValues,
-                                nestedDurationOption.key()
-                                        + ": "
-                                        + TimeUtils.formatWithHighestUnit(duration),
-                                nestedStringOption.key() + ": " + yamlStrValues,
-                                intOption.key() + ": " + intValue);
-            } else {
-                expected =
-                        Arrays.asList(
-                                "nested:",
-                                "  test-list-key:",
-                                "  - value1",
-                                "  - value2",
-                                "  - value3",
-                                "  test-map-key:",
-                                "    key1: value1",
-                                "    key2: value2",
-                                "  test-duration-key: 3 s",
-                                "  test-string-key: '*'",
-                                "test-int-key: 1");
-            }
-        } else {
+        if (flattenYaml) {
             expected =
                     Arrays.asList(
-                            nestedListOption.key() + ": " + listValues,
-                            nestedMapOption.key() + ": " + mapValues,
+                            nestedListOption.key() + ": " + yamlListValues,
+                            nestedMapOption.key() + ": " + yamlMapValues,
                             nestedDurationOption.key()
                                     + ": "
                                     + TimeUtils.formatWithHighestUnit(duration),
-                            nestedStringOption.key() + ": " + strValues,
+                            nestedStringOption.key() + ": " + yamlStrValues,
                             intOption.key() + ": " + intValue);
+        } else {
+            expected =
+                    Arrays.asList(
+                            "nested:",
+                            "  test-list-key:",
+                            "  - value1",
+                            "  - value2",
+                            "  - value3",
+                            "  test-map-key:",
+                            "    key1: value1",
+                            "    key2: value2",
+                            "  test-duration-key: 3 s",
+                            "  test-string-key: '*'",
+                            "test-int-key: 1");
         }
         assertThat(expected).containsExactlyInAnyOrderElementsOf(actualData);
     }
 
-    @TestTemplate
+    @Test
     void testHideSensitiveValues() {
         final Map<String, String> keyValuePairs = new HashMap<>();
         keyValuePairs.put("foobar", "barfoo");
@@ -204,7 +178,7 @@ class ConfigurationUtilsTest {
         assertThat(hiddenSensitiveValues).isEqualTo(expectedKeyValuePairs);
     }
 
-    @TestTemplate
+    @Test
     void testGetPrefixedKeyValuePairs() {
         final String prefix = "test.prefix.";
         final Map<String, String> expectedKeyValuePairs =
@@ -224,48 +198,34 @@ class ConfigurationUtilsTest {
         assertThat(resultKeyValuePairs).isEqualTo(expectedKeyValuePairs);
     }
 
-    @TestTemplate
+    @Test
     void testConvertToString() {
         // String
-        assertThat(ConfigurationUtils.convertToString("Simple String", standardYaml))
-                .isEqualTo("Simple String");
+        assertThat(ConfigurationUtils.convertToString("Simple String")).isEqualTo("Simple String");
 
         // Duration
-        assertThat(ConfigurationUtils.convertToString(Duration.ZERO, standardYaml))
-                .isEqualTo("0 ms");
-        assertThat(ConfigurationUtils.convertToString(Duration.ofMillis(123L), standardYaml))
-                .isEqualTo("123 ms");
-        assertThat(ConfigurationUtils.convertToString(Duration.ofMillis(1_234_000L), standardYaml))
+        assertThat(ConfigurationUtils.convertToString(Duration.ZERO)).isEqualTo("0 ms");
+        assertThat(ConfigurationUtils.convertToString(Duration.ofMillis(123L))).isEqualTo("123 ms");
+        assertThat(ConfigurationUtils.convertToString(Duration.ofMillis(1_234_000L)))
                 .isEqualTo("1234 s");
-        assertThat(ConfigurationUtils.convertToString(Duration.ofHours(25L), standardYaml))
-                .isEqualTo("25 h");
+        assertThat(ConfigurationUtils.convertToString(Duration.ofHours(25L))).isEqualTo("25 h");
 
         // List
         List<Object> listElements = new ArrayList<>();
         listElements.add("Test;String");
         listElements.add(Duration.ZERO);
         listElements.add(42);
-        if (standardYaml) {
-            assertThat("[Test;String, 0 ms, 42]")
-                    .isEqualTo(ConfigurationUtils.convertToString(listElements, true));
-        } else {
-            assertThat("'Test;String';0 ms;42")
-                    .isEqualTo(ConfigurationUtils.convertToString(listElements, false));
-        }
+        assertThat("[Test;String, 0 ms, 42]")
+                .isEqualTo(ConfigurationUtils.convertToString(listElements));
         // Map
         Map<Object, Object> mapElements = new HashMap<>();
         mapElements.put("A:,B", "C:,D");
         mapElements.put(10, 20);
-        if (standardYaml) {
-            assertThat("{'A:,B': 'C:,D', 10: 20}")
-                    .isEqualTo(ConfigurationUtils.convertToString(mapElements, true));
-        } else {
-            assertThat("'''A:,B'':''C:,D''',10:20")
-                    .isEqualTo(ConfigurationUtils.convertToString(mapElements, false));
-        }
+        assertThat("{'A:,B': 'C:,D', 10: 20}")
+                .isEqualTo(ConfigurationUtils.convertToString(mapElements));
     }
 
-    @TestTemplate
+    @Test
     void testRandomTempDirectorySelection() {
         final Configuration configuration = new Configuration();
         final StringBuilder tempDirectories = new StringBuilder();

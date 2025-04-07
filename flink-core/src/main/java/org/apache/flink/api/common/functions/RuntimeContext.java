@@ -18,10 +18,9 @@
 
 package org.apache.flink.api.common.functions;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -61,37 +60,6 @@ import java.util.Set;
  */
 @Public
 public interface RuntimeContext {
-
-    /**
-     * The ID of the current job. Note that Job ID can change in particular upon manual restart. The
-     * returned ID should NOT be used for any job management tasks.
-     *
-     * @deprecated This method is deprecated since Flink 1.19. All metadata about the job should be
-     *     provided uniformly by {@link #getJobInfo()}.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
-     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
-     */
-    @Deprecated
-    default JobID getJobId() {
-        return getJobInfo().getJobId();
-    }
-
-    /**
-     * Returns the name of the task in which the UDF runs, as assigned during plan construction.
-     *
-     * @return The name of the task in which the UDF runs.
-     * @deprecated This method is deprecated since Flink 1.19. All metadata about the task should be
-     *     provided uniformly by {@link #getTaskInfo()}.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
-     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
-     */
-    @Deprecated
-    default String getTaskName() {
-        return getTaskInfo().getTaskName();
-    }
-
     /**
      * Returns the metric group for this parallel subtask.
      *
@@ -99,96 +67,6 @@ public interface RuntimeContext {
      */
     @PublicEvolving
     OperatorMetricGroup getMetricGroup();
-
-    /**
-     * Gets the parallelism with which the parallel task runs.
-     *
-     * @return The parallelism with which the parallel task runs.
-     * @deprecated This method is deprecated since Flink 1.19. All metadata about the task should be
-     *     provided uniformly by {@link #getTaskInfo()}.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
-     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
-     */
-    @Deprecated
-    default int getNumberOfParallelSubtasks() {
-        return getTaskInfo().getNumberOfParallelSubtasks();
-    }
-
-    /**
-     * Gets the number of max-parallelism with which the parallel task runs.
-     *
-     * @return The max-parallelism with which the parallel task runs.
-     * @deprecated This method is deprecated since Flink 1.19. All metadata about the task should be
-     *     provided uniformly by {@link #getTaskInfo()}.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
-     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
-     */
-    @Deprecated
-    @PublicEvolving
-    default int getMaxNumberOfParallelSubtasks() {
-        return getTaskInfo().getMaxNumberOfParallelSubtasks();
-    }
-
-    /**
-     * Gets the number of this parallel subtask. The numbering starts from 0 and goes up to
-     * parallelism-1.
-     *
-     * @return The index of the parallel subtask.
-     * @deprecated This method is deprecated since Flink 1.19. All metadata about the task should be
-     *     provided uniformly by {@link #getTaskInfo()}.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
-     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
-     */
-    @Deprecated
-    default int getIndexOfThisSubtask() {
-        return getTaskInfo().getIndexOfThisSubtask();
-    }
-
-    /**
-     * Gets the attempt number of this parallel subtask. First attempt is numbered 0.
-     *
-     * @return Attempt number of the subtask.
-     * @deprecated This method is deprecated since Flink 1.19. All metadata about the task should be
-     *     provided uniformly by {@link #getTaskInfo()}.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
-     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
-     */
-    @Deprecated
-    default int getAttemptNumber() {
-        return getTaskInfo().getAttemptNumber();
-    }
-
-    /**
-     * Returns the name of the task, appended with the subtask indicator, such as "MyTask (3/6)#1",
-     * where 3 would be (task index + 1), and 6 would be task parallelism, and 1 would be attempt
-     * number.
-     *
-     * @return The name of the task, with subtask indicator.
-     * @deprecated This method is deprecated since Flink 1.19. All metadata about the task should be
-     *     provided uniformly by {@link #getTaskInfo()}.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
-     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
-     */
-    @Deprecated
-    default String getTaskNameWithSubtasks() {
-        return getTaskInfo().getTaskNameWithSubtasks();
-    }
-
-    /**
-     * Returns the {@link org.apache.flink.api.common.ExecutionConfig} for the currently executing
-     * job.
-     *
-     * @deprecated This method has been deprecated and will be removed in the upcoming FLINK major
-     *     version FLINK-2.0. Users relying on this method should migrate to alternative getter
-     *     methods, such as {@link #getGlobalJobParameters()} or {@link #isObjectReuseEnabled()}.
-     */
-    @Deprecated
-    ExecutionConfig getExecutionConfig();
 
     /**
      * Create a serializer for a given type.
@@ -355,7 +233,7 @@ public interface RuntimeContext {
      *
      *     private ValueState<Long> state;
      *
-     *     public void open(Configuration cfg) {
+     *     public void open(OpenContext ctx) {
      *         state = getRuntimeContext().getState(
      *                 new ValueStateDescriptor<Long>("count", LongSerializer.INSTANCE, 0L));
      *     }
@@ -392,7 +270,7 @@ public interface RuntimeContext {
      *
      *     private ListState<MyType> state;
      *
-     *     public void open(Configuration cfg) {
+     *     public void open(OpenContext ctx) {
      *         state = getRuntimeContext().getListState(
      *                 new ListStateDescriptor<>("myState", MyType.class));
      *     }
@@ -433,7 +311,7 @@ public interface RuntimeContext {
      *
      *     private ReducingState<Long> state;
      *
-     *     public void open(Configuration cfg) {
+     *     public void open(OpenContext ctx) {
      *         state = getRuntimeContext().getReducingState(
      *                 new ReducingStateDescriptor<>("sum", (a, b) -> a + b, Long.class));
      *     }
@@ -471,7 +349,7 @@ public interface RuntimeContext {
      *
      *     private AggregatingState<MyType, Long> state;
      *
-     *     public void open(Configuration cfg) {
+     *     public void open(OpenContext ctx) {
      *         state = getRuntimeContext().getAggregatingState(
      *                 new AggregatingStateDescriptor<>("sum", aggregateFunction, Long.class));
      *     }
@@ -511,7 +389,7 @@ public interface RuntimeContext {
      *
      *     private MapState<MyType, Long> state;
      *
-     *     public void open(Configuration cfg) {
+     *     public void open(OpenContext ctx) {
      *         state = getRuntimeContext().getMapState(
      *                 new MapStateDescriptor<>("sum", MyType.class, Long.class));
      *     }
@@ -532,6 +410,95 @@ public interface RuntimeContext {
      */
     @PublicEvolving
     <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties);
+
+    // ------------------------------------------------------------------------
+    //  Methods for accessing state V2
+    // ------------------------------------------------------------------------
+
+    /**
+     * Gets a handle to the system's key/value state. The key/value state is only accessible if the
+     * function is executed on a KeyedStream. On each access, the state exposes the value for the
+     * key of the element currently processed by the function. Each function may have multiple
+     * partitioned states, addressed with different names.
+     *
+     * <p>Because the scope of each value is the key of the currently processed element, and the
+     * elements are distributed by the Flink runtime, the system can transparently scale out and
+     * redistribute the state and KeyedStream.
+     *
+     * @param stateProperties The descriptor defining the properties of the stats.
+     * @param <T> The type of value stored in the state.
+     * @return The partitioned state object.
+     * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
+     *     function (function is not part of a KeyedStream).
+     */
+    @Experimental
+    <T> org.apache.flink.api.common.state.v2.ValueState<T> getState(
+            org.apache.flink.api.common.state.v2.ValueStateDescriptor<T> stateProperties);
+
+    /**
+     * Gets a handle to the system's key/value list state. This state is similar to the state
+     * accessed via {@link #getState(ValueStateDescriptor)}, but is optimized for state that holds
+     * lists. One can add elements to the list, or retrieve the list as a whole.
+     *
+     * @param stateProperties The descriptor defining the properties of the stats.
+     * @param <T> The type of value stored in the state.
+     * @return The partitioned state object.
+     * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
+     *     function (function is not part os a KeyedStream).
+     */
+    @Experimental
+    <T> org.apache.flink.api.common.state.v2.ListState<T> getListState(
+            org.apache.flink.api.common.state.v2.ListStateDescriptor<T> stateProperties);
+
+    /**
+     * Gets a handle to the system's key/value reducing state. This state is similar to the state
+     * accessed via {@link #getState(ValueStateDescriptor)}, but is optimized for state that
+     * aggregates values.
+     *
+     * @param stateProperties The descriptor defining the properties of the stats.
+     * @param <T> The type of value stored in the state.
+     * @return The partitioned state object.
+     * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
+     *     function (function is not part of a KeyedStream).
+     */
+    @Experimental
+    <T> org.apache.flink.api.common.state.v2.ReducingState<T> getReducingState(
+            org.apache.flink.api.common.state.v2.ReducingStateDescriptor<T> stateProperties);
+
+    /**
+     * Gets a handle to the system's key/value aggregating state. This state is similar to the state
+     * accessed via {@link #getState(ValueStateDescriptor)}, but is optimized for state that
+     * aggregates values with different types.
+     *
+     * @param stateProperties The descriptor defining the properties of the stats.
+     * @param <IN> The type of the values that are added to the state.
+     * @param <ACC> The type of the accumulator (intermediate aggregation state).
+     * @param <OUT> The type of the values that are returned from the state.
+     * @return The partitioned state object.
+     * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
+     *     function (function is not part of a KeyedStream).
+     */
+    @Experimental
+    <IN, ACC, OUT>
+            org.apache.flink.api.common.state.v2.AggregatingState<IN, OUT> getAggregatingState(
+                    org.apache.flink.api.common.state.v2.AggregatingStateDescriptor<IN, ACC, OUT>
+                            stateProperties);
+
+    /**
+     * Gets a handle to the system's key/value map state. This state is similar to the state
+     * accessed via {@link #getState(ValueStateDescriptor)}, but is optimized for state that is
+     * composed of user-defined key-value pairs
+     *
+     * @param stateProperties The descriptor defining the properties of the stats.
+     * @param <UK> The type of the user keys stored in the state.
+     * @param <UV> The type of the user values stored in the state.
+     * @return The partitioned state object.
+     * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
+     *     function (function is not part of a KeyedStream).
+     */
+    @Experimental
+    <UK, UV> org.apache.flink.api.common.state.v2.MapState<UK, UV> getMapState(
+            org.apache.flink.api.common.state.v2.MapStateDescriptor<UK, UV> stateProperties);
 
     /**
      * Get the meta information of current job.

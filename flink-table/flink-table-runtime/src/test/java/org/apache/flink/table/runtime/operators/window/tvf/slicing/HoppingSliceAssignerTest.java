@@ -18,64 +18,57 @@
 
 package org.apache.flink.table.runtime.operators.window.tvf.slicing;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.Duration;
 import java.time.ZoneId;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Optional;
 import java.util.TimeZone;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link SliceAssigners.HoppingSliceAssigner}. */
-@RunWith(Parameterized.class)
-public class HoppingSliceAssignerTest extends SliceAssignerTestBase {
+class HoppingSliceAssignerTest extends SliceAssignerTestBase {
 
-    @Parameterized.Parameter public ZoneId shiftTimeZone;
-
-    @Parameterized.Parameters(name = "timezone = {0}")
-    public static Collection<ZoneId> parameters() {
-        return Arrays.asList(ZoneId.of("America/Los_Angeles"), ZoneId.of("Asia/Shanghai"));
-    }
-
-    @Test
-    public void testSliceAssignment() {
+    @ParameterizedTest(name = "timezone = {0}")
+    @MethodSource("zoneIds")
+    void testSliceAssignment(final ZoneId zoneId) {
         SliceAssigner assigner =
-                SliceAssigners.hopping(0, shiftTimeZone, Duration.ofHours(5), Duration.ofHours(1));
+                SliceAssigners.hopping(0, zoneId, Duration.ofHours(5), Duration.ofHours(1));
 
-        assertThat(assignSliceEnd(assigner, localMills("1970-01-01T00:00:00")))
+        assertThat(assignSliceEnd(assigner, localMills("1970-01-01T00:00:00", zoneId)))
                 .isEqualTo(utcMills("1970-01-01T01:00:00"));
-        assertThat(assignSliceEnd(assigner, localMills("1970-01-01T04:59:59.999")))
+        assertThat(assignSliceEnd(assigner, localMills("1970-01-01T04:59:59.999", zoneId)))
                 .isEqualTo(utcMills("1970-01-01T05:00:00"));
-        assertThat(assignSliceEnd(assigner, localMills("1970-01-01T05:00:00")))
+        assertThat(assignSliceEnd(assigner, localMills("1970-01-01T05:00:00", zoneId)))
                 .isEqualTo(utcMills("1970-01-01T06:00:00"));
     }
 
-    @Test
-    public void testSliceAssignmentWithOffset() {
+    @ParameterizedTest(name = "timezone = {0}")
+    @MethodSource("zoneIds")
+    void testSliceAssignmentWithOffset(final ZoneId zoneId) {
         SliceAssigner assigner =
-                SliceAssigners.hopping(0, shiftTimeZone, Duration.ofHours(5), Duration.ofHours(1))
+                SliceAssigners.hopping(0, zoneId, Duration.ofHours(5), Duration.ofHours(1))
                         .withOffset(Duration.ofMillis(100));
 
-        assertThat(assignSliceEnd(assigner, localMills("1970-01-01T00:00:00.1")))
+        assertThat(assignSliceEnd(assigner, localMills("1970-01-01T00:00:00.1", zoneId)))
                 .isEqualTo(utcMills("1970-01-01T01:00:00.1"));
-        assertThat(assignSliceEnd(assigner, localMills("1970-01-01T05:00:00.099")))
+        assertThat(assignSliceEnd(assigner, localMills("1970-01-01T05:00:00.099", zoneId)))
                 .isEqualTo(utcMills("1970-01-01T05:00:00.1"));
-        assertThat(assignSliceEnd(assigner, localMills("1970-01-01T05:00:00.1")))
+        assertThat(assignSliceEnd(assigner, localMills("1970-01-01T05:00:00.1", zoneId)))
                 .isEqualTo(utcMills("1970-01-01T06:00:00.1"));
     }
 
-    @Test
-    public void testDstSaving() {
-        if (!TimeZone.getTimeZone(shiftTimeZone).useDaylightTime()) {
+    @ParameterizedTest(name = "timezone = {0}")
+    @MethodSource("zoneIds")
+    void testDstSaving(final ZoneId zoneId) {
+        if (!TimeZone.getTimeZone(zoneId).useDaylightTime()) {
             return;
         }
         SliceAssigner assigner =
-                SliceAssigners.hopping(0, shiftTimeZone, Duration.ofHours(4), Duration.ofHours(1));
+                SliceAssigners.hopping(0, zoneId, Duration.ofHours(4), Duration.ofHours(1));
 
         // Los_Angeles local time in epoch mills.
         // The DaylightTime in Los_Angele start at time 2021-03-14 02:00:00
@@ -106,10 +99,11 @@ public class HoppingSliceAssignerTest extends SliceAssignerTestBase {
         assertSliceStartEnd("2021-11-07T01:00", "2021-11-07T05:00", epoch10, assigner);
     }
 
-    @Test
-    public void testGetWindowStart() {
+    @ParameterizedTest(name = "timezone = {0}")
+    @MethodSource("zoneIds")
+    void testGetWindowStart(final ZoneId zoneId) {
         SliceAssigner assigner =
-                SliceAssigners.hopping(0, shiftTimeZone, Duration.ofHours(5), Duration.ofHours(1));
+                SliceAssigners.hopping(0, zoneId, Duration.ofHours(5), Duration.ofHours(1));
 
         assertThat(assigner.getWindowStart(utcMills("1970-01-01T00:00:00")))
                 .isEqualTo(utcMills("1969-12-31T19:00:00"));
@@ -129,11 +123,12 @@ public class HoppingSliceAssignerTest extends SliceAssignerTestBase {
                 .isEqualTo(utcMills("1970-01-01T05:00:00"));
     }
 
-    @Test
-    public void testExpiredSlices() {
+    @ParameterizedTest(name = "timezone = {0}")
+    @MethodSource("zoneIds")
+    void testExpiredSlices(final ZoneId zoneId) {
 
         SliceAssigner assigner =
-                SliceAssigners.hopping(0, shiftTimeZone, Duration.ofHours(4), Duration.ofHours(1));
+                SliceAssigners.hopping(0, zoneId, Duration.ofHours(4), Duration.ofHours(1));
 
         assertThat(expiredSlices(assigner, utcMills("1970-01-01T00:00:00")))
                 .containsExactly(utcMills("1969-12-31T21:00:00"));
@@ -143,10 +138,11 @@ public class HoppingSliceAssignerTest extends SliceAssignerTestBase {
                 .containsExactly(utcMills("1970-01-01T05:00:00"));
     }
 
-    @Test
-    public void testMerge() throws Exception {
+    @ParameterizedTest(name = "timezone = {0}")
+    @MethodSource("zoneIds")
+    void testMerge(final ZoneId zoneId) throws Exception {
         SliceAssigners.HoppingSliceAssigner assigner =
-                SliceAssigners.hopping(0, shiftTimeZone, Duration.ofHours(5), Duration.ofHours(1));
+                SliceAssigners.hopping(0, zoneId, Duration.ofHours(5), Duration.ofHours(1));
 
         assertThat(mergeResultSlice(assigner, utcMills("1970-01-01T00:00:00"))).isNull();
         assertThat(toBeMergedSlices(assigner, utcMills("1970-01-01T00:00:00")))
@@ -179,10 +175,11 @@ public class HoppingSliceAssignerTest extends SliceAssignerTestBase {
                                 utcMills("1970-01-01T02:00:00")));
     }
 
-    @Test
-    public void testNextTriggerWindow() {
+    @ParameterizedTest(name = "timezone = {0}")
+    @MethodSource("zoneIds")
+    void testNextTriggerWindow(final ZoneId zoneId) {
         SliceAssigners.HoppingSliceAssigner assigner =
-                SliceAssigners.hopping(0, shiftTimeZone, Duration.ofHours(5), Duration.ofHours(1));
+                SliceAssigners.hopping(0, zoneId, Duration.ofHours(5), Duration.ofHours(1));
 
         assertThat(assigner.nextTriggerWindow(utcMills("1970-01-01T00:00:00"), () -> false))
                 .isEqualTo(Optional.of(utcMills("1970-01-01T01:00:00")));
@@ -215,45 +212,41 @@ public class HoppingSliceAssignerTest extends SliceAssignerTestBase {
                 .isEqualTo(Optional.empty());
     }
 
-    @Test
-    public void testEventTime() {
+    @ParameterizedTest(name = "timezone = {0}")
+    @MethodSource("zoneIds")
+    void testEventTime(final ZoneId zoneId) {
         SliceAssigner assigner1 =
-                SliceAssigners.hopping(
-                        0, shiftTimeZone, Duration.ofSeconds(5), Duration.ofSeconds(1));
+                SliceAssigners.hopping(0, zoneId, Duration.ofSeconds(5), Duration.ofSeconds(1));
         assertThat(assigner1.isEventTime()).isTrue();
 
         SliceAssigner assigner2 =
-                SliceAssigners.hopping(
-                        -1, shiftTimeZone, Duration.ofSeconds(5), Duration.ofSeconds(1));
+                SliceAssigners.hopping(-1, zoneId, Duration.ofSeconds(5), Duration.ofSeconds(1));
         assertThat(assigner2.isEventTime()).isFalse();
     }
 
-    @Test
-    public void testInvalidParameters() {
+    @ParameterizedTest(name = "timezone = {0}")
+    @MethodSource("zoneIds")
+    void testInvalidParameters(final ZoneId zoneId) {
         assertErrorMessage(
                 () ->
                         SliceAssigners.hopping(
-                                0, shiftTimeZone, Duration.ofSeconds(-2), Duration.ofSeconds(1)),
+                                0, zoneId, Duration.ofSeconds(-2), Duration.ofSeconds(1)),
                 "Hopping Window must satisfy slide > 0 and size > 0, but got slide 1000ms and size -2000ms.");
 
         assertErrorMessage(
                 () ->
                         SliceAssigners.hopping(
-                                0, shiftTimeZone, Duration.ofSeconds(2), Duration.ofSeconds(-1)),
+                                0, zoneId, Duration.ofSeconds(2), Duration.ofSeconds(-1)),
                 "Hopping Window must satisfy slide > 0 and size > 0, but got slide -1000ms and size 2000ms.");
 
         assertErrorMessage(
                 () ->
                         SliceAssigners.hopping(
-                                0, shiftTimeZone, Duration.ofSeconds(5), Duration.ofSeconds(2)),
+                                0, zoneId, Duration.ofSeconds(5), Duration.ofSeconds(2)),
                 "Slicing Hopping Window requires size must be an integral multiple of slide, but got size 5000ms and slide 2000ms.");
 
         // should pass
-        SliceAssigners.hopping(0, shiftTimeZone, Duration.ofSeconds(10), Duration.ofSeconds(5))
+        SliceAssigners.hopping(0, zoneId, Duration.ofSeconds(10), Duration.ofSeconds(5))
                 .withOffset(Duration.ofSeconds(-1));
-    }
-
-    private long localMills(String timestampStr) {
-        return localMills(timestampStr, shiftTimeZone);
     }
 }

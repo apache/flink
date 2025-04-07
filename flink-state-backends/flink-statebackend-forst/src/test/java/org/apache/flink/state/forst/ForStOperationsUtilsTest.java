@@ -20,14 +20,14 @@ package org.apache.flink.state.forst;
 
 import org.apache.flink.util.OperatingSystem;
 
+import org.forstdb.ColumnFamilyOptions;
+import org.forstdb.DBOptions;
+import org.forstdb.NativeLibraryLoader;
+import org.forstdb.RocksDB;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.DBOptions;
-import org.rocksdb.NativeLibraryLoader;
-import org.rocksdb.RocksDB;
 
 import java.io.File;
 import java.io.IOException;

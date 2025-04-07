@@ -21,8 +21,6 @@ package org.apache.flink.streaming.api.windowing.assigners;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -66,12 +64,6 @@ public class EventTimeSessionWindows extends MergingWindowAssigner<Object, TimeW
     }
 
     @Override
-    public Trigger<Object, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
-        throw new UnsupportedOperationException(
-                "This method is deprecated and shouldn't be invoked. Please use getDefaultTrigger() instead.");
-    }
-
-    @Override
     public Trigger<Object, TimeWindow> getDefaultTrigger() {
         return EventTimeTrigger.create();
     }
@@ -79,19 +71,6 @@ public class EventTimeSessionWindows extends MergingWindowAssigner<Object, TimeW
     @Override
     public String toString() {
         return "EventTimeSessionWindows(" + sessionTimeout + ")";
-    }
-
-    /**
-     * Creates a new {@code SessionWindows} {@link WindowAssigner} that assigns elements to sessions
-     * based on the element timestamp.
-     *
-     * @param size The session timeout, i.e. the time gap between sessions
-     * @return The policy.
-     * @deprecated Use {@link #withGap(Duration)}
-     */
-    @Deprecated
-    public static EventTimeSessionWindows withGap(Time size) {
-        return withGap(size.toDuration());
     }
 
     /**

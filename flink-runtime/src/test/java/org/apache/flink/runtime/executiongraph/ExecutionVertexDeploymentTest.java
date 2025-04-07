@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
@@ -29,6 +28,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
@@ -251,7 +251,7 @@ class ExecutionVertexDeploymentTest {
             extends SimpleAckingTaskManagerGateway {
         @Override
         public CompletableFuture<Acknowledge> submitTask(
-                TaskDeploymentDescriptor tdd, Time timeout) {
+                TaskDeploymentDescriptor tdd, Duration timeout) {
             CompletableFuture<Acknowledge> future = new CompletableFuture<>();
             future.completeExceptionally(new Exception(ERROR_MESSAGE));
             return future;
@@ -262,7 +262,7 @@ class ExecutionVertexDeploymentTest {
             extends SimpleAckingTaskManagerGateway {
         @Override
         public CompletableFuture<Acknowledge> submitTask(
-                TaskDeploymentDescriptor tdd, Time timeout) {
+                TaskDeploymentDescriptor tdd, Duration timeout) {
             return new CompletableFuture<>();
         }
     }

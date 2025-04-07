@@ -44,7 +44,7 @@ import org.apache.flink.runtime.testutils.WorkingDirectoryExtension;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.IOUtils;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Sets;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterEach;
@@ -242,8 +242,6 @@ class TaskManagerRunnerStartupTest {
                         ".taskmanager..Status.JVM.Threads.Count",
                         ".taskmanager..Status.JVM.CPU.Load",
                         ".taskmanager..Status.JVM.CPU.Time",
-                        ".taskmanager..Status.Network.TotalMemorySegments",
-                        ".taskmanager..Status.Network.AvailableMemorySegments",
                         ".taskmanager..Status.Shuffle.Netty.TotalMemorySegments",
                         ".taskmanager..Status.Shuffle.Netty.TotalMemory",
                         ".taskmanager..Status.Shuffle.Netty.AvailableMemorySegments",

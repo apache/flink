@@ -21,7 +21,6 @@ package org.apache.flink.client;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.client.cli.ClientOptions;
-import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.StreamContextEnvironment;
@@ -91,13 +90,6 @@ public enum ClientUtils {
                     "Starting program (detached: {})",
                     !configuration.get(DeploymentOptions.ATTACHED));
 
-            ContextEnvironment.setAsContext(
-                    executorServiceLoader,
-                    configuration,
-                    userCodeClassLoader,
-                    enforceSingleJobExecution,
-                    suppressSysout);
-
             StreamContextEnvironment.setAsContext(
                     executorServiceLoader,
                     configuration,
@@ -112,7 +104,6 @@ public enum ClientUtils {
             try {
                 program.invokeInteractiveModeForExecution();
             } finally {
-                ContextEnvironment.unsetAsContext();
                 StreamContextEnvironment.unsetAsContext();
                 // For DataStream v2.
                 ExecutionContextEnvironment.unsetAsContext();

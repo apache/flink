@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.java.hadoop.mapred;
 
+import org.apache.flink.api.common.io.FinalizeOnMaster;
+import org.apache.flink.api.common.io.FirstAttemptInitializationContext;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 import org.apache.hadoop.conf.Configurable;
@@ -33,7 +35,7 @@ import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.TaskAttemptContext;
 import org.apache.hadoop.util.Progressable;
 import org.junit.jupiter.api.Test;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import java.io.IOException;
@@ -61,7 +63,7 @@ class HadoopOutputFormatTest {
         HadoopOutputFormat<String, Long> outputFormat =
                 new HadoopOutputFormat<>(dummyOutputFormat, jobConf);
 
-        outputFormat.open(1, 1);
+        outputFormat.open(FirstAttemptInitializationContext.of(1, 1));
 
         verify(jobConf, times(2)).getOutputCommitter();
         verify(outputCommitter, times(1)).setupJob(any(JobContext.class));
@@ -81,7 +83,7 @@ class HadoopOutputFormatTest {
         HadoopOutputFormat<String, Long> outputFormat =
                 new HadoopOutputFormat<>(dummyOutputFormat, jobConf);
 
-        outputFormat.configure(Matchers.<org.apache.flink.configuration.Configuration>any());
+        outputFormat.configure(ArgumentMatchers.any());
 
         verify(dummyOutputFormat, times(1)).setConf(any(Configuration.class));
     }
@@ -95,7 +97,7 @@ class HadoopOutputFormatTest {
         HadoopOutputFormat<String, Long> outputFormat =
                 new HadoopOutputFormat<>(dummyOutputFormat, jobConf);
 
-        outputFormat.configure(Matchers.<org.apache.flink.configuration.Configuration>any());
+        outputFormat.configure(ArgumentMatchers.any());
 
         verify(dummyOutputFormat, times(1)).configure(any(JobConf.class));
     }
@@ -163,7 +165,18 @@ class HadoopOutputFormatTest {
         HadoopOutputFormat<String, Long> outputFormat =
                 new HadoopOutputFormat<>(dummyOutputFormat, jobConf);
 
-        outputFormat.finalizeGlobal(1);
+        outputFormat.finalizeGlobal(
+                new FinalizeOnMaster.FinalizationContext() {
+                    @Override
+                    public int getParallelism() {
+                        return 1;
+                    }
+
+                    @Override
+                    public int getFinishedAttempt(int subtaskIndex) {
+                        return 0;
+                    }
+                });
 
         verify(outputCommitter, times(1)).commitJob(any(JobContext.class));
     }

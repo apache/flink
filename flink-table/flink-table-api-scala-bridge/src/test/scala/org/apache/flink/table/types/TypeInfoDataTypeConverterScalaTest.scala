@@ -17,8 +17,7 @@
  */
 package org.apache.flink.table.types
 
-import org.apache.flink.api.scala.createTypeInformation
-import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.api.{createTypeInformation, DataTypes}
 import org.apache.flink.table.types.TypeInfoDataTypeConverterTest.TestSpec
 import org.apache.flink.table.types.utils.DataTypeFactoryMock.dummyRaw
 import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter

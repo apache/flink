@@ -118,11 +118,6 @@ public final class TimeIntervalTypeInfo<T> extends TypeInformation<T>
     }
 
     @Override
-    public TypeSerializer<T> createSerializer(ExecutionConfig config) {
-        return createSerializer(config.getSerializerConfig());
-    }
-
-    @Override
     public TypeComparator<T> createComparator(
             boolean sortOrderAscending, ExecutionConfig executionConfig) {
         try {

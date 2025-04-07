@@ -19,9 +19,10 @@
 package org.apache.flink.runtime.state.filesystem;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.core.fs.DuplicatingFileSystem;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.ICloseableRegistry;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.PathsCopyingFileSystem;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
@@ -47,10 +48,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
-/**
- * Tests for the {@link FsCheckpointStorageAccess}, which implements the checkpoint storage aspects
- * of the {@link FsStateBackend}.
- */
+/** Tests for the {@link FsCheckpointStorageAccess}, which implements the checkpoint storage. */
 class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessTestBase {
 
     private static final int FILE_SIZE_THRESHOLD = 1024;
@@ -324,15 +322,16 @@ class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessT
     }
 
     private static final class TestDuplicatingFileSystem extends TestFileSystem
-            implements DuplicatingFileSystem {
+            implements PathsCopyingFileSystem {
 
         @Override
-        public boolean canFastDuplicate(Path source, Path destination) throws IOException {
+        public boolean canCopyPaths(Path source, Path destination) throws IOException {
             return !source.equals(destination);
         }
 
         @Override
-        public void duplicate(List<CopyRequest> requests) throws IOException {}
+        public void copyFiles(List<CopyRequest> requests, ICloseableRegistry closeableRegistry)
+                throws IOException {}
     }
 
     // ------------------------------------------------------------------------

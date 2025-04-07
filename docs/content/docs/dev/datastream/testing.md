@@ -37,8 +37,6 @@ Usually, one can assume that Flink produces correct results outside of a user-de
 
 For example, let's take the following stateless `MapFunction`.
 
-{{< tabs "14886695-27e9-4a01-bfda-9a88ebf02051" >}}
-{{< tab "Java" >}}
 ```java
 public class IncrementMapFunction implements MapFunction<Long, Long> {
 
@@ -48,23 +46,9 @@ public class IncrementMapFunction implements MapFunction<Long, Long> {
     }
 }
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-class IncrementMapFunction extends MapFunction[Long, Long] {
-
-    override def map(record: Long): Long = {
-        record + 1
-    }
-}
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 It is very easy to unit test such a function with your favorite testing framework by passing suitable arguments and verifying the output.
-
-{{< tabs "8eb6b466-7a9d-4acc-98b2-221780f4a995" >}}
-{{< tab "Java" >}}
+        
 ```java
 public class IncrementMapFunctionTest {
 
@@ -78,27 +62,9 @@ public class IncrementMapFunctionTest {
     }
 }
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-class IncrementMapFunctionTest extends FlatSpec with Matchers {
-
-    "IncrementMapFunction" should "increment values" in {
-        // instantiate your function
-        val incrementer: IncrementMapFunction = new IncrementMapFunction()
-
-        // call the methods that you have implemented
-        incremeter.map(2) should be (3)
-    }
-}
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 Similarly, a user-defined function which uses an `org.apache.flink.util.Collector` (e.g. a `FlatMapFunction` or `ProcessFunction`) can be easily tested by providing a mock object instead of a real collector.  A `FlatMapFunction` with the same functionality as the `IncrementMapFunction` could be unit tested as follows.
 
-{{< tabs "81ece843-89a2-4307-93d1-5073809aaadd" >}}
-{{< tab "Java" >}}
 ```java
 public class IncrementFlatMapFunctionTest {
 
@@ -117,27 +83,6 @@ public class IncrementFlatMapFunctionTest {
     }
 }
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-class IncrementFlatMapFunctionTest extends FlatSpec with MockFactory {
-
-    "IncrementFlatMapFunction" should "increment values" in {
-       // instantiate your function
-      val incrementer : IncrementFlatMapFunction = new IncrementFlatMapFunction()
-
-      val collector = mock[Collector[Integer]]
-
-      //verify collector was called with the right output
-      (collector.collect _).expects(3)
-
-      // call the methods that you have implemented
-      flattenFunction.flatMap(2, collector)
-  }
-}
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 ### Unit Testing Stateful or Timely UDFs & Custom Operators
 
@@ -154,8 +99,6 @@ To use the test harnesses a set of additional dependencies is needed. Refer to t
 
 Now, the test harnesses can be used to push records and watermarks into your user-defined functions or custom operators, control processing time and finally assert on the output of the operator (including side outputs).
 
-{{< tabs "1b0c9090-066e-46d1-b8e2-a6242335e862" >}}
-{{< tab "Java" >}}
 ```java
 
 public class StatefulFlatMapTest {
@@ -199,55 +142,9 @@ public class StatefulFlatMapTest {
 }
 
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-class StatefulFlatMapFunctionTest extends FlatSpec with Matchers with BeforeAndAfter {
-
-  private var testHarness: OneInputStreamOperatorTestHarness[Long, Long] = null
-  private var statefulFlatMap: StatefulFlatMapFunction = null
-
-  before {
-    //instantiate user-defined function
-    statefulFlatMap = new StatefulFlatMap
-
-    // wrap user defined function into a the corresponding operator
-    testHarness = new OneInputStreamOperatorTestHarness[Long, Long](new StreamFlatMap(statefulFlatMap))
-
-    // optionally configured the execution environment
-    testHarness.getExecutionConfig().setAutoWatermarkInterval(50)
-
-    // open the test harness (will also call open() on RichFunctions)
-    testHarness.open()
-  }
-
-  "StatefulFlatMap" should "do some fancy stuff with timers and state" in {
-
-
-    //push (timestamped) elements into the operator (and hence user defined function)
-    testHarness.processElement(2, 100)
-
-    //trigger event time timers by advancing the event time of the operator with a watermark
-    testHarness.processWatermark(100)
-
-    //trigger proccesign time timers by advancing the processing time of the operator directly
-    testHarness.setProcessingTime(100)
-
-    //retrieve list of emitted records for assertions
-    testHarness.getOutput should contain (3)
-
-    //retrieve list of records emitted to a specific side output for assertions (ProcessFunction only)
-    //testHarness.getSideOutput(new OutputTag[Int]("invalidRecords")) should have size 0
-  }
-}
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 `KeyedOneInputStreamOperatorTestHarness` and `KeyedTwoInputStreamOperatorTestHarness` are instantiated by additionally providing a `KeySelector` including `TypeInformation` for the class of the key.
 
-{{< tabs "ead0c889-8847-486b-9de2-8c46f344b69b" >}}
-{{< tab "Java" >}}
 ```java
 
 public class StatefulFlatMapFunctionTest {
@@ -272,31 +169,6 @@ public class StatefulFlatMapFunctionTest {
 }
 
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-class StatefulFlatMapTest extends FlatSpec with Matchers with BeforeAndAfter {
-
-  private var testHarness: OneInputStreamOperatorTestHarness[String, Long, Long] = null
-  private var statefulFlatMapFunction: FlattenFunction = null
-
-  before {
-    //instantiate user-defined function
-    statefulFlatMapFunction = new StateFulFlatMap
-
-    // wrap user defined function into a the corresponding operator
-    testHarness = new KeyedOneInputStreamOperatorTestHarness(new StreamFlatMap(statefulFlatMapFunction),new MyStringKeySelector(), Types.STRING())
-
-    // open the test harness (will also call open() on RichFunctions)
-    testHarness.open()
-  }
-
-  //tests
-
-}
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 Many more examples for the usage of these test harnesses can be found in the Flink code base, e.g.:
 
@@ -310,8 +182,6 @@ Given its importance, in addition to the previous test harnesses that can be use
 
 <span class="label label-info">Note</span> Be aware that to use this test harness, you also need to introduce the dependencies mentioned in the last section.
 
-{{< tabs "1259ac44-c315-439c-b9f0-3f80003e7814" >}}
-{{< tab "Java" >}}
 ```java
 public static class PassThroughProcessFunction extends ProcessFunction<Integer, Integer> {
 
@@ -321,24 +191,9 @@ public static class PassThroughProcessFunction extends ProcessFunction<Integer, 
 	}
 }
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-class PassThroughProcessFunction extends ProcessFunction[Integer, Integer] {
-
-    @throws[Exception]
-    override def processElement(value: Integer, ctx: ProcessFunction[Integer, Integer]#Context, out: Collector[Integer]): Unit = {
-      out.collect(value)
-    }
-}
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 It is very easy to unit test such a function with `ProcessFunctionTestHarnesses` by passing suitable arguments and verifying the output.
 
-{{< tabs "35aa0889-e334-4c54-8c97-a19303aacfd3" >}}
-{{< tab "Java" >}}
 ```java
 public class PassThroughProcessFunctionTest {
 
@@ -360,29 +215,6 @@ public class PassThroughProcessFunctionTest {
     }
 }
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-class PassThroughProcessFunctionTest extends FlatSpec with Matchers {
-
-  "PassThroughProcessFunction" should "forward values" in {
-
-    //instantiate user-defined function
-    val processFunction = new PassThroughProcessFunction
-
-    // wrap user defined function into a the corresponding operator
-    val harness = ProcessFunctionTestHarnesses.forProcessFunction(processFunction)
-
-    //push (timestamped) elements into the operator (and hence user defined function)
-    harness.processElement(1, 10)
-
-    //retrieve list of emitted records for assertions
-    harness.extractOutputValues() should contain (1)
-  }
-}
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 For more examples on how to use the `ProcessFunctionTestHarnesses` in order to test the different flavours of the `ProcessFunction`, e.g. `KeyedProcessFunction`, `KeyedCoProcessFunction`, `BroadcastProcessFunction`, etc, the user is encouraged to look at the `ProcessFunctionTestHarnessesTest`.
 
@@ -399,8 +231,6 @@ To use `MiniClusterWithClientResource` one additional dependency (test scoped) i
 
 Let us take the same simple `MapFunction` as in the previous sections.
 
-{{< tabs "21603956-79f5-49ab-8133-c4570c10f0d8" >}}
-{{< tab "Java" >}}
 ```java
 public class IncrementMapFunction implements MapFunction<Long, Long> {
 
@@ -410,23 +240,9 @@ public class IncrementMapFunction implements MapFunction<Long, Long> {
     }
 }
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-class IncrementMapFunction extends MapFunction[Long, Long] {
-
-    override def map(record: Long): Long = {
-        record + 1
-    }
-}
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 A simple pipeline using this `MapFunction` can now be tested in a local Flink cluster as follows.
 
-{{< tabs "ccdcdca2-ef7a-4cd5-ba57-991e58d68657" >}}
-{{< tab "Java" >}}
 ```java
 public class ExampleIntegrationTest {
 
@@ -473,63 +289,6 @@ public class ExampleIntegrationTest {
     }
 }
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-class StreamingJobIntegrationTest extends FlatSpec with Matchers with BeforeAndAfter {
-
-  val flinkCluster = new MiniClusterWithClientResource(new MiniClusterResourceConfiguration.Builder()
-    .setNumberSlotsPerTaskManager(2)
-    .setNumberTaskManagers(1)
-    .build)
-
-  before {
-    flinkCluster.before()
-  }
-
-  after {
-    flinkCluster.after()
-  }
-
-
-  "IncrementFlatMapFunction pipeline" should "incrementValues" in {
-
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-
-    // configure your test environment
-    env.setParallelism(2)
-
-    // values are collected in a static variable
-    CollectSink.values.clear()
-
-    // create a stream of custom elements and apply transformations
-    env.fromElements(1L, 21L, 22L)
-       .map(new IncrementMapFunction())
-       .addSink(new CollectSink())
-
-    // execute
-    env.execute()
-
-    // verify your results
-    CollectSink.values should contain allOf (2, 22, 23)
-    }
-}
-
-// create a testing sink
-class CollectSink extends SinkFunction[Long] {
-
-  override def invoke(value: Long, context: SinkFunction.Context): Unit = {
-    CollectSink.values.add(value)
-  }
-}
-
-object CollectSink {
-    // must be static
-    val values: util.List[Long] = Collections.synchronizedList(new util.ArrayList())
-}
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 A few remarks on integration testing with `MiniClusterWithClientResource`:
 

@@ -56,6 +56,14 @@ public class CreateTableASOperation implements ModifyOperation {
         return createTableOperation;
     }
 
+    public Map<String, String> getSinkModifyStaticPartitions() {
+        return sinkModifyStaticPartitions;
+    }
+
+    public boolean getSinkModifyOverwrite() {
+        return sinkModifyOverwrite;
+    }
+
     public SinkModifyOperation toSinkModifyOperation(CatalogManager catalogManager) {
         return new SinkModifyOperation(
                 catalogManager.getTableOrError(createTableOperation.getTableIdentifier()),

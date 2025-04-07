@@ -53,7 +53,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.RowKind;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -84,10 +84,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Test of {@link BinaryRowData} and {@link BinaryRowWriter}. */
-public class BinaryRowDataTest {
+class BinaryRowDataTest {
 
     @Test
-    public void testBasic() {
+    void testBasic() {
         // consider header 1 byte.
         assertThat(new BinaryRowData(0).getFixedLengthPartSize()).isEqualTo(8);
         assertThat(new BinaryRowData(1).getFixedLengthPartSize()).isEqualTo(16);
@@ -103,7 +103,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testSetAndGet() {
+    void testSetAndGet() {
         MemorySegment segment = MemorySegmentFactory.wrap(new byte[80]);
         BinaryRowData row = new BinaryRowData(9);
         row.pointTo(segment, 0, 80);
@@ -127,7 +127,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testWriter() {
+    void testWriter() {
 
         int arity = 13;
         BinaryRowData row = new BinaryRowData(arity);
@@ -167,7 +167,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testWriteString() {
+    void testWriteString() {
         {
             // litter byte[]
             BinaryRowData row = new BinaryRowData(1);
@@ -198,7 +198,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testPagesSer() throws IOException {
+    void testPagesSer() throws IOException {
         MemorySegment[] memorySegments = new MemorySegment[5];
         ArrayList<MemorySegment> memorySegmentList = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
@@ -291,7 +291,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testReuseWriter() {
+    void testReuseWriter() {
         BinaryRowData row = new BinaryRowData(2);
         BinaryRowWriter writer = new BinaryRowWriter(row);
         writer.writeString(0, fromString("01234567"));
@@ -309,7 +309,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void anyNullTest() {
+    void anyNullTest() {
         {
             BinaryRowData row = new BinaryRowData(3);
             BinaryRowWriter writer = new BinaryRowWriter(row);
@@ -342,7 +342,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testSingleSegmentBinaryRowHashCode() {
+    void testSingleSegmentBinaryRowHashCode() {
         final Random rnd = new Random(System.currentTimeMillis());
         // test hash stabilization
         BinaryRowData row = new BinaryRowData(13);
@@ -387,7 +387,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testHeaderSize() {
+    void testHeaderSize() {
         assertThat(BinaryRowData.calculateBitSetWidthInBytes(56)).isEqualTo(8);
         assertThat(BinaryRowData.calculateBitSetWidthInBytes(57)).isEqualTo(16);
         assertThat(BinaryRowData.calculateBitSetWidthInBytes(120)).isEqualTo(16);
@@ -395,7 +395,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testHeader() {
+    void testHeader() {
         BinaryRowData row = new BinaryRowData(2);
         BinaryRowWriter writer = new BinaryRowWriter(row);
 
@@ -413,7 +413,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testDecimal() {
+    void testDecimal() {
         // 1.compact
         {
             int precision = 4;
@@ -453,7 +453,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testRawValueData() {
+    void testRawValueData() {
         BinaryRowData row = new BinaryRowData(3);
         BinaryRowWriter writer = new BinaryRowWriter(row);
         RawValueDataSerializer<String> binarySerializer =
@@ -472,7 +472,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testNested() {
+    void testNested() {
         BinaryRowData row = new BinaryRowData(2);
         BinaryRowWriter writer = new BinaryRowWriter(row);
         writer.writeRow(
@@ -489,7 +489,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testBinary() {
+    void testBinary() {
         BinaryRowData row = new BinaryRowData(2);
         BinaryRowWriter writer = new BinaryRowWriter(row);
         byte[] bytes1 = new byte[] {1, -1, 5};
@@ -503,7 +503,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testBinaryArray() {
+    void testBinaryArray() {
         // 1. array test
         BinaryArrayData array = new BinaryArrayData();
         BinaryArrayWriter arrayWriter =
@@ -537,7 +537,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testGenericArray() {
+    void testGenericArray() {
         // 1. array test
         Integer[] javaArray = {6, null, 666};
         GenericArrayData array = new GenericArrayData(javaArray);
@@ -560,7 +560,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testBinaryMap() {
+    void testBinaryMap() {
         BinaryArrayData array1 = new BinaryArrayData();
         BinaryArrayWriter writer1 =
                 new BinaryArrayWriter(
@@ -612,7 +612,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testGenericMap() {
+    void testGenericMap() {
         Map<Object, Object> javaMap = new HashMap<>();
         javaMap.put(6, fromString("6"));
         javaMap.put(5, fromString("5"));
@@ -642,7 +642,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testGenericObject() throws Exception {
+    void testGenericObject() throws Exception {
 
         GenericTypeInfo<MyObj> info = new GenericTypeInfo<>(MyObj.class);
         TypeSerializer<MyObj> genericSerializer = info.createSerializer(new SerializerConfigImpl());
@@ -690,7 +690,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testDateAndTimeAsGenericObject() {
+    void testDateAndTimeAsGenericObject() {
         BinaryRowData row = new BinaryRowData(7);
         BinaryRowWriter writer = new BinaryRowWriter(row);
 
@@ -740,7 +740,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testSerializeVariousSize() throws IOException {
+    void testSerializeVariousSize() throws IOException {
         // in this test, we are going to start serializing from the i-th byte (i in 0...`segSize`)
         // and the size of the row we're going to serialize is j bytes
         // (j in `rowFixLength` to the maximum length we can write)
@@ -820,7 +820,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testZeroOutPaddingGeneric() {
+    void testZeroOutPaddingGeneric() {
 
         GenericTypeInfo<MyObj> info = new GenericTypeInfo<>(MyObj.class);
         TypeSerializer<MyObj> genericSerializer = info.createSerializer(new SerializerConfigImpl());
@@ -858,7 +858,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testZeroOutPaddingString() {
+    void testZeroOutPaddingString() {
 
         Random random = new Random();
         byte[] bytes = new byte[1024];
@@ -886,7 +886,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testHashAndCopy() throws IOException {
+    void testHashAndCopy() throws IOException {
         MemorySegment[] segments = new MemorySegment[3];
         for (int i = 0; i < 3; i++) {
             segments[i] = MemorySegmentFactory.wrap(new byte[64]);
@@ -927,7 +927,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testSerStringToKryo() throws IOException {
+    void testSerStringToKryo() throws IOException {
         KryoSerializer<BinaryStringData> serializer =
                 new KryoSerializer<>(BinaryStringData.class, new SerializerConfigImpl());
 
@@ -948,7 +948,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testSerializerPages() throws IOException {
+    void testSerializerPages() throws IOException {
         // Boundary tests
         BinaryRowData row24 = DataFormatTestUtil.get24BytesBinaryRow();
         BinaryRowData row160 = DataFormatTestUtil.get160BytesBinaryRow();
@@ -1056,7 +1056,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testTimestampData() {
+    void testTimestampData() {
         // 1. compact
         {
             final int precision = 3;
@@ -1101,7 +1101,7 @@ public class BinaryRowDataTest {
     }
 
     @Test
-    public void testNestedRowWithBinaryRowEquals() {
+    void testNestedRowWithBinaryRowEquals() {
         BinaryRowData nestedBinaryRow = new BinaryRowData(2);
         {
             BinaryRowWriter writer = new BinaryRowWriter(nestedBinaryRow);

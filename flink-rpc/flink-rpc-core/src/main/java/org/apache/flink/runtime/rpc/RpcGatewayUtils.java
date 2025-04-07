@@ -18,9 +18,7 @@
 
 package org.apache.flink.runtime.rpc;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TimeUtils;
 
 import java.lang.annotation.Annotation;
 import java.time.Duration;
@@ -46,15 +44,11 @@ public class RpcGatewayUtils {
 
             for (int i = 0; i < parameterAnnotations.length; i++) {
                 if (isRpcTimeout(parameterAnnotations[i])) {
-                    if (args[i] instanceof Time) {
-                        return TimeUtils.toDuration((Time) args[i]);
-                    } else if (args[i] instanceof Duration) {
+                    if (args[i] instanceof Duration) {
                         return (Duration) args[i];
                     } else {
                         throw new RuntimeException(
                                 "The rpc timeout parameter must be of type "
-                                        + Time.class.getName()
-                                        + " or "
                                         + Duration.class.getName()
                                         + ". The type "
                                         + args[i].getClass().getName()

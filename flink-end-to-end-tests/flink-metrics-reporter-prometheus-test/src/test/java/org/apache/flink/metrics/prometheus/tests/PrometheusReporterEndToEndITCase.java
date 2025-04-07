@@ -225,7 +225,7 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 
                 checkMetricAvailability(client, "flink_jobmanager_numRegisteredTaskManagers");
                 checkMetricAvailability(
-                        client, "flink_taskmanager_Status_Network_TotalMemorySegments");
+                        client, "flink_taskmanager_Status_Shuffle_Netty_TotalMemorySegments");
             }
         }
     }

@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase}
@@ -84,7 +83,7 @@ class JoinDependentConditionDerivationRuleTest extends TableTestBase {
   @Test
   def testAndOr(): Unit = {
     val sqlQuery = "SELECT a, d FROM MyTable1, MyTable2 WHERE " +
-      "((a = 1 AND d = 2) OR (a = 2 AND d = 1)) AND ((a = 3 AND d = 4) OR (a = 4 AND d = 3))"
+      "((a = 1 AND d = 2) OR (a = 2 AND d = 1))"
     util.verifyRelPlan(sqlQuery)
   }
 

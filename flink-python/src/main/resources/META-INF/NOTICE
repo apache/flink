@@ -6,27 +6,28 @@ The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- com.fasterxml.jackson.core:jackson-annotations:2.15.3
-- com.fasterxml.jackson.core:jackson-core:2.15.3
-- com.fasterxml.jackson.core:jackson-databind:2.15.3
+- com.fasterxml.jackson.core:jackson-annotations:2.18.2
+- com.fasterxml.jackson.core:jackson-core:2.18.2
+- com.fasterxml.jackson.core:jackson-databind:2.18.2
+- com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.18.2
 - com.google.flatbuffers:flatbuffers-java:1.12.0
-- io.netty:netty-buffer:4.1.100.Final
-- io.netty:netty-common:4.1.100.Final
 - joda-time:joda-time:2.5
 - org.apache.arrow:arrow-format:13.0.0
 - org.apache.arrow:arrow-memory-core:13.0.0
 - org.apache.arrow:arrow-memory-netty:13.0.0
 - org.apache.arrow:arrow-vector:13.0.0
-- org.apache.beam:beam-model-fn-execution:2.43.0
-- org.apache.beam:beam-model-job-management:2.43.0
-- org.apache.beam:beam-model-pipeline:2.43.0
-- org.apache.beam:beam-runners-core-construction-java:2.43.0
-- org.apache.beam:beam-runners-core-java:2.43.0
-- org.apache.beam:beam-runners-java-fn-execution:2.43.0
-- org.apache.beam:beam-sdks-java-core:2.43.0
-- org.apache.beam:beam-sdks-java-fn-execution:2.43.0
-- org.apache.beam:beam-vendor-guava-26_0-jre:0.1
-- org.apache.beam:beam-vendor-grpc-1_48_1:0.1
+- org.apache.beam:beam-model-fn-execution:2.54.0
+- org.apache.beam:beam-model-job-management:2.54.0
+- org.apache.beam:beam-model-pipeline:2.54.0
+- org.apache.beam:beam-runners-core-construction-java:2.54.0
+- org.apache.beam:beam-runners-core-java:2.54.0
+- org.apache.beam:beam-runners-java-fn-execution:2.54.0
+- org.apache.beam:beam-sdks-java-core:2.54.0
+- org.apache.beam:beam-sdks-java-fn-execution:2.54.0
+- org.apache.beam:beam-sdks-java-extensions-avro:2.54.0
+- org.apache.beam:beam-sdks-java-transform-service-launcher:2.54.0
+- org.apache.beam:beam-vendor-guava-32_1_2-jre:0.1
+- org.apache.beam:beam-vendor-grpc-1_60_1:0.1
 - com.alibaba:pemja:0.4.1
 
 This project bundles the following dependencies under the BSD license.
@@ -39,39 +40,42 @@ This project bundles the following dependencies under the MIT license. (https://
 See bundled license files for details.
 
 - net.razorvine:pyrolite:4.13
+- org.checkerframework:checker-qual:3.42.0
+- io.github.classgraph:classgraph:4.8.162
+- org.slf4j:slf4j-api:1.7.36
+- args4j:args4j:2.33
 
 The bundled Apache Beam dependencies bundle the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
 - com.google.api.grpc:proto-google-common-protos:2.9.0
 - com.google.code.gson:gson:2.9.0
-- com.google.guava:guava:31.1-jre
-- io.grpc:grpc-auth:1.48.1
-- io.grpc:grpc-core:1.48.1
-- io.grpc:grpc-context:1.48.1
-- io.grpc:grpc-netty:1.48.1
-- io.grpc:grpc-protobuf:1.48.1
-- io.grpc:grpc-stub:1.48.1
-- io.grpc:grpc-testing:1.48.1
-- io.netty:netty-buffer:4.1.77.Final
-- io.netty:netty-codec:4.1.77.Final
-- io.netty:netty-codec-http:4.1.77.Final
-- io.netty:netty-codec-http2:4.1.77.Final
-- io.netty:netty-codec-socks:4.1.77.Final
-- io.netty:netty-common:4.1.77.Final
-- io.netty:netty-handler:4.1.77.Final
-- io.netty:netty-handler-proxy:4.1.77.Final
-- io.netty:netty-resolver:4.1.77.Final
-- io.netty:netty-transport:4.1.77.Final
-- io.netty:netty-transport-native-epoll:4.1.77.Final:linux-x86_64
-- io.netty:netty-transport-native-unix-common:4.1.77.Final
-- io.netty:netty-tcnative-boringssl-static:2.0.53.Final
+- com.google.guava:guava:32.1.2-jre
+- io.grpc:grpc-auth:1.59.1
+- io.grpc:grpc-core:1.59.1
+- io.grpc:grpc-context:1.59.1
+- io.grpc:grpc-netty:1.59.1
+- io.grpc:grpc-protobuf:1.59.1
+- io.grpc:grpc-stub:1.59.1
+- io.grpc:grpc-testing:1.59.1
+- io.netty:netty-buffer:4.1.100.Final
+- io.netty:netty-codec:4.1.100.Final
+- io.netty:netty-codec-http:4.1.100.Final
+- io.netty:netty-codec-http2:4.1.100.Final
+- io.netty:netty-codec-socks:4.1.100.Final
+- io.netty:netty-common:4.1.100.Final
+- io.netty:netty-handler:4.1.100.Final
+- io.netty:netty-handler-proxy:4.1.100.Final
+- io.netty:netty-resolver:4.1.100.Final
+- io.netty:netty-transport:4.1.100.Final
+- io.netty:netty-transport-native-epoll:4.1.100.Final:linux-x86_64
+- io.netty:netty-transport-native-unix-common:4.1.100.Final
 - io.opencensus:opencensus-api:0.31.0
 - io.opencensus:opencensus-contrib-grpc-metrics:0.31.0
-- io.perfmark:perfmark-api:0.25.0
+- io.perfmark:perfmark-api:0.26.0
+- com.google.auto.value:auto-value-annotations:1.8.2
 
 The bundled Apache Beam dependencies bundle the following dependencies under the BSD license.
 See bundled license files for details
 
 - com.google.auth:google-auth-library-credentials:1.4.0
-- com.google.protobuf:protobuf-java:3.21.1
 - com.google.protobuf:protobuf-java-util:3.21.1

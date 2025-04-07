@@ -245,8 +245,8 @@ class FileSystemJobEventStoreTest {
     @Test
     void testGenerateWorkingDirCorrectly() throws IOException {
         final Configuration configuration = new Configuration();
-        configuration.setString(HighAvailabilityOptions.HA_STORAGE_PATH, "file:///tmp/flink");
-        configuration.setString(HighAvailabilityOptions.HA_CLUSTER_ID, "cluster_id");
+        configuration.set(HighAvailabilityOptions.HA_STORAGE_PATH, "file:///tmp/flink");
+        configuration.set(HighAvailabilityOptions.HA_CLUSTER_ID, "cluster_id");
 
         final JobID jobID = new JobID();
         FileSystemJobEventStore store = new FileSystemJobEventStore(jobID, configuration);

@@ -18,13 +18,10 @@
 
 package org.apache.flink.util;
 
-import org.apache.flink.api.common.time.Time;
-
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
-import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -162,13 +159,5 @@ class TimeUtilsTest {
         assertThat(TimeUtils.getStringInMillis(Duration.ofSeconds(4567L))).isEqualTo("4567000ms");
         assertThat(TimeUtils.getStringInMillis(Duration.of(4567L, ChronoUnit.MICROS)))
                 .isEqualTo("4ms");
-    }
-
-    @Test
-    void testToDuration() {
-        final Time time = Time.of(1337, TimeUnit.MICROSECONDS);
-        final Duration duration = TimeUtils.toDuration(time);
-
-        assertThat(duration.toNanos()).isEqualTo(time.getUnit().toNanos(time.getSize()));
     }
 }

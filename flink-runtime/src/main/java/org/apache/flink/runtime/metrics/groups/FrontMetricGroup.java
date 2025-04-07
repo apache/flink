@@ -43,9 +43,9 @@ public class FrontMetricGroup<P extends AbstractMetricGroup<?>> extends ProxyMet
     @VisibleForTesting static final char DEFAULT_REPLACEMENT = '_';
     @VisibleForTesting static final char DEFAULT_REPLACEMENT_ALTERNATIVE = '-';
 
-    private final ReporterScopedSettings settings;
+    private final ReporterScopedSettings<?> settings;
 
-    public FrontMetricGroup(ReporterScopedSettings settings, P reference) {
+    public FrontMetricGroup(ReporterScopedSettings<?> settings, P reference) {
         super(reference);
         this.settings = settings;
     }
@@ -86,17 +86,13 @@ public class FrontMetricGroup<P extends AbstractMetricGroup<?>> extends ProxyMet
         return Collections.unmodifiableMap(allVariables);
     }
 
-    /** @deprecated work against the LogicalScopeProvider interface instead. */
     @Override
-    @Deprecated
     public String getLogicalScope(CharacterFilter filter) {
         return parentMetricGroup.getLogicalScope(
                 getDelimiterFilter(this.settings, filter), this.settings.getDelimiter());
     }
 
-    /** @deprecated work against the LogicalScopeProvider interface instead. */
     @Override
-    @Deprecated
     public String getLogicalScope(CharacterFilter filter, char delimiter) {
         return parentMetricGroup.getLogicalScope(
                 getDelimiterFilter(this.settings, filter),
@@ -105,7 +101,8 @@ public class FrontMetricGroup<P extends AbstractMetricGroup<?>> extends ProxyMet
     }
 
     private static CharacterFilter getDelimiterFilter(
-            ReporterScopedSettings reporterScopedSettings, CharacterFilter generalCharacterFilter) {
+            ReporterScopedSettings<?> reporterScopedSettings,
+            CharacterFilter generalCharacterFilter) {
 
         if (reporterScopedSettings.getDelimiter() != DEFAULT_REPLACEMENT) {
             return input ->

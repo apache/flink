@@ -20,8 +20,8 @@ package org.apache.flink.state.forst;
 
 import org.apache.flink.annotation.Internal;
 
-import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.RocksDB;
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.RocksDB;
 
 /**
  * {@link RocksDB} properties that can be queried by Flink's metrics reporter.

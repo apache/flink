@@ -17,19 +17,20 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.configuration.ConfigOption
-import org.apache.flink.streaming.api.functions.source.{ParallelSourceFunction, SourceFunction}
+import org.apache.flink.legacy.table.connector.source.SourceFunctionProvider
+import org.apache.flink.streaming.api.functions.source.legacy.{ParallelSourceFunction, SourceFunction}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.connector.ChangelogMode
-import org.apache.flink.table.connector.source.{DynamicTableSource, ScanTableSource, SourceFunctionProvider}
+import org.apache.flink.table.connector.source.{DynamicTableSource, ScanTableSource}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.factories.{DynamicTableFactory, DynamicTableSourceFactory}
-import org.apache.flink.table.planner.utils.{TableTestBase, TestingTableEnvironment}
+import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil, TestingTableEnvironment}
 
 import org.assertj.core.api.Assertions
 import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 import java.util
@@ -742,45 +743,6 @@ class TableSinkTest extends TableTestBase {
   }
 
   @Test
-  def testManagedTableSinkWithDisableCheckpointing(): Unit = {
-    util.addTable(s"""
-                     |CREATE TABLE sink (
-                     |  `a` INT,
-                     |  `b` BIGINT,
-                     |  `c` STRING
-                     |) WITH(
-                     |)
-                     |""".stripMargin)
-    val stmtSet = util.tableEnv.createStatementSet()
-    stmtSet.addInsertSql("INSERT INTO sink SELECT * FROM MyTable")
-
-    assertThatThrownBy(() => util.verifyAstPlan(stmtSet, ExplainDetail.CHANGELOG_MODE))
-      .hasMessageContaining(
-        s"You should enable the checkpointing for sinking to managed table " +
-          s"'default_catalog.default_database.sink', " +
-          s"managed table relies on checkpoint to commit and " +
-          s"the data is visible only after commit.")
-      .isInstanceOf[TableException]
-  }
-
-  @Test
-  def testManagedTableSinkWithEnableCheckpointing(): Unit = {
-    util.getStreamEnv.enableCheckpointing(10)
-    util.addTable(s"""
-                     |CREATE TABLE sink (
-                     |  `a` INT,
-                     |  `b` BIGINT,
-                     |  `c` STRING
-                     |) WITH(
-                     |)
-                     |""".stripMargin)
-    val stmtSet = util.tableEnv.createStatementSet()
-    stmtSet.addInsertSql("INSERT INTO sink SELECT * FROM MyTable")
-
-    util.verifyAstPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
-  }
-
-  @Test
   def testInsertPartColumn(): Unit = {
     util.addTable(s"""
                      |CREATE TABLE zm_test (
@@ -859,14 +821,85 @@ class TableSinkTest extends TableTestBase {
   }
 
   @Test
-  def testCreateTableAsSelect(): Unit = {
-    // TODO: support explain CreateTableASOperation
-    // Flink does not support explain CreateTableASOperation yet, we will fix it in FLINK-28770.
-    Assertions
-      .assertThatThrownBy(
-        () => util.tableEnv.explainSql("CREATE TABLE zm_ctas_test AS SELECT * FROM MyTable"))
-      .hasMessageContaining(
-        "Unsupported ModifyOperation: org.apache.flink.table.operations.CreateTableASOperation")
+  def testExplainCreateTableAsSelect(): Unit = {
+    val actual = util.tableEnv.explainSql("""
+                                            |CREATE TABLE MyCtasTable
+                                            | WITH (
+                                            |   'connector' = 'values'
+                                            |) AS
+                                            |  SELECT
+                                            |    `a`,
+                                            |    `b`
+                                            |  FROM
+                                            |    MyTable
+                                            |""".stripMargin)
+
+    val expected = TableTestUtil.readFromResource("/explain/testExplainCtas.out")
+
+    assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
+  }
+
+  @Test
+  def testExplainReplaceTableAsSelect(): Unit = {
+    val actual = util.tableEnv.explainSql("""
+                                            |REPLACE TABLE MyCtasTable
+                                            | WITH (
+                                            |   'connector' = 'values'
+                                            |) AS
+                                            |  SELECT
+                                            |    `a`,
+                                            |    `b`
+                                            |  FROM
+                                            |    MyTable
+                                            |""".stripMargin)
+
+    // Same as CTAS
+    val expected = TableTestUtil.readFromResource("/explain/testExplainCtas.out")
+
+    assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
+  }
+
+  @Test
+  def testExplainCreateTableAsSelectWithColumnsInCreateAndQueryParts(): Unit = {
+    val actual =
+      util.tableEnv.explainSql("""
+                                 |CREATE TABLE MyCtasTable(`votes` INT, `votes_2x` AS `b` * 2)
+                                 | WITH (
+                                 |   'connector' = 'values'
+                                 |) AS
+                                 |  SELECT
+                                 |    `a`,
+                                 |    `b`
+                                 |  FROM
+                                 |    MyTable
+                                 |""".stripMargin)
+
+    val expected =
+      TableTestUtil.readFromResource("/explain/testExplainCtasWithColumnsInCreateAndQueryParts.out")
+
+    assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
+  }
+
+  @Test
+  def testExplainReplaceTableAsSelectWithColumnsInCreateAndQueryParts(): Unit = {
+    val actual =
+      util.tableEnv.explainSql("""
+                                 |REPLACE TABLE MyCtasTable(`votes` INT, `votes_2x` AS `b` * 2)
+                                 | WITH (
+                                 |   'connector' = 'values'
+                                 |) AS
+                                 |  SELECT
+                                 |    `a`,
+                                 |    `b`
+                                 |  FROM
+                                 |    MyTable
+                                 |""".stripMargin)
+
+    // Same as CTAS
+    val expected =
+      TableTestUtil.readFromResource("/explain/testExplainCtasWithColumnsInCreateAndQueryParts.out")
+
+    assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
   }
 }
 

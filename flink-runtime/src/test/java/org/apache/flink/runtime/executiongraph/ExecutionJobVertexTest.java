@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -35,6 +34,7 @@ import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -157,7 +157,7 @@ class ExecutionJobVertexTest {
     static void initializeVertex(ExecutionJobVertex vertex) throws Exception {
         vertex.initialize(
                 1,
-                Time.milliseconds(1L),
+                Duration.ofMillis(1L),
                 1L,
                 new DefaultSubtaskAttemptNumberStore(Collections.emptyList()));
     }

@@ -667,7 +667,9 @@ class OperatorCoordinatorSchedulerTest {
             boolean restartAllOnFailover)
             throws Exception {
 
-        final OperatorIDPair opIds = OperatorIDPair.of(new OperatorID(), provider.getOperatorId());
+        final OperatorIDPair opIds =
+                OperatorIDPair.of(
+                        new OperatorID(), provider.getOperatorId(), "operatorName", "operatorUid");
         final JobVertex vertex =
                 new JobVertex(
                         "Vertex with OperatorCoordinator",
@@ -948,7 +950,7 @@ class OperatorCoordinatorSchedulerTest {
     }
 
     private static OperatorState createOperatorState(OperatorID id, byte[] coordinatorState) {
-        final OperatorState state = new OperatorState(id, 10, 16384);
+        final OperatorState state = new OperatorState(null, null, id, 10, 16384);
         state.setCoordinatorState(new ByteStreamStateHandle("name", coordinatorState));
         return state;
     }

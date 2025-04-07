@@ -17,9 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.optimize
 
-import org.apache.flink.annotation.Experimental
-import org.apache.flink.configuration.{ConfigOption, ReadableConfig}
-import org.apache.flink.configuration.ConfigOptions.key
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.plan.`trait`.MiniBatchInterval
 import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink
@@ -30,10 +28,9 @@ import org.apache.flink.util.Preconditions
 
 import com.google.common.collect.Sets
 import org.apache.calcite.rel._
-import org.apache.calcite.rel.core.{Aggregate, Project, Snapshot, TableFunctionScan, Union}
+import org.apache.calcite.rel.core._
 import org.apache.calcite.rex.RexNode
 
-import java.lang.{Boolean => JBoolean}
 import java.util
 
 import scala.collection.JavaConversions._
@@ -352,44 +349,6 @@ class RelNodeBlockPlanBuilder private (tableConfig: ReadableConfig) {
 }
 
 object RelNodeBlockPlanBuilder {
-
-  /**
-   * Whether to treat union-all node as a breakpoint.
-   * @deprecated
-   *   This configuration has been deprecated as part of FLIP-457 and will be removed in Flink 2.0.
-   *   Please use
-   *   [[org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED]]
-   *   instead.
-   */
-  @Deprecated
-  @Experimental
-  val TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED: ConfigOption[JBoolean] =
-    key("table.optimizer.union-all-as-breakpoint-enabled")
-      .booleanType()
-      .defaultValue(JBoolean.valueOf(true))
-      .withDescription(
-        "When true, the optimizer will breakup the graph at union-all node " +
-          "when it's a breakpoint. When false, the optimizer will skip the union-all node " +
-          "even it's a breakpoint, and will try find the breakpoint in its inputs.")
-
-  /**
-   * Whether to reuse optimize block based on digest.
-   * @deprecated
-   *   This configuration has been deprecated as part of FLIP-457 and will be removed in Flink 2.0.
-   *   Please use
-   *   [[org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED]]
-   *   instead.
-   */
-  @Deprecated
-  @Experimental
-  val TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED: ConfigOption[JBoolean] =
-    key("table.optimizer.reuse-optimize-block-with-digest-enabled")
-      .booleanType()
-      .defaultValue(JBoolean.valueOf(false))
-      .withDescription(
-        "When true, the optimizer will try to find out duplicated sub-plan by " +
-          "digest to build optimize block(a.k.a. common sub-graph). " +
-          "Each optimize block will be optimized independently.")
 
   /**
    * Decompose the [[RelNode]] trees into [[RelNodeBlock]] trees. First, convert LogicalNode trees

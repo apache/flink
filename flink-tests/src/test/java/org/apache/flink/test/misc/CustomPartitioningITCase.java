@@ -20,9 +20,9 @@ package org.apache.flink.test.misc;
 
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 
 import org.junit.Assert;
@@ -33,16 +33,14 @@ public class CustomPartitioningITCase extends JavaProgramTestBaseJUnit4 {
 
     @Override
     protected void testProgram() throws Exception {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        if (!isCollectionExecution()) {
-            Assert.assertTrue(env.getParallelism() > 1);
-        }
+        Assert.assertTrue(env.getParallelism() > 1);
 
-        env.generateSequence(1, 1000)
+        env.fromSequence(1, 1000)
                 .partitionCustom(new AllZeroPartitioner(), new IdKeySelector<Long>())
                 .map(new FailExceptInPartitionZeroMapper())
-                .output(new DiscardingOutputFormat<Long>());
+                .sinkTo(new DiscardingSink<>());
 
         env.execute();
     }

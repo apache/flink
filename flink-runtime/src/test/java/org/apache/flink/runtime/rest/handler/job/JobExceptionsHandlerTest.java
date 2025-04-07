@@ -37,7 +37,6 @@ import org.apache.flink.runtime.rest.handler.legacy.DefaultExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobExceptionsHeaders;
-import org.apache.flink.runtime.rest.messages.JobExceptionsInfo;
 import org.apache.flink.runtime.rest.messages.JobExceptionsInfoWithHistory;
 import org.apache.flink.runtime.rest.messages.JobExceptionsInfoWithHistory.ExceptionInfo;
 import org.apache.flink.runtime.rest.messages.JobExceptionsInfoWithHistory.RootExceptionInfo;
@@ -101,10 +100,6 @@ class JobExceptionsHandlerTest {
         final JobExceptionsInfoWithHistory response =
                 testInstance.handleRequest(request, executionGraphInfo);
 
-        assertThat(response.getRootException()).isNull();
-        assertThat(response.getRootTimestamp()).isNull();
-        assertThat(response.isTruncated()).isFalse();
-        assertThat(response.getAllExceptions()).isEmpty();
         assertThat(response.getExceptionHistory().getEntries()).isEmpty();
     }
 
@@ -120,12 +115,6 @@ class JobExceptionsHandlerTest {
                 createRequest(executionGraphInfo.getJobId(), 10);
         final JobExceptionsInfoWithHistory response =
                 testInstance.handleRequest(request, executionGraphInfo);
-
-        assertThat(response.getRootException())
-                .isEqualTo(ExceptionUtils.stringifyException(rootCause));
-        assertThat(response.getRootTimestamp()).isEqualTo(rootCauseTimestamp);
-        assertThat(response.isTruncated()).isFalse();
-        assertThat(response.getAllExceptions()).isEmpty();
 
         assertThat(response.getExceptionHistory().getEntries())
                 .satisfies(
@@ -148,9 +137,6 @@ class JobExceptionsHandlerTest {
         final JobExceptionsInfoWithHistory response =
                 testInstance.handleRequest(request, executionGraphInfo);
 
-        assertThat(response.getRootException()).isNull();
-        assertThat(response.getRootTimestamp()).isNull();
-
         assertThat(response.getExceptionHistory().getEntries())
                 .satisfies(
                         matching(
@@ -171,9 +157,6 @@ class JobExceptionsHandlerTest {
                 createRequest(executionGraphInfo.getJobId(), 10, Arrays.asList("key:value"));
         final JobExceptionsInfoWithHistory response =
                 testInstance.handleRequest(request, executionGraphInfo);
-
-        assertThat(response.getRootException()).isNull();
-        assertThat(response.getRootTimestamp()).isNull();
 
         assertThat(response.getExceptionHistory().getEntries()).isEmpty();
     }
@@ -451,30 +434,47 @@ class JobExceptionsHandlerTest {
             throws HandlerRequestException {
         final HandlerRequest<EmptyRequestBody> handlerRequest =
                 createRequest(graph.getJobId(), numExpectedException);
-        final JobExceptionsInfo jobExceptionsInfo =
+        final JobExceptionsInfoWithHistory jobExceptionsInfo =
                 jobExceptionsHandler.handleRequest(handlerRequest, graph);
         final int numReportedException = Math.min(maxNumExceptions, numExpectedException);
-        assertThat(numReportedException).isEqualTo(jobExceptionsInfo.getAllExceptions().size());
+        assertThat(numReportedException)
+                .isEqualTo(jobExceptionsInfo.getExceptionHistory().getEntries().size());
     }
 
     private static ExecutionGraphInfo createAccessExecutionGraph(int numTasks) {
-        Map<JobVertexID, ArchivedExecutionJobVertex> tasks = new HashMap<>();
-        for (int i = 0; i < numTasks; i++) {
-            final JobVertexID jobVertexId = new JobVertexID();
-            tasks.put(jobVertexId, createArchivedExecutionJobVertex(jobVertexId));
-        }
-
         final Throwable failureCause = new RuntimeException("root cause");
         final long failureTimestamp = System.currentTimeMillis();
-        final List<RootExceptionHistoryEntry> exceptionHistory =
-                Collections.singletonList(
-                        new RootExceptionHistoryEntry(
-                                failureCause,
-                                failureTimestamp,
-                                FailureEnricherUtils.EMPTY_FAILURE_LABELS,
-                                "test task #1",
-                                new LocalTaskManagerLocation(),
-                                Collections.emptySet()));
+        final List<RootExceptionHistoryEntry> exceptionHistory = new ArrayList<>();
+        exceptionHistory.add(
+                new RootExceptionHistoryEntry(
+                        failureCause,
+                        failureTimestamp,
+                        FailureEnricherUtils.EMPTY_FAILURE_LABELS,
+                        "test task #1",
+                        new LocalTaskManagerLocation(),
+                        Collections.emptySet()));
+
+        Map<JobVertexID, ArchivedExecutionJobVertex> tasks = new HashMap<>();
+        for (int i = 1; i < numTasks; i++) {
+            final JobVertexID jobVertexId = new JobVertexID();
+            final String taskName = "task name #" + i;
+            final Exception otherCause = new Exception("Expected exception #" + i);
+            final long otherFailureTimestamp = System.currentTimeMillis();
+            tasks.put(
+                    jobVertexId,
+                    createArchivedExecutionJobVertex(
+                            jobVertexId, taskName, otherCause, otherFailureTimestamp));
+
+            exceptionHistory.add(
+                    new RootExceptionHistoryEntry(
+                            otherCause,
+                            otherFailureTimestamp,
+                            FailureEnricherUtils.EMPTY_FAILURE_LABELS,
+                            taskName,
+                            new LocalTaskManagerLocation(),
+                            Collections.emptyList()));
+        }
+
         return new ExecutionGraphInfo(
                 new ArchivedExecutionGraphBuilder()
                         .setFailureCause(new ErrorInfo(failureCause, failureTimestamp))
@@ -484,7 +484,7 @@ class JobExceptionsHandlerTest {
     }
 
     private static ArchivedExecutionJobVertex createArchivedExecutionJobVertex(
-            JobVertexID jobVertexID) {
+            JobVertexID jobVertexID, String taskName, Exception cause, long failureTimestamp) {
         final StringifiedAccumulatorResult[] emptyAccumulators =
                 new StringifiedAccumulatorResult[0];
         final long[] timestamps = new long[ExecutionState.values().length];
@@ -500,15 +500,13 @@ class JobExceptionsHandlerTest {
                 new ArchivedExecutionVertex[] {
                     new ArchivedExecutionVertex(
                             subtaskIndex,
-                            "test task",
+                            taskName,
                             new ArchivedExecution(
                                     new StringifiedAccumulatorResult[0],
                                     null,
                                     createExecutionAttemptId(jobVertexID, subtaskIndex, attempt),
                                     expectedState,
-                                    new ErrorInfo(
-                                            new RuntimeException("error"),
-                                            System.currentTimeMillis()),
+                                    new ErrorInfo(cause, failureTimestamp),
                                     assignedResourceLocation,
                                     allocationID,
                                     timestamps,
@@ -710,7 +708,7 @@ class JobExceptionsHandlerTest {
         private final long expectedTimestamp;
         private final Map<String, String> expectedFailureLabels;
         private final String expectedTaskName;
-        private final String expectedLocation;
+        private final String expectedEndpoint;
         private final String expectedTaskManagerId;
 
         private ExceptionInfoMatcher(
@@ -718,14 +716,14 @@ class JobExceptionsHandlerTest {
                 long expectedTimestamp,
                 CompletableFuture<Map<String, String>> expectedFailureLabels,
                 String expectedTaskName,
-                String expectedLocation,
+                String expectedEndpoint,
                 String expectedTaskManagerId)
                 throws ExecutionException, InterruptedException {
             this.expectedException = deserializeSerializedThrowable(expectedException);
             this.expectedTimestamp = expectedTimestamp;
             this.expectedFailureLabels = expectedFailureLabels.get();
             this.expectedTaskName = expectedTaskName;
-            this.expectedLocation = expectedLocation;
+            this.expectedEndpoint = expectedEndpoint;
             this.expectedTaskManagerId = expectedTaskManagerId;
         }
 
@@ -742,8 +740,8 @@ class JobExceptionsHandlerTest {
                     .appendText(String.valueOf(expectedFailureLabels))
                     .appendText(", taskName=")
                     .appendText(expectedTaskName)
-                    .appendText(", location=")
-                    .appendText(expectedLocation)
+                    .appendText(", endpoint=")
+                    .appendText(expectedEndpoint)
                     .appendText(", taskManagerId=")
                     .appendText(expectedTaskManagerId);
         }
@@ -785,8 +783,8 @@ class JobExceptionsHandlerTest {
                     && matches(
                             info,
                             description,
-                            ExceptionInfo::getLocation,
-                            expectedLocation,
+                            ExceptionInfo::getEndpoint,
+                            expectedEndpoint,
                             "location")
                     && matches(
                             info,

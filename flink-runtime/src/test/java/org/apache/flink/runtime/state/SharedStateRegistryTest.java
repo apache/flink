@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
@@ -362,7 +362,7 @@ class SharedStateRegistryTest {
                         new StateHandleID(stateId));
 
         OperatorID operatorID = new OperatorID();
-        OperatorState operatorState = new OperatorState(operatorID, 1, 1);
+        OperatorState operatorState = new OperatorState(null, null, operatorID, 1, 1);
         operatorState.putState(
                 0, OperatorSubtaskState.builder().setManagedKeyedState(initialHandle).build());
 
@@ -378,7 +378,7 @@ class SharedStateRegistryTest {
                         new TestCompletedCheckpointStorageLocation(),
                         null,
                         properties),
-                RestoreMode.DEFAULT);
+                RecoveryClaimMode.DEFAULT);
     }
 
     private static class TestSharedState implements TestStreamStateHandle {

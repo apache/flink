@@ -20,11 +20,11 @@ package org.apache.flink.table.runtime.operators.join;
 
 import org.apache.flink.runtime.operators.testutils.UnionIterator;
 import org.apache.flink.table.data.binary.BinaryRowData;
-import org.apache.flink.table.runtime.hashtable.BinaryHashTableTest;
+import org.apache.flink.table.runtime.util.ConstantsKeyValuePairsIterator;
 import org.apache.flink.table.runtime.util.UniformBinaryRowGenerator;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,7 +35,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
     // ---------------------- build first inner join -----------------------------------------
     // ------------------- fallback to sort merge join in build or probe phase ---------------
     @Test
-    public void testBuildFirstHashInnerJoinFallbackToSMJ() throws Exception {
+    protected void testBuildFirstHashInnerJoinFallbackToSMJ() throws Exception {
         // the following two values are known to have a hash-code collision on the first recursion
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 405590;
@@ -52,11 +52,9 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         MutableObjectIterator<BinaryRowData> build1 =
                 new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, false);
         MutableObjectIterator<BinaryRowData> build2 =
-                new BinaryHashTableTest.ConstantsKeyValuePairsIterator(
-                        repeatedValue1, 17, repeatedValueCountBuild);
+                new ConstantsKeyValuePairsIterator(repeatedValue1, 17, repeatedValueCountBuild);
         MutableObjectIterator<BinaryRowData> build3 =
-                new BinaryHashTableTest.ConstantsKeyValuePairsIterator(
-                        repeatedValue2, 23, repeatedValueCountBuild);
+                new ConstantsKeyValuePairsIterator(repeatedValue2, 23, repeatedValueCountBuild);
         List<MutableObjectIterator<BinaryRowData>> builds = new ArrayList<>();
         builds.add(build1);
         builds.add(build2);
@@ -74,7 +72,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
     // ---------------------- build first left out join -----------------------------------------
     // -------------------- fallback to sort merge join in build or probe phase -----------------
     @Test
-    public void testBuildFirstHashLeftOutJoinFallbackToSMJ() throws Exception {
+    protected void testBuildFirstHashLeftOutJoinFallbackToSMJ() throws Exception {
         // the following two values are known to have a hash-code collision on the first recursion
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
@@ -91,11 +89,9 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         MutableObjectIterator<BinaryRowData> build1 =
                 new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, false);
         MutableObjectIterator<BinaryRowData> build2 =
-                new BinaryHashTableTest.ConstantsKeyValuePairsIterator(
-                        repeatedValue1, 17, repeatedValueCountBuild);
+                new ConstantsKeyValuePairsIterator(repeatedValue1, 17, repeatedValueCountBuild);
         MutableObjectIterator<BinaryRowData> build3 =
-                new BinaryHashTableTest.ConstantsKeyValuePairsIterator(
-                        repeatedValue2, 23, repeatedValueCountBuild);
+                new ConstantsKeyValuePairsIterator(repeatedValue2, 23, repeatedValueCountBuild);
         List<MutableObjectIterator<BinaryRowData>> builds = new ArrayList<>();
         builds.add(build1);
         builds.add(build2);
@@ -117,7 +113,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
     // ---------------------- build first right out join -----------------------------------------
     // --------------------- fallback to sort merge join in build or probe phase -----------------
     @Test
-    public void testBuildFirstHashRightOutJoinFallbackToSMJ() throws Exception {
+    protected void testBuildFirstHashRightOutJoinFallbackToSMJ() throws Exception {
         // the following two values are known to have a hash-code collision on the first recursion
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
@@ -134,11 +130,9 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         MutableObjectIterator<BinaryRowData> build1 =
                 new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, false);
         MutableObjectIterator<BinaryRowData> build2 =
-                new BinaryHashTableTest.ConstantsKeyValuePairsIterator(
-                        repeatedValue1, 17, repeatedValueCountBuild);
+                new ConstantsKeyValuePairsIterator(repeatedValue1, 17, repeatedValueCountBuild);
         MutableObjectIterator<BinaryRowData> build3 =
-                new BinaryHashTableTest.ConstantsKeyValuePairsIterator(
-                        repeatedValue2, 23, repeatedValueCountBuild);
+                new ConstantsKeyValuePairsIterator(repeatedValue2, 23, repeatedValueCountBuild);
         List<MutableObjectIterator<BinaryRowData>> builds = new ArrayList<>();
         builds.add(build1);
         builds.add(build2);
@@ -156,7 +150,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
     // ---------------------- build first full out join -----------------------------------------
     // --------------------- fallback to sort merge join in build or probe phase ----------------
     @Test
-    public void testBuildFirstHashFullOutJoinFallbackToSMJ() throws Exception {
+    protected void testBuildFirstHashFullOutJoinFallbackToSMJ() throws Exception {
         // the following two values are known to have a hash-code collision on the first recursion
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
@@ -173,11 +167,9 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         MutableObjectIterator<BinaryRowData> build1 =
                 new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, false);
         MutableObjectIterator<BinaryRowData> build2 =
-                new BinaryHashTableTest.ConstantsKeyValuePairsIterator(
-                        repeatedValue1, 17, repeatedValueCountBuild);
+                new ConstantsKeyValuePairsIterator(repeatedValue1, 17, repeatedValueCountBuild);
         MutableObjectIterator<BinaryRowData> build3 =
-                new BinaryHashTableTest.ConstantsKeyValuePairsIterator(
-                        repeatedValue2, 23, repeatedValueCountBuild);
+                new ConstantsKeyValuePairsIterator(repeatedValue2, 23, repeatedValueCountBuild);
         List<MutableObjectIterator<BinaryRowData>> builds = new ArrayList<>();
         builds.add(build1);
         builds.add(build2);
@@ -199,7 +191,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
     // ---------------------- build second left out join -----------------------------------------
     // ---------------------- switch to sort merge join in build or probe phase ------------------
     @Test
-    public void testBuildSecondHashLeftOutJoinFallbackToSMJ() throws Exception {
+    protected void testBuildSecondHashLeftOutJoinFallbackToSMJ() throws Exception {
         // the following two values are known to have a hash-code collision on the first recursion
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
@@ -216,11 +208,9 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         MutableObjectIterator<BinaryRowData> build1 =
                 new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, false);
         MutableObjectIterator<BinaryRowData> build2 =
-                new BinaryHashTableTest.ConstantsKeyValuePairsIterator(
-                        repeatedValue1, 17, repeatedValueCountBuild);
+                new ConstantsKeyValuePairsIterator(repeatedValue1, 17, repeatedValueCountBuild);
         MutableObjectIterator<BinaryRowData> build3 =
-                new BinaryHashTableTest.ConstantsKeyValuePairsIterator(
-                        repeatedValue2, 23, repeatedValueCountBuild);
+                new ConstantsKeyValuePairsIterator(repeatedValue2, 23, repeatedValueCountBuild);
         List<MutableObjectIterator<BinaryRowData>> builds = new ArrayList<>();
         builds.add(build1);
         builds.add(build2);
@@ -238,7 +228,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
     // ---------------------- build second right out join -----------------------------------------
     // ---------------------- switch to sort merge join in build or probe phase -------------------
     @Test
-    public void testBuildSecondHashRightOutJoinFallbackToSMJ() throws Exception {
+    protected void testBuildSecondHashRightOutJoinFallbackToSMJ() throws Exception {
         // the following two values are known to have a hash-code collision on the first recursion
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
@@ -255,11 +245,9 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         MutableObjectIterator<BinaryRowData> build1 =
                 new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, false);
         MutableObjectIterator<BinaryRowData> build2 =
-                new BinaryHashTableTest.ConstantsKeyValuePairsIterator(
-                        repeatedValue1, 17, repeatedValueCountBuild);
+                new ConstantsKeyValuePairsIterator(repeatedValue1, 17, repeatedValueCountBuild);
         MutableObjectIterator<BinaryRowData> build3 =
-                new BinaryHashTableTest.ConstantsKeyValuePairsIterator(
-                        repeatedValue2, 23, repeatedValueCountBuild);
+                new ConstantsKeyValuePairsIterator(repeatedValue2, 23, repeatedValueCountBuild);
         List<MutableObjectIterator<BinaryRowData>> builds = new ArrayList<>();
         builds.add(build1);
         builds.add(build2);
@@ -276,7 +264,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
 
     // ---------------------- switch to sort merge join in build or probe phase ------------------
     @Test
-    public void testSemiJoinFallbackToSMJ() throws Exception {
+    protected void testSemiJoinFallbackToSMJ() throws Exception {
         // the following two values are known to have a hash-code collision on the first recursion
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
@@ -293,11 +281,9 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         MutableObjectIterator<BinaryRowData> build1 =
                 new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, false);
         MutableObjectIterator<BinaryRowData> build2 =
-                new BinaryHashTableTest.ConstantsKeyValuePairsIterator(
-                        repeatedValue1, 17, repeatedValueCountBuild);
+                new ConstantsKeyValuePairsIterator(repeatedValue1, 17, repeatedValueCountBuild);
         MutableObjectIterator<BinaryRowData> build3 =
-                new BinaryHashTableTest.ConstantsKeyValuePairsIterator(
-                        repeatedValue2, 23, repeatedValueCountBuild);
+                new ConstantsKeyValuePairsIterator(repeatedValue2, 23, repeatedValueCountBuild);
         List<MutableObjectIterator<BinaryRowData>> builds = new ArrayList<>();
         builds.add(build1);
         builds.add(build2);
@@ -316,7 +302,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
 
     // ---------------------- fallback to sort merge join in build or probe phase ------------------
     @Test
-    public void testAntiJoinFallbackToSMJ() throws Exception {
+    protected void testAntiJoinFallbackToSMJ() throws Exception {
         // the following two values are known to have a hash-code collision on the first recursion
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
@@ -333,11 +319,9 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         MutableObjectIterator<BinaryRowData> build1 =
                 new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, false);
         MutableObjectIterator<BinaryRowData> build2 =
-                new BinaryHashTableTest.ConstantsKeyValuePairsIterator(
-                        repeatedValue1, 17, repeatedValueCountBuild);
+                new ConstantsKeyValuePairsIterator(repeatedValue1, 17, repeatedValueCountBuild);
         MutableObjectIterator<BinaryRowData> build3 =
-                new BinaryHashTableTest.ConstantsKeyValuePairsIterator(
-                        repeatedValue2, 23, repeatedValueCountBuild);
+                new ConstantsKeyValuePairsIterator(repeatedValue2, 23, repeatedValueCountBuild);
         List<MutableObjectIterator<BinaryRowData>> builds = new ArrayList<>();
         builds.add(build1);
         builds.add(build2);
@@ -357,7 +341,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
 
     // ---------------------- fallback to sort merge join in build or probe phase ------------------
     @Test
-    public void testBuildLeftSemiJoinFallbackToSMJ() throws Exception {
+    protected void testBuildLeftSemiJoinFallbackToSMJ() throws Exception {
         // the following two values are known to have a hash-code collision on the first recursion
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 405;
@@ -374,11 +358,9 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         MutableObjectIterator<BinaryRowData> build1 =
                 new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, false);
         MutableObjectIterator<BinaryRowData> build2 =
-                new BinaryHashTableTest.ConstantsKeyValuePairsIterator(
-                        repeatedValue1, 17, repeatedValueCountBuild);
+                new ConstantsKeyValuePairsIterator(repeatedValue1, 17, repeatedValueCountBuild);
         MutableObjectIterator<BinaryRowData> build3 =
-                new BinaryHashTableTest.ConstantsKeyValuePairsIterator(
-                        repeatedValue2, 23, repeatedValueCountBuild);
+                new ConstantsKeyValuePairsIterator(repeatedValue2, 23, repeatedValueCountBuild);
         List<MutableObjectIterator<BinaryRowData>> builds = new ArrayList<>();
         builds.add(build1);
         builds.add(build2);
@@ -403,7 +385,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
 
     // ---------------------- fallback to sort merge join in build or probe phase ------------------
     @Test
-    public void testBuildLeftAntiJoinFallbackToSMJ() throws Exception {
+    protected void testBuildLeftAntiJoinFallbackToSMJ() throws Exception {
         // the following two values are known to have a hash-code collision on the first recursion
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
@@ -420,11 +402,9 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
         MutableObjectIterator<BinaryRowData> build1 =
                 new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, false);
         MutableObjectIterator<BinaryRowData> build2 =
-                new BinaryHashTableTest.ConstantsKeyValuePairsIterator(
-                        repeatedValue1, 17, repeatedValueCountBuild);
+                new ConstantsKeyValuePairsIterator(repeatedValue1, 17, repeatedValueCountBuild);
         MutableObjectIterator<BinaryRowData> build3 =
-                new BinaryHashTableTest.ConstantsKeyValuePairsIterator(
-                        repeatedValue2, 23, repeatedValueCountBuild);
+                new ConstantsKeyValuePairsIterator(repeatedValue2, 23, repeatedValueCountBuild);
         List<MutableObjectIterator<BinaryRowData>> builds = new ArrayList<>();
         builds.add(build1);
         builds.add(build2);

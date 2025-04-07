@@ -91,7 +91,8 @@ CREATE TABLE `default_catalog`.`default_database`.`orders` (
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
   CONSTRAINT `PK_user` PRIMARY KEY (`user`) NOT ENFORCED
-) WITH (
+)
+WITH (
   'connector' = 'datagen'
 )
 !ok
@@ -341,7 +342,8 @@ CREATE TABLE `default_catalog`.`default_database`.`orders2` (
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
   CONSTRAINT `PK_user` PRIMARY KEY (`user`) NOT ENFORCED
-) WITH (
+)
+WITH (
   'connector' = 'kafka',
   'scan.startup.mode' = 'earliest-offset'
 )
@@ -369,7 +371,8 @@ CREATE TABLE `default_catalog`.`default_database`.`orders2` (
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
   CONSTRAINT `PK_user` PRIMARY KEY (`user`) NOT ENFORCED
-) WITH (
+)
+WITH (
   'connector' = 'datagen',
   'scan.startup.mode' = 'earliest-offset'
 )
@@ -439,7 +442,8 @@ CREATE TABLE `default_catalog`.`default_database`.`orders2` (
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
   CONSTRAINT `PK_user` PRIMARY KEY (`user`) NOT ENFORCED
-) WITH (
+)
+WITH (
   'connector' = 'datagen'
 )
 !ok
@@ -558,7 +562,8 @@ CREATE TEMPORARY TABLE `default_catalog`.`default_database`.`tbl1` (
   `user` BIGINT NOT NULL,
   `product` VARCHAR(32),
   `amount` INT
-) WITH (
+)
+WITH (
   'connector' = 'datagen'
 )
 !ok

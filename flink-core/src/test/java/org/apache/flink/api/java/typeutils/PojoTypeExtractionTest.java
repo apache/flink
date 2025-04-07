@@ -421,7 +421,8 @@ public class PojoTypeExtractionTest {
                     fail("already seen");
                 }
                 collectionSeen = true;
-                assertThat(field.getTypeInformation()).isEqualTo(new GenericTypeInfo(List.class));
+                assertThat(field.getTypeInformation())
+                        .isEqualTo(new NullableListTypeInfo<>(String.class));
 
             } else {
                 fail("Unexpected field " + field);
@@ -940,6 +941,7 @@ public class PojoTypeExtractionTest {
     @NoArgsConstructor
     public static class TestLombok {
         private int age = 10;
+        private boolean isHealthy;
         private String name;
     }
 
@@ -950,6 +952,7 @@ public class PojoTypeExtractionTest {
 
         PojoTypeInfo<TestLombok> pti = (PojoTypeInfo<TestLombok>) ti;
         assertThat(pti.getTypeAt(0)).isEqualTo(BasicTypeInfo.INT_TYPE_INFO);
-        assertThat(pti.getTypeAt(1)).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
+        assertThat(pti.getTypeAt(1)).isEqualTo(BasicTypeInfo.BOOLEAN_TYPE_INFO);
+        assertThat(pti.getTypeAt(2)).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
     }
 }

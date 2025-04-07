@@ -20,7 +20,6 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.failure.FailureEnricher.Context;
@@ -46,6 +45,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.scheduler.adaptivebatch.ExecutionPlanSchedulingContext;
 import org.apache.flink.runtime.scheduler.exceptionhistory.FailureHandlingResultSnapshot;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
@@ -61,6 +61,7 @@ import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -134,9 +135,10 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
             final Collection<FailureEnricher> failureEnrichers,
             final ExecutionGraphFactory executionGraphFactory,
             final ShuffleMaster<?> shuffleMaster,
-            final Time rpcTimeout,
+            final Duration rpcTimeout,
             final VertexParallelismStore vertexParallelismStore,
-            final ExecutionDeployer.Factory executionDeployerFactory)
+            final ExecutionDeployer.Factory executionDeployerFactory,
+            ExecutionPlanSchedulingContext executionPlanSchedulingContext)
             throws Exception {
 
         super(
@@ -152,7 +154,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                 mainThreadExecutor,
                 jobStatusListener,
                 executionGraphFactory,
-                vertexParallelismStore);
+                vertexParallelismStore,
+                executionPlanSchedulingContext);
 
         this.log = log;
 
@@ -224,6 +227,12 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
     }
 
     @Override
+    protected long getNumberOfRescales() {
+        // It is always 0 for DefaultScheduler.
+        return 0;
+    }
+
+    @Override
     protected void cancelAllPendingSlotRequestsInternal() {
         getSchedulingTopology()
                 .getVertices()
@@ -253,6 +262,10 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         stopReserveAllocation(executionVertexId);
 
         schedulingStrategy.onExecutionStateChange(executionVertexId, ExecutionState.FINISHED);
+    }
+
+    protected ClassLoader getUserCodeLoader() {
+        return userCodeLoader;
     }
 
     @Override

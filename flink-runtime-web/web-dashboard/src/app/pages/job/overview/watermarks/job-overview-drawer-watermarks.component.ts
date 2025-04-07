@@ -97,4 +97,8 @@ export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
   }
+
+  sortWatermark(a: WatermarkData, b: WatermarkData): number {
+    return a.watermark - b.watermark;
+  }
 }

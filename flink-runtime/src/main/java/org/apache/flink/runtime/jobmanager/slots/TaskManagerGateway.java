@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobmanager.slots;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -33,6 +32,7 @@ import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.util.SerializedValue;
 
+import java.time.Duration;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -53,7 +53,7 @@ public interface TaskManagerGateway extends TaskExecutorOperatorEventGateway {
      * @param timeout of the submit operation
      * @return Future acknowledge of the successful operation
      */
-    CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout);
+    CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Duration timeout);
 
     /**
      * Cancel the given task.
@@ -62,7 +62,8 @@ public interface TaskManagerGateway extends TaskExecutorOperatorEventGateway {
      * @param timeout of the submit operation
      * @return Future acknowledge if the task is successfully canceled
      */
-    CompletableFuture<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, Time timeout);
+    CompletableFuture<Acknowledge> cancelTask(
+            ExecutionAttemptID executionAttemptID, Duration timeout);
 
     /**
      * Update the task where the given partitions can be found.
@@ -75,7 +76,7 @@ public interface TaskManagerGateway extends TaskExecutorOperatorEventGateway {
     CompletableFuture<Acknowledge> updatePartitions(
             ExecutionAttemptID executionAttemptID,
             Iterable<PartitionInfo> partitionInfos,
-            Time timeout);
+            Duration timeout);
 
     /**
      * Batch release intermediate result partitions.
@@ -144,7 +145,9 @@ public interface TaskManagerGateway extends TaskExecutorOperatorEventGateway {
      * @return Future acknowledge which is returned once the slot has been freed
      */
     CompletableFuture<Acknowledge> freeSlot(
-            final AllocationID allocationId, final Throwable cause, @RpcTimeout final Time timeout);
+            final AllocationID allocationId,
+            final Throwable cause,
+            @RpcTimeout final Duration timeout);
 
     @Override
     CompletableFuture<Acknowledge> sendOperatorEventToTask(

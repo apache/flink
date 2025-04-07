@@ -34,6 +34,7 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.InProgressFileWr
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -77,8 +78,10 @@ public class CompactCoordinator extends AbstractStreamOperator<CompactorRequest>
     private ListState<FileSinkCommittable> remainingCommittableState;
 
     public CompactCoordinator(
+            StreamOperatorParameters<CompactorRequest> parameters,
             FileCompactStrategy strategy,
             SimpleVersionedSerializer<FileSinkCommittable> committableSerializer) {
+        super(parameters);
         this.strategy = strategy;
         this.committableSerializer = checkNotNull(committableSerializer);
     }

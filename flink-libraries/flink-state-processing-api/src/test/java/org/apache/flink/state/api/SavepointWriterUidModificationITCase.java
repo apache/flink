@@ -24,10 +24,13 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.checkpoint.OperatorState;
+import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.state.api.functions.KeyedStateBootstrapFunction;
+import org.apache.flink.state.api.runtime.SavepointLoader;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.test.junit5.MiniClusterExtension;
@@ -43,8 +46,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -85,7 +90,7 @@ public class SavepointWriterUidModificationITCase {
                                         OperatorIdentifier.forUidHash(uidHash),
                                         OperatorIdentifier.forUid(uid)));
 
-        runAndValidate(newSavepoint, Tuple2.of(STATE_1, uid));
+        runAndValidate(newSavepoint, ValidationParameters.of(STATE_1, uid, null));
     }
 
     @Test
@@ -107,7 +112,29 @@ public class SavepointWriterUidModificationITCase {
                                         OperatorIdentifier.forUid(uid),
                                         OperatorIdentifier.forUid(newUid)));
 
-        runAndValidate(newSavepoint, Tuple2.of(STATE_1, newUid));
+        runAndValidate(newSavepoint, ValidationParameters.of(STATE_1, newUid, null));
+    }
+
+    @Test
+    public void testChangeUidHashOnly(@TempDir Path tmp) throws Exception {
+        final String uid = "uid";
+        final String newUidHash = new AbstractID().toHexString();
+        final String originalSavepoint =
+                bootstrapState(
+                        tmp,
+                        (env, writer) ->
+                                writer.withOperator(
+                                        OperatorIdentifier.forUid(uid), bootstrap(env, STATE_1)));
+        final String newSavepoint =
+                modifySavepoint(
+                        tmp,
+                        originalSavepoint,
+                        writer ->
+                                writer.changeOperatorIdentifier(
+                                        OperatorIdentifier.forUid(uid),
+                                        OperatorIdentifier.forUidHash(newUidHash)));
+
+        runAndValidate(newSavepoint, ValidationParameters.of(STATE_1, null, newUidHash));
     }
 
     @Test
@@ -136,7 +163,10 @@ public class SavepointWriterUidModificationITCase {
                                                 OperatorIdentifier.forUid(uid2),
                                                 OperatorIdentifier.forUid(uid1)));
 
-        runAndValidate(newSavepoint, Tuple2.of(STATE_1, uid2), Tuple2.of(STATE_2, uid1));
+        runAndValidate(
+                newSavepoint,
+                ValidationParameters.of(STATE_1, uid2, null),
+                ValidationParameters.of(STATE_2, uid1, null));
     }
 
     private static String bootstrapState(
@@ -184,21 +214,57 @@ public class SavepointWriterUidModificationITCase {
         return newSavepointPath;
     }
 
-    @SafeVarargs
     private static void runAndValidate(
-            String savepointPath, Tuple2<Collection<Integer>, String>... assertions)
-            throws Exception {
+            String savepointPath, ValidationParameters... validationParameters) throws Exception {
+        // validate metadata
+        CheckpointMetadata metadata = SavepointLoader.loadSavepointMetadata(savepointPath);
+        assertThat(metadata.getOperatorStates().size()).isEqualTo(validationParameters.length);
+        for (ValidationParameters validationParameter : validationParameters) {
+            if (validationParameter.getUid() != null) {
+                Set<OperatorState> operators =
+                        metadata.getOperatorStates().stream()
+                                .filter(
+                                        os ->
+                                                os.getOperatorUid().isPresent()
+                                                        && os.getOperatorUid()
+                                                                .get()
+                                                                .equals(
+                                                                        validationParameter
+                                                                                .getUid()))
+                                .collect(Collectors.toSet());
+                assertThat(operators.size()).isEqualTo(1);
+                assertThat(operators.iterator().next().getOperatorID())
+                        .isEqualTo(
+                                OperatorIdentifier.forUid(validationParameter.getUid())
+                                        .getOperatorId());
+            } else {
+                Set<OperatorState> operators =
+                        metadata.getOperatorStates().stream()
+                                .filter(
+                                        os ->
+                                                os.getOperatorID()
+                                                        .toHexString()
+                                                        .equals(validationParameter.getUidHash()))
+                                .collect(Collectors.toSet());
+                assertThat(operators.size()).isEqualTo(1);
+                assertThat(operators.iterator().next().getOperatorUid()).isEmpty();
+            }
+        }
+
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         // prepare collection of state
         final List<CloseableIterator<Integer>> iterators = new ArrayList<>();
-        for (Tuple2<Collection<Integer>, String> assertion : assertions) {
-            iterators.add(
-                    env.fromData(assertion.f0)
+        for (ValidationParameters validationParameter : validationParameters) {
+            SingleOutputStreamOperator<Integer> stream =
+                    env.fromData(validationParameter.getState())
                             .keyBy(v -> v)
-                            .map(new StateReader())
-                            .uid(assertion.f1)
-                            .collectAsync());
+                            .map(new StateReader());
+            if (validationParameter.getUid() != null) {
+                iterators.add(stream.uid(validationParameter.getUid()).collectAsync());
+            } else {
+                iterators.add(stream.setUidHash(validationParameter.getUidHash()).collectAsync());
+            }
         }
 
         // run job
@@ -208,14 +274,44 @@ public class SavepointWriterUidModificationITCase {
         env.executeAsync(streamGraph);
 
         // validate state
-        for (int i = 0; i < assertions.length; i++) {
+        for (int i = 0; i < validationParameters.length; i++) {
             assertThat(iterators.get(i))
                     .toIterable()
-                    .containsExactlyInAnyOrderElementsOf(assertions[i].f0);
+                    .containsExactlyInAnyOrderElementsOf(validationParameters[i].getState());
         }
 
         for (CloseableIterator<Integer> iterator : iterators) {
             iterator.close();
+        }
+    }
+
+    private static class ValidationParameters {
+        private final Collection<Integer> state;
+        private final String uid;
+        private final String uidHash;
+
+        public ValidationParameters(
+                final Collection<Integer> state, final String uid, final String uidHash) {
+            this.state = state;
+            this.uid = uid;
+            this.uidHash = uidHash;
+        }
+
+        public Collection<Integer> getState() {
+            return state;
+        }
+
+        public String getUid() {
+            return uid;
+        }
+
+        public String getUidHash() {
+            return uidHash;
+        }
+
+        public static ValidationParameters of(
+                final Collection<Integer> state, final String uid, final String uidHash) {
+            return new ValidationParameters(state, uid, uidHash);
         }
     }
 

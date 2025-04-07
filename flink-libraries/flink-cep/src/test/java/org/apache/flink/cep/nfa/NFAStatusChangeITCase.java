@@ -29,12 +29,12 @@ import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.cep.time.TimerService;
 import org.apache.flink.cep.utils.TestSharedBuffer;
 import org.apache.flink.cep.utils.TestTimerService;
-import org.apache.flink.streaming.api.windowing.time.Time;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -106,7 +106,7 @@ public class NFAStatusChangeITCase {
                                         return value.getName().equals("e");
                                     }
                                 })
-                        .within(Time.milliseconds(10));
+                        .within(Duration.ofMillis(10));
 
         NFA<Event> nfa = compile(pattern, true);
 
@@ -228,7 +228,7 @@ public class NFAStatusChangeITCase {
                                         return value.getName().equals("b");
                                     }
                                 })
-                        .within(Time.milliseconds(10));
+                        .within(Duration.ofMillis(10));
 
         NFA<Event> nfa = compile(pattern, true);
 
@@ -278,7 +278,7 @@ public class NFAStatusChangeITCase {
                                         return value.getName().equals("end");
                                     }
                                 })
-                        .within(Time.milliseconds(10));
+                        .within(Duration.ofMillis(10));
 
         NFA<Event> nfa = compile(pattern, true);
 

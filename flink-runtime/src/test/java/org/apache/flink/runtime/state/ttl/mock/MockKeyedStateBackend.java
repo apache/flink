@@ -207,6 +207,19 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     }
 
     @Override
+    public <N> Stream<K> getKeys(List<String> states, N namespace) {
+        return stateValues.entrySet().stream()
+                .filter(e -> states.contains(e.getKey()))
+                .flatMap(
+                        e1 ->
+                                e1.getValue().entrySet().stream()
+                                        .filter(e2 -> e2.getValue().containsKey(namespace))
+                                        .map(Map.Entry::getKey))
+                .collect(Collectors.toSet())
+                .stream();
+    }
+
+    @Override
     @SuppressWarnings("unchecked")
     public <N> Stream<Tuple2<K, N>> getKeysAndNamespaces(String state) {
         return stateValues.get(state).entrySet().stream()

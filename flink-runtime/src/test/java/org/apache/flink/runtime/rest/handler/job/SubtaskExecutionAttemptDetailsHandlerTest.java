@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
@@ -50,6 +49,7 @@ import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -126,7 +126,7 @@ class SubtaskExecutionAttemptDetailsHandlerTest {
                         () -> null,
                         address -> null,
                         Executors.directExecutor(),
-                        Time.milliseconds(1000L),
+                        Duration.ofMillis(1000L),
                         MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue().toMillis());
 
         // Instance the handler.
@@ -136,12 +136,12 @@ class SubtaskExecutionAttemptDetailsHandlerTest {
         final SubtaskExecutionAttemptDetailsHandler handler =
                 new SubtaskExecutionAttemptDetailsHandler(
                         () -> null,
-                        Time.milliseconds(100L),
+                        Duration.ofMillis(100L),
                         Collections.emptyMap(),
                         SubtaskExecutionAttemptDetailsHeaders.getInstance(),
                         new DefaultExecutionGraphCache(
                                 restHandlerConfiguration.getTimeout(),
-                                Time.milliseconds(restHandlerConfiguration.getRefreshInterval())),
+                                Duration.ofMillis(restHandlerConfiguration.getRefreshInterval())),
                         Executors.directExecutor(),
                         metricFetcher);
 
@@ -190,7 +190,6 @@ class SubtaskExecutionAttemptDetailsHandlerTest {
                         subtaskIndex,
                         expectedState,
                         attempt,
-                        "(unassigned)",
                         "(unassigned)",
                         -1L,
                         0L,

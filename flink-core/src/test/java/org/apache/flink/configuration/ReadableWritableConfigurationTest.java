@@ -28,7 +28,6 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -57,56 +56,53 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(ParameterizedTestExtension.class)
 class ReadableWritableConfigurationTest {
 
-    @Parameters(name = "testSpec = {0}, standardYaml = {1}")
-    private static Collection<Object[]> parameters() {
+    @Parameters(name = "testSpec = {0}")
+    private static Collection<TestSpec<?>> parameters() {
         List<TestSpec<?>> testSpecs =
                 Arrays.asList(
                         new TestSpec<>(ConfigOptions.key("int").intType().defaultValue(-1))
-                                .valueEquals(12345, "12345", "12345")
+                                .valueEquals(12345, "12345")
                                 .checkDefaultOverride(5),
                         new TestSpec<>(ConfigOptions.key("long").longType().defaultValue(-1L))
-                                .valueEquals(12345L, "12345", "12345")
+                                .valueEquals(12345L, "12345")
                                 .checkDefaultOverride(5L),
                         new TestSpec<>(ConfigOptions.key("float").floatType().defaultValue(0.01F))
-                                .valueEquals(0.003F, "0.003", "0.003")
+                                .valueEquals(0.003F, "0.003")
                                 .checkDefaultOverride(1.23F),
                         new TestSpec<>(ConfigOptions.key("double").doubleType().defaultValue(0.01D))
-                                .valueEquals(0.003D, "0.003", "0.003")
+                                .valueEquals(0.003D, "0.003")
                                 .checkDefaultOverride(1.23D),
                         new TestSpec<>(
                                         ConfigOptions.key("boolean")
                                                 .booleanType()
                                                 .defaultValue(false))
-                                .valueEquals(true, "true", "true")
+                                .valueEquals(true, "true")
                                 .checkDefaultOverride(true),
                         new TestSpec<>(
                                         ConfigOptions.key("list<int>")
                                                 .intType()
                                                 .asList()
                                                 .defaultValues(-1, 2, 3))
-                                .valueEquals(
-                                        Arrays.asList(1, 2, 3, 4, 5),
-                                        "1;2;3;4;5",
-                                        "[1, 2, 3, 4, 5]")
+                                .valueEquals(Arrays.asList(1, 2, 3, 4, 5), "[1, 2, 3, 4, 5]")
                                 .checkDefaultOverride(Arrays.asList(1, 2)),
                         new TestSpec<>(
                                         ConfigOptions.key("list<string>")
                                                 .stringType()
                                                 .asList()
                                                 .defaultValues("A", "B", "C"))
-                                .valueEquals(Arrays.asList("A;B", "C"), "'A;B';C", "['A;B', C]")
+                                .valueEquals(Arrays.asList("A;B", "C"), "['A;B', C]")
                                 .checkDefaultOverride(Collections.singletonList("C")),
                         new TestSpec<>(
                                         ConfigOptions.key("interval")
                                                 .durationType()
                                                 .defaultValue(Duration.ofHours(3)))
-                                .valueEquals(Duration.ofMinutes(3), "3 min", "3 min")
+                                .valueEquals(Duration.ofMinutes(3), "3 min")
                                 .checkDefaultOverride(Duration.ofSeconds(1)),
                         new TestSpec<>(
                                         ConfigOptions.key("memory")
                                                 .memoryType()
                                                 .defaultValue(new MemorySize(1024)))
-                                .valueEquals(new MemorySize(1024 * 1024 * 1024), "1g", "1g")
+                                .valueEquals(new MemorySize(1024 * 1024 * 1024), "1g")
                                 .checkDefaultOverride(new MemorySize(2048)),
                         new TestSpec<>(
                                         ConfigOptions.key("properties")
@@ -122,7 +118,6 @@ class ReadableWritableConfigurationTest {
                                                 Arrays.asList(
                                                         Tuple2.of("key1", "value1"),
                                                         Tuple2.of("key2", "value2"))),
-                                        "key1:value1,key2:value2",
                                         "{key1: value1, key2: value2}")
                                 .checkDefaultOverride(Collections.emptyMap()),
                         new TestSpec<>(
@@ -144,15 +139,9 @@ class ReadableWritableConfigurationTest {
                                                 asMap(
                                                         Collections.singletonList(
                                                                 Tuple2.of("key3", "value3")))),
-                                        "key1:value1,key2:value2;key3:value3",
                                         "[{key1: value1, key2: value2}, {key3: value3}]")
                                 .checkDefaultOverride(Collections.emptyList()));
-        List<Object[]> list = new ArrayList<>();
-        for (TestSpec<?> testSpec : testSpecs) {
-            list.add(new Object[] {testSpec, true});
-            list.add(new Object[] {testSpec, false});
-        }
-        return list;
+        return testSpecs;
     }
 
     private static Map<String, String> asMap(List<Tuple2<String, String>> entries) {
@@ -161,12 +150,9 @@ class ReadableWritableConfigurationTest {
 
     @Parameter TestSpec<?> testSpec;
 
-    @Parameter(value = 1)
-    boolean standardYaml;
-
     @TestTemplate
     void testGetOptionalFromObject() {
-        Configuration configuration = new Configuration(standardYaml);
+        Configuration configuration = new Configuration();
         testSpec.setValue(configuration);
 
         Optional<?> optional = configuration.getOptional(testSpec.getOption());
@@ -176,8 +162,8 @@ class ReadableWritableConfigurationTest {
     @TestTemplate
     void testGetOptionalFromString() {
         ConfigOption<?> option = testSpec.getOption();
-        Configuration configuration = new Configuration(standardYaml);
-        configuration.setString(option.key(), testSpec.getStringValue(standardYaml));
+        Configuration configuration = new Configuration();
+        configuration.setString(option.key(), testSpec.getStringValue());
 
         Optional<?> optional = configuration.getOptional(option);
         assertThat(optional).isPresent().get().isEqualTo(testSpec.getValue());
@@ -185,7 +171,7 @@ class ReadableWritableConfigurationTest {
 
     @TestTemplate
     void testGetDefaultValue() {
-        Configuration configuration = new Configuration(standardYaml);
+        Configuration configuration = new Configuration();
 
         ConfigOption<?> option = testSpec.getOption();
         Object value = configuration.get(option);
@@ -195,7 +181,7 @@ class ReadableWritableConfigurationTest {
     @TestTemplate
     @SuppressWarnings("unchecked")
     void testGetOptionalDefaultValueOverride() {
-        ReadableConfig configuration = new Configuration(standardYaml);
+        ReadableConfig configuration = new Configuration();
 
         ConfigOption<?> option = testSpec.getOption();
         Object value =
@@ -207,7 +193,6 @@ class ReadableWritableConfigurationTest {
     private static class TestSpec<T> {
         private final ConfigOption<T> option;
         private T value;
-        private String stringValue;
         private String yamlStringValue;
         private T defaultValueOverride;
 
@@ -215,9 +200,8 @@ class ReadableWritableConfigurationTest {
             this.option = option;
         }
 
-        TestSpec<T> valueEquals(T objectValue, String stringValue, String yamlStringValue) {
+        TestSpec<T> valueEquals(T objectValue, String yamlStringValue) {
             this.value = objectValue;
-            this.stringValue = stringValue;
             this.yamlStringValue = yamlStringValue;
             return this;
         }
@@ -238,12 +222,8 @@ class ReadableWritableConfigurationTest {
             return value;
         }
 
-        String getStringValue(boolean standardYaml) {
-            if (standardYaml) {
-                return yamlStringValue;
-            } else {
-                return stringValue;
-            }
+        String getStringValue() {
+            return yamlStringValue;
         }
 
         T getDefaultValueOverride() {
@@ -265,8 +245,6 @@ class ReadableWritableConfigurationTest {
                     + option
                     + ", value="
                     + value
-                    + ", stringValue='"
-                    + stringValue
                     + ", yamlStringValue='"
                     + yamlStringValue
                     + '\''

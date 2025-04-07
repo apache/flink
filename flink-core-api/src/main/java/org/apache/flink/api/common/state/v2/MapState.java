@@ -20,6 +20,7 @@ package org.apache.flink.api.common.state.v2;
 
 import org.apache.flink.annotation.Experimental;
 
+import java.util.Iterator;
 import java.util.Map;
 
 /**
@@ -146,4 +147,77 @@ public interface MapState<UK, UV> extends State {
      *     otherwise false.
      */
     StateFuture<Boolean> asyncIsEmpty();
+
+    /**
+     * Returns the current value associated with the given key.
+     *
+     * @param key The key of the mapping
+     * @return The value of the mapping with the given key
+     */
+    UV get(UK key);
+
+    /**
+     * Associates a new value with the given key.
+     *
+     * @param key The key of the mapping
+     * @param value The new value of the mapping
+     */
+    void put(UK key, UV value);
+
+    /**
+     * Copies all of the mappings from the given map into the state.
+     *
+     * @param map The mappings to be stored in this state
+     */
+    void putAll(Map<UK, UV> map);
+
+    /**
+     * Deletes the mapping of the given key.
+     *
+     * @param key The key of the mapping
+     */
+    void remove(UK key);
+
+    /**
+     * Returns whether there exists the given mapping.
+     *
+     * @param key The key of the mapping
+     * @return True if there exists a mapping whose key equals to the given key
+     */
+    boolean contains(UK key);
+
+    /**
+     * Returns all the mappings in the state.
+     *
+     * @return An iterable view of all the key-value pairs in the state.
+     */
+    Iterable<Map.Entry<UK, UV>> entries();
+
+    /**
+     * Returns all the keys in the state.
+     *
+     * @return An iterable view of all the keys in the state.
+     */
+    Iterable<UK> keys();
+
+    /**
+     * Returns all the values in the state.
+     *
+     * @return An iterable view of all the values in the state.
+     */
+    Iterable<UV> values();
+
+    /**
+     * Iterates over all the mappings in the state.
+     *
+     * @return An iterator over all the mappings in the state
+     */
+    Iterator<Map.Entry<UK, UV>> iterator();
+
+    /**
+     * Returns true if this state contains no key-value mappings, otherwise false.
+     *
+     * @return True if this state contains no key-value mappings, otherwise false.
+     */
+    boolean isEmpty();
 }

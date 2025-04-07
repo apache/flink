@@ -37,17 +37,6 @@ TimerService
     TimerService.delete_event_time_timer
 
 
-TimeCharacteristic
-------------------
-
-.. currentmodule:: pyflink.datastream.time_characteristic
-
-.. autosummary::
-    :toctree: api/
-
-    TimeCharacteristic
-
-
 TimeDomain
 ----------
 

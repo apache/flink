@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.factories;
 
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.io.RichOutputFormat;
@@ -31,11 +32,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.lineage.DefaultLineageDataset;
 import org.apache.flink.streaming.api.lineage.LineageDataset;
 import org.apache.flink.streaming.api.lineage.LineageVertex;
@@ -60,6 +62,8 @@ import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.types.RowUtils;
+import org.apache.flink.util.clock.RelativeClock;
+import org.apache.flink.util.clock.SystemClock;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -266,7 +270,18 @@ final class TestValuesRuntimeFunctions {
             ByteArrayInputStream bais = new ByteArrayInputStream(elementsSerialized);
             final DataInputView input = new DataInputViewStreamWrapper(bais);
             WatermarkGenerator<RowData> generator =
-                    watermarkStrategy.createWatermarkGenerator(() -> null);
+                    watermarkStrategy.createWatermarkGenerator(
+                            new WatermarkGeneratorSupplier.Context() {
+                                @Override
+                                public MetricGroup getMetricGroup() {
+                                    return null;
+                                }
+
+                                @Override
+                                public RelativeClock getInputActivityClock() {
+                                    return SystemClock.getInstance();
+                                }
+                            });
             WatermarkOutput output = new TestValuesWatermarkOutput(ctx);
             final Object lock = ctx.getCheckpointLock();
 
@@ -274,8 +289,6 @@ final class TestValuesRuntimeFunctions {
                 RowData next;
                 try {
                     next = serializer.deserialize(input);
-                    generator.onEvent(next, Long.MIN_VALUE, output);
-                    generator.onPeriodicEmit(output);
                 } catch (Exception e) {
                     throw new IOException(
                             "Failed to deserialize an element from the source. "
@@ -288,6 +301,8 @@ final class TestValuesRuntimeFunctions {
                 synchronized (lock) {
                     ctx.collect(next);
                     numElementsEmitted++;
+                    generator.onEvent(next, Long.MIN_VALUE, output);
+                    generator.onPeriodicEmit(output);
                 }
             }
         }
@@ -493,11 +508,29 @@ final class TestValuesRuntimeFunctions {
             super.initializeState(context);
 
             synchronized (LOCK) {
-                // always store in a single map, global upsert
+                // always store in a single map, global upsert similar to external database
                 this.localUpsertResult =
                         globalUpsertResult
                                 .computeIfAbsent(tableName, k -> new HashMap<>())
                                 .computeIfAbsent(0, k -> new HashMap<>());
+                // load all data from global raw result
+                globalRawResult.computeIfAbsent(tableName, k -> new HashMap<>()).values().stream()
+                        .flatMap(List::stream)
+                        .forEach(
+                                row -> {
+                                    boolean isDelete =
+                                            row.getKind() == RowKind.DELETE
+                                                    || row.getKind() == RowKind.UPDATE_BEFORE;
+                                    Row key = Row.project(row, keyIndices);
+                                    key.setKind(RowKind.INSERT);
+                                    if (isDelete) {
+                                        localUpsertResult.remove(key);
+                                    } else {
+                                        final Row upsertRow = Row.copy(row);
+                                        upsertRow.setKind(RowKind.INSERT);
+                                        localUpsertResult.put(key, upsertRow);
+                                    }
+                                });
             }
         }
 
@@ -662,12 +695,12 @@ final class TestValuesRuntimeFunctions {
         }
 
         @Override
-        public void open(int taskNumber, int numTasks) throws IOException {
+        public void open(InitializationContext context) throws IOException {
             this.localRawResult = new ArrayList<>();
             synchronized (LOCK) {
                 globalRawResult
                         .computeIfAbsent(tableName, k -> new HashMap<>())
-                        .put(taskNumber, localRawResult);
+                        .put(context.getTaskNumber(), localRawResult);
             }
         }
 

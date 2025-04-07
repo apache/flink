@@ -360,27 +360,6 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
     }
 
     @Override
-    @PublicEvolving
-    @Deprecated
-    @SuppressWarnings("unchecked")
-    public TypeSerializer<T> createSerializer(ExecutionConfig config) {
-        if (config.isForceKryoEnabled()) {
-            return new KryoSerializer<>(getTypeClass(), config.getSerializerConfig());
-        }
-
-        if (config.isForceAvroEnabled()) {
-            return AvroUtils.getAvroUtils().createAvroSerializer(getTypeClass());
-        }
-
-        return createPojoSerializer(config);
-    }
-
-    @Deprecated
-    public PojoSerializer<T> createPojoSerializer(ExecutionConfig config) {
-        return createPojoSerializer(config.getSerializerConfig());
-    }
-
-    @Override
     public boolean equals(Object obj) {
         if (obj instanceof PojoTypeInfo) {
             @SuppressWarnings("unchecked")

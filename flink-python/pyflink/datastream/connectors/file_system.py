@@ -817,7 +817,8 @@ class StreamingFileSink(SinkFunction):
     def for_row_format(base_path: str, encoder: Encoder) -> 'DefaultRowFormatBuilder':
         j_path = get_gateway().jvm.org.apache.flink.core.fs.Path(base_path)
         j_default_row_format_builder = get_gateway().jvm.org.apache.flink.streaming.api.\
-            functions.sink.filesystem.StreamingFileSink.forRowFormat(j_path, encoder._j_encoder)
+            functions.sink.filesystem.legacy.StreamingFileSink.\
+            forRowFormat(j_path, encoder._j_encoder)
         return StreamingFileSink.DefaultRowFormatBuilder(j_default_row_format_builder)
 
     class DefaultBulkFormatBuilder(BaseBuilder):
@@ -834,5 +835,6 @@ class StreamingFileSink(SinkFunction):
         jvm = get_gateway().jvm
         j_path = jvm.org.apache.flink.core.fs.Path(base_path)
         j_default_bulk_format_builder = jvm.org.apache.flink.streaming.api.functions.sink \
-            .filesystem.StreamingFileSink.forBulkFormat(j_path, writer_factory.get_java_object())
+            .filesystem.legacy.StreamingFileSink.\
+            forBulkFormat(j_path, writer_factory.get_java_object())
         return StreamingFileSink.DefaultBulkFormatBuilder(j_default_bulk_format_builder)

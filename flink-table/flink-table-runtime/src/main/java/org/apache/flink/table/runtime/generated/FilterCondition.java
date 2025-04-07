@@ -24,6 +24,8 @@ import org.apache.flink.table.data.RowData;
 /** Interface for code generated filter condition function on single RowData. */
 public interface FilterCondition extends RichFunction {
 
-    /** @return true if the filter condition stays true for the input row */
+    /**
+     * @return true if the filter condition stays true for the input row
+     */
     boolean apply(RowData in);
 }

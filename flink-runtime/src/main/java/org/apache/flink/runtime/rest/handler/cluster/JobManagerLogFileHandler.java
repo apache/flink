@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.cluster;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
@@ -29,6 +28,7 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import javax.annotation.Nullable;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.Map;
 
 /** Rest handler which serves the log files from JobManager. */
@@ -39,7 +39,7 @@ public class JobManagerLogFileHandler
 
     public JobManagerLogFileHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> responseHeaders,
             UntypedResponseMessageHeaders<EmptyRequestBody, EmptyMessageParameters> messageHeaders,
             @Nullable File file) {

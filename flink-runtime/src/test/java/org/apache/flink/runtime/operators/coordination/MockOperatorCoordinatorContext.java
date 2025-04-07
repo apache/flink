@@ -18,6 +18,7 @@ limitations under the License.
 
 package org.apache.flink.runtime.operators.coordination;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.metrics.groups.OperatorCoordinatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -29,6 +30,7 @@ import java.util.concurrent.CompletableFuture;
 /** A simple implementation of {@link OperatorCoordinator.Context} for testing purposes. */
 public class MockOperatorCoordinatorContext implements OperatorCoordinator.Context {
 
+    private final JobID jobID = new JobID();
     private final OperatorID operatorID;
     private final ClassLoader userCodeClassLoader;
     private final int numSubtasks;
@@ -53,6 +55,11 @@ public class MockOperatorCoordinatorContext implements OperatorCoordinator.Conte
         this.jobFailed = false;
         this.jobFailureReason = null;
         this.userCodeClassLoader = userCodeClassLoader;
+    }
+
+    @Override
+    public JobID getJobID() {
+        return jobID;
     }
 
     @Override

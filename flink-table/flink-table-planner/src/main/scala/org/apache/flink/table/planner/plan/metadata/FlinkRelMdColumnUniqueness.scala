@@ -251,21 +251,26 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = {
-    val input = rank.getInput
-    val rankFunColumnIndex = RankUtil.getRankNumberColumnIndex(rank).getOrElse(-1)
-    if (rankFunColumnIndex < 0) {
-      mq.areColumnsUnique(input, columns, ignoreNulls)
+    if (RankUtil.isDeduplication(rank)) {
+      columns != null && util.Arrays.equals(columns.toArray, rank.partitionKey.toArray)
     } else {
-      val childColumns = columns.clear(rankFunColumnIndex)
-      val isChildColumnsUnique = mq.areColumnsUnique(input, childColumns, ignoreNulls)
-      if (isChildColumnsUnique != null && isChildColumnsUnique) {
-        true
+      val input = rank.getInput
+
+      val rankFunColumnIndex = RankUtil.getRankNumberColumnIndex(rank).getOrElse(-1)
+      if (rankFunColumnIndex < 0) {
+        mq.areColumnsUnique(input, columns, ignoreNulls)
       } else {
-        rank.rankType match {
-          case RankType.ROW_NUMBER =>
-            val fields = columns.toArray
-            (rank.partitionKey.toArray :+ rankFunColumnIndex).forall(fields.contains(_))
-          case _ => false
+        val childColumns = columns.clear(rankFunColumnIndex)
+        val isChildColumnsUnique = mq.areColumnsUnique(input, childColumns, ignoreNulls)
+        if (isChildColumnsUnique != null && isChildColumnsUnique) {
+          true
+        } else {
+          rank.rankType match {
+            case RankType.ROW_NUMBER =>
+              val fields = columns.toArray
+              (rank.partitionKey.toArray :+ rankFunColumnIndex).forall(fields.contains(_))
+            case _ => false
+          }
         }
       }
     }
@@ -276,14 +281,6 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = mq.areColumnsUnique(rel.getInput, columns, ignoreNulls)
-
-  def areColumnsUnique(
-      rel: StreamPhysicalDeduplicate,
-      mq: RelMetadataQuery,
-      columns: ImmutableBitSet,
-      ignoreNulls: Boolean): JBoolean = {
-    columns != null && util.Arrays.equals(columns.toArray, rel.getUniqueKeys)
-  }
 
   def areColumnsUnique(
       rel: StreamPhysicalChangelogNormalize,

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -335,11 +334,11 @@ public class ExecutionGraphTestUtils {
     public static DefaultExecutionGraph createExecutionGraph(
             ScheduledExecutorService executor, JobVertex... vertices) throws Exception {
 
-        return createExecutionGraph(executor, Time.seconds(10L), vertices);
+        return createExecutionGraph(executor, Duration.ofSeconds(10L), vertices);
     }
 
     public static DefaultExecutionGraph createExecutionGraph(
-            ScheduledExecutorService executor, Time timeout, JobVertex... vertices)
+            ScheduledExecutorService executor, Duration timeout, JobVertex... vertices)
             throws Exception {
 
         checkNotNull(vertices);

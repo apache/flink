@@ -40,7 +40,6 @@ import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
-import org.apache.flink.yarn.executors.YarnJobClusterExecutor;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -137,7 +136,7 @@ class FlinkYarnSessionCliTest {
 
     @Test
     void testCorrectSettingOfDetachedMode() throws Exception {
-        final String[] params = new String[] {"-yd"};
+        final String[] params = new String[] {"-d"};
         FlinkYarnSessionCli yarnCLI = createFlinkYarnSessionCli();
 
         final CommandLine commandLine = yarnCLI.parseCommandLineOptions(params, true);
@@ -178,21 +177,6 @@ class FlinkYarnSessionCliTest {
                 (YarnClusterDescriptor) clientFactory.createClusterDescriptor(executorConfig);
 
         assertThat(descriptor.getNodeLabel()).isEqualTo(nodeLabelCliInput);
-    }
-
-    @Test
-    void testExecutorCLIisPrioritised() throws Exception {
-        final File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
-
-        final Configuration configuration = new Configuration();
-        configuration.set(
-                YarnConfigOptions.PROPERTIES_FILE_LOCATION, directoryPath.getAbsolutePath());
-
-        validateYarnCLIisActive(configuration);
-
-        final String[] argsUnderTest = new String[] {"-e", YarnJobClusterExecutor.NAME};
-
-        validateExecutorCLIisPrioritised(configuration, argsUnderTest);
     }
 
     private void validateExecutorCLIisPrioritised(

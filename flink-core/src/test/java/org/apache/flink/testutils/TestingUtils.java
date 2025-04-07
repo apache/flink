@@ -18,7 +18,6 @@
 
 package org.apache.flink.testutils;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.testutils.executor.TestExecutorResource;
 
@@ -41,11 +40,11 @@ public class TestingUtils {
     private static final UUID ZERO_UUID = new UUID(0L, 0L);
 
     public static final Duration TESTING_DURATION = Duration.ofMinutes(2L);
-    public static final Time TIMEOUT = Time.minutes(1L);
+    public static final Duration TIMEOUT = Duration.ofMinutes(1L);
     public static final Duration DEFAULT_ASK_TIMEOUT = Duration.ofSeconds(200);
 
-    public static Time infiniteTime() {
-        return Time.milliseconds(Integer.MAX_VALUE);
+    public static Duration infiniteTime() {
+        return Duration.ofMillis(Integer.MAX_VALUE);
     }
 
     public static Duration infiniteDuration() {
@@ -81,7 +80,9 @@ public class TestingUtils {
 
         final Collection<Path> jarPaths =
                 org.apache.flink.util.FileUtils.listFilesInDirectory(mvnTargetDir, fileFilter);
-        assertThat(jarPaths).isNotEmpty();
+        assertThat(jarPaths)
+                .describedAs("Could not find any matching files in %s", mvnTargetDir)
+                .isNotEmpty();
 
         return jarPaths.iterator().next().toFile();
     }

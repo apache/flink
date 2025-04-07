@@ -22,7 +22,6 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogPartitionImpl;
@@ -42,6 +41,7 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.catalog.stats.Date;
+import org.apache.flink.table.legacy.api.TableSchema;
 import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
@@ -58,7 +58,6 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -124,11 +123,11 @@ class CatalogStatisticsTest {
         final Schema schema = Schema.newBuilder().fromResolvedSchema(resolvedSchema).build();
         catalog.createTable(
                 new ObjectPath(databaseName, "T1"),
-                CatalogTable.of(schema, "", Collections.emptyList(), properties),
+                CatalogTable.newBuilder().schema(schema).comment("").options(properties).build(),
                 false);
         catalog.createTable(
                 new ObjectPath(databaseName, "T2"),
-                CatalogTable.of(schema, "", Collections.emptyList(), properties),
+                CatalogTable.newBuilder().schema(schema).comment("").options(properties).build(),
                 false);
 
         alterTableStatistics(catalog, "T1");

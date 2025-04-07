@@ -88,7 +88,6 @@ public final class SharedPoolNettyShuffleServiceFactory
                                 resultPartitionManager,
                                 taskEventPublisher,
                                 nettyConfig,
-                                networkConfig.getMaxNumberOfConnections(),
                                 networkConfig.isConnectionReuseEnabled())
                         : new LocalConnectionManager();
 

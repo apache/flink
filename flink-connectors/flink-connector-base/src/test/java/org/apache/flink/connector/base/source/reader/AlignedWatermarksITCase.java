@@ -59,7 +59,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * it should never increase any further, but gradually decrease to the configured threshold, as the
  * slower source catches up.
  */
-public class AlignedWatermarksITCase {
+class AlignedWatermarksITCase {
     public static final String SLOW_SOURCE_NAME = "SlowNumberSequenceSource";
     public static final String FAST_SOURCE_NAME = "FastNumberSequenceSource";
     private static final Duration UPDATE_INTERVAL = Duration.ofMillis(100);
@@ -80,7 +80,7 @@ public class AlignedWatermarksITCase {
                             .build());
 
     @Test
-    public void testAlignment(@InjectMiniCluster MiniCluster miniCluster) throws Exception {
+    void testAlignment(@InjectMiniCluster MiniCluster miniCluster) throws Exception {
         final JobGraph jobGraph = getJobGraph();
         final CompletableFuture<JobSubmissionResult> submission = miniCluster.submitJob(jobGraph);
         final JobID jobID = submission.get().getJobID();

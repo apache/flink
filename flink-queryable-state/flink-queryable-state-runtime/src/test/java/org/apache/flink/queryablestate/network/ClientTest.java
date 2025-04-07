@@ -43,8 +43,8 @@ import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.internal.InternalKvState;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.ExceptionUtils;
 
@@ -541,7 +541,7 @@ class ClientTest {
 
         final int numKeyGroups = 1;
 
-        AbstractStateBackend abstractBackend = new MemoryStateBackend();
+        AbstractStateBackend abstractBackend = new HashMapStateBackend();
         KvStateRegistry dummyRegistry = new KvStateRegistry();
         DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
         dummyEnv.setKvStateRegistry(dummyRegistry);

@@ -118,7 +118,10 @@ public class SqlCreateTableAs extends SqlCreateTable {
 
     @Override
     public void validate() throws SqlValidateException {
-        super.validate();
+        if (!isSchemaWithColumnsIdentifiersOnly()) {
+            super.validate();
+        }
+
         if (isTemporary()) {
             throw new SqlValidateException(
                     getParserPosition(),
@@ -128,6 +131,13 @@ public class SqlCreateTableAs extends SqlCreateTable {
 
     public SqlNode getAsQuery() {
         return asQuery;
+    }
+
+    public boolean isSchemaWithColumnsIdentifiersOnly() {
+        // CREATE AS SELECT supports passing only column identifiers in the column list. If
+        // the first column in the list is an identifier, then we assume the rest of the
+        // columns are identifiers as well.
+        return !getColumnList().isEmpty() && getColumnList().get(0) instanceof SqlIdentifier;
     }
 
     @Override

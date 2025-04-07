@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.runtime.harness
 
-import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.runtime.state.VoidNamespace
 import org.apache.flink.streaming.api.operators.InternalTimer
@@ -36,6 +35,7 @@ import org.junit.jupiter.api.{AfterEach, BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
 import java.lang.{Long => JLong}
+import java.time.Duration
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -49,8 +49,8 @@ class AbstractTwoInputStreamOperatorWithTTLTest extends HarnessTestBase(HEAP_BAC
   @transient
   private var recordBForFirstKey: StreamRecord[RowData] = _
 
-  private val minRetentionTime = Time.milliseconds(2)
-  private val maxRetentionTime = Time.milliseconds(4)
+  private val minRetentionTime = Duration.ofMillis(2)
+  private val maxRetentionTime = Duration.ofMillis(4)
 
   private var operatorUnderTest: StubOperatorWithStateTTL = _
 
@@ -155,10 +155,10 @@ class AbstractTwoInputStreamOperatorWithTTLTest extends HarnessTestBase(HEAP_BAC
    * A mock [[BaseTwoInputStreamOperatorWithStateRetention]] which registers the timestamps of the
    * clean-up timers that fired (not the registered ones, which can be deleted without firing).
    */
-  class StubOperatorWithStateTTL(minRetentionTime: Time, maxRetentionTime: Time)
+  class StubOperatorWithStateTTL(minRetentionTime: Duration, maxRetentionTime: Duration)
     extends BaseTwoInputStreamOperatorWithStateRetention(
-      minRetentionTime.toMilliseconds,
-      maxRetentionTime.toMilliseconds) {
+      minRetentionTime.toMillis,
+      maxRetentionTime.toMillis) {
 
     val firedCleanUpTimers: mutable.Buffer[JLong] = ArrayBuffer.empty
 

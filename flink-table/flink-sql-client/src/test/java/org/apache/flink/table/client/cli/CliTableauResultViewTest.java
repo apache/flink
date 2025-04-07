@@ -22,6 +22,7 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.config.ResultMode;
@@ -59,7 +60,6 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
-import static org.apache.flink.table.client.config.SqlClientOptions.DISPLAY_MAX_COLUMN_WIDTH;
 import static org.apache.flink.table.client.config.SqlClientOptions.DISPLAY_QUERY_TIME_COST;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -229,7 +229,7 @@ class CliTableauResultViewTest {
         view.close();
 
         // adjust the max column width for printing
-        testConfig.set(DISPLAY_MAX_COLUMN_WIDTH, 80);
+        testConfig.set(TableConfigOptions.DISPLAY_MAX_COLUMN_WIDTH, 80);
 
         TestChangelogResult collectResult = createNewTestChangelogResult();
         view =
@@ -456,7 +456,7 @@ class CliTableauResultViewTest {
                                 + System.lineSeparator());
 
         // adjust the max column width for printing
-        testConfig.set(DISPLAY_MAX_COLUMN_WIDTH, 80);
+        testConfig.set(TableConfigOptions.DISPLAY_MAX_COLUMN_WIDTH, 80);
 
         collectResult = createNewTestChangelogResult();
         view =

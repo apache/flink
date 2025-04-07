@@ -49,8 +49,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link StreamingJobGraphGenerator} with internal sorter. */
 public class StreamingJobGraphGeneratorWithOperatorAttributesTest {
+
     @Test
-    void testOutputOnlyAfterEndOfStream() {
+    void testOutputOnlyAfterEndOfStreamEnableChain() {
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(new Configuration());
 
@@ -97,10 +98,46 @@ public class StreamingJobGraphGeneratorWithOperatorAttributesTest {
         assertThat(vertexMap.get("Source: source").isAnyOutputBlocking()).isFalse();
         assertThat(vertexMap.get("transform -> Map").isAnyOutputBlocking()).isTrue();
         assertThat(vertexMap.get("sink: Writer").isAnyOutputBlocking()).isFalse();
+    }
+
+    @Test
+    void testOutputOnlyAfterEndOfStreamDisableChain() {
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(new Configuration());
+
+        final DataStream<Integer> source = env.fromData(1, 2, 3).name("source");
+        source.keyBy(x -> x)
+                .transform(
+                        "transform",
+                        Types.INT,
+                        new StreamOperatorWithConfigurableOperatorAttributes<>(
+                                x -> x,
+                                new OperatorAttributesBuilder()
+                                        .setOutputOnlyAfterEndOfStream(true)
+                                        .build()))
+                .map(x -> x)
+                .sinkTo(new DiscardingSink<>())
+                .disableChaining()
+                .name("sink");
+
+        final StreamGraph streamGraph = env.getStreamGraph(false);
+        Map<String, StreamNode> nodeMap = new HashMap<>();
+        for (StreamNode node : streamGraph.getStreamNodes()) {
+            nodeMap.put(node.getOperatorName(), node);
+        }
+        assertThat(nodeMap).hasSize(4);
+        assertThat(nodeMap.get("Source: source").isOutputOnlyAfterEndOfStream()).isFalse();
+        assertThat(nodeMap.get("transform").isOutputOnlyAfterEndOfStream()).isTrue();
+        assertThat(nodeMap.get("Map").isOutputOnlyAfterEndOfStream()).isFalse();
+        assertThat(nodeMap.get("sink: Writer").isOutputOnlyAfterEndOfStream()).isFalse();
+        assertManagedMemoryWeightsSize(nodeMap.get("Source: source"), 0);
+        assertManagedMemoryWeightsSize(nodeMap.get("transform"), 1);
+        assertManagedMemoryWeightsSize(nodeMap.get("Map"), 0);
+        assertManagedMemoryWeightsSize(nodeMap.get("sink: Writer"), 0);
 
         env.disableOperatorChaining();
-        jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph(false));
-        vertexMap = new HashMap<>();
+        JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph(false));
+        Map<String, JobVertex> vertexMap = new HashMap<>();
         for (JobVertex vertex : jobGraph.getVertices()) {
             vertexMap.put(vertex.getName(), vertex);
         }
@@ -112,6 +149,56 @@ public class StreamingJobGraphGeneratorWithOperatorAttributesTest {
         assertThat(vertexMap.get("Source: source").isAnyOutputBlocking()).isFalse();
         assertThat(vertexMap.get("transform").isAnyOutputBlocking()).isTrue();
         assertThat(vertexMap.get("Map").isAnyOutputBlocking()).isFalse();
+        assertThat(vertexMap.get("sink: Writer").isAnyOutputBlocking()).isFalse();
+    }
+
+    @Test
+    void testOutputOnlyAfterEndOfStreamPropagateToUpstreamWithinChain() {
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(new Configuration());
+
+        final DataStream<Integer> source = env.fromData(1, 2, 3).name("source");
+        source.keyBy(x -> x)
+                .map(x -> x)
+                .transform(
+                        "transform",
+                        Types.INT,
+                        new StreamOperatorWithConfigurableOperatorAttributes<>(
+                                x -> x,
+                                new OperatorAttributesBuilder()
+                                        .setOutputOnlyAfterEndOfStream(true)
+                                        .build()))
+                .sinkTo(new DiscardingSink<>())
+                .disableChaining()
+                .name("sink");
+
+        final StreamGraph streamGraph = env.getStreamGraph(false);
+        Map<String, StreamNode> nodeMap = new HashMap<>();
+        for (StreamNode node : streamGraph.getStreamNodes()) {
+            nodeMap.put(node.getOperatorName(), node);
+        }
+        assertThat(nodeMap).hasSize(4);
+        assertThat(nodeMap.get("Source: source").isOutputOnlyAfterEndOfStream()).isFalse();
+        assertThat(nodeMap.get("transform").isOutputOnlyAfterEndOfStream()).isTrue();
+        assertThat(nodeMap.get("Map").isOutputOnlyAfterEndOfStream()).isFalse();
+        assertThat(nodeMap.get("sink: Writer").isOutputOnlyAfterEndOfStream()).isFalse();
+        assertManagedMemoryWeightsSize(nodeMap.get("Source: source"), 0);
+        assertManagedMemoryWeightsSize(nodeMap.get("Map"), 0);
+        assertManagedMemoryWeightsSize(nodeMap.get("transform"), 0);
+        assertManagedMemoryWeightsSize(nodeMap.get("sink: Writer"), 0);
+
+        JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+        Map<String, JobVertex> vertexMap = new HashMap<>();
+        for (JobVertex vertex : jobGraph.getVertices()) {
+            vertexMap.put(vertex.getName(), vertex);
+        }
+        assertThat(vertexMap).hasSize(3);
+        assertHasOutputPartitionType(
+                vertexMap.get("Source: source"), ResultPartitionType.PIPELINED_BOUNDED);
+        assertHasOutputPartitionType(
+                vertexMap.get("Map -> transform"), ResultPartitionType.BLOCKING);
+        assertThat(vertexMap.get("Source: source").isAnyOutputBlocking()).isFalse();
+        assertThat(vertexMap.get("Map -> transform").isAnyOutputBlocking()).isTrue();
         assertThat(vertexMap.get("sink: Writer").isAnyOutputBlocking()).isFalse();
     }
 
@@ -144,10 +231,6 @@ public class StreamingJobGraphGeneratorWithOperatorAttributesTest {
         assertManagedMemoryWeightsSize(nodeMap.get("Source: source2"), 0);
         assertManagedMemoryWeightsSize(nodeMap.get("transform"), 1);
         assertManagedMemoryWeightsSize(nodeMap.get("sink: Writer"), 0);
-    }
-
-    private static void assertManagedMemoryWeightsSize(StreamNode node, int weightSize) {
-        assertThat(node.getManagedMemoryOperatorScopeUseCaseWeights()).hasSize(weightSize);
     }
 
     @Test
@@ -359,6 +442,10 @@ public class StreamingJobGraphGeneratorWithOperatorAttributesTest {
         @Override
         public void processElement2(
                 IN2 value, CoProcessFunction<IN1, IN2, OUT>.Context ctx, Collector<OUT> out) {}
+    }
+
+    private void assertManagedMemoryWeightsSize(StreamNode node, int weightSize) {
+        assertThat(node.getManagedMemoryOperatorScopeUseCaseWeights()).hasSize(weightSize);
     }
 
     private void assertHasOutputPartitionType(

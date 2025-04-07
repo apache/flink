@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.execution.Environment;
@@ -40,6 +39,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.nio.ByteBuffer;
+
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 
 /** Test for consuming a pipelined result only partially. */
 class PartialConsumePipelinedResultTest {
@@ -63,7 +64,6 @@ class PartialConsumePipelinedResultTest {
     private static Configuration getFlinkConfiguration() {
         final Configuration config = new Configuration();
         config.set(RpcOptions.ASK_TIMEOUT_DURATION, TestingUtils.DEFAULT_ASK_TIMEOUT);
-        config.set(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, NUMBER_OF_NETWORK_BUFFERS);
 
         return config;
     }
@@ -90,8 +90,8 @@ class PartialConsumePipelinedResultTest {
 
         // The partition needs to be pipelined, otherwise the original issue does not occur, because
         // the sender and receiver are not online at the same time.
-        receiver.connectNewDataSetAsInput(
-                sender, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                receiver, sender, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
         final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(sender, receiver);
 

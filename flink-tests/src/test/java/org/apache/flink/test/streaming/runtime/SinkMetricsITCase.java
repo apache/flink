@@ -19,17 +19,21 @@ package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.testutils.InMemoryReporter;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.runtime.operators.sink.TestSink;
+import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
@@ -53,9 +57,8 @@ import static org.hamcrest.Matchers.hasSize;
 /** Tests whether all provided metrics of a {@link Sink} are of the expected values (FLIP-33). */
 public class SinkMetricsITCase extends TestLogger {
 
-    private static final String TEST_SINK_NAME = "MetricTestSink";
-    // please refer to SinkTransformationTranslator#WRITER_NAME
-    private static final String DEFAULT_WRITER_NAME = "Writer";
+    private static final String TEST_LONG_SINK_NAME =
+            "LongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongMetricTestSink";
     private static final int DEFAULT_PARALLELISM = 4;
 
     @Rule public final SharedObjects sharedObjects = SharedObjects.create();
@@ -100,12 +103,8 @@ public class SinkMetricsITCase extends TestLogger {
                             }
                             return i;
                         })
-                .sinkTo(
-                        TestSink.newBuilder()
-                                .setDefaultCommitter()
-                                .setWriter(new MetricWriter())
-                                .build())
-                .name(TEST_SINK_NAME);
+                .sinkTo(TestSinkV2.<Long>newBuilder().setWriter(new MetricWriter()).build())
+                .name(TEST_LONG_SINK_NAME);
         JobClient jobClient = env.executeAsync();
         final JobID jobId = jobClient.getJobID();
 
@@ -125,7 +124,9 @@ public class SinkMetricsITCase extends TestLogger {
             JobID jobId, long processedRecordsPerSubtask, int parallelism, int numSplits) {
         List<OperatorMetricGroup> groups =
                 reporter.findOperatorMetricGroups(
-                        jobId, TEST_SINK_NAME + ": " + DEFAULT_WRITER_NAME);
+                        jobId,
+                        MetricUtils.truncateOperatorName(
+                                TEST_LONG_SINK_NAME + ": " + ConfigConstants.WRITER_NAME));
         assertThat(groups, hasSize(parallelism));
 
         int subtaskWithMetrics = 0;
@@ -159,16 +160,36 @@ public class SinkMetricsITCase extends TestLogger {
                     .isEqualTo((processedRecordsPerSubtask - 1) * MetricWriter.BASE_SEND_TIME);
         }
         assertThat(subtaskWithMetrics, equalTo(numSplits));
+
+        // Test operator I/O metrics are reused by task metrics
+        List<TaskMetricGroup> taskMetricGroups =
+                reporter.findTaskMetricGroups(jobId, TEST_LONG_SINK_NAME);
+        assertThat(taskMetricGroups, hasSize(parallelism));
+
+        int subtaskWithTaskMetrics = 0;
+        for (TaskMetricGroup taskMetricGroup : taskMetricGroups) {
+            // there are only 2 splits assigned; so two groups will not update metrics
+            if (taskMetricGroup.getIOMetricGroup().getNumRecordsOutCounter().getCount() == 0) {
+                continue;
+            }
+
+            subtaskWithTaskMetrics++;
+            assertThatCounter(taskMetricGroup.getIOMetricGroup().getNumRecordsOutCounter())
+                    .isEqualTo(processedRecordsPerSubtask);
+            assertThatCounter(taskMetricGroup.getIOMetricGroup().getNumBytesOutCounter())
+                    .isEqualTo(processedRecordsPerSubtask * MetricWriter.RECORD_SIZE_IN_BYTES);
+        }
+        assertThat(subtaskWithTaskMetrics, equalTo(numSplits));
     }
 
-    private static class MetricWriter extends TestSink.DefaultSinkWriter<Long> {
+    private static class MetricWriter extends TestSinkV2.DefaultSinkWriter<Long> {
         static final long BASE_SEND_TIME = 100;
         static final long RECORD_SIZE_IN_BYTES = 10;
         private SinkWriterMetricGroup metricGroup;
         private long sendTime;
 
         @Override
-        public void init(Sink.InitContext context) {
+        public void init(WriterInitContext context) {
             this.metricGroup = context.metricGroup();
             metricGroup.setCurrentSendTimeGauge(() -> sendTime);
         }

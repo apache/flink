@@ -23,18 +23,15 @@ TEST=flink-netty-shuffle-memory-control-test
 TEST_PROGRAM_NAME=NettyShuffleMemoryControlTestProgram
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/$TEST/target/$TEST_PROGRAM_NAME.jar
 
-set_config_key "taskmanager.memory.flink.size" "512m"
+set_config_key "taskmanager.memory.flink.size" "600m"
 set_config_key "taskmanager.memory.network.min" "128m"
 set_config_key "taskmanager.memory.network.max" "128m"
 
 # 20 slots per task manager.
 set_config_key "taskmanager.numberOfTaskSlots" "20"
 
-# Sets only one arena per TM for boosting the netty internal memory overhead.
-set_config_key "taskmanager.network.netty.num-arenas" "1"
-
-# Limits the direct memory to be one chunk (4M) plus some margins.
-set_config_key "taskmanager.memory.framework.off-heap.size" "7m"
+# Limits the direct memory to be one chunk (4M * 20) plus some margins.
+set_config_key "taskmanager.memory.framework.off-heap.size" "90m"
 
 # Starts the cluster which includes one TaskManager.
 start_cluster

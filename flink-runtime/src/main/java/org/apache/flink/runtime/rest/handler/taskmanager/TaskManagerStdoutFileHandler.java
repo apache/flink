@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.taskmanager;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.blob.TransientBlobService;
@@ -42,6 +41,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import javax.annotation.Nonnull;
 
 import java.io.FileNotFoundException;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -56,14 +56,14 @@ public class TaskManagerStdoutFileHandler
 
     public TaskManagerStdoutFileHandler(
             @Nonnull GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            @Nonnull Time timeout,
+            @Nonnull Duration timeout,
             @Nonnull Map<String, String> responseHeaders,
             @Nonnull
                     UntypedResponseMessageHeaders<EmptyRequestBody, TaskManagerMessageParameters>
                             untypedResponseMessageHeaders,
             @Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
             @Nonnull TransientBlobService transientBlobService,
-            @Nonnull Time cacheEntryDuration) {
+            @Nonnull Duration cacheEntryDuration) {
         super(
                 leaderRetriever,
                 timeout,

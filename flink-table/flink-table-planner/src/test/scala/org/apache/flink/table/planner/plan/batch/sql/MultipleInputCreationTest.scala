@@ -21,7 +21,6 @@ import org.apache.flink.api.common.BatchShuffleMode
 import org.apache.flink.api.common.eventtime.WatermarkStrategy
 import org.apache.flink.api.connector.source.Boundedness
 import org.apache.flink.api.connector.source.mocks.MockSource
-import org.apache.flink.api.scala._
 import org.apache.flink.configuration.{ExecutionOptions, JobManagerOptions}
 import org.apache.flink.configuration.JobManagerOptions.SchedulerType
 import org.apache.flink.table.api._

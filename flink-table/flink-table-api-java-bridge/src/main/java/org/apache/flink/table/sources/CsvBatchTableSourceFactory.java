@@ -19,7 +19,8 @@
 package org.apache.flink.table.sources;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.factories.StreamTableSourceFactory;
+import org.apache.flink.legacy.table.factories.StreamTableSourceFactory;
+import org.apache.flink.legacy.table.sources.StreamTableSource;
 import org.apache.flink.types.Row;
 
 import java.util.Map;
