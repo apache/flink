@@ -22,7 +22,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.types.DataType;
@@ -115,7 +114,6 @@ public class ListView<T> implements DataView {
 
     /** Replaces the entire view's content with the content of the given {@link List}. */
     public void setList(List<T> list) {
-        checkList(list);
         this.list = list;
     }
 
@@ -136,7 +134,6 @@ public class ListView<T> implements DataView {
      * @param value The element to be appended to this list view.
      */
     public void add(T value) throws Exception {
-        checkValue(value);
         list.add(value);
     }
 
@@ -147,7 +144,6 @@ public class ListView<T> implements DataView {
      * @param list The list with the elements that will be stored in this list view.
      */
     public void addAll(List<T> list) throws Exception {
-        checkList(list);
         this.list.addAll(list);
     }
 
@@ -157,7 +153,6 @@ public class ListView<T> implements DataView {
      * @param value The element to be removed from this list view.
      */
     public boolean remove(T value) throws Exception {
-        checkValue(value);
         return list.remove(value);
     }
 
@@ -193,17 +188,5 @@ public class ListView<T> implements DataView {
         return DataTypes.STRUCTURED(
                 ListView.class,
                 DataTypes.FIELD("list", DataTypes.ARRAY(elementDataType).bridgedTo(List.class)));
-    }
-
-    protected static void checkValue(Object value) {
-        if (value == null) {
-            throw new TableRuntimeException("List views don't support null values.");
-        }
-    }
-
-    protected static void checkList(List<?> list) {
-        if (list.contains(null)) {
-            throw new TableRuntimeException("List views don't support null values.");
-        }
     }
 }

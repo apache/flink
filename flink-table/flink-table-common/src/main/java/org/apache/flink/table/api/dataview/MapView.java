@@ -22,7 +22,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.types.DataType;
@@ -119,7 +118,6 @@ public class MapView<K, V> implements DataView {
 
     /** Replaces the entire view's content with the content of the given {@link Map}. */
     public void setMap(Map<K, V> map) {
-        checkMap(map);
         this.map = map;
     }
 
@@ -132,7 +130,6 @@ public class MapView<K, V> implements DataView {
      * @throws Exception Thrown if the system cannot get data.
      */
     public V get(K key) throws Exception {
-        checkKey(key);
         return map.get(key);
     }
 
@@ -145,7 +142,6 @@ public class MapView<K, V> implements DataView {
      * @throws Exception Thrown if the system cannot put data.
      */
     public void put(K key, V value) throws Exception {
-        checkKey(key);
         map.put(key, value);
     }
 
@@ -156,7 +152,6 @@ public class MapView<K, V> implements DataView {
      * @throws Exception Thrown if the system cannot access the map.
      */
     public void putAll(Map<K, V> map) throws Exception {
-        checkMap(map);
         this.map.putAll(map);
     }
 
@@ -167,7 +162,6 @@ public class MapView<K, V> implements DataView {
      * @throws Exception Thrown if the system cannot access the map.
      */
     public void remove(K key) throws Exception {
-        checkKey(key);
         map.remove(key);
     }
 
@@ -179,7 +173,6 @@ public class MapView<K, V> implements DataView {
      * @throws Exception Thrown if the system cannot access the map.
      */
     public boolean contains(K key) throws Exception {
-        checkKey(key);
         return map.containsKey(key);
     }
 
@@ -266,17 +259,5 @@ public class MapView<K, V> implements DataView {
                 MapView.class,
                 DataTypes.FIELD(
                         "map", DataTypes.MAP(keyDataType, valueDataType).bridgedTo(Map.class)));
-    }
-
-    protected static void checkKey(Object key) {
-        if (key == null) {
-            throw new TableRuntimeException("Map views don't support null keys.");
-        }
-    }
-
-    protected static void checkMap(Map<?, ?> map) {
-        if (map.containsKey(null)) {
-            throw new TableRuntimeException("Map views don't support null keys.");
-        }
     }
 }

@@ -158,4 +158,16 @@ public abstract class StateListView<N, EE> extends ListView<EE> implements State
             return listState;
         }
     }
+
+    private static void checkValue(Object value) {
+        if (value == null) {
+            throw new TableRuntimeException("List views don't support null values.");
+        }
+    }
+
+    private static void checkList(List<?> list) {
+        if (list.contains(null)) {
+            throw new TableRuntimeException("List views don't support null values.");
+        }
+    }
 }

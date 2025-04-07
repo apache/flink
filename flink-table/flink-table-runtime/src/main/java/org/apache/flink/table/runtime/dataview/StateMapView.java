@@ -145,6 +145,18 @@ public abstract class StateMapView<N, EK, EV> extends MapView<EK, EV> implements
         public void clear() {
             getMapState().clear();
         }
+
+        private static void checkKey(Object key) {
+            if (key == null) {
+                throw new TableRuntimeException("Map views don't support null keys.");
+            }
+        }
+
+        private static void checkMap(Map<?, ?> map) {
+            if (map.containsKey(null)) {
+                throw new TableRuntimeException("Map views don't support null keys.");
+            }
+        }
     }
 
     /**
