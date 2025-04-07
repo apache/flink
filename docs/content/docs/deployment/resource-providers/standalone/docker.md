@@ -92,7 +92,7 @@ You can run its entry point in the following modes:
 * [JobManager]({{< ref "docs/concepts/glossary" >}}#flink-jobmanager) for [an Application cluster](#application-mode-on-docker)
 * [TaskManager]({{< ref "docs/concepts/glossary" >}}#flink-taskmanager) for any cluster
 
-This allows you to deploy a standalone cluster (Session or Application Mode) in any containerised environment, for example:
+This allows you to deploy a standalone cluster (Session or Application Mode) in any containerized environment, for example:
 * manually in a local Docker setup,
 * [in a Kubernetes cluster]({{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}}),
 * [with Docker Compose](#flink-with-docker-compose),
@@ -439,7 +439,7 @@ services:
   RUN wget -P /opt/flink/lib https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka_2.12/{{< version >}}/flink-sql-connector-kafka_scala{{< scala_version >}}-{{< version >}}.jar
   ```
   
-  and reference it (e.g via the `build`) command in the Dockerfile.
+  and reference it (e.g., via the `build`) command in the Dockerfile.
   SQL Commands like `ADD JAR` will not work for JARs located on the host machine as they only work with the local filesystem, which in this case is Docker's overlay filesystem. 
 
 ## Using Flink Python on Docker
@@ -511,7 +511,7 @@ the same way as in the [Flink configuration file]({{< ref "docs/deployment/confi
 
 ### Via Flink configuration file
 
-The configuration files ([Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}), logging, hosts etc) are located in the `/opt/flink/conf` directory in the Flink image.
+The configuration files ([Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}), logging, hosts etc.) are located in the `/opt/flink/conf` directory in the Flink image.
 To provide a custom location for the Flink configuration files, you can
 
 * **either mount a volume** with the custom configuration files to this path `/opt/flink/conf` when you run the Flink image:
