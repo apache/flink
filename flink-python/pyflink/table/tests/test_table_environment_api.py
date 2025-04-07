@@ -786,6 +786,73 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
                 collected_result.append(i)
             self.assertEqual(expected_result, collected_result)
 
+    def test_row_form_consistency_with_elements(self):
+        schema = DataTypes.ROW(
+            [
+                DataTypes.FIELD(
+                    "col",
+                    DataTypes.ARRAY(
+                        DataTypes.ROW(
+                            [
+                                DataTypes.FIELD("a", DataTypes.STRING()),
+                                DataTypes.FIELD("b", DataTypes.BOOLEAN()),
+                            ]
+                        )
+                    ),
+                ),
+            ]
+        )
+
+        valid_tuple_elements = [(
+            [("pyflink", True), ("pyflink", False), ("pyflink", True)],
+        )]
+        valid_list_elements = [(
+            [["pyflink", True], ["pyflink", False], ["pyflink", True]],
+        )]
+        valid_keyword_row = [(
+            [Row(a="pyflink", b=True), Row(a="pyflink", b=False), Row(a="pyflink", b=True)],
+        )]
+        valid_positional_row = [(
+            [Row("pyflink", True), Row("pyflink", False), Row("pyflink", True)],
+        )]
+        expected_valid_result = [
+            Row([
+                Row("pyflink", True), Row("pyflink", False), Row("pyflink", True)
+            ])
+        ]
+
+        for elements in (
+            valid_tuple_elements,
+            valid_list_elements,
+            valid_keyword_row,
+            valid_positional_row
+        ):
+            table = self.t_env.from_elements(elements, schema)
+            table_result = list(table.execute().collect())
+            self.assertEqual(table_result, expected_valid_result)
+
+        invalid_tuple_elements = [(
+            [("pyflink", True), ("pyflink", False), (True, "pyflink")],
+        )]
+        invalid_list_elements = [(
+            [["pyflink", True], ["pyflink", False], [True, "pyflink"]],
+        )]
+        invalid_keyword_row = [(
+            [Row(a="pyflink", b=True), Row(a="pyflink", b=False), Row(a=True, b="pyflink")],
+        )]
+        invalid_positional_row = [(
+            [Row("pyflink", True), Row("pyflink", False), Row(True, "pyflink")],
+        )]
+
+        for elements in (
+            invalid_tuple_elements,
+            invalid_list_elements,
+            invalid_keyword_row,
+            invalid_positional_row
+        ):
+            with self.assertRaises(TypeError):
+                self.t_env.from_elements(elements, schema)
+
 
 class VectorUDT(UserDefinedType):
 

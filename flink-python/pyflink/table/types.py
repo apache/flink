@@ -2152,10 +2152,17 @@ def _create_type_verifier(data_type: DataType, name: str = None):
             if isinstance(obj, dict):
                 for f, verifier in verifiers:
                     verifier(obj.get(f))
-            elif isinstance(obj, Row) and getattr(obj, "_from_dict", False):
-                # the order in obj could be different than dataType.fields
-                for f, verifier in verifiers:
-                    verifier(obj[f])
+            elif isinstance(obj, Row):
+                if obj._from_dict:
+                    # Since the row was created with field names, use the verifier
+                    # associated with the field name
+                    for f, verifier in verifiers:
+                        verifier(obj[f])
+                else:
+                    # If the row was created with positional arguments, use the verifier
+                    # in the same position.
+                    for idx, (_, verifier) in enumerate(verifiers):
+                        verifier(obj[idx])
             elif isinstance(obj, (tuple, list)):
                 if len(obj) != len(verifiers):
                     raise ValueError(
