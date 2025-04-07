@@ -787,7 +787,7 @@ Once an `on_time` argument is provided, timers can be used. The following motiva
 public static class PingLaterFunction extends ProcessTableFunction<String> {
   public void eval(
     Context ctx,
-    @ArgumentHint({ArgumentTrait.TABLE_AS_SET, ArgumentTrait.REQUIRE_ON_TIME}) Row event
+    @ArgumentHint({ArgumentTrait.TABLE_AS_SET, ArgumentTrait.REQUIRE_ON_TIME}) Row input
     ) {
       TimeContext<Instant> timeCtx = ctx.timeContext(Instant.class);
       // Replaces an existing timer and thus potentially resets the minute if necessary
@@ -1153,6 +1153,7 @@ notification queue, while the checkout process would be finalized by a separate 
 ```sql
 CREATE VIEW Checkouts AS SELECT * FROM CheckoutProcessor(
   events => TABLE Events PARTITION BY `user`,
+  on_time => DESCRIPTOR(ts),
   reminderInterval => INTERVAL '1' DAY,
   timeoutInterval => INTERVAL '2' DAY, uid => 'cart-processor'
 )
