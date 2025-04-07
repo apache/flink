@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.v2;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.state.v2.AggregatingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -79,8 +80,12 @@ class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
         AggregatingStateDescriptor<Integer, Integer, Integer> descriptor =
                 new AggregatingStateDescriptor<>(
                         "testAggState", aggregator, BasicTypeInfo.INT_TYPE_INFO);
+        descriptor.initializeSerializerUnlessSet(new ExecutionConfig());
         AbstractAggregatingState<String, Void, Integer, Integer, Integer> state =
-                new AbstractAggregatingState<>(aec, descriptor);
+                new AbstractAggregatingState<>(
+                        aec,
+                        descriptor.getAggregateFunction(),
+                        descriptor.getSerializer().duplicate());
 
         aec.setCurrentContext(aec.buildContext("test", "test"));
 
@@ -107,6 +112,7 @@ class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
         AggregatingStateDescriptor<Integer, Integer, Integer> descriptor =
                 new AggregatingStateDescriptor<>(
                         "testState", aggregator, BasicTypeInfo.INT_TYPE_INFO);
+        descriptor.initializeSerializerUnlessSet(new ExecutionConfig());
         AggregatingStateExecutor aggregatingStateExecutor = new AggregatingStateExecutor();
         AsyncExecutionController<String> aec =
                 new AsyncExecutionController<>(
@@ -121,7 +127,8 @@ class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
                         null,
                         null);
         AbstractAggregatingState<String, String, Integer, Integer, Integer> aggregatingState =
-                new AbstractAggregatingState<>(aec, descriptor);
+                new AbstractAggregatingState<>(
+                        aec, descriptor.getAggregateFunction(), descriptor.getSerializer());
         aec.setCurrentContext(aec.buildContext("test", "test"));
         aec.setCurrentNamespaceForState(aggregatingState, "1");
         aggregatingState.add(1);
@@ -143,6 +150,7 @@ class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
         AggregatingStateDescriptor<Integer, Integer, Integer> descriptor =
                 new AggregatingStateDescriptor<>(
                         "testState", aggregator, BasicTypeInfo.INT_TYPE_INFO);
+        descriptor.initializeSerializerUnlessSet(new ExecutionConfig());
         AggregatingStateExecutor aggregatingStateExecutor = new AggregatingStateExecutor();
         AsyncExecutionController<String> aec =
                 new AsyncExecutionController<>(
@@ -157,7 +165,8 @@ class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
                         null,
                         null);
         AbstractAggregatingState<String, String, Integer, Integer, Integer> aggregatingState =
-                new AbstractAggregatingState<>(aec, descriptor);
+                new AbstractAggregatingState<>(
+                        aec, descriptor.getAggregateFunction(), descriptor.getSerializer());
         aec.setCurrentContext(aec.buildContext("test", "test"));
         aec.setCurrentNamespaceForState(aggregatingState, "1");
         aggregatingState.asyncAdd(1);

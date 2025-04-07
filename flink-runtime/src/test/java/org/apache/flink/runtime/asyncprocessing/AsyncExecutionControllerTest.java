@@ -866,7 +866,7 @@ class AsyncExecutionControllerTest {
                 StateRequestHandler stateRequestHandler,
                 TestUnderlyingState underlyingState,
                 ValueStateDescriptor<Integer> stateDescriptor) {
-            super(stateRequestHandler, stateDescriptor);
+            super(stateRequestHandler, stateDescriptor.getSerializer());
             this.underlyingState = underlyingState;
             assertThat(this.getValueSerializer()).isEqualTo(IntSerializer.INSTANCE);
         }

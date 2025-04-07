@@ -106,7 +106,7 @@ public class ForStStateTestBase {
         aec.drainInflightRecords(0);
     }
 
-    private static MockEnvironment getMockEnvironment(File tempDir) throws IOException {
+    protected static MockEnvironment getMockEnvironment(File tempDir) throws IOException {
         MockEnvironment env =
                 MockEnvironment.builder()
                         .setUserCodeClassLoader(ForStStateBackendConfigTest.class.getClassLoader())
