@@ -29,6 +29,8 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.DescriptorFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidUpdatingSemanticsFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.IntervalDayArgFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.IntervalYearArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.IntervalArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MultiInputFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.NoSystemArgsScalarFunction;
@@ -145,9 +147,15 @@ public class ProcessTableFunctionTest extends TableTestBase {
     }
 
     @Test
-    void testIntervalArgs() {
-        util.addTemporarySystemFunction("f", IntervalArgFunction.class);
+    void testIntervalDayArgs() {
+        util.addTemporarySystemFunction("f", IntervalDayArgFunction.class);
         util.verifyRelPlan("SELECT * FROM f(d => INTERVAL '1' SECOND)");
+    }
+
+    @Test
+    void testIntervalYearArgs() {
+        util.addTemporarySystemFunction("f", IntervalYearArgFunction.class);
+        util.verifyRelPlan("SELECT * FROM f(p => INTERVAL '1' YEAR)");
     }
 
     @Test

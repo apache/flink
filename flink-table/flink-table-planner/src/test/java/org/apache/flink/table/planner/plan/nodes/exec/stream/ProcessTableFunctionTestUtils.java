@@ -53,6 +53,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.time.Period;
 
 import static org.apache.flink.table.annotation.ArgumentTrait.OPTIONAL_PARTITION_BY;
 import static org.apache.flink.table.annotation.ArgumentTrait.PASS_COLUMNS_THROUGH;
@@ -338,9 +339,16 @@ public class ProcessTableFunctionTestUtils {
     }
 
     /** Testing function. */
-    public static class IntervalArgFunction extends TestProcessTableFunctionBase {
+    public static class IntervalDayArgFunction extends TestProcessTableFunctionBase {
         public void eval(@DataTypeHint Duration d) {
             collectObjects(d);
+        }
+    }
+
+    /** Testing function. */
+    public static class IntervalYearArgFunction extends TestProcessTableFunctionBase {
+        public void eval(@DataTypeHint Period p) {
+            collectObjects(p);
         }
     }
 
