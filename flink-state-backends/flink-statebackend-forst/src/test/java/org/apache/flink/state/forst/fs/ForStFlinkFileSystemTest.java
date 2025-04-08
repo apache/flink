@@ -40,6 +40,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTe
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -231,7 +232,7 @@ public class ForStFlinkFileSystemTest {
         is.close();
     }
 
-    @Test
+    @RepeatedTest(300)
     void testSstFileInCache() throws IOException {
         final Map<String, Gauge<?>> registeredGauges = new HashMap<>();
         final Map<String, Counter> registeredCounters = new HashMap<>();
@@ -302,7 +303,6 @@ public class ForStFlinkFileSystemTest {
 
         assertThat(is.read(tmpBytes)).isEqualTo(233);
         assertThat(cacheEntry1.getReferenceCount()).isEqualTo(1);
-        assertThat(cacheEntry1.getReferenceCount()).isEqualTo(1);
         assertThat(registeredCounters.get("forst.fileCache.hit").getCount()).isEqualTo(0L);
         assertThat(registeredCounters.get("forst.fileCache.miss").getCount()).isEqualTo(0L);
 
@@ -324,9 +324,21 @@ public class ForStFlinkFileSystemTest {
         os2.sync();
         os2.close();
         assertThat(fileSystem.exists(sstRemotePath1)).isTrue();
-        assertThat(fileSystem.exists(cachePath1)).isFalse();
         assertThat(cachePath.getFileSystem().exists(cachePath2)).isTrue();
         assertThat(cacheEntry1.getReferenceCount()).isEqualTo(0);
+
+        // test link and deleted by reference
+        long waitDeleted = 0L;
+        while (waitDeleted < 30000L && cachePath.getFileSystem().exists(cachePath1)) {
+            try {
+                Thread.sleep(5);
+                waitDeleted += 5;
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        assertThat(cachePath.getFileSystem().exists(cachePath1)).isFalse();
+
         assertThat(registeredGauges.get("forst.fileCache.usedBytes").getValue()).isEqualTo(233L);
         // read after evict
         assertThat(is.read()).isEqualTo(89);
@@ -353,8 +365,8 @@ public class ForStFlinkFileSystemTest {
         long waitLoaded = 0L;
         while (waitLoaded < 30000L && cacheEntry1.getReferenceCount() <= 0) {
             try {
-                Thread.sleep(100);
-                waitLoaded += 100;
+                Thread.sleep(5);
+                waitLoaded += 5;
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
@@ -373,6 +385,9 @@ public class ForStFlinkFileSystemTest {
         fileSystem.delete(sstRemotePath4, false);
         assertThat(cacheEntry1.getReferenceCount()).isEqualTo(0);
         assertThat(registeredGauges.get("forst.fileCache.usedBytes").getValue()).isEqualTo(0L);
+
+        FileBasedCache.unsetFlinkThread();
+        cache.close();
     }
 
     @Test
