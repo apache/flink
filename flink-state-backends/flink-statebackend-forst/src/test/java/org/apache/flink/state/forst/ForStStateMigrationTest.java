@@ -272,7 +272,7 @@ public class ForStStateMigrationTest extends ForStStateTestBase {
                 new MapStateDescriptor<>(
                         "testState", IntSerializer.INSTANCE, StringSerializer.INSTANCE);
 
-        // set before namespace serializer IntSerializer.INSTANCE
+        // set the old namespace serializer to IntSerializer.INSTANCE
         MapState<Integer, String> mapState =
                 keyedBackend.createState(1, IntSerializer.INSTANCE, descriptor);
 
