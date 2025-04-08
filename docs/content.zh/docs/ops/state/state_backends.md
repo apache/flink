@@ -99,11 +99,35 @@ EmbeddedRocksDBStateBackend 是目前唯一支持增量 CheckPoint 的 State Bac
 
 <a name="choose-the-right-state-backend"></a>
 
+### ForStStateBackend
+
+*ForStStateBackend* 是一个基于 [ForSt project](https://github.com/ververica/ForSt) 的状态后端。ForSt 也是一个 LSM-tree 结构的 key-value store，基于 RocksDB 构建。
+*ForStStateBackend* 为了而存算分离设计，更多细节请参考 [这里]({{< ref "docs/ops/state/disaggregated_state" >}})。
+最重要的是，它可以将 sst 文件保存在 Flink 支持的远程文件系统上，如 HDFS、S3 等。这允许 Flink 扩展状态大小，而不用受限于 TaskManager 的本地磁盘容量。
+同时，将 sst 文件保存在远程文件系统上，可以提供更轻量级的 checkpoint 和恢复方式。
+
+ForStStateBackend 还处于实验阶段，目前还不能用于生产环境。它只支持异步增量快照。
+
+以下场景推荐使用 ForStStateBackend：
+- 大状态、长窗口、大 key/value 状态的作业，本地磁盘空间不足以来存储状态。
+- 全高可用的设置。
+- 倾向异步状态访问。ForStStateBackend 是目前唯一支持异步状态访问的状态后端。
+- 需要轻量级的 checkpoint 和恢复的作业，例如云原生应用。
+
+目前 ForStStateBackend 的限制：
+- 和 EmbeddedRocksDBStateBackend 一样，每个 key 和 value 的最大支持大小为 2^31 字节。
+- 不支持 canonical savepoint、全量快照、changelog 和小文件合并快照。只支持增量快照。
+
+相比 EmbeddedRocksDBStateBackend，ForStStateBackend 将数据保存在远程文件系统上，因此可以存储无限多的状态。TaskManager
+上的本地磁盘仅用来缓存文件，以提供更好的性能。请注意，当大部分的活跃状态都保存在远程文件系统上时，状态访问的性能可能会受网络延迟的影响。
+Flink 介绍了异步状态访问以缓解这个问题，您可以使用 State API V2 的异步状态访问方法来从异步状态访问中受益。请参考 
+[State API V2 文档]({{< ref "docs/dev/datastream/fault-tolerance/state_v2" >}}) 以熟悉 State API V2。
+
 ## 选择合适的 State Backend
 
 在选择 `HashMapStateBackend` 和 `RocksDB` 的时候，其实就是在性能与可扩展性之间权衡。`HashMapStateBackend` 是非常快的，因为每个状态的读取和算子对于 objects 的更新都是在 Java 的 heap 上；但是状态的大小受限于集群中可用的内存。
-另一方面，`RocksDB` 可以根据可用的 disk 空间扩展，并且只有它支持增量 snapshot。
-然而，每个状态的读取和更新都需要(反)序列化，而且在 disk 上进行读操作的性能可能要比基于内存的 state backend 慢一个数量级。
+另一方面，`RocksDB` 可以根据可用的 disk 空间扩展。 然而，每个状态的读取和更新都需要(反)序列化，而且在 disk 上进行读操作的性能可能要比基于内存的 state backend 慢一个数量级。
+如果您需要处理非常大的状态，并且状态大小超过可用的磁盘空间，或者更倾向于在云原生的设置下快速扩展，那么 `ForStStateBackend` 是一个不错的选择。
 
 {{< hint info >}}
 在 Flink 1.13 版本中我们统一了 savepoints 的二进制格式。这意味着你可以生成 savepoint 并且之后使用另一种 state backend 读取它。
