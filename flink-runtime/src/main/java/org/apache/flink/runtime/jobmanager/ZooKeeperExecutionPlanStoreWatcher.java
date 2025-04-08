@@ -37,11 +37,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>Each job graph creates ZNode:
  *
  * <pre>
- * +----O /flink/jobgraphs/&lt;job-id&gt; 1 [persistent]
+ * +----O /flink/execution-plans/&lt;job-id&gt; 1 [persistent]
  * .
  * .
  * .
- * +----O /flink/jobgraphs/&lt;job-id&gt; N [persistent]
+ * +----O /flink/execution-plans/&lt;job-id&gt; N [persistent]
  * </pre>
  *
  * <p>The root path is watched to detect concurrent modifications in corner situations where
