@@ -26,7 +26,7 @@ import org.apache.flink.table.catalog.Column.ComputedColumn;
 import org.apache.flink.table.catalog.Column.MetadataColumn;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.expressions.SerializationContext;
+import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.StringUtils;
@@ -74,7 +74,7 @@ public final class CatalogPropertiesUtil {
 
     /** Serializes the given {@link ResolvedCatalogTable} into a map of string properties. */
     public static Map<String, String> serializeCatalogTable(
-            ResolvedCatalogTable resolvedTable, SerializationContext context) {
+            ResolvedCatalogTable resolvedTable, SqlFactory context) {
         try {
             final Map<String, String> properties = new HashMap<>();
 
@@ -102,7 +102,7 @@ public final class CatalogPropertiesUtil {
 
     /** Serializes the given {@link ResolvedCatalogView} into a map of string properties. */
     public static Map<String, String> serializeCatalogView(
-            ResolvedCatalogView resolvedView, SerializationContext context) {
+            ResolvedCatalogView resolvedView, SqlFactory context) {
         try {
             final Map<String, String> properties = new HashMap<>();
 
@@ -128,8 +128,7 @@ public final class CatalogPropertiesUtil {
      * properties.
      */
     public static Map<String, String> serializeCatalogMaterializedTable(
-            ResolvedCatalogMaterializedTable resolvedMaterializedTable,
-            SerializationContext context) {
+            ResolvedCatalogMaterializedTable resolvedMaterializedTable, SqlFactory context) {
         try {
             final Map<String, String> properties = new HashMap<>();
 
@@ -180,7 +179,7 @@ public final class CatalogPropertiesUtil {
 
     /** Serializes the given {@link ResolvedCatalogModel} into a map of string properties. */
     public static Map<String, String> serializeResolvedCatalogModel(
-            ResolvedCatalogModel resolvedModel, SerializationContext context) {
+            ResolvedCatalogModel resolvedModel, SqlFactory context) {
         try {
             final Map<String, String> properties = new HashMap<>();
 
@@ -547,7 +546,7 @@ public final class CatalogPropertiesUtil {
             Map<String, String> map,
             ResolvedSchema inputSchema,
             ResolvedSchema outputSchema,
-            SerializationContext context) {
+            SqlFactory context) {
         checkNotNull(inputSchema);
         checkNotNull(outputSchema);
         serializeColumnsWithKey(map, inputSchema.getColumns(), MODEL_INPUT_SCHEMA, context);
@@ -555,7 +554,7 @@ public final class CatalogPropertiesUtil {
     }
 
     private static void serializeResolvedSchema(
-            Map<String, String> map, ResolvedSchema schema, SerializationContext context) {
+            Map<String, String> map, ResolvedSchema schema, SqlFactory context) {
         checkNotNull(schema);
 
         serializeColumns(map, schema.getColumns(), context);
@@ -573,7 +572,7 @@ public final class CatalogPropertiesUtil {
     }
 
     private static void serializeWatermarkSpecs(
-            Map<String, String> map, List<WatermarkSpec> specs, SerializationContext context) {
+            Map<String, String> map, List<WatermarkSpec> specs, SqlFactory context) {
         if (!specs.isEmpty()) {
             final List<List<String>> watermarkValues = new ArrayList<>();
             for (WatermarkSpec spec : specs) {
@@ -596,15 +595,12 @@ public final class CatalogPropertiesUtil {
     }
 
     private static void serializeColumns(
-            Map<String, String> map, List<Column> columns, SerializationContext context) {
+            Map<String, String> map, List<Column> columns, SqlFactory context) {
         serializeColumnsWithKey(map, columns, SCHEMA, context);
     }
 
     private static void serializeColumnsWithKey(
-            Map<String, String> map,
-            List<Column> columns,
-            String schemaKey,
-            SerializationContext context) {
+            Map<String, String> map, List<Column> columns, String schemaKey, SqlFactory context) {
         final String[] names = serializeColumnNames(columns);
         final String[] dataTypes = serializeColumnDataTypes(columns);
         final String[] expressions = serializeColumnComputations(columns, context);
@@ -632,7 +628,7 @@ public final class CatalogPropertiesUtil {
     }
 
     private static String serializeResolvedExpression(
-            ResolvedExpression resolvedExpression, SerializationContext context) {
+            ResolvedExpression resolvedExpression, SqlFactory context) {
         try {
             return resolvedExpression.asSerializableString(context);
         } catch (TableException e) {
@@ -675,8 +671,7 @@ public final class CatalogPropertiesUtil {
                 .toArray(String[]::new);
     }
 
-    private static String[] serializeColumnComputations(
-            List<Column> columns, SerializationContext context) {
+    private static String[] serializeColumnComputations(List<Column> columns, SqlFactory context) {
         return columns.stream()
                 .map(
                         column -> {

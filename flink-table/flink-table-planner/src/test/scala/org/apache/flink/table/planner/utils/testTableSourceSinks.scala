@@ -33,7 +33,7 @@ import org.apache.flink.table.api.{DataTypes, TableDescriptor, TableEnvironment}
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.descriptors._
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR, CONNECTOR_TYPE}
-import org.apache.flink.table.expressions.DefaultSerializationContext
+import org.apache.flink.table.expressions.DefaultSqlFactory
 import org.apache.flink.table.factories.FactoryUtil
 import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.legacy.descriptors.Schema
@@ -465,14 +465,14 @@ class TestOptionsTableFactory extends TableSourceFactory[Row] with TableSinkFact
     createPropertiesSource(
       context.getTable
         .asInstanceOf[ResolvedCatalogTable]
-        .toProperties(new DefaultSerializationContext))
+        .toProperties(new DefaultSqlFactory))
   }
 
   override def createTableSink(context: TableSinkFactory.Context): TableSink[Row] = {
     createPropertiesSink(
       context.getTable
         .asInstanceOf[ResolvedCatalogTable]
-        .toProperties(new DefaultSerializationContext))
+        .toProperties(new DefaultSqlFactory))
   }
 }
 

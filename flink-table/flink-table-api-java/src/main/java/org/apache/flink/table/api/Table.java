@@ -23,7 +23,7 @@ import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
-import org.apache.flink.table.expressions.DefaultSerializationContext;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.TableFunction;
@@ -103,8 +103,7 @@ public interface Table extends Explainable<Table>, Executable {
      */
     @Deprecated
     default TableSchema getSchema() {
-        return TableSchema.fromResolvedSchema(
-                getResolvedSchema(), new DefaultSerializationContext());
+        return TableSchema.fromResolvedSchema(getResolvedSchema(), new DefaultSqlFactory());
     }
 
     /** Returns the resolved schema of this table. */

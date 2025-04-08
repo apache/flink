@@ -23,7 +23,7 @@ import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
-import org.apache.flink.table.expressions.DefaultSerializationContext;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 
@@ -69,7 +69,7 @@ public class CreateTableOperation implements CreateOperation {
     @Override
     public String asSummaryString() {
         Map<String, Object> params = new LinkedHashMap<>();
-        params.put("catalogTable", catalogTable.toProperties(new DefaultSerializationContext()));
+        params.put("catalogTable", catalogTable.toProperties(new DefaultSqlFactory()));
         params.put("identifier", tableIdentifier);
         params.put("ignoreIfExists", ignoreIfExists);
         params.put("isTemporary", isTemporary);

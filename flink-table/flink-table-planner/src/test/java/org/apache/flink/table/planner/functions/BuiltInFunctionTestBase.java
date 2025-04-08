@@ -29,7 +29,7 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.DataTypeFactory;
-import org.apache.flink.table.expressions.DefaultSerializationContext;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedFunction;
@@ -562,7 +562,7 @@ abstract class BuiltInFunctionTestBase {
                             .map(
                                     resolvedExpression ->
                                             resolvedExpression.asSerializableString(
-                                                    new DefaultSerializationContext()))
+                                                    new DefaultSqlFactory()))
                             .collect(Collectors.joining(", "));
             return env.sqlQuery("SELECT " + exprAsSerializableString + " FROM " + inputTable);
         }

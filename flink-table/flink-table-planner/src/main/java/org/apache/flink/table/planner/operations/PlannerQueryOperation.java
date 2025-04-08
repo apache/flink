@@ -21,11 +21,11 @@ package org.apache.flink.table.planner.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.QueryOperationVisitor;
-import org.apache.flink.table.operations.SerializationContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.types.DataType;
@@ -79,7 +79,7 @@ public class PlannerQueryOperation implements QueryOperation {
     }
 
     @Override
-    public String asSerializableString(SerializationContext context) {
+    public String asSerializableString(SqlFactory sqlFactory) {
         try {
             return toSqlString.get();
         } catch (Exception e) {

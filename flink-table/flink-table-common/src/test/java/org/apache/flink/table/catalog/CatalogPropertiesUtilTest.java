@@ -20,7 +20,7 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.expressions.DefaultSerializationContext;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 
 import org.junit.jupiter.api.Test;
 
@@ -69,7 +69,7 @@ public class CatalogPropertiesUtilTest {
 
         final Map<String, String> serializedMap =
                 CatalogPropertiesUtil.serializeResolvedCatalogModel(
-                        testModel, new DefaultSerializationContext());
+                        testModel, new DefaultSqlFactory());
         final CatalogModel deserializedModel =
                 CatalogPropertiesUtil.deserializeCatalogModel(serializedMap);
 
@@ -116,8 +116,7 @@ public class CatalogPropertiesUtilTest {
         final ResolvedCatalogTable testTable = new ResolvedCatalogTable(catalogTable, schema);
 
         final Map<String, String> serializedMap =
-                CatalogPropertiesUtil.serializeCatalogTable(
-                        testTable, new DefaultSerializationContext());
+                CatalogPropertiesUtil.serializeCatalogTable(testTable, new DefaultSqlFactory());
         final CatalogTable deserializedTable =
                 CatalogPropertiesUtil.deserializeCatalogTable(serializedMap);
 

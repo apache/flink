@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
@@ -78,14 +79,14 @@ public class FunctionQueryOperation implements QueryOperation {
     }
 
     @Override
-    public String asSerializableString(SerializationContext context) {
+    public String asSerializableString(SqlFactory sqlFactory) {
         return String.format(
                 "SELECT %s FROM TABLE(%s\n) %s",
                 OperationUtils.formatSelectColumns(getResolvedSchema(), INPUT_ALIAS),
                 OperationUtils.indent(
                         resolvedFunction
                                 .toCallExpression(arguments, resolvedSchema.toPhysicalRowDataType())
-                                .asSerializableString(SerializationContextAdapters.adapt(context))),
+                                .asSerializableString(sqlFactory)),
                 INPUT_ALIAS);
     }
 

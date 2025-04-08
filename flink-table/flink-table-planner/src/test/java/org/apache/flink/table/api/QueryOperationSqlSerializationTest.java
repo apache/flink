@@ -21,10 +21,10 @@ package org.apache.flink.table.api;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
+import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.operations.CollectModifyOperation;
 import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.operations.SerializationContext;
 import org.apache.flink.table.test.program.SqlTestStep;
 import org.apache.flink.table.test.program.TableApiTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -92,9 +92,7 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
                                 .findFirst()
                                 .get();
         final Table table = tableApiStep.toTable(env);
-        assertThat(
-                        table.getQueryOperation()
-                                .asSerializableString(new InlineFunctionSerializationContext()))
+        assertThat(table.getQueryOperation().asSerializableString(new InlineFunctionSqlFactory()))
                 .isEqualTo(sqlStep.sql);
     }
 
@@ -136,7 +134,7 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
                 TableEnvironment.create(
                         EnvironmentSettings.newInstance()
                                 .inStreamingMode()
-                                .withSerializationContext(new InlineFunctionSerializationContext())
+                                .withSqlFactory(new InlineFunctionSqlFactory())
                                 .build());
         final Map<String, String> connectorOptions = new HashMap<>();
         connectorOptions.put("connector", "values");
@@ -161,7 +159,7 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
         return EnumSet.of(TestKind.TABLE_API, TestKind.SQL);
     }
 
-    private static class InlineFunctionSerializationContext implements SerializationContext {
+    private static class InlineFunctionSqlFactory implements SqlFactory {
 
         private final Map<FunctionDefinition, String> functionNameMap = new HashMap<>();
 

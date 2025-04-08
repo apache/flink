@@ -23,7 +23,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.expressions.SerializationContext;
+import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
@@ -36,14 +36,14 @@ import java.util.stream.Collectors;
 @Internal
 public interface SqlCallSyntax {
 
-    String unparse(String sqlName, List<ResolvedExpression> operands, SerializationContext context);
+    String unparse(String sqlName, List<ResolvedExpression> operands, SqlFactory context);
 
     /**
      * Special case for aggregate functions, which can have a DISTINCT function applied. Called only
      * from the DISTINCT function.
      */
     default String unparseDistinct(
-            String sqlName, List<ResolvedExpression> operands, SerializationContext context) {
+            String sqlName, List<ResolvedExpression> operands, SqlFactory context) {
         throw new UnsupportedOperationException(
                 "Only the FUNCTION syntax supports the DISTINCT clause.");
     }
@@ -53,17 +53,13 @@ public interface SqlCallSyntax {
             new SqlCallSyntax() {
                 @Override
                 public String unparse(
-                        String sqlName,
-                        List<ResolvedExpression> operands,
-                        SerializationContext context) {
+                        String sqlName, List<ResolvedExpression> operands, SqlFactory context) {
                     return doUnParse(sqlName, operands, false, context);
                 }
 
                 @Override
                 public String unparseDistinct(
-                        String sqlName,
-                        List<ResolvedExpression> operands,
-                        SerializationContext context) {
+                        String sqlName, List<ResolvedExpression> operands, SqlFactory context) {
                     return doUnParse(sqlName, operands, true, context);
                 }
 
@@ -71,7 +67,7 @@ public interface SqlCallSyntax {
                         String sqlName,
                         List<ResolvedExpression> operands,
                         boolean isDistinct,
-                        SerializationContext context) {
+                        SqlFactory context) {
                     return String.format(
                             "%s(%s%s)",
                             sqlName,

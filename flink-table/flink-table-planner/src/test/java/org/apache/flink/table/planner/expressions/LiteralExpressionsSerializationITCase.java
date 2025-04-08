@@ -23,9 +23,9 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.expressions.DefaultSerializationContext;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.expressions.SerializationContext;
+import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.operations.ProjectQueryOperation;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.types.Row;
@@ -49,7 +49,7 @@ import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.nullOf;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for {@link ResolvedExpression#asSerializableString(SerializationContext)}. */
+/** Tests for {@link ResolvedExpression#asSerializableString(SqlFactory)}. */
 @ExtendWith(MiniClusterExtension.class)
 public class LiteralExpressionsSerializationITCase {
 
@@ -95,7 +95,7 @@ public class LiteralExpressionsSerializationITCase {
                         .map(
                                 resolvedExpression ->
                                         resolvedExpression.asSerializableString(
-                                                new DefaultSerializationContext()))
+                                                new DefaultSqlFactory()))
                         .collect(Collectors.joining(",\n"));
 
         assertThat(exprStr)

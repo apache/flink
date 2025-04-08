@@ -18,16 +18,19 @@
 
 package org.apache.flink.table.expressions;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.FunctionDefinition;
 
 /**
- * Context for serializing {@link ResolvedExpression} to a string. Passed to {@link
- * ResolvedExpression#asSerializableString(SerializationContext)}.
+ * Default implementation of {@link SqlFactory} that throws an exception when trying to serialize an
+ * inline function.
  */
-@PublicEvolving
-public interface SerializationContext {
-
-    /** Called when an inline function is serialized. */
-    String serializeInlineFunction(FunctionDefinition functionDefinition);
+@Internal
+public class DefaultSqlFactory implements SqlFactory {
+    @Override
+    public String serializeInlineFunction(FunctionDefinition functionDefinition) {
+        throw new ValidationException(
+                "Only functions that have been registered before are serializable.");
+    }
 }

@@ -26,8 +26,8 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.expressions.DefaultSerializationContext;
-import org.apache.flink.table.expressions.SerializationContext;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
+import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.legacy.api.TableColumn.ComputedColumn;
 import org.apache.flink.table.legacy.api.TableColumn.MetadataColumn;
 import org.apache.flink.table.legacy.api.TableColumn.PhysicalColumn;
@@ -437,11 +437,11 @@ public class TableSchema {
 
     /** Helps to migrate to the new {@link ResolvedSchema} to old API methods. */
     public static TableSchema fromResolvedSchema(ResolvedSchema resolvedSchema) {
-        return fromResolvedSchema(resolvedSchema, new DefaultSerializationContext());
+        return fromResolvedSchema(resolvedSchema, new DefaultSqlFactory());
     }
 
     public static TableSchema fromResolvedSchema(
-            ResolvedSchema resolvedSchema, SerializationContext context) {
+            ResolvedSchema resolvedSchema, SqlFactory context) {
         final TableSchema.Builder builder = TableSchema.builder();
 
         resolvedSchema.getColumns().stream()

@@ -22,6 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
+import org.apache.flink.table.expressions.SqlFactory;
 
 import java.util.List;
 
@@ -41,12 +43,23 @@ public interface QueryOperation extends Operation {
      * Returns a string that fully serializes this instance. The serialized string can be used for
      * storing the query in e.g. a {@link org.apache.flink.table.catalog.Catalog} as a view.
      *
-     * @param context can be used to customize the serialization to a SQL string
      * @return detailed string for persisting in a catalog
      * @see Operation#asSummaryString()
-     * @see EnvironmentSettings.Builder#withSerializationContext(SerializationContext)
      */
-    default String asSerializableString(SerializationContext context) {
+    default String asSerializableString() {
+        return asSerializableString(new DefaultSqlFactory());
+    }
+
+    /**
+     * Returns a string that fully serializes this instance. The serialized string can be used for
+     * storing the query in e.g. a {@link org.apache.flink.table.catalog.Catalog} as a view.
+     *
+     * @param sqlFactory can be used to customize the serialization to a SQL string
+     * @return detailed string for persisting in a catalog
+     * @see Operation#asSummaryString()
+     * @see EnvironmentSettings.Builder#withSqlFactory(SqlFactory)
+     */
+    default String asSerializableString(SqlFactory sqlFactory) {
         throw new UnsupportedOperationException(
                 "QueryOperations are not string serializable for now.");
     }

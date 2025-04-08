@@ -24,7 +24,7 @@ import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.expressions.DefaultSerializationContext;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.legacy.api.TableSchema;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
@@ -85,8 +85,7 @@ class FlinkCalciteCatalogReaderTest {
                 ConnectorCatalogTable.source(
                         new TestTableSource(
                                 true,
-                                TableSchema.fromResolvedSchema(
-                                        schema, new DefaultSerializationContext())),
+                                TableSchema.fromResolvedSchema(schema, new DefaultSqlFactory())),
                         true);
         final ResolvedCatalogTable resolvedCatalogTable =
                 new ResolvedCatalogTable(catalogTable, schema);

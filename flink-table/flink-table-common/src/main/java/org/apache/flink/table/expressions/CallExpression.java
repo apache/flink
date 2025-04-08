@@ -197,18 +197,18 @@ public final class CallExpression implements ResolvedExpression {
     }
 
     @Override
-    public String asSerializableString(SerializationContext context) {
+    public String asSerializableString(SqlFactory sqlFactory) {
         if (functionDefinition instanceof BuiltInFunctionDefinition) {
             final BuiltInFunctionDefinition definition =
                     (BuiltInFunctionDefinition) functionDefinition;
-            return definition.getCallSyntax().unparse(definition.getSqlName(), args, context);
+            return definition.getCallSyntax().unparse(definition.getSqlName(), args, sqlFactory);
         } else {
             return SqlCallSyntax.FUNCTION.unparse(
-                    getSerializableFunctionName(context), args, context);
+                    getSerializableFunctionName(sqlFactory), args, sqlFactory);
         }
     }
 
-    private String getSerializableFunctionName(SerializationContext context) {
+    private String getSerializableFunctionName(SqlFactory context) {
         if (functionIdentifier == null) {
             return context.serializeInlineFunction(functionDefinition);
         }

@@ -47,7 +47,7 @@ public interface ResolvedExpression extends Expression {
      * @return detailed string for persisting in a catalog
      */
     default String asSerializableString() {
-        return asSerializableString(new DefaultSerializationContext());
+        return asSerializableString(new DefaultSqlFactory());
     }
 
     /**
@@ -57,7 +57,7 @@ public interface ResolvedExpression extends Expression {
      *
      * @return detailed string for persisting in a catalog
      */
-    default String asSerializableString(SerializationContext context) {
+    default String asSerializableString(SqlFactory sqlFactory) {
         throw new TableException(
                 String.format(
                         "Expression '%s' is not string serializable. Currently, only expressions that "

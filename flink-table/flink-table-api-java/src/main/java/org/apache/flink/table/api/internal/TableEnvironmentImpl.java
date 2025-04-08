@@ -73,6 +73,7 @@ import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.execution.StagingSinkJobStatusHook;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor;
@@ -91,7 +92,6 @@ import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CollectModifyOperation;
 import org.apache.flink.table.operations.CompileAndExecutePlanOperation;
 import org.apache.flink.table.operations.CreateTableASOperation;
-import org.apache.flink.table.operations.DefaultSerializationContext;
 import org.apache.flink.table.operations.DeleteFromFilterOperation;
 import org.apache.flink.table.operations.ExecutableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
@@ -284,9 +284,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                         .config(tableConfig)
                                         .classloader(userClassLoader)
                                         .build())
-                        .serializationContext(
-                                settings.getSerializationContext()
-                                        .orElseGet(() -> new DefaultSerializationContext()))
+                        .sqlFactory(
+                                settings.getSqlFactory().orElseGet(() -> new DefaultSqlFactory()))
                         .build();
 
         final FunctionCatalog functionCatalog =
@@ -1261,8 +1260,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         String defaultJobName = "collect";
 
         try {
-            defaultJobName =
-                    operation.asSerializableString(catalogManager.getSerializationContext());
+            defaultJobName = operation.asSerializableString(catalogManager.getSqlFactory());
         } catch (Throwable e) {
             // ignore error for unsupported operations and use 'collect' as default job name
         }

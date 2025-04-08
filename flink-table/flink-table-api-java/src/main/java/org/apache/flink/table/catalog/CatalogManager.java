@@ -50,12 +50,12 @@ import org.apache.flink.table.catalog.listener.DropModelEvent;
 import org.apache.flink.table.catalog.listener.DropTableEvent;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
+import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver.ExpressionResolverBuilder;
 import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.table.operations.DefaultSerializationContext;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.operations.SerializationContext;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -121,7 +121,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
 
     private final CatalogStoreHolder catalogStoreHolder;
 
-    private SerializationContext serializationContext;
+    private SqlFactory sqlFactory;
 
     private CatalogManager(
             String defaultCatalogName,
@@ -129,7 +129,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             DataTypeFactory typeFactory,
             List<CatalogModificationListener> catalogModificationListeners,
             CatalogStoreHolder catalogStoreHolder,
-            SerializationContext serializationContext) {
+            SqlFactory sqlFactory) {
         checkArgument(
                 !StringUtils.isNullOrWhitespaceOnly(defaultCatalogName),
                 "Default catalog name cannot be null or empty");
@@ -151,7 +151,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
 
         this.catalogStoreHolder = catalogStoreHolder;
 
-        this.serializationContext = serializationContext;
+        this.sqlFactory = sqlFactory;
     }
 
     @VisibleForTesting
@@ -187,7 +187,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                 Collections.emptyList();
         private CatalogStoreHolder catalogStoreHolder;
 
-        private SerializationContext serializationContext = new DefaultSerializationContext();
+        private SqlFactory sqlFactory = new DefaultSqlFactory();
 
         public Builder classLoader(ClassLoader classLoader) {
             this.classLoader = classLoader;
@@ -226,8 +226,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             return this;
         }
 
-        public Builder serializationContext(SerializationContext serializationContext) {
-            this.serializationContext = checkNotNull(serializationContext);
+        public Builder sqlFactory(SqlFactory sqlFactory) {
+            this.sqlFactory = checkNotNull(sqlFactory);
             return this;
         }
 
@@ -248,7 +248,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                                             : executionConfig.getSerializerConfig()),
                     catalogModificationListeners,
                     catalogStoreHolder,
-                    serializationContext);
+                    sqlFactory);
         }
     }
 
@@ -320,12 +320,12 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         return typeFactory;
     }
 
-    public SerializationContext getSerializationContext() {
-        return serializationContext;
+    public SqlFactory getSqlFactory() {
+        return sqlFactory;
     }
 
-    public void setSerializationContext(SerializationContext serializationContext) {
-        this.serializationContext = checkNotNull(serializationContext);
+    public void setSqlFactory(SqlFactory sqlFactory) {
+        this.sqlFactory = checkNotNull(sqlFactory);
     }
 
     /**

@@ -23,8 +23,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.CatalogStore;
+import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.functions.UserDefinedFunction;
-import org.apache.flink.table.operations.SerializationContext;
 
 import javax.annotation.Nullable;
 
@@ -65,17 +65,17 @@ public class EnvironmentSettings {
     private final ClassLoader classLoader;
 
     private final @Nullable CatalogStore catalogStore;
-    private final @Nullable SerializationContext serializationContext;
+    private final @Nullable SqlFactory sqlFactory;
 
     private EnvironmentSettings(
             Configuration configuration,
             ClassLoader classLoader,
             CatalogStore catalogStore,
-            SerializationContext serializationContext) {
+            SqlFactory sqlFactory) {
         this.configuration = configuration;
         this.classLoader = classLoader;
         this.catalogStore = catalogStore;
-        this.serializationContext = serializationContext;
+        this.sqlFactory = sqlFactory;
     }
 
     /**
@@ -150,8 +150,8 @@ public class EnvironmentSettings {
     }
 
     @Internal
-    public Optional<SerializationContext> getSerializationContext() {
-        return Optional.ofNullable(serializationContext);
+    public Optional<SqlFactory> getSqlFactory() {
+        return Optional.ofNullable(sqlFactory);
     }
 
     /** A builder for {@link EnvironmentSettings}. */
@@ -162,7 +162,7 @@ public class EnvironmentSettings {
         private ClassLoader classLoader;
 
         private @Nullable CatalogStore catalogStore;
-        private @Nullable SerializationContext serializationContext;
+        private @Nullable SqlFactory sqlFactory;
 
         public Builder() {}
 
@@ -243,11 +243,11 @@ public class EnvironmentSettings {
         }
 
         /**
-         * Provides a way to customize the process of serializing operations to an SQL string. This
-         * is useful, for example, for customizing the serialization of inline functions.
+         * Provides a way to customize the process of serializing Table API to a SQL string. This is
+         * useful, for example, for customizing the serialization of inline functions.
          */
-        public Builder withSerializationContext(SerializationContext serializationContext) {
-            this.serializationContext = serializationContext;
+        public Builder withSqlFactory(SqlFactory sqlFactory) {
+            this.sqlFactory = sqlFactory;
             return this;
         }
 
@@ -256,8 +256,7 @@ public class EnvironmentSettings {
             if (classLoader == null) {
                 classLoader = Thread.currentThread().getContextClassLoader();
             }
-            return new EnvironmentSettings(
-                    configuration, classLoader, catalogStore, serializationContext);
+            return new EnvironmentSettings(configuration, classLoader, catalogStore, sqlFactory);
         }
     }
 }

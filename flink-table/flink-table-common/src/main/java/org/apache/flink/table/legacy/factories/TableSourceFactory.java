@@ -24,7 +24,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
-import org.apache.flink.table.expressions.DefaultSerializationContext;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.legacy.sources.TableSource;
 
@@ -68,7 +68,7 @@ public interface TableSourceFactory<T> extends TableFactory {
     @Deprecated
     default TableSource<T> createTableSource(ObjectPath tablePath, CatalogTable table) {
         return createTableSource(
-                ((ResolvedCatalogTable) table).toProperties(new DefaultSerializationContext()));
+                ((ResolvedCatalogTable) table).toProperties(new DefaultSqlFactory()));
     }
 
     /**

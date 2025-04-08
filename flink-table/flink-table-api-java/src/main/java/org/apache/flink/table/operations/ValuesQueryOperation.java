@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.SqlFactory;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -66,7 +67,7 @@ public class ValuesQueryOperation implements QueryOperation {
     }
 
     @Override
-    public String asSerializableString(SerializationContext context) {
+    public String asSerializableString(SqlFactory sqlFactory) {
         return String.format(
                 "SELECT %s FROM (VALUES %s\n) %s(%s)",
                 OperationUtils.formatSelectColumns(resolvedSchema, INPUT_ALIAS),
@@ -79,9 +80,7 @@ public class ValuesQueryOperation implements QueryOperation {
                                                                 resolvedExpression ->
                                                                         resolvedExpression
                                                                                 .asSerializableString(
-                                                                                        SerializationContextAdapters
-                                                                                                .adapt(
-                                                                                                        context)))
+                                                                                        sqlFactory))
                                                         .collect(
                                                                 Collectors.joining(", ", "(", ")")))
                                 .collect(Collectors.joining(",\n"))),
