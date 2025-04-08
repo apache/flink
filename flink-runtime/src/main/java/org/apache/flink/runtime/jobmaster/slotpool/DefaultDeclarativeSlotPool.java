@@ -208,15 +208,15 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 
     @Override
     public Collection<SlotOffer> offerSlots(
-            Collection<? extends SlotOffer> offers,
+            Collection<? extends SlotOffer> slotOffers,
             TaskManagerLocation taskManagerLocation,
             TaskManagerGateway taskManagerGateway,
             long currentTime) {
 
-        log.debug("Received {} slot offers from TaskExecutor {}.", offers, taskManagerLocation);
+        log.debug("Received {} slot offers from TaskExecutor {}.", slotOffers, taskManagerLocation);
 
         return internalOfferSlots(
-                offers,
+                slotOffers,
                 taskManagerLocation,
                 taskManagerGateway,
                 currentTime,

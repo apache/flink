@@ -156,12 +156,12 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
 
     @Override
     public Collection<SlotOffer> offerSlots(
-            Collection<? extends SlotOffer> offers,
+            Collection<? extends SlotOffer> slotOffers,
             TaskManagerLocation taskManagerLocation,
             TaskManagerGateway taskManagerGateway,
             long currentTime) {
         return offerSlotsFunction.apply(
-                offers, taskManagerLocation, taskManagerGateway, currentTime);
+                slotOffers, taskManagerLocation, taskManagerGateway, currentTime);
     }
 
     @Override
