@@ -138,6 +138,13 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
         return stateSerializerProvider.registerNewSerializerForRestoredState(newStateSerializer);
     }
 
+    @Nonnull
+    public TypeSerializerSchemaCompatibility<N> updateNamespaceSerializer(
+            TypeSerializer<N> newNamespaceSerializer) {
+        return namespaceSerializerProvider.registerNewSerializerForRestoredState(
+                newNamespaceSerializer);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
