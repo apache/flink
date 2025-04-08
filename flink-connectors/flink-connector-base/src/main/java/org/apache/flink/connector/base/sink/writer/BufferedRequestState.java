@@ -23,6 +23,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.List;
 
 /**
@@ -39,6 +40,11 @@ public class BufferedRequestState<RequestEntryT extends Serializable> implements
     private final long stateSize;
 
     @Deprecated
+    public BufferedRequestState(Deque<RequestEntryWrapper<RequestEntryT>> bufferedRequestEntries) {
+        this.bufferedRequestEntries = new ArrayList<>(bufferedRequestEntries);
+        this.stateSize = calculateStateSize();
+    }
+
     public BufferedRequestState(List<RequestEntryWrapper<RequestEntryT>> bufferedRequestEntries) {
         this.bufferedRequestEntries = new ArrayList<>(bufferedRequestEntries);
         this.stateSize = calculateStateSize();
