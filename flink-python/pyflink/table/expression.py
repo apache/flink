@@ -193,7 +193,7 @@ def _make_string_doc():
     ]
 
     for func in string_funcs:
-        func.__doc__ = func.__doc__.replace('  ', '') + _string_doc_seealso
+        func.__doc__ = func.__doc__ + _string_doc_seealso
 
 
 def _make_temporal_doc():
@@ -203,7 +203,7 @@ def _make_temporal_doc():
     ]
 
     for func in temporal_funcs:
-        func.__doc__ = func.__doc__.replace('  ', '') + _temporal_doc_seealso
+        func.__doc__ = func.__doc__ + _temporal_doc_seealso
 
 
 def _make_time_doc():
