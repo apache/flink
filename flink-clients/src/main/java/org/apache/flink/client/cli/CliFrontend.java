@@ -187,7 +187,10 @@ public class CliFrontend {
         final CustomCommandLine activeCommandLine =
                 validateAndGetActiveCommandLine(checkNotNull(commandLine));
 
-        if (isDeploymentTargetApplication(activeCommandLine, commandLine)) {
+        final Configuration initEffectiveConfiguration =
+                getEffectiveConfiguration(activeCommandLine, commandLine);
+
+        if (isDeploymentTargetApplication(initEffectiveConfiguration)) {
             final ApplicationDeployer deployer =
                     new ApplicationClusterDeployer(clusterClientServiceLoader);
 
@@ -199,8 +202,7 @@ public class CliFrontend {
                 programOptions = ProgramOptionsUtils.createPythonProgramOptions(commandLine);
                 effectiveConfiguration =
                         getEffectiveConfiguration(
-                                activeCommandLine,
-                                commandLine,
+                                initEffectiveConfiguration,
                                 programOptions,
                                 Collections.emptyList());
             } else {
@@ -209,8 +211,7 @@ public class CliFrontend {
                 final URI uri = PackagedProgramUtils.resolveURI(programOptions.getJarFilePath());
                 effectiveConfiguration =
                         getEffectiveConfiguration(
-                                activeCommandLine,
-                                commandLine,
+                                initEffectiveConfiguration,
                                 programOptions,
                                 Collections.singletonList(uri.toString()));
             }
@@ -226,8 +227,7 @@ public class CliFrontend {
             final List<URL> jobJars = getJobJarAndDependencies(programOptions);
 
             final Configuration effectiveConfiguration =
-                    getEffectiveConfiguration(
-                            activeCommandLine, commandLine, programOptions, jobJars);
+                    getEffectiveConfiguration(initEffectiveConfiguration, programOptions, jobJars);
 
             LOG.debug("Effective executor configuration: {}", effectiveConfiguration);
 
@@ -238,12 +238,7 @@ public class CliFrontend {
         }
     }
 
-    protected boolean isDeploymentTargetApplication(
-            final CustomCommandLine activeCustomCommandLine, final CommandLine commandLine)
-            throws FlinkException {
-        final Configuration effectiveConfiguration =
-                getEffectiveConfiguration(activeCustomCommandLine, commandLine);
-
+    protected boolean isDeploymentTargetApplication(final Configuration effectiveConfiguration) {
         final String executionTarget =
                 effectiveConfiguration
                         .getOptional(DeploymentOptions.TARGET)
@@ -301,14 +296,9 @@ public class CliFrontend {
     }
 
     private <T> Configuration getEffectiveConfiguration(
-            final CustomCommandLine activeCustomCommandLine,
-            final CommandLine commandLine,
+            final Configuration effectiveConfiguration,
             final ProgramOptions programOptions,
-            final List<T> jobJars)
-            throws FlinkException {
-
-        final Configuration effectiveConfiguration =
-                getEffectiveConfiguration(activeCustomCommandLine, commandLine);
+            final List<T> jobJars) {
 
         final ExecutionConfigAccessor executionParameters =
                 ExecutionConfigAccessor.fromProgramOptions(
@@ -354,10 +344,12 @@ public class CliFrontend {
             final CustomCommandLine activeCommandLine =
                     validateAndGetActiveCommandLine(checkNotNull(commandLine));
 
+            final Configuration initEffectiveConfiguration =
+                    getEffectiveConfiguration(activeCommandLine, commandLine);
+
             final Configuration effectiveConfiguration =
                     getEffectiveConfiguration(
-                            activeCommandLine,
-                            commandLine,
+                            initEffectiveConfiguration,
                             programOptions,
                             getJobJarAndDependencies(programOptions));
 
