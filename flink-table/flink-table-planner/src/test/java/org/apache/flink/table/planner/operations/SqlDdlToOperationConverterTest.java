@@ -418,7 +418,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         assertThat(operation).isInstanceOf(CreateTableOperation.class);
         CreateTableOperation op = (CreateTableOperation) operation;
         ResolvedCatalogTable catalogTable = op.getCatalogTable();
-        Map<String, String> properties = catalogTable.toProperties(new DefaultSqlFactory());
+        Map<String, String> properties = catalogTable.toProperties(DefaultSqlFactory.INSTANCE);
         Map<String, String> expected = new HashMap<>();
         expected.put("schema.0.name", "a");
         expected.put("schema.0.data-type", "INT");

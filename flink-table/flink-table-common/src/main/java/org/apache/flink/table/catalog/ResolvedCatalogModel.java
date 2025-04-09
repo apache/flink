@@ -51,7 +51,7 @@ public interface ResolvedCatalogModel extends CatalogModel {
      * schema, output schema, comment and options.
      */
     default Map<String, String> toProperties() {
-        return toProperties(new DefaultSqlFactory());
+        return toProperties(DefaultSqlFactory.INSTANCE);
     }
 
     /**
@@ -60,7 +60,7 @@ public interface ResolvedCatalogModel extends CatalogModel {
      * <p>Compared to the pure table options in {@link #getOptions()}, the map includes input
      * schema, output schema, comment and options.
      */
-    Map<String, String> toProperties(SqlFactory context);
+    Map<String, String> toProperties(SqlFactory sqlFactory);
 
     /**
      * Creates an instance of {@link CatalogModel} from a map of string properties that were

@@ -69,7 +69,7 @@ public class CatalogPropertiesUtilTest {
 
         final Map<String, String> serializedMap =
                 CatalogPropertiesUtil.serializeResolvedCatalogModel(
-                        testModel, new DefaultSqlFactory());
+                        testModel, DefaultSqlFactory.INSTANCE);
         final CatalogModel deserializedModel =
                 CatalogPropertiesUtil.deserializeCatalogModel(serializedMap);
 
@@ -116,7 +116,7 @@ public class CatalogPropertiesUtilTest {
         final ResolvedCatalogTable testTable = new ResolvedCatalogTable(catalogTable, schema);
 
         final Map<String, String> serializedMap =
-                CatalogPropertiesUtil.serializeCatalogTable(testTable, new DefaultSqlFactory());
+                CatalogPropertiesUtil.serializeCatalogTable(testTable, DefaultSqlFactory.INSTANCE);
         final CatalogTable deserializedTable =
                 CatalogPropertiesUtil.deserializeCatalogTable(serializedMap);
 

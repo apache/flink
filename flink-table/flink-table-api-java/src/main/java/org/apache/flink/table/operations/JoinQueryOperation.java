@@ -140,12 +140,12 @@ public class JoinQueryOperation implements QueryOperation {
         return leftColumns + ", " + rightColumns;
     }
 
-    private String rightToSerializable(SqlFactory context) {
+    private String rightToSerializable(SqlFactory sqlFactory) {
         final StringBuilder s = new StringBuilder();
         if (!correlated) {
             s.append("(");
         }
-        s.append(OperationUtils.indent(right.asSerializableString(context)));
+        s.append(OperationUtils.indent(right.asSerializableString(sqlFactory)));
         if (!correlated) {
             s.append("\n)");
             s.append(" ");

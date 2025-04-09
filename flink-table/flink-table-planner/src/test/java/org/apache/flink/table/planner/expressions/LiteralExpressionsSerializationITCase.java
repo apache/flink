@@ -95,7 +95,7 @@ public class LiteralExpressionsSerializationITCase {
                         .map(
                                 resolvedExpression ->
                                         resolvedExpression.asSerializableString(
-                                                new DefaultSqlFactory()))
+                                                DefaultSqlFactory.INSTANCE))
                         .collect(Collectors.joining(",\n"));
 
         assertThat(exprStr)

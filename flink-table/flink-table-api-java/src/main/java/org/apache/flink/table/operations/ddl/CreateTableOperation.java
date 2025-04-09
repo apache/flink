@@ -69,7 +69,7 @@ public class CreateTableOperation implements CreateOperation {
     @Override
     public String asSummaryString() {
         Map<String, Object> params = new LinkedHashMap<>();
-        params.put("catalogTable", catalogTable.toProperties(new DefaultSqlFactory()));
+        params.put("catalogTable", catalogTable.toProperties(DefaultSqlFactory.INSTANCE));
         params.put("identifier", tableIdentifier);
         params.put("ignoreIfExists", ignoreIfExists);
         params.put("isTemporary", isTemporary);

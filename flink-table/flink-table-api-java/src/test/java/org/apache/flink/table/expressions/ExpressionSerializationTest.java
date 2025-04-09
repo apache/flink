@@ -402,7 +402,7 @@ public class ExpressionSerializationTest {
                 .hasSize(1)
                 .extracting(
                         resolvedExpression ->
-                                resolvedExpression.asSerializableString(new DefaultSqlFactory()))
+                                resolvedExpression.asSerializableString(DefaultSqlFactory.INSTANCE))
                 .containsOnly(spec.expectedStr);
     }
 

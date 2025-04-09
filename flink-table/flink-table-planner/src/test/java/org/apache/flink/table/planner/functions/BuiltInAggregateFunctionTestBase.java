@@ -540,7 +540,7 @@ abstract class BuiltInAggregateFunctionTestBase {
                     .map(
                             resolvedExpression ->
                                     resolvedExpression.asSerializableString(
-                                            new DefaultSqlFactory()))
+                                            DefaultSqlFactory.INSTANCE))
                     .collect(Collectors.joining(", "));
         }
 

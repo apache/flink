@@ -266,23 +266,23 @@ public class WindowAggregateQueryOperation implements QueryOperation {
             }
         }
 
-        public String asSerializableString(String table, SqlFactory context) {
+        public String asSerializableString(String table, SqlFactory sqlFactory) {
             switch (type) {
                 case SLIDE:
                     return String.format(
                             "HOP((%s\n), DESCRIPTOR(%s), %s, %s)",
                             OperationUtils.indent(table),
-                            timeAttribute.asSerializableString(context),
-                            slide.asSerializableString(context),
-                            size.asSerializableString(context));
+                            timeAttribute.asSerializableString(sqlFactory),
+                            slide.asSerializableString(sqlFactory),
+                            size.asSerializableString(sqlFactory));
                 case SESSION:
                     throw new TableException("Session windows are not SQL serializable yet.");
                 case TUMBLE:
                     return String.format(
                             "TUMBLE((%s\n), DESCRIPTOR(%s), %s)",
                             OperationUtils.indent(table),
-                            timeAttribute.asSerializableString(context),
-                            size.asSerializableString(context));
+                            timeAttribute.asSerializableString(sqlFactory),
+                            size.asSerializableString(sqlFactory));
                 default:
                     throw new IllegalStateException("Unknown window type: " + type);
             }

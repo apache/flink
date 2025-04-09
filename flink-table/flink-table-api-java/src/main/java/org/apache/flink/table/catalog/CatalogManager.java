@@ -187,7 +187,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                 Collections.emptyList();
         private CatalogStoreHolder catalogStoreHolder;
 
-        private SqlFactory sqlFactory = new DefaultSqlFactory();
+        private SqlFactory sqlFactory = DefaultSqlFactory.INSTANCE;
 
         public Builder classLoader(ClassLoader classLoader) {
             this.classLoader = classLoader;

@@ -40,22 +40,22 @@ public interface QueryOperation extends Operation {
     ResolvedSchema getResolvedSchema();
 
     /**
-     * Returns a string that fully serializes this instance. The serialized string can be used for
-     * storing the query in e.g. a {@link org.apache.flink.table.catalog.Catalog} as a view.
+     * Returns a SQL string that fully serializes this instance. The serialized string can be used
+     * for storing the query in e.g. a {@link org.apache.flink.table.catalog.Catalog} as a view.
      *
      * @return detailed string for persisting in a catalog
      * @see Operation#asSummaryString()
      */
     default String asSerializableString() {
-        return asSerializableString(new DefaultSqlFactory());
+        return asSerializableString(DefaultSqlFactory.INSTANCE);
     }
 
     /**
-     * Returns a string that fully serializes this instance. The serialized string can be used for
-     * storing the query in e.g. a {@link org.apache.flink.table.catalog.Catalog} as a view.
+     * Returns a SQL string that fully serializes this instance. The serialized string can be used
+     * for storing the query in e.g. a {@link org.apache.flink.table.catalog.Catalog} as a view.
      *
      * @param sqlFactory can be used to customize the serialization to a SQL string
-     * @return detailed string for persisting in a catalog
+     * @return Flink SQL string for persisting in a catalog
      * @see Operation#asSummaryString()
      * @see EnvironmentSettings.Builder#withSqlFactory(SqlFactory)
      */

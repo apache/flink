@@ -85,7 +85,7 @@ class FlinkCalciteCatalogReaderTest {
                 ConnectorCatalogTable.source(
                         new TestTableSource(
                                 true,
-                                TableSchema.fromResolvedSchema(schema, new DefaultSqlFactory())),
+                                TableSchema.fromResolvedSchema(schema, DefaultSqlFactory.INSTANCE)),
                         true);
         final ResolvedCatalogTable resolvedCatalogTable =
                 new ResolvedCatalogTable(catalogTable, schema);

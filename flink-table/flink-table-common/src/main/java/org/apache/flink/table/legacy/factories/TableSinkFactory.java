@@ -68,7 +68,7 @@ public interface TableSinkFactory<T> extends TableFactory {
     @Deprecated
     default TableSink<T> createTableSink(ObjectPath tablePath, CatalogTable table) {
         return createTableSink(
-                ((ResolvedCatalogTable) table).toProperties(new DefaultSqlFactory()));
+                ((ResolvedCatalogTable) table).toProperties(DefaultSqlFactory.INSTANCE));
     }
 
     /**

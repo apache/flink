@@ -93,7 +93,7 @@ public class ResolvedExpressionMock implements ResolvedExpression {
         return Objects.equals(outputDataType, that.getOutputDataType())
                 && Objects.equals(
                         stringRepresentation.get(),
-                        that.asSerializableString(new DefaultSqlFactory()));
+                        that.asSerializableString(DefaultSqlFactory.INSTANCE));
     }
 
     @Override

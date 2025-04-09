@@ -103,7 +103,7 @@ public interface Table extends Explainable<Table>, Executable {
      */
     @Deprecated
     default TableSchema getSchema() {
-        return TableSchema.fromResolvedSchema(getResolvedSchema(), new DefaultSqlFactory());
+        return TableSchema.fromResolvedSchema(getResolvedSchema(), DefaultSqlFactory.INSTANCE);
     }
 
     /** Returns the resolved schema of this table. */

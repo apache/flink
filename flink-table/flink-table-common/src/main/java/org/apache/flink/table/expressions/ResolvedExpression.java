@@ -47,7 +47,7 @@ public interface ResolvedExpression extends Expression {
      * @return detailed string for persisting in a catalog
      */
     default String asSerializableString() {
-        return asSerializableString(new DefaultSqlFactory());
+        return asSerializableString(DefaultSqlFactory.INSTANCE);
     }
 
     /**

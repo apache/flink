@@ -650,7 +650,7 @@ public class TestFileSystemCatalog extends AbstractCatalog {
 
     private Map<String, String> serializeTable(
             ResolvedCatalogBaseTable<?> resolvedCatalogBaseTable) {
-        final DefaultSqlFactory sqlFactory = new DefaultSqlFactory();
+        final DefaultSqlFactory sqlFactory = DefaultSqlFactory.INSTANCE;
         if (resolvedCatalogBaseTable instanceof ResolvedCatalogTable) {
             return CatalogPropertiesUtil.serializeCatalogTable(
                     (ResolvedCatalogTable) resolvedCatalogBaseTable, sqlFactory);

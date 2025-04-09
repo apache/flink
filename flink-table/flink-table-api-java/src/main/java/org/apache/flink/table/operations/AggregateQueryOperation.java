@@ -96,7 +96,7 @@ public class AggregateQueryOperation implements QueryOperation {
                 groupingExprs);
     }
 
-    private String getGroupingExprs(SqlFactory context) {
+    private String getGroupingExprs(SqlFactory sqlFactory) {
         if (groupingExpressions.isEmpty()) {
             return "1";
         } else {
@@ -105,7 +105,7 @@ public class AggregateQueryOperation implements QueryOperation {
                             expr ->
                                     OperationExpressionsUtils.scopeReferencesWithAlias(
                                             INPUT_ALIAS, expr))
-                    .map(resolvedExpression -> resolvedExpression.asSerializableString(context))
+                    .map(resolvedExpression -> resolvedExpression.asSerializableString(sqlFactory))
                     .collect(Collectors.joining(", "));
         }
     }

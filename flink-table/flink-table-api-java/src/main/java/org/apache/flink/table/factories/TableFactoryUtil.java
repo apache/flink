@@ -56,7 +56,7 @@ public class TableFactoryUtil {
             return TableFactoryService.find(
                             TableSourceFactory.class,
                             ((ResolvedCatalogTable) context.getTable())
-                                    .toProperties(new DefaultSqlFactory()))
+                                    .toProperties(DefaultSqlFactory.INSTANCE))
                     .createTableSource(context);
         } catch (Throwable t) {
             throw new TableException("findAndCreateTableSource failed.", t);
@@ -87,7 +87,7 @@ public class TableFactoryUtil {
             return TableFactoryService.find(
                             TableSinkFactory.class,
                             ((ResolvedCatalogTable) context.getTable())
-                                    .toProperties(new DefaultSqlFactory()))
+                                    .toProperties(DefaultSqlFactory.INSTANCE))
                     .createTableSink(context);
         } catch (Throwable t) {
             throw new TableException("findAndCreateTableSink failed.", t);

@@ -217,7 +217,7 @@ class CatalogBaseTableResolutionTest {
         final ResolvedCatalogTable resolvedTable =
                 resolveCatalogBaseTable(ResolvedCatalogTable.class, table);
 
-        assertThat(resolvedTable.toProperties(new DefaultSqlFactory()))
+        assertThat(resolvedTable.toProperties(DefaultSqlFactory.INSTANCE))
                 .isEqualTo(catalogTableAsProperties());
 
         assertThat(resolvedTable.getResolvedSchema()).isEqualTo(RESOLVED_TABLE_SCHEMA);
@@ -231,7 +231,7 @@ class CatalogBaseTableResolutionTest {
                         ResolvedCatalogMaterializedTable.class, catalogMaterializedTable);
         assertThat(
                         CatalogPropertiesUtil.serializeCatalogMaterializedTable(
-                                resolvedCatalogMaterializedTable, new DefaultSqlFactory()))
+                                resolvedCatalogMaterializedTable, DefaultSqlFactory.INSTANCE))
                 .isEqualTo(catalogMaterializedTableAsProperties());
 
         assertThat(resolvedCatalogMaterializedTable.getResolvedSchema())

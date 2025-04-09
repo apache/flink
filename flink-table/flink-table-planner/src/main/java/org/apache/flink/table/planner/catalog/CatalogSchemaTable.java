@@ -118,7 +118,7 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
                 && schema.getColumns().stream().allMatch(Column::isPhysical)
                 && schema.getWatermarkSpecs().isEmpty()) {
             TableSchema tableSchema =
-                    TableSchema.fromResolvedSchema(schema, new DefaultSqlFactory());
+                    TableSchema.fromResolvedSchema(schema, DefaultSqlFactory.INSTANCE);
             TableSource<?> source = sourceOpt.get();
             if (TableSourceValidation.hasProctimeAttribute(source)
                     || TableSourceValidation.hasRowtimeAttribute(source)) {

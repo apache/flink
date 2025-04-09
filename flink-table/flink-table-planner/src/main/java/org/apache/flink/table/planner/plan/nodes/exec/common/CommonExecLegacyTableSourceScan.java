@@ -164,7 +164,7 @@ public abstract class CommonExecLegacyTableSourceScan extends ExecNodeBase<RowDa
         TableSchema tableSchema =
                 TableSchema.fromResolvedSchema(
                         DataTypeUtils.expandCompositeTypeToSchema(DataTypes.of(outputType)),
-                        new DefaultSqlFactory());
+                        DefaultSqlFactory.INSTANCE);
         return TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
                 tableSource, tableSchema.getTableColumns(), isStreaming, getNameRemapping());
     }

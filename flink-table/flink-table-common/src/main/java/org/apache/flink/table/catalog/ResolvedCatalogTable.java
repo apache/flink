@@ -74,7 +74,7 @@ public final class ResolvedCatalogTable
      * implementation must not deal with this during a read operation.
      */
     public Map<String, String> toProperties() {
-        return toProperties(new DefaultSqlFactory());
+        return toProperties(DefaultSqlFactory.INSTANCE);
     }
 
     /**
@@ -87,8 +87,8 @@ public final class ResolvedCatalogTable
      * symmetric. The framework will resolve functions and perform other validation tasks. A catalog
      * implementation must not deal with this during a read operation.
      */
-    public Map<String, String> toProperties(SqlFactory context) {
-        return CatalogPropertiesUtil.serializeCatalogTable(this, context);
+    public Map<String, String> toProperties(SqlFactory sqlFactory) {
+        return CatalogPropertiesUtil.serializeCatalogTable(this, sqlFactory);
     }
 
     // --------------------------------------------------------------------------------------------

@@ -67,8 +67,8 @@ public final class DefaultResolvedCatalogModel implements ResolvedCatalogModel, 
         return resolvedOutputSchema;
     }
 
-    public Map<String, String> toProperties(SqlFactory context) {
-        return CatalogPropertiesUtil.serializeResolvedCatalogModel(this, context);
+    public Map<String, String> toProperties(SqlFactory sqlFactory) {
+        return CatalogPropertiesUtil.serializeResolvedCatalogModel(this, sqlFactory);
     }
 
     // --------------------------------------------------------------------------------------------

@@ -40,12 +40,12 @@ class CallSyntaxUtils {
      * parenthesis if the expression is not a leaf expression such as e.g. {@link
      * ValueLiteralExpression} or {@link FieldReferenceExpression}.
      */
-    static String asSerializableOperand(ResolvedExpression expression, SqlFactory context) {
+    static String asSerializableOperand(ResolvedExpression expression, SqlFactory sqlFactory) {
         if (expression.getResolvedChildren().isEmpty()) {
-            return expression.asSerializableString(context);
+            return expression.asSerializableString(sqlFactory);
         }
 
-        return String.format("(%s)", expression.asSerializableString(context));
+        return String.format("(%s)", expression.asSerializableString(sqlFactory));
     }
 
     static <T extends TableSymbol> T getSymbolLiteral(ResolvedExpression operands, Class<T> clazz) {
@@ -53,7 +53,7 @@ class CallSyntaxUtils {
     }
 
     static String overRangeToSerializableString(
-            ResolvedExpression preceding, ResolvedExpression following, SqlFactory context) {
+            ResolvedExpression preceding, ResolvedExpression following, SqlFactory sqlFactory) {
         if (((ValueLiteralExpression) preceding).isNull()
                 || ((ValueLiteralExpression) following).isNull()) {
             return "";
@@ -61,12 +61,12 @@ class CallSyntaxUtils {
         return String.format(
                 " %s BETWEEN %s AND %s",
                 isRowsRange(preceding) ? "ROWS" : "RANGE",
-                toStringPrecedingOrFollowing(preceding, true, context),
-                toStringPrecedingOrFollowing(following, false, context));
+                toStringPrecedingOrFollowing(preceding, true, sqlFactory),
+                toStringPrecedingOrFollowing(following, false, sqlFactory));
     }
 
     private static String toStringPrecedingOrFollowing(
-            ResolvedExpression precedingOrFollowing, boolean isPreceding, SqlFactory context) {
+            ResolvedExpression precedingOrFollowing, boolean isPreceding, SqlFactory sqlFactory) {
         final String suffix = isPreceding ? "PRECEDING" : "FOLLOWING";
         return Optional.of(precedingOrFollowing)
                 .flatMap(
@@ -92,7 +92,8 @@ class CallSyntaxUtils {
                                 return Optional.empty();
                             }
                         })
-                .orElseGet(() -> precedingOrFollowing.asSerializableString(context) + " " + suffix);
+                .orElseGet(
+                        () -> precedingOrFollowing.asSerializableString(sqlFactory) + " " + suffix);
     }
 
     private static boolean isRowsRange(ResolvedExpression expression) {

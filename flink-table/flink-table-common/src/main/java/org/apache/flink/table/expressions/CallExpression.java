@@ -208,9 +208,9 @@ public final class CallExpression implements ResolvedExpression {
         }
     }
 
-    private String getSerializableFunctionName(SqlFactory context) {
+    private String getSerializableFunctionName(SqlFactory sqlFactory) {
         if (functionIdentifier == null) {
-            return context.serializeInlineFunction(functionDefinition);
+            return sqlFactory.serializeInlineFunction(functionDefinition);
         }
 
         return functionIdentifier

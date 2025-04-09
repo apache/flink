@@ -1010,7 +1010,7 @@ class DataStreamJavaITCase {
                                         Comparator.comparing(
                                                 resolvedExpression ->
                                                         resolvedExpression.asSerializableString(
-                                                                new DefaultSqlFactory())),
+                                                                DefaultSqlFactory.INSTANCE)),
                                         ResolvedExpression.class)
                                 .build())
                 .isEqualTo(table.getResolvedSchema());

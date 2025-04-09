@@ -54,6 +54,6 @@ public interface ResolvedCatalogBaseTable<T extends CatalogBaseTable> extends Ca
      */
     @Deprecated
     default TableSchema getSchema() {
-        return TableSchema.fromResolvedSchema(getResolvedSchema(), new DefaultSqlFactory());
+        return TableSchema.fromResolvedSchema(getResolvedSchema(), DefaultSqlFactory.INSTANCE);
     }
 }

@@ -285,7 +285,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                         .classloader(userClassLoader)
                                         .build())
                         .sqlFactory(
-                                settings.getSqlFactory().orElseGet(() -> new DefaultSqlFactory()))
+                                settings.getSqlFactory()
+                                        .orElseGet(() -> DefaultSqlFactory.INSTANCE))
                         .build();
 
         final FunctionCatalog functionCatalog =

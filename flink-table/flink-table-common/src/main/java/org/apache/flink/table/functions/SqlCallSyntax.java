@@ -36,14 +36,14 @@ import java.util.stream.Collectors;
 @Internal
 public interface SqlCallSyntax {
 
-    String unparse(String sqlName, List<ResolvedExpression> operands, SqlFactory context);
+    String unparse(String sqlName, List<ResolvedExpression> operands, SqlFactory sqlFactory);
 
     /**
      * Special case for aggregate functions, which can have a DISTINCT function applied. Called only
      * from the DISTINCT function.
      */
     default String unparseDistinct(
-            String sqlName, List<ResolvedExpression> operands, SqlFactory context) {
+            String sqlName, List<ResolvedExpression> operands, SqlFactory sqlFactory) {
         throw new UnsupportedOperationException(
                 "Only the FUNCTION syntax supports the DISTINCT clause.");
     }
@@ -53,21 +53,21 @@ public interface SqlCallSyntax {
             new SqlCallSyntax() {
                 @Override
                 public String unparse(
-                        String sqlName, List<ResolvedExpression> operands, SqlFactory context) {
-                    return doUnParse(sqlName, operands, false, context);
+                        String sqlName, List<ResolvedExpression> operands, SqlFactory sqlFactory) {
+                    return doUnParse(sqlName, operands, false, sqlFactory);
                 }
 
                 @Override
                 public String unparseDistinct(
-                        String sqlName, List<ResolvedExpression> operands, SqlFactory context) {
-                    return doUnParse(sqlName, operands, true, context);
+                        String sqlName, List<ResolvedExpression> operands, SqlFactory sqlFactory) {
+                    return doUnParse(sqlName, operands, true, sqlFactory);
                 }
 
                 private String doUnParse(
                         String sqlName,
                         List<ResolvedExpression> operands,
                         boolean isDistinct,
-                        SqlFactory context) {
+                        SqlFactory sqlFactory) {
                     return String.format(
                             "%s(%s%s)",
                             sqlName,
@@ -76,7 +76,7 @@ public interface SqlCallSyntax {
                                     .map(
                                             resolvedExpression ->
                                                     resolvedExpression.asSerializableString(
-                                                            context))
+                                                            sqlFactory))
                                     .collect(Collectors.joining(", ")));
                 }
             };

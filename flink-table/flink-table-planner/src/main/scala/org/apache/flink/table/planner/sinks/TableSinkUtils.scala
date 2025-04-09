@@ -145,7 +145,7 @@ object TableSinkUtils {
         case _ =>
           TableSchema.fromResolvedSchema(
             DataTypeUtils.expandCompositeTypeToSchema(requestedOutputType),
-            new DefaultSqlFactory)
+            DefaultSqlFactory.INSTANCE)
       }
     } else {
       // atomic type
@@ -182,7 +182,7 @@ object TableSinkUtils {
       })
     TableSchema.fromResolvedSchema(
       DataTypeUtils.expandCompositeTypeToSchema(DataTypes.ROW(reorderedFields: _*)),
-      new DefaultSqlFactory)
+      DefaultSqlFactory.INSTANCE)
   }
 
   /**

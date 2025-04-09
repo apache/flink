@@ -66,7 +66,7 @@ public class ShowCreateUtilTest {
     void showCreateTable(ResolvedCatalogTable resolvedCatalogTable, String expected) {
         final String createTableString =
                 ShowCreateUtil.buildShowCreateTableRow(
-                        resolvedCatalogTable, TABLE_IDENTIFIER, false, new DefaultSqlFactory());
+                        resolvedCatalogTable, TABLE_IDENTIFIER, false, DefaultSqlFactory.INSTANCE);
         assertThat(createTableString).isEqualTo(expected);
     }
 

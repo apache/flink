@@ -562,7 +562,7 @@ abstract class BuiltInFunctionTestBase {
                             .map(
                                     resolvedExpression ->
                                             resolvedExpression.asSerializableString(
-                                                    new DefaultSqlFactory()))
+                                                    DefaultSqlFactory.INSTANCE))
                             .collect(Collectors.joining(", "));
             return env.sqlQuery("SELECT " + exprAsSerializableString + " FROM " + inputTable);
         }

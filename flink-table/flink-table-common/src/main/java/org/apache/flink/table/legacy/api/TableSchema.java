@@ -437,11 +437,11 @@ public class TableSchema {
 
     /** Helps to migrate to the new {@link ResolvedSchema} to old API methods. */
     public static TableSchema fromResolvedSchema(ResolvedSchema resolvedSchema) {
-        return fromResolvedSchema(resolvedSchema, new DefaultSqlFactory());
+        return fromResolvedSchema(resolvedSchema, DefaultSqlFactory.INSTANCE);
     }
 
     public static TableSchema fromResolvedSchema(
-            ResolvedSchema resolvedSchema, SqlFactory context) {
+            ResolvedSchema resolvedSchema, SqlFactory sqlFactory) {
         final TableSchema.Builder builder = TableSchema.builder();
 
         resolvedSchema.getColumns().stream()
@@ -462,7 +462,7 @@ public class TableSchema {
                                 return TableColumn.computed(
                                         c.getName(),
                                         c.getDataType(),
-                                        c.getExpression().asSerializableString(context));
+                                        c.getExpression().asSerializableString(sqlFactory));
                             }
                             throw new IllegalArgumentException(
                                     "Unsupported column type: " + column);
@@ -475,7 +475,8 @@ public class TableSchema {
                         spec ->
                                 builder.watermark(
                                         spec.getRowtimeAttribute(),
-                                        spec.getWatermarkExpression().asSerializableString(context),
+                                        spec.getWatermarkExpression()
+                                                .asSerializableString(sqlFactory),
                                         spec.getWatermarkExpression().getOutputDataType()));
 
         resolvedSchema

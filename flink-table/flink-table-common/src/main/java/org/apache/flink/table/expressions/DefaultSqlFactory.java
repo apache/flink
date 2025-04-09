@@ -28,6 +28,9 @@ import org.apache.flink.table.functions.FunctionDefinition;
  */
 @Internal
 public class DefaultSqlFactory implements SqlFactory {
+
+    public static final DefaultSqlFactory INSTANCE = new DefaultSqlFactory();
+
     @Override
     public String serializeInlineFunction(FunctionDefinition functionDefinition) {
         throw new ValidationException(
