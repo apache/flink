@@ -560,12 +560,12 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("ifThenElse")
                     .callSyntax(
-                            (sqlName, operands, context) ->
+                            (sqlName, operands, sqlFactory) ->
                                     String.format(
                                             "CASE WHEN %s THEN %s ELSE %s END",
-                                            operands.get(0).asSerializableString(context),
-                                            operands.get(1).asSerializableString(context),
-                                            operands.get(2).asSerializableString(context)))
+                                            operands.get(0).asSerializableString(sqlFactory),
+                                            operands.get(1).asSerializableString(sqlFactory),
+                                            operands.get(2).asSerializableString(sqlFactory)))
                     .kind(SCALAR)
                     .inputTypeStrategy(
                             compositeSequence()
@@ -692,15 +692,15 @@ public final class BuiltInFunctionDefinitions {
                     .name("between")
                     .kind(SCALAR)
                     .callSyntax(
-                            (sqlName, operands, context) ->
+                            (sqlName, operands, sqlFactory) ->
                                     String.format(
                                             "%s BETWEEN %s AND %s",
                                             CallSyntaxUtils.asSerializableOperand(
-                                                    operands.get(0), context),
+                                                    operands.get(0), sqlFactory),
                                             CallSyntaxUtils.asSerializableOperand(
-                                                    operands.get(1), context),
+                                                    operands.get(1), sqlFactory),
                                             CallSyntaxUtils.asSerializableOperand(
-                                                    operands.get(2), context)))
+                                                    operands.get(2), sqlFactory)))
                     .inputTypeStrategy(
                             comparable(ConstantArgumentCount.of(3), StructuredComparison.FULL))
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BOOLEAN())))
@@ -710,15 +710,15 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("notBetween")
                     .callSyntax(
-                            (sqlName, operands, context) ->
+                            (sqlName, operands, sqlFactory) ->
                                     String.format(
                                             "%s NOT BETWEEN %s AND %s",
                                             CallSyntaxUtils.asSerializableOperand(
-                                                    operands.get(0), context),
+                                                    operands.get(0), sqlFactory),
                                             CallSyntaxUtils.asSerializableOperand(
-                                                    operands.get(1), context),
+                                                    operands.get(1), sqlFactory),
                                             CallSyntaxUtils.asSerializableOperand(
-                                                    operands.get(2), context)))
+                                                    operands.get(2), sqlFactory)))
                     .kind(SCALAR)
                     .inputTypeStrategy(
                             comparable(ConstantArgumentCount.of(3), StructuredComparison.FULL))
@@ -1139,11 +1139,11 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("position")
                     .callSyntax(
-                            (sqlName, operands, context) ->
+                            (sqlName, operands, sqlFactory) ->
                                     String.format(
                                             "POSITION(%s IN %s)",
-                                            operands.get(0).asSerializableString(context),
-                                            operands.get(1).asSerializableString(context)))
+                                            operands.get(0).asSerializableString(sqlFactory),
+                                            operands.get(1).asSerializableString(sqlFactory)))
                     .kind(SCALAR)
                     .inputTypeStrategy(
                             sequence(
@@ -2153,7 +2153,7 @@ public final class BuiltInFunctionDefinitions {
                     .name("extract")
                     .callSyntax(
                             "EXTRACT",
-                            (sqlName, operands, context) ->
+                            (sqlName, operands, sqlFactory) ->
                                     String.format(
                                             "%s(%s %s %s)",
                                             sqlName,
@@ -2161,7 +2161,7 @@ public final class BuiltInFunctionDefinitions {
                                                     .getValueAs(TimeIntervalUnit.class)
                                                     .get(),
                                             "FROM",
-                                            operands.get(1).asSerializableString(context)))
+                                            operands.get(1).asSerializableString(sqlFactory)))
                     .kind(SCALAR)
                     .inputTypeStrategy(SpecificInputTypeStrategies.EXTRACT)
                     .outputTypeStrategy(nullableIfArgs(explicit(BIGINT())))
@@ -2230,13 +2230,13 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("temporalOverlaps")
                     .callSyntax(
-                            (sqlName, operands, context) ->
+                            (sqlName, operands, sqlFactory) ->
                                     String.format(
                                             "(%s, %s) OVERLAPS (%s, %s)",
-                                            operands.get(0).asSerializableString(context),
-                                            operands.get(1).asSerializableString(context),
-                                            operands.get(2).asSerializableString(context),
-                                            operands.get(3).asSerializableString(context)))
+                                            operands.get(0).asSerializableString(sqlFactory),
+                                            operands.get(1).asSerializableString(sqlFactory),
+                                            operands.get(2).asSerializableString(sqlFactory),
+                                            operands.get(3).asSerializableString(sqlFactory)))
                     .kind(SCALAR)
                     .inputTypeStrategy(SpecificInputTypeStrategies.TEMPORAL_OVERLAPS)
                     .outputTypeStrategy(nullableIfArgs(explicit(BOOLEAN())))
@@ -2264,7 +2264,7 @@ public final class BuiltInFunctionDefinitions {
                     .kind(SCALAR)
                     .callSyntax(
                             "TIMESTAMPDIFF",
-                            (sqlName, operands, context) ->
+                            (sqlName, operands, sqlFactory) ->
                                     String.format(
                                             "%s(%s, %s)",
                                             sqlName,
@@ -2276,7 +2276,7 @@ public final class BuiltInFunctionDefinitions {
                                                             resolvedExpression ->
                                                                     resolvedExpression
                                                                             .asSerializableString(
-                                                                                    context))
+                                                                                    sqlFactory))
                                                     .collect(Collectors.joining(", "))))
                     .inputTypeStrategy(
                             sequence(
@@ -2395,11 +2395,11 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("at")
                     .callSyntax(
-                            (sqlName, operands, context) ->
+                            (sqlName, operands, sqlFactory) ->
                                     String.format(
                                             "%s[%s]",
-                                            operands.get(0).asSerializableString(context),
-                                            operands.get(1).asSerializableString(context)))
+                                            operands.get(0).asSerializableString(sqlFactory),
+                                            operands.get(1).asSerializableString(sqlFactory)))
                     .kind(SCALAR)
                     .inputTypeStrategy(
                             sequence(
@@ -2477,7 +2477,7 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("get")
                     .callSyntax(
-                            (sqlName, operands, context) -> {
+                            (sqlName, operands, sqlFactory) -> {
                                 final Optional<String> fieldName =
                                         ((ValueLiteralExpression) operands.get(1))
                                                 .getValueAs(String.class);
@@ -2489,12 +2489,12 @@ public final class BuiltInFunctionDefinitions {
                                                                 "%s.%s",
                                                                 operands.get(0)
                                                                         .asSerializableString(
-                                                                                context),
+                                                                                sqlFactory),
                                                                 EncodingUtils.escapeIdentifier(n)))
                                         .orElseGet(
                                                 () ->
                                                         SqlCallSyntax.FUNCTION.unparse(
-                                                                sqlName, operands, context));
+                                                                sqlName, operands, sqlFactory));
                             })
                     .kind(OTHER)
                     .inputTypeStrategy(

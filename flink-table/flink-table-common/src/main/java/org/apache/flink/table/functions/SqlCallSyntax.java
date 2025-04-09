@@ -85,14 +85,14 @@ public interface SqlCallSyntax {
      * Function syntax for functions without parenthesis (e.g., CURRENT_DATE, LOCALTIMESTAMP,
      * LOCALTIME, CURRENT_TIMESTAMP, CURRENT_TIME).
      */
-    SqlCallSyntax NO_PARENTHESIS = (sqlName, operands, context) -> sqlName;
+    SqlCallSyntax NO_PARENTHESIS = (sqlName, operands, sqlFactory) -> sqlName;
 
     /**
      * Function syntax for handling DISTINCT aggregates. Special case. It does not have a syntax
      * itself, but modifies the syntax of the nested call.
      */
     SqlCallSyntax DISTINCT =
-            (sqlName, operands, context) -> {
+            (sqlName, operands, sqlFactory) -> {
                 final CallExpression callExpression = (CallExpression) operands.get(0);
                 if (callExpression.getFunctionDefinition() instanceof BuiltInFunctionDefinition) {
                     final BuiltInFunctionDefinition builtinDefinition =
@@ -102,18 +102,18 @@ public interface SqlCallSyntax {
                             .unparseDistinct(
                                     builtinDefinition.getSqlName(),
                                     callExpression.getResolvedChildren(),
-                                    context);
+                                    sqlFactory);
                 } else {
                     return SqlCallSyntax.FUNCTION.unparseDistinct(
                             callExpression.getFunctionName(),
                             callExpression.getResolvedChildren(),
-                            context);
+                            sqlFactory);
                 }
             };
 
     /** Function syntax for collection ctors, such as ARRAY[1, 2, 3] or MAP['a', 1, 'b', 2]. */
     SqlCallSyntax COLLECTION_CTOR =
-            (sqlName, operands, context) ->
+            (sqlName, operands, sqlFactory) ->
                     String.format(
                             "%s[%s]",
                             sqlName,
@@ -121,21 +121,21 @@ public interface SqlCallSyntax {
                                     .map(
                                             resolvedExpression ->
                                                     resolvedExpression.asSerializableString(
-                                                            context))
+                                                            sqlFactory))
                                     .collect(Collectors.joining(", ")));
 
     /** Binary operator syntax, as in "x - y". */
     SqlCallSyntax BINARY_OP =
-            (sqlName, operands, context) ->
+            (sqlName, operands, sqlFactory) ->
                     String.format(
                             "%s %s %s",
-                            CallSyntaxUtils.asSerializableOperand(operands.get(0), context),
+                            CallSyntaxUtils.asSerializableOperand(operands.get(0), sqlFactory),
                             sqlName,
-                            CallSyntaxUtils.asSerializableOperand(operands.get(1), context));
+                            CallSyntaxUtils.asSerializableOperand(operands.get(1), sqlFactory));
 
     /** Syntax for unparsing '+', Special handling for a plus on string arguments. */
     SqlCallSyntax PLUS_OP =
-            (sqlName, operands, context) -> {
+            (sqlName, operands, sqlFactory) -> {
                 boolean isString =
                         operands.stream()
                                 .anyMatch(
@@ -145,9 +145,9 @@ public interface SqlCallSyntax {
                                                         .is(LogicalTypeFamily.CHARACTER_STRING));
                 if (isString) {
                     return FUNCTION.unparse(
-                            BuiltInFunctionDefinitions.CONCAT.getSqlName(), operands, context);
+                            BuiltInFunctionDefinitions.CONCAT.getSqlName(), operands, sqlFactory);
                 } else {
-                    return BINARY_OP.unparse(sqlName, operands, context);
+                    return BINARY_OP.unparse(sqlName, operands, sqlFactory);
                 }
             };
 
@@ -156,29 +156,29 @@ public interface SqlCallSyntax {
      * AND w".
      */
     SqlCallSyntax MULTIPLE_BINARY_OP =
-            (sqlName, operands, context) ->
+            (sqlName, operands, sqlFactory) ->
                     operands.stream()
                             .map(
                                     expression ->
                                             CallSyntaxUtils.asSerializableOperand(
-                                                    expression, context))
+                                                    expression, sqlFactory))
                             .collect(Collectors.joining(String.format(" %s ", sqlName)));
 
     /** Postfix unary operator syntax, as in "x ++". */
     SqlCallSyntax UNARY_SUFFIX_OP =
-            (sqlName, operands, context) ->
+            (sqlName, operands, sqlFactory) ->
                     String.format(
                             "%s %s",
-                            CallSyntaxUtils.asSerializableOperand(operands.get(0), context),
+                            CallSyntaxUtils.asSerializableOperand(operands.get(0), sqlFactory),
                             sqlName);
 
     /** Prefix unary operator syntax, as in "- x". */
     SqlCallSyntax UNARY_PREFIX_OP =
-            (sqlName, operands, context) ->
+            (sqlName, operands, sqlFactory) ->
                     String.format(
                             "%s %s",
                             sqlName,
-                            CallSyntaxUtils.asSerializableOperand(operands.get(0), context));
+                            CallSyntaxUtils.asSerializableOperand(operands.get(0), sqlFactory));
 
     /**
      * Special sql syntax for CAST operators (CAST, TRY_CAST, REINTERPRET_CAST).
@@ -186,12 +186,12 @@ public interface SqlCallSyntax {
      * <p>Example: CAST(123 AS STRING)
      */
     SqlCallSyntax CAST =
-            (sqlName, operands, context) ->
+            (sqlName, operands, sqlFactory) ->
                     String.format(
                             "%s(%s AS %s)",
                             sqlName,
-                            operands.get(0).asSerializableString(context),
-                            operands.get(1).asSerializableString(context));
+                            operands.get(0).asSerializableString(sqlFactory),
+                            operands.get(1).asSerializableString(sqlFactory));
 
     /**
      * Special sql syntax for SUBSTRING operators (SUBSTRING, SUBSTR).
@@ -199,17 +199,17 @@ public interface SqlCallSyntax {
      * <p>Example: SUBSTR('abc' FROM 'abcdef' FOR 3)
      */
     SqlCallSyntax SUBSTRING =
-            (sqlName, operands, context) -> {
+            (sqlName, operands, sqlFactory) -> {
                 final String s =
                         String.format(
                                 "%s(%s FROM %s",
                                 sqlName,
-                                operands.get(0).asSerializableString(context),
-                                operands.get(1).asSerializableString(context));
+                                operands.get(0).asSerializableString(sqlFactory),
+                                operands.get(1).asSerializableString(sqlFactory));
                 if (operands.size() == 3) {
                     return s
                             + String.format(
-                                    " FOR %s)", operands.get(2).asSerializableString(context));
+                                    " FOR %s)", operands.get(2).asSerializableString(sqlFactory));
                 }
 
                 return s + ")";
@@ -226,16 +226,16 @@ public interface SqlCallSyntax {
      * </ul>
      */
     SqlCallSyntax FLOOR_OR_CEIL =
-            (sqlName, operands, context) -> {
+            (sqlName, operands, sqlFactory) -> {
                 if (operands.size() == 1) {
                     // case for numeric floor & ceil
-                    return SqlCallSyntax.FUNCTION.unparse(sqlName, operands, context);
+                    return SqlCallSyntax.FUNCTION.unparse(sqlName, operands, sqlFactory);
                 } else {
                     // case for flooring/ceiling to temporal units
                     return String.format(
                             "%s(%s TO %s)",
                             sqlName,
-                            operands.get(0).asSerializableString(context),
+                            operands.get(0).asSerializableString(sqlFactory),
                             ((ValueLiteralExpression) operands.get(1))
                                     .getValueAs(TimeIntervalUnit.class)
                                     .get());
@@ -248,7 +248,7 @@ public interface SqlCallSyntax {
      * <p>Example: TRIM(BOTH ' ' FROM ' 0 ');
      */
     SqlCallSyntax TRIM =
-            (sqlName, operands, context) -> {
+            (sqlName, operands, sqlFactory) -> {
                 final boolean trimLeading =
                         ((ValueLiteralExpression) operands.get(0)).getValueAs(Boolean.class).get();
                 final boolean trimTrailing =
@@ -268,8 +268,8 @@ public interface SqlCallSyntax {
 
                 return String.format(
                         format,
-                        operands.get(2).asSerializableString(context),
-                        operands.get(3).asSerializableString(context));
+                        operands.get(2).asSerializableString(sqlFactory),
+                        operands.get(3).asSerializableString(sqlFactory));
             };
 
     /**
@@ -278,19 +278,19 @@ public interface SqlCallSyntax {
      * <p>Example: OVERLAY('abcd' PLACING 'def' FROM 3 FOR 2)
      */
     SqlCallSyntax OVERLAY =
-            (sqlName, operands, context) -> {
+            (sqlName, operands, sqlFactory) -> {
                 final String s =
                         String.format(
                                 "OVERLAY(%s PLACING %s FROM %s",
-                                operands.get(0).asSerializableString(context),
-                                operands.get(1).asSerializableString(context),
-                                operands.get(2).asSerializableString(context));
+                                operands.get(0).asSerializableString(sqlFactory),
+                                operands.get(1).asSerializableString(sqlFactory),
+                                operands.get(2).asSerializableString(sqlFactory));
 
                 // optional length
                 if (operands.size() == 4) {
                     return s
                             + String.format(
-                                    " FOR %s)", operands.get(3).asSerializableString(context));
+                                    " FOR %s)", operands.get(3).asSerializableString(sqlFactory));
                 }
 
                 return s + ")";
@@ -298,7 +298,7 @@ public interface SqlCallSyntax {
 
     /** Special sql syntax for AS. The string literal is formatted as an identifier. */
     SqlCallSyntax AS =
-            (sqlName, operands, context) -> {
+            (sqlName, operands, sqlFactory) -> {
                 if (operands.size() != 2) {
                     throw new TableException(
                             "The AS function with multiple aliases is not SQL"
@@ -308,25 +308,26 @@ public interface SqlCallSyntax {
                 final String identifier = ExpressionUtils.stringValue(operands.get(1));
                 return String.format(
                         "%s %s %s",
-                        CallSyntaxUtils.asSerializableOperand(operands.get(0), context),
+                        CallSyntaxUtils.asSerializableOperand(operands.get(0), sqlFactory),
                         sqlName,
                         EncodingUtils.escapeIdentifier(identifier));
             };
 
     /** Call syntax for {@link BuiltInFunctionDefinitions#IN}. */
     SqlCallSyntax IN =
-            (sqlName, operands, context) ->
+            (sqlName, operands, sqlFactory) ->
                     String.format(
                             "%s IN (%s)",
-                            operands.get(0).asSerializableString(context),
+                            operands.get(0).asSerializableString(sqlFactory),
                             operands.subList(1, operands.size()).stream()
                                     .map(
                                             resolvedExpression ->
                                                     resolvedExpression.asSerializableString(
-                                                            context))
+                                                            sqlFactory))
                                     .collect(Collectors.joining(", ")));
 
-    SqlCallSyntax WINDOW_START_END = (sqlName, operands, context) -> String.format("%s", sqlName);
+    SqlCallSyntax WINDOW_START_END =
+            (sqlName, operands, sqlFactory) -> String.format("%s", sqlName);
 
     /**
      * Special sql syntax for LIKE.
@@ -334,37 +335,37 @@ public interface SqlCallSyntax {
      * <p>Example: 'TE_ST' LIKE '%E&_S%' ESCAPE '&';
      */
     SqlCallSyntax LIKE =
-            (sqlName, operands, context) -> {
+            (sqlName, operands, sqlFactory) -> {
                 if (operands.size() == 2) {
                     return String.format(
                             "%s %s %s",
-                            CallSyntaxUtils.asSerializableOperand(operands.get(0), context),
+                            CallSyntaxUtils.asSerializableOperand(operands.get(0), sqlFactory),
                             sqlName,
-                            CallSyntaxUtils.asSerializableOperand(operands.get(1), context));
+                            CallSyntaxUtils.asSerializableOperand(operands.get(1), sqlFactory));
                 } else {
                     return String.format(
                             "%s %s %s ESCAPE %s",
-                            CallSyntaxUtils.asSerializableOperand(operands.get(0), context),
+                            CallSyntaxUtils.asSerializableOperand(operands.get(0), sqlFactory),
                             sqlName,
-                            CallSyntaxUtils.asSerializableOperand(operands.get(1), context),
-                            CallSyntaxUtils.asSerializableOperand(operands.get(2), context));
+                            CallSyntaxUtils.asSerializableOperand(operands.get(1), sqlFactory),
+                            CallSyntaxUtils.asSerializableOperand(operands.get(2), sqlFactory));
                 }
             };
 
     SqlCallSyntax OVER =
-            ((sqlName, operands, context) -> {
-                String projection = operands.get(0).asSerializableString(context);
-                String order = operands.get(1).asSerializableString(context);
+            ((sqlName, operands, sqlFactory) -> {
+                String projection = operands.get(0).asSerializableString(sqlFactory);
+                String order = operands.get(1).asSerializableString(sqlFactory);
                 String rangeBounds =
                         CallSyntaxUtils.overRangeToSerializableString(
-                                operands.get(2), operands.get(3), context);
+                                operands.get(2), operands.get(3), sqlFactory);
                 if (operands.size() == 4) {
                     return String.format("%s OVER(ORDER BY %s%s)", projection, order, rangeBounds);
                 } else {
                     return String.format(
                             "%s OVER(PARTITION BY %s ORDER BY %s%s)",
                             projection,
-                            CallSyntaxUtils.asSerializableOperand(operands.get(4), context),
+                            CallSyntaxUtils.asSerializableOperand(operands.get(4), sqlFactory),
                             order,
                             rangeBounds);
                 }
