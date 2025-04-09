@@ -265,4 +265,56 @@ public class ForStStateMigrationTest extends ForStStateTestBase {
         }
         snapshot1.get().discardState();
     }
+
+    @Test
+    void testStateNamespaceSerializerChanged() throws Exception {
+        MapStateDescriptor<Integer, String> descriptor =
+                new MapStateDescriptor<>(
+                        "testState", IntSerializer.INSTANCE, StringSerializer.INSTANCE);
+
+        // set the old namespace serializer to IntSerializer.INSTANCE
+        MapState<Integer, String> mapState =
+                keyedBackend.createState(1, IntSerializer.INSTANCE, descriptor);
+
+        RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot =
+                keyedBackend.snapshot(
+                        1L,
+                        System.currentTimeMillis(),
+                        env.getCheckpointStorageAccess()
+                                .resolveCheckpointStorageLocation(
+                                        1L, CheckpointStorageLocationReference.getDefault()),
+                        CheckpointOptions.forCheckpointWithDefaultLocation());
+
+        if (!snapshot.isDone()) {
+            snapshot.run();
+        }
+        SnapshotResult<KeyedStateHandle> snapshotResult = snapshot.get();
+        KeyedStateHandle stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
+        IOUtils.closeQuietly(keyedBackend);
+        keyedBackend.dispose();
+
+        FileSystem.initialize(new Configuration(), null);
+        Configuration configuration = new Configuration();
+        ForStStateBackend forStStateBackend =
+                new ForStStateBackend().configure(configuration, null);
+        keyedBackend =
+                createKeyedStateBackend(
+                        forStStateBackend,
+                        env,
+                        StringSerializer.INSTANCE,
+                        Collections.singletonList(stateHandle));
+        keyedBackend.setup(aec);
+        try {
+
+            // change new NSSerializer to StringSerializer
+            keyedBackend.createState("String", StringSerializer.INSTANCE, descriptor);
+            fail("Expected a state migration exception.");
+        } catch (Exception e) {
+            if (CommonTestUtils.containsCause(e, StateMigrationException.class)) {
+                // StateMigrationException expected
+            } else {
+                throw e;
+            }
+        }
+    }
 }

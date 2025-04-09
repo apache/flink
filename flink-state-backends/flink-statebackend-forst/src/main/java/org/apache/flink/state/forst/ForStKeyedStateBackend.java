@@ -445,6 +445,22 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
 
         RegisteredKeyValueStateBackendMetaInfo<N, SV> restoredKvStateMetaInfo = oldStateInfo.f1;
 
+        // fetch current namespace serializer now because if it is incompatible, we can't access
+        // it anymore to improve the error message
+        TypeSerializer<N> previousNamespaceSerializer =
+                restoredKvStateMetaInfo.getNamespaceSerializer();
+
+        TypeSerializerSchemaCompatibility<N> s =
+                restoredKvStateMetaInfo.updateNamespaceSerializer(namespaceSerializer);
+        if (s.isCompatibleAfterMigration() || s.isIncompatible()) {
+            throw new StateMigrationException(
+                    "The new namespace serializer ("
+                            + namespaceSerializer
+                            + ") must be compatible with the old namespace serializer ("
+                            + previousNamespaceSerializer
+                            + ").");
+        }
+
         restoredKvStateMetaInfo.checkStateMetaInfo(stateDesc);
 
         // fetch current serializer now because if it is incompatible, we can't access it anymore to
