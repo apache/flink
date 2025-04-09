@@ -962,7 +962,7 @@ class Table(object):
             import pandas as pd
             return pd.DataFrame.from_records([], columns=self.get_schema().get_field_names())
 
-    @Deprecated(since="2.1.0", detail=":func:`Table.get_resolved_schema` instead.")
+    @Deprecated(since="2.1.0", detail="Use :func:`Table.get_resolved_schema` instead.")
     def get_schema(self) -> TableSchema:
         """
         Returns the :class:`~pyflink.table.TableSchema` of this table.

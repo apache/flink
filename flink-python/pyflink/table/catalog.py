@@ -1414,6 +1414,7 @@ class CatalogDescriptor:
         return CatalogDescriptor(j_catalog_descriptor)
 
 
+@PublicEvolving()
 class ObjectIdentifier(object):
     """
     Identifies an object in a catalog, including tables, views, function, or types.

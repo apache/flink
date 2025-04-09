@@ -78,6 +78,14 @@ class BaseAPIStabilityDecorator(metaclass=ABCMeta):
         if directive not in docstring:
             func_or_cls.__doc__ = f"{docstring}\n{directive}"
 
+        # Add the decorator to an internal __stability_decorators set on the class/function
+        # being decorated, for later introspection.
+        if hasattr(func_or_cls, '__stability_decorators'):
+            stability_decorators = getattr(func_or_cls, '__stability_decorators')
+            stability_decorators.add(self.__class__)
+        else:
+            setattr(func_or_cls, '__stability_decorators', {self.__class__})
+
         if isclass(func_or_cls):
             for name, method in getmembers(func_or_cls, isfunction):
                 if not name.startswith("_"):
