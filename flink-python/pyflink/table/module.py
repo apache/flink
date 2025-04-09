@@ -37,7 +37,6 @@ class Module(object):
         self._j_module = j_module
 
 
-@PublicEvolving()
 class HiveModule(Module):
     """
     Module to provide Hive built-in metadata.
