@@ -117,6 +117,12 @@
             <td>The primary directory where ForSt puts its SST files. By default, it will be the same as the checkpoint directory. Recognized shortcut name is 'checkpoint-dir', which means that ForSt shares the directory with checkpoint, and 'local-dir', which means that ForSt will use the local directory of TaskManager.</td>
         </tr>
         <tr>
+            <td><h5>state.backend.forst.sync.enforce-local</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Whether to enforce local state for operators in synchronous mode when enabling disaggregated state. This is useful in cases where both synchronous operators and asynchronous operators are used in the same job.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.forst.timer-service.cache-size</h5></td>
             <td style="word-wrap: break-word;">128</td>
             <td>Integer</td>
