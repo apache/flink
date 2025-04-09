@@ -150,6 +150,20 @@ state.backend.forst.primary-dir: s3://your-bucket/forst-state
 checkpoint and fast recovery, since the ForSt will perform file copy between the primary
 storage location and the checkpoint directory during checkpointing and recovery.
 
+#### ForSt Local Storage Location
+
+By default, ForSt will **ONLY** disaggregate state when asynchronous APIs (State V2) are used. When 
+using synchronous state APIs in DataStream and SQL jobs, ForSt will only serve as **local state store**. 
+Since a job may contain multiple ForSt instances with mixed API usage, synchronous local state access 
+along with asynchronous remote state access could help achieve better overall throughput.
+If you want the operators with synchronous state APIs to store state in remote, the following configuration will help:
+```yaml
+state.backend.forst.sync.enforce-local: false
+```
+And you can specify the local storage location via:
+```yaml
+state.backend.forst.local-dir: path-to-local-dir
+```
 
 #### ForSt File Cache
 
