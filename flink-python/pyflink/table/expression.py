@@ -21,6 +21,7 @@ from typing import Union, TypeVar, Generic, Any
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import DataType, DataTypes, _to_java_data_type
+from pyflink.util.api_stability_decorators import PublicEvolving
 from pyflink.util.java_utils import to_jarray
 
 __all__ = [
@@ -454,6 +455,7 @@ class JsonOnNull(Enum):
 T = TypeVar('T')
 
 
+@PublicEvolving()
 class Expression(Generic[T]):
     """
     Expressions represent a logical tree for producing a computation result.

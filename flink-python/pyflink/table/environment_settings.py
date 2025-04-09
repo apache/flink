@@ -45,6 +45,7 @@ class EnvironmentSettings(object):
     might be convenient as shortcuts.
     """
 
+    @PublicEvolving()
     class Builder(object):
         """
         A builder for :class:`~EnvironmentSettings`.
