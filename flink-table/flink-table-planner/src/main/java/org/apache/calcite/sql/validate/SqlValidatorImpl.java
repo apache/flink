@@ -1051,6 +1051,14 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
         if (outermostNode.isA(SqlKind.TOP_LEVEL)) {
             registerQuery(scope, null, outermostNode, outermostNode, null, false);
         }
+        // ----- FLINK MODIFICATION BEGIN -----
+        if (outermostNode instanceof SqlSelect) {
+            SqlSelect select = (SqlSelect) outermostNode;
+            SqlCallExpandStarVisitor expandStarVisitor = new SqlCallExpandStarVisitor(select);
+            outermostNode = expandStarVisitor.visit(select);
+            TRACER.trace("After SqlCall star expansion: {}", outermostNode);
+        }
+        // ----- FLINK MODIFICATION END -----
         outermostNode.validate(this, scope);
         if (!outermostNode.isA(SqlKind.TOP_LEVEL)) {
             // force type derivation so that we can provide it to the
@@ -7283,6 +7291,58 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
         @Override
         public Set<String> visit(SqlDynamicParam param) {
             return ImmutableSet.of();
+        }
+    }
+
+    /**
+     * Visitor to expand STAR ("*") in function calls in the SELECT clause.
+     *
+     * <p>E.g.: SELECT foo(*) FROM SomeTable *
+     */
+    private class SqlCallExpandStarVisitor extends SqlBasicVisitor<SqlNode> {
+        private final SqlSelect select;
+
+        public SqlCallExpandStarVisitor(SqlSelect select) {
+            this.select = select;
+        }
+
+        public SqlNode visit(SqlSelect select) {
+            SqlNodeList selectList = new SqlNodeList(select.getSelectList().getParserPosition());
+            for (SqlNode node : select.getSelectList()) {
+                selectList.add(visitNode(node));
+            }
+            select.setSelectList(selectList);
+            return select;
+        }
+
+        @Override
+        public SqlNode visit(SqlCall call) {
+            List<SqlNode> operands = call.getOperandList();
+            if (call instanceof SqlBasicCall
+                    && operands.size() == 1
+                    && operands.get(0) instanceof SqlIdentifier) {
+                SqlIdentifier operand = (SqlIdentifier) operands.get(0);
+                if (operand.isStar()) {
+                    SqlNodeList expanded =
+                            SqlValidatorImpl.this.expandStar(
+                                    new SqlNodeList(
+                                            Collections.singletonList(operand),
+                                            operand.getParserPosition()),
+                                    select,
+                                    false);
+                    call =
+                            new SqlBasicCall(
+                                    call.getOperator(),
+                                    expanded.getList(),
+                                    call.getParserPosition());
+                }
+            } else {
+                for (int i = 0; i < operands.size(); i++) {
+                    SqlNode newOperand = visitNode(operands.get(i));
+                    call.setOperand(i, newOperand);
+                }
+            }
+            return call;
         }
     }
 

@@ -21,20 +21,45 @@ package org.apache.flink.table.planner.calcite;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.utils.PlannerMocks;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.util.List;
+import java.util.stream.Stream;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Test for {@link FlinkCalciteSqlValidator}. */
 class FlinkCalciteSqlValidatorTest {
 
+    /** Test scalar UDF that performs a sum (needs to be public to be registered). * */
+    public static class SumUDF extends ScalarFunction {
+        public String eval(Integer a, Integer b) {
+            return String.valueOf(a + b);
+        }
+    }
+
+    /** Test scalar UDF returns the same string as given (needs to be public to be registered). * */
+    public static class StringIdentityUDF extends ScalarFunction {
+        public String eval(String s) {
+            return s;
+        }
+    }
+
     private final PlannerMocks plannerMocks =
             PlannerMocks.create()
+                    .registerFunction("udfSum", SumUDF.class)
+                    .registerFunction("udfId", StringIdentityUDF.class)
                     .registerTemporaryTable(
                             "t1", Schema.newBuilder().column("a", DataTypes.INT()).build())
                     .registerTemporaryTable(
@@ -137,5 +162,47 @@ class FlinkCalciteSqlValidatorTest {
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
                         "UPSERT INTO statement is not supported. Please use INSERT INTO instead.");
+    }
+
+    private static Stream<Arguments> provideUDFStarInputs() {
+        final String prefix = "`default_catalog`.`default_database`.";
+        return Stream.of(
+                Arguments.of("SELECT udfSum(*) FROM t2", prefix + "`udfSum`(`t2`.`a`, `t2`.`b`)"),
+                Arguments.of(
+                        "SELECT udfSum(*) FROM t2 as foo2",
+                        prefix + "`udfSum`(`foo2`.`a`, `foo2`.`b`)"),
+                Arguments.of(
+                        "SELECT udfSum(bar2.*) FROM t2 as bar2",
+                        prefix + "`udfSum`(`bar2`.`a`, `bar2`.`b`)"),
+                Arguments.of(
+                        "SELECT udfId(udfSum(*)) FROM t2",
+                        prefix + "`udfId`(" + prefix + "`udfSum`(`t2`.`a`, `t2`.`b`))"));
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideUDFStarInputs")
+    void testStarInUDFCallInSelect(String sql, String expected) {
+        List<Operation> parsed = plannerMocks.getParser().parse(sql);
+        assertEquals(1, parsed.size());
+        Operation op = parsed.get(0);
+        assertInstanceOf(PlannerQueryOperation.class, op);
+        PlannerQueryOperation queryOp = (PlannerQueryOperation) op;
+        int selectStartIdx = queryOp.asSerializableString().indexOf("SELECT ") + "SELECT ".length();
+        int selectEndIdx = queryOp.asSerializableString().indexOf("FROM");
+        String selectClause =
+                queryOp.asSerializableString().substring(selectStartIdx, selectEndIdx);
+        assertThat(selectClause).contains(expected);
+    }
+
+    @Test
+    void testStarInUDFCallInWhere() {
+        assertThatThrownBy(
+                        () ->
+                                plannerMocks
+                                        .getParser()
+                                        .parse("SELECT * FROM t2 WHERE udfSum(*) > 0"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "SQL validation failed. At line 1, column 31: Unknown identifier '*'");
     }
 }
