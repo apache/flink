@@ -1,424 +1,1219 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.table.runtime.operators.join.stream;
 
-import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
-import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
-import org.apache.flink.types.RowKind;
+import org.apache.flink.table.runtime.generated.GeneratedMultiJoinCondition;
+import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
 
-import org.junit.jupiter.api.TestTemplate;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.*;
+class StreamingTwoWayInnerMultiJoinOperatorTest extends StreamingMultiJoinOperatorTestBase {
 
-@ExtendWith(ParameterizedTestExtension.class)
-class StreamingTwoWayMultiJoinOperatorTest extends StreamingMultiJoinOperatorTestBase {
-
-    @Parameters(name = "enableAsyncState = {0}")
-    public static List<Boolean> enableAsyncState() {
-        return Arrays.asList(false);
+    public StreamingTwoWayInnerMultiJoinOperatorTest() {
+        // For inner join test, set outerJoinFlags to false for all inputs
+        super(2, List.of(JoinType.INNER, JoinType.INNER), defaultConditions(), false);
     }
 
-    @Parameter private boolean enableAsyncState;
-
-    public StreamingTwoWayMultiJoinOperatorTest() {
-        super(2); // Two-way join specific test class
-    }
-
-    @TestTemplate
+    /** SELECT u.*, o.* FROM Users u INNER JOIN Orders o ON u.id = o.user_id */
+    @Test
     void testTwoWayInnerJoin() throws Exception {
-        // Process first input - add a record with key "1"
-        testHarness.processElement(
-                0,
-                insertRecord(
-                        "order_1", // id
-                        "1", // key
-                        "Order 1 Details" // payload
-                        ));
+        /* -------- APPEND TESTS ----------- */
 
-        // No output yet since we haven't received matching record from second input
-        assertor.shouldEmitNothing(testHarness);
+        // Users without orders aren't emitted
+        insertUser("1", "Gus", "User 1 Details");
+        emitsNothing();
 
-        // Process second input - add a record with matching key "1"
-        testHarness.processElement(
-                1,
-                insertRecord(
-                        "shipment_1", // id
-                        "1", // key
-                        "Shipment 1 Details" // payload
-                        ));
+        // User joins with matching order
+        insertOrder("1", "order_1", "Order 1 Details");
+        emits(INSERT, "1", "Gus", "User 1 Details", "1", "order_1", "Order 1 Details");
 
-        // Should emit joined record since keys match
-        assertor.shouldEmit(
-                testHarness,
-                rowOfKind(
-                        RowKind.INSERT,
-                        "order_1",
-                        "1",
-                        "Order 1 Details",
-                        "shipment_1",
-                        "1",
-                        "Shipment 1 Details"));
+        // Orders without users aren't emitted
+        insertOrder("2", "order_2", "Order 2 Details");
+        emitsNothing();
 
-        // Process second input with non-matching key
-        testHarness.processElement(1, insertRecord("shipment_2", "2", "Shipment 2 Details"));
-
-        // Should not emit since keys don't match
-        assertor.shouldEmitNothing(testHarness);
-
-        // Add matching record to first input
-        testHarness.processElement(0, insertRecord("order_2", "2", "Order 2 Details"));
-
-        // Should emit joined record for key "2"
-        assertor.shouldEmit(
-                testHarness,
-                rowOfKind(
-                        RowKind.INSERT,
-                        "order_2",
-                        "2",
-                        "Order 2 Details",
-                        "shipment_2",
-                        "2",
-                        "Shipment 2 Details"));
+        // Adding matching user triggers join
+        insertUser("2", "Bob", "User 2 Details");
+        emits(INSERT, "2", "Bob", "User 2 Details", "2", "order_2", "Order 2 Details");
     }
 
-    @TestTemplate
+    /**
+     * SELECT u.*, o.* FROM Users u INNER JOIN Orders o ON u.id = o.user_id -- Test updates and
+     * deletes on both sides
+     */
+    @Test
     void testTwoWayInnerJoinUpdating() throws Exception {
-        // Process first input - add a record with key "1"
-        testHarness.processElement(0, insertRecord("order_1", "1", "Order 1 Details"));
+        /* -------- SETUP BASE DATA ----------- */
+        insertUser("1", "Gus", "User 1 Details");
+        emitsNothing();
 
-        // No output yet since we haven't received matching record from second input
-        assertor.shouldEmitNothing(testHarness);
+        insertOrder("1", "order_1", "Order 1 Details");
+        emits(INSERT, "1", "Gus", "User 1 Details", "1", "order_1", "Order 1 Details");
 
-        // Process second input - add a record with matching key "1"
-        testHarness.processElement(1, insertRecord("shipment_1", "1", "Shipment 1 Details"));
+        /* -------- UPDATE TESTS ----------- */
 
-        // Should emit joined record since keys match
-        assertor.shouldEmit(
-                testHarness,
-                rowOfKind(
-                        RowKind.INSERT,
-                        "order_1",
-                        "1",
-                        "Order 1 Details",
-                        "shipment_1",
-                        "1",
-                        "Shipment 1 Details"));
+        // +U on user.details emits +U
+        updateAfterUser("1", "Gus", "User 1 Details Updated");
+        emits(
+                UPDATE_AFTER,
+                "1",
+                "Gus",
+                "User 1 Details Updated",
+                "1",
+                "order_1",
+                "Order 1 Details");
 
-        // Update first input record
-        testHarness.processElement(0, updateAfterRecord("order_1", "1", "Order 1 Updated"));
+        // +U on order.details emits +U
+        updateAfterOrder("1", "order_1", "Order 1 Details Updated");
+        emits(
+                UPDATE_AFTER,
+                "1",
+                "Gus",
+                "User 1 Details Updated",
+                "1",
+                "order_1",
+                "Order 1 Details Updated");
 
-        // Should emit updated joined record
-        assertor.shouldEmit(
-                testHarness,
-                rowOfKind(
-                        RowKind.UPDATE_AFTER,
-                        "order_1",
-                        "1",
-                        "Order 1 Updated",
-                        "shipment_1",
-                        "1",
-                        "Shipment 1 Details"));
+        /* -------- DELETE TESTS ----------- */
 
-        // Update second input record
-        testHarness.processElement(1, updateAfterRecord("shipment_1", "1", "Shipment 1 Updated"));
+        // -D on order emits -D
+        deleteOrder("1", "order_1", "Order 1 Details Updated");
+        emits(
+                DELETE,
+                "1",
+                "Gus",
+                "User 1 Details Updated",
+                "1",
+                "order_1",
+                "Order 1 Details Updated");
 
-        // Should emit updated joined record
-        assertor.shouldEmit(
-                testHarness,
-                rowOfKind(
-                        RowKind.UPDATE_AFTER,
-                        "order_1",
-                        "1",
-                        "Order 1 Updated",
-                        "shipment_1",
-                        "1",
-                        "Shipment 1 Updated"));
-
-        // Delete the shipment record for key 1, which should generate a deletion for the join
-        testHarness.processElement(1, deleteRecord("shipment_1", "1", "Shipment 1 Updated"));
-
-        // Should emit a delete for the old join result
-        assertor.shouldEmit(
-                testHarness,
-                rowOfKind(
-                        RowKind.DELETE,
-                        "order_1",
-                        "1",
-                        "Order 1 Updated",
-                        "shipment_1",
-                        "1",
-                        "Shipment 1 Updated"));
-
-        // Add a matching shipment record back for key "1"
-        testHarness.processElement(1, insertRecord("shipment_1", "1", "Shipment 1 Updated 2"));
-
-        // Should emit joined record for key "1"
-        assertor.shouldEmit(
-                testHarness,
-                rowOfKind(
-                        RowKind.INSERT,
-                        "order_1",
-                        "1",
-                        "Order 1 Updated",
-                        "shipment_1",
-                        "1",
-                        "Shipment 1 Updated 2"));
+        // Re-insert order emits +I
+        insertOrder("1", "order_1", "Order 1 New Details");
+        emits(INSERT, "1", "Gus", "User 1 Details Updated", "1", "order_1", "Order 1 New Details");
     }
 }
 
-@ExtendWith(ParameterizedTestExtension.class)
+class StreamingTwoWayOuterMultiJoinOperatorTest extends StreamingMultiJoinOperatorTestBase {
+
+    public StreamingTwoWayOuterMultiJoinOperatorTest() {
+        // For outer join test, set outerJoinFlags to true for all inputs to test full outer join
+        super(2, List.of(JoinType.INNER, JoinType.LEFT), defaultConditions(), false);
+    }
+
+    /**
+     * SELECT u.*, o.* FROM Users u LEFT OUTER JOIN Orders o ON u.id = o.user_id -- Test left outer
+     * join behavior with nulls and transitions
+     */
+    @Test
+    void testTwoWayLeftOuterJoin() throws Exception {
+        /* -------- LEFT OUTER JOIN APPEND TESTS ----------- */
+
+        // Left table row always emits, even without matching right row
+        insertUser("1", "Gus", "User 1 Details");
+        emits(INSERT, "1", "Gus", "User 1 Details", null, null, null);
+
+        // Right-only record not emitted (LEFT join)
+        insertOrder("2", "order_2", "Order 2 Details");
+        emitsNothing();
+
+        /* -------- MATCH/UNMATCH TRANSITIONS ----------- */
+
+        // Add matching order - deletes null result, emits joined
+        insertOrder("1", "order_1", "Order 1 Details");
+        emits(
+                DELETE, r("1", "Gus", "User 1 Details", null, null, null),
+                INSERT, r("1", "Gus", "User 1 Details", "1", "order_1", "Order 1 Details"));
+
+        // Delete order - reverts to left outer join result
+        deleteOrder("1", "order_1", "Order 1 Details");
+        emits(
+                DELETE, r("1", "Gus", "User 1 Details", "1", "order_1", "Order 1 Details"),
+                INSERT, r("1", "Gus", "User 1 Details", null, null, null));
+
+        // Re-add order - transitions back to inner join
+        insertOrder("1", "order_1", "Order 1 Details");
+        emits(
+                DELETE, r("1", "Gus", "User 1 Details", null, null, null),
+                INSERT, r("1", "Gus", "User 1 Details", "1", "order_1", "Order 1 Details"));
+
+        /* -------- USER DELETE/REINSERT TESTS ----------- */
+
+        // Delete left record removes entire result
+        deleteUser("1", "Gus", "User 1 Details");
+        emits(DELETE, "1", "Gus", "User 1 Details", "1", "order_1", "Order 1 Details");
+
+        // Re-add user restores join
+        insertUser("1", "Gus", "User 1 Details");
+        emits(INSERT, "1", "Gus", "User 1 Details", "1", "order_1", "Order 1 Details");
+
+        /* -------- USER UPDATE TESTS ----------- */
+
+        // -U on user emits -U
+        updateBeforeUser("1", "Gus", "User 1 Details");
+        emits(UPDATE_BEFORE, "1", "Gus", "User 1 Details", "1", "order_1", "Order 1 Details");
+
+        // +U on user emits +U
+        updateAfterUser("1", "Gus", "User 1 Details Updated");
+        emits(
+                UPDATE_AFTER,
+                "1",
+                "Gus",
+                "User 1 Details Updated",
+                "1",
+                "order_1",
+                "Order 1 Details");
+
+        // Another +U on user
+        updateAfterUser("1", "Gus", "User 1 Details Updated 2");
+        emits(
+                UPDATE_AFTER,
+                "1",
+                "Gus",
+                "User 1 Details Updated 2",
+                "1",
+                "order_1",
+                "Order 1 Details");
+
+        /* -------- ORDER UPDATE TESTS ----------- */
+
+        // -U on order emits -U and temporarily reverts to left outer
+        updateBeforeOrder("1", "order_1", "Order 1 Details");
+        emits(
+                UPDATE_BEFORE,
+                        r(
+                                "1",
+                                "Gus",
+                                "User 1 Details Updated 2",
+                                "1",
+                                "order_1",
+                                "Order 1 Details"),
+                INSERT, r("1", "Gus", "User 1 Details Updated 2", null, null, null));
+
+        // +U on order removes null result and emits join
+        updateAfterOrder("1", "order_1", "Order 1 Details Updated");
+        emits(
+                DELETE, r("1", "Gus", "User 1 Details Updated 2", null, null, null),
+                UPDATE_AFTER,
+                        r(
+                                "1",
+                                "Gus",
+                                "User 1 Details Updated 2",
+                                "1",
+                                "order_1",
+                                "Order 1 Details Updated"));
+
+        // Another +U on order
+        updateAfterOrder("1", "order_1", "Order 1 Details Updated 2");
+        emits(
+                UPDATE_AFTER,
+                "1",
+                "Gus",
+                "User 1 Details Updated 2",
+                "1",
+                "order_1",
+                "Order 1 Details Updated 2");
+
+        /* -------- MULTI-ROW TESTS ----------- */
+
+        // Adding second order for same user
+        insertOrder("1", "order_2", "Order 2 Details");
+        emits(INSERT, "1", "Gus", "User 1 Details Updated 2", "1", "order_2", "Order 2 Details");
+
+        // Delete user with multiple orders deletes all join results
+        deleteUser("1", "Gus", "User 1 Details Updated 2");
+        emits(
+                DELETE,
+                r("1", "Gus", "User 1 Details Updated 2", "1", "order_2", "Order 2 Details"),
+                DELETE,
+                r(
+                        "1",
+                        "Gus",
+                        "User 1 Details Updated 2",
+                        "1",
+                        "order_1",
+                        "Order 1 Details Updated 2"));
+
+        // New user with same key joins with both orders
+        insertUser("1", "Dawid", "User 3 Details");
+        emits(
+                INSERT, r("1", "Dawid", "User 3 Details", "1", "order_2", "Order 2 Details"),
+                INSERT,
+                        r(
+                                "1",
+                                "Dawid",
+                                "User 3 Details",
+                                "1",
+                                "order_1",
+                                "Order 1 Details Updated 2"));
+    }
+}
+
 class StreamingThreeWayJoinOperatorTest extends StreamingMultiJoinOperatorTestBase {
 
-    @Parameters(name = "enableAsyncState = {0}")
-    public static List<Boolean> enableAsyncState() {
-        return Arrays.asList(false);
-    }
-
-    @Parameter private boolean enableAsyncState;
-
     public StreamingThreeWayJoinOperatorTest() {
-        super(3);
+        // For inner join test, set joinTypes to INNER for all joins
+        super(
+                3,
+                List.of(JoinType.INNER, JoinType.INNER, JoinType.INNER),
+                defaultConditions(),
+                false);
     }
 
-    @TestTemplate
+    /**
+     * SELECT u.*, o.*, p.* FROM Users u INNER JOIN Orders o ON u.id = o.user_id INNER JOIN Payments
+     * p ON u.id = p.user_id -- Test three-way inner join with append-only data
+     */
+    @Test
     void testThreeWayInnerJoin() throws Exception {
-        // Process first input - add a record with key "1"
-        testHarness.processElement(0, insertRecord("order_1", "1", "Order 1 Details"));
+        /* -------- THREE-WAY JOIN APPEND TESTS ----------- */
 
-        // No output yet since we haven't received matching records from other inputs
-        assertor.shouldEmitNothing(testHarness);
+        // First table alone doesn't emit
+        insertUser("1", "Gus", "User 1 Details");
+        emitsNothing();
 
-        // Process second input - add a record with matching key "1"
-        testHarness.processElement(1, insertRecord("shipment_1", "1", "Shipment 1 Details"));
+        // First two tables don't emit
+        insertOrder("1", "order_1", "Order 1 Details");
+        emitsNothing();
 
-        // Still no output - need all three inputs to match
-        assertor.shouldEmitNothing(testHarness);
+        // All three tables match emits join
+        insertPayment("1", "payment_1", "Payment 1 Details");
+        emits(
+                INSERT,
+                "1",
+                "Gus",
+                "User 1 Details",
+                "1",
+                "order_1",
+                "Order 1 Details",
+                "1",
+                "payment_1",
+                "Payment 1 Details");
 
-        // Process third input - add a record with matching key "1"
-        testHarness.processElement(2, insertRecord("payment_1", "1", "Payment 1 Details"));
+        // Testing with second set of records
+        insertUser("2", "Bob", "User 2 Details");
+        insertOrder("2", "order_2", "Order 2 Details");
+        emitsNothing();
 
-        // Should emit joined record since all three keys match
-        assertor.shouldEmit(
-                testHarness,
-                rowOfKind(
-                        RowKind.INSERT,
-                        "order_1",
-                        "1",
-                        "Order 1 Details",
-                        "shipment_1",
-                        "1",
-                        "Shipment 1 Details",
-                        "payment_1",
-                        "1",
-                        "Payment 1 Details"));
-
-        // Test non-matching keys
-        testHarness.processElement(0, insertRecord("order_2", "2", "Order 2 Details"));
-
-        testHarness.processElement(1, insertRecord("shipment_2", "2", "Shipment 2 Details"));
-
-        // No output yet - need all three to match
-        assertor.shouldEmitNothing(testHarness);
-
-        testHarness.processElement(2, insertRecord("payment_2", "2", "Payment 2 Details"));
-
-        // Should emit joined record for key "2"
-        assertor.shouldEmit(
-                testHarness,
-                rowOfKind(
-                        RowKind.INSERT,
-                        "order_2",
-                        "2",
-                        "Order 2 Details",
-                        "shipment_2",
-                        "2",
-                        "Shipment 2 Details",
-                        "payment_2",
-                        "2",
-                        "Payment 2 Details"));
+        insertPayment("2", "payment_2", "Payment 2 Details");
+        emits(
+                INSERT,
+                "2",
+                "Bob",
+                "User 2 Details",
+                "2",
+                "order_2",
+                "Order 2 Details",
+                "2",
+                "payment_2",
+                "Payment 2 Details");
     }
 
-    @TestTemplate
+    /**
+     * SELECT u.*, o.*, p.* FROM Users u INNER JOIN Orders o ON u.id = o.user_id INNER JOIN Payments
+     * p ON u.id = p.user_id -- Test updates and deletes across all three tables
+     */
+    @Test
     void testThreeWayInnerJoinUpdating() throws Exception {
-        // Process first input - add a record with key "1"
-        testHarness.processElement(0, insertRecord("order_1", "1", "Order 1 Details"));
+        /* -------- SETUP BASE DATA ----------- */
 
-        // No output yet since we haven't received matching records from other inputs
-        assertor.shouldEmitNothing(testHarness);
+        // Set up initial three-way join
+        insertUser("1", "Gus", "User 1 Details");
+        insertOrder("1", "order_1", "Order 1 Details");
+        insertPayment("1", "payment_1", "Payment 1 Details");
+        emits(
+                INSERT,
+                "1",
+                "Gus",
+                "User 1 Details",
+                "1",
+                "order_1",
+                "Order 1 Details",
+                "1",
+                "payment_1",
+                "Payment 1 Details");
 
-        // Process second input - add a record with matching key "1"
-        testHarness.processElement(1, insertRecord("shipment_1", "1", "Shipment 1 Details"));
+        /* -------- UPDATE TESTS ----------- */
 
-        // Still no output - need all three inputs to match
-        assertor.shouldEmitNothing(testHarness);
+        // +U on user emits +U
+        updateAfterUser("1", "Gus", "User 1 Details Updated");
+        emits(
+                UPDATE_AFTER,
+                "1",
+                "Gus",
+                "User 1 Details Updated",
+                "1",
+                "order_1",
+                "Order 1 Details",
+                "1",
+                "payment_1",
+                "Payment 1 Details");
 
-        // Process third input - add a record with matching key "1"
-        testHarness.processElement(2, insertRecord("payment_1", "1", "Payment 1 Details"));
+        // +U on order emits +U
+        updateAfterOrder("1", "order_1", "Order 1 Details Updated");
+        emits(
+                UPDATE_AFTER,
+                "1",
+                "Gus",
+                "User 1 Details Updated",
+                "1",
+                "order_1",
+                "Order 1 Details Updated",
+                "1",
+                "payment_1",
+                "Payment 1 Details");
 
-        // Should emit joined record since all three keys match
-        assertor.shouldEmit(
-                testHarness,
-                rowOfKind(
-                        RowKind.INSERT,
-                        "order_1",
+        // +U on payment emits +U
+        updateAfterPayment("1", "payment_1", "Payment 1 Details Updated");
+        emits(
+                UPDATE_AFTER,
+                "1",
+                "Gus",
+                "User 1 Details Updated",
+                "1",
+                "order_1",
+                "Order 1 Details Updated",
+                "1",
+                "payment_1",
+                "Payment 1 Details Updated");
+
+        /* -------- DELETE/REINSERT TESTS ----------- */
+
+        // -D on payment emits -D for join
+        deletePayment("1", "payment_1", "Payment 1 Details Updated");
+        emits(
+                DELETE,
+                "1",
+                "Gus",
+                "User 1 Details Updated",
+                "1",
+                "order_1",
+                "Order 1 Details Updated",
+                "1",
+                "payment_1",
+                "Payment 1 Details Updated");
+
+        // Re-add payment emits +I
+        insertPayment("1", "payment_1", "Payment 1 New Details");
+        emits(
+                INSERT,
+                "1",
+                "Gus",
+                "User 1 Details Updated",
+                "1",
+                "order_1",
+                "Order 1 Details Updated",
+                "1",
+                "payment_1",
+                "Payment 1 New Details");
+
+        /* -------- SECOND JOIN TESTS ----------- */
+
+        // Adding a second set with key "2"
+        insertUser("2", "Bob", "User 2 Details");
+        insertOrder("2", "order_2", "Order 2 Details");
+        insertPayment("2", "payment_2", "Payment 2 Details");
+        emits(
+                INSERT,
+                "2",
+                "Bob",
+                "User 2 Details",
+                "2",
+                "order_2",
+                "Order 2 Details",
+                "2",
+                "payment_2",
+                "Payment 2 Details");
+
+        // Delete user 2 emits -D
+        deleteUser("2", "Bob", "User 2 Details");
+        emits(
+                DELETE,
+                "2",
+                "Bob",
+                "User 2 Details",
+                "2",
+                "order_2",
+                "Order 2 Details",
+                "2",
+                "payment_2",
+                "Payment 2 Details");
+
+        // Re-add user 2 with update emits +I
+        insertUser("2", "Bob_Updated", "User 2 Details Updated");
+        emits(
+                INSERT,
+                "2",
+                "Bob_Updated",
+                "User 2 Details Updated",
+                "2",
+                "order_2",
+                "Order 2 Details",
+                "2",
+                "payment_2",
+                "Payment 2 Details");
+    }
+}
+
+class StreamingThreeWayOuterJoinOperatorTest extends StreamingMultiJoinOperatorTestBase {
+
+    public StreamingThreeWayOuterJoinOperatorTest() {
+        // Testing left joins for a chain of tables: Users LEFT JOIN Orders LEFT JOIN Payments
+        super(3, List.of(JoinType.INNER, JoinType.LEFT, JoinType.LEFT), defaultConditions(), false);
+    }
+
+    /**
+     * -- Test three-way left outer join with nulls and changelog transitions
+     *
+     * <p>SQL: SELECT u.*, o.*, p.* FROM Users u LEFT OUTER JOIN Orders o ON u.user_id = o.user_id
+     * LEFT OUTER JOIN Payments p ON o.user_id = p.user_id
+     *
+     * <p>Schema: Users(user_id PRIMARY KEY, name, details) Orders(user_id, order_id PRIMARY KEY,
+     * name) Payments(user_id, payment_id PRIMARY KEY, name)
+     */
+    @Test
+    void testThreeWayLeftOuterJoin() throws Exception {
+        /* -------- LEFT OUTER JOIN APPEND TESTS ----------- */
+
+        // Users without orders/payments are emitted with nulls
+        insertUser("1", "Gus", "User 1 Details");
+
+        // Should emit an update to the previous left outer join result
+        // First delete the old record with nulls and then emit the joined record
+        emits(INSERT, "1", "Gus", "User 1 Details", null, null, null, null, null, null);
+
+        // Orders without users aren't emitted (LEFT join)
+        insertOrder("2", "order_2", "Order 2 Details");
+        emitsNothing();
+
+        // Payments without users aren't emitted (LEFT join)
+        insertPayment("3", "payment_3", "Payment 3 Details");
+        emitsNothing();
+
+        /* -------- PARTIAL MATCH TRANSITIONS ----------- */
+
+        // Add matching order - deletes null result, emits partial join (left+middle, right null)
+        insertOrder("1", "order_1", "Order 1 Details");
+        emits(
+                DELETE, r("1", "Gus", "User 1 Details", null, null, null, null, null, null),
+                INSERT,
+                        r(
+                                "1",
+                                "Gus",
+                                "User 1 Details",
+                                "1",
+                                "order_1",
+                                "Order 1 Details",
+                                null,
+                                null,
+                                null));
+
+        // Add matching payment - deletes partial join, emits full join
+        insertPayment("1", "payment_1", "Payment 1 Details");
+        emits(
+                DELETE,
+                        r(
+                                "1",
+                                "Gus",
+                                "User 1 Details",
+                                "1",
+                                "order_1",
+                                "Order 1 Details",
+                                null,
+                                null,
+                                null),
+                INSERT,
+                        r(
+                                "1",
+                                "Gus",
+                                "User 1 Details",
+                                "1",
+                                "order_1",
+                                "Order 1 Details",
+                                "1",
+                                "payment_1",
+                                "Payment 1 Details"));
+
+        /* -------- DELETE TRANSITIONS ----------- */
+
+        // Delete payment - reverts to left+middle join
+        deletePayment("1", "payment_1", "Payment 1 Details");
+        emits(
+                DELETE,
+                        r(
+                                "1",
+                                "Gus",
+                                "User 1 Details",
+                                "1",
+                                "order_1",
+                                "Order 1 Details",
+                                "1",
+                                "payment_1",
+                                "Payment 1 Details"),
+                INSERT,
+                        r(
+                                "1",
+                                "Gus",
+                                "User 1 Details",
+                                "1",
+                                "order_1",
+                                "Order 1 Details",
+                                null,
+                                null,
+                                null));
+
+        // Delete order - reverts left only join
+        deleteOrder("1", "order_1", "Order 1 Details");
+        emits(
+                DELETE,
+                        r(
+                                "1",
+                                "Gus",
+                                "User 1 Details",
+                                "1",
+                                "order_1",
+                                "Order 1 Details",
+                                null,
+                                null,
+                                null),
+                INSERT, r("1", "Gus", "User 1 Details", null, null, null, null, null, null));
+
+        // Re-add order - transitions back to left+middle join
+        insertOrder("1", "order_1", "Order 1 Details");
+        emits(
+                DELETE, r("1", "Gus", "User 1 Details", null, null, null, null, null, null),
+                INSERT,
+                        r(
+                                "1",
+                                "Gus",
+                                "User 1 Details",
+                                "1",
+                                "order_1",
+                                "Order 1 Details",
+                                null,
+                                null,
+                                null));
+
+        // Re-add payment - transitions to full join
+        insertPayment("1", "payment_1", "Payment 1 Details");
+        emits(
+                DELETE,
+                        r(
+                                "1",
+                                "Gus",
+                                "User 1 Details",
+                                "1",
+                                "order_1",
+                                "Order 1 Details",
+                                null,
+                                null,
+                                null),
+                INSERT,
+                        r(
+                                "1",
+                                "Gus",
+                                "User 1 Details",
+                                "1",
+                                "order_1",
+                                "Order 1 Details",
+                                "1",
+                                "payment_1",
+                                "Payment 1 Details"));
+
+        /* -------- USER DELETE/REINSERT TESTS ----------- */
+
+        // Delete left record removes entire result
+        deleteUser("1", "Gus", "User 1 Details");
+        emits(
+                DELETE,
+                "1",
+                "Gus",
+                "User 1 Details",
+                "1",
+                "order_1",
+                "Order 1 Details",
+                "1",
+                "payment_1",
+                "Payment 1 Details");
+
+        // Re-add user restores join
+        insertUser("1", "Gus", "User 1 Details");
+        emits(
+                INSERT,
+                "1",
+                "Gus",
+                "User 1 Details",
+                "1",
+                "order_1",
+                "Order 1 Details",
+                "1",
+                "payment_1",
+                "Payment 1 Details");
+
+        /* -------- USER UPDATE TESTS ----------- */
+
+        // -U on user emits -U
+        updateBeforeUser("1", "Gus", "User 1 Details");
+        emits(
+                UPDATE_BEFORE,
+                "1",
+                "Gus",
+                "User 1 Details",
+                "1",
+                "order_1",
+                "Order 1 Details",
+                "1",
+                "payment_1",
+                "Payment 1 Details");
+
+        // +U on user emits +U
+        updateAfterUser("1", "Gus", "User 1 Details Updated");
+        emits(
+                UPDATE_AFTER,
+                "1",
+                "Gus",
+                "User 1 Details Updated",
+                "1",
+                "order_1",
+                "Order 1 Details",
+                "1",
+                "payment_1",
+                "Payment 1 Details");
+
+        /* -------- ORDER UPDATE TESTS ----------- */
+
+        // -U on order emits -U and temporarily reverts to left+null join
+        updateBeforeOrder("1", "order_1", "Order 1 Details");
+        emits(
+                UPDATE_BEFORE,
+                        r(
+                                "1",
+                                "Gus",
+                                "User 1 Details Updated",
+                                "1",
+                                "order_1",
+                                "Order 1 Details",
+                                "1",
+                                "payment_1",
+                                "Payment 1 Details"),
+                // and 1 and 3 in the conditions? payments
+                // would still show up?
+                INSERT,
+                        r(
+                                "1",
+                                "Gus",
+                                "User 1 Details Updated",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null));
+
+        // +U on order removes null result and emits join
+        updateAfterOrder("1", "order_1", "Order 1 Details Updated");
+        emits(
+                DELETE, r("1", "Gus", "User 1 Details Updated", null, null, null, null, null, null),
+                UPDATE_AFTER,
+                        r(
+                                "1",
+                                "Gus",
+                                "User 1 Details Updated",
+                                "1",
+                                "order_1",
+                                "Order 1 Details Updated",
+                                "1",
+                                "payment_1",
+                                "Payment 1 Details"));
+
+        /* -------- PAYMENT UPDATE TESTS ----------- */
+
+        // -U on payment emits -U and temporarily reverts to left+middle join
+        updateBeforePayment("1", "payment_1", "Payment 1 Details");
+        emits(
+                UPDATE_BEFORE,
+                        r(
+                                "1",
+                                "Gus",
+                                "User 1 Details Updated",
+                                "1",
+                                "order_1",
+                                "Order 1 Details Updated",
+                                "1",
+                                "payment_1",
+                                "Payment 1 Details"),
+                INSERT,
+                        r(
+                                "1",
+                                "Gus",
+                                "User 1 Details Updated",
+                                "1",
+                                "order_1",
+                                "Order 1 Details Updated",
+                                null,
+                                null,
+                                null));
+
+        // +U on payment removes null result and emits join
+        updateAfterPayment("1", "payment_1", "Payment 1 Details Updated");
+        emits(
+                DELETE,
+                        r(
+                                "1",
+                                "Gus",
+                                "User 1 Details Updated",
+                                "1",
+                                "order_1",
+                                "Order 1 Details Updated",
+                                null,
+                                null,
+                                null),
+                UPDATE_AFTER,
+                        r(
+                                "1",
+                                "Gus",
+                                "User 1 Details Updated",
+                                "1",
+                                "order_1",
+                                "Order 1 Details Updated",
+                                "1",
+                                "payment_1",
+                                "Payment 1 Details Updated"));
+
+        /* -------- MULTI-TABLE SCENARIOS ----------- */
+
+        // Adding a second payment for same user/order
+        insertPayment("1", "payment_2", "Payment 2 Details");
+        emits(
+                INSERT,
+                "1",
+                "Gus",
+                "User 1 Details Updated",
+                "1",
+                "order_1",
+                "Order 1 Details Updated",
+                "1",
+                "payment_2",
+                "Payment 2 Details");
+
+        // Delete user with multiple joined records deletes all join results
+        deleteUser("1", "Gus", "User 1 Details Updated");
+        emits(
+                DELETE,
+                r(
                         "1",
+                        "Gus",
+                        "User 1 Details Updated",
+                        "1",
+                        "order_1",
+                        "Order 1 Details Updated",
+                        "1",
+                        "payment_2",
+                        "Payment 2 Details"),
+                DELETE,
+                r(
+                        "1",
+                        "Gus",
+                        "User 1 Details Updated",
+                        "1",
+                        "order_1",
+                        "Order 1 Details Updated",
+                        "1",
+                        "payment_1",
+                        "Payment 1 Details Updated"));
+
+        // New user with same key joins with both orders and payments
+        insertUser("1", "Dawid", "User 3 Details");
+        emits(
+                INSERT,
+                r(
+                        "1",
+                        "Dawid",
+                        "User 3 Details",
+                        "1",
+                        "order_1",
+                        "Order 1 Details Updated",
+                        "1",
+                        "payment_2",
+                        "Payment 2 Details"),
+                INSERT,
+                r(
+                        "1",
+                        "Dawid",
+                        "User 3 Details",
+                        "1",
+                        "order_1",
+                        "Order 1 Details Updated",
+                        "1",
+                        "payment_1",
+                        "Payment 1 Details Updated"));
+
+        /* -------- COMPLEX SCENARIO: MULTIPLE PARTIAL MATCHES ----------- */
+
+        // Payment for user 2 matches order we added at the beginning of the test, but we don't
+        // emit since we have no user
+        // insertOrder("2", "order_2", "Order 2 Details");
+        insertPayment("2", "payment_3", "Payment 3 Details");
+        emitsNothing();
+
+        insertPayment("2", "payment_4", "Payment 4 Details");
+        emitsNothing();
+
+        // Now we have a match for all three
+        insertUser("2", "Bob", "User 2 Details");
+
+        // Add payment for user 2 (completes the join)
+        emits(
+                INSERT,
+                r(
+                        "2",
+                        "Bob",
+                        "User 2 Details",
+                        "2",
+                        "order_2",
+                        "Order 2 Details",
+                        "2",
+                        "payment_4",
+                        "Payment 4 Details"),
+                INSERT,
+                r(
+                        "2",
+                        "Bob",
+                        "User 2 Details",
+                        "2",
+                        "order_2",
+                        "Order 2 Details",
+                        "2",
+                        "payment_3",
+                        "Payment 3 Details"));
+
+        // Delete order first - since our join condition matches payment based on orders
+        // we will get a full null padded row for bob
+        // If our join condition joined based on attributes from third table with the first
+        // We'd have gotten bob null payment
+        deleteOrder("2", "order_2", "Order 2 Details");
+        emits(
+                DELETE,
+                r(
+                        "2",
+                        "Bob",
+                        "User 2 Details",
+                        "2",
+                        "order_2",
+                        "Order 2 Details",
+                        "2",
+                        "payment_4",
+                        "Payment 4 Details"),
+                DELETE,
+                r(
+                        "2",
+                        "Bob",
+                        "User 2 Details",
+                        "2",
+                        "order_2",
+                        "Order 2 Details",
+                        "2",
+                        "payment_3",
+                        "Payment 3 Details"),
+                INSERT,
+                r("2", "Bob", "User 2 Details", null, null, null, null, null, null));
+
+        insertOrder("2", "order_2", "Order 2 Details");
+        emits(
+                DELETE,
+                r("2", "Bob", "User 2 Details", null, null, null, null, null, null),
+                INSERT,
+                r(
+                        "2",
+                        "Bob",
+                        "User 2 Details",
+                        "2",
+                        "order_2",
+                        "Order 2 Details",
+                        "2",
+                        "payment_4",
+                        "Payment 4 Details"),
+                INSERT,
+                r(
+                        "2",
+                        "Bob",
+                        "User 2 Details",
+                        "2",
+                        "order_2",
+                        "Order 2 Details",
+                        "2",
+                        "payment_3",
+                        "Payment 3 Details"));
+
+        insertOrder("2", "order_3", "Order 3 Details");
+        emits(
+                INSERT,
+                r(
+                        "2",
+                        "Bob",
+                        "User 2 Details",
+                        "2",
+                        "order_3",
+                        "Order 3 Details",
+                        "2",
+                        "payment_4",
+                        "Payment 4 Details"),
+                INSERT,
+                r(
+                        "2",
+                        "Bob",
+                        "User 2 Details",
+                        "2",
+                        "order_3",
+                        "Order 3 Details",
+                        "2",
+                        "payment_3",
+                        "Payment 3 Details"));
+
+        updateAfterPayment("2", "payment_4", "Payment 4 Details Updated");
+        emits(
+                UPDATE_AFTER,
+                r(
+                        "2",
+                        "Bob",
+                        "User 2 Details",
+                        "2",
+                        "order_2",
+                        "Order 2 Details",
+                        "2",
+                        "payment_4",
+                        "Payment 4 Details Updated"),
+                UPDATE_AFTER,
+                r(
+                        "2",
+                        "Bob",
+                        "User 2 Details",
+                        "2",
+                        "order_3",
+                        "Order 3 Details",
+                        "2",
+                        "payment_4",
+                        "Payment 4 Details Updated"));
+
+        updateAfterUser("2", "Bob", "User 2 Details Updated");
+        emits(
+                UPDATE_AFTER,
+                r(
+                        "2",
+                        "Bob",
+                        "User 2 Details Updated",
+                        "2",
+                        "order_2",
+                        "Order 2 Details",
+                        "2",
+                        "payment_4",
+                        "Payment 4 Details Updated"),
+                UPDATE_AFTER,
+                r(
+                        "2",
+                        "Bob",
+                        "User 2 Details Updated",
+                        "2",
+                        "order_2",
+                        "Order 2 Details",
+                        "2",
+                        "payment_3",
+                        "Payment 3 Details"),
+                UPDATE_AFTER,
+                r(
+                        "2",
+                        "Bob",
+                        "User 2 Details Updated",
+                        "2",
+                        "order_3",
+                        "Order 3 Details",
+                        "2",
+                        "payment_4",
+                        "Payment 4 Details Updated"),
+                UPDATE_AFTER,
+                r(
+                        "2",
+                        "Bob",
+                        "User 2 Details Updated",
+                        "2",
+                        "order_3",
+                        "Order 3 Details",
+                        "2",
+                        "payment_3",
+                        "Payment 3 Details"));
+
+        deleteUser("2", "Bob", "User 2 Details");
+        emits(
+                DELETE,
+                r(
+                        "2",
+                        "Bob",
+                        "User 2 Details",
+                        "2",
+                        "order_2",
+                        "Order 2 Details",
+                        "2",
+                        "payment_4",
+                        "Payment 4 Details Updated"),
+                DELETE,
+                r(
+                        "2",
+                        "Bob",
+                        "User 2 Details",
+                        "2",
+                        "order_2",
+                        "Order 2 Details",
+                        "2",
+                        "payment_3",
+                        "Payment 3 Details"),
+                DELETE,
+                r(
+                        "2",
+                        "Bob",
+                        "User 2 Details",
+                        "2",
+                        "order_3",
+                        "Order 3 Details",
+                        "2",
+                        "payment_4",
+                        "Payment 4 Details Updated"),
+                DELETE,
+                r(
+                        "2",
+                        "Bob",
+                        "User 2 Details",
+                        "2",
+                        "order_3",
+                        "Order 3 Details",
+                        "2",
+                        "payment_3",
+                        "Payment 3 Details"));
+    }
+}
+
+class StreamingThreeWayOuterJoinCustomConditionOperatorTest
+        extends StreamingMultiJoinOperatorTestBase {
+
+    // This condition joins ON user.user_id = payment.user_id instead of ON order.user_id =
+    // payment.user_id
+    private static final List<GeneratedMultiJoinCondition> customJoinCondition =
+            Arrays.asList(
+                    null,
+                    createMultiJoinOuterJoinCondition(1, 0),
+                    createMultiJoinOuterJoinCondition(2, 0));
+
+    public StreamingThreeWayOuterJoinCustomConditionOperatorTest() {
+        // Testing left joins with custom conditions for a chain of tables:
+        // Users LEFT JOIN Orders LEFT JOIN Payments
+        super(3, List.of(JoinType.INNER, JoinType.LEFT, JoinType.LEFT), customJoinCondition, false);
+    }
+
+    /**
+     * -- Test three-way left outer join with nulls and changelog transitions
+     *
+     * <p>SQL: SELECT u.*, o.*, p.* FROM Users u LEFT OUTER JOIN Orders o ON u.user_id = o.user_id
+     * LEFT OUTER JOIN Payments p ON u.user_id = p.user_id <- This is the core difference here
+     *
+     * <p>Schema: Users(user_id PRIMARY KEY, name, details) Orders(user_id, order_id PRIMARY KEY,
+     * name) Payments(user_id, payment_id PRIMARY KEY, name)
+     */
+    @Test
+    void testThreeWayLeftOuterJoinCustomCondition() throws Exception {
+        /* -------- LEFT OUTER JOIN APPEND TESTS ----------- */
+
+        // Users without orders/payments are emitted with nulls
+        insertPayment("1", "payment_1", "Payment 1 Details");
+        emitsNothing();
+
+        insertOrder("1", "order_1", "Order 1 Details");
+        emitsNothing();
+
+        // Add matching user and emits full join
+        insertUser("1", "Gus", "User 1 Details");
+        emits(
+                INSERT,
+                r(
+                        "1",
+                        "Gus",
+                        "User 1 Details",
+                        "1",
+                        "order_1",
                         "Order 1 Details",
-                        "shipment_1",
                         "1",
-                        "Shipment 1 Details",
                         "payment_1",
-                        "1",
                         "Payment 1 Details"));
 
-        // Update first input record
-        testHarness.processElement(0, updateAfterRecord("order_1", "1", "Order 1 Updated"));
+        /* -------- ORDER UPDATE TESTS ----------- */
 
-        // Should emit updated joined record
-        assertor.shouldEmit(
-                testHarness,
-                rowOfKind(
-                        RowKind.UPDATE_AFTER,
+        // -U on order emits -U and temporarily reverts to left+null join
+        updateBeforeOrder("1", "order_1", "Order 1 Details");
+        emits(
+                UPDATE_BEFORE,
+                r(
+                        "1",
+                        "Gus",
+                        "User 1 Details",
+                        "1",
                         "order_1",
+                        "Order 1 Details",
                         "1",
-                        "Order 1 Updated",
-                        "shipment_1",
-                        "1",
-                        "Shipment 1 Details",
                         "payment_1",
+                        "Payment 1 Details"),
+                // and 1 and 3 in the conditions? payments
+                // would still show up?
+                INSERT,
+                r(
                         "1",
+                        "Gus",
+                        "User 1 Details",
+                        null,
+                        null,
+                        null,
+                        "1",
+                        "payment_1",
                         "Payment 1 Details"));
 
-        // Update second input record
-        testHarness.processElement(1, updateAfterRecord("shipment_1", "1", "Shipment 1 Updated"));
-
-        // Should emit updated joined record
-        assertor.shouldEmit(
-                testHarness,
-                rowOfKind(
-                        RowKind.UPDATE_AFTER,
-                        "order_1",
+        // +U on order removes null result and emits join
+        updateAfterOrder("1", "order_1", "Order 1 Details Updated");
+        emits(
+                DELETE,
+                r(
                         "1",
-                        "Order 1 Updated",
-                        "shipment_1",
+                        "Gus",
+                        "User 1 Details",
+                        null,
+                        null,
+                        null,
                         "1",
-                        "Shipment 1 Updated",
                         "payment_1",
+                        "Payment 1 Details"),
+                UPDATE_AFTER,
+                r(
                         "1",
+                        "Gus",
+                        "User 1 Details",
+                        "1",
+                        "order_1",
+                        "Order 1 Details Updated",
+                        "1",
+                        "payment_1",
                         "Payment 1 Details"));
-
-        // Update third input record
-        testHarness.processElement(2, updateAfterRecord("payment_1", "1", "Payment 1 Updated"));
-
-        // Should emit updated joined record
-        assertor.shouldEmit(
-                testHarness,
-                rowOfKind(
-                        RowKind.UPDATE_AFTER,
-                        "order_1",
-                        "1",
-                        "Order 1 Updated",
-                        "shipment_1",
-                        "1",
-                        "Shipment 1 Updated",
-                        "payment_1",
-                        "1",
-                        "Payment 1 Updated"));
-
-        // Delete the payment record for key 1, which should generate a deletion for the join
-        testHarness.processElement(2, deleteRecord("payment_1", "1", "Payment 1 Updated"));
-
-        // Should emit a delete for the old join result
-        assertor.shouldEmit(
-                testHarness,
-                rowOfKind(
-                        RowKind.DELETE,
-                        "order_1",
-                        "1",
-                        "Order 1 Updated",
-                        "shipment_1",
-                        "1",
-                        "Shipment 1 Updated",
-                        "payment_1",
-                        "1",
-                        "Payment 1 Updated"));
-
-        // Add a matching payment record back for key "1"
-        testHarness.processElement(2, insertRecord("payment_1", "1", "Payment 1 Updated 2"));
-
-        // Should emit joined record for key "1"
-        assertor.shouldEmit(
-                testHarness,
-                rowOfKind(
-                        RowKind.INSERT,
-                        "order_1",
-                        "1",
-                        "Order 1 Updated",
-                        "shipment_1",
-                        "1",
-                        "Shipment 1 Updated",
-                        "payment_1",
-                        "1",
-                        "Payment 1 Updated 2"));
-
-        // Test key updates by inserting records with key "2"
-        testHarness.processElement(0, insertRecord("order_2", "2", "Order 2 Details"));
-
-        testHarness.processElement(1, insertRecord("shipment_2", "2", "Shipment 2 Details"));
-
-        testHarness.processElement(2, insertRecord("payment_2", "2", "Payment 2 Details"));
-
-        // Should emit joined record for key "2"
-        assertor.shouldEmit(
-                testHarness,
-                rowOfKind(
-                        RowKind.INSERT,
-                        "order_2",
-                        "2",
-                        "Order 2 Details",
-                        "shipment_2",
-                        "2",
-                        "Shipment 2 Details",
-                        "payment_2",
-                        "2",
-                        "Payment 2 Details"));
-
-        // Update key of order_2 from "2" to "3"
-        testHarness.processElement(0, deleteRecord("order_2", "2", "Order 2 Details"));
-
-        // Should emit a delete for the old join result
-        assertor.shouldEmit(
-                testHarness,
-                rowOfKind(
-                        RowKind.DELETE,
-                        "order_2",
-                        "2",
-                        "Order 2 Details",
-                        "shipment_2",
-                        "2",
-                        "Shipment 2 Details",
-                        "payment_2",
-                        "2",
-                        "Payment 2 Details"));
-
-        // Add updated matching record for key "2"
-        testHarness.processElement(0, insertRecord("order_2", "2", "Order 2 Details Updated"));
-
-        // Should emit the row again with updated records
-        assertor.shouldEmit(
-                testHarness,
-                rowOfKind(
-                        RowKind.INSERT,
-                        "order_2",
-                        "2",
-                        "Order 2 Details Updated",
-                        "shipment_2",
-                        "2",
-                        "Shipment 2 Details",
-                        "payment_2",
-                        "2",
-                        "Payment 2 Details"));
     }
 }
