@@ -63,7 +63,7 @@ class BaseAPIStabilityDecorator(metaclass=ABCMeta):
         """
         Appends a directive to the docstring of the given function or class.
         If a class, it also appends the directive to the docstrings of the public functions
-        of that class.
+        and properties of that class.
         """
         directive = dedent(self.get_directive(func_or_cls))
 
@@ -87,7 +87,10 @@ class BaseAPIStabilityDecorator(metaclass=ABCMeta):
             setattr(func_or_cls, '__stability_decorators', {self.__class__})
 
         if isclass(func_or_cls):
-            for name, method in getmembers(func_or_cls, isfunction):
+            for name, method in getmembers(
+                func_or_cls,
+                lambda member: isfunction(member) or isinstance(member, property)
+            ):
                 if not name.startswith("_"):
                     method_docstring = method.__doc__ or ""
                     method_docstring = dedent(method_docstring)
