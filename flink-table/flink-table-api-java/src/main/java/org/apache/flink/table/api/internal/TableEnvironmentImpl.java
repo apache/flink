@@ -73,6 +73,7 @@ import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.execution.StagingSinkJobStatusHook;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor;
@@ -283,6 +284,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                         .config(tableConfig)
                                         .classloader(userClassLoader)
                                         .build())
+                        .sqlFactory(
+                                settings.getSqlFactory()
+                                        .orElseGet(() -> DefaultSqlFactory.INSTANCE))
                         .build();
 
         final FunctionCatalog functionCatalog =
@@ -1257,7 +1261,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         String defaultJobName = "collect";
 
         try {
-            defaultJobName = operation.asSerializableString();
+            defaultJobName = operation.asSerializableString(catalogManager.getSqlFactory());
         } catch (Throwable e) {
             // ignore error for unsupported operations and use 'collect' as default job name
         }

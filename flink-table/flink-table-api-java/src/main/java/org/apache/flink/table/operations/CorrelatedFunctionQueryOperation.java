@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.SqlFactory;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -74,14 +75,14 @@ public class CorrelatedFunctionQueryOperation implements QueryOperation {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SqlFactory sqlFactory) {
         // if we ever add multi-way join in JoinQueryOperation we need to sort out uniqueness of the
         // table name
         return String.format(
                 "LATERAL TABLE(%s) %s(%s)",
                 resolvedFunction
                         .toCallExpression(arguments, resolvedSchema.toPhysicalRowDataType())
-                        .asSerializableString(),
+                        .asSerializableString(sqlFactory),
                 INPUT_ALIAS,
                 OperationUtils.formatSelectColumns(resolvedSchema, null));
     }
