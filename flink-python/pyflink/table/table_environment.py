@@ -138,7 +138,7 @@ class TableEnvironment(object):
     @Deprecated(since="2.1.0", detail="""
     Use :func:`create_catalog` instead. The new method uses a
     :class:`~pyflink.table.catalog.CatalogDescriptor` to initialize the catalog instance and store
-    the `~pyflink.table.catalog.CatalogDescriptor` in the catalog store.
+    the :class:`~pyflink.table.catalog.CatalogDescriptor` in the catalog store.
     """)
     def register_catalog(self, catalog_name: str, catalog: Catalog):
         """
