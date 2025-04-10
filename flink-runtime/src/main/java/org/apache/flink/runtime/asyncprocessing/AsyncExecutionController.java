@@ -609,6 +609,11 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
         return inFlightRecordNum.get();
     }
 
+    @VisibleForTesting
+    public MailboxExecutor getMailboxExecutor() {
+        return mailboxExecutor;
+    }
+
     @Override
     public void close() throws IOException {
         stateRequestsBuffer.close();

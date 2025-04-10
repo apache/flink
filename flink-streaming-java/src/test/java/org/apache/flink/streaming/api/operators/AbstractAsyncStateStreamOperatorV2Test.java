@@ -34,6 +34,7 @@ import org.apache.flink.streaming.runtime.operators.asyncprocessing.ElementOrder
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributesBuilder;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorImpl;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedMultiInputStreamOperatorTestHarness;
@@ -53,6 +54,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.runtime.state.StateBackendTestUtils.buildAsyncStateBackend;
+import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MIN_PRIORITY;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Basic tests for {@link AbstractAsyncStateStreamOperatorV2}. */
@@ -82,15 +84,13 @@ class AbstractAsyncStateStreamOperatorV2Test {
             testHarness.open();
             assertThat(testHarness.getBaseOperator())
                     .isInstanceOf(AbstractAsyncStateStreamOperatorV2.class);
-            assertThat(
-                            ((AbstractAsyncStateStreamOperatorV2) testHarness.getBaseOperator())
-                                    .getAsyncExecutionController())
-                    .isNotNull();
-            assertThat(
-                            ((AbstractAsyncStateStreamOperatorV2) testHarness.getBaseOperator())
-                                    .getAsyncExecutionController()
-                                    .getStateExecutor())
-                    .isNotNull();
+            AsyncExecutionController<?> aec =
+                    ((AbstractAsyncStateStreamOperatorV2) testHarness.getBaseOperator())
+                            .getAsyncExecutionController();
+            assertThat(aec).isNotNull();
+            assertThat(((MailboxExecutorImpl) aec.getMailboxExecutor()).getPriority())
+                    .isGreaterThan(MIN_PRIORITY);
+            assertThat(aec.getStateExecutor()).isNotNull();
         }
     }
 
