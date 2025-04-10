@@ -69,6 +69,7 @@ import org.apache.flink.table.runtime.operators.over.TimeAttribute;
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.StateConfigUtil;
+import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -450,7 +451,8 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                             flattenAccTypes,
                             fieldTypes,
                             sortKeyTypes,
-                            sortKeySelector);
+                            sortKeySelector,
+                            InternalTypeInfo.ofFields(new BigIntType()));
                 } else {
                     // Non-Time Range Unbounded Preceding Function
                     return new NonTimeRangeUnboundedPrecedingFunction<>(
@@ -462,7 +464,8 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                             flattenAccTypes,
                             fieldTypes,
                             sortKeyTypes,
-                            sortKeySelector);
+                            sortKeySelector,
+                            InternalTypeInfo.ofFields(sortKeyTypes));
                 }
             default:
                 throw new TableException(
