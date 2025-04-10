@@ -99,7 +99,10 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
 
         final StreamTask<?, ?> containingTask = checkNotNull(getContainingTask());
         environment = containingTask.getEnvironment();
-        final MailboxExecutor mailboxExecutor = environment.getMainMailboxExecutor();
+        final MailboxExecutor mailboxExecutor =
+                containingTask
+                        .getMailboxExecutorFactory()
+                        .createExecutor(getOperatorConfig().getChainIndex());
         final int maxParallelism = environment.getTaskInfo().getMaxNumberOfParallelSubtasks();
         final int inFlightRecordsLimit =
                 environment.getExecutionConfig().getAsyncStateTotalBufferSize();
