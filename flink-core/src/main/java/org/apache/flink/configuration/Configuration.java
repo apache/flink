@@ -239,19 +239,19 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
     }
 
     public void addAll(Configuration other) {
-        Object lock1 = this.confData;
-        Object lock2 = other.confData;
+        Object thisLock = this.confData;
+        Object otherLock = other.confData;
 
         // Ensure consistent lock sequence
-        if (System.identityHashCode(lock1) < System.identityHashCode(lock2)) {
-            synchronized (lock1) {
-                synchronized (lock2) {
+        if (System.identityHashCode(thisLock) < System.identityHashCode(otherLock)) {
+            synchronized (thisLock) {
+                synchronized (otherLock) {
                     this.confData.putAll(other.confData);
                 }
             }
         } else {
-            synchronized (lock2) {
-                synchronized (lock1) {
+            synchronized (otherLock) {
+                synchronized (thisLock) {
                     this.confData.putAll(other.confData);
                 }
             }
@@ -270,13 +270,13 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
         bld.append(prefix);
         final int pl = bld.length();
 
-        Object lock1 = this.confData;
-        Object lock2 = other.confData;
+        Object thisLock = this.confData;
+        Object otherLock = other.confData;
 
         // Ensure consistent lock sequence
-        if (System.identityHashCode(lock1) < System.identityHashCode(lock2)) {
-            synchronized (lock1) {
-                synchronized (lock2) {
+        if (System.identityHashCode(thisLock) < System.identityHashCode(otherLock)) {
+            synchronized (thisLock) {
+                synchronized (otherLock) {
                     for (Map.Entry<String, Object> entry : other.confData.entrySet()) {
                         bld.setLength(pl);
                         bld.append(entry.getKey());
@@ -285,8 +285,8 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
                 }
             }
         } else {
-            synchronized (lock2) {
-                synchronized (lock1) {
+            synchronized (otherLock) {
+                synchronized (thisLock) {
                     for (Map.Entry<String, Object> entry : other.confData.entrySet()) {
                         bld.setLength(pl);
                         bld.append(entry.getKey());
