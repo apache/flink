@@ -302,6 +302,11 @@ public interface RowData {
      */
     @PublicEvolving
     interface FieldGetter extends Serializable {
+        /**
+         * Converters and serializers always support nullability. The NOT NULL constraint is only
+         * considered on SQL semantic level but not data transfer. E.g. partial deletes (i.e.
+         * key-only upserts) set all non-key fields to null, regardless of logical type.
+         */
         @Nullable
         Object getFieldOrNull(RowData row);
     }

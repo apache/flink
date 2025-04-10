@@ -378,15 +378,22 @@ class DataStructureConvertersTest {
                                         DataTypes.FIELD("f15", DataTypes.DECIMAL(10, 2).notNull()),
                                         DataTypes.FIELD(
                                                 "f16",
-                                                DataTypes.MAP(DataTypes.INT(), DataTypes.STRING())
+                                                DataTypes.MAP(
+                                                                DataTypes.INT().notNull(),
+                                                                DataTypes.STRING().notNull())
                                                         .notNull()),
                                         DataTypes.FIELD(
-                                                "f17", DataTypes.ARRAY(DataTypes.INT()).notNull()),
+                                                "f17",
+                                                DataTypes.ARRAY(DataTypes.INT().notNull())
+                                                        .notNull()),
                                         DataTypes.FIELD(
-                                                "f18", DataTypes.ARRAY(DataTypes.INT()).notNull()),
+                                                "f18",
+                                                DataTypes.ARRAY(DataTypes.INT().notNull())
+                                                        .notNull()),
                                         DataTypes.FIELD(
                                                 "f19",
-                                                DataTypes.MULTISET(DataTypes.INT()).notNull())))
+                                                DataTypes.MULTISET(DataTypes.INT().notNull())
+                                                        .notNull())))
                         .convertedTo(
                                 Row.class,
                                 Row.ofKind(

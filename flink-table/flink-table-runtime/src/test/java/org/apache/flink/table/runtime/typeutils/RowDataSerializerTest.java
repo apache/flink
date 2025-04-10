@@ -409,6 +409,11 @@ abstract class RowDataSerializerTest extends SerializerTestInstance<RowData> {
         }
     }
 
+    /**
+     * Converters and serializers always support nullability. The NOT NULL constraint is only
+     * considered on SQL semantic level but not data transfer. E.g. partial deletes (i.e.
+     * key-only upserts) set all non-key fields to null, regardless of logical type.
+     */
     static final class RowDataSerializerWithNullForNotNullTypeTest extends RowDataSerializerTest {
         public RowDataSerializerWithNullForNotNullTypeTest() {
             super(getRowSerializer(), getData());
