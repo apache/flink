@@ -26,6 +26,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.state.forst.sync.ForStSyncKeyedStateBackend;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -56,6 +57,31 @@ public final class ForStTestUtils {
                         stateHandles,
                         new CloseableRegistry(),
                         1.0));
+    }
+
+    public static <K> ForStSyncKeyedStateBackend<K> createSyncKeyedStateBackend(
+            ForStStateBackend forStStateBackend,
+            Environment env,
+            TypeSerializer<K> keySerializer,
+            Collection<KeyedStateHandle> stateHandles)
+            throws IOException {
+
+        return (ForStSyncKeyedStateBackend<K>)
+                forStStateBackend.createKeyedStateBackend(
+                        new KeyedStateBackendParametersImpl<>(
+                                env,
+                                env.getJobID(),
+                                "test_op",
+                                keySerializer,
+                                1,
+                                new KeyGroupRange(0, 0),
+                                env.getTaskKvStateRegistry(),
+                                TtlTimeProvider.DEFAULT,
+                                new UnregisteredMetricsGroup(),
+                                (name, value) -> {},
+                                stateHandles,
+                                new CloseableRegistry(),
+                                1.0));
     }
 
     public static <K> ForStKeyedStateBackend<K> createKeyedStateBackend(
