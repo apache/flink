@@ -40,6 +40,8 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateUdfStreamOperator;
+import org.apache.flink.runtime.asyncprocessing.operators.AsyncKeyedProcessOperator;
 import org.apache.flink.streaming.api.datastream.BroadcastConnectedStream;
 import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
@@ -932,6 +934,48 @@ class DataStreamTest {
 
         assertThat(getFunctionForDataStream(processed)).isEqualTo(keyedProcessFunction);
         assertThat(getOperatorForDataStream(processed)).isInstanceOf(KeyedProcessOperator.class);
+    }
+
+    /**
+     * Verify that a {@link KeyedStream#process(KeyedProcessFunction)} call is correctly translated
+     * to an async operator.
+     */
+    @Test
+    void testAsyncKeyedStreamKeyedProcessTranslation() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStreamSource<Long> src = env.fromSequence(0, 0);
+
+        KeyedProcessFunction<Long, Long, Integer> keyedProcessFunction =
+                new KeyedProcessFunction<Long, Long, Integer>() {
+                    private static final long serialVersionUID = 1L;
+
+                    @Override
+                    public void processElement(Long value, Context ctx, Collector<Integer> out)
+                            throws Exception {
+                        // Do nothing
+                    }
+
+                    @Override
+                    public void onTimer(long timestamp, OnTimerContext ctx, Collector<Integer> out)
+                            throws Exception {
+                        // Do nothing
+                    }
+                };
+
+        DataStream<Integer> processed =
+                src.keyBy(new IdentityKeySelector<Long>())
+                        .enableAsyncState()
+                        .process(keyedProcessFunction);
+
+        processed.sinkTo(new DiscardingSink<Integer>());
+
+        assertThat(
+                        ((AbstractAsyncStateUdfStreamOperator<?, ?>)
+                                        getOperatorForDataStream(processed))
+                                .getUserFunction())
+                .isEqualTo(keyedProcessFunction);
+        assertThat(getOperatorForDataStream(processed))
+                .isInstanceOf(AsyncKeyedProcessOperator.class);
     }
 
     /**
