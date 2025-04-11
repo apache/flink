@@ -311,8 +311,7 @@ public class CliFrontend {
                 getEffectiveConfiguration(activeCustomCommandLine, commandLine);
 
         final ExecutionConfigAccessor executionParameters =
-                ExecutionConfigAccessor.fromProgramOptions(
-                        checkNotNull(programOptions), checkNotNull(jobJars));
+                ExecutionConfigAccessor.fromProgramOptions(programOptions, jobJars);
 
         executionParameters.applyToConfiguration(effectiveConfiguration);
 
