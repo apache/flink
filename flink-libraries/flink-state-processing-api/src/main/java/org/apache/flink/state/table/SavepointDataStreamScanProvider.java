@@ -93,8 +93,7 @@ public class SavepointDataStreamScanProvider implements DataStreamScanProvider {
 
             // Get value state descriptors
             for (StateValueColumnConfiguration columnConfig : keyValueProjections.f1) {
-                TypeInformation valueTypeInfo =
-                        TypeInformation.of(Class.forName(columnConfig.getValueFormat()));
+                TypeInformation valueTypeInfo = columnConfig.getValueTypeInfo();
 
                 switch (columnConfig.getStateType()) {
                     case VALUE:
@@ -110,12 +109,11 @@ public class SavepointDataStreamScanProvider implements DataStreamScanProvider {
                         break;
 
                     case MAP:
-                        if (columnConfig.getMapKeyFormat() == null) {
+                        if (columnConfig.getMapKeyTypeInfo() == null) {
                             throw new ConfigurationException(
-                                    "Map key format is required for map state");
+                                    "Map key type information is required for map state");
                         }
-                        TypeInformation<?> mapKeyTypeInfo =
-                                TypeInformation.of(Class.forName(columnConfig.getMapKeyFormat()));
+                        TypeInformation<?> mapKeyTypeInfo = columnConfig.getMapKeyTypeInfo();
                         columnConfig.setStateDescriptor(
                                 new MapStateDescriptor<>(
                                         columnConfig.getStateName(),

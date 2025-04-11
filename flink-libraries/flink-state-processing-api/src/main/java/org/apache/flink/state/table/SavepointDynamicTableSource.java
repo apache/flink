@@ -29,7 +29,7 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 
-/** State dynamic source. */
+/** Savepoint dynamic source. */
 public class SavepointDynamicTableSource implements ScanTableSource {
     @Nullable private final String stateBackendType;
     private final String statePath;

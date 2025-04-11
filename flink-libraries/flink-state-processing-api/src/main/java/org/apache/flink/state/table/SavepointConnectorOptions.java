@@ -35,6 +35,7 @@ public class SavepointConnectorOptions {
     public static final String STATE_TYPE = "state-type";
     public static final String MAP_KEY_FORMAT = "map-key-format";
     public static final String VALUE_FORMAT = "value-format";
+    public static final String VALUE_TYPE_INFO_FACTORY = "value-type-info-factory";
 
     /** Value state types. */
     public enum StateType {
@@ -132,8 +133,27 @@ public class SavepointConnectorOptions {
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
-                            "Defines the format class scheme for decoding value data. "
-                                    + "When it's not provided then it tries to be inferred from the SQL type (only primitive types supported).");
+                            Description.builder()
+                                    .text(
+                                            "Defines the format class scheme for decoding value data. "
+                                                    + "Either %s or %s can be specified. "
+                                                    + "When none of them are provided then format class scheme tries to be inferred from the SQL type (only primitive types supported).",
+                                            code(VALUE_FORMAT), code(VALUE_TYPE_INFO_FACTORY))
+                                    .build());
+
+    /** Placeholder {@link ConfigOption}. Not used for retrieving values. */
+    public static final ConfigOption<String> VALUE_TYPE_INFO_FACTORY_PLACEHOLDER =
+            ConfigOptions.key(String.format("%s.#.%s", FIELDS, VALUE_TYPE_INFO_FACTORY))
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Defines the type information factory for decoding value data. "
+                                                    + "Either %s or %s can be specified. "
+                                                    + "When none of them are provided then the format class scheme tries to be inferred from the SQL type (only primitive types supported).",
+                                            code(VALUE_FORMAT), code(VALUE_TYPE_INFO_FACTORY))
+                                    .build());
 
     private SavepointConnectorOptions() {}
 }

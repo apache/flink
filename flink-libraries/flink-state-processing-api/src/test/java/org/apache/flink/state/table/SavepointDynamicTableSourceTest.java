@@ -167,4 +167,54 @@ public class SavepointDynamicTableSourceTest {
         assertThat(pojoValues.get(4L)).isEqualTo(Row.of(4L, 4L));
         assertThat(pojoValues.get(5L)).isEqualTo(Row.of(5L, 5L));
     }
+
+    @Test
+    public void testReadAvroKeyedState() throws Exception {
+        Configuration config = new Configuration();
+        config.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+
+        final String sql =
+                "CREATE TABLE state_table (\n"
+                        + "  k bigint,\n"
+                        + "  KeyedSpecificAvroValue ROW<longData bigint>,\n"
+                        + "  KeyedGenericAvroValue string,\n"
+                        + "  PRIMARY KEY (k) NOT ENFORCED\n"
+                        + ")\n"
+                        + "with (\n"
+                        + "  'connector' = 'savepoint',\n"
+                        + "  'state.path' = 'src/test/resources/table-state-avro',\n"
+                        + "  'operator.uid' = 'keyed-state-process-uid',\n"
+                        + "  'fields.KeyedSpecificAvroValue.value-type-info-factory' = 'org.apache.flink.state.table.SpecificAvroSavepointTypeInformationFactory',\n"
+                        + "  'fields.KeyedGenericAvroValue.value-type-info-factory' = 'org.apache.flink.state.table.GenericAvroSavepointTypeInformationFactory'\n"
+                        + ")";
+        tEnv.executeSql(sql);
+        Table table = tEnv.sqlQuery("SELECT * FROM state_table");
+        List<Row> result = tEnv.toDataStream(table).executeAndCollect(100);
+        assertThat(result.size()).isEqualTo(10);
+
+        // Check key
+        List<Long> keys =
+                result.stream().map(r -> (Long) r.getField("k")).collect(Collectors.toList());
+        List<Long> expectedKeys = LongStream.range(0L, 10L).boxed().collect(Collectors.toList());
+        assertThat(keys).containsExactlyInAnyOrderElementsOf(expectedKeys);
+
+        // Check avro value state
+        Set<Row> specificAvroValues =
+                result.stream()
+                        .map(r -> (Row) r.getField("KeyedSpecificAvroValue"))
+                        .collect(Collectors.toSet());
+        assertThat(specificAvroValues.size()).isEqualTo(1);
+        Row avroData = specificAvroValues.iterator().next();
+        assertThat(avroData.getField("longData")).isEqualTo(1L);
+
+        Set<String> genericAvroValues =
+                result.stream()
+                        .map(r -> (String) r.getField("KeyedGenericAvroValue"))
+                        .collect(Collectors.toSet());
+        assertThat(genericAvroValues.size()).isEqualTo(1);
+        String avroGenericValue = genericAvroValues.iterator().next();
+        assertThat(avroGenericValue).isEqualTo("{\"longData\": 1}");
+    }
 }

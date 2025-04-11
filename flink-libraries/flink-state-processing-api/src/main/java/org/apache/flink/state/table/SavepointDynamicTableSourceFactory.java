@@ -18,6 +18,8 @@
 
 package org.apache.flink.state.table;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.utils.TypeUtils;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
@@ -43,6 +45,7 @@ import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -61,6 +64,8 @@ import static org.apache.flink.state.table.SavepointConnectorOptions.STATE_TYPE;
 import static org.apache.flink.state.table.SavepointConnectorOptions.STATE_TYPE_PLACEHOLDER;
 import static org.apache.flink.state.table.SavepointConnectorOptions.VALUE_FORMAT;
 import static org.apache.flink.state.table.SavepointConnectorOptions.VALUE_FORMAT_PLACEHOLDER;
+import static org.apache.flink.state.table.SavepointConnectorOptions.VALUE_TYPE_INFO_FACTORY;
+import static org.apache.flink.state.table.SavepointConnectorOptions.VALUE_TYPE_INFO_FACTORY_PLACEHOLDER;
 import static org.apache.flink.state.table.SavepointConnectorOptionsUtil.getOperatorIdentifier;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 
@@ -151,7 +156,32 @@ public class SavepointDynamicTableSourceFactory implements DynamicTableSourceFac
                                                             .noDefaultValue();
                                             optionalOptions.add(valueFormatOption);
 
+                                            ConfigOption<String> valueTypeInfoFactoryOption =
+                                                    key(String.format(
+                                                                    "%s.%s.%s",
+                                                                    FIELDS,
+                                                                    valueRowField.getName(),
+                                                                    VALUE_TYPE_INFO_FACTORY))
+                                                            .stringType()
+                                                            .noDefaultValue();
+                                            optionalOptions.add(valueTypeInfoFactoryOption);
+
                                             LogicalType valueLogicalType = valueRowField.getType();
+
+                                            TypeInformation<?> mapKeyTypeInfo =
+                                                    getMapKeyTypeInfo(
+                                                            options,
+                                                            mapKeyFormatOption,
+                                                            valueRowField,
+                                                            valueLogicalType);
+
+                                            TypeInformation<?> valueTypeInfo =
+                                                    getValueTypeInfo(
+                                                            options,
+                                                            valueFormatOption,
+                                                            valueTypeInfoFactoryOption,
+                                                            valueRowField,
+                                                            valueLogicalType);
                                             return new StateValueColumnConfiguration(
                                                     columnIndex,
                                                     options.getOptional(stateNameOption)
@@ -161,20 +191,8 @@ public class SavepointDynamicTableSourceFactory implements DynamicTableSourceFac
                                                                     () ->
                                                                             inferStateType(
                                                                                     valueLogicalType)),
-                                                    options.getOptional(mapKeyFormatOption)
-                                                            .orElseGet(
-                                                                    () ->
-                                                                            inferStateMapKeyFormat(
-                                                                                    valueRowField
-                                                                                            .getName(),
-                                                                                    valueLogicalType)),
-                                                    options.getOptional(valueFormatOption)
-                                                            .orElseGet(
-                                                                    () ->
-                                                                            inferStateValueFormat(
-                                                                                    valueRowField
-                                                                                            .getName(),
-                                                                                    valueLogicalType)));
+                                                    mapKeyTypeInfo,
+                                                    valueTypeInfo);
                                         })
                                 .collect(Collectors.toList()));
         FactoryUtil.validateFactoryOptions(requiredOptions, optionalOptions, options);
@@ -230,6 +248,56 @@ public class SavepointDynamicTableSourceFactory implements DynamicTableSourceFac
         final IntStream physicalFields = IntStream.range(0, physicalFieldCount);
 
         return physicalFields.filter(pos -> keyProjection != pos).toArray();
+    }
+
+    private TypeInformation<?> getMapKeyTypeInfo(
+            Configuration options,
+            ConfigOption<String> mapKeyFormatOption,
+            RowType.RowField valueRowField,
+            LogicalType valueLogicalType) {
+        String mapKeyFormat =
+                options.getOptional(mapKeyFormatOption)
+                        .orElseGet(
+                                () ->
+                                        inferStateMapKeyFormat(
+                                                valueRowField.getName(), valueLogicalType));
+        try {
+            return mapKeyFormat != null ? TypeInformation.of(Class.forName(mapKeyFormat)) : null;
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private TypeInformation<?> getValueTypeInfo(
+            Configuration options,
+            ConfigOption<String> valueFormatOption,
+            ConfigOption<String> valueTypeInfoFactoryOption,
+            RowType.RowField valueRowField,
+            LogicalType valueLogicalType) {
+        Optional<String> valueFormat = options.getOptional(valueFormatOption);
+        Optional<String> valueTypeInfoFactory = options.getOptional(valueTypeInfoFactoryOption);
+        if (valueFormat.isPresent() && valueTypeInfoFactory.isPresent()) {
+            throw new IllegalArgumentException(
+                    "Either value-format or value-type-info-factory can be specified for column "
+                            + valueRowField.getName()
+                            + ".");
+        }
+        try {
+            if (valueFormat.isPresent()) {
+                return TypeInformation.of(Class.forName(valueFormat.get()));
+            } else if (valueTypeInfoFactory.isPresent()) {
+                SavepointTypeInformationFactory savepointTypeInformationFactory =
+                        (SavepointTypeInformationFactory)
+                                TypeUtils.getInstance(valueTypeInfoFactory.get(), new Object[0]);
+                return savepointTypeInformationFactory.getTypeInformation();
+            } else {
+                String inferredValueFormat =
+                        inferStateValueFormat(valueRowField.getName(), valueLogicalType);
+                return TypeInformation.of(Class.forName(inferredValueFormat));
+            }
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private SavepointConnectorOptions.StateType inferStateType(LogicalType logicalType) {
@@ -351,6 +419,7 @@ public class SavepointDynamicTableSourceFactory implements DynamicTableSourceFac
         options.add(STATE_TYPE_PLACEHOLDER);
         options.add(MAP_KEY_FORMAT_PLACEHOLDER);
         options.add(VALUE_FORMAT_PLACEHOLDER);
+        options.add(VALUE_TYPE_INFO_FACTORY_PLACEHOLDER);
 
         return options;
     }
