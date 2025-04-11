@@ -324,6 +324,18 @@ public class FutureCompletingBlockingQueue<T> {
             ConditionAndFlag caf = putConditionAndFlags[threadIndex];
             if (caf != null) {
                 caf.setWakeUp(true);
+                // We need to remove the condition from the notFull queue to maintain consistency.
+                // When manually waking up a thread with wakeUpPuttingThread, the thread will check
+                // the wakeUp flag and return from put() without enqueueing its element.
+                // If we don't remove the condition from notFull queue:
+                // 1. The condition will remain in notFull queue even though the thread is no longer
+                // waiting
+                // 2. A future call to signalNextPutter() might signal this condition when another
+                // thread
+                //    should be signaled instead, causing incorrect wake-up sequence
+                // 3. This could lead to lost signals and potential deadlocks or inefficient thread
+                // scheduling
+                notFull.remove(caf.condition());
                 caf.condition().signal();
             }
         } finally {
