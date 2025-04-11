@@ -34,9 +34,11 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Queue;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -273,6 +275,88 @@ public class SplitFetcherTest {
         fetcherThread.join();
 
         assertThat(fetcher.runOnce()).isFalse();
+    }
+
+    /**
+     * Tests that when a thread is woken up via wakeUp() while blocked in FetchTask.run(), the
+     * condition is properly removed from the notFull queue in the FutureCompletingBlockingQueue.
+     */
+    @Test
+    public void testWakeUpRemovesConditionFromQueue() throws Exception {
+        MockSplitReader mockReader =
+                MockSplitReader.newBuilder()
+                        .setNumRecordsPerSplitPerFetch(1)
+                        .setBlockingFetch(true)
+                        .build();
+
+        // capacity 1 here
+        FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> queue =
+                new FutureCompletingBlockingQueue<>(1);
+
+        SplitFetcher<int[], MockSourceSplit> fetcher =
+                new SplitFetcher<>(
+                        0,
+                        queue,
+                        mockReader,
+                        ExceptionUtils::rethrow,
+                        () -> {},
+                        (ignore) -> {},
+                        false);
+
+        // next attempt to put will block since the capacity is 1 and there is already an element in
+        // the queue
+        RecordsBySplits<int[]> records =
+                new RecordsBySplits<>(Collections.emptyMap(), Collections.emptySet());
+        queue.put(0, records);
+
+        MockSourceSplit split = new MockSourceSplit(0, 0, 10);
+        split.addRecord(42);
+        fetcher.addSplits(Collections.singletonList(split));
+
+        java.lang.reflect.Field notFullField =
+                FutureCompletingBlockingQueue.class.getDeclaredField("notFull");
+        notFullField.setAccessible(true);
+        Queue<?> notFull = (Queue<?>) notFullField.get(queue);
+
+        // Use a CountDownLatch to coordinate test steps
+        CountDownLatch fetcherStarted = new CountDownLatch(1);
+
+        Thread fetcherThread =
+                new Thread(
+                        () -> {
+                            fetcherStarted.countDown();
+                            fetcher.run();
+                        },
+                        "TestFetcherThread");
+
+        fetcherThread.start();
+
+        // Wait for fetcher to start
+        fetcherStarted.await();
+
+        // Give more time for the fetcher to reach the blocking point
+        Thread.sleep(500);
+
+        // Check if a condition has been added to notFull
+        for (int i = 0; i < 5 && notFull.size() == 0; i++) {
+            Thread.sleep(100);
+        }
+
+        // Now we should have a condition in notFull
+        assertThat(notFull.size()).isEqualTo(1);
+
+        // Now call wakeUp, which should trigger wakeUpPuttingThread
+        fetcher.wakeUp(false);
+
+        for (int i = 0; i < 5 && notFull.size() > 0; i++) {
+            Thread.sleep(100);
+        }
+
+        // The condition should be removed from notFull
+        assertThat(notFull.size()).isEqualTo(0);
+
+        fetcher.shutdown();
+        fetcherThread.join(1000);
     }
 
     // ------------------------------------------------------------------------
