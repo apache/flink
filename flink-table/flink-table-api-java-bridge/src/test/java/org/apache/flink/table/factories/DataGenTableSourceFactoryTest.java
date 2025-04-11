@@ -56,6 +56,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.flink.connector.datagen.table.RandomGeneratorVisitor.RANDOM_COLLECTION_LENGTH_DEFAULT;
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -359,6 +360,18 @@ class DataGenTableSourceFactoryTest {
         final int collectionSize = 10;
         descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
         descriptor.putLong(DataGenConnectorOptions.NUMBER_OF_ROWS.key(), rowsNumber);
+        // test for default length.
+        List<RowData> results = runGenerator(COLLECTION_SCHEMA, descriptor);
+        assertThat(results).hasSize(rowsNumber);
+        for (RowData row : results) {
+            assertThat(row.getArray(0).size()).isEqualTo(RANDOM_COLLECTION_LENGTH_DEFAULT);
+            assertThat(row.getMap(1).size())
+                    .isEqualTo(RandomGeneratorVisitor.RANDOM_COLLECTION_LENGTH_DEFAULT);
+            assertThat(row.getMap(2).size())
+                    .isEqualTo(RandomGeneratorVisitor.RANDOM_COLLECTION_LENGTH_DEFAULT);
+        }
+
+        // test for provided length.
         descriptor.putLong(
                 DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.LENGTH,
                 collectionSize);
@@ -368,7 +381,7 @@ class DataGenTableSourceFactoryTest {
         descriptor.putLong(
                 DataGenConnectorOptionsUtil.FIELDS + ".f2." + DataGenConnectorOptionsUtil.LENGTH,
                 collectionSize);
-        List<RowData> results = runGenerator(COLLECTION_SCHEMA, descriptor);
+        results = runGenerator(COLLECTION_SCHEMA, descriptor);
         assertThat(results).hasSize(rowsNumber);
         for (RowData row : results) {
             assertThat(row.getArray(0).size()).isEqualTo(collectionSize);

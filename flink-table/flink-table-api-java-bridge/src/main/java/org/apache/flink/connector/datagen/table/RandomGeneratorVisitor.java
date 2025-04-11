@@ -74,7 +74,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
 
     public static final int RANDOM_BYTES_LENGTH_DEFAULT = 100;
 
-    private static final int RANDOM_COLLECTION_LENGTH_DEFAULT = 3;
+    public static final int RANDOM_COLLECTION_LENGTH_DEFAULT = 3;
 
     private static final float NULL_RATE_DEFAULT = 0f;
 
