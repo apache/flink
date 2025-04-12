@@ -45,6 +45,7 @@ import org.apache.flink.types.RowKind;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.Period;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -53,7 +54,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.time.Period;
 
 import static org.apache.flink.table.annotation.ArgumentTrait.OPTIONAL_PARTITION_BY;
 import static org.apache.flink.table.annotation.ArgumentTrait.PASS_COLUMNS_THROUGH;
@@ -339,14 +339,14 @@ public class ProcessTableFunctionTestUtils {
     }
 
     /** Testing function. */
-    public static class IntervalDayArgFunction extends TestProcessTableFunctionBase {
+    public static class IntervalDayArgFunction extends AppendProcessTableFunctionBase {
         public void eval(@DataTypeHint Duration d) {
             collectObjects(d);
         }
     }
 
     /** Testing function. */
-    public static class IntervalYearArgFunction extends TestProcessTableFunctionBase {
+    public static class IntervalYearArgFunction extends AppendProcessTableFunctionBase {
         public void eval(@DataTypeHint Period p) {
             collectObjects(p);
         }
