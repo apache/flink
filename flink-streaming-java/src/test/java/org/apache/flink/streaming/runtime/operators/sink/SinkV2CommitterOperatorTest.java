@@ -18,8 +18,11 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.connector.sink2.SupportsCommitter;
 import org.apache.flink.configuration.SinkOptions;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.core.io.SimpleVersionedSerializerAdapter;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
@@ -27,6 +30,7 @@ import org.apache.flink.streaming.api.connector.sink2.CommittableSummaryAssert;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.util.function.SerializableSupplier;
 
 import org.assertj.core.api.AbstractThrowableAssert;
 import org.assertj.core.api.ListAssert;
@@ -45,35 +49,39 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 class SinkV2CommitterOperatorTest {
+
+    public static final SerializableSupplier<SimpleVersionedSerializer<String>> STRING_SERIALIZER =
+            () -> new SimpleVersionedSerializerAdapter<>(StringSerializer.INSTANCE);
+
     SinkAndCounters sinkWithPostCommit() {
-        ForwardingCommitter committer = new ForwardingCommitter();
+        ForwardingCommitter<String> committer = new ForwardingCommitter<>();
         return new SinkAndCounters(
-                (SupportsCommitter<String>)
-                        TestSinkV2.newBuilder()
-                                .setCommitter(committer)
-                                .setWithPostCommitTopology(true)
-                                .build(),
+                TestSinkV2.<Integer>newBuilder()
+                        .setWriter(new TestSinkV2.ForwardCommittingSinkWriter<String>())
+                        .setCommitter(committer, STRING_SERIALIZER)
+                        .setWithPostCommitTopology(true)
+                        .build(),
                 () -> committer.successfulCommits);
     }
 
     SinkAndCounters sinkWithPostCommitWithRetry() {
         return new SinkAndCounters(
-                (SupportsCommitter<String>)
-                        TestSinkV2.newBuilder()
-                                .setCommitter(new TestSinkV2.RetryOnceCommitter())
-                                .setWithPostCommitTopology(true)
-                                .build(),
+                TestSinkV2.newBuilder()
+                        .setWriter(new TestSinkV2.ForwardCommittingSinkWriter<String>())
+                        .setCommitter(new TestSinkV2.RetryOnceCommitter<>(), STRING_SERIALIZER)
+                        .setWithPostCommitTopology(true)
+                        .build(),
                 () -> 0);
     }
 
     SinkAndCounters sinkWithoutPostCommit() {
-        ForwardingCommitter committer = new ForwardingCommitter();
+        ForwardingCommitter<String> committer = new ForwardingCommitter<>();
         return new SinkAndCounters(
-                TestSinkV2.newBuilder()
-                        .setCommitter(committer)
+                TestSinkV2.<Integer>newBuilder()
+                        .setWriter(new TestSinkV2.ForwardCommittingSinkWriter<String>())
+                        .setCommitter(committer, STRING_SERIALIZER)
                         .setWithPostCommitTopology(false)
-                        .build()
-                        .asSupportsCommitter(),
+                        .build(),
                 () -> committer.successfulCommits);
     }
 
@@ -239,20 +247,20 @@ class SinkV2CommitterOperatorTest {
         // create new testHarness but with different parallelism level and subtaskId that original
         // one.
         // we will make sure that new subtaskId was used during committable recovery.
-        SinkAndCounters sinkAndCounters = sinkWithPostCommit();
+        SinkAndCounters restored = sinkWithPostCommit();
         final OneInputStreamOperatorTestHarness<
                         CommittableMessage<String>, CommittableMessage<String>>
-                restored =
+                restoredHarness =
                         createTestHarness(
-                                sinkAndCounters.sink, false, true, 10, 10, subtaskIdAfterRecovery);
+                                restored.sink, false, true, 10, 10, subtaskIdAfterRecovery);
 
-        restored.initializeState(snapshot);
-        restored.open();
+        restoredHarness.initializeState(snapshot);
+        restoredHarness.open();
 
         // Previous committables are immediately committed if possible
-        assertThat(sinkAndCounters.commitCounter.getAsInt()).isEqualTo(2);
+        assertThat(restored.commitCounter.getAsInt()).isEqualTo(2);
         ListAssert<CommittableMessage<String>> records =
-                assertThat(restored.extractOutputValues()).hasSize(3);
+                assertThat(restoredHarness.extractOutputValues()).hasSize(3);
         CommittableSummaryAssert<Object> objectCommittableSummaryAssert =
                 records.element(0, as(committableSummary()))
                         .hasCheckpointId(checkpointId)
@@ -269,7 +277,7 @@ class SinkV2CommitterOperatorTest {
                 .hasCheckpointId(checkpointId)
                 .hasSubtaskId(subtaskIdAfterRecovery)
                 .hasCommittable(second.getCommittable());
-        restored.close();
+        restoredHarness.close();
     }
 
     @ParameterizedTest
@@ -373,11 +381,11 @@ class SinkV2CommitterOperatorTest {
                 subtaskId);
     }
 
-    private static class ForwardingCommitter extends TestSinkV2.DefaultCommitter {
+    private static class ForwardingCommitter<CommT> extends TestSinkV2.DefaultCommitter<CommT> {
         private int successfulCommits = 0;
 
         @Override
-        public void commit(Collection<CommitRequest<String>> committables) {
+        public void commit(Collection<CommitRequest<CommT>> committables) {
             successfulCommits += committables.size();
         }
 
@@ -389,8 +397,9 @@ class SinkV2CommitterOperatorTest {
         SupportsCommitter<String> sink;
         IntSupplier commitCounter;
 
-        public SinkAndCounters(SupportsCommitter<String> sink, IntSupplier commitCounter) {
-            this.sink = sink;
+        @SuppressWarnings("unchecked")
+        public SinkAndCounters(TestSinkV2<?> sink, IntSupplier commitCounter) {
+            this.sink = (SupportsCommitter<String>) sink;
             this.commitCounter = commitCounter;
         }
     }
