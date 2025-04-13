@@ -66,12 +66,17 @@ class SinkV2TransformationTranslatorITCase {
     }
 
     Sink<Integer> sinkWithCommitter() {
-        return TestSinkV2.<Integer>newBuilder().setDefaultCommitter().build();
+        return TestSinkV2.<Integer>newBuilder()
+                .setCommitter(new TestSinkV2.DefaultCommitter<>(), TestSinkV2.RecordSerializer::new)
+                .build();
     }
 
     Sink<Integer> sinkWithCommitterAndGlobalCommitter() {
-        return TestSinkV2.<Integer>newBuilder()
-                .setDefaultCommitter()
+        return ((TestSinkV2.Builder<Integer, TestSinkV2.Record<Integer>>)
+                        TestSinkV2.<Integer>newBuilder()
+                                .setCommitter(
+                                        new TestSinkV2.DefaultCommitter<>(),
+                                        TestSinkV2.RecordSerializer::new))
                 .setWithPostCommitTopology(true)
                 .build();
     }
