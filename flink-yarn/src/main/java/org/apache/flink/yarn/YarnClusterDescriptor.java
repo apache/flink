@@ -118,6 +118,7 @@ import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -1023,7 +1024,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         if (jobGraph != null) {
             File tmpJobGraphFile = null;
             try {
-                tmpJobGraphFile = File.createTempFile(appId.toString(), null);
+                tmpJobGraphFile = Files.createTempFile(appId.toString(), null).toFile();
+                tmpJobGraphFile.deleteOnExit();
                 try (FileOutputStream output = new FileOutputStream(tmpJobGraphFile);
                         ObjectOutputStream obOutput = new ObjectOutputStream(output)) {
                     obOutput.writeObject(jobGraph);
@@ -1055,7 +1057,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         File tmpConfigurationFile = null;
         try {
             String flinkConfigFileName = GlobalConfiguration.getFlinkConfFilename();
-            tmpConfigurationFile = File.createTempFile(appId + "-" + flinkConfigFileName, null);
+            tmpConfigurationFile =
+                    Files.createTempFile(appId + "-" + flinkConfigFileName, null).toFile();
+            tmpConfigurationFile.deleteOnExit();
 
             // remove localhost bind hosts as they render production clusters unusable
             removeLocalhostBindHostSetting(configuration, JobManagerOptions.BIND_HOST);
