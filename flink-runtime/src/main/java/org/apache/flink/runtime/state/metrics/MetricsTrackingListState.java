@@ -80,18 +80,21 @@ class MetricsTrackingListState<K, N, T>
 
     @Override
     public Iterable<T> get() throws Exception {
+        Iterable<T> result;
+        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackMetricsOnGet()) {
+            result =
+                    trackLatencyWithException(
+                            () -> original.get(), ListStateMetrics.LIST_STATE_GET_LATENCY);
+        } else {
+            result = original.get();
+        }
         if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackMetricsOnGet()) {
             sizeTrackingStateMetric.updateMetrics(
                     ListStateMetrics.LIST_STATE_GET_KEY_SIZE, super.sizeOfKey());
             sizeTrackingStateMetric.updateMetrics(
-                    ListStateMetrics.LIST_STATE_GET_VALUE_SIZE, sizeOfValueList(original.get()));
+                    ListStateMetrics.LIST_STATE_GET_VALUE_SIZE, sizeOfValueList(result));
         }
-        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackMetricsOnGet()) {
-            return trackLatencyWithException(
-                    () -> original.get(), ListStateMetrics.LIST_STATE_GET_LATENCY);
-        } else {
-            return original.get();
-        }
+        return result;
     }
 
     @Override

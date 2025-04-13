@@ -65,19 +65,21 @@ class MetricsTrackingValueState<K, N, T>
 
     @Override
     public T value() throws IOException {
+        T result;
+        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackMetricsOnGet()) {
+            result =
+                    trackLatencyWithIOException(
+                            () -> original.value(), ValueStateMetrics.VALUE_STATE_GET_LATENCY);
+        } else {
+            result = original.value();
+        }
         if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackMetricsOnGet()) {
             sizeTrackingStateMetric.updateMetrics(
                     ValueStateMetrics.VALUE_STATE_GET_KEY_SIZE, super.sizeOfKey());
             sizeTrackingStateMetric.updateMetrics(
-                    ValueStateMetrics.VALUE_STATE_GET_VALUE_SIZE,
-                    super.sizeOfValue(original.value()));
+                    ValueStateMetrics.VALUE_STATE_GET_VALUE_SIZE, super.sizeOfValue(result));
         }
-        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackMetricsOnGet()) {
-            return trackLatencyWithIOException(
-                    () -> original.value(), ValueStateMetrics.VALUE_STATE_GET_LATENCY);
-        } else {
-            return original.value();
-        }
+        return result;
     }
 
     @Override

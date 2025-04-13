@@ -109,18 +109,21 @@ class MetricsTrackingMapState<K, N, UK, UV>
 
     @Override
     public UV get(UK key) throws Exception {
+        UV result;
+        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackMetricsOnGet()) {
+            result =
+                    trackLatencyWithException(
+                            () -> original.get(key), MapStateMetrics.MAP_STATE_GET_LATENCY);
+        } else {
+            result = original.get(key);
+        }
         if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackMetricsOnGet()) {
             sizeTrackingStateMetric.updateMetrics(
                     MapStateMetrics.MAP_STATE_GET_KEY_SIZE, sizeOfKeyAndUserKey(key));
             sizeTrackingStateMetric.updateMetrics(
-                    MapStateMetrics.MAP_STATE_GET_VALUE_SIZE, sizeOfUserValue(original.get(key)));
+                    MapStateMetrics.MAP_STATE_GET_VALUE_SIZE, sizeOfUserValue(result));
         }
-        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackMetricsOnGet()) {
-            return trackLatencyWithException(
-                    () -> original.get(key), MapStateMetrics.MAP_STATE_GET_LATENCY);
-        } else {
-            return original.get(key);
-        }
+        return result;
     }
 
     @Override

@@ -65,19 +65,21 @@ class MetricsTrackingReducingState<K, N, T>
 
     @Override
     public T get() throws Exception {
+        T result;
+        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackMetricsOnGet()) {
+            result =
+                    trackLatencyWithException(
+                            () -> original.get(), ReducingStateMetrics.REDUCING_STATE_GET_LATENCY);
+        } else {
+            result = original.get();
+        }
         if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackMetricsOnGet()) {
             sizeTrackingStateMetric.updateMetrics(
                     ReducingStateMetrics.REDUCING_STATE_GET_KEY_SIZE, super.sizeOfKey());
             sizeTrackingStateMetric.updateMetrics(
-                    ReducingStateMetrics.REDUCING_STATE_GET_VALUE_SIZE,
-                    super.sizeOfValue(original.get()));
+                    ReducingStateMetrics.REDUCING_STATE_GET_VALUE_SIZE, super.sizeOfValue(result));
         }
-        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackMetricsOnGet()) {
-            return trackLatencyWithException(
-                    () -> original.get(), ReducingStateMetrics.REDUCING_STATE_GET_LATENCY);
-        } else {
-            return original.get();
-        }
+        return result;
     }
 
     @Override
