@@ -569,6 +569,10 @@ public final class ForStResourceContainer implements AutoCloseable {
         currentOptions.setMinWriteBufferNumberToMerge(
                 internalGetOption(ForStConfigurableOptions.MIN_WRITE_BUFFER_NUMBER_TO_MERGE));
 
+        currentOptions.setPeriodicCompactionSeconds(
+                internalGetOption(ForStConfigurableOptions.COMPACT_FILTER_PERIODIC_COMPACTION_TIME)
+                        .getSeconds());
+
         TableFormatConfig tableFormatConfig = currentOptions.tableFormatConfig();
 
         BlockBasedTableConfig blockBasedTableConfig;
