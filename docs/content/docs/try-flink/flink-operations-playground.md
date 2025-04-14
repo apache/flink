@@ -746,7 +746,7 @@ and `--event-time` program arguments. By omitting these in the command of the *c
 
 * `--checkpointing` enables [checkpoint]({{< ref "docs/learn-flink/fault_tolerance" >}}), 
 which is Flink's fault-tolerance mechanism. If you run without it and go through 
-[failure and recovery](#observing-failure--recovery), you should will see that data is actually 
+[failure and recovery](#observing-failure--recovery), you should see that data is actually 
 lost.
 
 * `--event-time` enables [event time semantics]({{< ref "docs/concepts/time" >}}) for your 
