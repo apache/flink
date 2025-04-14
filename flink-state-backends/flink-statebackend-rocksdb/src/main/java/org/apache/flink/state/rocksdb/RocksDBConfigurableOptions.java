@@ -380,7 +380,9 @@ public class RocksDBConfigurableOptions implements Serializable {
                 BLOOM_FILTER_BLOCK_BASED_MODE,
                 RESTORE_OVERLAP_FRACTION_THRESHOLD,
                 USE_INGEST_DB_RESTORE_MODE,
-                INCREMENTAL_RESTORE_ASYNC_COMPACT_AFTER_RESCALE
+                INCREMENTAL_RESTORE_ASYNC_COMPACT_AFTER_RESCALE,
+                COMPACT_FILTER_QUERY_TIME_AFTER_NUM_ENTRIES,
+                COMPACT_FILTER_PERIODIC_COMPACTION_TIME
             };
 
     private static final Set<ConfigOption<?>> POSITIVE_INT_CONFIG_SET =

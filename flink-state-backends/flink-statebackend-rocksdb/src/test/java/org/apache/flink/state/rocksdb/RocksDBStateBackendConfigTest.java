@@ -68,6 +68,7 @@ import org.rocksdb.util.SizeUnit;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -624,6 +625,10 @@ public class RocksDBStateBackendConfigTest {
             verifyIllegalArgument(RocksDBConfigurableOptions.BLOOM_FILTER_BLOCK_BASED_MODE, "YES");
             verifyIllegalArgument(
                     RocksDBConfigurableOptions.RESTORE_OVERLAP_FRACTION_THRESHOLD, "2");
+            verifyIllegalArgument(
+                    RocksDBConfigurableOptions.COMPACT_FILTER_PERIODIC_COMPACTION_TIME, "-1s");
+            verifyIllegalArgument(
+                    RocksDBConfigurableOptions.COMPACT_FILTER_QUERY_TIME_AFTER_NUM_ENTRIES, "1.1");
         }
 
         // verify legal configuration
@@ -651,6 +656,8 @@ public class RocksDBStateBackendConfigTest {
             configuration.setString(RocksDBConfigurableOptions.USE_BLOOM_FILTER.key(), "TRUE");
             configuration.setString(
                     RocksDBConfigurableOptions.RESTORE_OVERLAP_FRACTION_THRESHOLD.key(), "0.5");
+            configuration.setString(
+                    RocksDBConfigurableOptions.COMPACT_FILTER_PERIODIC_COMPACTION_TIME.key(), "1h");
 
             try (RocksDBResourceContainer optionsContainer =
                     new RocksDBResourceContainer(
@@ -677,6 +684,7 @@ public class RocksDBStateBackendConfigTest {
                                 CompressionType.SNAPPY_COMPRESSION,
                                 CompressionType.LZ4_COMPRESSION),
                         columnOptions.compressionPerLevel());
+                assertEquals(3600, columnOptions.periodicCompactionSeconds());
 
                 BlockBasedTableConfig tableConfig =
                         (BlockBasedTableConfig) columnOptions.tableFormatConfig();
@@ -946,6 +954,35 @@ public class RocksDBStateBackendConfigTest {
                 rocksDBStateBackend.configure(configuration, getClass().getClassLoader());
         assertEquals(
                 notDefault, rocksDBStateBackend.getIncrementalRestoreAsyncCompactAfterRescale());
+    }
+
+    @Test
+    public void testConfigurePeriodicCompactionTime() throws Exception {
+        EmbeddedRocksDBStateBackend rocksDBStateBackend = new EmbeddedRocksDBStateBackend(true);
+        Configuration configuration = new Configuration();
+        configuration.setString(
+                RocksDBConfigurableOptions.COMPACT_FILTER_PERIODIC_COMPACTION_TIME.key(), "1d");
+        rocksDBStateBackend =
+                rocksDBStateBackend.configure(configuration, getClass().getClassLoader());
+        try (RocksDBResourceContainer resourceContainer =
+                rocksDBStateBackend.createOptionsAndResourceContainer(null)) {
+            assertEquals(Duration.ofDays(1), resourceContainer.getPeriodicCompactionTime());
+        }
+    }
+
+    @Test
+    public void testConfigureQueryTimeAfterNumEntries() throws Exception {
+        EmbeddedRocksDBStateBackend rocksDBStateBackend = new EmbeddedRocksDBStateBackend(true);
+        Configuration configuration = new Configuration();
+        configuration.setString(
+                RocksDBConfigurableOptions.COMPACT_FILTER_QUERY_TIME_AFTER_NUM_ENTRIES.key(),
+                "100");
+        rocksDBStateBackend =
+                rocksDBStateBackend.configure(configuration, getClass().getClassLoader());
+        try (RocksDBResourceContainer resourceContainer =
+                rocksDBStateBackend.createOptionsAndResourceContainer(null)) {
+            assertEquals(100L, resourceContainer.getQueryTimeAfterNumEntries().longValue());
+        }
     }
 
     private void verifySetParameter(Runnable setter) {
