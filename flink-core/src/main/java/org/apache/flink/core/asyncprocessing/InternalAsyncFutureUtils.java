@@ -16,32 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.forst;
+package org.apache.flink.core.asyncprocessing;
 
-import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
-
-import java.io.IOException;
+import org.apache.flink.annotation.Internal;
 
 /**
- * The Get access request for ForStDB.
- *
- * @param <K> The type of key in get access request.
- * @param <V> The type of value returned by get request.
+ * A collection of utilities that expand the usage of {@link AsyncFuture}. Only for internal usage.
  */
-public class ForStDBSingleGetRequest<K, N, V> extends ForStDBGetRequest<K, N, V, V> {
-
-    ForStDBSingleGetRequest(
-            ContextKey<K, N> key, ForStInnerTable<K, N, V> table, InternalAsyncFuture<V> future) {
-        super(key, table, future);
+@Internal
+public class InternalAsyncFutureUtils {
+    /** Returns a completed future that does nothing and return null. */
+    public static <V> InternalAsyncFuture<V> completedVoidFuture() {
+        return new CompletedAsyncFuture<>(null);
     }
 
-    @Override
-    public void completeStateFuture(byte[] bytesValue) throws IOException {
-        if (bytesValue == null) {
-            future.complete(null);
-            return;
-        }
-        V value = table.deserializeValue(bytesValue);
-        future.complete(value);
+    /** Returns a completed future that does nothing and return provided result. */
+    public static <V> InternalAsyncFuture<V> completedFuture(V result) {
+        return new CompletedAsyncFuture<>(result);
     }
 }

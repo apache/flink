@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.core.state;
+package org.apache.flink.core.asyncprocessing;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.v2.StateFuture;
@@ -25,14 +25,14 @@ import org.apache.flink.util.function.BiFunctionWithException;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
-/** A {@link StateFuture} that has already been completed when it is created. */
+/** A {@link AsyncFuture} that has already been completed when it is created. */
 @Internal
-public class CompletedStateFuture<T> implements InternalStateFuture<T> {
+public class CompletedAsyncFuture<T> implements InternalAsyncFuture<T> {
 
     T result;
 
     // no public access
-    CompletedStateFuture(T result) {
+    public CompletedAsyncFuture(T result) {
         this.result = result;
     }
 
@@ -47,37 +47,41 @@ public class CompletedStateFuture<T> implements InternalStateFuture<T> {
     }
 
     @Override
-    public <U> StateFuture<U> thenApply(
+    public <U> InternalAsyncFuture<U> thenApply(
             FunctionWithException<? super T, ? extends U, ? extends Exception> fn) {
-        return StateFutureUtils.completedFuture(FunctionWithException.unchecked(fn).apply(result));
+        return InternalAsyncFutureUtils.completedFuture(
+                FunctionWithException.unchecked(fn).apply(result));
     }
 
     @Override
-    public StateFuture<Void> thenAccept(ThrowingConsumer<? super T, ? extends Exception> action) {
+    public InternalAsyncFuture<Void> thenAccept(
+            ThrowingConsumer<? super T, ? extends Exception> action) {
         ThrowingConsumer.unchecked(action).accept(result);
-        return StateFutureUtils.completedVoidFuture();
+        return InternalAsyncFutureUtils.completedVoidFuture();
     }
 
     @Override
-    public <U> StateFuture<U> thenCompose(
+    public <U> InternalAsyncFuture<U> thenCompose(
             FunctionWithException<? super T, ? extends StateFuture<U>, ? extends Exception>
                     action) {
-        return FunctionWithException.unchecked(action).apply(result);
+        return (InternalAsyncFuture<U>) FunctionWithException.unchecked(action).apply(result);
     }
 
     @Override
-    public <U, V> StateFuture<V> thenCombine(
+    public <U, V> InternalAsyncFuture<V> thenCombine(
             StateFuture<? extends U> other,
             BiFunctionWithException<? super T, ? super U, ? extends V, ? extends Exception> fn) {
-        return other.thenCompose(
-                (u) -> {
-                    V v = fn.apply(result, u);
-                    return StateFutureUtils.completedFuture(v);
-                });
+        return (InternalAsyncFuture<V>)
+                other.thenCompose(
+                        (u) -> {
+                            V v = fn.apply(result, u);
+                            return (InternalAsyncFuture<V>)
+                                    InternalAsyncFutureUtils.completedFuture(v);
+                        });
     }
 
     @Override
-    public <U, V> StateFuture<Tuple2<Boolean, Object>> thenConditionallyApply(
+    public <U, V> InternalAsyncFuture<Tuple2<Boolean, Object>> thenConditionallyApply(
             FunctionWithException<? super T, Boolean, ? extends Exception> condition,
             FunctionWithException<? super T, ? extends U, ? extends Exception> actionIfTrue,
             FunctionWithException<? super T, ? extends V, ? extends Exception> actionIfFalse) {
@@ -86,20 +90,20 @@ public class CompletedStateFuture<T> implements InternalStateFuture<T> {
                 test
                         ? FunctionWithException.unchecked(actionIfTrue).apply(result)
                         : FunctionWithException.unchecked(actionIfFalse).apply(result);
-        return StateFutureUtils.completedFuture(Tuple2.of(test, r));
+        return InternalAsyncFutureUtils.completedFuture(Tuple2.of(test, r));
     }
 
     @Override
-    public <U> StateFuture<Tuple2<Boolean, U>> thenConditionallyApply(
+    public <U> InternalAsyncFuture<Tuple2<Boolean, U>> thenConditionallyApply(
             FunctionWithException<? super T, Boolean, ? extends Exception> condition,
             FunctionWithException<? super T, ? extends U, ? extends Exception> actionIfTrue) {
         boolean test = FunctionWithException.unchecked(condition).apply(result);
         U r = test ? FunctionWithException.unchecked(actionIfTrue).apply(result) : null;
-        return StateFutureUtils.completedFuture(Tuple2.of(test, r));
+        return InternalAsyncFutureUtils.completedFuture(Tuple2.of(test, r));
     }
 
     @Override
-    public StateFuture<Boolean> thenConditionallyAccept(
+    public InternalAsyncFuture<Boolean> thenConditionallyAccept(
             FunctionWithException<? super T, Boolean, ? extends Exception> condition,
             ThrowingConsumer<? super T, ? extends Exception> actionIfTrue,
             ThrowingConsumer<? super T, ? extends Exception> actionIfFalse) {
@@ -109,39 +113,43 @@ public class CompletedStateFuture<T> implements InternalStateFuture<T> {
         } else {
             ThrowingConsumer.unchecked(actionIfFalse).accept(result);
         }
-        return StateFutureUtils.completedFuture(test);
+        return InternalAsyncFutureUtils.completedFuture(test);
     }
 
     @Override
-    public StateFuture<Boolean> thenConditionallyAccept(
+    public InternalAsyncFuture<Boolean> thenConditionallyAccept(
             FunctionWithException<? super T, Boolean, ? extends Exception> condition,
             ThrowingConsumer<? super T, ? extends Exception> actionIfTrue) {
         boolean test = FunctionWithException.unchecked(condition).apply(result);
         if (test) {
             ThrowingConsumer.unchecked(actionIfTrue).accept(result);
         }
-        return StateFutureUtils.completedFuture(test);
+        return InternalAsyncFutureUtils.completedFuture(test);
     }
 
     @Override
-    public <U, V> StateFuture<Tuple2<Boolean, Object>> thenConditionallyCompose(
+    public <U, V> InternalAsyncFuture<Tuple2<Boolean, Object>> thenConditionallyCompose(
             FunctionWithException<? super T, Boolean, ? extends Exception> condition,
             FunctionWithException<? super T, ? extends StateFuture<U>, ? extends Exception>
                     actionIfTrue,
             FunctionWithException<? super T, ? extends StateFuture<V>, ? extends Exception>
                     actionIfFalse) {
         boolean test = FunctionWithException.unchecked(condition).apply(result);
-        StateFuture<?> actionResult;
+        InternalAsyncFuture<?> actionResult;
         if (test) {
-            actionResult = FunctionWithException.unchecked(actionIfTrue).apply(result);
+            actionResult =
+                    (InternalAsyncFuture)
+                            FunctionWithException.unchecked(actionIfTrue).apply(result);
         } else {
-            actionResult = FunctionWithException.unchecked(actionIfFalse).apply(result);
+            actionResult =
+                    (InternalAsyncFuture)
+                            FunctionWithException.unchecked(actionIfFalse).apply(result);
         }
         return actionResult.thenApply((e) -> Tuple2.of(test, e));
     }
 
     @Override
-    public <U> StateFuture<Tuple2<Boolean, U>> thenConditionallyCompose(
+    public <U> InternalAsyncFuture<Tuple2<Boolean, U>> thenConditionallyCompose(
             FunctionWithException<? super T, Boolean, ? extends Exception> condition,
             FunctionWithException<? super T, ? extends StateFuture<U>, ? extends Exception>
                     actionIfTrue) {
@@ -149,9 +157,10 @@ public class CompletedStateFuture<T> implements InternalStateFuture<T> {
         if (test) {
             StateFuture<U> actionResult =
                     FunctionWithException.unchecked(actionIfTrue).apply(result);
-            return actionResult.thenApply((e) -> Tuple2.of(true, e));
+            return (InternalAsyncFuture<Tuple2<Boolean, U>>)
+                    actionResult.thenApply((e) -> Tuple2.of(true, e));
         } else {
-            return StateFutureUtils.completedFuture(Tuple2.of(false, null));
+            return InternalAsyncFutureUtils.completedFuture(Tuple2.of(false, null));
         }
     }
 

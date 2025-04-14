@@ -19,7 +19,7 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.api.common.state.v2.StateIterator;
-import org.apache.flink.core.state.InternalStateFuture;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 
 import java.io.IOException;
@@ -38,7 +38,7 @@ public class ForStDBListGetRequest<K, N, V>
     ForStDBListGetRequest(
             ContextKey<K, N> key,
             ForStInnerTable<K, N, List<V>> table,
-            InternalStateFuture<StateIterator<V>> future) {
+            InternalAsyncFuture<StateIterator<V>> future) {
         super(key, table, future);
     }
 

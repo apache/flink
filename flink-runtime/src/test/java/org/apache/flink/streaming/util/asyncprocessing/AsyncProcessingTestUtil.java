@@ -34,7 +34,7 @@ public class AsyncProcessingTestUtil {
             ((AbstractAsyncStateStreamOperator<OUT>) operator).drainStateRequests();
         } else if (operator instanceof AbstractAsyncStateStreamOperatorV2) {
             ((AbstractAsyncStateStreamOperatorV2<OUT>) operator)
-                    .getAsyncExecutionController()
+                    .getStateExecutionController()
                     .drainInflightRecords(0);
         } else {
             throw new IllegalStateException("Operator is not an AsyncStateProcessingOperator");

@@ -27,9 +27,9 @@ import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.AsyncStateException;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
+import org.apache.flink.runtime.asyncprocessing.StateExecutionController;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.execution.Environment;
@@ -80,7 +80,7 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
     private static final Logger LOG =
             LoggerFactory.getLogger(AbstractAsyncStateStreamOperator.class);
 
-    private AsyncExecutionController asyncExecutionController;
+    private StateExecutionController asyncExecutionController;
 
     /** Act as a cache for {@link #setAsyncKeyedContextElement} and {@link #postProcessElement}. */
     private RecordContext currentProcessingContext;
@@ -117,7 +117,7 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
                     stateHandler.getAsyncKeyedStateBackend();
             if (asyncKeyedStateBackend != null) {
                 this.asyncExecutionController =
-                        new AsyncExecutionController(
+                        new StateExecutionController(
                                 mailboxExecutor,
                                 this::handleAsyncStateException,
                                 asyncKeyedStateBackend.createStateExecutor(),
@@ -562,7 +562,7 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
     }
 
     @VisibleForTesting
-    AsyncExecutionController<?> getAsyncExecutionController() {
+    StateExecutionController<?> getStateExecutionController() {
         return asyncExecutionController;
     }
 

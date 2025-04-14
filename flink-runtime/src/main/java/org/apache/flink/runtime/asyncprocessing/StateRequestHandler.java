@@ -20,7 +20,7 @@ package org.apache.flink.runtime.asyncprocessing;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.v2.State;
-import org.apache.flink.core.state.InternalStateFuture;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 import org.apache.flink.runtime.state.v2.internal.InternalPartitionedState;
 
 import javax.annotation.Nonnull;
@@ -39,7 +39,7 @@ public interface StateRequestHandler {
      * @param payload the payload input for this request.
      * @return the state future.
      */
-    <IN, OUT> InternalStateFuture<OUT> handleRequest(
+    <IN, OUT> InternalAsyncFuture<OUT> handleRequest(
             @Nullable State state, StateRequestType type, @Nullable IN payload);
 
     /**

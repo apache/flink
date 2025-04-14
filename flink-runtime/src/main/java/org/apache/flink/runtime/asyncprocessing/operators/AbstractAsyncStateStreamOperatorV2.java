@@ -25,9 +25,9 @@ import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.AsyncStateException;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
+import org.apache.flink.runtime.asyncprocessing.StateExecutionController;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
@@ -77,7 +77,7 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
 
     private final Environment environment;
     private final StreamTask<?, ?> streamTask;
-    private AsyncExecutionController asyncExecutionController;
+    private StateExecutionController asyncExecutionController;
 
     /** Act as a cache for {@link #setAsyncKeyedContextElement} and {@link #postProcessElement}. */
     private RecordContext currentProcessingContext;
@@ -110,7 +110,7 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
                     stateHandler.getAsyncKeyedStateBackend();
             if (asyncKeyedStateBackend != null) {
                 this.asyncExecutionController =
-                        new AsyncExecutionController(
+                        new StateExecutionController(
                                 streamTask
                                         .getMailboxExecutorFactory()
                                         .createExecutor(getOperatorConfig().getChainIndex()),
@@ -420,7 +420,7 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
     }
 
     @VisibleForTesting
-    public AsyncExecutionController<?> getAsyncExecutionController() {
+    public StateExecutionController<?> getStateExecutionController() {
         return asyncExecutionController;
     }
 

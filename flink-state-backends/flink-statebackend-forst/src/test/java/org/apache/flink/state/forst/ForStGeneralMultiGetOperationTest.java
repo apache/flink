@@ -42,11 +42,11 @@ class ForStGeneralMultiGetOperationTest extends ForStDBOperationTestBase {
         ForStValueState<Integer, VoidNamespace, String> valueState2 =
                 buildForStValueState("test-multiGet-2");
         List<ForStDBGetRequest<?, ?, ?, ?>> batchGetRequest = new ArrayList<>();
-        List<Tuple2<String, TestStateFuture<String>>> resultCheckList = new ArrayList<>();
+        List<Tuple2<String, TestAsyncFuture<String>>> resultCheckList = new ArrayList<>();
 
         int keyNum = 1000;
         for (int i = 0; i < keyNum; i++) {
-            TestStateFuture<String> future = new TestStateFuture<>();
+            TestAsyncFuture<String> future = new TestAsyncFuture<>();
             ForStValueState<Integer, VoidNamespace, String> table =
                     ((i % 2 == 0) ? valueState1 : valueState2);
             ForStDBSingleGetRequest<Integer, VoidNamespace, String> request =
@@ -68,7 +68,7 @@ class ForStGeneralMultiGetOperationTest extends ForStDBOperationTestBase {
                 new ForStGeneralMultiGetOperation(db, batchGetRequest, executor, 3, null);
         generalMultiGetOperation.process().get();
 
-        for (Tuple2<String, TestStateFuture<String>> tuple : resultCheckList) {
+        for (Tuple2<String, TestAsyncFuture<String>> tuple : resultCheckList) {
             assertThat(tuple.f1.getCompletedResult()).isEqualTo(tuple.f0);
         }
 
@@ -82,12 +82,12 @@ class ForStGeneralMultiGetOperationTest extends ForStDBOperationTestBase {
         ForStListState<Integer, VoidNamespace, String> listState2 =
                 buildForStListState("test-multiGet-2");
         List<ForStDBGetRequest<?, ?, ?, ?>> batchGetRequest = new ArrayList<>();
-        List<Tuple2<List<String>, TestStateFuture<StateIterator<String>>>> resultCheckList =
+        List<Tuple2<List<String>, TestAsyncFuture<StateIterator<String>>>> resultCheckList =
                 new ArrayList<>();
 
         int keyNum = 1000;
         for (int i = 0; i < keyNum; i++) {
-            TestStateFuture<StateIterator<String>> future = new TestStateFuture<>();
+            TestAsyncFuture<StateIterator<String>> future = new TestAsyncFuture<>();
             ForStListState<Integer, VoidNamespace, String> table =
                     ((i % 2 == 0) ? listState1 : listState2);
             ForStDBListGetRequest<Integer, VoidNamespace, String> request =
@@ -109,7 +109,7 @@ class ForStGeneralMultiGetOperationTest extends ForStDBOperationTestBase {
                 new ForStGeneralMultiGetOperation(db, batchGetRequest, executor);
         generalMultiGetOperation.process().get();
 
-        for (Tuple2<List<String>, TestStateFuture<StateIterator<String>>> tuple : resultCheckList) {
+        for (Tuple2<List<String>, TestAsyncFuture<StateIterator<String>>> tuple : resultCheckList) {
             HashSet<String> expected = new HashSet<>(tuple.f0);
             tuple.f1
                     .getCompletedResult()
@@ -129,11 +129,11 @@ class ForStGeneralMultiGetOperationTest extends ForStDBOperationTestBase {
         ForStMapState<Integer, VoidNamespace, String, String> mapState2 =
                 buildForStMapState("map-multiGet-2");
         List<ForStDBGetRequest<?, ?, ?, ?>> batchGetRequest = new ArrayList<>();
-        List<Tuple2<String, TestStateFuture<String>>> resultCheckList = new ArrayList<>();
+        List<Tuple2<String, TestAsyncFuture<String>>> resultCheckList = new ArrayList<>();
 
         int keyNum = 1000;
         for (int i = 0; i < keyNum; i++) {
-            TestStateFuture<String> future = new TestStateFuture<>();
+            TestAsyncFuture<String> future = new TestAsyncFuture<>();
             ForStMapState<Integer, VoidNamespace, String, String> table =
                     ((i % 2 == 0) ? mapState1 : mapState2);
             ContextKey<Integer, VoidNamespace> contextKey = buildContextKey(i);
@@ -157,7 +157,7 @@ class ForStGeneralMultiGetOperationTest extends ForStDBOperationTestBase {
                 new ForStGeneralMultiGetOperation(db, batchGetRequest, executor);
         generalMultiGetOperation.process().get();
 
-        for (Tuple2<String, TestStateFuture<String>> tuple : resultCheckList) {
+        for (Tuple2<String, TestAsyncFuture<String>> tuple : resultCheckList) {
             assertThat(tuple.f1.getCompletedResult()).isEqualTo(tuple.f0);
         }
 
@@ -176,27 +176,27 @@ class ForStGeneralMultiGetOperationTest extends ForStDBOperationTestBase {
             byte[] valueBytes = mapState.serializeValue(value);
             db.put(mapState.getColumnFamilyHandle(), keyBytes, valueBytes);
         }
-        TestStateFuture<Boolean> future = new TestStateFuture<>();
+        TestAsyncFuture<Boolean> future = new TestAsyncFuture<>();
         List<ForStDBGetRequest<?, ?, ?, ?>> batchGetRequest = new ArrayList<>();
         ContextKey<Integer, VoidNamespace> contextKey = buildContextKey(1);
         ForStDBGetRequest<Integer, VoidNamespace, String, Boolean> request1 =
                 new ForStDBMapCheckRequest<>(contextKey, mapState, future, true);
         batchGetRequest.add(request1);
 
-        TestStateFuture<Boolean> future2 = new TestStateFuture<>();
+        TestAsyncFuture<Boolean> future2 = new TestAsyncFuture<>();
         ContextKey<Integer, VoidNamespace> contextKey2 = buildContextKey(2);
         ForStDBGetRequest<Integer, VoidNamespace, String, Boolean> request2 =
                 new ForStDBMapCheckRequest<>(contextKey2, mapState, future2, true);
         batchGetRequest.add(request2);
 
-        TestStateFuture<Boolean> future3 = new TestStateFuture<>();
+        TestAsyncFuture<Boolean> future3 = new TestAsyncFuture<>();
         ContextKey<Integer, VoidNamespace> contextKey3 = buildContextKey(1);
         contextKey3.setUserKey("10");
         ForStDBGetRequest<Integer, VoidNamespace, String, Boolean> request3 =
                 new ForStDBMapCheckRequest<>(contextKey3, mapState, future3, false);
         batchGetRequest.add(request3);
 
-        TestStateFuture<Boolean> future4 = new TestStateFuture<>();
+        TestAsyncFuture<Boolean> future4 = new TestAsyncFuture<>();
         ContextKey<Integer, VoidNamespace> contextKey4 = buildContextKey(1);
         contextKey4.setUserKey("1");
         ForStDBGetRequest<Integer, VoidNamespace, String, Boolean> request4 =

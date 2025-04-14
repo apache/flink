@@ -16,32 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.forst;
+package org.apache.flink.runtime.asyncprocessing;
 
 import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 
-import java.io.IOException;
+/** The Sync point request that will be trigger callback once it is allowed to be triggered. */
+public class SyncPointRequest<K> extends AsyncRequest<K> {
 
-/**
- * The Get access request for ForStDB.
- *
- * @param <K> The type of key in get access request.
- * @param <V> The type of value returned by get request.
- */
-public class ForStDBSingleGetRequest<K, N, V> extends ForStDBGetRequest<K, N, V, V> {
-
-    ForStDBSingleGetRequest(
-            ContextKey<K, N> key, ForStInnerTable<K, N, V> table, InternalAsyncFuture<V> future) {
-        super(key, table, future);
-    }
-
-    @Override
-    public void completeStateFuture(byte[] bytesValue) throws IOException {
-        if (bytesValue == null) {
-            future.complete(null);
-            return;
-        }
-        V value = table.deserializeValue(bytesValue);
-        future.complete(value);
+    public SyncPointRequest(RecordContext<K> context, InternalAsyncFuture<Void> stateFuture) {
+        super(context, true, stateFuture);
     }
 }

@@ -23,12 +23,12 @@ import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.state.v2.AggregatingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.state.InternalStateFuture;
-import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
-import org.apache.flink.runtime.asyncprocessing.MockStateRequestContainer;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
+import org.apache.flink.runtime.asyncprocessing.AsyncRequestContainer;
+import org.apache.flink.runtime.asyncprocessing.MockAsyncRequestContainer;
+import org.apache.flink.runtime.asyncprocessing.StateExecutionController;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.asyncprocessing.StateRequest;
-import org.apache.flink.runtime.asyncprocessing.StateRequestContainer;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
@@ -114,8 +114,8 @@ class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
                         "testState", aggregator, BasicTypeInfo.INT_TYPE_INFO);
         descriptor.initializeSerializerUnlessSet(new ExecutionConfig());
         AggregatingStateExecutor aggregatingStateExecutor = new AggregatingStateExecutor();
-        AsyncExecutionController<String> aec =
-                new AsyncExecutionController<>(
+        StateExecutionController<String> aec =
+                new StateExecutionController<>(
                         new SyncMailboxExecutor(),
                         (a, b) -> {},
                         aggregatingStateExecutor,
@@ -152,8 +152,8 @@ class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
                         "testState", aggregator, BasicTypeInfo.INT_TYPE_INFO);
         descriptor.initializeSerializerUnlessSet(new ExecutionConfig());
         AggregatingStateExecutor aggregatingStateExecutor = new AggregatingStateExecutor();
-        AsyncExecutionController<String> aec =
-                new AsyncExecutionController<>(
+        StateExecutionController<String> aec =
+                new StateExecutionController<>(
                         new SyncMailboxExecutor(),
                         (a, b) -> {},
                         aggregatingStateExecutor,
@@ -232,9 +232,10 @@ class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
         @SuppressWarnings({"unchecked", "rawtypes"})
         @Override
         public CompletableFuture<Void> executeBatchRequests(
-                StateRequestContainer stateRequestContainer) {
-            for (StateRequest stateRequest :
-                    ((MockStateRequestContainer) stateRequestContainer).getStateRequestList()) {
+                AsyncRequestContainer asyncRequestContainer) {
+            for (StateRequest<?, ?, ?, ?> stateRequest :
+                    ((MockAsyncRequestContainer<StateRequest<?, ?, ?, ?>>) asyncRequestContainer)
+                            .getStateRequestList()) {
                 executeRequestSync(stateRequest);
             }
             CompletableFuture<Void> future = new CompletableFuture<>();
@@ -243,8 +244,8 @@ class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
         }
 
         @Override
-        public StateRequestContainer createStateRequestContainer() {
-            return new MockStateRequestContainer();
+        public AsyncRequestContainer<StateRequest<?, ?, ?, ?>> createRequestContainer() {
+            return new MockAsyncRequestContainer();
         }
 
         @Override
@@ -261,7 +262,7 @@ class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
                 }
             } else if (stateRequest.getRequestType() == StateRequestType.AGGREGATING_GET) {
                 Integer val = hashMap.get(Tuple2.of(key, namespace));
-                ((InternalStateFuture<Integer>) stateRequest.getFuture()).complete(val);
+                ((InternalAsyncFuture<Integer>) stateRequest.getFuture()).complete(val);
             } else {
                 throw new UnsupportedOperationException("Unsupported type");
             }
