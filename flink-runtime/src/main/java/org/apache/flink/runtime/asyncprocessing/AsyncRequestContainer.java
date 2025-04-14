@@ -18,25 +18,19 @@
 
 package org.apache.flink.runtime.asyncprocessing;
 
-import java.util.ArrayList;
-import java.util.List;
+/**
+ * A container which is used to hold {@link AsyncRequest}s. The role of {@code
+ * AsyncRequestContainer} is to serve as an intermediary carrier for data transmission between the
+ * runtime layer and the state layer. It stores the stateRequest from the runtime layer, which is
+ * then processed by the state layer.
+ *
+ * <p>Notice that the {@code AsyncRequestContainer} may not be thread-safe.
+ */
+public interface AsyncRequestContainer<REQUEST extends AsyncRequest<?>> {
 
-/** The mocked {@link StateRequestContainer} for testing. */
-public class MockStateRequestContainer implements StateRequestContainer {
+    /** Preserve a stateRequest into the {@code AsyncRequestContainer}. */
+    void offer(REQUEST stateRequest);
 
-    private final List<StateRequest<?, ?, ?, ?>> stateRequestList = new ArrayList<>();
-
-    @Override
-    public void offer(StateRequest<?, ?, ?, ?> stateRequest) {
-        stateRequestList.add(stateRequest);
-    }
-
-    @Override
-    public boolean isEmpty() {
-        return stateRequestList.isEmpty();
-    }
-
-    public List<StateRequest<?, ?, ?, ?>> getStateRequestList() {
-        return stateRequestList;
-    }
+    /** Returns whether the container is empty. */
+    boolean isEmpty();
 }

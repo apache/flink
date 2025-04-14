@@ -16,32 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.forst;
+package org.apache.flink.runtime.asyncprocessing;
 
-import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
+import java.util.ArrayList;
+import java.util.List;
 
-import java.io.IOException;
+/** The mocked {@link AsyncRequestContainer} for testing. */
+public class MockAsyncRequestContainer<REQUEST extends AsyncRequest<?>>
+        implements AsyncRequestContainer<REQUEST> {
 
-/**
- * The Get access request for ForStDB.
- *
- * @param <K> The type of key in get access request.
- * @param <V> The type of value returned by get request.
- */
-public class ForStDBSingleGetRequest<K, N, V> extends ForStDBGetRequest<K, N, V, V> {
+    private final List<REQUEST> stateRequestList = new ArrayList<>();
 
-    ForStDBSingleGetRequest(
-            ContextKey<K, N> key, ForStInnerTable<K, N, V> table, InternalAsyncFuture<V> future) {
-        super(key, table, future);
+    @Override
+    public void offer(REQUEST stateRequest) {
+        stateRequestList.add(stateRequest);
     }
 
     @Override
-    public void completeStateFuture(byte[] bytesValue) throws IOException {
-        if (bytesValue == null) {
-            future.complete(null);
-            return;
-        }
-        V value = table.deserializeValue(bytesValue);
-        future.complete(value);
+    public boolean isEmpty() {
+        return stateRequestList.isEmpty();
+    }
+
+    public List<REQUEST> getStateRequestList() {
+        return stateRequestList;
     }
 }

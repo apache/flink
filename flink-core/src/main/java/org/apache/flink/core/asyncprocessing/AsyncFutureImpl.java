@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.core.state;
+package org.apache.flink.core.asyncprocessing;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.v2.StateFuture;
@@ -29,7 +29,7 @@ import org.apache.flink.util.function.ThrowingRunnable;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * The default implementation of {@link StateFuture}. This is managed by the runtime framework and
+ * The default implementation of {@link AsyncFuture}. This is managed by the runtime framework and
  * should never be directly created in user code. It will handle the completion and callback
  * trigger, and most of the design are borrowed from the {@link CompletableFuture}. In the basic
  * version of this implementation, we wrap {@link CompletableFuture} for simplification. TODO:
@@ -39,7 +39,7 @@ import java.util.concurrent.CompletableFuture;
  * running thread of each block when you decide to touch it.
  */
 @Internal
-public class StateFutureImpl<T> implements InternalStateFuture<T> {
+public class AsyncFutureImpl<T> implements InternalAsyncFuture<T> {
 
     /** The future holds the result. This may complete in async threads. */
     private final CompletableFuture<T> completableFuture;
@@ -50,7 +50,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
     /** The exception handler that handles callback framework's error. */
     protected final AsyncFrameworkExceptionHandler exceptionHandler;
 
-    public StateFutureImpl(
+    public AsyncFutureImpl(
             CallbackRunner callbackRunner, AsyncFrameworkExceptionHandler exceptionHandler) {
         this.completableFuture = new CompletableFuture<>();
         this.callbackRunner = callbackRunner;
@@ -58,7 +58,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
     }
 
     @Override
-    public <U> StateFuture<U> thenApply(
+    public <U> InternalAsyncFuture<U> thenApply(
             FunctionWithException<? super T, ? extends U, ? extends Exception> fn) {
         callbackRegistered();
         if (completableFuture.isDone()) {
@@ -68,14 +68,14 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                 t = completableFuture.get();
             } catch (Exception e) {
                 exceptionHandler.handleException(
-                        "Caught exception when processing completed StateFuture's callback.", e);
+                        "Caught exception when processing completed AsyncFuture's callback.", e);
                 return null;
             }
             U r = FunctionWithException.unchecked(fn).apply(t);
             callbackFinished();
-            return StateFutureUtils.completedFuture(r);
+            return InternalAsyncFutureUtils.completedFuture(r);
         } else {
-            StateFutureImpl<U> ret = makeNewStateFuture();
+            AsyncFutureImpl<U> ret = makeNewFuture();
             completableFuture
                     .thenAccept(
                             (t) -> {
@@ -88,7 +88,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                     .exceptionally(
                             (e) -> {
                                 exceptionHandler.handleException(
-                                        "Caught exception when submitting StateFuture's callback.",
+                                        "Caught exception when submitting AsyncFuture's callback.",
                                         e);
                                 return null;
                             });
@@ -97,7 +97,8 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
     }
 
     @Override
-    public StateFuture<Void> thenAccept(ThrowingConsumer<? super T, ? extends Exception> action) {
+    public InternalAsyncFuture<Void> thenAccept(
+            ThrowingConsumer<? super T, ? extends Exception> action) {
         callbackRegistered();
         if (completableFuture.isDone()) {
             // this branch must be invoked in task thread when expected
@@ -106,14 +107,14 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                 t = completableFuture.get();
             } catch (Exception e) {
                 exceptionHandler.handleException(
-                        "Caught exception when processing completed StateFuture's callback.", e);
+                        "Caught exception when processing completed AsyncFuture's callback.", e);
                 return null;
             }
             ThrowingConsumer.unchecked(action).accept(t);
             callbackFinished();
-            return StateFutureUtils.completedVoidFuture();
+            return InternalAsyncFutureUtils.completedVoidFuture();
         } else {
-            StateFutureImpl<Void> ret = makeNewStateFuture();
+            AsyncFutureImpl<Void> ret = makeNewFuture();
             completableFuture
                     .thenAccept(
                             (t) -> {
@@ -127,7 +128,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                     .exceptionally(
                             (e) -> {
                                 exceptionHandler.handleException(
-                                        "Caught exception when submitting StateFuture's callback.",
+                                        "Caught exception when submitting AsyncFuture's callback.",
                                         e);
                                 return null;
                             });
@@ -136,7 +137,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
     }
 
     @Override
-    public <U> StateFuture<U> thenCompose(
+    public <U> InternalAsyncFuture<U> thenCompose(
             FunctionWithException<? super T, ? extends StateFuture<U>, ? extends Exception>
                     action) {
         callbackRegistered();
@@ -147,13 +148,13 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                 t = completableFuture.get();
             } catch (Throwable e) {
                 exceptionHandler.handleException(
-                        "Caught exception when processing completed StateFuture's callback.", e);
+                        "Caught exception when processing completed AsyncFuture's callback.", e);
                 return null;
             }
             callbackFinished();
-            return FunctionWithException.unchecked(action).apply(t);
+            return (InternalAsyncFuture<U>) FunctionWithException.unchecked(action).apply(t);
         } else {
-            StateFutureImpl<U> ret = makeNewStateFuture();
+            AsyncFutureImpl<U> ret = makeNewFuture();
             completableFuture
                     .thenAccept(
                             (t) -> {
@@ -167,7 +168,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                     .exceptionally(
                             (e) -> {
                                 exceptionHandler.handleException(
-                                        "Caught exception when submitting StateFuture's callback.",
+                                        "Caught exception when submitting AsyncFuture's callback.",
                                         e);
                                 return null;
                             });
@@ -176,7 +177,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
     }
 
     @Override
-    public <U, V> StateFuture<V> thenCombine(
+    public <U, V> InternalAsyncFuture<V> thenCombine(
             StateFuture<? extends U> other,
             BiFunctionWithException<? super T, ? super U, ? extends V, ? extends Exception> fn) {
         callbackRegistered();
@@ -187,19 +188,20 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                 t = completableFuture.get();
             } catch (Throwable e) {
                 exceptionHandler.handleException(
-                        "Caught exception when submitting StateFuture's callback.", e);
+                        "Caught exception when submitting AsyncFuture's callback.", e);
                 return null;
             }
 
-            return other.thenCompose(
-                    (u) -> {
-                        V v = fn.apply(t, u);
-                        callbackFinished();
-                        return StateFutureUtils.completedFuture(v);
-                    });
+            return (InternalAsyncFuture<V>)
+                    other.thenCompose(
+                            (u) -> {
+                                V v = fn.apply(t, u);
+                                callbackFinished();
+                                return InternalAsyncFutureUtils.completedFuture(v);
+                            });
         } else {
-            StateFutureImpl<V> ret = makeNewStateFuture();
-            ((InternalStateFuture<? extends U>) other)
+            AsyncFutureImpl<V> ret = makeNewFuture();
+            ((InternalAsyncFuture<? extends U>) other)
                     .thenSyncAccept(
                             (u) -> {
                                 completableFuture
@@ -215,7 +217,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                                         .exceptionally(
                                                 (e) -> {
                                                     exceptionHandler.handleException(
-                                                            "Caught exception when submitting StateFuture's callback.",
+                                                            "Caught exception when submitting AsyncFuture's callback.",
                                                             e);
                                                     return null;
                                                 });
@@ -225,7 +227,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
     }
 
     @Override
-    public <U, V> StateFuture<Tuple2<Boolean, Object>> thenConditionallyApply(
+    public <U, V> InternalAsyncFuture<Tuple2<Boolean, Object>> thenConditionallyApply(
             FunctionWithException<? super T, Boolean, ? extends Exception> condition,
             FunctionWithException<? super T, ? extends U, ? extends Exception> actionIfTrue,
             FunctionWithException<? super T, ? extends V, ? extends Exception> actionIfFalse) {
@@ -237,7 +239,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                 t = completableFuture.get();
             } catch (Exception e) {
                 exceptionHandler.handleException(
-                        "Caught exception when processing completed StateFuture's callback.", e);
+                        "Caught exception when processing completed AsyncFuture's callback.", e);
                 return null;
             }
             boolean test = FunctionWithException.unchecked(condition).apply(t);
@@ -247,9 +249,9 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                             : FunctionWithException.unchecked(actionIfFalse).apply(t);
 
             callbackFinished();
-            return StateFutureUtils.completedFuture(Tuple2.of(test, r));
+            return InternalAsyncFutureUtils.completedFuture(Tuple2.of(test, r));
         } else {
-            StateFutureImpl<Tuple2<Boolean, Object>> ret = makeNewStateFuture();
+            AsyncFutureImpl<Tuple2<Boolean, Object>> ret = makeNewFuture();
             completableFuture
                     .thenAccept(
                             (t) -> {
@@ -267,7 +269,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                     .exceptionally(
                             (e) -> {
                                 exceptionHandler.handleException(
-                                        "Caught exception when submitting StateFuture's callback.",
+                                        "Caught exception when submitting AsyncFuture's callback.",
                                         e);
                                 return null;
                             });
@@ -276,7 +278,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
     }
 
     @Override
-    public <U> StateFuture<Tuple2<Boolean, U>> thenConditionallyApply(
+    public <U> InternalAsyncFuture<Tuple2<Boolean, U>> thenConditionallyApply(
             FunctionWithException<? super T, Boolean, ? extends Exception> condition,
             FunctionWithException<? super T, ? extends U, ? extends Exception> actionIfTrue) {
         callbackRegistered();
@@ -287,16 +289,17 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                 t = completableFuture.get();
             } catch (Exception e) {
                 exceptionHandler.handleException(
-                        "Caught exception when processing completed StateFuture's callback.", e);
+                        "Caught exception when processing completed InternalAsyncFuture's callback.",
+                        e);
                 return null;
             }
             boolean test = FunctionWithException.unchecked(condition).apply(t);
             U r = test ? FunctionWithException.unchecked(actionIfTrue).apply(t) : null;
 
             callbackFinished();
-            return StateFutureUtils.completedFuture(Tuple2.of(test, r));
+            return InternalAsyncFutureUtils.completedFuture(Tuple2.of(test, r));
         } else {
-            StateFutureImpl<Tuple2<Boolean, U>> ret = makeNewStateFuture();
+            AsyncFutureImpl<Tuple2<Boolean, U>> ret = makeNewFuture();
             completableFuture
                     .thenAccept(
                             (t) -> {
@@ -311,7 +314,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                     .exceptionally(
                             (e) -> {
                                 exceptionHandler.handleException(
-                                        "Caught exception when submitting StateFuture's callback.",
+                                        "Caught exception when submitting AsyncFuture's callback.",
                                         e);
                                 return null;
                             });
@@ -320,7 +323,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
     }
 
     @Override
-    public StateFuture<Boolean> thenConditionallyAccept(
+    public InternalAsyncFuture<Boolean> thenConditionallyAccept(
             FunctionWithException<? super T, Boolean, ? extends Exception> condition,
             ThrowingConsumer<? super T, ? extends Exception> actionIfTrue,
             ThrowingConsumer<? super T, ? extends Exception> actionIfFalse) {
@@ -332,7 +335,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                 t = completableFuture.get();
             } catch (Exception e) {
                 exceptionHandler.handleException(
-                        "Caught exception when processing completed StateFuture's callback.", e);
+                        "Caught exception when processing completed AsyncFuture's callback.", e);
                 return null;
             }
             boolean test = FunctionWithException.unchecked(condition).apply(t);
@@ -342,9 +345,9 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                 ThrowingConsumer.unchecked(actionIfFalse).accept(t);
             }
             callbackFinished();
-            return StateFutureUtils.completedFuture(test);
+            return InternalAsyncFutureUtils.completedFuture(test);
         } else {
-            StateFutureImpl<Boolean> ret = makeNewStateFuture();
+            AsyncFutureImpl<Boolean> ret = makeNewFuture();
             completableFuture
                     .thenAccept(
                             (t) -> {
@@ -363,7 +366,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                     .exceptionally(
                             (e) -> {
                                 exceptionHandler.handleException(
-                                        "Caught exception when submitting StateFuture's callback.",
+                                        "Caught exception when submitting AsyncFuture's callback.",
                                         e);
                                 return null;
                             });
@@ -372,14 +375,14 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
     }
 
     @Override
-    public StateFuture<Boolean> thenConditionallyAccept(
+    public InternalAsyncFuture<Boolean> thenConditionallyAccept(
             FunctionWithException<? super T, Boolean, ? extends Exception> condition,
             ThrowingConsumer<? super T, ? extends Exception> actionIfTrue) {
         return thenConditionallyAccept(condition, actionIfTrue, (b) -> {});
     }
 
     @Override
-    public <U, V> StateFuture<Tuple2<Boolean, Object>> thenConditionallyCompose(
+    public <U, V> InternalAsyncFuture<Tuple2<Boolean, Object>> thenConditionallyCompose(
             FunctionWithException<? super T, Boolean, ? extends Exception> condition,
             FunctionWithException<? super T, ? extends StateFuture<U>, ? extends Exception>
                     actionIfTrue,
@@ -393,7 +396,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                 t = completableFuture.get();
             } catch (Throwable e) {
                 exceptionHandler.handleException(
-                        "Caught exception when processing completed StateFuture's callback.", e);
+                        "Caught exception when processing completed AsyncFuture's callback.", e);
                 return null;
             }
             boolean test = FunctionWithException.unchecked(condition).apply(t);
@@ -403,7 +406,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
             } else {
                 actionResult = FunctionWithException.unchecked(actionIfFalse).apply(t);
             }
-            StateFutureImpl<Tuple2<Boolean, Object>> ret = makeNewStateFuture();
+            AsyncFutureImpl<Tuple2<Boolean, Object>> ret = makeNewFuture();
             actionResult.thenAccept(
                     (e) -> {
                         ret.completeInCallbackRunner(Tuple2.of(test, e));
@@ -411,7 +414,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
             callbackFinished();
             return ret;
         } else {
-            StateFutureImpl<Tuple2<Boolean, Object>> ret = makeNewStateFuture();
+            AsyncFutureImpl<Tuple2<Boolean, Object>> ret = makeNewFuture();
             completableFuture
                     .thenAccept(
                             (t) -> {
@@ -435,7 +438,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                     .exceptionally(
                             (e) -> {
                                 exceptionHandler.handleException(
-                                        "Caught exception when submitting StateFuture's callback.",
+                                        "Caught exception when submitting AsyncFuture's callback.",
                                         e);
                                 return null;
                             });
@@ -444,7 +447,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
     }
 
     @Override
-    public <U> StateFuture<Tuple2<Boolean, U>> thenConditionallyCompose(
+    public <U> InternalAsyncFuture<Tuple2<Boolean, U>> thenConditionallyCompose(
             FunctionWithException<? super T, Boolean, ? extends Exception> condition,
             FunctionWithException<? super T, ? extends StateFuture<U>, ? extends Exception>
                     actionIfTrue) {
@@ -456,7 +459,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                 t = completableFuture.get();
             } catch (Throwable e) {
                 exceptionHandler.handleException(
-                        "Caught exception when processing completed StateFuture's callback.", e);
+                        "Caught exception when processing completed AsyncFuture's callback.", e);
                 return null;
             }
             boolean test = FunctionWithException.unchecked(condition).apply(t);
@@ -464,7 +467,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
             if (test) {
                 StateFuture<U> actionResult =
                         FunctionWithException.unchecked(actionIfTrue).apply(t);
-                StateFutureImpl<Tuple2<Boolean, U>> ret = makeNewStateFuture();
+                AsyncFutureImpl<Tuple2<Boolean, U>> ret = makeNewFuture();
                 actionResult.thenAccept(
                         (e) -> {
                             ret.completeInCallbackRunner(Tuple2.of(true, e));
@@ -473,10 +476,10 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                 return ret;
             } else {
                 callbackFinished();
-                return StateFutureUtils.completedFuture(Tuple2.of(false, null));
+                return InternalAsyncFutureUtils.completedFuture(Tuple2.of(false, null));
             }
         } else {
-            StateFutureImpl<Tuple2<Boolean, U>> ret = makeNewStateFuture();
+            AsyncFutureImpl<Tuple2<Boolean, U>> ret = makeNewFuture();
             completableFuture
                     .thenAccept(
                             (t) -> {
@@ -500,7 +503,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                     .exceptionally(
                             (e) -> {
                                 exceptionHandler.handleException(
-                                        "Caught exception when submitting StateFuture's callback.",
+                                        "Caught exception when submitting AsyncFuture's callback.",
                                         e);
                                 return null;
                             });
@@ -514,8 +517,8 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
      *
      * @return the new created future.
      */
-    public <A> StateFutureImpl<A> makeNewStateFuture() {
-        return new StateFutureImpl<>(callbackRunner, exceptionHandler);
+    public <A> AsyncFutureImpl<A> makeNewFuture() {
+        return new AsyncFutureImpl<>(callbackRunner, exceptionHandler);
     }
 
     @Override
@@ -530,7 +533,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
             t = completableFuture.get();
         } catch (Exception e) {
             exceptionHandler.handleException(
-                    "Caught exception when getting StateFuture's result.", e);
+                    "Caught exception when getting AsyncFuture's result.", e);
             return null;
         }
         return t;
@@ -539,7 +542,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
     @Override
     public void complete(T result) {
         if (completableFuture.isCompletedExceptionally()) {
-            throw new IllegalStateException("StateFuture already failed !");
+            throw new IllegalStateException("AsyncFuture already failed !");
         }
         completableFuture.complete(result);
         postComplete(false);
@@ -577,7 +580,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                 .exceptionally(
                         (e) -> {
                             exceptionHandler.handleException(
-                                    "Caught exception when processing completed StateFuture's callback.",
+                                    "Caught exception when processing completed AsyncFuture's callback.",
                                     e);
                             return null;
                         });

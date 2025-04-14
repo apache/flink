@@ -18,21 +18,21 @@
 
 package org.apache.flink.runtime.asyncprocessing;
 
-import org.apache.flink.core.state.InternalStateFuture;
-import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
+import org.apache.flink.core.asyncprocessing.AsyncFutureImpl.AsyncFrameworkExceptionHandler;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 
 /**
- * An internal factory for {@link InternalStateFuture} that build future with necessary context
+ * An internal factory for {@link InternalAsyncFuture} that build future with necessary context
  * switch and wired with mailbox executor.
  */
-public class StateFutureFactory<K> {
+public class AsyncFutureFactory<K> {
 
-    private final AsyncExecutionController<K> asyncExecutionController;
+    private final AsyncExecutionController<K, ?> asyncExecutionController;
     private final CallbackRunnerWrapper callbackRunner;
     private final AsyncFrameworkExceptionHandler exceptionHandler;
 
-    StateFutureFactory(
-            AsyncExecutionController<K> asyncExecutionController,
+    AsyncFutureFactory(
+            AsyncExecutionController<K, ?> asyncExecutionController,
             CallbackRunnerWrapper callbackRunner,
             AsyncFrameworkExceptionHandler exceptionHandler) {
         this.asyncExecutionController = asyncExecutionController;
@@ -40,8 +40,8 @@ public class StateFutureFactory<K> {
         this.exceptionHandler = exceptionHandler;
     }
 
-    public <OUT> InternalStateFuture<OUT> create(RecordContext<K> context) {
-        return new ContextStateFutureImpl<>(
+    public <OUT> InternalAsyncFuture<OUT> create(RecordContext<K> context) {
+        return new ContextAsyncFutureImpl<>(
                 (runnable) ->
                         callbackRunner.submit(
                                 () -> {

@@ -57,7 +57,7 @@ public class EpochManager {
      * The reference to the {@link AsyncExecutionController}, used for {@link
      * ParallelMode#SERIAL_BETWEEN_EPOCH}. Can be null when testing.
      */
-    final AsyncExecutionController<?> asyncExecutionController;
+    final AsyncExecutionController<?, ?> asyncExecutionController;
 
     /** The number of epochs that have arrived. */
     long epochNum;
@@ -77,7 +77,7 @@ public class EpochManager {
     /** The flag that prevent the recursive call of {@link #tryFinishInQueue()}. */
     boolean recursiveFlag;
 
-    public EpochManager(AsyncExecutionController<?> aec) {
+    public EpochManager(AsyncExecutionController<?, ?> aec) {
         this.epochNum = 0;
         this.outputQueue = new LinkedList<>();
         this.asyncExecutionController = aec;

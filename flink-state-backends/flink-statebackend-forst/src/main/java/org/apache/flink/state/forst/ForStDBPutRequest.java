@@ -19,7 +19,7 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.core.state.InternalStateFuture;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 
 import org.forstdb.ColumnFamilyHandle;
 import org.forstdb.RocksDB;
@@ -42,14 +42,14 @@ public class ForStDBPutRequest<K, N, V> {
     @Nullable final V value;
     final boolean isMerge;
     final ForStInnerTable<K, N, V> table;
-    final InternalStateFuture<Void> future;
+    final InternalAsyncFuture<Void> future;
 
     ForStDBPutRequest(
             ContextKey<K, N> key,
             V value,
             boolean isMerge,
             ForStInnerTable<K, N, V> table,
-            InternalStateFuture<Void> future) {
+            InternalAsyncFuture<Void> future) {
         this.key = key;
         this.value = value;
         this.isMerge = isMerge;
@@ -95,7 +95,7 @@ public class ForStDBPutRequest<K, N, V> {
             ContextKey<K, N> key,
             @Nullable V value,
             ForStInnerTable<K, N, V> table,
-            InternalStateFuture<Void> future) {
+            InternalAsyncFuture<Void> future) {
         return new ForStDBPutRequest<>(key, value, false, table, future);
     }
 
@@ -103,7 +103,7 @@ public class ForStDBPutRequest<K, N, V> {
             ContextKey<K, N> key,
             @Nullable V value,
             ForStInnerTable<K, N, V> table,
-            InternalStateFuture<Void> future) {
+            InternalAsyncFuture<Void> future) {
         return new ForStDBPutRequest<>(key, value, true, table, future);
     }
 

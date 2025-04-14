@@ -19,18 +19,19 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.asyncprocessing.AsyncRequestContainer;
 import org.apache.flink.runtime.asyncprocessing.StateRequest;
-import org.apache.flink.runtime.asyncprocessing.StateRequestContainer;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The ForSt {@link StateRequestContainer} which can classify the state requests by ForStDB
+ * The ForSt {@link AsyncRequestContainer} which can classify the state requests by ForStDB
  * requestType (Get、Put or Iterator).
  */
-public class ForStStateRequestClassifier implements StateRequestContainer {
+public class ForStStateRequestClassifier
+        implements AsyncRequestContainer<StateRequest<?, ?, ?, ?>> {
 
     private final List<ForStDBGetRequest<?, ?, ?, ?>> dbGetRequests;
 

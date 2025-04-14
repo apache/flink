@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ExecutionOptions;
-import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
+import org.apache.flink.runtime.asyncprocessing.StateExecutionController;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -104,20 +104,20 @@ public class AbstractAsyncStateStreamOperatorTest {
             testHarness.open();
             assertThat(testHarness.getOperator())
                     .isInstanceOf(AbstractAsyncStateStreamOperator.class);
-            AsyncExecutionController<?> aec =
+            StateExecutionController<?> aec =
                     ((AbstractAsyncStateStreamOperator) testHarness.getOperator())
-                            .getAsyncExecutionController();
+                            .getStateExecutionController();
             assertThat(aec).isNotNull();
             assertThat(((MailboxExecutorImpl) aec.getMailboxExecutor()).getPriority())
                     .isGreaterThan(MIN_PRIORITY);
-            assertThat(aec.getStateExecutor()).isNotNull();
+            assertThat(aec.getAsyncExecutor()).isNotNull();
         }
     }
 
     @Test
-    void testRecordProcessorWithFirstStateOrder() throws Exception {
+    void testRecordProcessorWithFirstRequestOrder() throws Exception {
         try (AsyncKeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
-                testHarness = createTestHarness(128, 1, 0, ElementOrder.FIRST_STATE_ORDER)) {
+                testHarness = createTestHarness(128, 1, 0, ElementOrder.FIRST_REQUEST_ORDER)) {
             testHarness.open();
             TestOperator testOperator = (TestOperator) testHarness.getOperator();
             CompletableFuture<Void> future =
@@ -196,7 +196,7 @@ public class AbstractAsyncStateStreamOperatorTest {
 
     @Test
     void testManyAsyncProcessWithKey() throws Exception {
-        // This test is for verifying AsyncExecutionController could avoid deadlock for derived
+        // This test is for verifying StateExecutionController could avoid deadlock for derived
         // processing requests.
         int requests = ExecutionOptions.ASYNC_STATE_TOTAL_BUFFER_SIZE.defaultValue() + 1;
         TestOperatorWithMultipleDirectAsyncProcess testOperator =
@@ -238,9 +238,9 @@ public class AbstractAsyncStateStreamOperatorTest {
         try (AsyncKeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness = createTestHarness(128, 1, 0, ElementOrder.RECORD_ORDER)) {
             testHarness.open();
-            AsyncExecutionController asyncExecutionController =
+            StateExecutionController asyncExecutionController =
                     ((AbstractAsyncStateStreamOperator) testHarness.getOperator())
-                            .getAsyncExecutionController();
+                            .getStateExecutionController();
             ((AbstractAsyncStateStreamOperator<String>) testHarness.getOperator())
                     .setAsyncKeyedContextElement(
                             new StreamRecord<>(Tuple2.of(5, "5")), new TestKeySelector());

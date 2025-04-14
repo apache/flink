@@ -19,7 +19,7 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.api.common.state.v2.StateIterator;
-import org.apache.flink.core.state.InternalStateFuture;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 
@@ -34,14 +34,14 @@ import java.util.List;
 
 /** The ForSt {@link ForStDBIterRequest} which returns the values of a ForStMapState. */
 public class ForStDBMapValueIterRequest<K, N, UK, UV> extends ForStDBIterRequest<K, N, UK, UV, UV> {
-    private final InternalStateFuture<StateIterator<UV>> future;
+    private final InternalAsyncFuture<StateIterator<UV>> future;
 
     public ForStDBMapValueIterRequest(
             ContextKey<K, N> contextKey,
             ForStMapState<K, N, UK, UV> table,
             StateRequestHandler stateRequestHandler,
             @Nullable RocksIterator rocksIterator,
-            InternalStateFuture<StateIterator<UV>> future) {
+            InternalAsyncFuture<StateIterator<UV>> future) {
         super(contextKey, table, stateRequestHandler, rocksIterator);
         this.future = future;
     }

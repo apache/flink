@@ -68,7 +68,7 @@ public interface AsyncStateProcessing {
                     asyncOperator.preserveRecordOrderAndProcess(() -> processor.accept(record));
                     asyncOperator.postProcessElement();
                 };
-            case FIRST_STATE_ORDER:
+            case FIRST_REQUEST_ORDER:
                 return (record) -> {
                     asyncOperator.setAsyncKeyedContextElement(record, keySelector);
                     processor.accept(record);

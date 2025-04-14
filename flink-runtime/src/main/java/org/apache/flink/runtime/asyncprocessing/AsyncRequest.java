@@ -18,19 +18,34 @@
 
 package org.apache.flink.runtime.asyncprocessing;
 
-/**
- * A container which is used to hold {@link StateRequest}s. The role of {@code
- * StateRequestContainer} is to serve as an intermediary carrier for data transmission between the
- * runtime layer and the state layer. It stores the stateRequest from the runtime layer, which is
- * then processed by the state layer.
- *
- * <p>Notice that the {@code StateRequestContainer} may not be thread-safe.
- */
-public interface StateRequestContainer {
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 
-    /** Preserve a stateRequest into the {@code StateRequestContainer}. */
-    void offer(StateRequest<?, ?, ?, ?> stateRequest);
+@SuppressWarnings("rawtypes")
+public abstract class AsyncRequest<K> {
 
-    /** Returns whether the container is empty. */
-    boolean isEmpty();
+    /** The record context of this request. */
+    protected final RecordContext<K> context;
+
+    protected final boolean sync;
+
+    /** The future to collect the result of the request. */
+    protected final InternalAsyncFuture asyncFuture;
+
+    public AsyncRequest(RecordContext<K> context, boolean sync, InternalAsyncFuture asyncFuture) {
+        this.context = context;
+        this.sync = sync;
+        this.asyncFuture = asyncFuture;
+    }
+
+    public RecordContext<K> getRecordContext() {
+        return context;
+    }
+
+    public boolean isSync() {
+        return sync;
+    }
+
+    public InternalAsyncFuture getFuture() {
+        return asyncFuture;
+    }
 }

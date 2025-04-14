@@ -33,7 +33,7 @@ import java.util.function.Consumer;
  * A context that preserves the necessary variables required by each operation, all operations for
  * one record will share the same element context.
  *
- * <p>Reference counting mechanism, please refer to {@link ContextStateFutureImpl}.
+ * <p>Reference counting mechanism, please refer to {@link ContextAsyncFutureImpl}.
  *
  * @param <K> The type of the key inside the record.
  */

@@ -21,9 +21,9 @@ package org.apache.flink.state.forst;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.state.v2.AggregatingState;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
@@ -141,7 +141,7 @@ public class ForStAggregatingState<K, N, IN, ACC, OUT>
                         (RecordContext<K>) stateRequest.getRecordContext(),
                         (N) stateRequest.getNamespace());
         return new ForStDBSingleGetRequest<>(
-                contextKey, this, (InternalStateFuture<ACC>) stateRequest.getFuture());
+                contextKey, this, (InternalAsyncFuture<ACC>) stateRequest.getFuture());
     }
 
     @SuppressWarnings("unchecked")
@@ -159,6 +159,6 @@ public class ForStAggregatingState<K, N, IN, ACC, OUT>
                         ? null
                         : (ACC) stateRequest.getPayload();
         return ForStDBPutRequest.of(
-                contextKey, aggregate, this, (InternalStateFuture<Void>) stateRequest.getFuture());
+                contextKey, aggregate, this, (InternalAsyncFuture<Void>) stateRequest.getFuture());
     }
 }

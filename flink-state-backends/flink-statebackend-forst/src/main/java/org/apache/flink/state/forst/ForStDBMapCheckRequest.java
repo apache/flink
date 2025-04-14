@@ -18,7 +18,7 @@
 
 package org.apache.flink.state.forst;
 
-import org.apache.flink.core.state.InternalStateFuture;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 
 import org.forstdb.RocksDB;
 import org.forstdb.RocksDBException;
@@ -48,7 +48,7 @@ public class ForStDBMapCheckRequest<K, N, V> extends ForStDBGetRequest<K, N, V, 
     public ForStDBMapCheckRequest(
             ContextKey<K, N> key,
             ForStInnerTable<K, N, V> table,
-            InternalStateFuture<Boolean> future,
+            InternalAsyncFuture<Boolean> future,
             boolean checkEmpty) {
         super(key, table, future);
         this.keyGroupPrefixBytes = ((ForStMapState) table).getKeyGroupPrefixBytes();

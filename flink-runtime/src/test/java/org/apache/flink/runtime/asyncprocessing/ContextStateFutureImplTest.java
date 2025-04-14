@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.asyncprocessing;
 
-import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
+import org.apache.flink.core.asyncprocessing.AsyncFutureImpl.AsyncFrameworkExceptionHandler;
 import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.runtime.asyncprocessing.EpochManager.Epoch;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -35,7 +35,7 @@ import java.util.LinkedList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
-/** Tests for {@link ContextStateFutureImpl}. */
+/** Tests for {@link ContextAsyncFutureImpl}. */
 public class ContextStateFutureImplTest {
 
     @Test
@@ -46,8 +46,8 @@ public class ContextStateFutureImplTest {
                 new TestAsyncFrameworkExceptionHandler();
 
         // validate
-        ContextStateFutureImpl<Void> future =
-                new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
+        ContextAsyncFutureImpl<Void> future =
+                new ContextAsyncFutureImpl<>(runner::submit, exceptionHandler, recordContext);
         assertThat(recordContext.getReferenceCount()).isEqualTo(1);
         future.thenApply((v) -> 1L);
         future.complete(null);
@@ -55,7 +55,7 @@ public class ContextStateFutureImplTest {
         assertThat(recordContext.getReferenceCount()).isEqualTo(0);
 
         // validate completion before callback
-        future = new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
+        future = new ContextAsyncFutureImpl<>(runner::submit, exceptionHandler, recordContext);
         assertThat(recordContext.getReferenceCount()).isEqualTo(1);
         future.complete(null);
         assertThat(recordContext.getReferenceCount()).isEqualTo(0);
@@ -65,7 +65,7 @@ public class ContextStateFutureImplTest {
 
         // validate exception
         future =
-                new ContextStateFutureImpl<>(
+                new ContextAsyncFutureImpl<>(
                         (runnable) -> {
                             runner.submit(() -> runnable.run());
                         },
@@ -93,8 +93,8 @@ public class ContextStateFutureImplTest {
                 new TestAsyncFrameworkExceptionHandler();
 
         // validate
-        ContextStateFutureImpl<Void> future =
-                new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
+        ContextAsyncFutureImpl<Void> future =
+                new ContextAsyncFutureImpl<>(runner::submit, exceptionHandler, recordContext);
         assertThat(recordContext.getReferenceCount()).isEqualTo(1);
         future.thenAccept((v) -> {});
         future.complete(null);
@@ -102,7 +102,7 @@ public class ContextStateFutureImplTest {
         assertThat(recordContext.getReferenceCount()).isEqualTo(0);
 
         // validate completion before callback
-        future = new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
+        future = new ContextAsyncFutureImpl<>(runner::submit, exceptionHandler, recordContext);
         assertThat(recordContext.getReferenceCount()).isEqualTo(1);
         future.complete(null);
         assertThat(recordContext.getReferenceCount()).isEqualTo(0);
@@ -112,7 +112,7 @@ public class ContextStateFutureImplTest {
 
         // validate exception
         future =
-                new ContextStateFutureImpl<>(
+                new ContextAsyncFutureImpl<>(
                         (runnable) -> {
                             runner.submit(() -> runnable.run());
                         },
@@ -140,8 +140,8 @@ public class ContextStateFutureImplTest {
                 new TestAsyncFrameworkExceptionHandler();
 
         // validate
-        ContextStateFutureImpl<Void> future =
-                new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
+        ContextAsyncFutureImpl<Void> future =
+                new ContextAsyncFutureImpl<>(runner::submit, exceptionHandler, recordContext);
         assertThat(recordContext.getReferenceCount()).isEqualTo(1);
         future.thenCompose((v) -> StateFutureUtils.completedFuture(1L));
         future.complete(null);
@@ -149,7 +149,7 @@ public class ContextStateFutureImplTest {
         assertThat(recordContext.getReferenceCount()).isEqualTo(0);
 
         // validate completion before callback
-        future = new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
+        future = new ContextAsyncFutureImpl<>(runner::submit, exceptionHandler, recordContext);
         assertThat(recordContext.getReferenceCount()).isEqualTo(1);
         future.complete(null);
         assertThat(recordContext.getReferenceCount()).isEqualTo(0);
@@ -159,7 +159,7 @@ public class ContextStateFutureImplTest {
 
         // validate exception
         future =
-                new ContextStateFutureImpl<>(
+                new ContextAsyncFutureImpl<>(
                         (runnable) -> {
                             runner.submit(() -> runnable.run());
                         },
@@ -190,10 +190,10 @@ public class ContextStateFutureImplTest {
                 new TestAsyncFrameworkExceptionHandler();
 
         // validate
-        ContextStateFutureImpl<Void> future1 =
-                new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
-        ContextStateFutureImpl<Void> future2 =
-                new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
+        ContextAsyncFutureImpl<Void> future1 =
+                new ContextAsyncFutureImpl<>(runner::submit, exceptionHandler, recordContext);
+        ContextAsyncFutureImpl<Void> future2 =
+                new ContextAsyncFutureImpl<>(runner::submit, exceptionHandler, recordContext);
         assertThat(recordContext.getReferenceCount()).isEqualTo(2);
         future1.thenCombine(future2, (v1, v2) -> 1L);
         future1.complete(null);
@@ -202,8 +202,8 @@ public class ContextStateFutureImplTest {
         assertThat(recordContext.getReferenceCount()).isEqualTo(0);
 
         // validate future1 completion before callback
-        future1 = new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
-        future2 = new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
+        future1 = new ContextAsyncFutureImpl<>(runner::submit, exceptionHandler, recordContext);
+        future2 = new ContextAsyncFutureImpl<>(runner::submit, exceptionHandler, recordContext);
         assertThat(recordContext.getReferenceCount()).isEqualTo(2);
         future1.complete(null);
         future1.thenCombine(future2, (v1, v2) -> 1L);
@@ -213,8 +213,8 @@ public class ContextStateFutureImplTest {
         assertThat(recordContext.getReferenceCount()).isEqualTo(0);
 
         // validate future2 completion before callback
-        future1 = new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
-        future2 = new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
+        future1 = new ContextAsyncFutureImpl<>(runner::submit, exceptionHandler, recordContext);
+        future2 = new ContextAsyncFutureImpl<>(runner::submit, exceptionHandler, recordContext);
         assertThat(recordContext.getReferenceCount()).isEqualTo(2);
         future2.complete(null);
         future1.thenCombine(future2, (v1, v2) -> 1L);
@@ -224,8 +224,8 @@ public class ContextStateFutureImplTest {
         assertThat(recordContext.getReferenceCount()).isEqualTo(0);
 
         // validate both future1 and future2 completion before callback
-        future1 = new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
-        future2 = new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
+        future1 = new ContextAsyncFutureImpl<>(runner::submit, exceptionHandler, recordContext);
+        future2 = new ContextAsyncFutureImpl<>(runner::submit, exceptionHandler, recordContext);
         assertThat(recordContext.getReferenceCount()).isEqualTo(2);
         future1.complete(null);
         future2.complete(null);
@@ -246,10 +246,10 @@ public class ContextStateFutureImplTest {
             // 1 stands for the completion of corresponding future before the user code execution.
             // While 0, on the contrary, represents the scenario where the user code is executed
             // first and then the future completes.
-            ArrayList<ContextStateFutureImpl<Void>> futures = new ArrayList<>(6);
+            ArrayList<ContextAsyncFutureImpl<Void>> futures = new ArrayList<>(6);
             for (int j = 0; j < 5; j++) {
-                ContextStateFutureImpl<Void> future =
-                        new ContextStateFutureImpl<>(
+                ContextAsyncFutureImpl<Void> future =
+                        new ContextAsyncFutureImpl<>(
                                 runner::submit, exceptionHandler, recordContext);
                 futures.add(future);
                 // Complete future before user code.

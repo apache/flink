@@ -23,9 +23,9 @@ import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.state.v2.StateIterator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.asyncprocessing.StateRequest;
@@ -144,11 +144,11 @@ public class ForStListState<K, N, V> extends AbstractListState<K, N, V>
                 return new ForStDBListGetRequest<>(
                         contextKey,
                         this,
-                        (InternalStateFuture<StateIterator<V>>) stateRequest.getFuture());
+                        (InternalAsyncFuture<StateIterator<V>>) stateRequest.getFuture());
             case CUSTOMIZED:
                 // must be LIST_GET_RAW
                 return new ForStDBRawGetRequest<>(
-                        contextKey, this, (InternalStateFuture<byte[]>) stateRequest.getFuture());
+                        contextKey, this, (InternalAsyncFuture<byte[]>) stateRequest.getFuture());
             default:
                 throw new UnsupportedOperationException();
         }
@@ -187,16 +187,16 @@ public class ForStListState<K, N, V> extends AbstractListState<K, N, V>
                         ((Tuple2<ForStStateRequestType, List<byte[]>>) stateRequest.getPayload())
                                 .f1,
                         this,
-                        (InternalStateFuture<Void>) stateRequest.getFuture());
+                        (InternalAsyncFuture<Void>) stateRequest.getFuture());
             default:
                 throw new IllegalArgumentException();
         }
         if (merge) {
             return ForStDBPutRequest.ofMerge(
-                    contextKey, value, this, (InternalStateFuture<Void>) stateRequest.getFuture());
+                    contextKey, value, this, (InternalAsyncFuture<Void>) stateRequest.getFuture());
         } else {
             return ForStDBPutRequest.of(
-                    contextKey, value, this, (InternalStateFuture<Void>) stateRequest.getFuture());
+                    contextKey, value, this, (InternalAsyncFuture<Void>) stateRequest.getFuture());
         }
     }
 

@@ -29,8 +29,8 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
+import org.apache.flink.runtime.asyncprocessing.StateExecutionController;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
@@ -64,7 +64,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Compatibility test for {@link ForStKeyedStateBackend} and {@link ForStSyncKeyedStateBackend}. */
 class ForStAsyncAndSyncCompatibilityTest {
     protected ForStStateBackend forStStateBackend;
-    protected AsyncExecutionController<String> aec;
+    protected StateExecutionController<String> aec;
     protected MailboxExecutor mailboxExecutor;
 
     protected RecordContext<String> context;
@@ -255,13 +255,13 @@ class ForStAsyncAndSyncCompatibilityTest {
         }
     }
 
-    private ForStKeyedStateBackend setUpAsyncKeyedStateBackend(
+    private ForStKeyedStateBackend<String> setUpAsyncKeyedStateBackend(
             Collection<KeyedStateHandle> stateHandles) throws IOException {
         ForStKeyedStateBackend<String> keyedStateBackend =
                 createKeyedStateBackend(
                         forStStateBackend, env, StringSerializer.INSTANCE, stateHandles);
         aec =
-                new AsyncExecutionController<>(
+                new StateExecutionController<>(
                         mailboxExecutor,
                         (a, b) -> {},
                         keyedStateBackend.createStateExecutor(),
