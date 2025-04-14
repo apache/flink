@@ -187,33 +187,28 @@ public class CliFrontend {
         final CustomCommandLine activeCommandLine =
                 validateAndGetActiveCommandLine(checkNotNull(commandLine));
 
-        final Configuration initEffectiveConfiguration =
+        final Configuration effectiveConfiguration =
                 getEffectiveConfiguration(activeCommandLine, commandLine);
 
-        if (isDeploymentTargetApplication(initEffectiveConfiguration)) {
+        if (isDeploymentTargetApplication(effectiveConfiguration)) {
             final ApplicationDeployer deployer =
                     new ApplicationClusterDeployer(clusterClientServiceLoader);
 
             final ProgramOptions programOptions;
-            final Configuration effectiveConfiguration;
 
             // No need to set a jarFile path for PyFlink job.
             if (ProgramOptionsUtils.isPythonEntryPoint(commandLine)) {
                 programOptions = ProgramOptionsUtils.createPythonProgramOptions(commandLine);
-                effectiveConfiguration =
-                        getEffectiveConfiguration(
-                                initEffectiveConfiguration,
-                                programOptions,
-                                Collections.emptyList());
+                updateEffectiveConfiguration(
+                        effectiveConfiguration, programOptions, Collections.emptyList());
             } else {
                 programOptions = new ProgramOptions(commandLine);
                 programOptions.validate();
                 final URI uri = PackagedProgramUtils.resolveURI(programOptions.getJarFilePath());
-                effectiveConfiguration =
-                        getEffectiveConfiguration(
-                                initEffectiveConfiguration,
-                                programOptions,
-                                Collections.singletonList(uri.toString()));
+                updateEffectiveConfiguration(
+                        effectiveConfiguration,
+                        programOptions,
+                        Collections.singletonList(uri.toString()));
             }
 
             final ApplicationConfiguration applicationConfiguration =
@@ -226,8 +221,7 @@ public class CliFrontend {
 
             final List<URL> jobJars = getJobJarAndDependencies(programOptions);
 
-            final Configuration effectiveConfiguration =
-                    getEffectiveConfiguration(initEffectiveConfiguration, programOptions, jobJars);
+            updateEffectiveConfiguration(effectiveConfiguration, programOptions, jobJars);
 
             LOG.debug("Effective executor configuration: {}", effectiveConfiguration);
 
@@ -295,7 +289,7 @@ public class CliFrontend {
         return effectiveConfiguration;
     }
 
-    private <T> Configuration getEffectiveConfiguration(
+    private <T> void updateEffectiveConfiguration(
             final Configuration effectiveConfiguration,
             final ProgramOptions programOptions,
             final List<T> jobJars) {
@@ -309,7 +303,6 @@ public class CliFrontend {
         LOG.debug(
                 "Effective configuration after Flink conf, custom commandline, and program options: {}",
                 effectiveConfiguration);
-        return effectiveConfiguration;
     }
 
     /**
@@ -344,14 +337,13 @@ public class CliFrontend {
             final CustomCommandLine activeCommandLine =
                     validateAndGetActiveCommandLine(checkNotNull(commandLine));
 
-            final Configuration initEffectiveConfiguration =
+            final Configuration effectiveConfiguration =
                     getEffectiveConfiguration(activeCommandLine, commandLine);
 
-            final Configuration effectiveConfiguration =
-                    getEffectiveConfiguration(
-                            initEffectiveConfiguration,
-                            programOptions,
-                            getJobJarAndDependencies(programOptions));
+            updateEffectiveConfiguration(
+                    effectiveConfiguration,
+                    programOptions,
+                    getJobJarAndDependencies(programOptions));
 
             program = buildProgram(programOptions, effectiveConfiguration);
 
