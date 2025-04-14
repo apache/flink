@@ -56,6 +56,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -251,6 +252,22 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
                         + " since this part is handled by the Input.");
     }
 
+    /**
+     * Process a non-record event. This method is used to process events that are not related to
+     * records, such as watermarks or latency markers. It is used to ensure that the async state
+     * processing is performed in the correct order. Subclasses could override this method to inject
+     * some async state processing logic.
+     *
+     * @param triggerAction the action that will be performed when the event is triggered.
+     * @param finalAction the action that will be performed when the event is finished considering
+     *     the epoch control.
+     */
+    protected void processNonRecord(
+            @Nullable ThrowingRunnable<? extends Exception> triggerAction,
+            @Nullable ThrowingRunnable<? extends Exception> finalAction) {
+        asyncExecutionController.processNonRecord(triggerAction, finalAction);
+    }
+
     /** Create new state (v2) based on new state descriptor. */
     protected <N, S extends State, T> S getOrCreateKeyedState(
             @Nonnull N defaultNamespace,
@@ -308,8 +325,7 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
             super.reportOrForwardLatencyMarker(marker);
             return;
         }
-        asyncExecutionController.processNonRecord(
-                null, () -> super.reportOrForwardLatencyMarker(marker));
+        processNonRecord(null, () -> super.reportOrForwardLatencyMarker(marker));
     }
 
     // ------------------------------------------------------------------------
@@ -362,7 +378,7 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
             return;
         }
         AtomicReference<Watermark> watermarkRef = new AtomicReference<>(null);
-        asyncExecutionController.processNonRecord(
+        processNonRecord(
                 () -> {
                     watermarkRef.set(preProcessWatermark(mark));
                     if (timeServiceManager != null && watermarkRef.get() != null) {
@@ -386,7 +402,7 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
         }
         final AtomicBoolean wasIdle = new AtomicBoolean(false);
         final AtomicReference<Watermark> watermarkRef = new AtomicReference<>(null);
-        asyncExecutionController.processNonRecord(
+        processNonRecord(
                 () -> {
                     wasIdle.set(combinedWatermark.isIdle());
                     if (combinedWatermark.updateStatus(inputId - 1, watermarkStatus.isIdle())) {
@@ -415,8 +431,7 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
             super.processRecordAttributes(recordAttributes, inputId);
             return;
         }
-        asyncExecutionController.processNonRecord(
-                null, () -> super.processRecordAttributes(recordAttributes, inputId));
+        processNonRecord(null, () -> super.processRecordAttributes(recordAttributes, inputId));
     }
 
     @VisibleForTesting
