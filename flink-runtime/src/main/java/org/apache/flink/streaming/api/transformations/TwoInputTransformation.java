@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessingOperator;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncKeyOrderedProcessingOperator;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -246,7 +246,7 @@ public class TwoInputTransformation<IN1, IN2, OUT> extends PhysicalTransformatio
         TwoInputStreamOperator<IN1, IN2, OUT> operator =
                 (TwoInputStreamOperator<IN1, IN2, OUT>)
                         ((SimpleOperatorFactory<OUT>) operatorFactory).getOperator();
-        if (!(operator instanceof AsyncStateProcessingOperator)) {
+        if (!(operator instanceof AsyncKeyOrderedProcessingOperator)) {
             super.enableAsyncState();
         }
     }
