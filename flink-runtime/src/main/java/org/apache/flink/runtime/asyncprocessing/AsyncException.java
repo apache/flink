@@ -18,23 +18,20 @@
 
 package org.apache.flink.runtime.asyncprocessing;
 
-/**
- * An exception for wrapping exceptions that are thrown by {@link
- * org.apache.flink.api.common.state.v2.StateFuture} callback framework.
- */
-public class AsyncStateException extends RuntimeException {
+/** An exception for wrapping exceptions that are thrown by {@link AsyncExecutionController}. */
+public class AsyncException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
-    public AsyncStateException(Throwable cause) {
+    public AsyncException(Throwable cause) {
         super(cause);
     }
 
-    public AsyncStateException(String message, Throwable cause) {
+    public AsyncException(String message, Throwable cause) {
         super(message, cause);
     }
 
     @Override
     public String toString() {
-        return "AsyncStateException{" + getCause() + "}";
+        return "AsyncException{" + getCause() + "}";
     }
 }

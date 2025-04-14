@@ -291,12 +291,12 @@ public abstract class AbstractStreamOperator<OUT>
                                 runtimeContext.getTaskManagerRuntimeInfo().getConfiguration(),
                                 runtimeContext.getUserCodeClassLoader()),
                         isUsingCustomRawKeyedState(),
-                        isAsyncStateProcessingEnabled());
+                        isAsyncKeyOrderedProcessingEnabled());
         stateHandler =
                 new StreamOperatorStateHandler(
                         context, getExecutionConfig(), streamTaskCloseableRegistry);
         timeServiceManager =
-                isAsyncStateProcessingEnabled()
+                isAsyncKeyOrderedProcessingEnabled()
                         ? context.asyncInternalTimerServiceManager()
                         : context.internalTimerServiceManager();
 
@@ -333,7 +333,7 @@ public abstract class AbstractStreamOperator<OUT>
      * Indicates whether this operator is enabling the async state. Can be overridden by subclasses.
      */
     @Internal
-    public boolean isAsyncStateProcessingEnabled() {
+    public boolean isAsyncKeyOrderedProcessingEnabled() {
         return false;
     }
 
@@ -419,7 +419,7 @@ public abstract class AbstractStreamOperator<OUT>
                 checkpointOptions,
                 factory,
                 isUsingCustomRawKeyedState(),
-                isAsyncStateProcessingEnabled());
+                isAsyncKeyOrderedProcessingEnabled());
     }
 
     /**

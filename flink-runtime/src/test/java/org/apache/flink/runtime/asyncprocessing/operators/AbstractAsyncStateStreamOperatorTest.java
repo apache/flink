@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.StateExecutionController;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -104,9 +105,9 @@ public class AbstractAsyncStateStreamOperatorTest {
             testHarness.open();
             assertThat(testHarness.getOperator())
                     .isInstanceOf(AbstractAsyncStateStreamOperator.class);
-            StateExecutionController<?> aec =
+            AsyncExecutionController<?, ?> aec =
                     ((AbstractAsyncStateStreamOperator) testHarness.getOperator())
-                            .getStateExecutionController();
+                            .getAsyncExecutionController();
             assertThat(aec).isNotNull();
             assertThat(((MailboxExecutorImpl) aec.getMailboxExecutor()).getPriority())
                     .isGreaterThan(MIN_PRIORITY);
@@ -239,8 +240,9 @@ public class AbstractAsyncStateStreamOperatorTest {
                 testHarness = createTestHarness(128, 1, 0, ElementOrder.RECORD_ORDER)) {
             testHarness.open();
             StateExecutionController asyncExecutionController =
-                    ((AbstractAsyncStateStreamOperator) testHarness.getOperator())
-                            .getStateExecutionController();
+                    (StateExecutionController)
+                            ((AbstractAsyncStateStreamOperator) testHarness.getOperator())
+                                    .getAsyncExecutionController();
             ((AbstractAsyncStateStreamOperator<String>) testHarness.getOperator())
                     .setAsyncKeyedContextElement(
                             new StreamRecord<>(Tuple2.of(5, "5")), new TestKeySelector());

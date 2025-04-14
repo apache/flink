@@ -37,7 +37,7 @@ public class AsyncProcessingTestUtil {
                     .getStateExecutionController()
                     .drainInflightRecords(0);
         } else {
-            throw new IllegalStateException("Operator is not an AsyncStateProcessingOperator");
+            throw new IllegalStateException("Operator is not an AsyncKeyOrderedProcessingOperator");
         }
     }
 

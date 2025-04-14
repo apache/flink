@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.asyncprocessing.operators;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.KeyedStateStore;
@@ -26,19 +27,20 @@ import org.apache.flink.api.common.state.v2.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.asyncprocessing.AsyncException;
+import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
-import org.apache.flink.runtime.asyncprocessing.StateExecutionController;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.DefaultKeyedStateStore;
-import org.apache.flink.runtime.state.v2.adaptor.AsyncKeyedStateBackendAdaptor;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.InternalTimerServiceAsyncImpl;
-import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.Triggerable;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeServiceWithAsyncState;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncKeyOrderedProcessing;
@@ -60,38 +62,32 @@ import javax.annotation.Nonnull;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * This operator is an abstract class that give the {@link AbstractStreamOperatorV2} the ability to
+ * This operator is an abstract class that give the {@link AbstractStreamOperator} the ability to
  * perform {@link AsyncKeyOrderedProcessing}. The aim is to make any subclass of {@link
- * AbstractStreamOperatorV2} could manipulate async state with only a change of base class.
+ * AbstractStreamOperator} could manipulate async state with only a change of base class.
  */
 @Internal
 @SuppressWarnings("rawtypes")
-public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractStreamOperatorV2<OUT>
+public abstract class AbstractAsyncKeyOrderedStreamOperator<OUT> extends AbstractStreamOperator<OUT>
         implements AsyncKeyOrderedProcessingOperator {
 
     private static final Logger LOG =
-            LoggerFactory.getLogger(AbstractAsyncStateStreamOperatorV2.class);
+            LoggerFactory.getLogger(AbstractAsyncKeyOrderedStreamOperator.class);
 
-    private final Environment environment;
-    private final StreamTask<?, ?> streamTask;
-    private StateExecutionController asyncExecutionController;
+    private AsyncExecutionController asyncExecutionController;
 
     /** Act as a cache for {@link #setAsyncKeyedContextElement} and {@link #postProcessElement}. */
-    private RecordContext currentProcessingContext;
+    protected RecordContext currentProcessingContext;
+
+    protected Environment environment;
 
     protected DeclarationManager declarationManager;
 
-    public AbstractAsyncStateStreamOperatorV2(
-            StreamOperatorParameters<OUT> parameters, int numberOfInputs) {
-        super(parameters, numberOfInputs);
-        this.environment = parameters.getContainingTask().getEnvironment();
-        this.streamTask = parameters.getContainingTask();
-    }
-
-    /** Initialize necessary state components for {@link AbstractStreamOperatorV2}. */
+    /** Initialize necessary state components for {@link AbstractStreamOperator}. */
     @Override
     public final void beforeInitializeStateHandler() {
         KeyedStateStore stateStore = stateHandler.getKeyedStateStore().orElse(null);
@@ -99,46 +95,27 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
             ((DefaultKeyedStateStore) stateStore).setSupportKeyedStateApiSetV2();
         }
 
-        final int inFlightRecordsLimit = getExecutionConfig().getAsyncStateTotalBufferSize();
-        final int asyncBufferSize = getExecutionConfig().getAsyncStateActiveBufferSize();
-        final long asyncBufferTimeout = getExecutionConfig().getAsyncStateActiveBufferTimeout();
-        int maxParallelism = getExecutionConfig().getMaxParallelism();
+        final StreamTask<?, ?> containingTask = checkNotNull(getContainingTask());
+        environment = containingTask.getEnvironment();
 
         this.declarationManager = new DeclarationManager();
         if (isAsyncKeyOrderedProcessingEnabled()) {
-            AsyncKeyedStateBackend asyncKeyedStateBackend =
-                    stateHandler.getAsyncKeyedStateBackend();
-            if (asyncKeyedStateBackend != null) {
-                this.asyncExecutionController =
-                        new StateExecutionController(
-                                streamTask
-                                        .getMailboxExecutorFactory()
-                                        .createExecutor(getOperatorConfig().getChainIndex()),
-                                this::handleAsyncException,
-                                asyncKeyedStateBackend.createStateExecutor(),
-                                declarationManager,
-                                maxParallelism,
-                                asyncBufferSize,
-                                asyncBufferTimeout,
-                                inFlightRecordsLimit,
-                                asyncKeyedStateBackend,
-                                getMetricGroup().addGroup("asyncStateProcessing"));
-                asyncKeyedStateBackend.setup(asyncExecutionController);
-                if (asyncKeyedStateBackend instanceof AsyncKeyedStateBackendAdaptor) {
-                    LOG.warn(
-                            "A normal KeyedStateBackend({}) is used when enabling the async state "
-                                    + "processing. Parallel asynchronous processing does not work. "
-                                    + "All state access will be processed synchronously.",
-                            stateHandler.getKeyedStateBackend());
-                }
-            } else if (stateHandler.getKeyedStateBackend() != null) {
-                throw new UnsupportedOperationException(
-                        "Current State Backend doesn't support async access, AsyncExecutionController could not work");
-            }
+            asyncExecutionController = createAsyncExecutionController();
         }
     }
 
-    private void handleAsyncException(String message, Throwable exception) {
+    /**
+     * Get the {@link KeySelector} for the given input index. The {@link KeySelector} is used to
+     * extract the key from the element being processed, used in key ordered processing.
+     *
+     * @param index the input index, start from 1.
+     */
+    protected abstract KeySelector getKeySelectorForAsyncKeyedContext(int index);
+
+    /** Create a new {@link AsyncExecutionController} for the operator. */
+    protected abstract AsyncExecutionController createAsyncExecutionController();
+
+    protected void handleAsyncException(String message, Throwable exception) {
         environment.failExternally(new AsyncException(message, exception));
     }
 
@@ -181,31 +158,6 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
     }
 
     @Override
-    protected <T> void internalSetKeyContextElement(
-            StreamRecord<T> record, KeySelector<T, ?> selector) throws Exception {
-        // This method is invoked only when isAsyncKeyOrderedProcessingEnabled() is false.
-        super.internalSetKeyContextElement(record, selector);
-        if (selector != null) {
-            newKeySelected(getCurrentKey());
-        }
-    }
-
-    @Override
-    public Object getCurrentKey() {
-        if (isAsyncKeyOrderedProcessingEnabled()) {
-            RecordContext currentContext = asyncExecutionController.getCurrentContext();
-            if (currentContext == null) {
-                throw new UnsupportedOperationException(
-                        "Have not set the current key yet, this may because the operator has not "
-                                + "started to run, or you are invoking this under a non-keyed context.");
-            }
-            return currentContext.getKey();
-        } else {
-            return super.getCurrentKey();
-        }
-    }
-
-    @Override
     public final void postProcessElement() {
         // The processElement will be treated as a callback for dummy request. So reference
         // counting should be maintained.
@@ -244,15 +196,37 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public final <T> ThrowingConsumer<StreamRecord<T>, Exception> getRecordProcessor(int inputId) {
-        // The real logic should be in First/SecondInputOfTwoInput#getRecordProcessor.
-        throw new UnsupportedOperationException(
-                "Never getRecordProcessor from AbstractAsyncStateStreamOperatorV2,"
-                        + " since this part is handled by the Input.");
+        // Ideally, only TwoStreamInputOperator/OneInputStreamOperator(Input) will invoke here.
+        // Only those operators have the definition of processElement(1/2).
+        if (this instanceof TwoInputStreamOperator) {
+            switch (inputId) {
+                case 1:
+                    return AsyncKeyOrderedProcessing.<T>makeRecordProcessor(
+                            this,
+                            getKeySelectorForAsyncKeyedContext(1),
+                            ((TwoInputStreamOperator) this)::processElement1);
+                case 2:
+                    return AsyncKeyOrderedProcessing.<T>makeRecordProcessor(
+                            this,
+                            getKeySelectorForAsyncKeyedContext(2),
+                            ((TwoInputStreamOperator) this)::processElement2);
+                default:
+                    break;
+            }
+        } else if (this instanceof Input && inputId == 1) {
+            return AsyncKeyOrderedProcessing.<T>makeRecordProcessor(
+                    this, getKeySelectorForAsyncKeyedContext(1), ((Input) this)::processElement);
+        }
+        throw new IllegalArgumentException(
+                String.format(
+                        "Unsupported operator type %s with input id %d",
+                        getClass().getName(), inputId));
     }
 
     /** Create new state (v2) based on new state descriptor. */
-    protected <N, S extends State, T> S getOrCreateKeyedState(
+    public <N, S extends State, T> S getOrCreateKeyedState(
             @Nonnull N defaultNamespace,
             @Nonnull TypeSerializer<N> namespaceSerializer,
             @Nonnull StateDescriptor<T> stateDescriptor)
@@ -268,6 +242,27 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
         }
     }
 
+    /**
+     * Returns a {@link InternalTimerService} that can be used to query current processing time and
+     * event time and to set timers. An operator can have several timer services, where each has its
+     * own namespace serializer. Timer services are differentiated by the string key that is given
+     * when requesting them, if you call this method with the same key multiple times you will get
+     * the same timer service instance in subsequent requests.
+     *
+     * <p>Timers are always scoped to a key, the currently active key of a keyed stream operation.
+     * When a timer fires, this key will also be set as the currently active key.
+     *
+     * <p>Each timer has attached metadata, the namespace. Different timer services can have a
+     * different namespace type. If you don't need namespace differentiation you can use {@link
+     * org.apache.flink.runtime.state.VoidNamespaceSerializer} as the namespace serializer.
+     *
+     * @param name The name of the requested timer service. If no service exists under the given
+     *     name a new one will be created and returned.
+     * @param namespaceSerializer {@code TypeSerializer} for the timer namespace.
+     * @param triggerable The {@link Triggerable} that should be invoked when timers fire
+     * @param <N> The type of the timer namespace.
+     */
+    @Override
     @SuppressWarnings("unchecked")
     public <K, N> InternalTimerService<N> getInternalTimerService(
             String name, TypeSerializer<N> namespaceSerializer, Triggerable<K, N> triggerable) {
@@ -298,9 +293,43 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
         return service;
     }
 
+    @Override
+    public void setKeyContextElement1(StreamRecord record) throws Exception {
+        // This method is invoked only when isAsyncKeyOrderedProcessingEnabled() is false.
+        super.setKeyContextElement1(record);
+        if (stateKeySelector1 != null) {
+            newKeySelected(getCurrentKey());
+        }
+    }
+
+    @Override
+    public void setKeyContextElement2(StreamRecord record) throws Exception {
+        // This method is invoked only when isAsyncKeyOrderedProcessingEnabled() is false.
+        super.setKeyContextElement2(record);
+        if (stateKeySelector2 != null) {
+            newKeySelected(getCurrentKey());
+        }
+    }
+
+    @Override
+    public Object getCurrentKey() {
+        if (isAsyncKeyOrderedProcessingEnabled()) {
+            RecordContext currentContext = asyncExecutionController.getCurrentContext();
+            if (currentContext == null) {
+                throw new UnsupportedOperationException(
+                        "Have not set the current key yet, this may because the operator has not "
+                                + "started to run, or you are invoking this under a non-keyed context.");
+            }
+            return currentContext.getKey();
+        } else {
+            return super.getCurrentKey();
+        }
+    }
+
     // ------------------------------------------------------------------------
     //  Metrics
     // ------------------------------------------------------------------------
+
     @Override
     protected void reportOrForwardLatencyMarker(LatencyMarker marker) {
         if (!isAsyncKeyOrderedProcessingEnabled()) {
@@ -329,12 +358,18 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
     }
 
     /**
-     * A hook that will be invoked after finishing advancing the watermark. It is not recommended to
-     * perform async state here. Only some synchronous logic is suggested.
+     * A hook that will be invoked after finishing advancing the watermark and right before the
+     * watermark being emitting downstream. Here is a chance for customization of the emitting
+     * watermark. It is not recommended to perform async state here. Only some synchronous logic is
+     * suggested.
      *
      * @param watermark the advanced watermark.
+     * @return the watermark that should be emitted to downstream. Null if there is no need for
+     *     following emitting.
      */
-    public void postProcessWatermark(Watermark watermark) throws Exception {}
+    public Watermark postProcessWatermark(Watermark watermark) throws Exception {
+        return watermark;
+    }
 
     /**
      * Process a watermark when receiving it. Do not override this method since the async processing
@@ -371,17 +406,30 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
                 },
                 () -> {
                     if (watermarkRef.get() != null) {
-                        output.emitWatermark(watermarkRef.get());
-                        postProcessWatermark(watermarkRef.get());
+                        Watermark postProcessWatermark = postProcessWatermark(watermarkRef.get());
+                        if (postProcessWatermark != null) {
+                            output.emitWatermark(postProcessWatermark);
+                        }
                     }
                 });
     }
 
     @Override
-    public void processWatermarkStatus(WatermarkStatus watermarkStatus, int inputId)
+    public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+        if (!isAsyncKeyOrderedProcessingEnabled()) {
+            // If async state processing is disabled, fallback to the super class.
+            super.processWatermarkStatus(watermarkStatus);
+            return;
+        }
+        asyncExecutionController.processNonRecord(
+                null, () -> super.processWatermarkStatus(watermarkStatus));
+    }
+
+    @Override
+    protected void processWatermarkStatus(WatermarkStatus watermarkStatus, int index)
             throws Exception {
         if (!isAsyncKeyOrderedProcessingEnabled()) {
-            super.processWatermarkStatus(watermarkStatus, inputId);
+            super.processWatermarkStatus(watermarkStatus, index);
             return;
         }
         final AtomicBoolean wasIdle = new AtomicBoolean(false);
@@ -389,7 +437,8 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
         asyncExecutionController.processNonRecord(
                 () -> {
                     wasIdle.set(combinedWatermark.isIdle());
-                    if (combinedWatermark.updateStatus(inputId - 1, watermarkStatus.isIdle())) {
+                    // index is 0-based
+                    if (combinedWatermark.updateStatus(index, watermarkStatus.isIdle())) {
                         watermarkRef.set(
                                 preProcessWatermark(
                                         new Watermark(combinedWatermark.getCombinedWatermark())));
@@ -401,6 +450,7 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
                 () -> {
                     if (watermarkRef.get() != null) {
                         output.emitWatermark(watermarkRef.get());
+                        postProcessWatermark(watermarkRef.get());
                     }
                     if (wasIdle.get() != combinedWatermark.isIdle()) {
                         output.emitWatermarkStatus(watermarkStatus);
@@ -408,25 +458,99 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
                 });
     }
 
+    @Experimental
     @Override
-    public void processRecordAttributes(RecordAttributes recordAttributes, int inputId)
-            throws Exception {
+    public void processRecordAttributes(RecordAttributes recordAttributes) throws Exception {
         if (!isAsyncKeyOrderedProcessingEnabled()) {
-            super.processRecordAttributes(recordAttributes, inputId);
+            super.processRecordAttributes(recordAttributes);
             return;
         }
         asyncExecutionController.processNonRecord(
-                null, () -> super.processRecordAttributes(recordAttributes, inputId));
+                null, () -> super.processRecordAttributes(recordAttributes));
+    }
+
+    @Experimental
+    @Override
+    public void processRecordAttributes1(RecordAttributes recordAttributes) {
+        if (!isAsyncKeyOrderedProcessingEnabled()) {
+            super.processRecordAttributes1(recordAttributes);
+            return;
+        }
+        asyncExecutionController.processNonRecord(
+                null, () -> super.processRecordAttributes1(recordAttributes));
+    }
+
+    @Experimental
+    @Override
+    public void processRecordAttributes2(RecordAttributes recordAttributes) {
+        if (!isAsyncKeyOrderedProcessingEnabled()) {
+            super.processRecordAttributes2(recordAttributes);
+            return;
+        }
+        asyncExecutionController.processNonRecord(
+                null, () -> super.processRecordAttributes2(recordAttributes));
+    }
+
+    public void processWatermarkInternal(WatermarkEvent watermark) throws Exception {
+        super.processWatermark(watermark);
+    }
+
+    public void processWatermark1Internal(WatermarkEvent watermark) throws Exception {
+        super.processWatermark1(watermark);
+    }
+
+    public void processWatermark2Internal(WatermarkEvent watermark) throws Exception {
+        super.processWatermark2(watermark);
+    }
+
+    @Override
+    public void processWatermark(WatermarkEvent watermark) throws Exception {
+        if (!isAsyncKeyOrderedProcessingEnabled()) {
+            this.processWatermarkInternal(watermark);
+            return;
+        }
+        asyncExecutionController.processNonRecord(
+                null, () -> this.processWatermarkInternal(watermark));
+    }
+
+    @Override
+    public void processWatermark1(WatermarkEvent watermark) throws Exception {
+        if (!isAsyncKeyOrderedProcessingEnabled()) {
+            this.processWatermark1Internal(watermark);
+            return;
+        }
+        asyncExecutionController.processNonRecord(
+                null, () -> this.processWatermark1Internal(watermark));
+    }
+
+    @Override
+    public void processWatermark2(WatermarkEvent watermark) throws Exception {
+        if (!isAsyncKeyOrderedProcessingEnabled()) {
+            this.processWatermark2Internal(watermark);
+            return;
+        }
+        asyncExecutionController.processNonRecord(
+                null, () -> this.processWatermark2Internal(watermark));
     }
 
     @VisibleForTesting
-    public StateExecutionController<?> getStateExecutionController() {
+    AsyncExecutionController getAsyncExecutionController() {
         return asyncExecutionController;
     }
 
     @VisibleForTesting
-    public RecordContext getCurrentProcessingContext() {
+    RecordContext getCurrentProcessingContext() {
         return currentProcessingContext;
+    }
+
+    public <K> AsyncKeyedStateBackend<K> getAsyncKeyedStateBackend() {
+        return stateHandler.getAsyncKeyedStateBackend();
+    }
+
+    public void drainStateRequests() {
+        if (isAsyncKeyOrderedProcessingEnabled()) {
+            asyncExecutionController.drainInflightRecords(0);
+        }
     }
 
     @Override
@@ -443,8 +567,8 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
 
     private void closeIfNeeded() {
         if (isAsyncKeyOrderedProcessingEnabled()
-                && !streamTask.isFailing()
-                && !streamTask.isCanceled()) {
+                && !getContainingTask().isFailing()
+                && !getContainingTask().isCanceled()) {
             asyncExecutionController.drainInflightRecords(0);
         }
     }
