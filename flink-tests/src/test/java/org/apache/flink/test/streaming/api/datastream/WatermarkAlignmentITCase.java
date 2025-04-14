@@ -57,9 +57,14 @@ class WatermarkAlignmentITCase {
                                                 (SerializableTimestampAssigner<Long>)
                                                         (aLong, l) -> aLong)
                                         .withWatermarkAlignment(
-                                                "g1", Duration.ofMillis(10), Duration.ofSeconds(2)),
+                                                "g1", Duration.ofMillis(10), Duration.ofMillis(1)),
                                 "Sequence Source")
-                        .filter((FilterFunction<Long>) aLong -> true);
+                        .filter(
+                                (FilterFunction<Long>)
+                                        aLong -> {
+                                            Thread.sleep(10);
+                                            return true;
+                                        });
 
         // Execute the stream and collect the results
         final List<Long> result = stream.executeAndCollect(101);
