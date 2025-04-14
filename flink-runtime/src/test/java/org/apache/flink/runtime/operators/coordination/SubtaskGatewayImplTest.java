@@ -21,6 +21,7 @@ package org.apache.flink.runtime.operators.coordination;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.EventReceivingTasks.EventWithSubtask;
+import org.apache.flink.runtime.operators.coordination.EventReceivingTasks.TestSubtaskAccess;
 import org.apache.flink.runtime.operators.coordination.util.IncompleteFuturesTracker;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -164,6 +165,30 @@ class SubtaskGatewayImplTest {
         gateway.openGatewayAndUnmarkAllCheckpoint();
 
         assertThat(future).isCompletedExceptionally();
+    }
+
+    @Test
+    void optionalEventsIgnoreTaskNotRunning() {
+        final EventReceivingTasks receiver =
+                EventReceivingTasks.createForRunningTasksFailingRpcs(
+                        new FlinkException(new TaskNotRunningException("test")));
+        TestSubtaskAccess subtaskAccess =
+                (TestSubtaskAccess) getUniqueElement(receiver.getAccessesForSubtask(10));
+        final SubtaskGatewayImpl gateway =
+                new SubtaskGatewayImpl(
+                        subtaskAccess,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        new IncompleteFuturesTracker());
+
+        gateway.markForCheckpoint(17L);
+        gateway.tryCloseGateway(17L);
+
+        final CompletableFuture<Acknowledge> future =
+                gateway.sendEvent(new TestOperatorEvent(42, true));
+        gateway.openGatewayAndUnmarkAllCheckpoint();
+
+        assertThat(future).isCompletedExceptionally();
+        assertThat(subtaskAccess.getTaskFailoverReasons()).isEmpty();
     }
 
     private static <T> T getUniqueElement(Collection<T> collection) {
