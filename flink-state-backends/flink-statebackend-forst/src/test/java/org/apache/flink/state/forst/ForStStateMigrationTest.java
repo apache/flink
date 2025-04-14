@@ -51,7 +51,7 @@ import static org.apache.flink.state.forst.ForStTestUtils.createKeyedStateBacken
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
 
-/** Tests for {@link ForStListState}. */
+/** Tests for the State Migration of {@link ForStKeyedStateBackend}. */
 public class ForStStateMigrationTest extends ForStStateTestBase {
 
     @Test

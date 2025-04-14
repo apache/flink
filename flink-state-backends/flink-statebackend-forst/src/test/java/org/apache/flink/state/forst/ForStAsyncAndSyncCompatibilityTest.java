@@ -41,7 +41,6 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorImpl;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 import org.apache.flink.util.IOUtils;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -55,11 +54,11 @@ import java.util.concurrent.RunnableFuture;
 import static org.apache.flink.state.forst.ForStStateTestBase.getMockEnvironment;
 import static org.apache.flink.state.forst.ForStTestUtils.createKeyedStateBackend;
 import static org.apache.flink.state.forst.ForStTestUtils.createSyncKeyedStateBackend;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
-/** Tests for {@link ForStListState}. */
-public class ForStAsyncAndSyncCompatibilityTest {
+/** Compatibility test for {@link ForStKeyedStateBackend} and {@link ForStSyncKeyedStateBackend}. */
+class ForStAsyncAndSyncCompatibilityTest {
     protected ForStStateBackend forStStateBackend;
     protected AsyncExecutionController<String> aec;
     protected MailboxExecutor mailboxExecutor;
@@ -131,15 +130,15 @@ public class ForStAsyncAndSyncCompatibilityTest {
 
             syncKeyedStateBackend.setCurrentKey("testKey");
             ((InternalKvState) syncKeyedStateBackend).setCurrentNamespace(1);
-            Assert.assertEquals(syncMapState.get(1), "1");
+            assertThat(syncMapState.get(1)).isEqualTo("1");
         } catch (Exception e) {
             // Currently, ForStStateBackend does not support switching from Async to Sync, so this
             // exception will be caught here
-            assertEquals(
-                    e.getMessage()
-                            .contains(
-                                    "org.apache.flink.runtime.state.v2.RegisteredKeyAndUserKeyValueStateBackendMetaInfo cannot be cast to class org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo"),
-                    true);
+            assertThat(e).isInstanceOf(ClassCastException.class);
+            assertThat(e.getMessage())
+                    .contains(
+                            "org.apache.flink.runtime.state.v2.RegisteredKeyAndUserKeyValueStateBackendMetaInfo cannot be cast to class org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo");
+
         } finally {
             IOUtils.closeQuietly(syncKeyedStateBackend);
         }
@@ -194,18 +193,17 @@ public class ForStAsyncAndSyncCompatibilityTest {
                     .asyncGet(1)
                     .thenAccept(
                             value -> {
-                                Assert.assertEquals(value, "1");
+                                assertThat(value).isEqualTo("1");
                             });
             context.release();
             aec.drainInflightRecords(0);
         } catch (Exception e) {
             // Currently, ForStStateBackend does not support switching from Sync to Async, so this
             // exception will be caught here
-            assertEquals(
-                    e.getMessage()
-                            .contains(
-                                    "org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo cannot be cast to class org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo"),
-                    true);
+            assertThat(e).isInstanceOf(ClassCastException.class);
+            assertThat(e.getMessage())
+                    .contains(
+                            "org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo cannot be cast to class org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo");
         } finally {
             IOUtils.closeQuietly(asyncKeyedStateBackend);
         }
