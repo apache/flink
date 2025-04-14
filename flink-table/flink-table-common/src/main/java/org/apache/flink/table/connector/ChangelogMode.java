@@ -149,7 +149,7 @@ public final class ChangelogMode {
             return kinds.toString();
         } else {
             return kinds.stream()
-                    .map(kind -> kind == RowKind.DELETE ? "~D" : kind.toString())
+                    .map(kind -> kind == RowKind.DELETE ? "~DELETE" : kind.toString())
                     .collect(Collectors.joining(", ", "[", "]"));
         }
     }
