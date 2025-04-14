@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.operations;
+package org.apache.flink.table.planner.operations.converters;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlCreateTableAs;
@@ -38,10 +38,11 @@ import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.CreateTableASOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
-import org.apache.flink.table.planner.calcite.FlinkCalciteSqlValidator;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.calcite.SqlRewriterUtils;
+import org.apache.flink.table.planner.operations.MergeTableAsUtil;
+import org.apache.flink.table.planner.operations.MergeTableLikeUtil;
+import org.apache.flink.table.planner.operations.PlannerQueryOperation;
+import org.apache.flink.table.planner.operations.SqlNodeToOperationConversion;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
 import org.apache.calcite.sql.SqlIdentifier;
@@ -55,36 +56,40 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/** Helper class for converting {@link SqlCreateTable} to {@link CreateTableOperation}. */
-class SqlCreateTableConverter {
+public class SqlCreateTableConverter implements SqlNodeConverter<SqlCreateTable> {
+    @Override
+    public Operation convertSqlNode(SqlCreateTable node, ConvertContext context) {
 
-    private final MergeTableLikeUtil mergeTableLikeUtil;
-    private final MergeTableAsUtil mergeTableAsUtil;
-    private final CatalogManager catalogManager;
-    private final FlinkTypeFactory typeFactory;
-    private final SqlRewriterUtils rewriterUtils;
-
-    SqlCreateTableConverter(
-            FlinkCalciteSqlValidator sqlValidator,
-            CatalogManager catalogManager,
-            Function<SqlNode, String> escapeExpression) {
-        this.mergeTableLikeUtil =
-                new MergeTableLikeUtil(
-                        sqlValidator, escapeExpression, catalogManager.getDataTypeFactory());
-        this.mergeTableAsUtil =
+        FlinkPlannerImpl flinkPlanner = context.getFlinkPlanner();
+        CatalogManager catalogManager = context.getCatalogManager();
+        MergeTableAsUtil mergeTableAsUtil =
                 new MergeTableAsUtil(
-                        sqlValidator, escapeExpression, catalogManager.getDataTypeFactory());
-        this.catalogManager = catalogManager;
-        this.typeFactory = (FlinkTypeFactory) sqlValidator.getTypeFactory();
-        this.rewriterUtils = new SqlRewriterUtils(sqlValidator);
+                        context.getSqlValidator(),
+                        context.getEscapeExpression(),
+                        catalogManager.getDataTypeFactory());
+        MergeTableLikeUtil mergeTableLikeUtil =
+                new MergeTableLikeUtil(
+                        context.getSqlValidator(),
+                        context.getEscapeExpression(),
+                        catalogManager.getDataTypeFactory());
+
+        if (node instanceof SqlCreateTableAs) {
+            return convertCreateTableAS(
+                    (SqlCreateTableAs) node, flinkPlanner, catalogManager, mergeTableAsUtil);
+        } else {
+            return convertCreateTable(node, catalogManager, mergeTableLikeUtil);
+        }
     }
 
     /** Convert the {@link SqlCreateTable} node. */
-    Operation convertCreateTable(SqlCreateTable sqlCreateTable) {
-        ResolvedCatalogTable catalogTable = createCatalogTable(sqlCreateTable);
+    Operation convertCreateTable(
+            SqlCreateTable sqlCreateTable,
+            CatalogManager catalogManager,
+            MergeTableLikeUtil mergeTableLikeUtil) {
+        ResolvedCatalogTable catalogTable =
+                createCatalogTable(sqlCreateTable, catalogManager, mergeTableLikeUtil);
 
         UnresolvedIdentifier unresolvedIdentifier =
                 UnresolvedIdentifier.of(sqlCreateTable.fullTableName());
@@ -99,7 +104,10 @@ class SqlCreateTableConverter {
 
     /** Convert the {@link SqlCreateTableAs} node. */
     Operation convertCreateTableAS(
-            FlinkPlannerImpl flinkPlanner, SqlCreateTableAs sqlCreateTableAs) {
+            SqlCreateTableAs sqlCreateTableAs,
+            FlinkPlannerImpl flinkPlanner,
+            CatalogManager catalogManager,
+            MergeTableAsUtil mergeTableAsUtil) {
         UnresolvedIdentifier unresolvedIdentifier =
                 UnresolvedIdentifier.of(sqlCreateTableAs.fullTableName());
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
@@ -119,7 +127,11 @@ class SqlCreateTableConverter {
                                                                         .getClass()
                                                                         .getSimpleName()));
         ResolvedCatalogTable tableWithResolvedSchema =
-                createCatalogTable(sqlCreateTableAs, query.getResolvedSchema());
+                createCatalogTable(
+                        sqlCreateTableAs,
+                        query.getResolvedSchema(),
+                        catalogManager,
+                        mergeTableAsUtil);
 
         // If needed, rewrite the query to include the new sink fields in the select list
         query =
@@ -142,7 +154,10 @@ class SqlCreateTableConverter {
     }
 
     private ResolvedCatalogTable createCatalogTable(
-            SqlCreateTableAs sqlCreateTableAs, ResolvedSchema querySchema) {
+            SqlCreateTableAs sqlCreateTableAs,
+            ResolvedSchema querySchema,
+            CatalogManager catalogManager,
+            MergeTableAsUtil mergeTableAsUtil) {
         Map<String, String> tableOptions =
                 sqlCreateTableAs.getPropertyList().getList().stream()
                         .collect(
@@ -188,8 +203,10 @@ class SqlCreateTableConverter {
         return catalogManager.resolveCatalogTable(catalogTable);
     }
 
-    private ResolvedCatalogTable createCatalogTable(SqlCreateTable sqlCreateTable) {
-
+    private ResolvedCatalogTable createCatalogTable(
+            SqlCreateTable sqlCreateTable,
+            CatalogManager catalogManager,
+            MergeTableLikeUtil mergeTableLikeUtil) {
         final Schema sourceTableSchema;
         final Optional<TableDistribution> sourceTableDistribution;
         final List<String> sourcePartitionKeys;
@@ -197,7 +214,7 @@ class SqlCreateTableConverter {
         final Map<String, String> sourceProperties;
         if (sqlCreateTable instanceof SqlCreateTableLike) {
             SqlTableLike sqlTableLike = ((SqlCreateTableLike) sqlCreateTable).getTableLike();
-            CatalogTable table = lookupLikeSourceTable(sqlTableLike);
+            CatalogTable table = lookupLikeSourceTable(sqlTableLike, catalogManager);
             sourceTableSchema = table.getUnresolvedSchema();
             sourceTableDistribution = table.getDistribution();
             sourcePartitionKeys = table.getPartitionKeys();
@@ -215,7 +232,8 @@ class SqlCreateTableConverter {
                 mergeTableLikeUtil.computeMergingStrategies(likeOptions);
 
         Map<String, String> mergedOptions =
-                mergeOptions(sqlCreateTable, sourceProperties, mergingStrategies);
+                mergeOptions(
+                        sqlCreateTable, sourceProperties, mergingStrategies, mergeTableLikeUtil);
 
         // It is assumed only a primary key constraint may be defined in the table. The
         // SqlCreateTableAs has validations to ensure this before the object is created.
@@ -236,13 +254,18 @@ class SqlCreateTableConverter {
                         primaryKey.orElse(null));
 
         Optional<TableDistribution> mergedTableDistribution =
-                mergeDistribution(sourceTableDistribution, sqlCreateTable, mergingStrategies);
+                mergeDistribution(
+                        sourceTableDistribution,
+                        sqlCreateTable,
+                        mergingStrategies,
+                        mergeTableLikeUtil);
 
         List<String> partitionKeys =
                 mergePartitions(
                         sourcePartitionKeys,
                         sqlCreateTable.getPartitionKeyList(),
-                        mergingStrategies);
+                        mergingStrategies,
+                        mergeTableLikeUtil);
         verifyPartitioningColumnsExist(mergedSchema, partitionKeys);
 
         String tableComment = OperationConverterUtils.getTableComment(sqlCreateTable.getComment());
@@ -259,7 +282,8 @@ class SqlCreateTableConverter {
         return catalogManager.resolveCatalogTable(catalogTable);
     }
 
-    private CatalogTable lookupLikeSourceTable(SqlTableLike sqlTableLike) {
+    private CatalogTable lookupLikeSourceTable(
+            SqlTableLike sqlTableLike, CatalogManager catalogManager) {
         UnresolvedIdentifier unresolvedIdentifier =
                 UnresolvedIdentifier.of(sqlTableLike.getSourceTable().names);
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
@@ -304,7 +328,8 @@ class SqlCreateTableConverter {
     private Optional<TableDistribution> mergeDistribution(
             Optional<TableDistribution> sourceTableDistribution,
             SqlCreateTable sqlCreateTable,
-            Map<SqlTableLike.FeatureOption, SqlTableLike.MergingStrategy> mergingStrategies) {
+            Map<SqlTableLike.FeatureOption, SqlTableLike.MergingStrategy> mergingStrategies,
+            MergeTableLikeUtil mergeTableLikeUtil) {
 
         Optional<TableDistribution> derivedTabledDistribution = Optional.empty();
         if (sqlCreateTable.getDistribution() != null) {
@@ -329,7 +354,8 @@ class SqlCreateTableConverter {
     private List<String> mergePartitions(
             List<String> sourcePartitionKeys,
             SqlNodeList derivedPartitionKeys,
-            Map<SqlTableLike.FeatureOption, SqlTableLike.MergingStrategy> mergingStrategies) {
+            Map<SqlTableLike.FeatureOption, SqlTableLike.MergingStrategy> mergingStrategies,
+            MergeTableLikeUtil mergeTableLikeUtil) {
         // set partition key
         return mergeTableLikeUtil.mergePartitions(
                 mergingStrategies.get(SqlTableLike.FeatureOption.PARTITIONS),
@@ -340,7 +366,8 @@ class SqlCreateTableConverter {
     private Map<String, String> mergeOptions(
             SqlCreateTable sqlCreateTable,
             Map<String, String> sourceProperties,
-            Map<SqlTableLike.FeatureOption, SqlTableLike.MergingStrategy> mergingStrategies) {
+            Map<SqlTableLike.FeatureOption, SqlTableLike.MergingStrategy> mergingStrategies,
+            MergeTableLikeUtil mergeTableLikeUtil) {
         // set with properties
         Map<String, String> properties = new HashMap<>();
         sqlCreateTable
