@@ -1407,7 +1407,7 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
       <td>Histogram</td>
     </tr>
     <tr>
-      <td>reducingStateGetKeySize</td>
+      <td>reducingStateGetValueSize</td>
       <td>The value size of get operation for reducing state</td>
       <td>Histogram</td>
     </tr>
@@ -1417,7 +1417,7 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
       <td>Histogram</td>
     </tr>
     <tr>
-      <td>reducingStateAddKeySize</td>
+      <td>reducingStateAddValueSize</td>
       <td>The value size of add operation for reducing state</td>
       <td>Histogram</td>
     </tr>
