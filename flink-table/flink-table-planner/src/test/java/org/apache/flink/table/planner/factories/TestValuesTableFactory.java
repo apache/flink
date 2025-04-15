@@ -53,6 +53,7 @@ import org.apache.flink.table.connector.sink.OutputFormatProvider;
 import org.apache.flink.table.connector.sink.abilities.SupportsBucketing;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
+import org.apache.flink.table.connector.sink.abilities.SupportsTargetColumnWriting;
 import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 import org.apache.flink.table.connector.sink.legacy.SinkFunctionProvider;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
@@ -786,7 +787,8 @@ public final class TestValuesTableFactory
                     rowTimeIndex,
                     tableSchema,
                     requireBucketCount,
-                    supportsDeleteByKey);
+                    supportsDeleteByKey,
+                    null);
         } else {
             try {
                 return InstantiationUtil.instantiate(
@@ -2221,9 +2223,11 @@ public final class TestValuesTableFactory
                     SupportsWritingMetadata,
                     SupportsPartitioning,
                     SupportsOverwrite,
-                    SupportsBucketing {
+                    SupportsBucketing,
+                    SupportsTargetColumnWriting {
 
         private DataType consumedDataType;
+        private int[][] targetColumns;
         private int[] primaryKeyIndices;
         private final String tableName;
         private final boolean isInsertOnly;
@@ -2250,7 +2254,8 @@ public final class TestValuesTableFactory
                 int rowtimeIndex,
                 TableSchema tableSchema,
                 boolean requireBucketCount,
-                boolean supportsDeleteByKey) {
+                boolean supportsDeleteByKey,
+                int[][] targetColumns) {
             this.consumedDataType = consumedDataType;
             this.primaryKeyIndices = primaryKeyIndices;
             this.tableName = tableName;
@@ -2264,6 +2269,7 @@ public final class TestValuesTableFactory
             this.tableSchema = tableSchema;
             this.requireBucketCount = requireBucketCount;
             this.supportsDeleteByKey = supportsDeleteByKey;
+            this.targetColumns = targetColumns;
         }
 
         @Override
@@ -2416,7 +2422,8 @@ public final class TestValuesTableFactory
                     rowtimeIndex,
                     tableSchema,
                     requireBucketCount,
-                    supportsDeleteByKey);
+                    supportsDeleteByKey,
+                    targetColumns);
         }
 
         @Override
@@ -2453,6 +2460,12 @@ public final class TestValuesTableFactory
         @Override
         public boolean requiresBucketCount() {
             return requireBucketCount;
+        }
+
+        @Override
+        public boolean applyTargetColumns(int[][] targetColumns) {
+            this.targetColumns = targetColumns;
+            return true;
         }
     }
 
