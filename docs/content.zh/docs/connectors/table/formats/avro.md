@@ -204,4 +204,4 @@ Format 参数
 
 除了上面列出的类型，Flink 支持读取/写入 nullable 的类型。Flink 将 nullable 的类型映射到 Avro `union(something, null)`，其中 `something` 是从 Flink 类型转换的 Avro 类型。
 
-您可以参考 [Avro 规范](https://avro.apache.org/docs/current/spec.html) 获取更多有关 Avro 类型的信息。
+您可以参考 [Avro 规范](https://avro.apache.org/docs/++version++/specification/) 获取更多有关 Avro 类型的信息。
