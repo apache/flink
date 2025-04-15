@@ -2371,7 +2371,9 @@ As the type of this key/value size metrics is histogram, `state.size-track.histo
 A larger value of this configuration will require more memory, but will provide a more accurate result.
 
 <span class="label label-danger">Warning</span> Enabling state-size metrics may impact the performance.
-It is recommended to only use them for debugging purposes. And if state.ttl is enabled, the size of the value will include the size of the TTL-related timestamp.
+It is recommended to only use them for debugging purposes.
+If state.ttl is enabled, the size of the value will include the size of the TTL-related timestamp.
+The value size of AggregatingState is not accounted for because AggregatingState returns a result processed by a user-defined AggregateFunction, whereas currently, only the actual stored data size in the state can be tracked.
 
 ## REST API integration
 
