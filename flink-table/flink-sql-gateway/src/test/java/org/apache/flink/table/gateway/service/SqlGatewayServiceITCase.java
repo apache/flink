@@ -21,6 +21,7 @@ package org.apache.flink.table.gateway.service;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
@@ -44,6 +45,8 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.operation.OperationStatus;
+import org.apache.flink.table.gateway.api.operation.OperationValidator;
+import org.apache.flink.table.gateway.api.operation.OperationValidatorUtils;
 import org.apache.flink.table.gateway.api.results.FunctionInfo;
 import org.apache.flink.table.gateway.api.results.OperationInfo;
 import org.apache.flink.table.gateway.api.results.ResultSet;
@@ -59,6 +62,7 @@ import org.apache.flink.table.gateway.service.session.SessionManagerImpl;
 import org.apache.flink.table.gateway.service.utils.IgnoreExceptionHandler;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
+import org.apache.flink.table.gateway.utils.KafkaTableValidator;
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions;
 import org.apache.flink.table.planner.runtime.batch.sql.TestModule;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
@@ -83,6 +87,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -103,6 +109,7 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.apache.flink.core.testutils.CommonTestUtils.setEnv;
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatChainOfCauses;
 import static org.apache.flink.table.api.ResultKind.SUCCESS_WITH_CONTENT;
@@ -122,6 +129,9 @@ import static org.apache.flink.types.RowKind.INSERT;
 import static org.apache.flink.types.RowKind.UPDATE_AFTER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** ITCase for {@link SqlGatewayServiceImpl}. */
 public class SqlGatewayServiceITCase {
@@ -1038,6 +1048,88 @@ public class SqlGatewayServiceITCase {
                 task ->
                         assertThatThrownBy(task::get)
                                 .satisfies(anyCauseMatches(SqlGatewayException.class, msg)));
+    }
+
+    @Test
+    void testOperationValidatorWithInvalidOperation(@TempDir Path tempDir) throws IOException {
+        final SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
+        final Configuration configuration =
+                new Configuration(MINI_CLUSTER.getClientConfiguration());
+
+        Map<String, String> originalEnv = System.getenv();
+        Map<String, String> newEnv = new HashMap<>(originalEnv);
+
+        final long oneHourMillis = 60 * 60 * 1000L;
+        final long oneDayMillis = 24 * 60 * 60 * 1000L;
+        final long validTimestamp = System.currentTimeMillis() - oneHourMillis;
+        final long invalidTimestamp = System.currentTimeMillis() - oneHourMillis - oneDayMillis;
+        final String validOperationStatement =
+                String.format(
+                        "CREATE TABLE Table1 (\n"
+                                + "  IntegerField1 INT,\n"
+                                + "  StringField1 STRING,\n"
+                                + "  TimestampField1 TIMESTAMP(3)\n"
+                                + ") WITH (\n"
+                                + "  'connector' = 'kafka',\n"
+                                + "  'scan.startup.timestamp-millis' = '%d'\n"
+                                + ")\n",
+                        validTimestamp);
+
+        final String invalidOperationStatement =
+                String.format(
+                        "CREATE TABLE Table2 (\n"
+                                + "  IntegerField1 INT,\n"
+                                + "  StringField1 STRING,\n"
+                                + "  TimestampField1 TIMESTAMP(3)\n"
+                                + ") WITH (\n"
+                                + "  'connector' = 'kafka',\n"
+                                + "  'scan.startup.timestamp-millis' = '%d'\n"
+                                + ")\n",
+                        invalidTimestamp);
+
+        final String testPlugins = "test-plugins";
+        final String pluginsJar = testPlugins + "-test-jar.jar";
+
+        final File testPluginsFolder = new File(tempDir.toFile(), testPlugins);
+        assertTrue(testPluginsFolder.mkdirs(), "Failed to create test validator folder.");
+
+        final File testValidatorJar = new File("target", pluginsJar);
+        assertTrue(testValidatorJar.exists(), "Test validator JAR file does not exist.");
+
+        Files.copy(testValidatorJar.toPath(), Paths.get(testPluginsFolder.toString(), pluginsJar));
+        try {
+            newEnv.put(ConfigConstants.ENV_FLINK_PLUGINS_DIR, tempDir.toAbsolutePath().toString());
+            setEnv(newEnv);
+
+            final Set<OperationValidator> discoveredValidators =
+                    OperationValidatorUtils.discoverOperationValidators(new Configuration());
+            assertEquals(
+                    KafkaTableValidator.class.getName(),
+                    discoveredValidators.iterator().next().getClass().getName(),
+                    "Discovered validator class name does not match the expected class name.");
+
+            final OperationHandle validOperationHandle =
+                    service.executeStatement(
+                            sessionHandle, validOperationStatement, -1, configuration);
+            final OperationHandle invalidOperationHandle =
+                    service.executeStatement(
+                            sessionHandle, invalidOperationStatement, -1, configuration);
+
+            assertDoesNotThrow(
+                    () -> awaitOperationTermination(service, sessionHandle, validOperationHandle));
+            assertThatThrownBy(
+                            () ->
+                                    awaitOperationTermination(
+                                            service, sessionHandle, invalidOperationHandle))
+                    .satisfies(
+                            anyCauseMatches(
+                                    String.format(
+                                            "Validation failed in %s: 'scan.startup.timestamp-millis' is too old. Given value: %d. It must be within one day from the current time.",
+                                            KafkaTableValidator.class.getName(),
+                                            invalidTimestamp)));
+        } finally {
+            setEnv(originalEnv);
+        }
     }
 
     // --------------------------------------------------------------------------------------------
