@@ -72,6 +72,8 @@ public class ProcessTableFunctionSemanticTests extends SemanticTestBase {
                 ProcessTableFunctionTestPrograms.PROCESS_CHAINED_TIME_TABLE_API,
                 ProcessTableFunctionTestPrograms.PROCESS_INVALID_TABLE_AS_ROW_TIMERS,
                 ProcessTableFunctionTestPrograms.PROCESS_INVALID_PASS_THROUGH_TIMERS,
-                ProcessTableFunctionTestPrograms.PROCESS_INVALID_UPDATING_TIMERS);
+                ProcessTableFunctionTestPrograms.PROCESS_INVALID_UPDATING_TIMERS,
+                ProcessTableFunctionTestPrograms.PROCESS_LIST_STATE,
+                ProcessTableFunctionTestPrograms.PROCESS_MAP_STATE);
     }
 }

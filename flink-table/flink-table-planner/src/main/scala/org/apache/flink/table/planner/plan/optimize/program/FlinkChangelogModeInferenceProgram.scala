@@ -22,6 +22,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.config.ExecutionConfigOptions.UpsertMaterialize
 import org.apache.flink.table.connector.ChangelogMode
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.`trait`.DeleteKindTrait.{deleteOnKeyOrNone, fullDeleteOrNone, DELETE_BY_KEY, FULL_DELETE}
 import org.apache.flink.table.planner.plan.`trait`.UpdateKindTrait.{beforeAfterOrNone, onlyAfterOrNone, BEFORE_AND_AFTER, ONLY_UPDATE_AFTER}
@@ -31,6 +32,7 @@ import org.apache.flink.table.planner.plan.optimize.ChangelogNormalizeRequiremen
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.plan.utils.RankProcessStrategy.{AppendFastStrategy, RetractStrategy, UpdateFastStrategy}
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 import org.apache.flink.table.types.inference.StaticArgumentTrait
@@ -93,9 +95,13 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     }
 
     val deleteKindTraitVisitor = new SatisfyDeleteKindTraitVisitor(context)
-    val finalRoot = requiredDeleteKindTraits.flatMap {
-      requiredDeleteKindTrait =>
-        deleteKindTraitVisitor.visit(updateRoot.head, requiredDeleteKindTrait)
+    val finalRoot = if (updateRoot.isEmpty) {
+      updateRoot
+    } else {
+      requiredDeleteKindTraits.flatMap {
+        requiredDeleteKindTrait =>
+          deleteKindTraitVisitor.visit(updateRoot.head, requiredDeleteKindTrait)
+      }
     }
 
     // step4: sanity check and return non-empty root
@@ -297,9 +303,35 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val children = visitChildren(cep, ModifyKindSetTrait.INSERT_ONLY, "Match Recognize")
         createNewNode(cep, children, ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
 
+      case over: StreamPhysicalOverAggregate =>
+        // OverAggregate can only support insert for row-time/proc-time sort keys
+        var overRequiredTrait = ModifyKindSetTrait.INSERT_ONLY
+        val builder = ModifyKindSet
+          .newBuilder()
+          .addContainedKind(ModifyKind.INSERT)
+        val groups = over.logicWindow.groups
+
+        if (!groups.isEmpty && !groups.get(0).orderKeys.getFieldCollations.isEmpty) {
+          // All aggregates are computed over the same window and order by is supported for only 1 field
+          val orderKeyIndex = groups.get(0).orderKeys.getFieldCollations.get(0).getFieldIndex
+          val orderKeyType = over.logicWindow.getRowType.getFieldList.get(orderKeyIndex).getType
+          if (
+            !FlinkTypeFactory.isRowtimeIndicatorType(orderKeyType)
+            && !FlinkTypeFactory.isProctimeIndicatorType(orderKeyType)
+          ) {
+            // Only non row-time/proc-time sort can support UPDATES
+            builder.addContainedKind(ModifyKind.UPDATE)
+            builder.addContainedKind(ModifyKind.DELETE)
+            overRequiredTrait = ModifyKindSetTrait.ALL_CHANGES
+          }
+        }
+        val children = visitChildren(over, overRequiredTrait)
+        val providedTrait = new ModifyKindSetTrait(builder.build())
+        createNewNode(over, children, providedTrait, requiredTrait, requester)
+
       case _: StreamPhysicalTemporalSort | _: StreamPhysicalIntervalJoin |
-          _: StreamPhysicalOverAggregate | _: StreamPhysicalPythonOverAggregate =>
-        // TemporalSort, OverAggregate, IntervalJoin only support consuming insert-only
+          _: StreamPhysicalPythonOverAggregate =>
+        // TemporalSort, IntervalJoin only support consuming insert-only
         // and producing insert-only changes
         val children = visitChildren(rel, ModifyKindSetTrait.INSERT_ONLY)
         createNewNode(rel, children, ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
@@ -556,8 +588,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         case _: StreamPhysicalGroupAggregate | _: StreamPhysicalGroupTableAggregate |
             _: StreamPhysicalLimit | _: StreamPhysicalPythonGroupAggregate |
             _: StreamPhysicalPythonGroupTableAggregate | _: StreamPhysicalGroupWindowAggregateBase |
-            _: StreamPhysicalWindowAggregate =>
-          // Aggregate, TableAggregate, Limit, GroupWindowAggregate, WindowAggregate,
+            _: StreamPhysicalWindowAggregate | _: StreamPhysicalOverAggregate =>
+          // Aggregate, TableAggregate, OverAggregate, Limit, GroupWindowAggregate, WindowAggregate,
           // and WindowTableAggregate requires update_before if there are updates
           val requiredChildUpdateTrait = beforeAfterOrNone(getModifyKindSet(rel.getInput(0)))
           val children = visitChildren(rel, requiredChildUpdateTrait)
@@ -565,10 +597,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           createNewNode(rel, children, requiredUpdateTrait)
 
         case _: StreamPhysicalWindowRank | _: StreamPhysicalWindowDeduplicate |
-            _: StreamPhysicalTemporalSort | _: StreamPhysicalMatch |
-            _: StreamPhysicalOverAggregate | _: StreamPhysicalIntervalJoin |
+            _: StreamPhysicalTemporalSort | _: StreamPhysicalMatch | _: StreamPhysicalIntervalJoin |
             _: StreamPhysicalPythonOverAggregate | _: StreamPhysicalWindowJoin =>
-          // WindowRank, WindowDeduplicate, Deduplicate, TemporalSort, CEP, OverAggregate,
+          // WindowRank, WindowDeduplicate, Deduplicate, TemporalSort, CEP,
           // and IntervalJoin, WindowJoin require nothing about UpdateKind.
           val children = visitChildren(rel, UpdateKindTrait.NONE)
           createNewNode(rel, children, requiredUpdateTrait)
@@ -654,10 +685,12 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
               None
           }
 
+        // if the condition is applied on the upsert key, we can emit whatever the requiredTrait
+        // is, because we will filter all records based on the condition that applies to that key
         case calc: StreamPhysicalCalcBase =>
           if (
             requiredUpdateTrait == UpdateKindTrait.ONLY_UPDATE_AFTER &&
-            calc.getProgram.getCondition != null
+            isNonUpsertKeyCondition(calc)
           ) {
             // we don't expect filter to satisfy ONLY_UPDATE_AFTER update kind,
             // to solve the bad case like a single 'cnt < 10' condition after aggregation.
@@ -1048,12 +1081,13 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             }
           }
 
+        // if the condition is applied on the upsert key, we can emit whatever the requiredTrait
+        // is, because we will filter all records based on the condition that applies to that key
         case calc: StreamPhysicalCalcBase =>
           if (
             requiredTrait == DeleteKindTrait.DELETE_BY_KEY &&
-            calc.getProgram.getCondition != null
+            isNonUpsertKeyCondition(calc)
           ) {
-            // this can be further improved by checking if the filter condition is on the key
             None
           } else {
             // otherwise, forward DeleteKind requirement
@@ -1269,6 +1303,26 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         }
       }
       upsertKeyDifferentFromPk
+    }
+  }
+
+  private def isNonUpsertKeyCondition(calc: StreamPhysicalCalcBase): Boolean = {
+    val program = calc.getProgram
+    if (program.getCondition == null) {
+      return false
+    }
+
+    val condition = program.expandLocalRef(calc.getProgram.getCondition)
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(calc.getCluster.getMetadataQuery)
+    val upsertKeys = fmq.getUpsertKeys(calc.getInput())
+    if (upsertKeys == null || upsertKeys.isEmpty) {
+      // there are no upsert keys, so all columns are non-primary key columns
+      true
+    } else {
+      val upsertKey = upsertKeys.head
+      RexNodeExtractor
+        .extractRefInputFields(JavaScalaConversionUtil.toJava(Seq(condition)))
+        .exists(i => !upsertKey.get(i))
     }
   }
 

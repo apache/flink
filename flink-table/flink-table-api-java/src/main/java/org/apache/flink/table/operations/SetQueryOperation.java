@@ -20,6 +20,7 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.expressions.SqlFactory;
 
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -85,13 +86,13 @@ public class SetQueryOperation implements QueryOperation {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SqlFactory sqlFactory) {
         return String.format(
                 "SELECT %s FROM (%s\n) %s (%s\n)",
                 OperationUtils.formatSelectColumns(resolvedSchema, null),
-                OperationUtils.indent(leftOperation.asSerializableString()),
+                OperationUtils.indent(leftOperation.asSerializableString(sqlFactory)),
                 asSerializableType(),
-                OperationUtils.indent(rightOperation.asSerializableString()));
+                OperationUtils.indent(rightOperation.asSerializableString(sqlFactory)));
     }
 
     private String asSerializableType() {

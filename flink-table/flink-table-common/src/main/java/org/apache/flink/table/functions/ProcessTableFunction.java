@@ -24,6 +24,8 @@ import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.StateHint;
+import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.extraction.TypeInferenceExtractor;
 import org.apache.flink.table.types.inference.TypeInference;
@@ -33,15 +35,17 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 
 /**
- * Base class for a user-defined process table function. A process table function (PTF) maps zero,
- * one, or multiple tables to zero, one, or multiple rows (or structured types). Scalar arguments
- * are also supported. If the output record consists of only one field, the wrapper can be omitted,
- * and a scalar value can be emitted that will be implicitly wrapped into a row by the runtime.
+ * Base class for a user-defined process table function (PTF).
  *
  * <p>PTFs are the most powerful function kind for Flink SQL and Table API. They enable implementing
- * user-defined operators that can be as feature-rich as built-in operations. PTFs have access to
- * Flink's managed state, event-time and timer services, underlying table changelogs, and can take
- * multiple partitioned tables to produce a new table.
+ * user-defined operators that can be as feature-rich as built-in operations. PTFs can take
+ * (partitioned) tables to produce a new table. They have access to Flink's managed state,
+ * event-time and timer services, and underlying table changelogs.
+ *
+ * <p>A process table function (PTF) maps zero, one, or multiple tables to zero, one, or multiple
+ * rows (or structured types). Scalar arguments are also supported. If the output record consists of
+ * only one field, the wrapper can be omitted, and a scalar value can be emitted that will be
+ * implicitly wrapped into a row by the runtime.
  *
  * <h1>Table Semantics and Virtual Processors</h1>
  *
@@ -99,9 +103,9 @@ import java.time.LocalDateTime;
  *   }
  * }
  *
- * // Function that produces an explicit ROW < i INT, s STRING > from arguments, the function hint helps in
+ * // Function that produces an explicit ROW < i INT, s STRING > from scalar arguments, the function hint helps in
  * // declaring the row's fields
- * @FunctionHint(output = @DataTypeHint("ROW< i INT, s STRING >"))
+ * @DataTypeHint("ROW< i INT, s STRING >")
  * class DuplicatorFunction extends ProcessTableFunction<Row> {
  *   public void eval(Integer i, String s) {
  *     collect(Row.of(i, s));
@@ -109,9 +113,9 @@ import java.time.LocalDateTime;
  *   }
  * }
  *
- * // Function that accepts DECIMAL(10, 4) and emits it as an explicit ROW < DECIMAL(10, 4) >
- * @FunctionHint(output = @DataTypeHint("ROW< DECIMAL(10, 4) >"))
- * class DuplicatorFunction extends TableFunction<Row> {
+ * // Function that accepts a scalar DECIMAL(10, 4) and emits it as an explicit ROW < d DECIMAL(10, 4) >
+ * @FunctionHint(output = @DataTypeHint("ROW< d DECIMAL(10, 4) >"))
+ * class DuplicatorFunction extends ProcessTableFunction<Row> {
  *   public void eval(@DataTypeHint("DECIMAL(10, 4)") BigDecimal d) {
  *     collect(Row.of(d));
  *     collect(Row.of(d));
@@ -143,7 +147,7 @@ import java.time.LocalDateTime;
  * }</pre>
  *
  * <p>Table arguments can declare a concrete data type (of either row or structured type) or accept
- * any type of row in polymorphic fashion:
+ * any type of row in a polymorphic fashion:
  *
  * <pre>{@code
  * // Function with explicit table argument type of row
@@ -183,7 +187,7 @@ import java.time.LocalDateTime;
  * information about the input tables and other services provided by the framework:
  *
  * <pre>{@code
- * // a function that accesses the Context for reading the PARTITION BY columns and
+ * // Function that accesses the Context for reading the PARTITION BY columns and
  * // excluding them when building a result string
  * class ConcatNonKeysFunction extends ProcessTableFunction<String> {
  *   public void eval(Context ctx, @ArgumentHint(ArgumentTrait.TABLE_AS_SET) Row inputTable) {
@@ -222,7 +226,7 @@ import java.time.LocalDateTime;
  * efficiency, it is recommended to keep all fields nullable.
  *
  * <pre>{@code
- * // a function that counts and stores its intermediate result in the CountState object
+ * // Function that counts and stores its intermediate result in the CountState object
  * // which will be persisted by Flink
  * class CountingFunction extends ProcessTableFunction<String> {
  *   public static class CountState {
@@ -235,7 +239,7 @@ import java.time.LocalDateTime;
  *   }
  * }
  *
- * // a function that waits for a second event coming in
+ * // Function that waits for a second event coming in
  * class CountingFunction extends ProcessTableFunction<String> {
  *   public static class SeenState {
  *     public String first;
@@ -250,7 +254,7 @@ import java.time.LocalDateTime;
  *   }
  * }
  *
- * // a function that uses Row for state
+ * // Function that uses Row for state
  * class CountingFunction extends ProcessTableFunction<String> {
  *   public void eval(@StateHint(type = @DataTypeHint("ROW < count BIGINT >")) Row memory, @ArgumentHint(TABLE_AS_SET) Row input) {
  *     Long newCount = 1L;
@@ -271,7 +275,7 @@ import java.time.LocalDateTime;
  * Context#clearAllState()} eventually:
  *
  * <pre>{@code
- * // a function that waits for a second event coming in BUT with better state efficiency
+ * // Function that waits for a second event coming in BUT with better state efficiency
  * class CountingFunction extends ProcessTableFunction<String> {
  *   public static class SeenState {
  *     public String first;
@@ -283,6 +287,54 @@ import java.time.LocalDateTime;
  *     } else {
  *       collect("Event 1: " + memory.first + " and Event 2: " + input.toString());
  *       ctx.clearAllState();
+ *     }
+ *   }
+ * }
+ * }</pre>
+ *
+ * <h2>Large State</h2>
+ *
+ * <p>Flink's state backends provide different types of state to efficiently handle large state.
+ *
+ * <p>Currently, PTFs support three types of state:
+ *
+ * <ul>
+ *   <li><b>Value state</b>: Represents a single value.
+ *   <li><b>List state</b>: Represents a list of values, supporting operations like appending,
+ *       removing, and iterating.
+ *   <li><b>Map state</b>: Represents a map (key-value pair) for efficient lookups, modifications,
+ *       and removal of individual entries.
+ * </ul>
+ *
+ * <p>By default, state entries in a PTF are represented as value state. This means that every state
+ * entry is fully read from the state backend when the evaluation method is called, and the value is
+ * written back to the state backend once the evaluation method finishes.
+ *
+ * <p>To optimize state access and avoid unnecessary (de)serialization, state entries can be
+ * declared as {@link ListView} or {@link MapView}. These provide direct views to the underlying
+ * Flink state backend.
+ *
+ * <p>For example, when using a {@link MapView}, accessing a value via {@link MapView#get(Object)}
+ * will only deserialize the value associated with the specified key. This allows for efficient
+ * access to individual entries without needing to load the entire map. This approach is
+ * particularly useful when the map does not fit entirely into memory.
+ *
+ * <p>State TTL is applied individually to each entry in a list or map, allowing for fine-grained
+ * expiration control over state elements.
+ *
+ * <pre>{@code
+ * // Function that uses a map view for storing a large map for an event history per user
+ * class HistoryFunction extends ProcessTableFunction<String> {
+ *   public void eval(@StateHint MapView<String, Integer> largeMemory, @ArgumentHint(TABLE_AS_SET) Row input) {
+ *     String eventId = input.getFieldAs("eventId");
+ *     Integer count = largeMemory.get(eventId);
+ *     if (count == null) {
+ *       largeMemory.put(eventId, 1);
+ *     } else {
+ *       if (count > 1000) {
+ *         collect("Anomaly detected: " + eventId);
+ *       }
+ *       largeMemory.put(eventId, count + 1);
  *     }
  *   }
  * }
@@ -326,7 +378,7 @@ import java.time.LocalDateTime;
  * PARTITION BY clause. A timer can only be registered and deleted in the current virtual processor.
  *
  * <pre>{@code
- * // a function that waits for a second event or timeouts after 60 seconds
+ * // Function that waits for a second event or timeouts after 60 seconds
  * class TimerFunction extends ProcessTableFunction<String> {
  *   public static class SeenState {
  *     public String seen = null;
@@ -338,13 +390,13 @@ import java.time.LocalDateTime;
  *       memory.seen = input.getField(0).toString();
  *       timeCtx.registerOnTimer("timeout", timeCtx.time().plusSeconds(60));
  *     } else {
- *       collect("Second event arrived for: " + memory.seen)
+ *       collect("Second event arrived for: " + memory.seen);
  *       ctx.clearAll();
  *     }
  *   }
  *
  *   public void onTimer(SeenState memory) {
- *     collect("Timeout for: " + memory.seen)
+ *     collect("Timeout for: " + memory.seen);
  *   }
  * }
  * }</pre>

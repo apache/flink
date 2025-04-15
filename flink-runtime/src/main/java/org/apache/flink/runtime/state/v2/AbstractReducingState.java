@@ -19,8 +19,8 @@ package org.apache.flink.runtime.state.v2;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.v2.ReducingState;
-import org.apache.flink.api.common.state.v2.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.v2.StateFuture;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
@@ -44,9 +44,11 @@ public class AbstractReducingState<K, N, V> extends AbstractKeyedState<K, N, V>
     protected final ReduceFunction<V> reduceFunction;
 
     public AbstractReducingState(
-            StateRequestHandler stateRequestHandler, ReducingStateDescriptor<V> stateDescriptor) {
-        super(stateRequestHandler, stateDescriptor);
-        this.reduceFunction = stateDescriptor.getReduceFunction();
+            StateRequestHandler stateRequestHandler,
+            ReduceFunction<V> reduceFunction,
+            TypeSerializer<V> valueSerializer) {
+        super(stateRequestHandler, valueSerializer);
+        this.reduceFunction = reduceFunction;
     }
 
     @Override

@@ -358,7 +358,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         if (!this.splitMetricGroups.containsKey(splitId)) {
             InternalSourceSplitMetricGroup splitMetricGroup =
                     InternalSourceSplitMetricGroup.wrap(
-                            getMetricGroup(), splitId, () -> splitCurrentWatermarks.get(splitId));
+                            getMetricGroup(),
+                            splitId,
+                            () ->
+                                    splitCurrentWatermarks.getOrDefault(
+                                            splitId, Watermark.UNINITIALIZED.getTimestamp()));
             splitMetricGroup.markSplitStart();
             this.splitMetricGroups.put(splitId, splitMetricGroup);
         }
@@ -725,6 +729,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     @Override
     public void splitFinished(String splitId) {
         splitCurrentWatermarks.remove(splitId);
+        getOrCreateSplitMetricGroup(splitId).onSplitFinished();
         this.splitMetricGroups.remove(splitId);
     }
 

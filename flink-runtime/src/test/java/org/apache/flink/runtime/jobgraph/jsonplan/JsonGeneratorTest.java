@@ -25,6 +25,7 @@ import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
+import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -32,20 +33,18 @@ import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.TextNode;
 
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -116,29 +115,21 @@ public class JsonGeneratorTest {
                             sink1,
                             sink2);
 
-            String plan = JsonPlanGenerator.generatePlan(jg);
+            JobPlanInfo.Plan plan = JsonPlanGenerator.generatePlan(jg);
             assertNotNull(plan);
 
-            // validate the produced JSON
-            ObjectMapper m = JacksonMapperFactory.createObjectMapper();
-            JsonNode rootNode = m.readTree(plan);
-
             // core fields
-            assertEquals(new TextNode(jg.getJobID().toString()), rootNode.get("jid"));
-            assertEquals(new TextNode(jg.getName()), rootNode.get("name"));
-            assertEquals(new TextNode(jg.getJobType().name()), rootNode.get("type"));
+            assertEquals(jg.getJobID().toString(), plan.getJobId());
+            assertEquals(jg.getName(), plan.getName());
+            assertEquals(jg.getJobType().name(), plan.getType());
 
-            assertTrue(rootNode.path("nodes").isArray());
+            assertThat(plan.getNodes()).isNotEmpty();
+            assertThat(plan.getNodes().size()).isEqualTo(9);
 
-            for (Iterator<JsonNode> iter = rootNode.path("nodes").elements(); iter.hasNext(); ) {
-                JsonNode next = iter.next();
+            for (JobPlanInfo.Plan.Node node : plan.getNodes()) {
+                checkVertexExists(node.getId(), jg);
 
-                JsonNode idNode = next.get("id");
-                assertNotNull(idNode);
-                assertTrue(idNode.isTextual());
-                checkVertexExists(idNode.asText(), jg);
-
-                String description = next.get("description").asText();
+                String description = node.getDescription();
                 assertTrue(
                         description.startsWith("source")
                                 || description.startsWith("sink")

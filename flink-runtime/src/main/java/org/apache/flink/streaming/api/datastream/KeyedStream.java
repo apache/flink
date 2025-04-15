@@ -35,8 +35,9 @@ import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.runtime.asyncprocessing.operators.AsyncIntervalJoinOperator;
+import org.apache.flink.runtime.asyncprocessing.operators.AsyncKeyedProcessOperator;
 import org.apache.flink.runtime.asyncprocessing.operators.AsyncStreamFlatMap;
+import org.apache.flink.runtime.asyncprocessing.operators.co.AsyncIntervalJoinOperator;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
@@ -358,9 +359,10 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
     @Internal
     public <R> SingleOutputStreamOperator<R> process(
             KeyedProcessFunction<KEY, T, R> keyedProcessFunction, TypeInformation<R> outputType) {
-
-        KeyedProcessOperator<KEY, T, R> operator =
-                new KeyedProcessOperator<>(clean(keyedProcessFunction));
+        OneInputStreamOperator<T, R> operator =
+                isEnableAsyncState()
+                        ? new AsyncKeyedProcessOperator<>(clean(keyedProcessFunction))
+                        : new KeyedProcessOperator<>(clean(keyedProcessFunction));
         return transform("KeyedProcess", outputType, operator);
     }
 
@@ -370,9 +372,9 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
     @Override
     public <R> SingleOutputStreamOperator<R> flatMap(
             FlatMapFunction<T, R> flatMapper, TypeInformation<R> outputType) {
-        OneInputStreamOperator operator =
+        OneInputStreamOperator<T, R> operator =
                 isEnableAsyncState()
-                        ? new AsyncStreamFlatMap(clean(flatMapper))
+                        ? new AsyncStreamFlatMap<>(clean(flatMapper))
                         : new StreamFlatMap<>(clean(flatMapper));
         return transform("Flat Map", outputType, operator);
     }

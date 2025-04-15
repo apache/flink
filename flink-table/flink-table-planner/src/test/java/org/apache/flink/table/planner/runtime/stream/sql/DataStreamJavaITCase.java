@@ -53,6 +53,7 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
@@ -1007,7 +1008,9 @@ class DataStreamJavaITCase {
                         RecursiveComparisonConfiguration.builder()
                                 .withComparatorForType(
                                         Comparator.comparing(
-                                                ResolvedExpression::asSerializableString),
+                                                resolvedExpression ->
+                                                        resolvedExpression.asSerializableString(
+                                                                DefaultSqlFactory.INSTANCE)),
                                         ResolvedExpression.class)
                                 .build())
                 .isEqualTo(table.getResolvedSchema());

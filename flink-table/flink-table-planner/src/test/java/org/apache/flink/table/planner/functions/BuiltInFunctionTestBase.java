@@ -29,8 +29,8 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.operations.ProjectQueryOperation;
@@ -559,7 +559,10 @@ abstract class BuiltInFunctionTestBase {
                     (ProjectQueryOperation) select.getQueryOperation();
             final String exprAsSerializableString =
                     projectQueryOperation.getProjectList().stream()
-                            .map(ResolvedExpression::asSerializableString)
+                            .map(
+                                    resolvedExpression ->
+                                            resolvedExpression.asSerializableString(
+                                                    DefaultSqlFactory.INSTANCE))
                             .collect(Collectors.joining(", "));
             return env.sqlQuery("SELECT " + exprAsSerializableString + " FROM " + inputTable);
         }

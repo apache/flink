@@ -329,6 +329,7 @@ public class ForStKeyedStateBackendBuilder<K>
                 backendUID,
                 executionConfig,
                 this.optionsContainer,
+                forstResourceGuard,
                 keyGroupPrefixBytes,
                 this.keySerializerProvider.currentSchemaSerializer(),
                 serializedKeyBuilder,
@@ -358,7 +359,6 @@ public class ForStKeyedStateBackendBuilder<K>
         // env. We expect to directly use the dfs directory in flink env or local directory as
         // working dir. We will implement this in ForStDB later, but before that, we achieved this
         // by setting the dbPath to "/" when the dfs directory existed.
-        // TODO: use localForStPath as dbPath after ForSt Support mixing local-dir and remote-dir
         Path instanceForStPath =
                 optionsContainer.getRemoteForStPath() == null
                         ? optionsContainer.getLocalForStPath()

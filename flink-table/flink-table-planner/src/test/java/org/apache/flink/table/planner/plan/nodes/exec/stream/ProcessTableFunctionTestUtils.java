@@ -22,6 +22,9 @@ import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.StateHint;
+import org.apache.flink.table.api.TableRuntimeException;
+import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableSemantics;
@@ -32,6 +35,11 @@ import org.apache.flink.types.Row;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.annotation.ArgumentTrait.OPTIONAL_PARTITION_BY;
 import static org.apache.flink.table.annotation.ArgumentTrait.PASS_COLUMNS_THROUGH;
@@ -39,6 +47,7 @@ import static org.apache.flink.table.annotation.ArgumentTrait.REQUIRE_ON_TIME;
 import static org.apache.flink.table.annotation.ArgumentTrait.SUPPORT_UPDATES;
 import static org.apache.flink.table.annotation.ArgumentTrait.TABLE_AS_ROW;
 import static org.apache.flink.table.annotation.ArgumentTrait.TABLE_AS_SET;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Testing functions for {@link ProcessTableFunction}. */
 @SuppressWarnings("unused")
@@ -344,9 +353,9 @@ public class ProcessTableFunctionTestUtils {
                 collect(
                         String.format(
                                 "s1=%s, s2=%s, s3=%s",
-                                internalContext.getValueStateDescriptor("s1").getTtlConfig(),
-                                internalContext.getValueStateDescriptor("s2").getTtlConfig(),
-                                internalContext.getValueStateDescriptor("s3").getTtlConfig()));
+                                internalContext.getStateDescriptor("s1").getTtlConfig(),
+                                internalContext.getStateDescriptor("s2").getTtlConfig(),
+                                internalContext.getStateDescriptor("s3").getTtlConfig()));
                 s0.setField("emitted", true);
             }
         }
@@ -602,6 +611,80 @@ public class ProcessTableFunctionTestUtils {
         public void eval(
                 Context ctx, @ArgumentHint(value = TABLE_AS_ROW, isOptional = true) Row r) {
             collectObjects(r);
+        }
+    }
+
+    /** Testing function. */
+    public static class ListStateFunction extends TestProcessTableFunctionBase {
+        public void eval(
+                Context ctx,
+                @StateHint ListView<String> s,
+                @ArgumentHint({TABLE_AS_SET, OPTIONAL_PARTITION_BY}) Row r)
+                throws Exception {
+            collectObjects(s.getList(), s.getClass().getSimpleName(), r);
+
+            // get
+            int count = s.getList().size();
+
+            // create
+            s.add(String.valueOf(count));
+
+            // null behavior
+            assertThatThrownBy(() -> s.add(null))
+                    .isInstanceOf(TableRuntimeException.class)
+                    .hasMessageContaining("List views don't support null values.");
+            assertThatThrownBy(() -> s.addAll(Arrays.asList("item0", null)))
+                    .isInstanceOf(TableRuntimeException.class)
+                    .hasMessageContaining("List views don't support null values.");
+
+            // clear
+            if (count == 2) {
+                ctx.clearState("s");
+            }
+        }
+    }
+
+    /** Testing function. */
+    public static class MapStateFunction extends TestProcessTableFunctionBase {
+        public void eval(
+                Context ctx,
+                @StateHint MapView<String, Integer> s,
+                @ArgumentHint({TABLE_AS_SET, OPTIONAL_PARTITION_BY}) Row r)
+                throws Exception {
+            final String viewToString =
+                    s.getMap().entrySet().stream()
+                            .map(Objects::toString)
+                            .sorted()
+                            .collect(Collectors.joining(", ", "{", "}"));
+            collectObjects(viewToString, s.getClass().getSimpleName(), r);
+
+            // get
+            final String name = r.getFieldAs("name");
+            int count = 1;
+            if (s.contains(name)) {
+                count = s.get(name);
+            }
+
+            // create
+            s.put("old" + name, count);
+            s.put(name, count + 1);
+
+            // null behavior
+            assertThatThrownBy(() -> s.put(null, 42))
+                    .isInstanceOf(TableRuntimeException.class)
+                    .hasMessageContaining("Map views don't support null keys.");
+            final Map<String, Integer> mapWithNull = new HashMap<>();
+            mapWithNull.put("key", 42);
+            mapWithNull.put(null, 42);
+            assertThatThrownBy(() -> s.putAll(mapWithNull))
+                    .isInstanceOf(TableRuntimeException.class)
+                    .hasMessageContaining("Map views don't support null keys.");
+            s.put("nullValue", null);
+
+            // clear
+            if (count == 2) {
+                ctx.clearState("s");
+            }
         }
     }
 

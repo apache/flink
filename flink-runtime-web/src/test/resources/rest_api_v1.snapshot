@@ -333,7 +333,72 @@
       "properties" : {
         "plan" : {
           "type" : "object",
-          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:Plan",
+          "properties" : {
+            "jid" : {
+              "type" : "string"
+            },
+            "name" : {
+              "type" : "string"
+            },
+            "type" : {
+              "type" : "string"
+            },
+            "nodes" : {
+              "type" : "array",
+              "items" : {
+                "type" : "object",
+                "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:Plan:Node",
+                "properties" : {
+                  "id" : {
+                    "type" : "string"
+                  },
+                  "operator" : {
+                    "type" : "string"
+                  },
+                  "parallelism" : {
+                    "type" : "integer"
+                  },
+                  "operator_strategy" : {
+                    "type" : "string"
+                  },
+                  "description" : {
+                    "type" : "string"
+                  },
+                  "optimizer_properties" : {
+                    "type" : "string"
+                  },
+                  "inputs" : {
+                    "type" : "array",
+                    "items" : {
+                      "type" : "object",
+                      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:Plan:Node:Input",
+                      "properties" : {
+                        "id" : {
+                          "type" : "string"
+                        },
+                        "num" : {
+                          "type" : "integer"
+                        },
+                        "exchange" : {
+                          "type" : "string"
+                        },
+                        "ship_strategy" : {
+                          "type" : "string"
+                        },
+                        "local_strategy" : {
+                          "type" : "string"
+                        },
+                        "caching" : {
+                          "type" : "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -392,7 +457,72 @@
       "properties" : {
         "plan" : {
           "type" : "object",
-          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:Plan",
+          "properties" : {
+            "jid" : {
+              "type" : "string"
+            },
+            "name" : {
+              "type" : "string"
+            },
+            "type" : {
+              "type" : "string"
+            },
+            "nodes" : {
+              "type" : "array",
+              "items" : {
+                "type" : "object",
+                "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:Plan:Node",
+                "properties" : {
+                  "id" : {
+                    "type" : "string"
+                  },
+                  "operator" : {
+                    "type" : "string"
+                  },
+                  "parallelism" : {
+                    "type" : "integer"
+                  },
+                  "operator_strategy" : {
+                    "type" : "string"
+                  },
+                  "description" : {
+                    "type" : "string"
+                  },
+                  "optimizer_properties" : {
+                    "type" : "string"
+                  },
+                  "inputs" : {
+                    "type" : "array",
+                    "items" : {
+                      "type" : "object",
+                      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:Plan:Node:Input",
+                      "properties" : {
+                        "id" : {
+                          "type" : "string"
+                        },
+                        "num" : {
+                          "type" : "integer"
+                        },
+                        "exchange" : {
+                          "type" : "string"
+                        },
+                        "ship_strategy" : {
+                          "type" : "string"
+                        },
+                        "local_strategy" : {
+                          "type" : "string"
+                        },
+                        "caching" : {
+                          "type" : "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -969,11 +1099,76 @@
         },
         "plan" : {
           "type" : "object",
-          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:Plan",
+          "properties" : {
+            "jid" : {
+              "type" : "string"
+            },
+            "name" : {
+              "type" : "string"
+            },
+            "type" : {
+              "type" : "string"
+            },
+            "nodes" : {
+              "type" : "array",
+              "items" : {
+                "type" : "object",
+                "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:Plan:Node",
+                "properties" : {
+                  "id" : {
+                    "type" : "string"
+                  },
+                  "operator" : {
+                    "type" : "string"
+                  },
+                  "parallelism" : {
+                    "type" : "integer"
+                  },
+                  "operator_strategy" : {
+                    "type" : "string"
+                  },
+                  "description" : {
+                    "type" : "string"
+                  },
+                  "optimizer_properties" : {
+                    "type" : "string"
+                  },
+                  "inputs" : {
+                    "type" : "array",
+                    "items" : {
+                      "type" : "object",
+                      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:Plan:Node:Input",
+                      "properties" : {
+                        "id" : {
+                          "type" : "string"
+                        },
+                        "num" : {
+                          "type" : "integer"
+                        },
+                        "exchange" : {
+                          "type" : "string"
+                        },
+                        "ship_strategy" : {
+                          "type" : "string"
+                        },
+                        "local_strategy" : {
+                          "type" : "string"
+                        },
+                        "caching" : {
+                          "type" : "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         },
         "stream-graph" : {
           "type" : "object",
-          "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
         },
         "pending-operators" : {
           "type" : "integer"
@@ -2219,7 +2414,72 @@
       "properties" : {
         "plan" : {
           "type" : "object",
-          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:Plan",
+          "properties" : {
+            "jid" : {
+              "type" : "string"
+            },
+            "name" : {
+              "type" : "string"
+            },
+            "type" : {
+              "type" : "string"
+            },
+            "nodes" : {
+              "type" : "array",
+              "items" : {
+                "type" : "object",
+                "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:Plan:Node",
+                "properties" : {
+                  "id" : {
+                    "type" : "string"
+                  },
+                  "operator" : {
+                    "type" : "string"
+                  },
+                  "parallelism" : {
+                    "type" : "integer"
+                  },
+                  "operator_strategy" : {
+                    "type" : "string"
+                  },
+                  "description" : {
+                    "type" : "string"
+                  },
+                  "optimizer_properties" : {
+                    "type" : "string"
+                  },
+                  "inputs" : {
+                    "type" : "array",
+                    "items" : {
+                      "type" : "object",
+                      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:Plan:Node:Input",
+                      "properties" : {
+                        "id" : {
+                          "type" : "string"
+                        },
+                        "num" : {
+                          "type" : "integer"
+                        },
+                        "exchange" : {
+                          "type" : "string"
+                        },
+                        "ship_strategy" : {
+                          "type" : "string"
+                        },
+                        "local_strategy" : {
+                          "type" : "string"
+                        },
+                        "caching" : {
+                          "type" : "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }

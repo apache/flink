@@ -19,6 +19,7 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedReceivingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedSendingFunction;
@@ -1078,6 +1079,42 @@ public class QueryOperationTestPrograms {
                                         ptf1.partitionBy($("name")).asArgument("r"),
                                         descriptor("rowtime").asArgument("on_time"));
                             },
+                            "sink")
+                    .build();
+
+    /**
+     * A function that will be used as an inline function in {@link #INLINE_FUNCTION_SERIALIZATION}.
+     */
+    public static class SimpleScalarFunction extends ScalarFunction {
+        public Integer eval(Integer i) {
+            return i + 1;
+        }
+    }
+
+    static final TableTestProgram INLINE_FUNCTION_SERIALIZATION =
+            TableTestProgram.of(
+                            "inline-function-serialization",
+                            "verifies SQL serialization of inline functions")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("a INT", "b INT")
+                                    .producedValues(Row.of(1, 1), Row.of(2, 2))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("a INT", "b INT")
+                                    .consumedValues(Row.of(2, 1), Row.of(3, 2))
+                                    .build())
+                    .runSql(
+                            "SELECT (inlineFunction$00(`$$T_PROJECT`.`a`)) AS `_c0`, `$$T_PROJECT`.`b` FROM (\n"
+                                    + "    SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM `default_catalog`.`default_database`.`t` $$T_SOURCE\n"
+                                    + ") $$T_PROJECT")
+                    .runTableApi(
+                            env ->
+                                    env.from("t")
+                                            .select(
+                                                    call(new SimpleScalarFunction(), $("a")),
+                                                    $("b")),
                             "sink")
                     .build();
 }

@@ -37,7 +37,13 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.jsonFormatVisitors.JsonFormatVisitorWrapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+import javax.annotation.Nullable;
+
 import java.io.IOException;
+import java.io.Serializable;
+import java.util.Collection;
 import java.util.Objects;
 
 /** Response type of the {@link JobPlanHandler}. */
@@ -46,20 +52,16 @@ public class JobPlanInfo implements ResponseBody {
     private static final String FIELD_NAME_PLAN = "plan";
 
     @JsonProperty(FIELD_NAME_PLAN)
-    private final RawJson jsonPlan;
-
-    public JobPlanInfo(String jsonPlan) {
-        this(new RawJson(Preconditions.checkNotNull(jsonPlan)));
-    }
+    private final Plan plan;
 
     @JsonCreator
-    public JobPlanInfo(@JsonProperty(FIELD_NAME_PLAN) RawJson jsonPlan) {
-        this.jsonPlan = jsonPlan;
+    public JobPlanInfo(@JsonProperty(FIELD_NAME_PLAN) Plan plan) {
+        this.plan = plan;
     }
 
     @JsonIgnore
-    public String getJsonPlan() {
-        return jsonPlan.json;
+    public Plan getPlan() {
+        return plan;
     }
 
     @Override
@@ -71,17 +73,17 @@ public class JobPlanInfo implements ResponseBody {
             return false;
         }
         JobPlanInfo that = (JobPlanInfo) o;
-        return Objects.equals(jsonPlan, that.jsonPlan);
+        return Objects.equals(plan, that.plan);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(jsonPlan);
+        return Objects.hash(plan);
     }
 
     @Override
     public String toString() {
-        return "JobPlanInfo{" + "jsonPlan=" + jsonPlan + '}';
+        return "JobPlanInfo{" + "plan=" + plan + '}';
     }
 
     /** Simple wrapper around a raw JSON string. */
@@ -161,6 +163,316 @@ public class JobPlanInfo implements ResponseBody {
                     throws IOException {
                 final JsonNode rootNode = jsonParser.readValueAsTree();
                 return new RawJson(rootNode.toString());
+            }
+        }
+    }
+
+    // ---------------------------------------------------
+    // Static inner classes
+    // ---------------------------------------------------
+
+    /** An inner class for the plan reference. */
+    @Schema(name = "Plan")
+    public static final class Plan implements Serializable {
+        private static final String FIELD_NAME_JOB_ID = "jid";
+
+        @JsonProperty(FIELD_NAME_JOB_ID)
+        private final String jobId;
+
+        private static final String FIELD_NAME_NAME = "name";
+
+        @JsonProperty(FIELD_NAME_NAME)
+        private final String name;
+
+        private static final String FIELD_NAME_TYPE = "type";
+
+        @JsonProperty(FIELD_NAME_TYPE)
+        private final String type;
+
+        private static final String FIELD_NAME_NODES = "nodes";
+
+        @JsonProperty(FIELD_NAME_NODES)
+        private final Collection<Node> nodes;
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            Plan that = (Plan) o;
+            return Objects.equals(jobId, that.jobId)
+                    && Objects.equals(name, that.name)
+                    && Objects.equals(type, that.type)
+                    && Objects.equals(nodes, that.nodes);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(jobId, name, type, nodes);
+        }
+
+        @JsonCreator
+        public Plan(
+                @JsonProperty(FIELD_NAME_JOB_ID) String jobId,
+                @JsonProperty(FIELD_NAME_NAME) String name,
+                @JsonProperty(FIELD_NAME_TYPE) String type,
+                @JsonProperty(FIELD_NAME_NODES) Collection<Node> nodes) {
+            this.jobId = Preconditions.checkNotNull(jobId);
+            this.name = Preconditions.checkNotNull(name);
+            this.type = Preconditions.checkNotNull(type);
+            this.nodes = Preconditions.checkNotNull(nodes);
+        }
+
+        @JsonIgnore
+        public String getJobId() {
+            return jobId;
+        }
+
+        @JsonIgnore
+        public String getName() {
+            return name;
+        }
+
+        @JsonIgnore
+        public String getType() {
+            return type;
+        }
+
+        @JsonIgnore
+        public Collection<Node> getNodes() {
+            return nodes;
+        }
+
+        /** An inner class containing node (vertex) level info. */
+        @Schema(name = "PlanNode")
+        public static final class Node implements Serializable {
+            private static final String FIELD_NAME_ID = "id";
+
+            @JsonProperty(FIELD_NAME_ID)
+            private final String id;
+
+            private static final String FIELD_NAME_PARALLELISM = "parallelism";
+
+            @JsonProperty(FIELD_NAME_PARALLELISM)
+            private final long parallelism;
+
+            private static final String FIELD_NAME_OPERATOR = "operator";
+
+            @JsonProperty(FIELD_NAME_OPERATOR)
+            private final String operator;
+
+            private static final String FIELD_NAME_OPERATOR_STRATEGY = "operator_strategy";
+
+            @JsonProperty(FIELD_NAME_OPERATOR_STRATEGY)
+            private final String operatorStrategy;
+
+            private static final String FIELD_NAME_DESCRIPTION = "description";
+
+            @JsonProperty(FIELD_NAME_DESCRIPTION)
+            private final String description;
+
+            private static final String FIELD_NAME_OPTIMIZER_PROPERTIES = "optimizer_properties";
+
+            @JsonProperty(FIELD_NAME_OPTIMIZER_PROPERTIES)
+            private final String optimizerProperties;
+
+            private static final String FIELD_NAME_INPUTS = "inputs";
+
+            @JsonProperty(FIELD_NAME_INPUTS)
+            private final Collection<Input> inputs;
+
+            @Override
+            public boolean equals(Object o) {
+                if (this == o) {
+                    return true;
+                }
+                if (o == null || getClass() != o.getClass()) {
+                    return false;
+                }
+                Node that = (Node) o;
+                return Objects.equals(id, that.id)
+                        && Objects.equals(operator, that.operator)
+                        && Objects.equals(operatorStrategy, that.operatorStrategy)
+                        && Objects.equals(description, that.description)
+                        && Objects.equals(optimizerProperties, that.optimizerProperties)
+                        && Objects.equals(inputs, that.inputs)
+                        && parallelism == that.parallelism;
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(
+                        id,
+                        operator,
+                        parallelism,
+                        operatorStrategy,
+                        description,
+                        optimizerProperties,
+                        inputs);
+            }
+
+            @JsonCreator
+            public Node(
+                    @JsonProperty(FIELD_NAME_ID) String id,
+                    @JsonProperty(FIELD_NAME_OPERATOR) String operator,
+                    @JsonProperty(FIELD_NAME_PARALLELISM) long parallelism,
+                    @JsonProperty(FIELD_NAME_OPERATOR_STRATEGY) String operatorStrategy,
+                    @JsonProperty(FIELD_NAME_DESCRIPTION) String description,
+                    @JsonProperty(FIELD_NAME_OPTIMIZER_PROPERTIES) String optimizerProperties,
+                    @JsonProperty(FIELD_NAME_INPUTS) Collection<Input> inputs) {
+                this.id = Preconditions.checkNotNull(id);
+                this.operator = Preconditions.checkNotNull(operator);
+                this.parallelism = Preconditions.checkNotNull(parallelism);
+                this.operatorStrategy = Preconditions.checkNotNull(operatorStrategy);
+                this.description = Preconditions.checkNotNull(description);
+                this.optimizerProperties = Preconditions.checkNotNull(optimizerProperties);
+                this.inputs = Preconditions.checkNotNull(inputs);
+            }
+
+            @JsonIgnore
+            public String getId() {
+                return id;
+            }
+
+            @JsonIgnore
+            public long getParallelism() {
+                return parallelism;
+            }
+
+            @JsonIgnore
+            public String getOperator() {
+                return operator;
+            }
+
+            @JsonIgnore
+            public String getOperatorStrategy() {
+                return operatorStrategy;
+            }
+
+            @JsonIgnore
+            public String getDescription() {
+                return description;
+            }
+
+            @JsonIgnore
+            public String getOptimizerProperties() {
+                return optimizerProperties;
+            }
+
+            @JsonIgnore
+            public Collection<Input> getInputs() {
+                return inputs;
+            }
+
+            /**
+             * An inner class containing information on what input nodes should be linked to this
+             * node.
+             */
+            @Schema(name = "Input")
+            public static final class Input implements Serializable {
+                private static final String FIELD_NAME_NUM = "num";
+
+                @JsonProperty(FIELD_NAME_NUM)
+                private final long num;
+
+                private static final String FIELD_NAME_ID = "id";
+
+                @JsonProperty(FIELD_NAME_ID)
+                private final String id;
+
+                private static final String FIELD_NAME_SHIP_STRATEGY = "ship_strategy";
+
+                @Nullable
+                @JsonProperty(FIELD_NAME_SHIP_STRATEGY)
+                private final String shipStrategy;
+
+                private static final String FIELD_NAME_LOCAL_STRATEGY = "local_strategy";
+
+                @Nullable
+                @JsonProperty(FIELD_NAME_LOCAL_STRATEGY)
+                private final String localStrategy;
+
+                private static final String FIELD_NAME_CACHING = "caching";
+
+                @Nullable
+                @JsonProperty(FIELD_NAME_CACHING)
+                private final String caching;
+
+                private static final String FIELD_NAME_EXCHANGE = "exchange";
+
+                @JsonProperty(FIELD_NAME_EXCHANGE)
+                private final String exchange;
+
+                @Override
+                public boolean equals(Object o) {
+                    if (this == o) {
+                        return true;
+                    }
+                    if (o == null || getClass() != o.getClass()) {
+                        return false;
+                    }
+                    Input that = (Input) o;
+                    return Objects.equals(id, that.id)
+                            && num == that.num
+                            && Objects.equals(shipStrategy, that.shipStrategy)
+                            && Objects.equals(localStrategy, that.localStrategy)
+                            && Objects.equals(caching, that.caching)
+                            && Objects.equals(exchange, that.exchange);
+                }
+
+                @Override
+                public int hashCode() {
+                    return Objects.hash(id, num, shipStrategy, localStrategy, caching, exchange);
+                }
+
+                @JsonCreator
+                public Input(
+                        @JsonProperty(FIELD_NAME_ID) String id,
+                        @JsonProperty(FIELD_NAME_NUM) long num,
+                        @JsonProperty(FIELD_NAME_EXCHANGE) String exchange,
+                        @Nullable @JsonProperty(FIELD_NAME_SHIP_STRATEGY) String shipStrategy,
+                        @Nullable @JsonProperty(FIELD_NAME_LOCAL_STRATEGY) String localStrategy,
+                        @Nullable @JsonProperty(FIELD_NAME_CACHING) String caching) {
+                    this.id = Preconditions.checkNotNull(id);
+                    this.num = Preconditions.checkNotNull(num);
+                    this.exchange = Preconditions.checkNotNull(exchange);
+                    this.shipStrategy = shipStrategy;
+                    this.localStrategy = localStrategy;
+                    this.caching = caching;
+                }
+
+                @JsonIgnore
+                public long getNum() {
+                    return num;
+                }
+
+                @JsonIgnore
+                public String getId() {
+                    return id;
+                }
+
+                @JsonIgnore
+                public String getShipStrategy() {
+                    return shipStrategy;
+                }
+
+                @JsonIgnore
+                public String getLocalStrategy() {
+                    return localStrategy;
+                }
+
+                @JsonIgnore
+                public String getCaching() {
+                    return caching;
+                }
+
+                @JsonIgnore
+                public String getExchange() {
+                    return exchange;
+                }
             }
         }
     }

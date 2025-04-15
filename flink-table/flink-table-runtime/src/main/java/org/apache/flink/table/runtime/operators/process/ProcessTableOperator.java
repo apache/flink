@@ -23,10 +23,12 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.state.KeyedStateStore;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.StateTtlConfig;
-import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -40,20 +42,27 @@ import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.api.TableRuntimeException;
+import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.ProcessTableFunction.TimeContext;
 import org.apache.flink.table.functions.TableSemantics;
+import org.apache.flink.table.runtime.dataview.DataViewUtils;
 import org.apache.flink.table.runtime.generated.HashFunction;
 import org.apache.flink.table.runtime.generated.ProcessTableRunner;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.process.TimeConverter.InstantTimeConverter;
 import org.apache.flink.table.runtime.operators.process.TimeConverter.LocalDateTimeConverter;
 import org.apache.flink.table.runtime.operators.process.TimeConverter.LongTimeConverter;
+import org.apache.flink.table.runtime.typeutils.ExternalSerializer;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.StringDataSerializer;
 import org.apache.flink.table.runtime.util.StateConfigUtil;
+import org.apache.flink.table.types.CollectionDataType;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.RowKind;
 
@@ -79,8 +88,8 @@ public class ProcessTableOperator extends AbstractStreamOperator<RowData>
     private transient ReadableInternalTimeContext internalTimeContext;
     private transient PassThroughCollectorBase evalCollector;
     private transient PassAllCollector onTimerCollector;
-    private transient ValueStateDescriptor<RowData>[] stateDescriptors;
-    private transient ValueState<RowData>[] stateHandles;
+    private transient StateDescriptor<?, ?>[] stateDescriptors;
+    private transient State[] stateHandles;
 
     private transient @Nullable MapState<StringData, Long> namedTimersMapState;
     private transient @Nullable InternalTimerService<StringData> namedTimerService;
@@ -241,7 +250,7 @@ public class ProcessTableOperator extends AbstractStreamOperator<RowData>
         }
 
         @VisibleForTesting
-        public ValueStateDescriptor<RowData> getValueStateDescriptor(String stateName) {
+        public StateDescriptor<?, ?> getStateDescriptor(String stateName) {
             final Integer statePos = stateNameToPosMap.get(stateName);
             if (statePos == null) {
                 throw new TableRuntimeException("Unknown state entry: " + stateName);
@@ -311,16 +320,37 @@ public class ProcessTableOperator extends AbstractStreamOperator<RowData>
         onTimerCollector = new PassAllCollector(output);
     }
 
-    @SuppressWarnings("unchecked")
     private void setStateDescriptors() {
-        final ValueStateDescriptor<RowData>[] stateDescriptors =
-                new ValueStateDescriptor[stateInfos.size()];
+        final StateDescriptor<?, ?>[] stateDescriptors = new StateDescriptor[stateInfos.size()];
         for (int i = 0; i < stateInfos.size(); i++) {
             final RuntimeStateInfo stateInfo = stateInfos.get(i);
-            final LogicalType type = stateInfo.getType();
-            final ValueStateDescriptor<RowData> stateDescriptor =
-                    new ValueStateDescriptor<>(
-                            stateInfo.getStateName(), InternalSerializers.create(type));
+            final DataType dataType = stateInfo.getDataType();
+            final LogicalType type = dataType.getLogicalType();
+            final String stateName = stateInfo.getStateName();
+
+            final StateDescriptor<?, ?> stateDescriptor;
+            if (DataViewUtils.isDataView(type, ListView.class)) {
+                final CollectionDataType arrayDataType =
+                        (CollectionDataType) dataType.getChildren().get(0);
+                final DataType elementDataType = arrayDataType.getElementDataType();
+                stateDescriptor =
+                        new ListStateDescriptor<>(
+                                stateName, ExternalSerializer.of(elementDataType));
+            } else if (DataViewUtils.isDataView(type, MapView.class)) {
+                final KeyValueDataType mapDataType =
+                        (KeyValueDataType) dataType.getChildren().get(0);
+                final DataType keyDataType = mapDataType.getKeyDataType();
+                final DataType valueDataType = mapDataType.getValueDataType();
+                stateDescriptor =
+                        new MapStateDescriptor<>(
+                                stateName,
+                                ExternalSerializer.of(keyDataType),
+                                ExternalSerializer.of(valueDataType));
+            } else {
+                stateDescriptor =
+                        new ValueStateDescriptor<>(stateName, InternalSerializers.create(type));
+            }
+
             final StateTtlConfig ttlConfig =
                     StateConfigUtil.createTtlConfig(stateInfo.getTimeToLive());
             if (ttlConfig.isEnabled()) {
@@ -331,12 +361,24 @@ public class ProcessTableOperator extends AbstractStreamOperator<RowData>
         this.stateDescriptors = stateDescriptors;
     }
 
-    @SuppressWarnings("unchecked")
     private void setStateHandles() {
         final KeyedStateStore keyedStateStore = getKeyedStateStore();
-        final ValueState<RowData>[] stateHandles = new ValueState[stateDescriptors.length];
-        for (int i = 0; i < stateInfos.size(); i++) {
-            stateHandles[i] = keyedStateStore.getState(stateDescriptors[i]);
+        final State[] stateHandles = new State[stateDescriptors.length];
+        for (int i = 0; i < stateDescriptors.length; i++) {
+            final StateDescriptor<?, ?> stateDescriptor = stateDescriptors[i];
+            final State stateHandle;
+            if (stateDescriptor instanceof ValueStateDescriptor) {
+                stateHandle = keyedStateStore.getState((ValueStateDescriptor<?>) stateDescriptor);
+            } else if (stateDescriptor instanceof ListStateDescriptor) {
+                stateHandle =
+                        keyedStateStore.getListState((ListStateDescriptor<?>) stateDescriptor);
+            } else if (stateDescriptor instanceof MapStateDescriptor) {
+                stateHandle =
+                        keyedStateStore.getMapState((MapStateDescriptor<?, ?>) stateDescriptor);
+            } else {
+                throw new IllegalStateException("Unknown state descriptor:" + stateDescriptor);
+            }
+            stateHandles[i] = stateHandle;
         }
         this.stateHandles = stateHandles;
     }
