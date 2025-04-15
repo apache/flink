@@ -53,6 +53,7 @@ import org.apache.flink.table.connector.sink.OutputFormatProvider;
 import org.apache.flink.table.connector.sink.abilities.SupportsBucketing;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
+import org.apache.flink.table.connector.sink.abilities.SupportsTargetColumnWriting;
 import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 import org.apache.flink.table.connector.sink.legacy.SinkFunctionProvider;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
@@ -444,6 +445,13 @@ public final class TestValuesTableFactory
                             "Optional map of 'metadata_key:data_type'. The order will be alphabetically. "
                                     + "The metadata is part of the data when enabled.");
 
+    private static final ConfigOption<String> TARGET_COLUMNS =
+            ConfigOptions.key("target-columns")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Optional list of 'target-columns'. String format should be like this: '[[0], [1, 0]]'.");
+
     private static final ConfigOption<Boolean> SINK_DROP_LATE_EVENT =
             ConfigOptions.key("sink.drop-late-event")
                     .booleanType()
@@ -755,6 +763,8 @@ public final class TestValuesTableFactory
         final Map<String, DataType> writableMetadata =
                 convertToMetadataMap(
                         helper.getOptions().get(WRITABLE_METADATA), context.getClassLoader());
+        final int[][] targetColumns =
+                convertToTargetColumns(helper.getOptions().get(TARGET_COLUMNS));
         final ChangelogMode changelogMode =
                 Optional.ofNullable(helper.getOptions().get(SINK_CHANGELOG_MODE_ENFORCED))
                         .map(this::parseChangelogMode)
@@ -786,7 +796,8 @@ public final class TestValuesTableFactory
                     rowTimeIndex,
                     tableSchema,
                     requireBucketCount,
-                    supportsDeleteByKey);
+                    supportsDeleteByKey,
+                    targetColumns);
         } else {
             try {
                 return InstantiationUtil.instantiate(
@@ -983,6 +994,15 @@ public final class TestValuesTableFactory
                                     throw new IllegalStateException();
                                 },
                                 LinkedHashMap::new));
+    }
+
+    private static int[][] convertToTargetColumns(String targetColumns) {
+        if (targetColumns == null) {
+            return null;
+        }
+        return Arrays.stream(targetColumns.substring(2, targetColumns.length() - 2).split("],\\["))
+                .map(e -> Arrays.stream(e.split("\\s*,\\s*")).toArray())
+                .toArray(int[][]::new);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -2221,9 +2241,11 @@ public final class TestValuesTableFactory
                     SupportsWritingMetadata,
                     SupportsPartitioning,
                     SupportsOverwrite,
-                    SupportsBucketing {
+                    SupportsBucketing,
+                    SupportsTargetColumnWriting {
 
         private DataType consumedDataType;
+        private int[][] targetColumns;
         private int[] primaryKeyIndices;
         private final String tableName;
         private final boolean isInsertOnly;
@@ -2250,7 +2272,8 @@ public final class TestValuesTableFactory
                 int rowtimeIndex,
                 TableSchema tableSchema,
                 boolean requireBucketCount,
-                boolean supportsDeleteByKey) {
+                boolean supportsDeleteByKey,
+                int[][] targetColumns) {
             this.consumedDataType = consumedDataType;
             this.primaryKeyIndices = primaryKeyIndices;
             this.tableName = tableName;
@@ -2264,6 +2287,7 @@ public final class TestValuesTableFactory
             this.tableSchema = tableSchema;
             this.requireBucketCount = requireBucketCount;
             this.supportsDeleteByKey = supportsDeleteByKey;
+            this.targetColumns = targetColumns;
         }
 
         @Override
@@ -2367,14 +2391,13 @@ public final class TestValuesTableFactory
                 assertThat(runtimeSink.equals("SinkFunction")).isTrue();
                 // check the contract of the context.getTargetColumns method returns the expected
                 // empty Option or non-empty Option with a non-empty array
-                assertThat(
-                                !context.getTargetColumns().isPresent()
-                                        || context.getTargetColumns().get().length > 0)
-                        .isTrue();
+                assertThat(this.targetColumns == null || this.targetColumns.length > 0).isTrue();
                 SinkFunction<RowData> sinkFunction;
                 if (primaryKeyIndices.length > 0) {
                     // TODO FLINK-31301 currently partial-insert composite columns are not supported
-                    int[][] targetColumns = context.getTargetColumns().orElse(new int[0][]);
+                    int[][] targetColumns =
+                            this.targetColumns != null ? this.targetColumns : new int[0][];
+
                     checkArgument(
                             Arrays.stream(targetColumns).allMatch(subArr -> subArr.length <= 1),
                             "partial-insert composite columns are not supported yet!");
@@ -2416,7 +2439,8 @@ public final class TestValuesTableFactory
                     rowtimeIndex,
                     tableSchema,
                     requireBucketCount,
-                    supportsDeleteByKey);
+                    supportsDeleteByKey,
+                    targetColumns);
         }
 
         @Override
@@ -2453,6 +2477,12 @@ public final class TestValuesTableFactory
         @Override
         public boolean requiresBucketCount() {
             return requireBucketCount;
+        }
+
+        @Override
+        public boolean applyTargetColumns(int[][] targetColumns) {
+            this.targetColumns = targetColumns;
+            return true;
         }
     }
 

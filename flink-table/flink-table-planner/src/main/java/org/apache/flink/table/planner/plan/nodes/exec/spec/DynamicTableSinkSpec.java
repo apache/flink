@@ -52,6 +52,7 @@ public class DynamicTableSinkSpec extends DynamicTableSpecBase {
     private final ContextResolvedTable contextResolvedTable;
     private final @Nullable List<SinkAbilitySpec> sinkAbilities;
 
+    @Deprecated(since = "2.1")
     private final @Nullable int[][] targetColumns;
 
     private DynamicTableSink tableSink;
@@ -99,9 +100,14 @@ public class DynamicTableSinkSpec extends DynamicTableSpecBase {
         return tableSink;
     }
 
+    /**
+     * @deprecated use {@link
+     *     org.apache.flink.table.planner.plan.abilities.sink.TargetColumnWritingSpec} instead.
+     */
     @JsonGetter(FIELD_NAME_TARGET_COLUMNS)
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     @Nullable
+    @Deprecated(since = "2.1")
     public int[][] getTargetColumns() {
         return targetColumns;
     }
