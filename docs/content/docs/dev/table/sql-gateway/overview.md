@@ -84,10 +84,10 @@ $ curl --request POST http://localhost:8083/v1/sessions/${sessionHandle}/stateme
 
 The `operationHandle` in the return results is used by the SQL Gateway to uniquely identify the submitted SQL.
 
-The Flink SQL Gateway allows clients to specify which Flink cluster to submit jobs to, enabling remote execution of SQL statements and facilitating easier interaction with Flink clusters through a REST API. Enrich the POST request body with `executionConfig` variable to set the Flink cluster address. For example:
+The Flink SQL Gateway allows clients to specify which Flink cluster to submit jobs to, enabling remote execution of SQL statements and facilitating easier interaction with Flink clusters through a REST API. Enrich the POST request body with [rest.address](https://nightlies.apache.org/flink/flink-docs-release-2.0/docs/deployment/config/#rest-address) and [rest.port](https://nightlies.apache.org/flink/flink-docs-release-2.0/docs/deployment/config/#rest-port) inside the `executionConfig` variable to set the Flink cluster address. For example:
 
 ```bash
-$ curl --request POST http://localhost:8083/v1/sessions/${sessionHandle}/statements/ --data '{"executionConfig": {"rest.address":"jobmanager-host", "rest.port":port},"statement": "SELECT 1"}'
+$ curl --request POST http://localhost:8083/v1/sessions/${sessionHandle}/statements/ --data '{"executionConfig": {"rest.address":"jobmanager-host", "rest.port":8081},"statement": "SELECT 1"}'
 {"operationHandle":"..."}
 ```
 
