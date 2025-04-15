@@ -230,6 +230,8 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
         final List<OverWindowFrame> windowFrames = new ArrayList<>();
         for (GroupSpec group : overSpec.getGroups()) {
             OverWindowMode mode = inferGroupMode(group);
+            boolean[] aggCallNeedRetractions = new boolean[group.getAggCalls().size()];
+            Arrays.fill(aggCallNeedRetractions, true);
             if (mode == OverWindowMode.OFFSET) {
                 for (AggregateCall aggCall : group.getAggCalls()) {
                     AggregateInfoList aggInfoList =
@@ -254,7 +256,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
                     GeneratedAggsHandleFunction genAggsHandler =
                             generator
                                     .needAccumulate()
-                                    .needRetract()
+                                    .needRetract(aggCallNeedRetractions)
                                     .withConstants(JavaScalaConversionUtil.toScala(getConstants()))
                                     .generateAggsHandler("BoundedOverAggregateHelper", aggInfoList);
 

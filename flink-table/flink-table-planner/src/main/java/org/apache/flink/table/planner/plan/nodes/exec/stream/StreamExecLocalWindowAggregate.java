@@ -228,7 +228,9 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
                         .needMerge(0, true, null);
 
         if (needRetraction) {
-            generator.needRetract();
+            final boolean[] aggCallNeedRetractions = new boolean[aggCalls.length];
+            Arrays.fill(aggCallNeedRetractions, needRetraction);
+            generator.needRetract(aggCallNeedRetractions);
         }
 
         return generator.generateNamespaceAggsHandler(
