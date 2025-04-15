@@ -106,6 +106,31 @@ class JsonFormatFactoryTest {
     }
 
     @Test
+    void testInvalidOptionForZeroTimestampBehavior() {
+        final Map<String, String> tableOptions =
+                getModifyOptions(options -> options.put("json.zero-timestamp.behavior", "test"));
+
+        assertThatCreateRuntimeDecoder(tableOptions)
+                .satisfies(
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "Unsupported value 'test' for zero-timestamp.behavior. Supported values are [FAIL, CONVERT_TO_NULL]."));
+    }
+
+    @Test
+    void testLowerCaseOptionForZeroTimestampBehavior() {
+        final Map<String, String> tableOptions =
+                getModifyOptions(
+                        options -> options.put("json.zero-timestamp.behavior", "convert_to_null"));
+
+        assertThatCreateRuntimeDecoder(tableOptions)
+                .satisfies(
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "Unsupported value 'convert_to_null' for zero-timestamp.behavior. Supported values are [FAIL, CONVERT_TO_NULL]."));
+    }
+
+    @Test
     void testInvalidOptionForMapNullKeyMode() {
         final Map<String, String> tableOptions =
                 getModifyOptions(options -> options.put("json.map-null-key.mode", "invalid"));
@@ -225,6 +250,7 @@ class JsonFormatFactoryTest {
         options.put("json.fail-on-missing-field", "false");
         options.put("json.ignore-parse-errors", "true");
         options.put("json.timestamp-format.standard", "ISO-8601");
+        options.put("json.zero-timestamp.behavior", "FAIL");
         options.put("json.map-null-key.mode", "LITERAL");
         options.put("json.map-null-key.literal", "null");
         options.put("json.encode.decimal-as-plain-number", "true");

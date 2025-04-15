@@ -34,6 +34,7 @@ import static org.apache.flink.formats.json.JsonFormatOptions.FAIL_ON_MISSING_FI
 import static org.apache.flink.formats.json.JsonFormatOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.json.JsonFormatOptions.MAP_NULL_KEY_MODE;
 import static org.apache.flink.formats.json.JsonFormatOptions.TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.json.JsonFormatOptions.ZERO_TIMESTAMP_BEHAVIOR;
 
 /** Utilities for {@link JsonFormatOptions}. */
 @Internal
@@ -48,6 +49,16 @@ public class JsonFormatOptionsUtil {
 
     public static final Set<String> TIMESTAMP_FORMAT_ENUM =
             new HashSet<>(Arrays.asList(SQL, ISO_8601));
+
+    // The handling mode of zero datetime for Timestamp data
+    public static final String JSON_ZERO_TIMESTAMP_BEHAVIOR_FAIL = "FAIL";
+    public static final String JSON_ZERO_TIMESTAMP_BEHAVIOR_CONVERT_TO_NULL = "CONVERT_TO_NULL";
+
+    public static final Set<String> ZERO_TIMESTAMP_BEHAVIOR_ENUM =
+            new HashSet<>(
+                    Arrays.asList(
+                            JSON_ZERO_TIMESTAMP_BEHAVIOR_FAIL,
+                            JSON_ZERO_TIMESTAMP_BEHAVIOR_CONVERT_TO_NULL));
 
     // The handling mode of null key for map data
     public static final String JSON_MAP_NULL_KEY_MODE_FAIL = "FAIL";
@@ -70,6 +81,22 @@ public class JsonFormatOptionsUtil {
                         String.format(
                                 "Unsupported timestamp format '%s'. Validator should have checked that.",
                                 timestampFormat));
+        }
+    }
+
+    public static JsonFormatOptions.ZeroTimestampBehavior getZeroTimestampBehavior(
+            ReadableConfig config) {
+        String zeroTimestampBehavior = config.get(ZERO_TIMESTAMP_BEHAVIOR);
+        switch (zeroTimestampBehavior) {
+            case JSON_ZERO_TIMESTAMP_BEHAVIOR_FAIL:
+                return JsonFormatOptions.ZeroTimestampBehavior.FAIL;
+            case JSON_ZERO_TIMESTAMP_BEHAVIOR_CONVERT_TO_NULL:
+                return JsonFormatOptions.ZeroTimestampBehavior.CONVERT_TO_NULL;
+            default:
+                throw new TableException(
+                        String.format(
+                                "Unsupported zero timestamp behavior '%s'. Validator should have checked that.",
+                                zeroTimestampBehavior));
         }
     }
 
@@ -130,6 +157,7 @@ public class JsonFormatOptionsUtil {
                             nullKeyModes));
         }
         validateTimestampFormat(tableOptions);
+        validateZeroTimestampBehavior(tableOptions);
     }
 
     /** Validates timestamp format which value should be SQL or ISO-8601. */
@@ -140,6 +168,17 @@ public class JsonFormatOptionsUtil {
                     String.format(
                             "Unsupported value '%s' for %s. Supported values are [SQL, ISO-8601].",
                             timestampFormat, TIMESTAMP_FORMAT.key()));
+        }
+    }
+
+    /** Validates zero timestamp behavior which value should be FAIL or CONVERT_TO_NULL. */
+    static void validateZeroTimestampBehavior(ReadableConfig tableOptions) {
+        String zeroTimestampBehavior = tableOptions.get(ZERO_TIMESTAMP_BEHAVIOR);
+        if (!ZERO_TIMESTAMP_BEHAVIOR_ENUM.contains(zeroTimestampBehavior)) {
+            throw new ValidationException(
+                    String.format(
+                            "Unsupported value '%s' for %s. Supported values are [FAIL, CONVERT_TO_NULL].",
+                            zeroTimestampBehavior, ZERO_TIMESTAMP_BEHAVIOR.key()));
         }
     }
 
