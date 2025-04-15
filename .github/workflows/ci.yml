@@ -18,6 +18,7 @@
 
 name: "Flink CI (beta)"
 
+# Apache policy: never use 'pull_request_target' as a trigger
 on:
   push:
   workflow_dispatch:

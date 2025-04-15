@@ -18,6 +18,7 @@
 
 name: "Pre-compile Checks"
 
+# Apache policy: never use 'pull_request_target' as a trigger
 on:
   workflow_dispatch:
     inputs:
