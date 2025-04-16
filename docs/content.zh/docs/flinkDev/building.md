@@ -46,7 +46,7 @@ git clone {{< github_repo >}}
 最简单的构建 Flink 的方法是执行如下命令：
 
 ```bash
-mvn clean install -DskipTests
+./mvnw clean install -DskipTests
 ```
 
 上面的 [Maven](http://maven.apache.org) 指令（`mvn`）首先删除（`clean`）所有存在的构建，然后构建一个新的 Flink 运行包（`install`）。
@@ -55,11 +55,11 @@ mvn clean install -DskipTests
 - 使用 ' -DskipTests' 跳过测试
 - 使用 `fast` Maven profile 跳过 QA 的插件和 JavaDocs 的生成
 - 使用 `skip-webui-build` Maven profile 跳过 WebUI 编译
-- 使用 Maven 并行构建功能，比如 'mvn package -T 1C' 会尝试并行使用多核 CPU，同时让每一个 CPU 核构建1个模块。{{< hint warning >}}maven-shade-plugin 现存的 bug 可能会在并行构建时产生死锁。建议分2步进行构建：首先使用并行方式运行 `mvn validate/test-compile/test`，然后使用单线程方式运行 `mvn package/verify/install`。{{< /hint >}} 
+- 使用 Maven 并行构建功能，比如 './mvnw package -T 1C' 会尝试并行使用多核 CPU，同时让每一个 CPU 核构建1个模块。{{< hint warning >}}maven-shade-plugin 现存的 bug 可能会在并行构建时产生死锁。建议分2步进行构建：首先使用并行方式运行 `./mvnw validate/test-compile/test`，然后使用单线程方式运行 `./mvnw package/verify/install`。{{< /hint >}} 
 
 构建脚本如下：
 ```bash
-mvn clean install -DskipTests -Dfast -Pskip-webui-build -T 1C
+./mvnw clean install -DskipTests -Dfast -Pskip-webui-build -T 1C
 ```
 `fast` 和 `skip-webui-build` 这两个 Maven profiles 对整体构建时间影响比较大，特别是在存储设备比较慢的机器上，因为对应的任务会读写很多小文件。
 
@@ -128,7 +128,7 @@ Flink 有使用 [Scala](http://scala-lang.org) 来写的 API，库和运行时�
 
 要针对特定的二进制 Scala 版本进行构建，可以使用
 ```bash
-mvn clean install -DskipTests -Dscala.version=<scala version>
+./mvnw clean install -DskipTests -Dscala.version=<scala version>
 ```
 
 {{< top >}}
