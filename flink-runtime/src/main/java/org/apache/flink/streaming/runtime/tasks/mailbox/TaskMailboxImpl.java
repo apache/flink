@@ -97,23 +97,12 @@ public class TaskMailboxImpl implements TaskMailbox {
     }
 
     @Override
-    public int size() {
-        final ReentrantLock lock = this.lock;
-        lock.lock();
-        try {
-            return batch.size() + queue.size();
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    @Override
     public Optional<Mail> tryTake(int priority) {
         checkIsMailboxThread();
         checkTakeStateConditions();
-        Mail head = takeOrNull(batch, priority);
-        if (head != null) {
-            return Optional.of(head);
+        Mail headEmail = takeOrNull(batch, priority);
+        if (headEmail != null) {
+            return Optional.of(headEmail);
         }
         if (!hasNewMail) {
             return Optional.empty();
@@ -121,12 +110,12 @@ public class TaskMailboxImpl implements TaskMailbox {
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
-            final Mail value = takeOrNull(queue, priority);
-            if (value == null) {
+            headEmail = takeOrNull(queue, priority);
+            if (headEmail == null) {
                 return Optional.empty();
             }
             hasNewMail = !queue.isEmpty();
-            return Optional.ofNullable(value);
+            return Optional.of(headEmail);
         } finally {
             lock.unlock();
         }
@@ -136,20 +125,19 @@ public class TaskMailboxImpl implements TaskMailbox {
     public @Nonnull Mail take(int priority) throws InterruptedException, IllegalStateException {
         checkIsMailboxThread();
         checkTakeStateConditions();
-        Mail head = takeOrNull(batch, priority);
-        if (head != null) {
-            return head;
+        Mail headEmail = takeOrNull(batch, priority);
+        if (headEmail != null) {
+            return headEmail;
         }
         final ReentrantLock lock = this.lock;
         lock.lockInterruptibly();
         try {
-            Mail headMail;
-            while ((headMail = takeOrNull(queue, priority)) == null) {
+            while ((headEmail = takeOrNull(queue, priority)) == null) {
                 // to ease debugging
                 notEmpty.await(1, TimeUnit.SECONDS);
             }
             hasNewMail = !queue.isEmpty();
-            return headMail;
+            return headEmail;
         } finally {
             lock.unlock();
         }
@@ -332,6 +320,17 @@ public class TaskMailboxImpl implements TaskMailbox {
         lock.lock();
         try {
             return state;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public int size() {
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return batch.size() + queue.size();
         } finally {
             lock.unlock();
         }
