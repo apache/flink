@@ -46,6 +46,7 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
+import org.apache.flink.runtime.state.RegisteredStateMetaInfoUtils;
 import org.apache.flink.runtime.state.SavepointResources;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.SnapshotResult;
@@ -637,7 +638,12 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
         if (oldStateInfo != null) {
             @SuppressWarnings("unchecked")
             RegisteredKeyValueStateBackendMetaInfo<N, SV> castedMetaInfo =
-                    (RegisteredKeyValueStateBackendMetaInfo<N, SV>) oldStateInfo.metaInfo;
+                    oldStateInfo.metaInfo instanceof RegisteredKeyValueStateBackendMetaInfo
+                            ? (RegisteredKeyValueStateBackendMetaInfo<N, SV>) oldStateInfo.metaInfo
+                            : RegisteredStateMetaInfoUtils.transformFromV2ToV1(
+                                    (org.apache.flink.runtime.state.v2
+                                                    .RegisteredKeyValueStateBackendMetaInfo)
+                                            oldStateInfo.metaInfo);
 
             newMetaInfo =
                     updateRestoredStateMetaInfo(

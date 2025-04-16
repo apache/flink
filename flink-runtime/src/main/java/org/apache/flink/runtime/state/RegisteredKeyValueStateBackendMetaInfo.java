@@ -102,7 +102,7 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
                 StateMetaInfoSnapshot.BackendStateType.KEY_VALUE == snapshot.getBackendStateType());
     }
 
-    private RegisteredKeyValueStateBackendMetaInfo(
+    public RegisteredKeyValueStateBackendMetaInfo(
             @Nonnull StateDescriptor.Type stateType,
             @Nonnull String name,
             @Nonnull StateSerializerProvider<N> namespaceSerializerProvider,
