@@ -33,7 +33,7 @@ class StreamingTwoWayInnerMultiJoinOperatorTest extends StreamingMultiJoinOperat
         super(2, List.of(JoinType.INNER, JoinType.INNER), defaultConditions(), false);
     }
 
-    /** SELECT u.*, o.* FROM Users u INNER JOIN Orders o ON u.id = o.user_id */
+    /** SELECT u.*, o.* FROM Users u INNER JOIN Orders o ON u.id = o.user_id. */
     @Test
     void testTwoWayInnerJoin() throws Exception {
         /* -------- APPEND TESTS ----------- */
@@ -57,7 +57,7 @@ class StreamingTwoWayInnerMultiJoinOperatorTest extends StreamingMultiJoinOperat
 
     /**
      * SELECT u.*, o.* FROM Users u INNER JOIN Orders o ON u.id = o.user_id -- Test updates and
-     * deletes on both sides
+     * deletes on both sides.
      */
     @Test
     void testTwoWayInnerJoinUpdating() throws Exception {
@@ -120,7 +120,7 @@ class StreamingTwoWayOuterMultiJoinOperatorTest extends StreamingMultiJoinOperat
 
     /**
      * SELECT u.*, o.* FROM Users u LEFT OUTER JOIN Orders o ON u.id = o.user_id -- Test left outer
-     * join behavior with nulls and transitions
+     * join behavior with nulls and transitions.
      */
     @Test
     void testTwoWayLeftOuterJoin() throws Exception {
@@ -279,7 +279,7 @@ class StreamingThreeWayJoinOperatorTest extends StreamingMultiJoinOperatorTestBa
 
     /**
      * SELECT u.*, o.*, p.* FROM Users u INNER JOIN Orders o ON u.id = o.user_id INNER JOIN Payments
-     * p ON u.id = p.user_id -- Test three-way inner join with append-only data
+     * p ON u.id = p.user_id -- Test three-way inner join with append-only data.
      */
     @Test
     void testThreeWayInnerJoin() throws Exception {
@@ -328,7 +328,7 @@ class StreamingThreeWayJoinOperatorTest extends StreamingMultiJoinOperatorTestBa
 
     /**
      * SELECT u.*, o.*, p.* FROM Users u INNER JOIN Orders o ON u.id = o.user_id INNER JOIN Payments
-     * p ON u.id = p.user_id -- Test updates and deletes across all three tables
+     * p ON u.id = p.user_id -- Test updates and deletes across all three tables.
      */
     @Test
     void testThreeWayInnerJoinUpdating() throws Exception {
@@ -480,7 +480,7 @@ class StreamingThreeWayOuterJoinOperatorTest extends StreamingMultiJoinOperatorT
     }
 
     /**
-     * -- Test three-way left outer join with nulls and changelog transitions
+     * -- Test three-way left outer join with nulls and changelog transitions.
      *
      * <p>SQL: SELECT u.*, o.*, p.* FROM Users u LEFT OUTER JOIN Orders o ON u.user_id = o.user_id
      * LEFT OUTER JOIN Payments p ON o.user_id = p.user_id
@@ -1126,7 +1126,7 @@ class StreamingThreeWayOuterJoinCustomConditionOperatorTest
     }
 
     /**
-     * -- Test three-way left outer join with nulls and changelog transitions
+     * -- Test three-way left outer join with nulls and changelog transitions.
      *
      * <p>SQL: SELECT u.*, o.*, p.* FROM Users u LEFT OUTER JOIN Orders o ON u.user_id = o.user_id
      * LEFT OUTER JOIN Payments p ON u.user_id = p.user_id <- This is the core difference here
