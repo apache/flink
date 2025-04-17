@@ -157,7 +157,6 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
@@ -2620,10 +2619,7 @@ public class AdaptiveSchedulerTest {
                         () ->
                                 TestingFreeSlotTracker.newBuilder()
                                         .setGetFreeSlotsInformationSupplier(
-                                                () ->
-                                                        IntStream.range(0, freeSlots)
-                                                                .mapToObj(v -> new TestingSlot())
-                                                                .collect(Collectors.toSet()))
+                                                () -> TestingSlot.getSlots(freeSlots))
                                         .build())
                 .build();
     }
