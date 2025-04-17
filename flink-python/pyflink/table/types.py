@@ -32,6 +32,7 @@ from py4j.java_gateway import get_java_class
 from typing import List, Union
 
 from pyflink.common.types import _create_row
+from pyflink.util.api_stability_decorators import PublicEvolving
 from pyflink.util.java_utils import to_jarray, is_instance_of
 from pyflink.java_gateway import get_gateway
 from pyflink.common import Row, RowKind
@@ -39,6 +40,7 @@ from pyflink.common import Row, RowKind
 __all__ = ['DataTypes', 'UserDefinedType', 'Row', 'RowKind']
 
 
+@PublicEvolving()
 class DataType(object):
     """
     Describes the data type of a value in the table ecosystem. Instances of this class can be used

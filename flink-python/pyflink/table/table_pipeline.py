@@ -22,11 +22,13 @@ from pyflink.table import ExplainDetail
 from pyflink.table.catalog import ObjectIdentifier
 from pyflink.table.compiled_plan import CompiledPlan
 from pyflink.table.table_result import TableResult
+from pyflink.util.api_stability_decorators import PublicEvolving
 from pyflink.util.java_utils import to_j_explain_detail_arr
 
 __all__ = ["TablePipeline"]
 
 
+@PublicEvolving()
 class TablePipeline(object):
     """
     Describes a complete pipeline from one or more source tables to a sink table.
