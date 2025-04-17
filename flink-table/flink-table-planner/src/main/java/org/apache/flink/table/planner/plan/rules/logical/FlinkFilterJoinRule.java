@@ -546,7 +546,7 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
                 new RexVisitorImpl<Void>(true) {
                     @Override
                     public Void visitCall(RexCall call) {
-                        if (call.getOperator() == TemporalJoinUtil.INITIAL_TEMPORAL_JOIN_CONDITION()
+                        if (call.getOperator() == TemporalJoinUtil.INITIAL_TEMPORAL_JOIN_CONDITION
                                 && TemporalJoinUtil.isInitialRowTimeTemporalTableJoin(call)) {
                             throw new Util.FoundOne(call);
                         }

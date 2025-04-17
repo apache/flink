@@ -97,7 +97,7 @@ abstract class CommonPhysicalLookupJoin(
   val allLookupKeys: Map[Int, LookupKey] = {
     // join key pairs from left input field index to temporal table field index
     val joinKeyPairs: Array[IntPair] =
-      TemporalJoinUtil.getTemporalTableJoinKeyPairs(joinInfo, calcOnTemporalTable)
+      TemporalJoinUtil.getTemporalTableJoinKeyPairs(joinInfo, Optional.of(calcOnTemporalTable.get))
     // all potential index keys, mapping from field index in table source to LookupKey
     analyzeLookupKeys(cluster.getRexBuilder, joinKeyPairs, calcOnTemporalTable)
   }
