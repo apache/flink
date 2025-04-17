@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators.sorted.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.runtime.asyncprocessing.EpochManager;
 import org.apache.flink.runtime.asyncprocessing.MockStateExecutor;
 import org.apache.flink.runtime.asyncprocessing.StateExecutionController;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
@@ -75,6 +76,7 @@ class BatchExecutionInternalTimeServiceWithAsyncStateTest {
                         (a, b) -> {},
                         new MockStateExecutor(),
                         new DeclarationManager(),
+                        EpochManager.ParallelMode.SERIAL_BETWEEN_EPOCH,
                         1,
                         100,
                         1000,

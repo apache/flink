@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 import org.apache.flink.runtime.asyncprocessing.AsyncRequestContainer;
+import org.apache.flink.runtime.asyncprocessing.EpochManager;
 import org.apache.flink.runtime.asyncprocessing.MockAsyncRequestContainer;
 import org.apache.flink.runtime.asyncprocessing.StateExecutionController;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
@@ -120,6 +121,7 @@ class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
                         (a, b) -> {},
                         aggregatingStateExecutor,
                         new DeclarationManager(),
+                        EpochManager.ParallelMode.SERIAL_BETWEEN_EPOCH,
                         1,
                         100,
                         10000,
@@ -158,6 +160,7 @@ class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
                         (a, b) -> {},
                         aggregatingStateExecutor,
                         new DeclarationManager(),
+                        EpochManager.ParallelMode.SERIAL_BETWEEN_EPOCH,
                         1,
                         100,
                         10000,

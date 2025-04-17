@@ -137,7 +137,7 @@ public class AsyncExecutionController<K, REQUEST extends AsyncRequest<?>> implem
      * The parallel mode of epoch execution. Keep this field internal for now, until we could see
      * the concrete need for {@link ParallelMode#PARALLEL_BETWEEN_EPOCH} from average users.
      */
-    final ParallelMode epochParallelMode = ParallelMode.SERIAL_BETWEEN_EPOCH;
+    private final ParallelMode epochParallelMode;
 
     /** A guard for waiting new mail. */
     private final Object notifyLock = new Object();
@@ -153,6 +153,7 @@ public class AsyncExecutionController<K, REQUEST extends AsyncRequest<?>> implem
             AsyncFrameworkExceptionHandler exceptionHandler,
             AsyncExecutor<REQUEST> asyncExecutor,
             DeclarationManager declarationManager,
+            ParallelMode epochParallelMode,
             int maxParallelism,
             int batchSize,
             long bufferTimeout,
@@ -167,6 +168,7 @@ public class AsyncExecutionController<K, REQUEST extends AsyncRequest<?>> implem
 
         this.asyncExecutor = asyncExecutor;
         this.declarationManager = declarationManager;
+        this.epochParallelMode = epochParallelMode;
         this.batchSize = batchSize;
         this.bufferTimeout = bufferTimeout;
         this.maxInFlightRecordNum = maxInFlightRecords;

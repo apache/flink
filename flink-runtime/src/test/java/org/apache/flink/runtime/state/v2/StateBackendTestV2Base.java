@@ -31,6 +31,7 @@ import org.apache.flink.core.asyncprocessing.AsyncFutureImpl;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.asyncprocessing.EpochManager;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.asyncprocessing.StateExecutionController;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
@@ -245,6 +246,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                             testExceptionHandler,
                             backend.createStateExecutor(),
                             new DeclarationManager(),
+                            EpochManager.ParallelMode.SERIAL_BETWEEN_EPOCH,
                             jobMaxParallelism,
                             aecBatchSize,
                             aecBufferTimeout,
@@ -339,6 +341,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                             testExceptionHandler,
                             backend.createStateExecutor(),
                             new DeclarationManager(),
+                            EpochManager.ParallelMode.SERIAL_BETWEEN_EPOCH,
                             jobMaxParallelism,
                             aecBatchSize,
                             aecBufferTimeout,
@@ -427,6 +430,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                             testExceptionHandler,
                             backend.createStateExecutor(),
                             new DeclarationManager(),
+                            EpochManager.ParallelMode.SERIAL_BETWEEN_EPOCH,
                             maxParallelism,
                             aecBatchSize,
                             aecBufferTimeout,
@@ -499,6 +503,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                             testExceptionHandler,
                             backend.createStateExecutor(),
                             new DeclarationManager(),
+                            EpochManager.ParallelMode.SERIAL_BETWEEN_EPOCH,
                             maxParallelism,
                             aecBatchSize,
                             aecBufferTimeout,
@@ -607,6 +612,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                         testExceptionHandler,
                         backend.createStateExecutor(),
                         new DeclarationManager(),
+                        EpochManager.ParallelMode.SERIAL_BETWEEN_EPOCH,
                         128,
                         1,
                         -1,
