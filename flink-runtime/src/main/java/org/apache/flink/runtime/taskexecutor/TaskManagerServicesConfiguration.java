@@ -29,6 +29,7 @@ import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptionsInternal;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
 import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
@@ -91,6 +92,10 @@ public class TaskManagerServicesConfiguration {
 
     private final TaskExecutorResourceSpec taskExecutorResourceSpec;
 
+    private final ResourceProfile totalResourceProfile;
+
+    private final ResourceProfile defaultSlotResourceProfile;
+
     private final FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder;
 
     private final String[] alwaysParentFirstLoaderPatterns;
@@ -112,6 +117,8 @@ public class TaskManagerServicesConfiguration {
             int numberOfSlots,
             int pageSize,
             TaskExecutorResourceSpec taskExecutorResourceSpec,
+            ResourceProfile defaultSlotResourceProfile,
+            ResourceProfile totalAvailableResourceProfile,
             long timerServiceShutdownTimeout,
             RetryingRegistrationConfiguration retryingRegistrationConfiguration,
             Optional<Duration> systemResourceMetricsProbingInterval,
@@ -136,6 +143,8 @@ public class TaskManagerServicesConfiguration {
         this.pageSize = pageSize;
 
         this.taskExecutorResourceSpec = taskExecutorResourceSpec;
+        this.defaultSlotResourceProfile = defaultSlotResourceProfile;
+        this.totalResourceProfile = totalAvailableResourceProfile;
         this.classLoaderResolveOrder = classLoaderResolveOrder;
         this.alwaysParentFirstLoaderPatterns = alwaysParentFirstLoaderPatterns;
         this.numIoThreads = numIoThreads;
@@ -213,6 +222,14 @@ public class TaskManagerServicesConfiguration {
         return taskExecutorResourceSpec;
     }
 
+    public ResourceProfile getDefaultSlotResourceProfile() {
+        return defaultSlotResourceProfile;
+    }
+
+    public ResourceProfile getTotalResourceProfile() {
+        return totalResourceProfile;
+    }
+
     public MemorySize getNetworkMemorySize() {
         return taskExecutorResourceSpec.getNetworkMemSize();
     }
@@ -273,6 +290,8 @@ public class TaskManagerServicesConfiguration {
             String externalAddress,
             boolean localCommunicationOnly,
             TaskExecutorResourceSpec taskExecutorResourceSpec,
+            ResourceProfile defaultSlotResourceProfile,
+            ResourceProfile totalAvailableResourceProfile,
             WorkingDirectory workingDirectory)
             throws Exception {
         String[] localStateRootDirs = ConfigurationUtils.parseLocalStateDirectories(configuration);
@@ -342,6 +361,8 @@ public class TaskManagerServicesConfiguration {
                 ConfigurationParserUtils.getSlot(configuration),
                 ConfigurationParserUtils.getPageSize(configuration),
                 taskExecutorResourceSpec,
+                defaultSlotResourceProfile,
+                totalAvailableResourceProfile,
                 timerServiceShutdownTimeout,
                 retryingRegistrationConfiguration,
                 ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration),

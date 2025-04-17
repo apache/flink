@@ -29,10 +29,12 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceSpec;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
 import org.apache.flink.runtime.testutils.WorkingDirectoryExtension;
+import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Reference;
@@ -423,12 +425,18 @@ class TaskExecutorLocalStateStoresManagerTest {
 
     private TaskManagerServicesConfiguration createTaskManagerServiceConfiguration(
             Configuration config, WorkingDirectory workingDirectory) throws Exception {
+        final TaskExecutorResourceSpec taskExecutorResourceSpec =
+                TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(config);
         return TaskManagerServicesConfiguration.fromConfiguration(
                 config,
                 ResourceID.generate(),
                 InetAddress.getLocalHost().getHostName(),
                 true,
-                TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(config),
+                taskExecutorResourceSpec,
+                TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(
+                        taskExecutorResourceSpec, ConfigurationParserUtils.getSlot(config)),
+                TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(
+                        taskExecutorResourceSpec),
                 workingDirectory);
     }
 
