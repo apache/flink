@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state.metrics;
 
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 
 import java.util.Collection;
@@ -30,45 +31,68 @@ import java.util.Collection;
  * @param <N> The type of the namespace
  * @param <T> Type of the user value of state
  */
-class LatencyTrackingReducingState<K, N, T>
-        extends AbstractLatencyTrackState<
+class MetricsTrackingReducingState<K, N, T>
+        extends AbstractMetricsTrackState<
                 K,
                 N,
                 T,
                 InternalReducingState<K, N, T>,
-                LatencyTrackingReducingState.ReducingStateLatencyMetrics>
+                MetricsTrackingReducingState.ReducingStateMetrics>
         implements InternalReducingState<K, N, T> {
 
-    LatencyTrackingReducingState(
+    MetricsTrackingReducingState(
             String stateName,
             InternalReducingState<K, N, T> original,
-            LatencyTrackingStateConfig latencyTrackingStateConfig) {
+            KeyedStateBackend<K> keyedStateBackend,
+            LatencyTrackingStateConfig latencyTrackingStateConfig,
+            SizeTrackingStateConfig sizeTrackingStateConfig) {
         super(
                 original,
-                new ReducingStateLatencyMetrics(
+                keyedStateBackend,
+                new ReducingStateMetrics(
                         stateName,
                         latencyTrackingStateConfig.getMetricGroup(),
                         latencyTrackingStateConfig.getSampleInterval(),
                         latencyTrackingStateConfig.getHistorySize(),
-                        latencyTrackingStateConfig.isStateNameAsVariable()));
+                        latencyTrackingStateConfig.isStateNameAsVariable()),
+                new ReducingStateMetrics(
+                        stateName,
+                        sizeTrackingStateConfig.getMetricGroup(),
+                        sizeTrackingStateConfig.getSampleInterval(),
+                        sizeTrackingStateConfig.getHistorySize(),
+                        sizeTrackingStateConfig.isStateNameAsVariable()));
     }
 
     @Override
     public T get() throws Exception {
-        if (latencyTrackingStateMetric.trackLatencyOnGet()) {
-            return trackLatencyWithException(
-                    () -> original.get(), ReducingStateLatencyMetrics.REDUCING_STATE_GET_LATENCY);
+        T result;
+        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackMetricsOnGet()) {
+            result =
+                    trackLatencyWithException(
+                            () -> original.get(), ReducingStateMetrics.REDUCING_STATE_GET_LATENCY);
         } else {
-            return original.get();
+            result = original.get();
         }
+        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackMetricsOnGet()) {
+            sizeTrackingStateMetric.updateMetrics(
+                    ReducingStateMetrics.REDUCING_STATE_GET_KEY_SIZE, super.sizeOfKey());
+            sizeTrackingStateMetric.updateMetrics(
+                    ReducingStateMetrics.REDUCING_STATE_GET_VALUE_SIZE, super.sizeOfValue(result));
+        }
+        return result;
     }
 
     @Override
     public void add(T value) throws Exception {
-        if (latencyTrackingStateMetric.trackLatencyOnAdd()) {
+        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackMetricsOnAdd()) {
+            sizeTrackingStateMetric.updateMetrics(
+                    ReducingStateMetrics.REDUCING_STATE_ADD_KEY_SIZE, super.sizeOfKey());
+            sizeTrackingStateMetric.updateMetrics(
+                    ReducingStateMetrics.REDUCING_STATE_ADD_VALUE_SIZE, super.sizeOfValue(value));
+        }
+        if (latencyTrackingStateMetric != null && latencyTrackingStateMetric.trackMetricsOnAdd()) {
             trackLatencyWithException(
-                    () -> original.add(value),
-                    ReducingStateLatencyMetrics.REDUCING_STATE_ADD_LATENCY);
+                    () -> original.add(value), ReducingStateMetrics.REDUCING_STATE_ADD_LATENCY);
         } else {
             original.add(value);
         }
@@ -86,26 +110,31 @@ class LatencyTrackingReducingState<K, N, T>
 
     @Override
     public void mergeNamespaces(N target, Collection<N> sources) throws Exception {
-        if (latencyTrackingStateMetric.trackLatencyOnMergeNamespace()) {
+        if (latencyTrackingStateMetric != null
+                && latencyTrackingStateMetric.trackMetricsOnMergeNamespace()) {
             trackLatencyWithException(
                     () -> original.mergeNamespaces(target, sources),
-                    ReducingStateLatencyMetrics.REDUCING_STATE_MERGE_NAMESPACES_LATENCY);
+                    ReducingStateMetrics.REDUCING_STATE_MERGE_NAMESPACES_LATENCY);
         } else {
             original.mergeNamespaces(target, sources);
         }
     }
 
-    protected static class ReducingStateLatencyMetrics extends StateLatencyMetricBase {
+    protected static class ReducingStateMetrics extends StateMetricBase {
         private static final String REDUCING_STATE_GET_LATENCY = "reducingStateGetLatency";
         private static final String REDUCING_STATE_ADD_LATENCY = "reducingStateAddLatency";
         private static final String REDUCING_STATE_MERGE_NAMESPACES_LATENCY =
                 "reducingStateMergeNamespacesLatency";
+        private static final String REDUCING_STATE_GET_KEY_SIZE = "reducingStateGetKeySize";
+        private static final String REDUCING_STATE_GET_VALUE_SIZE = "reducingStateGetValueSize";
+        private static final String REDUCING_STATE_ADD_KEY_SIZE = "reducingStateAddKeySize";
+        private static final String REDUCING_STATE_ADD_VALUE_SIZE = "reducingStateAddValueSize";
 
         private int getCount = 0;
         private int addCount = 0;
         private int mergeNamespaceCount = 0;
 
-        ReducingStateLatencyMetrics(
+        ReducingStateMetrics(
                 String stateName,
                 MetricGroup metricGroup,
                 int sampleInterval,
@@ -126,17 +155,17 @@ class LatencyTrackingReducingState<K, N, T>
             return mergeNamespaceCount;
         }
 
-        private boolean trackLatencyOnGet() {
+        private boolean trackMetricsOnGet() {
             getCount = loopUpdateCounter(getCount);
             return getCount == 1;
         }
 
-        private boolean trackLatencyOnAdd() {
+        private boolean trackMetricsOnAdd() {
             addCount = loopUpdateCounter(addCount);
             return addCount == 1;
         }
 
-        private boolean trackLatencyOnMergeNamespace() {
+        private boolean trackMetricsOnMergeNamespace() {
             mergeNamespaceCount = loopUpdateCounter(mergeNamespaceCount);
             return mergeNamespaceCount == 1;
         }
