@@ -26,6 +26,7 @@ import org.apache.flink.api.common.state.v2.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.asyncprocessing.AsyncException;
+import org.apache.flink.runtime.asyncprocessing.EpochManager;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.asyncprocessing.StateExecutionController;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
@@ -118,6 +119,7 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
                                 this::handleAsyncException,
                                 asyncKeyedStateBackend.createStateExecutor(),
                                 declarationManager,
+                                EpochManager.ParallelMode.SERIAL_BETWEEN_EPOCH,
                                 maxParallelism,
                                 asyncBufferSize,
                                 asyncBufferTimeout,

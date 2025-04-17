@@ -126,6 +126,7 @@ class StateExecutionControllerTest {
                         exceptionHandler,
                         stateExecutor,
                         new DeclarationManager(),
+                        EpochManager.ParallelMode.SERIAL_BETWEEN_EPOCH,
                         128,
                         batchSize,
                         timeout,

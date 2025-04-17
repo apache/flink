@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
+import org.apache.flink.runtime.asyncprocessing.EpochManager;
 import org.apache.flink.runtime.asyncprocessing.StateExecutionController;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.v2.adaptor.AsyncKeyedStateBackendAdaptor;
@@ -87,6 +88,7 @@ public abstract class AbstractAsyncStateStreamOperator<OUT>
                                 this::handleAsyncException,
                                 asyncKeyedStateBackend.createStateExecutor(),
                                 declarationManager,
+                                EpochManager.ParallelMode.SERIAL_BETWEEN_EPOCH,
                                 maxParallelism,
                                 asyncBufferSize,
                                 asyncBufferTimeout,
