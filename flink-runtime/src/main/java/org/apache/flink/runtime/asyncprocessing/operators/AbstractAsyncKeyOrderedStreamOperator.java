@@ -79,7 +79,7 @@ public abstract class AbstractAsyncKeyOrderedStreamOperator<OUT> extends Abstrac
     private static final Logger LOG =
             LoggerFactory.getLogger(AbstractAsyncKeyOrderedStreamOperator.class);
 
-    private AsyncExecutionController asyncExecutionController;
+    protected AsyncExecutionController asyncExecutionController;
 
     /** Act as a cache for {@link #setAsyncKeyedContextElement} and {@link #postProcessElement}. */
     protected RecordContext currentProcessingContext;

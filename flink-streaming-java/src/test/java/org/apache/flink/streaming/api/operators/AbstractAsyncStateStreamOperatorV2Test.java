@@ -111,6 +111,7 @@ class AbstractAsyncStateStreamOperatorV2Test {
             // Proceed processing
             testOperator.proceed();
             future.get();
+            testHarness.drainStateRequests();
             assertThat(testOperator.getCurrentProcessingContext().getReferenceCount()).isEqualTo(0);
         }
     }
@@ -134,6 +135,7 @@ class AbstractAsyncStateStreamOperatorV2Test {
             // Proceed processing
             testOperator.proceed();
             future.get();
+            testHarness.drainStateRequests();
             assertThat(testOperator.getCurrentProcessingContext().getReferenceCount()).isEqualTo(0);
         }
     }
