@@ -369,6 +369,14 @@ The LOOKUP hint allows users to suggest the Flink optimizer to:
 	<td>N/A</td>
 	<td>max attempt number of the 'fixed_delay' strategy</td>
 </tr>
+<tr>
+	<td>shuffle</td>
+	<td>shuffle</td>
+	<td>N</td>
+	<td>boolean</td>
+	<td>false</td>
+	<td>whether to enable custom lookup shuffle, which allows the lookup source to decide input data distribution and to optimize lookup strategy accordingly</td>
+</tr>
 </tbody>
 </table>
 
@@ -462,6 +470,22 @@ If the lookup source only has one capability, then the 'async' mode option can b
 
 ```sql
 LOOKUP('table'='Customers', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s','max-attempts'='3')
+```
+
+#### 4. Enable Custom Data Distribution
+
+By default, the data distribution of Lookup Join's input stream is arbitrary, so sources may not
+make effective use of caches to accelerate lookups. By enabling custom shuffle as follows, the
+sources would be able to decide the distribution of the input data on their own and use this prior
+knowledge to optimize their caches and lookup strategy.
+
+Before continuing, make sure the target lookup source supports custom shuffle. For connector
+developers, this could be achieved by having the `LookupTableSource` subclass implement
+`SupportsLookupCustomShuffle`.
+
+Then, users could enable this feature as follows.
+```sql
+LOOKUP('table'='Customers', 'shuffle'='true')
 ```
 
 #### Further Notes
