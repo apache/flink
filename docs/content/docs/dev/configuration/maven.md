@@ -74,7 +74,7 @@ For example, you can add the Kafka connector as a dependency like this:
     <dependency>
         <groupId>org.apache.flink</groupId>
         <artifactId>flink-connector-kafka</artifactId>
-        <version>{{< version >}}</version>
+        <version>1.17-SNAPSHOT</version>
     </dependency>
     
 </dependencies>
