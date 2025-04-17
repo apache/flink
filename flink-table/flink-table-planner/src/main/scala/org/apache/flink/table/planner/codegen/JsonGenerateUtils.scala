@@ -227,6 +227,14 @@ object JsonGenerateUtils {
     }
   }
 
+  /**
+   * Determines if the parameter index is % 2, which means checking that we only allow JSON calls
+   * for the VALUE parameter of a JSON_OBJECT call.
+   */
+  def inValuesParam(i: Int): Boolean = {
+    (i % 2) == 0
+  }
+
   /** Generates a method to convert arrays into [[ArrayNode]]. */
   private def generateArrayConverter(
       ctx: CodeGeneratorContext,
