@@ -479,14 +479,15 @@ make effective use of caches to accelerate lookups. By enabling custom shuffle a
 sources would be able to decide the distribution of the input data on their own and use this prior
 knowledge to optimize their caches and lookup strategy.
 
-Before continuing, make sure the target lookup source supports custom shuffle. For connector
-developers, this could be achieved by having the `LookupTableSource` subclass implement
-`SupportsLookupCustomShuffle`.
-
-Then, users could enable this feature as follows.
 ```sql
 LOOKUP('table'='Customers', 'shuffle'='true')
 ```
+
+In order to make full use of this feature, the target lookup source should have supported custom 
+shuffle. For connector developers, this could be achieved by having the `LookupTableSource` subclass 
+implement `SupportsLookupCustomShuffle`. Even if the source has not provided such support yet, users
+can still enable this feature first, and then Flink will try best to apply a hash partitioning, 
+which should also bring performance improvement.
 
 #### Further Notes
 
