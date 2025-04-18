@@ -19,26 +19,45 @@
 package org.apache.flink.table.runtime.operators.join.interval;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.runtime.asyncprocessing.operators.co.AsyncKeyedCoProcessOperator;
+import org.apache.flink.runtime.asyncprocessing.operators.co.AsyncKeyedCoProcessOperatorWithWatermarkDelay;
+import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
 import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.KeyedCoProcessOperatorWithWatermarkDelay;
+import org.apache.flink.table.runtime.operators.join.interval.asyncprocess.AsyncRowAsyncTimeIntervalJoin;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link RowTimeIntervalJoin}. */
+@ExtendWith(ParameterizedTestExtension.class)
 class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
+
+    @Parameters(name = "enableAsyncState = {0}")
+    public static Collection<Object[]> data() {
+        return Arrays.asList(new Object[] {false}, new Object[] {true});
+    }
+
+    @Parameter public boolean enableAsyncState;
 
     private int keyIdx = 1;
     private RowDataKeySelector keySelector =
@@ -47,11 +66,32 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     private TypeInformation<RowData> keyType = InternalTypeInfo.ofFields();
 
     /** a.rowtime >= b.rowtime - 10 and a.rowtime <= b.rowtime + 20. * */
-    @Test
+    @TestTemplate
     void testRowTimeInnerJoinWithCommonBounds() throws Exception {
-        RowTimeIntervalJoin joinProcessFunc =
-                new RowTimeIntervalJoin(
-                        FlinkJoinType.INNER, -10, 20, 0, 15, rowType, rowType, joinFunction, 0, 0);
+        KeyedCoProcessFunction<RowData, RowData, RowData, RowData> joinProcessFunc =
+                enableAsyncState
+                        ? new AsyncRowAsyncTimeIntervalJoin(
+                                FlinkJoinType.INNER,
+                                -10,
+                                20,
+                                0,
+                                15,
+                                rowType,
+                                rowType,
+                                joinFunction,
+                                0,
+                                0)
+                        : new RowTimeIntervalJoin(
+                                FlinkJoinType.INNER,
+                                -10,
+                                20,
+                                0,
+                                15,
+                                rowType,
+                                rowType,
+                                joinFunction,
+                                0,
+                                0);
 
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
@@ -112,11 +152,32 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     }
 
     /** a.rowtime >= b.rowtime - 10 and a.rowtime <= b.rowtime - 7. * */
-    @Test
+    @TestTemplate
     void testRowTimeInnerJoinWithNegativeBounds() throws Exception {
-        RowTimeIntervalJoin joinProcessFunc =
-                new RowTimeIntervalJoin(
-                        FlinkJoinType.INNER, -10, -7, 0, 0, rowType, rowType, joinFunction, 0, 0);
+        KeyedCoProcessFunction<RowData, RowData, RowData, RowData> joinProcessFunc =
+                enableAsyncState
+                        ? new AsyncRowAsyncTimeIntervalJoin(
+                                FlinkJoinType.INNER,
+                                -10,
+                                -7,
+                                0,
+                                0,
+                                rowType,
+                                rowType,
+                                joinFunction,
+                                0,
+                                0)
+                        : new RowTimeIntervalJoin(
+                                FlinkJoinType.INNER,
+                                -10,
+                                -7,
+                                0,
+                                0,
+                                rowType,
+                                rowType,
+                                joinFunction,
+                                0,
+                                0);
 
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
@@ -167,11 +228,32 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
         testHarness.close();
     }
 
-    @Test
+    @TestTemplate
     void testRowTimeInnerJoinRealtimeCleanUp() throws Exception {
-        RowTimeIntervalJoin joinProcessFunc =
-                new RowTimeIntervalJoin(
-                        FlinkJoinType.LEFT, -5, 9, 0, 0, rowType, rowType, joinFunction, 0, 0);
+        KeyedCoProcessFunction<RowData, RowData, RowData, RowData> joinProcessFunc =
+                enableAsyncState
+                        ? new AsyncRowAsyncTimeIntervalJoin(
+                                FlinkJoinType.LEFT,
+                                0,
+                                9,
+                                0,
+                                0,
+                                rowType,
+                                rowType,
+                                joinFunction,
+                                0,
+                                0)
+                        : new RowTimeIntervalJoin(
+                                FlinkJoinType.LEFT,
+                                -5,
+                                9,
+                                0,
+                                0,
+                                rowType,
+                                rowType,
+                                joinFunction,
+                                0,
+                                0);
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
 
@@ -196,11 +278,32 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
         testHarness.close();
     }
 
-    @Test
+    @TestTemplate
     void testRowTimeLeftOuterJoin() throws Exception {
-        RowTimeIntervalJoin joinProcessFunc =
-                new RowTimeIntervalJoin(
-                        FlinkJoinType.LEFT, -5, 9, 0, 7, rowType, rowType, joinFunction, 0, 0);
+        KeyedCoProcessFunction<RowData, RowData, RowData, RowData> joinProcessFunc =
+                enableAsyncState
+                        ? new AsyncRowAsyncTimeIntervalJoin(
+                                FlinkJoinType.LEFT,
+                                -5,
+                                9,
+                                0,
+                                7,
+                                rowType,
+                                rowType,
+                                joinFunction,
+                                0,
+                                0)
+                        : new RowTimeIntervalJoin(
+                                FlinkJoinType.LEFT,
+                                -5,
+                                9,
+                                0,
+                                7,
+                                rowType,
+                                rowType,
+                                joinFunction,
+                                0,
+                                0);
 
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
@@ -266,11 +369,32 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
         testHarness.close();
     }
 
-    @Test
+    @TestTemplate
     void testRowTimeRightOuterJoin() throws Exception {
-        RowTimeIntervalJoin joinProcessFunc =
-                new RowTimeIntervalJoin(
-                        FlinkJoinType.RIGHT, -5, 9, 0, 7, rowType, rowType, joinFunction, 0, 0);
+        KeyedCoProcessFunction<RowData, RowData, RowData, RowData> joinProcessFunc =
+                enableAsyncState
+                        ? new AsyncRowAsyncTimeIntervalJoin(
+                                FlinkJoinType.RIGHT,
+                                -5,
+                                9,
+                                0,
+                                7,
+                                rowType,
+                                rowType,
+                                joinFunction,
+                                0,
+                                0)
+                        : new RowTimeIntervalJoin(
+                                FlinkJoinType.RIGHT,
+                                -5,
+                                9,
+                                0,
+                                7,
+                                rowType,
+                                rowType,
+                                joinFunction,
+                                0,
+                                0);
 
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
@@ -337,11 +461,32 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     }
 
     /** a.rowtime >= b.rowtime - 5 and a.rowtime <= b.rowtime + 9. * */
-    @Test
+    @TestTemplate
     void testRowTimeFullOuterJoin() throws Exception {
-        RowTimeIntervalJoin joinProcessFunc =
-                new RowTimeIntervalJoin(
-                        FlinkJoinType.FULL, -5, 9, 0, 7, rowType, rowType, joinFunction, 0, 0);
+        KeyedCoProcessFunction<RowData, RowData, RowData, RowData> joinProcessFunc =
+                enableAsyncState
+                        ? new AsyncRowAsyncTimeIntervalJoin(
+                                FlinkJoinType.FULL,
+                                -5,
+                                9,
+                                0,
+                                7,
+                                rowType,
+                                rowType,
+                                joinFunction,
+                                0,
+                                0)
+                        : new RowTimeIntervalJoin(
+                                FlinkJoinType.FULL,
+                                -5,
+                                9,
+                                0,
+                                7,
+                                rowType,
+                                rowType,
+                                joinFunction,
+                                0,
+                                0);
 
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
@@ -414,13 +559,28 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     }
 
     private KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
-            createTestHarness(RowTimeIntervalJoin intervalJoinFunc) throws Exception {
-        KeyedCoProcessOperator<RowData, RowData, RowData, RowData> operator =
-                new KeyedCoProcessOperatorWithWatermarkDelay<>(
-                        intervalJoinFunc, intervalJoinFunc.getMaxOutputDelay());
-        KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
-                new KeyedTwoInputStreamOperatorTestHarness<>(
-                        operator, keySelector, keySelector, keyType);
-        return testHarness;
+            createTestHarness(
+                    KeyedCoProcessFunction<RowData, RowData, RowData, RowData> intervalJoinFunc)
+                    throws Exception {
+        if (!enableAsyncState) {
+            KeyedCoProcessOperator<RowData, RowData, RowData, RowData> operator =
+                    new KeyedCoProcessOperatorWithWatermarkDelay<>(
+                            intervalJoinFunc,
+                            ((RowTimeIntervalJoin) intervalJoinFunc).getMaxOutputDelay());
+            KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
+                    new KeyedTwoInputStreamOperatorTestHarness<>(
+                            operator, keySelector, keySelector, keyType);
+            return testHarness;
+        } else {
+            AsyncKeyedCoProcessOperator<RowData, RowData, RowData, RowData> operator =
+                    new AsyncKeyedCoProcessOperatorWithWatermarkDelay<>(
+                            intervalJoinFunc,
+                            ((AsyncRowAsyncTimeIntervalJoin) intervalJoinFunc).getMaxOutputDelay());
+            AsyncKeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
+                    testHarness =
+                            AsyncKeyedTwoInputStreamOperatorTestHarness.create(
+                                    operator, keySelector, keySelector, keyType);
+            return testHarness;
+        }
     }
 }
