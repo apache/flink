@@ -67,6 +67,7 @@ class InternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
                 .isEqualTo(InternalServiceDecorator.getInternalServiceName(CLUSTER_ID));
 
         final Map<String, String> expectedLabels = getCommonLabels();
+        expectedLabels.putAll(userLabels);
         assertThat(internalService.getMetadata().getLabels()).isEqualTo(expectedLabels);
 
         assertThat(internalService.getMetadata().getAnnotations()).isEqualTo(userAnnotations);
@@ -86,8 +87,9 @@ class InternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
                                 .build());
         assertThat(internalService.getSpec().getPorts()).isEqualTo(expectedServicePorts);
 
-        expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
-        assertThat(internalService.getSpec().getSelector()).isEqualTo(expectedLabels);
+        final Map<String, String> expectedSelectors = getCommonLabels();
+        expectedSelectors.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
+        assertThat(internalService.getSpec().getSelector()).isEqualTo(expectedSelectors);
     }
 
     @Test
