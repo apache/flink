@@ -33,6 +33,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalT
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalCalc;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalTableSourceScan;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampKind;
@@ -203,7 +204,13 @@ public class ScanReuserUtils {
                 String name = newFieldNames.get(i);
                 LogicalType type = newSourceType.getTypeAt(i);
                 if (name.equals(rowtimeColumn)) {
-                    type = new TimestampType(type.isNullable(), TimestampKind.ROWTIME, 3);
+                    if (type instanceof LocalZonedTimestampType) {
+                        type =
+                                new LocalZonedTimestampType(
+                                        type.isNullable(), TimestampKind.ROWTIME, 3);
+                    } else {
+                        type = new TimestampType(type.isNullable(), TimestampKind.ROWTIME, 3);
+                    }
                 }
                 fields.add(new RowType.RowField(name, type));
             }
