@@ -55,7 +55,6 @@ import static org.apache.flink.state.forst.ForStStateTestBase.getMockEnvironment
 import static org.apache.flink.state.forst.ForStTestUtils.createKeyedStateBackend;
 import static org.apache.flink.state.forst.ForStTestUtils.createSyncKeyedStateBackend;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
 
 /** Compatibility test for {@link ForStKeyedStateBackend} and {@link ForStSyncKeyedStateBackend}. */
 class ForStAsyncAndSyncCompatibilityTest {
@@ -126,19 +125,9 @@ class ForStAsyncAndSyncCompatibilityTest {
                     syncKeyedStateBackend.getOrCreateKeyedState(
                             IntSerializer.INSTANCE,
                             StateDescriptorUtils.transformFromV2ToV1(descriptor));
-            fail();
-
             syncKeyedStateBackend.setCurrentKey("testKey");
-            ((InternalKvState) syncKeyedStateBackend).setCurrentNamespace(1);
+            ((InternalKvState) syncMapState).setCurrentNamespace(1);
             assertThat(syncMapState.get(1)).isEqualTo("1");
-        } catch (Exception e) {
-            // Currently, ForStStateBackend does not support switching from Async to Sync, so this
-            // exception will be caught here
-            assertThat(e).isInstanceOf(ClassCastException.class);
-            assertThat(e.getMessage())
-                    .contains(
-                            "org.apache.flink.runtime.state.v2.RegisteredKeyAndUserKeyValueStateBackendMetaInfo cannot be cast to class org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo");
-
         } finally {
             IOUtils.closeQuietly(syncKeyedStateBackend);
         }
@@ -184,8 +173,6 @@ class ForStAsyncAndSyncCompatibilityTest {
             MapState<Integer, String> asyncMapState =
                     asyncKeyedStateBackend.createState(
                             1, IntSerializer.INSTANCE, newStateDescriptor);
-            fail();
-
             context = aec.buildContext("testRecord", "testKey");
             context.retain();
             aec.setCurrentContext(context);
@@ -197,13 +184,6 @@ class ForStAsyncAndSyncCompatibilityTest {
                             });
             context.release();
             aec.drainInflightRecords(0);
-        } catch (Exception e) {
-            // Currently, ForStStateBackend does not support switching from Sync to Async, so this
-            // exception will be caught here
-            assertThat(e).isInstanceOf(ClassCastException.class);
-            assertThat(e.getMessage())
-                    .contains(
-                            "org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo cannot be cast to class org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo");
         } finally {
             IOUtils.closeQuietly(asyncKeyedStateBackend);
         }

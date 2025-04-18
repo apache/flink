@@ -103,7 +103,7 @@ public class RegisteredKeyAndUserKeyValueStateBackendMetaInfo<N, UK, S>
                         == snapshot.getBackendStateType());
     }
 
-    private RegisteredKeyAndUserKeyValueStateBackendMetaInfo(
+    public RegisteredKeyAndUserKeyValueStateBackendMetaInfo(
             @Nonnull String name,
             @Nonnull StateDescriptor.Type stateType,
             @Nonnull StateSerializerProvider<N> namespaceSerializerProvider,
