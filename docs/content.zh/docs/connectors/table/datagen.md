@@ -314,7 +314,7 @@ CREATE TABLE Orders (
       <td>可选</td>
       <td style="word-wrap: break-word;">0</td>
       <td>Duration</td>
-      <td>对于 string/bytes 类型为 100，对于 array/map/multiset 类型为 3</td>
+      <td>对于 string/bytes 类型为 100，对于 array/map/multiset 类型为 3。</td>
     </tr>
     <tr>
       <td><h5>fields.#.length</h5></td>
