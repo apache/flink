@@ -45,7 +45,9 @@ import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -149,6 +151,85 @@ public class FlinkResultSetTest {
             assertNull(resultSet.getObject(10));
             assertNull(resultSet.getObject(11));
             assertFalse(resultSet.next());
+        }
+    }
+
+    @Test
+    public void testUnwrapSuccessful() throws Exception {
+        CloseableIterator<RowData> data =
+                CloseableIterator.adapterForIterator(
+                        Collections.singletonList(
+                                        (RowData)
+                                                GenericRowData.of(
+                                                        null, null, null, null, null, null, null,
+                                                        null, null, null, null))
+                                .iterator());
+        try (ResultSet resultSet =
+                new FlinkResultSet(
+                        new TestingStatement(),
+                        new StatementResult(
+                                SCHEMA, data, true, ResultKind.SUCCESS, JobID.generate()))) {
+            FlinkResultSet unwrap = resultSet.unwrap(FlinkResultSet.class);
+            assertNotNull(unwrap);
+        }
+    }
+
+    @Test
+    public void testUnwrapFailed() throws Exception {
+        CloseableIterator<RowData> data =
+                CloseableIterator.adapterForIterator(
+                        Collections.singletonList(
+                                        (RowData)
+                                                GenericRowData.of(
+                                                        null, null, null, null, null, null, null,
+                                                        null, null, null, null))
+                                .iterator());
+        try (ResultSet resultSet =
+                new FlinkResultSet(
+                        new TestingStatement(),
+                        new StatementResult(
+                                SCHEMA, data, true, ResultKind.SUCCESS, JobID.generate()))) {
+            assertThrows(SQLException.class, () -> resultSet.unwrap(TestingResultSet.class));
+        }
+    }
+
+    @Test
+    public void testIsWrapperFor() throws Exception {
+        CloseableIterator<RowData> data =
+                CloseableIterator.adapterForIterator(
+                        Collections.singletonList(
+                                        (RowData)
+                                                GenericRowData.of(
+                                                        null, null, null, null, null, null, null,
+                                                        null, null, null, null))
+                                .iterator());
+        try (ResultSet resultSet =
+                new FlinkResultSet(
+                        new TestingStatement(),
+                        new StatementResult(
+                                SCHEMA, data, true, ResultKind.SUCCESS, JobID.generate()))) {
+            assertTrue(resultSet.isWrapperFor(FlinkResultSet.class));
+            assertFalse(resultSet.isWrapperFor(TestingResultSet.class));
+        }
+    }
+
+    @Test
+    void getJobID() throws SQLException {
+        CloseableIterator<RowData> data =
+                CloseableIterator.adapterForIterator(
+                        Collections.singletonList(
+                                        (RowData)
+                                                GenericRowData.of(
+                                                        null, null, null, null, null, null, null,
+                                                        null, null, null, null))
+                                .iterator());
+        try (ResultSet resultSet =
+                new FlinkResultSet(
+                        new TestingStatement(),
+                        new StatementResult(
+                                SCHEMA, data, true, ResultKind.SUCCESS, JobID.generate()))) {
+            FlinkResultSet unwrap = resultSet.unwrap(FlinkResultSet.class);
+            assertNotNull(unwrap.getJobID());
         }
     }
 
