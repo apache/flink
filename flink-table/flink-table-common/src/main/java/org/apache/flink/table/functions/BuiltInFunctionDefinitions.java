@@ -376,6 +376,17 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.scalar.ArrayUnionFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition ARRAY_CONTAINS_SEQ =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_CONTAINS_SEQ")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(commonArrayType(2))
+                    .outputTypeStrategy(
+                            nullableIfArgs(
+                                    ConstantArgumentCount.of(0), explicit(DataTypes.BOOLEAN())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ArrayContainsSeqFunction")
+                    .build();
     public static final BuiltInFunctionDefinition ARRAY_CONCAT =
             BuiltInFunctionDefinition.newBuilder()
                     .name("ARRAY_CONCAT")

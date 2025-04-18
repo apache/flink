@@ -971,6 +971,9 @@ collection:
   - sql: ARRAY_JOIN(array, delimiter[, nullReplacement])
     table: array.arrayJoin(delimiter[, nullReplacement])
     description: 返回一个字符串，表示给定数组中元素的串联，并且给定数组中元素的数据类型为字符串。 分隔符 delimiter 是一个字符串，用于分隔数组的每对连续元素。 可选的参数 nullReplacement 是一个字符串，用于替换数组中的 null 元素。 如果未指定 nullReplacement，则结果字符串中将从数组中省略 null 元素。 如果输入数组或分隔符或 nullReplacement 为 null，则返回 null。
+  - sql: ARRAY_CONTAINS_SEQ(array1, array2)
+    table: array1.array_contains_seq(array2)
+    description: Return true if array1 contains all of array2 as a subsequence (all values in the same consecutive order).
   - sql: MAP_KEYS(map)
     table: MAP.mapKeys()
     description: 以数组形式返回 map 中的所有 key，不保证顺序。
