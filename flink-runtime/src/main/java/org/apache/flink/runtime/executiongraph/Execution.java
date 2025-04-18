@@ -975,8 +975,14 @@ public class Execution
             Map<String, Accumulator<?, ?>> userAccumulators,
             IOMetrics metrics,
             boolean releasePartitions,
-            boolean fromSchedulerNg) {
-        processFail(t, cancelTask, userAccumulators, metrics, releasePartitions, fromSchedulerNg);
+            boolean fromWithinExecutionGraph) {
+        processFail(
+                t,
+                cancelTask,
+                userAccumulators,
+                metrics,
+                releasePartitions,
+                fromWithinExecutionGraph);
     }
 
     @VisibleForTesting
@@ -1148,8 +1154,8 @@ public class Execution
      * @param metrics IO metrics
      * @param releasePartitions Indicating whether to release result partitions produced by this
      *     execution. False if the task is FAILED in TaskManager, otherwise true.
-     * @param fromSchedulerNg Indicating whether the failure is from the SchedulerNg. It should be
-     *     false if it is from within the ExecutionGraph.
+     * @param fromWithinExecutionGraph Indicating whether the failure is from within the
+     *     ExecutionGraph. It should be true if it is from within the ExecutionGraph.
      */
     private void processFail(
             Throwable t,
@@ -1157,7 +1163,7 @@ public class Execution
             Map<String, Accumulator<?, ?>> userAccumulators,
             IOMetrics metrics,
             boolean releasePartitions,
-            boolean fromSchedulerNg) {
+            boolean fromWithinExecutionGraph) {
 
         assertRunningInJobMasterMainThread();
 
@@ -1185,7 +1191,7 @@ public class Execution
             return;
         }
 
-        if (!fromSchedulerNg) {
+        if (!fromWithinExecutionGraph) {
             vertex.getExecutionGraphAccessor()
                     .notifySchedulerNgAboutInternalTaskFailure(
                             attemptId, t, cancelTask, releasePartitions);
