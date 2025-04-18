@@ -56,6 +56,7 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.over.AbstractRowTimeUnboundedPrecedingOver;
 import org.apache.flink.table.runtime.operators.over.NonTimeRangeUnboundedPrecedingFunction;
+import org.apache.flink.table.runtime.operators.over.NonTimeRowsUnboundedPrecedingFunction;
 import org.apache.flink.table.runtime.operators.over.ProcTimeRangeBoundedPrecedingFunction;
 import org.apache.flink.table.runtime.operators.over.ProcTimeRowsBoundedPrecedingFunction;
 import org.apache.flink.table.runtime.operators.over.ProcTimeUnboundedPrecedingFunction;
@@ -68,6 +69,7 @@ import org.apache.flink.table.runtime.operators.over.TimeAttribute;
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.StateConfigUtil;
+import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -392,12 +394,6 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                         genAggsHandler,
                         flattenAccTypes);
             case NON_TIME:
-                if (isRowsClause) {
-                    // Non-Time Rows Unbounded Preceding Function
-                    throw new TableException(
-                            "OVER windows with UNBOUNDED PRECEDING are not supported when sorting on a non-time attribute column.");
-                }
-
                 final GeneratedRecordEqualiser generatedRecordEqualiser =
                         new EqualiserCodeGenerator(inputRowType, ctx.classLoader())
                                 .generateRecordEqualiser("FirstMatchingRowEqualiser");
@@ -444,17 +440,33 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                         KeySelectorUtil.getRowDataSelector(
                                 ctx.classLoader(), orderKeys, inputRowTypeInfo);
 
-                // Non-Time Range Unbounded Preceding Function
-                return new NonTimeRangeUnboundedPrecedingFunction<>(
-                        config.getStateRetentionTime(),
-                        genAggsHandler,
-                        generatedRecordEqualiser,
-                        generatedSortKeyEqualiser,
-                        generatedRecordComparator,
-                        flattenAccTypes,
-                        fieldTypes,
-                        sortKeyTypes,
-                        sortKeySelector);
+                if (isRowsClause) {
+                    // Non-Time Rows Unbounded Preceding Function
+                    return new NonTimeRowsUnboundedPrecedingFunction<>(
+                            config.getStateRetentionTime(),
+                            genAggsHandler,
+                            generatedRecordEqualiser,
+                            generatedSortKeyEqualiser,
+                            generatedRecordComparator,
+                            flattenAccTypes,
+                            fieldTypes,
+                            sortKeyTypes,
+                            sortKeySelector,
+                            InternalTypeInfo.ofFields(new BigIntType()));
+                } else {
+                    // Non-Time Range Unbounded Preceding Function
+                    return new NonTimeRangeUnboundedPrecedingFunction<>(
+                            config.getStateRetentionTime(),
+                            genAggsHandler,
+                            generatedRecordEqualiser,
+                            generatedSortKeyEqualiser,
+                            generatedRecordComparator,
+                            flattenAccTypes,
+                            fieldTypes,
+                            sortKeyTypes,
+                            sortKeySelector,
+                            InternalTypeInfo.ofFields(sortKeyTypes));
+                }
             default:
                 throw new TableException(
                         "Unsupported unbounded operation encountered for over aggregate");
