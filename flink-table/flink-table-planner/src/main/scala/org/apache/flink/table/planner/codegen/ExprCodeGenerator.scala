@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexDistinctKeyV
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.GenerateUtils._
-import org.apache.flink.table.planner.codegen.JsonGenerateUtils.{isJsonArrayOperand, isJsonFunctionOperand, isJsonObjectOperand}
+import org.apache.flink.table.planner.codegen.JsonGenerateUtils.{inValuesParam, isJsonArrayOperand, isJsonFunctionOperand, isJsonObjectOperand}
 import org.apache.flink.table.planner.codegen.calls._
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
 import org.apache.flink.table.planner.codegen.calls.SearchOperatorGen.generateSearch
@@ -489,7 +489,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       // We only support JSON function operands as the value param of a JSON_OBJECT or JSON_ARRAY function
       case (operand: RexNode, i)
           if isJsonFunctionOperand(operand) &&
-            (isJsonArrayOperand(call) || i == 2 && isJsonObjectOperand(call)) =>
+            (isJsonArrayOperand(call) || isJsonObjectOperand(call) && inValuesParam(i)) =>
         generateJsonCall(operand)
 
       case (o @ _, _) => o.accept(this)
