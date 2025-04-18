@@ -97,7 +97,7 @@ CREATE TABLE Orders (
 )
 ```
 
-对于集合类型，您可以指定集合的大小(元素个数)。
+对于集合类型，你可以指定集合的大小（元素个数）。
 
 ```sql
 CREATE TABLE Orders (
