@@ -22,6 +22,8 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 /** {@link LeaderRetrievalDriverFactory} implementation for Zookeeper. */
 public class ZooKeeperLeaderRetrievalDriverFactory implements LeaderRetrievalDriverFactory {
 
@@ -31,6 +33,8 @@ public class ZooKeeperLeaderRetrievalDriverFactory implements LeaderRetrievalDri
 
     private final ZooKeeperLeaderRetrievalDriver.LeaderInformationClearancePolicy
             leaderInformationClearancePolicy;
+
+    private final DriverReferenceCounter driverReferenceCounter = new DriverReferenceCounter();
 
     public ZooKeeperLeaderRetrievalDriverFactory(
             CuratorFramework client,
@@ -46,11 +50,43 @@ public class ZooKeeperLeaderRetrievalDriverFactory implements LeaderRetrievalDri
     public ZooKeeperLeaderRetrievalDriver createLeaderRetrievalDriver(
             LeaderRetrievalEventHandler leaderEventHandler, FatalErrorHandler fatalErrorHandler)
             throws Exception {
+        driverReferenceCounter.incrementReferenceCounter();
         return new ZooKeeperLeaderRetrievalDriver(
                 client,
                 retrievalPath,
                 leaderEventHandler,
                 leaderInformationClearancePolicy,
+                driverReferenceCounter,
                 fatalErrorHandler);
+    }
+
+    /**
+     * Each {@code ZooKeeperLeaderRetrievalDriver} has its own watcher initialized. There is a bug
+     * in ZooKeeper where watcher threads are not properly cleaned up. No selective cleanup of
+     * watcher threads is supported on the ZK server side (ZOOKEEPER-4625). This can lead to thread
+     * leaks in test scenarios where ZooKeeper's TestServer is utilized within the VM (see
+     * FLINK-33053).
+     *
+     * <p>Therefore, we need to maintain an external reference counter that is used to trigger the
+     * release of all watchers if the reference count reaches 1.
+     */
+    private static class DriverReferenceCounter
+            implements ZooKeeperLeaderRetrievalDriver.RemoveAllWatchers {
+
+        private final AtomicInteger referenceCounter = new AtomicInteger(0);
+
+        public void incrementReferenceCounter() {
+            referenceCounter.incrementAndGet();
+        }
+
+        @Override
+        public void closeCalled() {
+            referenceCounter.decrementAndGet();
+        }
+
+        @Override
+        public boolean shouldRemoveAllWatchers() {
+            return referenceCounter.get() == 0;
+        }
     }
 }
