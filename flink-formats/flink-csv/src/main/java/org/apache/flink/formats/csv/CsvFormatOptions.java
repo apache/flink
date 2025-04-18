@@ -94,5 +94,11 @@ public class CsvFormatOptions {
                     .withDescription(
                             "Enables representation of BigDecimal data type in scientific notation (default is true). For example, 100000 is encoded as 1E+5 by default, and will be written as 100000 if set this option to false. Note: Only when the value is not 0 and a multiple of 10 is converted to scientific notation.");
 
+    public static final ConfigOption<String> CHARSET =
+            ConfigOptions.key("charset")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("The charset of sources.");
+
     private CsvFormatOptions() {}
 }
