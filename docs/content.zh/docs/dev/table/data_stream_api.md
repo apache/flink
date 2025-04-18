@@ -3151,11 +3151,11 @@ Table table = tableEnv.fromValues(
     row("sarah", 32));
 
 // Convert the Table into an append DataStream of Row by specifying the class
-DataStream<Row> dsRow = tableEnv.toAppendStream(table, Row.class);
+DataStream<Row> dsRow = tableEnv.toDataStream(table, Row.class);
 
 // Convert the Table into an append DataStream of Tuple2<String, Integer> with TypeInformation
 TupleTypeInfo<Tuple2<String, Integer>> tupleType = new TupleTypeInfo<>(Types.STRING(), Types.INT());
-DataStream<Tuple2<String, Integer>> dsTuple = tableEnv.toAppendStream(table, tupleType);
+DataStream<Tuple2<String, Integer>> dsTuple = tableEnv.toDataStream(table, tupleType);
 
 // Convert the Table into a retract DataStream of Row.
 // A retract stream of type X is a DataStream<Tuple2<Boolean, X>>. 
@@ -3178,11 +3178,12 @@ val table: Table = tableEnv.fromValues(
     row("sarah", 32))
 
 // Convert the Table into an append DataStream of Row by specifying the class
-val dsRow: DataStream[Row] = tableEnv.toAppendStream[Row](table)
+val dsRow: DataStream[Row] = tableEnv.toDataStream(table)
 
 // Convert the Table into an append DataStream of (String, Integer) with TypeInformation
-val dsTuple: DataStream[(String, Int)] dsTuple = 
-  tableEnv.toAppendStream[(String, Int)](table)
+case class User(var name: String, var age: java.lang.Integer)
+val dsTuple: DataStream[User] dsTuple =
+  tableEnv.toDataStream(table, DataTypes.of(User.class))
 
 // Convert the Table into a retract DataStream of Row.
 // A retract stream of type X is a DataStream<Tuple2<Boolean, X>>. 
