@@ -549,10 +549,6 @@ class CatalogTestBase(PyFlinkTestCase):
         self.check_catalog_model_equals(new_model, self.catalog.get_model(self.modelPath1))
         self.catalog.drop_model(self.modelPath1, False)
 
-    def test_alter_model_model_not_exist_exception(self):
-        with self.assertRaises(ModelNotExistException):
-            self.catalog.alter_model(self.non_exist_db_path, self.create_model(), False)
-
     def test_alter_model_model_not_exist_ignored(self):
         self.catalog.create_database(self.db1, self.create_db(), False)
         self.catalog.alter_model(self.non_exist_object_path, self.create_model(), True)

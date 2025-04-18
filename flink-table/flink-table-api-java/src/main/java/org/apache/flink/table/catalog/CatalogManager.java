@@ -33,6 +33,7 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.ModelAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.ModelNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
@@ -1542,18 +1543,50 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
     /**
      * Alters a model in a given fully qualified path.
      *
-     * @param modelChange The model containing only changes
+     * @param newModel The new model containing changes.
+     * @param modelChanges The changes to apply to the model.
      * @param objectIdentifier The fully qualified path where to alter the model.
      * @param ignoreIfNotExists If false exception will be thrown if the model to be altered does
      *     not exist.
      */
     public void alterModel(
-            CatalogModel modelChange,
+            CatalogModel newModel,
+            List<ModelChange> modelChanges,
             ObjectIdentifier objectIdentifier,
             boolean ignoreIfNotExists) {
         execute(
                 (catalog, path) -> {
-                    ResolvedCatalogModel resolvedModel = resolveCatalogModel(modelChange);
+                    ResolvedCatalogModel resolvedModel = resolveCatalogModel(newModel);
+                    catalog.alterModel(path, resolvedModel, modelChanges, ignoreIfNotExists);
+                    catalogModificationListeners.forEach(
+                            listener ->
+                                    listener.onEvent(
+                                            AlterModelEvent.createEvent(
+                                                    CatalogContext.createContext(
+                                                            objectIdentifier.getCatalogName(),
+                                                            catalog),
+                                                    objectIdentifier,
+                                                    resolvedModel,
+                                                    ignoreIfNotExists)));
+                },
+                objectIdentifier,
+                ignoreIfNotExists,
+                "AlterModel");
+    }
+
+    /**
+     * Alters a model in a given fully qualified path.
+     *
+     * @param newModel The new model containing changes
+     * @param objectIdentifier The fully qualified path where to alter the model.
+     * @param ignoreIfNotExists If false exception will be thrown if the model to be altered does
+     *     not exist.
+     */
+    public void alterModel(
+            CatalogModel newModel, ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+        execute(
+                (catalog, path) -> {
+                    ResolvedCatalogModel resolvedModel = resolveCatalogModel(newModel);
                     catalog.alterModel(path, resolvedModel, ignoreIfNotExists);
                     catalogModificationListeners.forEach(
                             listener ->
@@ -1670,6 +1703,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                 command.execute(catalog.get(), objectIdentifier.toObjectPath());
             } catch (TableAlreadyExistException
                     | TableNotExistException
+                    | ModelNotExistException
+                    | ModelAlreadyExistException
                     | DatabaseNotExistException e) {
                 throw new ValidationException(getErrorMessage(objectIdentifier, commandName), e);
             } catch (Exception e) {
