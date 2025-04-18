@@ -359,6 +359,14 @@ LOOKUP 联接提示允许用户建议 Flink 优化器:
 	<td>N/A</td>
 	<td>固定延迟策略的最大重试次数</td>
 </tr>
+<tr>
+	<td>shuffle</td>
+	<td>shuffle</td>
+	<td>N</td>
+	<td>boolean</td>
+	<td>false</td>
+	<td>是否开启自定义数据分发功能。此功能允许 Lookup Source 自行决定数据分布方式并依此对数据查询逻辑做相应优化</td>
+</tr>
 </tbody>
 </table>
 
@@ -444,6 +452,19 @@ LOOKUP('table'='Customers', 'async'='false', 'retry-predicate'='lookup_miss', 'r
 ```sql
 LOOKUP('table'='Customers', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s','max-attempts'='3')
 ```
+
+#### 4. 启用自定义数据分布
+
+在默认情况下，Lookup Join 的输入流数据分布是随机的，因此数据源可能无法有效利用缓存来加速查找。 用户可以通过如下方式启
+用自定义数据分发，使数据源能够自行决定输入数据的分布，并利用这一先验知识来优化其缓存和查找策略。
+
+```sql
+LOOKUP('table'='Customers', 'shuffle'='true')
+```
+
+为了充分利用这个优化，目标 Lookup Source 应该提供对自定义数据分发能力的支持。连接器开发人员可以通过让 
+LookupTableSource 子类实现 SupportsLookupCustomShuffle 接口来支持这种能力。即使 Source 尚未提供这种能力，用户
+依然可以选择先启用这个功能，此时 Flink 将会尝试应用哈希分区的优化方式以尽可能带来性能提升。
 
 #### 进一步说明
 
