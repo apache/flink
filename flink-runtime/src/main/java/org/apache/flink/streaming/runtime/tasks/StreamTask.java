@@ -862,15 +862,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 INITIALIZE_STATE_DURATION, initializeStateEndTs - readOutputDataTs);
         IndexedInputGate[] inputGates = getEnvironment().getAllInputGates();
 
-        channelIOExecutor.execute(
-                () -> {
-                    try {
-                        reader.readInputData(inputGates);
-                    } catch (Exception e) {
-                        asyncExceptionHandler.handleAsyncException(
-                                "Unable to read channel state", e);
-                    }
-                });
+        if (inputGates.length > 0) {
+            channelIOExecutor.execute(
+                    () -> {
+                        try {
+                            reader.readInputData(inputGates);
+                        } catch (Exception e) {
+                            asyncExceptionHandler.handleAsyncException(
+                                    "Unable to read channel state", e);
+                        }
+                    });
+        }
 
         // We wait for all input channel state to recover before we go into RUNNING state, and thus
         // start checkpointing. If we implement incremental checkpointing of input channel state
