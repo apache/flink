@@ -427,7 +427,6 @@ class LookupJoinTest extends TableTestBase with Serializable {
 
   @Test
   def testJoinTemporalTableWithFunctionAndConstantCondition(): Unit = {
-
     val sql =
       """
         |SELECT * FROM MyTable AS T
@@ -440,7 +439,6 @@ class LookupJoinTest extends TableTestBase with Serializable {
 
   @Test
   def testJoinTemporalTableWithMultiFunctionAndConstantCondition(): Unit = {
-
     val sql =
       """
         |SELECT * FROM MyTable AS T
@@ -569,6 +567,37 @@ class LookupJoinTest extends TableTestBase with Serializable {
         |JOIN OtherLookupTable FOR SYSTEM_TIME AS OF MyLookupTable.proctime AS D
         |ON MyLookupTable.a = D.id AND D.age = 10
       """.stripMargin
+
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testJoinFilterableTemporalTableWithUnion(): Unit = {
+    util.addTable("""
+                    |CREATE TABLE LookupTableWithFilterableFields (
+                    |  `id` INT,
+                    |  `status` STRING,
+                    |  PRIMARY KEY(id) NOT ENFORCED
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'filterable-fields' = 'id;status'
+                    |)
+                    |""".stripMargin)
+
+    val sql =
+      """
+        |SELECT s.a, s.b, s.proctime, d.status
+        |FROM MyTable AS `s`
+        |INNER JOIN LookupTableWithFilterableFields FOR SYSTEM_TIME AS OF `s`.proctime AS `d`
+        |ON `s`.a = `d`.`id`
+        |WHERE `d`.`status` = 'OK'
+        |UNION ALL
+        |SELECT s.a, s.b, s.proctime, d.status
+        |FROM MyTable AS `s`
+        |INNER JOIN LookupTableWithFilterableFields FOR SYSTEM_TIME AS OF `s`.proctime AS `d`
+        |ON `s`.a = `d`.`id`
+        |WHERE `d`.`status` = 'KO'
+        |""".stripMargin
 
     util.verifyExecPlan(sql)
   }
