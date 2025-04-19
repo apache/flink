@@ -157,6 +157,7 @@ class JsonFormatFactoryTest {
                         InternalTypeInfo.of(PHYSICAL_TYPE),
                         false,
                         true,
+                        false,
                         TimestampFormat.ISO_8601);
 
         DeserializationSchema<RowData> actualDeser =
