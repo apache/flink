@@ -145,7 +145,7 @@ public class AccumulatorHelper {
                     try {
                         return supplier.get();
                     } catch (RuntimeException ex) {
-                        LOG.error("Unexpected error while handling accumulator [" + name + "]", ex);
+                        LOG.error("Unexpected error while handling accumulator [{}]", name, ex);
                         throw new FlinkException(ex);
                     }
                 });
