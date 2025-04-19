@@ -369,11 +369,10 @@ public class CliFrontend {
             }
 
             String description = program.getDescription();
+            System.out.println();
             if (description != null) {
-                System.out.println();
                 System.out.println(description);
             } else {
-                System.out.println();
                 System.out.println("No description provided.");
             }
         } finally {
@@ -463,7 +462,7 @@ public class CliFrontend {
                 });
 
         if (showRunning || showAll) {
-            if (runningJobs.size() == 0) {
+            if (runningJobs.isEmpty()) {
                 System.out.println("No running jobs.");
             } else {
                 System.out.println(
@@ -474,7 +473,7 @@ public class CliFrontend {
             }
         }
         if (showScheduled || showAll) {
-            if (scheduledJobs.size() == 0) {
+            if (scheduledJobs.isEmpty()) {
                 System.out.println("No scheduled jobs.");
             } else {
                 System.out.println(
@@ -485,7 +484,7 @@ public class CliFrontend {
             }
         }
         if (showAll) {
-            if (terminatedJobs.size() != 0) {
+            if (!terminatedJobs.isEmpty()) {
                 System.out.println(
                         "---------------------- Terminated Jobs -----------------------");
                 printJobStatusMessages(terminatedJobs);
