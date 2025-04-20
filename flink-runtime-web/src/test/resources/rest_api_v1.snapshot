@@ -366,7 +366,8 @@
                     "type" : "string"
                   },
                   "optimizer_properties" : {
-                    "type" : "string"
+                    "type" : "object",
+                    "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
                   },
                   "inputs" : {
                     "type" : "array",
@@ -490,7 +491,8 @@
                     "type" : "string"
                   },
                   "optimizer_properties" : {
-                    "type" : "string"
+                    "type" : "object",
+                    "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
                   },
                   "inputs" : {
                     "type" : "array",
@@ -1132,7 +1134,8 @@
                     "type" : "string"
                   },
                   "optimizer_properties" : {
-                    "type" : "string"
+                    "type" : "object",
+                    "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
                   },
                   "inputs" : {
                     "type" : "array",
@@ -1168,7 +1171,7 @@
         },
         "stream-graph" : {
           "type" : "object",
-          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
+          "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
         },
         "pending-operators" : {
           "type" : "integer"
@@ -2447,7 +2450,8 @@
                     "type" : "string"
                   },
                   "optimizer_properties" : {
-                    "type" : "string"
+                    "type" : "object",
+                    "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo:RawJson"
                   },
                   "inputs" : {
                     "type" : "array",
