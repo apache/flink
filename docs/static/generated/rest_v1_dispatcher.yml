@@ -2708,7 +2708,7 @@ components:
         operator_strategy:
           type: string
         optimizer_properties:
-          type: string
+          $ref: '#/components/schemas/RawJson'
         parallelism:
           type: integer
           format: int64
