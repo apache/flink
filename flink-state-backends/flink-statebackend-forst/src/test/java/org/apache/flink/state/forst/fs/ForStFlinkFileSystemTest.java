@@ -30,11 +30,13 @@ import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.state.forst.fs.cache.BundledCacheLimitPolicy;
 import org.apache.flink.state.forst.fs.cache.FileBasedCache;
 import org.apache.flink.state.forst.fs.cache.FileCacheEntry;
 import org.apache.flink.state.forst.fs.cache.SizeBasedCacheLimitPolicy;
 import org.apache.flink.state.forst.fs.cache.SpaceBasedCacheLimitPolicy;
+import org.apache.flink.state.forst.fs.filemapping.MappingEntry;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
@@ -424,6 +426,49 @@ public class ForStFlinkFileSystemTest {
         assertThat(fileSystem.exists(sstRemotePath1)).isTrue();
         assertThat(fileSystem.listStatus(remotePath)).hasSize(1);
         assertFileStatusAndBlockLocations(fileSystem, fileSystem.getFileStatus(sstRemotePath1));
+    }
+
+    @Test
+    public void testNotOwnedFileStatus() throws IOException {
+        org.apache.flink.core.fs.Path remotePath =
+                new org.apache.flink.core.fs.Path(tempDir.toString() + "/remote");
+        org.apache.flink.core.fs.Path localPath =
+                new org.apache.flink.core.fs.Path(tempDir.toString() + "/local");
+        ForStFlinkFileSystem fileSystem =
+                new ForStFlinkFileSystem(
+                        // Return dummy file status which differs from real local file system
+                        new LocalFileSystem() {
+                            @Override
+                            public FileStatus getFileStatus(org.apache.flink.core.fs.Path path) {
+                                return new ForStFlinkFileSystem.DummyFSFileStatus(path);
+                            }
+                        },
+                        remotePath.toString(),
+                        localPath.toString(),
+                        null);
+        fileSystem.mkdirs(remotePath);
+        fileSystem.mkdirs(localPath);
+        org.apache.flink.core.fs.Path sstRemotePath1 =
+                new org.apache.flink.core.fs.Path(remotePath, "1.sst");
+        ByteBufferWritableFSDataOutputStream os1 = fileSystem.create(sstRemotePath1);
+        os1.write(1);
+        os1.close();
+
+        // Mock restore procedure, getFileStatus should not use local file system to access when the
+        // ownership is given to Flink
+        MappingEntry mappingEntry = fileSystem.getMappingEntry(sstRemotePath1);
+        assertThat(mappingEntry).isNotNull();
+        assertThat(mappingEntry.getSourcePath()).isNotNull();
+        FileStateHandle remoteFileStateHandle =
+                new FileStateHandle(mappingEntry.getSourcePath(), 1L);
+        fileSystem.registerReusedRestoredFile(
+                mappingEntry.getSourcePath().toString(), remoteFileStateHandle, sstRemotePath1);
+        fileSystem.giveUpOwnership(sstRemotePath1, remoteFileStateHandle);
+        assertThat(fileSystem.getFileStatus(mappingEntry.getSourcePath()).getLen())
+                .isNotEqualTo(
+                        FileSystem.getLocalFileSystem()
+                                .getFileStatus(mappingEntry.getSourcePath())
+                                .getLen());
     }
 
     @Test
