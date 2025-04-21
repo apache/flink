@@ -21,6 +21,7 @@ package org.apache.flink.runtime.dispatcher.runner;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
+import org.apache.flink.runtime.dispatcher.DefaultDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherBootstrapFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
@@ -30,7 +31,6 @@ import org.apache.flink.runtime.dispatcher.DispatcherServices;
 import org.apache.flink.runtime.dispatcher.JobManagerRunnerFactory;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobPersistenceComponents;
-import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
 import org.apache.flink.runtime.dispatcher.TestingJobMasterServiceLeadershipRunnerFactory;
 import org.apache.flink.runtime.dispatcher.TestingPartialDispatcherServices;
@@ -109,7 +109,7 @@ class DefaultDispatcherRunnerITCase {
     void setup() {
         dispatcherRunnerFactory =
                 DefaultDispatcherRunnerFactory.createSessionRunner(
-                        SessionDispatcherFactory.INSTANCE);
+                        DefaultDispatcherFactory.INSTANCE);
         jobGraph = createJobGraph();
         dispatcherLeaderElection = new TestingLeaderElection();
         fatalErrorHandler = new TestingFatalErrorHandler();
