@@ -49,6 +49,7 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.JavaSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateLatencyTrackOptions;
+import org.apache.flink.configuration.StateSizeTrackOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.core.testutils.CheckedThread;
@@ -307,6 +308,51 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             assertThat(
                             ((AbstractKeyedStateBackend<Integer>) nested)
                                     .getLatencyTrackingStateConfig()
+                                    .isEnabled())
+                    .isTrue();
+        } finally {
+            IOUtils.closeQuietly(keyedStateBackend);
+            keyedStateBackend.dispose();
+        }
+    }
+
+    @TestTemplate
+    void testEnableStateSizeTracking() throws Exception {
+        ConfigurableStateBackend stateBackend = getStateBackend();
+        Configuration config = new Configuration();
+        config.set(StateSizeTrackOptions.SIZE_TRACK_ENABLED, true);
+        StateBackend configuredBackend =
+                stateBackend.configure(config, Thread.currentThread().getContextClassLoader());
+        KeyGroupRange groupRange = new KeyGroupRange(0, 1);
+        JobID jobID = new JobID();
+        int numberOfKeyGroups = groupRange.getNumberOfKeyGroups();
+        TaskKvStateRegistry kvStateRegistry = env.getTaskKvStateRegistry();
+        CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
+        CheckpointableKeyedStateBackend<Integer> keyedStateBackend =
+                configuredBackend.createKeyedStateBackend(
+                        new KeyedStateBackendParametersImpl<>(
+                                env,
+                                jobID,
+                                "test_op",
+                                IntSerializer.INSTANCE,
+                                numberOfKeyGroups,
+                                groupRange,
+                                kvStateRegistry,
+                                TtlTimeProvider.DEFAULT,
+                                getMetricGroup(),
+                                getCustomInitializationMetrics(),
+                                Collections.emptyList(),
+                                cancelStreamRegistry,
+                                1.0d));
+        try {
+            KeyedStateBackend<Integer> nested =
+                    keyedStateBackend instanceof TestableKeyedStateBackend
+                            ? ((TestableKeyedStateBackend<Integer>) keyedStateBackend)
+                                    .getDelegatedKeyedStateBackend(true)
+                            : keyedStateBackend;
+            assertThat(
+                            ((AbstractKeyedStateBackend<Integer>) nested)
+                                    .getSizeTrackingStateConfig()
                                     .isEnabled())
                     .isTrue();
         } finally {

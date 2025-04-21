@@ -20,6 +20,8 @@ package org.apache.flink.runtime.state.metrics;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
@@ -28,24 +30,59 @@ import java.io.IOException;
 import java.util.function.Supplier;
 
 /**
- * Abstract implementation of latency tracking state.
+ * Abstract implementation of metrics tracking state.
  *
  * @param <K> The type of key the state is associated to
  * @param <N> The type of the namespace
  * @param <V> Type of the user entry value of state
  * @param <S> Type of the internal kv state
- * @param <LSM> Type of the latency tracking state metrics
+ * @param <LSM> Type of the metrics tracking state metrics
  */
-class AbstractLatencyTrackState<
-                K, N, V, S extends InternalKvState<K, N, V>, LSM extends StateLatencyMetricBase>
+class AbstractMetricsTrackState<
+                K, N, V, S extends InternalKvState<K, N, V>, LSM extends StateMetricBase>
         implements InternalKvState<K, N, V> {
 
     protected S original;
     protected LSM latencyTrackingStateMetric;
+    protected LSM sizeTrackingStateMetric;
+    protected KeyedStateBackend<K> keyedStateBackend;
+    protected N currentNamespace;
+    protected final TypeSerializer<K> keySerializer;
+    protected final TypeSerializer<N> namespaceSerializer;
+    protected final TypeSerializer<V> valueSerializer;
+    protected final DataOutputSerializer outputSerializer;
+    protected long namespaceSize;
+    protected long keySize;
+    protected long valueSize;
 
-    AbstractLatencyTrackState(S original, LSM latencyTrackingStateMetric) {
+    AbstractMetricsTrackState(
+            S original,
+            KeyedStateBackend<K> keyedStateBackend,
+            LSM latencyTrackingStateMetric,
+            LSM sizeTrackingStateMetric) {
         this.original = original;
+        this.keyedStateBackend = keyedStateBackend;
         this.latencyTrackingStateMetric = latencyTrackingStateMetric;
+        this.sizeTrackingStateMetric = sizeTrackingStateMetric;
+        this.keySerializer = getKeySerializer() != null ? getKeySerializer().duplicate() : null;
+        this.namespaceSerializer =
+                getNamespaceSerializer() != null ? getNamespaceSerializer().duplicate() : null;
+        this.valueSerializer =
+                getValueSerializer() != null ? getValueSerializer().duplicate() : null;
+        this.outputSerializer = new DataOutputSerializer(64);
+        initStateSize();
+    }
+
+    private void initStateSize() {
+        if (keySerializer != null) {
+            this.keySize = keySerializer.getLength();
+        }
+        if (valueSerializer != null) {
+            this.valueSize = valueSerializer.getLength();
+        }
+        if (namespaceSerializer != null) {
+            this.namespaceSize = namespaceSerializer.getLength();
+        }
     }
 
     @Override
@@ -66,6 +103,7 @@ class AbstractLatencyTrackState<
     @Override
     public void setCurrentNamespace(N namespace) {
         original.setCurrentNamespace(namespace);
+        this.currentNamespace = namespace;
     }
 
     @Override
@@ -90,8 +128,9 @@ class AbstractLatencyTrackState<
 
     @Override
     public void clear() {
-        if (latencyTrackingStateMetric.trackLatencyOnClear()) {
-            trackLatency(original::clear, StateLatencyMetricBase.STATE_CLEAR_LATENCY);
+        if (latencyTrackingStateMetric != null
+                && latencyTrackingStateMetric.trackMetricsOnClear()) {
+            trackLatency(original::clear, StateMetricBase.STATE_CLEAR_LATENCY);
         } else {
             original.clear();
         }
@@ -101,7 +140,7 @@ class AbstractLatencyTrackState<
         long startTime = System.nanoTime();
         T result = supplier.get();
         long latency = System.nanoTime() - startTime;
-        latencyTrackingStateMetric.updateLatency(latencyLabel, latency);
+        latencyTrackingStateMetric.updateMetrics(latencyLabel, latency);
         return result;
     }
 
@@ -111,7 +150,7 @@ class AbstractLatencyTrackState<
         long startTime = System.nanoTime();
         T result = supplier.get();
         long latency = System.nanoTime() - startTime;
-        latencyTrackingStateMetric.updateLatency(latencyLabel, latency);
+        latencyTrackingStateMetric.updateMetrics(latencyLabel, latency);
         return result;
     }
 
@@ -120,7 +159,7 @@ class AbstractLatencyTrackState<
         long startTime = System.nanoTime();
         runnable.run();
         long latency = System.nanoTime() - startTime;
-        latencyTrackingStateMetric.updateLatency(latencyLabel, latency);
+        latencyTrackingStateMetric.updateMetrics(latencyLabel, latency);
     }
 
     protected <T> T trackLatencyWithException(
@@ -128,7 +167,7 @@ class AbstractLatencyTrackState<
         long startTime = System.nanoTime();
         T result = supplier.get();
         long latency = System.nanoTime() - startTime;
-        latencyTrackingStateMetric.updateLatency(latencyLabel, latency);
+        latencyTrackingStateMetric.updateMetrics(latencyLabel, latency);
         return result;
     }
 
@@ -137,18 +176,67 @@ class AbstractLatencyTrackState<
         long startTime = System.nanoTime();
         runnable.run();
         long latency = System.nanoTime() - startTime;
-        latencyTrackingStateMetric.updateLatency(latencyLabel, latency);
+        latencyTrackingStateMetric.updateMetrics(latencyLabel, latency);
     }
 
     protected void trackLatency(Runnable runnable, String latencyLabel) {
         long startTime = System.nanoTime();
         runnable.run();
         long latency = System.nanoTime() - startTime;
-        latencyTrackingStateMetric.updateLatency(latencyLabel, latency);
+        latencyTrackingStateMetric.updateMetrics(latencyLabel, latency);
+    }
+
+    protected K getCurrentKey() {
+        return keyedStateBackend.getCurrentKey();
+    }
+
+    public final N getCurrentNamespace() {
+        return currentNamespace;
+    }
+
+    protected long sizeOfKey() throws IOException {
+        if (keySerializer != null && keySerializer.getLength() == -1) {
+            try {
+                keySerializer.serialize(keyedStateBackend.getCurrentKey(), outputSerializer);
+                keySize = outputSerializer.length();
+            } finally {
+                outputSerializer.clear();
+            }
+        }
+
+        if (namespaceSerializer != null && namespaceSerializer.getLength() == -1) {
+            try {
+                namespaceSerializer.serialize(getCurrentNamespace(), outputSerializer);
+                namespaceSize = outputSerializer.length();
+            } finally {
+                outputSerializer.clear();
+            }
+        }
+
+        return keySize + namespaceSize;
+    }
+
+    protected long sizeOfValue(V value) throws IOException {
+        if (valueSerializer == null || value == null) {
+            valueSize = 0;
+        } else if (valueSerializer.getLength() == -1) {
+            try {
+                valueSerializer.serialize(value, outputSerializer);
+                valueSize = outputSerializer.length();
+            } finally {
+                outputSerializer.clear();
+            }
+        }
+        return valueSize;
     }
 
     @VisibleForTesting
     LSM getLatencyTrackingStateMetric() {
         return latencyTrackingStateMetric;
+    }
+
+    @VisibleForTesting
+    LSM getSizeTrackingStateMetric() {
+        return sizeTrackingStateMetric;
     }
 }

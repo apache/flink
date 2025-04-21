@@ -33,6 +33,7 @@ import org.apache.flink.runtime.state.RestoreOperation;
 import org.apache.flink.runtime.state.SavepointKeyedStateHandle;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
+import org.apache.flink.runtime.state.metrics.SizeTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import javax.annotation.Nonnull;
@@ -69,6 +70,7 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
             ExecutionConfig executionConfig,
             TtlTimeProvider ttlTimeProvider,
             LatencyTrackingStateConfig latencyTrackingStateConfig,
+            SizeTrackingStateConfig sizeTrackingStateConfig,
             @Nonnull Collection<KeyedStateHandle> stateHandles,
             StreamCompressionDecorator keyGroupCompressionDecorator,
             LocalRecoveryConfig localRecoveryConfig,
@@ -84,6 +86,7 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
                 executionConfig,
                 ttlTimeProvider,
                 latencyTrackingStateConfig,
+                sizeTrackingStateConfig,
                 stateHandles,
                 keyGroupCompressionDecorator,
                 cancelStreamRegistry);
@@ -115,6 +118,7 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
                 executionConfig,
                 ttlTimeProvider,
                 latencyTrackingStateConfig,
+                sizeTrackingStateConfig,
                 cancelStreamRegistryForBackend,
                 keyGroupCompressionDecorator,
                 registeredKVStates,
