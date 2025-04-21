@@ -27,7 +27,6 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.fs.AutoCloseableRegistry;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.core.security.FlinkSecurityManager;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
@@ -1103,13 +1102,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         isRunning = false;
         canceled = true;
 
-        FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
         // the "cancel task" call must come first, but the cancelables must be
         // closed no matter what
         try {
             cancelTask();
         } finally {
-            FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
             getCompletionFuture()
                     .whenComplete(
                             (unusedResult, unusedError) -> {
@@ -1287,7 +1284,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     private boolean triggerCheckpointAsyncInMailbox(
             CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions)
             throws Exception {
-        FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
         try {
             latestAsyncCheckpointStartDelayNanos =
                     1_000_000
@@ -1330,8 +1326,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                         e);
                 return false;
             }
-        } finally {
-            FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
         }
     }
 
@@ -1376,7 +1370,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             CheckpointMetricsBuilder checkpointMetrics)
             throws IOException {
 
-        FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
         try {
             performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics);
         } catch (CancelTaskException e) {
@@ -1393,8 +1386,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                             + getName()
                             + '.',
                     e);
-        } finally {
-            FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
         }
     }
 

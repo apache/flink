@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.security.FlinkSecurityManager;
 import org.apache.flink.core.security.UserSystemExitException;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
@@ -104,7 +103,6 @@ class StreamTaskSystemExitTest {
         configuration.set(
                 ClusterOptions.INTERCEPT_USER_SYSTEM_EXIT, ClusterOptions.UserSystemExitMode.THROW);
         originalSecurityManager = System.getSecurityManager();
-        FlinkSecurityManager.setFromConfiguration(configuration);
     }
 
     @AfterEach

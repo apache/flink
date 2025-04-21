@@ -28,7 +28,6 @@ import org.apache.flink.configuration.TaskManagerOptionsInternal;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
-import org.apache.flink.core.security.FlinkSecurityManager;
 import org.apache.flink.management.jmx.JMXService;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.blob.BlobCacheService;
@@ -460,7 +459,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
     }
 
     private void terminateJVM() {
-        FlinkSecurityManager.forceProcessExit(FAILURE_EXIT_CODE);
+        System.exit(FAILURE_EXIT_CODE);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -527,7 +526,6 @@ public class TaskManagerRunner implements FatalErrorHandler {
     }
 
     public static void runTaskManagerProcessSecurely(Configuration configuration) {
-        FlinkSecurityManager.setFromConfiguration(configuration);
         final PluginManager pluginManager =
                 PluginUtils.createPluginManagerFromRootFolder(configuration);
         FileSystem.initialize(configuration, pluginManager);

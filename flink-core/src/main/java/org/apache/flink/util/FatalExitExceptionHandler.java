@@ -18,7 +18,6 @@
 
 package org.apache.flink.util;
 
-import org.apache.flink.core.security.FlinkSecurityManager;
 import org.apache.flink.util.concurrent.ThreadUtils;
 
 import org.slf4j.Logger;
@@ -46,7 +45,7 @@ public final class FatalExitExceptionHandler implements Thread.UncaughtException
                     e);
             ThreadUtils.errorLogThreadDump(LOG);
         } finally {
-            FlinkSecurityManager.forceProcessExit(EXIT_CODE);
+            System.exit(EXIT_CODE);
         }
     }
 }

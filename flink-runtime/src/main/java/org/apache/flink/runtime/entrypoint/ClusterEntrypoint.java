@@ -36,7 +36,6 @@ import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
-import org.apache.flink.core.security.FlinkSecurityManager;
 import org.apache.flink.management.jmx.JMXService;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobUtils;
@@ -224,7 +223,6 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         LOG.info("Starting {}.", getClass().getSimpleName());
 
         try {
-            FlinkSecurityManager.setFromConfiguration(configuration);
             PluginManager pluginManager =
                     PluginUtils.createPluginManagerFromRootFolder(configuration);
             configureFileSystems(configuration, pluginManager);
@@ -558,7 +556,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         ClusterEntryPointExceptionUtils.tryEnrichClusterEntryPointError(exception);
         LOG.error("Fatal error occurred in the cluster entrypoint.", exception);
 
-        FlinkSecurityManager.forceProcessExit(RUNTIME_FAILURE_RETURN_CODE);
+        System.exit(RUNTIME_FAILURE_RETURN_CODE);
     }
 
     // --------------------------------------------------

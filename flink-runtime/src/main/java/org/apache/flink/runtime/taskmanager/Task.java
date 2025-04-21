@@ -31,7 +31,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.security.FlinkSecurityManager;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
@@ -733,17 +732,10 @@ public class Task
             // so that it is available to the invokable during its entire lifetime.
             executingThread.setContextClassLoader(userCodeClassLoader.asClassLoader());
 
-            // When constructing invokable, separate threads can be constructed and thus should be
-            // monitored for system exit (in addition to invoking thread itself monitored below).
-            FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
-            try {
-                // now load and instantiate the task's invokable code
-                invokable =
-                        loadAndInstantiateInvokable(
-                                userCodeClassLoader.asClassLoader(), nameOfInvokableClass, env);
-            } finally {
-                FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
-            }
+            // now load and instantiate the task's invokable code
+            invokable =
+                    loadAndInstantiateInvokable(
+                            userCodeClassLoader.asClassLoader(), nameOfInvokableClass, env);
 
             // ----------------------------------------------------------------
             //  actual task core work
@@ -958,12 +950,7 @@ public class Task
      * exiting JVM for entire scope.
      */
     private void runWithSystemExitMonitoring(RunnableWithException action) throws Exception {
-        FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
-        try {
-            action.run();
-        } finally {
-            FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
-        }
+        action.run();
     }
 
     @VisibleForTesting
