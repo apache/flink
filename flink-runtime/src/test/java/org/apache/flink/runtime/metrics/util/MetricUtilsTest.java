@@ -177,6 +177,16 @@ class MetricUtilsTest {
         assertThat(heapMetrics.get(MetricNames.MEMORY_MAX)).isNotNull();
     }
 
+    @Test
+    void testFileDescriptorMetricsCompleteness() {
+        final InterceptingOperatorMetricGroup heapMetrics = new InterceptingOperatorMetricGroup();
+
+        MetricUtils.instantiateFileDescriptorMetrics(heapMetrics);
+
+        assertThat(heapMetrics.get(MetricNames.FILE_DESCRIPTOR_MAX)).isNotNull();
+        assertThat(heapMetrics.get(MetricNames.FILE_DESCRIPTOR_OPEN)).isNotNull();
+    }
+
     /**
      * Tests that heap/non-heap metrics do not rely on a static MemoryUsage instance.
      *

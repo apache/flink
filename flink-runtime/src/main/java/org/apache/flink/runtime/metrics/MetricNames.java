@@ -58,6 +58,9 @@ public class MetricNames {
     public static final String MEMORY_COMMITTED = "Committed";
     public static final String MEMORY_MAX = "Max";
 
+    public static final String FILE_DESCRIPTOR_MAX = "Max";
+    public static final String FILE_DESCRIPTOR_OPEN = "Open";
+
     public static final String IS_BACK_PRESSURED = "isBackPressured";
 
     public static final String CHECKPOINT_ALIGNMENT_TIME = "checkpointAlignmentTime";
