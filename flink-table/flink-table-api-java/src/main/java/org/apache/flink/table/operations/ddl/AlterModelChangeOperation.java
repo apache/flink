@@ -34,6 +34,7 @@ import java.util.stream.Collectors;
 /** Operation to describe a ALTER MODEL .. SET .. statement. */
 @Internal
 public class AlterModelChangeOperation implements AlterOperation {
+
     private final ObjectIdentifier modelIdentifier;
     private final List<ModelChange> modelChanges;
     private final CatalogModel catalogModel;

@@ -30,7 +30,7 @@ import org.apache.flink.table.catalog.exceptions.ModelNotExistException;
 
 import javax.annotation.Nullable;
 
-/** Operation to describe a ALTER MODEL .. RENAME to .. statement. */
+/** Operation to describe a ALTER MODEL .. RENAME TO .. statement. */
 @Internal
 public class AlterModelRenameOperation implements AlterOperation {
 

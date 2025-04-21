@@ -19,8 +19,6 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.operations.utils.ShowLikeOperator;
 
@@ -68,14 +66,7 @@ public class ShowModelsOperation extends AbstractShowOperation {
         if (preposition == null) {
             return catalogManager.listModels();
         } else {
-            Catalog catalog = catalogManager.getCatalogOrThrowException(catalogName);
-            if (catalog.databaseExists(databaseName)) {
-                return catalogManager.listModels(catalogName, databaseName);
-            } else {
-                throw new ValidationException(
-                        String.format(
-                                "Database '%s'.'%s' doesn't exist.", catalogName, databaseName));
-            }
+            return catalogManager.listModels(catalogName, databaseName);
         }
     }
 

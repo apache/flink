@@ -2693,6 +2693,31 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testAlterModelRenameDifferentCatalog(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  INPUT(f0 char(10), f1 varchar(10))
+        |  OUTPUT(f2 string)
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(sourceDDL)
+
+    val alterDDL =
+      """
+        |ALTER MODEL `default_catalog`.`default_database`.`M1` RENAME TO `other_catalog`.`default_database`.`M2`
+        |""".stripMargin
+    assertThatThrownBy(() => tableEnv.executeSql(alterDDL))
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessageContaining(
+        "The catalog name of the new model name 'other_catalog.default_database.M2' must be the same as the old model name 'default_catalog.default_database.M1'.")
+  }
+
+  @Test
   def testAlterModelRenameWithIfExists(): Unit = {
     val alterDDL =
       """

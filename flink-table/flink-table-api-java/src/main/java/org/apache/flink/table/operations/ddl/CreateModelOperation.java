@@ -23,6 +23,7 @@ import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogModel;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 
@@ -33,14 +34,15 @@ import java.util.Map;
 /** Operation to describe a CREATE MODEL statement. */
 @Internal
 public class CreateModelOperation implements CreateOperation {
+
     private final ObjectIdentifier modelIdentifier;
-    private final CatalogModel catalogModel;
+    private final ResolvedCatalogModel catalogModel;
     private final boolean ignoreIfExists;
     private final boolean isTemporary;
 
     public CreateModelOperation(
             ObjectIdentifier modelIdentifier,
-            CatalogModel catalogModel,
+            ResolvedCatalogModel catalogModel,
             boolean ignoreIfExists,
             boolean isTemporary) {
         this.modelIdentifier = modelIdentifier;
@@ -65,9 +67,10 @@ public class CreateModelOperation implements CreateOperation {
         return isTemporary;
     }
 
+    @Override
     public String asSummaryString() {
         Map<String, Object> params = new LinkedHashMap<>();
-        params.put("catalogModel", catalogModel.getOptions());
+        params.put("catalogModel", catalogModel.toProperties());
         params.put("identifier", modelIdentifier);
         params.put("ignoreIfExists", ignoreIfExists);
         params.put("isTemporary", isTemporary);

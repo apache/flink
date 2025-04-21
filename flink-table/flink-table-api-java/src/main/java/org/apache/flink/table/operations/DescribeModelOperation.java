@@ -133,7 +133,7 @@ public class DescribeModelOperation implements Operation, ExecutableOperation {
 
     private String[] generateTableColumnsNames(boolean nonComments) {
         final ArrayList<String> result =
-                new ArrayList<>(Arrays.asList("name", "type", "null", "isInput"));
+                new ArrayList<>(Arrays.asList("name", "type", "null", "is input"));
         if (!nonComments) {
             result.add("comment");
         }

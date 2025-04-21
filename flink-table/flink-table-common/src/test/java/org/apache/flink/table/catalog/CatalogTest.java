@@ -388,6 +388,34 @@ public abstract class CatalogTest {
     }
 
     @Test
+    public void testAlterModel_ModelNotExistException() throws Exception {
+        if (!supportsModels()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+        Schema inputSchema =
+                Schema.newBuilder()
+                        .column("a", DataTypes.INT())
+                        .column("b", DataTypes.STRING())
+                        .build();
+        Schema outputSchema = Schema.newBuilder().column("label", DataTypes.STRING()).build();
+        CatalogModel newModel =
+                CatalogModel.of(
+                        inputSchema,
+                        outputSchema,
+                        new HashMap<String, String>() {
+                            {
+                                put("task", "clustering");
+                                put("provider", "openai");
+                            }
+                        },
+                        "new model");
+        assertThatThrownBy(() -> catalog.alterModel(modelPath1, newModel, false))
+                .isInstanceOf(ModelNotExistException.class)
+                .hasMessage("Model '`test-catalog`.`db1`.`m1`' does not exist.");
+    }
+
+    @Test
     public void testAlterMissingModelIgnoreIfNotExist() throws Exception {
         if (!supportsModels()) {
             return;

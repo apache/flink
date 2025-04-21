@@ -22,31 +22,24 @@ import org.apache.flink.sql.parser.ddl.SqlCreateModel;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.Schema.UnresolvedColumn;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogModel;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateModelOperation;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.utils.OperationConverterUtils;
-import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.planner.operations.SchemaBuilderUtil;
 
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.validate.SqlValidator;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-
-import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
+import java.util.function.Function;
 
 /** A converter for {@link org.apache.flink.sql.parser.ddl.SqlCreateModel}. */
 public class SqlCreateModelConverter implements SqlNodeConverter<SqlCreateModel> {
@@ -58,10 +51,17 @@ public class SqlCreateModelConverter implements SqlNodeConverter<SqlCreateModel>
         ObjectIdentifier identifier =
                 context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
         Map<String, String> modelOptions = getModelOptions(sqlCreateModel);
+
+        ModelSchemaBuilderUtils schemaBuilderUtil =
+                new ModelSchemaBuilderUtils(
+                        context.getSqlValidator(),
+                        SqlNode::toString,
+                        context.getCatalogManager().getDataTypeFactory());
+
         CatalogModel catalogModel =
                 CatalogModel.of(
-                        getSchema(sqlCreateModel.getInputColumnList(), context.getSqlValidator()),
-                        getSchema(sqlCreateModel.getOutputColumnList(), context.getSqlValidator()),
+                        schemaBuilderUtil.getSchema(sqlCreateModel.getInputColumnList()),
+                        schemaBuilderUtil.getSchema(sqlCreateModel.getOutputColumnList()),
                         modelOptions,
                         sqlCreateModel.getComment().map(SqlLiteral::toValue).orElse(null));
 
@@ -70,29 +70,6 @@ public class SqlCreateModelConverter implements SqlNodeConverter<SqlCreateModel>
                 context.getCatalogManager().resolveCatalogModel(catalogModel),
                 sqlCreateModel.isIfNotExists(),
                 sqlCreateModel.isTemporary());
-    }
-
-    private Schema getSchema(SqlNodeList nodeList, SqlValidator sqlValidator) {
-        final List<UnresolvedColumn> columnList = new ArrayList<>();
-        for (SqlNode column : nodeList) {
-            if (column instanceof SqlRegularColumn) {
-                SqlRegularColumn regularColumn = (SqlRegularColumn) column;
-                SqlDataTypeSpec type = regularColumn.getType();
-                boolean nullable = type.getNullable() == null || type.getNullable();
-                RelDataType relType = type.deriveType(sqlValidator, nullable);
-                DataType dataType = fromLogicalToDataType(FlinkTypeFactory.toLogicalType(relType));
-                columnList.add(
-                        new Schema.UnresolvedPhysicalColumn(
-                                regularColumn.getName().getSimple(),
-                                dataType,
-                                OperationConverterUtils.getComment(regularColumn)));
-            } else {
-                throw new TableException("Column " + column + " can only be a physical column.");
-            }
-        }
-        final Schema.Builder builder = Schema.newBuilder();
-        builder.fromColumns(columnList);
-        return builder.build();
     }
 
     private Map<String, String> getModelOptions(SqlCreateModel sqlCreateModel) {
@@ -106,5 +83,31 @@ public class SqlCreateModelConverter implements SqlNodeConverter<SqlCreateModel>
                                         ((SqlTableOption) Objects.requireNonNull(p)).getKeyString(),
                                         ((SqlTableOption) p).getValueString()));
         return options;
+    }
+
+    /** Builder for {@link Schema} of a model. */
+    private static class ModelSchemaBuilderUtils extends SchemaBuilderUtil {
+        ModelSchemaBuilderUtils(
+                SqlValidator sqlValidator,
+                Function<SqlNode, String> escapeExpressions,
+                DataTypeFactory dataTypeFactory) {
+            super(sqlValidator, escapeExpressions, dataTypeFactory);
+        }
+
+        private Schema getSchema(SqlNodeList nodeList) {
+            columns.clear();
+            for (SqlNode column : nodeList) {
+                if (column instanceof SqlRegularColumn) {
+                    SqlRegularColumn regularColumn = (SqlRegularColumn) column;
+                    columns.put(
+                            regularColumn.getName().getSimple(),
+                            toUnresolvedPhysicalColumn(regularColumn));
+                } else {
+                    throw new TableException(
+                            "Column " + column + " can only be a physical column.");
+                }
+            }
+            return build();
+        }
     }
 }

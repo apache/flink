@@ -400,8 +400,18 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
     }
 
     @Override
-    public void alterModel(ObjectPath modelPath, CatalogModel newModel, boolean ignoreIfNotExists) {
+    public void alterModel(ObjectPath modelPath, CatalogModel newModel, boolean ignoreIfNotExists)
+            throws ModelNotExistException {
         checkNotNull(modelPath);
+
+        CatalogModel existingModel = models.get(modelPath);
+        if (existingModel == null || newModel == null) {
+            if (ignoreIfNotExists) {
+                return;
+            }
+            throw new ModelNotExistException(getName(), modelPath);
+        }
+
         models.put(modelPath, newModel.copy());
     }
 

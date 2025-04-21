@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.operations.converters;
 
 import org.apache.flink.sql.parser.ddl.SqlAlterModelRename;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
@@ -42,12 +43,22 @@ public class SqlAlterModelRenameConverter
                 UnresolvedIdentifier.of(sqlAlterModelRename.fullNewModelName());
         ObjectIdentifier newModelIdentifier =
                 context.getCatalogManager().qualifyIdentifier(newUnresolvedIdentifier);
+        ObjectIdentifier oldModelIdentifier =
+                context.getCatalogManager()
+                        .qualifyIdentifier(
+                                UnresolvedIdentifier.of(sqlAlterModelRename.fullModelName()));
+
+        if (!newModelIdentifier.getCatalogName().equals(oldModelIdentifier.getCatalogName())) {
+            throw new ValidationException(
+                    String.format(
+                            "The catalog name of the new model name '%s' must be the same as the old model name '%s'.",
+                            newModelIdentifier.asSummaryString(),
+                            oldModelIdentifier.asSummaryString()));
+        }
 
         return new AlterModelRenameOperation(
                 existingModel,
-                context.getCatalogManager()
-                        .qualifyIdentifier(
-                                UnresolvedIdentifier.of(sqlAlterModelRename.fullModelName())),
+                oldModelIdentifier,
                 newModelIdentifier,
                 sqlAlterModelRename.ifModelExists());
     }
