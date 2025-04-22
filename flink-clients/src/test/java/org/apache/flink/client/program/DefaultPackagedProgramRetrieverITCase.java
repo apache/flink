@@ -30,6 +30,7 @@ import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.ChildFirstClassLoader;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
@@ -191,7 +192,7 @@ class DefaultPackagedProgramRetrieverITCase {
     }
 
     @Test
-    void testJobGraphRetrieval() throws IOException, FlinkException, ProgramInvocationException {
+    void testJobGraphRetrieval() throws Exception {
         final int parallelism = 42;
         final JobID jobId = new JobID();
 
@@ -208,16 +209,17 @@ class DefaultPackagedProgramRetrieverITCase {
                         new Configuration());
 
         final JobGraph jobGraph = retrieveJobGraph(retriever, configuration);
+        final StreamGraph streamGraph = retrieveStreamGraph(retriever, configuration);
 
-        assertThat(jobGraph.getName())
+        assertThat(streamGraph.getName())
                 .isEqualTo(
                         testJobEntryClassClasspathProvider.getJobClassName()
                                 + "-"
                                 + expectedSuffix);
-        assertThat(jobGraph.getSavepointRestoreSettings())
+        assertThat(streamGraph.getSavepointRestoreSettings())
                 .isEqualTo(SavepointRestoreSettings.none());
-        assertThat(jobGraph.getMaximumParallelism()).isEqualTo(parallelism);
-        assertThat(jobGraph.getJobID()).isEqualTo(jobId);
+        assertThat(streamGraph.getMaximumParallelism()).isEqualTo(parallelism);
+        assertThat(streamGraph.getJobID()).isEqualTo(jobId);
     }
 
     @Test
@@ -680,6 +682,30 @@ class DefaultPackagedProgramRetrieverITCase {
 
         assertThat(retriever.getPackagedProgram().getUserCodeClassLoader())
                 .isInstanceOf(FlinkUserCodeClassLoaders.ParentFirstClassLoader.class);
+    }
+
+    private StreamGraph retrieveStreamGraph(
+            PackagedProgramRetriever retrieverUnderTest, Configuration configuration)
+            throws Exception {
+        final PackagedProgram packagedProgram = retrieverUnderTest.getPackagedProgram();
+
+        final int defaultParallelism = configuration.get(CoreOptions.DEFAULT_PARALLELISM);
+        ConfigUtils.encodeCollectionToConfig(
+                configuration,
+                PipelineOptions.JARS,
+                packagedProgram.getJobJarAndDependencies(),
+                URL::toString);
+        ConfigUtils.encodeCollectionToConfig(
+                configuration,
+                PipelineOptions.CLASSPATHS,
+                packagedProgram.getClasspaths(),
+                URL::toString);
+
+        final Pipeline pipeline =
+                PackagedProgramUtils.getPipelineFromProgram(
+                        packagedProgram, configuration, defaultParallelism, false);
+
+        return PipelineExecutorUtils.getStreamGraph(pipeline, configuration);
     }
 
     private JobGraph retrieveJobGraph(
