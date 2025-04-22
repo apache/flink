@@ -107,8 +107,8 @@ public abstract class AbstractJsonDeserializationSchema implements Deserializati
 
     /**
      * NOTICE: We prefer to keep only {@link DeserializationSchema#deserialize(byte[], Collector)},
-     * however, {@link DeserializationSchema#deserialize(byte[])} has not been deprecated now, hence
-     * it's better to keep {@link DeserializationSchema#deserialize(byte[])} usable until we remove
+     * however, {@link DeserializationSchema#deserialize(byte[])} is not deprecated now, hence it's
+     * better to keep {@link DeserializationSchema#deserialize(byte[])} usable until we remove
      * {@link DeserializationSchema#deserialize(byte[])}.
      *
      * <p>Please do not change this method when you add new features!

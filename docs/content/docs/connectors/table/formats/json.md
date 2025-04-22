@@ -262,11 +262,9 @@ Features
 
 ### Allow top-level JSON Arrays
 
-Usually, we assume the top-level of json string is a json object. Then the json object is converted to one SQL row.
+Usually, we assume the top-level of JSON string is a stringified JSON object. Then this stringified JSON object can be converted into one SQL row.
 
-There are some cases that, the top-level of json string is a json array, and we want to explode the array to
-multiple records, each one of the array is a json object which is converted to one row. Flink JSON Format supports
-read such data implicitly.
+There are some cases that, the top-level of JSON string is a stringified JSON array, and we want to explode the array into multiple records. Every element within the array is a JSON object, and each of these JSON objects can be converted into one row. Flink JSON Format supports reading such data.
 
 For example, for the following SQL DDL:
 ```sql
@@ -279,7 +277,7 @@ CREATE TABLE user_behavior (
 )
 ```
 
-Flink JSON Format will produce 2 rows `(123, "a")` and `(456, "b")` with both of following two json string.
+Flink JSON Format will produce 2 rows `(123, "a")` and `(456, "b")` with both of following two JSON string.
 The top-level is JSON Array:
 ```json lines
 [{"col1": 123, "col2": "a"}, {"col1": 456, "col2": "b"}]

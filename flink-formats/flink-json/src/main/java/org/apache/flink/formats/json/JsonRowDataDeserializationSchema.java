@@ -70,8 +70,7 @@ public class JsonRowDataDeserializationSchema extends AbstractJsonDeserializatio
             return;
         }
         try {
-            final JsonNode root = objectMapper.readTree(message);
-
+            final JsonNode root = deserializeToJsonNode(message);
             if (root != null && root.isArray()) {
                 ArrayNode arrayNode = (ArrayNode) root;
                 for (int i = 0; i < arrayNode.size(); i++) {
