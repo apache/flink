@@ -287,4 +287,19 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
                 serializerConfigSnapshotsMap,
                 serializerMap);
     }
+
+    public static RegisteredStateMetaInfoBase fromMetaInfoSnapshot(
+            @Nonnull StateMetaInfoSnapshot snapshot) {
+
+        final StateMetaInfoSnapshot.BackendStateType backendStateType =
+                snapshot.getBackendStateType();
+        switch (backendStateType) {
+            case KEY_VALUE:
+                return new RegisteredKeyValueStateBackendMetaInfo<>(snapshot);
+            case KEY_VALUE_V2:
+                return RegisteredStateMetaInfoUtils.createMetaInfoV1FromV2Snapshot(snapshot);
+            default:
+                return RegisteredStateMetaInfoBase.fromMetaInfoSnapshot(snapshot);
+        }
+    }
 }
