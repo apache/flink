@@ -48,7 +48,7 @@ integrate_connector_docs cassandra v3.2
 integrate_connector_docs elasticsearch v3.0
 integrate_connector_docs gcp-pubsub v3.1
 integrate_connector_docs hbase v4.0
-integrate_connector_docs jdbc v3.2
+integrate_connector_docs jdbc v3.3
 integrate_connector_docs kafka v3.3
 integrate_connector_docs mongodb v2.0
 integrate_connector_docs opensearch v1.2
