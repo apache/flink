@@ -264,7 +264,7 @@ Features
 
 Usually, we assume the top-level of JSON string is a stringified JSON object. Then this stringified JSON object can be converted into one SQL row.
 
-There are some cases that, the top-level of JSON string is a stringified JSON array, and we want to explode the array into multiple records. Every element within the array is a JSON object, and each of these JSON objects can be converted into one row. Flink JSON Format supports reading such data.
+There are some cases that, the top-level of JSON string is a stringified JSON array, and we want to explode the array into multiple records. Each element within the array is a JSON object, the schema of every such JSON object is the same as defined in SQL, and each of these JSON objects can be converted into one row. Flink JSON Format supports reading such data.
 
 For example, for the following SQL DDL:
 ```sql
