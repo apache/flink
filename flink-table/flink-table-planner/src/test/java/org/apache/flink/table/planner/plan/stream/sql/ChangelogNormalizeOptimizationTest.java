@@ -30,8 +30,10 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -94,7 +96,9 @@ public class ChangelogNormalizeOptimizationTest extends TableTestBase {
                         SinkTable.UPSERT_SINK_METADATA),
                 TestSpec.selectWithoutMetadata(
                         SourceTable.UPSERT_SOURCE_PARTIAL_DELETES_METADATA_NO_PUSHDOWN,
-                        SinkTable.UPSERT_SINK));
+                        SinkTable.UPSERT_SINK),
+                TestSpec.select(SourceTable.RETRACT_SOURCE_PARTIAL_DELETES, SinkTable.UPSERT_SINK)
+                        .withSessionOption("table.exec.source.cdc-events-duplicate", "true"));
     }
 
     @AfterEach
@@ -106,6 +110,7 @@ public class ChangelogNormalizeOptimizationTest extends TableTestBase {
     @ParameterizedTest()
     @MethodSource("getTests")
     void testChangelogNormalizePlan(TestSpec spec) {
+        spec.sessionOptions.forEach((key, value) -> util.tableEnv().getConfig().set(key, value));
         for (TableProperties tableProperties : spec.tablesToCreate) {
             final String additionalColumns =
                     String.join(",\n", tableProperties.getAdditionalColumns());
@@ -149,6 +154,10 @@ public class ChangelogNormalizeOptimizationTest extends TableTestBase {
                 "'changelog-mode' = 'UA,D'",
                 "'source.produces-delete-by-key'='true'",
                 "'readable-metadata' = 'offset:BIGINT'"),
+        RETRACT_SOURCE_PARTIAL_DELETES(
+                "retract_table_partial_deletes",
+                "'changelog-mode' = 'I,UA,UB,D'",
+                "'source.produces-delete-by-key'='true'"),
         UPSERT_SOURCE_PARTIAL_DELETES_METADATA_NO_PUSHDOWN(
                 "upsert_table_partial_deletes_metadata_no_pushdown",
                 List.of("`offset` BIGINT METADATA"),
@@ -254,6 +263,7 @@ public class ChangelogNormalizeOptimizationTest extends TableTestBase {
     private static class TestSpec {
 
         private final Set<TableProperties> tablesToCreate;
+        private final Map<String, String> sessionOptions = new HashMap<>();
         private final String query;
         private final String description;
 
@@ -310,6 +320,11 @@ public class ChangelogNormalizeOptimizationTest extends TableTestBase {
                             sinkTable.getTableName(),
                             leftTable.getTableName(),
                             rightTable.getTableName()));
+        }
+
+        public TestSpec withSessionOption(String key, String value) {
+            this.sessionOptions.put(key, value);
+            return this;
         }
 
         @Override

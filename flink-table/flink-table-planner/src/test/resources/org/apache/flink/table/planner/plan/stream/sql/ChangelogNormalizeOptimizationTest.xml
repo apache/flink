@@ -296,6 +296,27 @@ Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testChangelogNormalizePlan[[21] select_retract_table_partial_deletes_into_upsert_sink_table]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO upsert_sink_table SELECT * FROM retract_table_partial_deletes]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2])
++- LogicalProject(id=[$0], col1=[$1], col2=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, retract_table_partial_deletes]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2], changelogMode=[NONE])
++- ChangelogNormalize(key=[id], changelogMode=[I,UA,D])
+   +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,PD])
+      +- DropUpdateBefore(changelogMode=[I,UA,PD])
+         +- TableSourceScan(table=[[default_catalog, default_database, retract_table_partial_deletes]], fields=[id, col1, col2], changelogMode=[I,UB,UA,PD])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testChangelogNormalizePlan[[2] select_upsert_table_full_deletes_into_upsert_sink_table]">
     <Resource name="sql">
       <![CDATA[INSERT INTO upsert_sink_table SELECT * FROM upsert_table_full_deletes]]>
