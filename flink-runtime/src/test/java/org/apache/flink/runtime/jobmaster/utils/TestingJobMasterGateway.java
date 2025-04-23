@@ -479,7 +479,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     }
 
     @Override
-    public void acknowledgeCheckpoint(
+    public CompletableFuture<Acknowledge> acknowledgeCheckpoint(
             JobID jobID,
             ExecutionAttemptID executionAttemptID,
             long checkpointId,
@@ -492,6 +492,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
                         checkpointId,
                         checkpointMetrics,
                         deserializeTaskStateSnapshot(subtaskState, getClass().getClassLoader())));
+        return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
     @Override

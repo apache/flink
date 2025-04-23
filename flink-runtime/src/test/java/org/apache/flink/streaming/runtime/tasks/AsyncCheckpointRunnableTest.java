@@ -19,10 +19,12 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -126,6 +128,73 @@ class AsyncCheckpointRunnableTest {
     }
 
     @Test
+    void testReportFailureDeclinesWithoutDiscardingState() {
+        testCheckpointAckFailureHandling(true);
+    }
+
+    @Test
+    void testReportFailureDoesNotDeclineWhenTaskNotRunning() {
+        testCheckpointAckFailureHandling(false);
+    }
+
+    /**
+     * Simulates the upload succeeding but the ACK RPC failing (e.g. AskTimeoutException either
+     * because the JM never received the ACK, or because it applied the ACK and the response timed
+     * out). The TM must:
+     *
+     * <ol>
+     *   <li>NOT run cleanup() — files may be referenced by a completed checkpoint.
+     *   <li>Send declineCheckpoint (if the task is running) — fails the checkpoint fast in the
+     *       still-pending case; silently dropped by the coordinator if the ACK was applied.
+     * </ol>
+     */
+    private void testCheckpointAckFailureHandling(boolean isTaskRunning) {
+        RuntimeException reportFailure = new RuntimeException("simulated ACK response timeout");
+
+        CancelTrackingOperatorSnapshotFutures snapshot =
+                new CancelTrackingOperatorSnapshotFutures();
+        Map<OperatorID, OperatorSnapshotFutures> snapshotsInProgress = new HashMap<>();
+        snapshotsInProgress.put(new OperatorID(), snapshot);
+
+        TestTaskStateManager throwingStateManager =
+                new TestTaskStateManager() {
+                    @Override
+                    public void reportTaskStateSnapshots(
+                            CheckpointMetaData checkpointMetaData,
+                            CheckpointMetrics checkpointMetrics,
+                            TaskStateSnapshot acknowledgedState,
+                            TaskStateSnapshot localState) {
+                        throw reportFailure;
+                    }
+                };
+
+        TestEnvironment env =
+                new TestEnvironment(
+                        new Configuration(),
+                        new Configuration(),
+                        new ExecutionConfig(),
+                        1L,
+                        new MockInputSplitProvider(),
+                        1,
+                        throwingStateManager);
+
+        AsyncCheckpointRunnable runnable =
+                createAsyncRunnable(snapshotsInProgress, env, false, isTaskRunning);
+        runnable.run();
+
+        assertThat(snapshot.cancelCount).isZero();
+        assertThat(runnable.getFinishedFuture()).isCompleted();
+        if (isTaskRunning) {
+            assertThat(env.getCause()).isNotNull();
+            assertThat(env.getCause().getCheckpointFailureReason())
+                    .isSameAs(CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION);
+            assertThat(env.getCause()).hasRootCause(reportFailure);
+        } else {
+            assertThat(env.getCause()).isNull();
+        }
+    }
+
+    @Test
     void testReportFinishedOnRestoreTaskSnapshots() {
         TestEnvironment environment = new TestEnvironment();
         AsyncCheckpointRunnable asyncCheckpointRunnable =
@@ -204,6 +273,16 @@ class AsyncCheckpointRunnableTest {
 
         CheckpointException getCause() {
             return cause;
+        }
+    }
+
+    private static class CancelTrackingOperatorSnapshotFutures extends OperatorSnapshotFutures {
+        int cancelCount = 0;
+
+        @Override
+        public Tuple2<Long, Long> cancel() throws Exception {
+            cancelCount++;
+            return super.cancel();
         }
     }
 }

@@ -20,16 +20,19 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
 
+import java.util.concurrent.CompletableFuture;
+
 /** RPC Gateway interface for messages to the CheckpointCoordinator. */
 public interface CheckpointCoordinatorGateway extends RpcGateway {
 
-    void acknowledgeCheckpoint(
+    CompletableFuture<Acknowledge> acknowledgeCheckpoint(
             final JobID jobID,
             final ExecutionAttemptID executionAttemptID,
             final long checkpointId,

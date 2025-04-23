@@ -618,7 +618,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
     // TODO: This method needs a leader session ID
     @Override
-    public void acknowledgeCheckpoint(
+    public CompletableFuture<Acknowledge> acknowledgeCheckpoint(
             final JobID jobID,
             final ExecutionAttemptID executionAttemptID,
             final long checkpointId,
@@ -632,6 +632,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                     checkpointMetrics,
                     deserializeTaskStateSnapshot(checkpointState, getClass().getClassLoader()));
         }
+        return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
     @Override
