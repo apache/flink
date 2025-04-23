@@ -387,14 +387,14 @@ public class Buckets<IN, BucketID> {
         if (bucket != null) {
             bucket.closePartFile();
         }
-        if (snapshotActiveBucketsThreadPool != null) {
-            snapshotActiveBucketsThreadPool.shutdown();
-        }
     }
 
     public void close() {
         if (activeBuckets != null) {
             activeBuckets.values().forEach(Bucket::disposePartFile);
+        }
+        if (snapshotActiveBucketsThreadPool != null) {
+            snapshotActiveBucketsThreadPool.shutdown();
         }
     }
 
