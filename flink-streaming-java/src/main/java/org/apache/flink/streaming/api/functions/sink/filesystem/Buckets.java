@@ -296,7 +296,7 @@ public class Buckets<IN, BucketID> {
                                                                     bucketState);
                                                         }
                                                         return bucketState;
-                                                    } catch (Exception e) {
+                                                    } catch (IOException e) {
                                                         throw new CompletionException(e);
                                                     }
                                                 },
