@@ -110,7 +110,7 @@ public class ChangelogNormalizeOptimizationTest extends TableTestBase {
     @ParameterizedTest()
     @MethodSource("getTests")
     void testChangelogNormalizePlan(TestSpec spec) {
-        spec.sessionProperties.forEach((key, value) -> util.tableEnv().getConfig().set(key, value));
+        spec.sessionOptions.forEach((key, value) -> util.tableEnv().getConfig().set(key, value));
         for (TableProperties tableProperties : spec.tablesToCreate) {
             final String additionalColumns =
                     String.join(",\n", tableProperties.getAdditionalColumns());
@@ -263,7 +263,7 @@ public class ChangelogNormalizeOptimizationTest extends TableTestBase {
     private static class TestSpec {
 
         private final Set<TableProperties> tablesToCreate;
-        private final Map<String, String> sessionProperties = new HashMap<>();
+        private final Map<String, String> sessionOptions = new HashMap<>();
         private final String query;
         private final String description;
 
@@ -323,7 +323,7 @@ public class ChangelogNormalizeOptimizationTest extends TableTestBase {
         }
 
         public TestSpec withSessionOption(String key, String value) {
-            this.sessionProperties.put(key, value);
+            this.sessionOptions.put(key, value);
             return this;
         }
 
