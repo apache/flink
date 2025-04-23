@@ -228,11 +228,14 @@ object JsonGenerateUtils {
   }
 
   /**
-   * Determines if the parameter index is % 2, which means checking that we only allow JSON calls
-   * for the VALUE parameter of a JSON_OBJECT call.
+   * Determines whether a JSON function is allowed in the current context. JSON functions are
+   * allowed as values in JSON_ARRAY calls or as value parameters in JSON_OBJECT calls. In the case
+   * of a JSON_OBJECT call, we do (i % 2) == 0 to check if it's being used in second parameter, the
+   * values' parameter.
    */
-  def inValuesParam(i: Int): Boolean = {
-    (i % 2) == 0
+  def isSupportedJsonOperand(operand: RexNode, call: RexNode, i: Int): Boolean = {
+    isJsonFunctionOperand(operand) &&
+    (isJsonArrayOperand(call) || isJsonObjectOperand(call) && (i % 2) == 0)
   }
 
   /** Generates a method to convert arrays into [[ArrayNode]]. */
