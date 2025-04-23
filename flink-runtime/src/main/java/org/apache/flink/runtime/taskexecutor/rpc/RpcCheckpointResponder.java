@@ -47,12 +47,14 @@ public class RpcCheckpointResponder implements CheckpointResponder {
             long checkpointId,
             CheckpointMetrics checkpointMetrics,
             TaskStateSnapshot subtaskState) {
-        checkpointCoordinatorGateway.acknowledgeCheckpoint(
-                jobID,
-                executionAttemptID,
-                checkpointId,
-                checkpointMetrics,
-                serializeTaskStateSnapshot(subtaskState));
+        checkpointCoordinatorGateway
+                .acknowledgeCheckpoint(
+                        jobID,
+                        executionAttemptID,
+                        checkpointId,
+                        checkpointMetrics,
+                        serializeTaskStateSnapshot(subtaskState))
+                .join();
     }
 
     @Override
