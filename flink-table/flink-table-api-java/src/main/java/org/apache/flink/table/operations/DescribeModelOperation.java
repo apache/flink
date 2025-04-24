@@ -29,7 +29,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Streams;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Streams;
 
 import java.util.ArrayList;
 import java.util.Arrays;

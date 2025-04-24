@@ -22,7 +22,7 @@ import org.apache.flink.sql.parser.ddl.SqlCreateModel;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogModel;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -60,8 +60,8 @@ public class SqlCreateModelConverter implements SqlNodeConverter<SqlCreateModel>
 
         CatalogModel catalogModel =
                 CatalogModel.of(
-                        schemaBuilderUtil.getSchema(sqlCreateModel.getInputColumnList()),
-                        schemaBuilderUtil.getSchema(sqlCreateModel.getOutputColumnList()),
+                        schemaBuilderUtil.getSchema(sqlCreateModel.getInputColumnList(), true),
+                        schemaBuilderUtil.getSchema(sqlCreateModel.getOutputColumnList(), false),
                         modelOptions,
                         sqlCreateModel.getComment().map(SqlLiteral::toValue).orElse(null));
 
@@ -94,16 +94,21 @@ public class SqlCreateModelConverter implements SqlNodeConverter<SqlCreateModel>
             super(sqlValidator, escapeExpressions, dataTypeFactory);
         }
 
-        private Schema getSchema(SqlNodeList nodeList) {
+        private Schema getSchema(SqlNodeList nodeList, boolean isInput) {
             columns.clear();
+            String schemaType = isInput ? "input" : "output";
             for (SqlNode column : nodeList) {
                 if (column instanceof SqlRegularColumn) {
                     SqlRegularColumn regularColumn = (SqlRegularColumn) column;
-                    columns.put(
-                            regularColumn.getName().getSimple(),
-                            toUnresolvedPhysicalColumn(regularColumn));
+                    String name = regularColumn.getName().getSimple();
+                    if (columns.containsKey(name)) {
+                        throw new ValidationException(
+                                "Duplicate " + schemaType + " column name: '" + name + "'.");
+                    }
+
+                    columns.put(name, toUnresolvedPhysicalColumn(regularColumn));
                 } else {
-                    throw new TableException(
+                    throw new ValidationException(
                             "Column " + column + " can only be a physical column.");
                 }
             }

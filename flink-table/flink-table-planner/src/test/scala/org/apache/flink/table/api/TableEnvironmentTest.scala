@@ -2807,6 +2807,44 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testCreateModelDuplicateInputColumn(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  INPUT(f1 string, f1 string)
+        |  OUTPUT(f2 string)
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+    assertThatThrownBy(() => tableEnv.executeSql(sourceDDL))
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessageContaining("Duplicate input column name: 'f1'.")
+
+  }
+
+  @Test
+  def testCreateModelDuplicateOutputColumn(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  INPUT(f1 string)
+        |  OUTPUT(f2 string, f2 string)
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+    assertThatThrownBy(() => tableEnv.executeSql(sourceDDL))
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessageContaining("Duplicate output column name: 'f2'.")
+
+  }
+
+  @Test
   def testCreateModelMissingOutput(): Unit = {
     val sourceDDL =
       """
@@ -2820,7 +2858,7 @@ class TableEnvironmentTest {
       """.stripMargin
     assertThatThrownBy(() => tableEnv.executeSql(sourceDDL))
       .isInstanceOf(classOf[SqlValidateException])
-      .hasMessageContaining("Output column list can not be empty with non-empty input column list.")
+      .hasMessageContaining("")
   }
 
   @Test

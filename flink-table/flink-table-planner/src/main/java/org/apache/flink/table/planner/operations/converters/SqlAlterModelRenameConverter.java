@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.operations.converters;
 import org.apache.flink.sql.parser.ddl.SqlAlterModelRename;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.AlterModelRenameOperation;
@@ -33,11 +32,9 @@ public class SqlAlterModelRenameConverter
     @Override
     public Operation convertSqlNode(
             SqlAlterModelRename sqlAlterModelRename, ConvertContext context) {
-        ResolvedCatalogModel existingModel =
-                getExistingModel(
-                        context,
-                        sqlAlterModelRename.fullModelName(),
-                        sqlAlterModelRename.ifModelExists());
+        // Mainly to check model existence
+        getExistingModel(
+                context, sqlAlterModelRename.fullModelName(), sqlAlterModelRename.ifModelExists());
 
         UnresolvedIdentifier newUnresolvedIdentifier =
                 UnresolvedIdentifier.of(sqlAlterModelRename.fullNewModelName());
@@ -57,9 +54,6 @@ public class SqlAlterModelRenameConverter
         }
 
         return new AlterModelRenameOperation(
-                existingModel,
-                oldModelIdentifier,
-                newModelIdentifier,
-                sqlAlterModelRename.ifModelExists());
+                oldModelIdentifier, newModelIdentifier, sqlAlterModelRename.ifModelExists());
     }
 }

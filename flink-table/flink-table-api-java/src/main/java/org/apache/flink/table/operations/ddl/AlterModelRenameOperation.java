@@ -24,17 +24,13 @@ import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.catalog.exceptions.ModelAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.ModelNotExistException;
-
-import javax.annotation.Nullable;
 
 /** Operation to describe a ALTER MODEL .. RENAME TO .. statement. */
 @Internal
 public class AlterModelRenameOperation implements AlterOperation {
 
-    private final ResolvedCatalogModel model;
     private final ObjectIdentifier modelIdentifier;
     private final ObjectIdentifier newModelIdentifier;
     private final boolean ignoreIfNotExists;
@@ -42,26 +38,18 @@ public class AlterModelRenameOperation implements AlterOperation {
     /**
      * Creates a AlterModelRenameOperation.
      *
-     * @param model The resolved model to rename. If null, the model does not exist.
      * @param modelIdentifier The identifier of the model to rename.
      * @param newModelIdentifier The new identifier of the model.
      * @param ignoreIfNotExists A flag that indicates if the operation should throw an exception if
      *     model does not exist.
      */
     public AlterModelRenameOperation(
-            @Nullable ResolvedCatalogModel model,
             ObjectIdentifier modelIdentifier,
             ObjectIdentifier newModelIdentifier,
             boolean ignoreIfNotExists) {
-        this.model = model;
         this.modelIdentifier = modelIdentifier;
         this.newModelIdentifier = newModelIdentifier;
         this.ignoreIfNotExists = ignoreIfNotExists;
-    }
-
-    @Nullable
-    public ResolvedCatalogModel getModel() {
-        return model;
     }
 
     public ObjectIdentifier getModelIdentifier() {
