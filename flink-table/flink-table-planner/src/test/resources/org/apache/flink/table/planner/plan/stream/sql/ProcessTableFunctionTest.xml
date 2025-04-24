@@ -129,16 +129,13 @@ LogicalSink(table=[default_catalog.default_database.t_keyed_sink], fields=[name,
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Exchange(distribution=[hash[name]])(reuse_id=[1])
-+- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
-
 Sink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
-+- ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'a')], uid=[a], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
-   +- Reused(reference_id=[1])
-
-Sink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
-+- ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'b')], uid=[b], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
-   +- Reused(reference_id=[1])
++- Union(all=[true], union=[name, out])
+   :- ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'a')], uid=[a], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
+   :  +- Exchange(distribution=[hash[name]])(reuse_id=[1])
+   :     +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+   +- ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'b')], uid=[b], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
+      +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -179,15 +176,12 @@ LogicalSink(table=[default_catalog.default_database.t_sink], fields=[out])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])(reuse_id=[1])
-
 Sink(table=[default_catalog.default_database.t_sink], fields=[out])
-+- ProcessTableFunction(invocation=[f(TABLE(#0), 1, DEFAULT(), DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
-   +- Reused(reference_id=[1])
-
-Sink(table=[default_catalog.default_database.t_sink], fields=[out])
-+- ProcessTableFunction(invocation=[f(TABLE(#0), 42, DEFAULT(), DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
-   +- Reused(reference_id=[1])
++- Union(all=[true], union=[out])
+   :- ProcessTableFunction(invocation=[f(TABLE(#0), 1, DEFAULT(), DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
+   :  +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])(reuse_id=[1])
+   +- ProcessTableFunction(invocation=[f(TABLE(#0), 42, DEFAULT(), DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
+      +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -252,15 +246,12 @@ LogicalSink(table=[default_catalog.default_database.t_keyed_sink], fields=[name,
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'same')], uid=[same], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])(reuse_id=[1])
-+- Exchange(distribution=[hash[name]])
-   +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
-
 Sink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
-+- Reused(reference_id=[1])
-
-Sink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
-+- Reused(reference_id=[1])
++- Union(all=[true], union=[name, out])
+   :- ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'same')], uid=[same], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])(reuse_id=[1])
+   :  +- Exchange(distribution=[hash[name]])
+   :     +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+   +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -286,17 +277,14 @@ LogicalSink(table=[default_catalog.default_database.t_keyed_sink], fields=[name,
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'same')], uid=[same], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])(reuse_id=[1])
-+- Exchange(distribution=[hash[name]])
-   +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
-
 Sink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
-+- Calc(select=['Bob' AS name, out], where=[(name = 'Bob')])
-   +- Reused(reference_id=[1])
-
-Sink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
-+- Calc(select=['Alice' AS name, out], where=[(name = 'Alice')])
-   +- Reused(reference_id=[1])
++- Union(all=[true], union=[name, out])
+   :- Calc(select=['Bob' AS name, out], where=[(name = 'Bob')])
+   :  +- ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'same')], uid=[same], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])(reuse_id=[1])
+   :     +- Exchange(distribution=[hash[name]])
+   :        +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+   +- Calc(select=['Alice' AS name, out], where=[(name = 'Alice')])
+      +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>

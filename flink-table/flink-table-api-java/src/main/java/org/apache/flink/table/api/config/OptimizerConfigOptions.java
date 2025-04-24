@@ -109,7 +109,7 @@ public class OptimizerConfigOptions {
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_REUSE_SINK_ENABLED =
             key("table.optimizer.reuse-sink-enabled")
                     .booleanType()
-                    .defaultValue(false)
+                    .defaultValue(true)
                     .withDescription(
                             "When it is true, the optimizer will try to find out duplicated table sinks and "
                                     + "reuse them. This works only when "
