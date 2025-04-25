@@ -209,6 +209,12 @@ jobs:
           source_directory: ${{ env.MOUNTED_WORKING_DIR }}
           target_directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
 
+      - name: "Setup python"
+        if: matrix.module == 'python'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: "Set coredump pattern"
         working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
         run: sudo sysctl -w kernel.core_pattern=core.%p
@@ -314,6 +320,11 @@ jobs:
         with:
           jdk_version: ${{ inputs.jdk_version }}
           maven_repo_folder: ${{ env.MAVEN_REPO_FOLDER }}
+
+      - name: "Setup python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
       - name: "Install missing packages"
         run: sudo apt-get install -y net-tools docker zip
