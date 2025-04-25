@@ -19,8 +19,11 @@
 package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
+import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -38,7 +41,8 @@ import java.util.Objects;
  * <p>Note: Changes in this class need to be kept in sync with the corresponding runtime class
  * {@link AvroRowDataDeserializationSchema} and schema converter {@link AvroSchemaConverter}.
  */
-public class AvroRowDataSerializationSchema implements SerializationSchema<RowData> {
+public class AvroRowDataSerializationSchema
+        implements SerializationSchema<RowData>, ResultTypeQueryable<GenericRecord> {
 
     private static final long serialVersionUID = 1L;
 
@@ -138,5 +142,15 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
     @Override
     public int hashCode() {
         return Objects.hash(nestedSchema, rowType);
+    }
+
+    @Override
+    public TypeInformation<GenericRecord> getProducedType() {
+        if (schema == null) {
+            throw new IllegalStateException(
+                    "The produced type is not available before the schema is initialized.");
+        } else {
+            return new GenericRecordAvroTypeInfo(schema);
+        }
     }
 }
