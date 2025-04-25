@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
@@ -64,21 +63,6 @@ public interface InternalTimeServiceManager<K> {
             TypeSerializer<K> keySerializer,
             TypeSerializer<N> namespaceSerializer,
             Triggerable<K, N> triggerable);
-
-    /**
-     * Creates an {@link InternalTimerServiceAsyncImpl} for handling a group of timers identified by
-     * the given {@code name}. The timers are scoped to a key and namespace. Mainly used by async
-     * operators.
-     *
-     * <p>Some essential order preservation will be added when the given {@link Triggerable} is
-     * invoked.
-     */
-    <N> InternalTimerService<N> getAsyncInternalTimerService(
-            String name,
-            TypeSerializer<K> keySerializer,
-            TypeSerializer<N> namespaceSerializer,
-            Triggerable<K, N> triggerable,
-            AsyncExecutionController<K> asyncExecutionController);
 
     /**
      * Advances the Watermark of all managed {@link InternalTimerService timer services},

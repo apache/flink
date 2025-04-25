@@ -39,6 +39,7 @@ import java.util.Set;
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.configuration.description.TextElement.text;
 import static org.apache.flink.state.forst.ForStOptions.CACHE_DIRECTORY;
 import static org.apache.flink.state.forst.ForStOptions.CACHE_RESERVED_SIZE;
 import static org.apache.flink.state.forst.ForStOptions.CACHE_SIZE_BASE_LIMIT;
@@ -81,7 +82,7 @@ public class ForStConfigurableOptions implements Serializable {
                     .intType()
                     .defaultValue(-1)
                     .withDescription(
-                            "The maximum number of open files (per stateful operator) that can be used by the DB, '-1' means no limit. "
+                            "The maximum number of open files (per stateful operator) that can be used by the ForSt, '-1' means no limit. "
                                     + "The default value is '-1'.");
 
     public static final ConfigOption<MemorySize> LOG_MAX_FILE_SIZE =
@@ -109,7 +110,7 @@ public class ForStConfigurableOptions implements Serializable {
                             "The directory for ForSt's information logging files. "
                                     + "If empty (Flink default setting), log files will be in the same directory as the Flink log. "
                                     + "If non-empty, this directory will be used and the data directory's absolute path will be used as the prefix of the log file name. "
-                                    + "If setting this option as a non-existing location, e.g '/dev/null', ForSt will then create the log under its own database folder as before.");
+                                    + "If setting this option as a non-existing location, e.g '/dev/null', ForSt will then create the log under its own database folder.");
 
     public static final ConfigOption<InfoLogLevel> LOG_LEVEL =
             key("state.backend.forst.log.level")
@@ -160,7 +161,7 @@ public class ForStConfigurableOptions implements Serializable {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "If true, ForSt will pick target size of each level dynamically. From an empty DB, ")
+                                            "If true, ForSt will pick target size of each level dynamically. From an empty key-value store, ")
                                     .text(
                                             "ForSt would make last level the base level, which means merging L0 data into the last level, ")
                                     .text(
@@ -182,27 +183,27 @@ public class ForStConfigurableOptions implements Serializable {
                             Description.builder()
                                     .text(
                                             "A semicolon-separated list of Compression Type. Different levels can have different "
-                                                    + "compression policies. In many cases, lower levels use fast compression algorithms,"
-                                                    + " while higher levels with more data use slower but more effective compression algorithms. "
-                                                    + "The N th element in the List corresponds to the compression type of the level N-1"
+                                                    + "compression policies. In many cases, lower levels use fast compression algorithms, "
+                                                    + "while higher levels with more data use slower but more effective compression algorithms. "
+                                                    + "The N th element in the List corresponds to the compression type of the level N-1. "
                                                     + "When %s is true, compression_per_level[0] still determines L0, but other "
-                                                    + "elements are based on the base level and may not match the level seen in the info log",
+                                                    + "elements are based on the base level and may not match the level seen in the info log.",
                                             code(USE_DYNAMIC_LEVEL_SIZE.key()))
                                     .linebreak()
                                     .text(
-                                            "Note: If the List size is smaller than the level number, the undefined lower level uses the last Compression Type in the List")
+                                            "Note: If the List size is smaller than the level number, the undefined lower level uses the last Compression Type in the List.")
                                     .linebreak()
                                     .text(
-                                            "Some commonly used compression algorithms for candidates include %s ,%s and %s",
+                                            "Some commonly used compression algorithms for candidates include %s ,%s and %s.",
                                             code(NO_COMPRESSION.name()),
                                             code(SNAPPY_COMPRESSION.name()),
                                             code(LZ4_COMPRESSION.name()))
                                     .linebreak()
                                     .text(
-                                            "The default value is %s, which means that all data uses the Snappy compression algorithm.",
+                                            "The default value is %s, which means that all data uses the Snappy compression algorithm. ",
                                             code(SNAPPY_COMPRESSION.name()))
                                     .text(
-                                            "Likewise, if set to %s , means that all data is not compressed, which will achieve faster speed but will bring some space amplification.",
+                                            "Likewise, if set to %s , means that all data is not compressed, which will achieve faster speed but will bring some space amplification. ",
                                             code(NO_COMPRESSION.name()))
                                     .text(
                                             "In addition, if we need to consider both spatial amplification and performance, we can also set it to '%s;%s;%s', which means that L0 and L1 data will not be compressed, and other data will be compressed using LZ4.",
@@ -216,16 +217,24 @@ public class ForStConfigurableOptions implements Serializable {
                     .memoryType()
                     .defaultValue(MemorySize.parse("64mb"))
                     .withDescription(
-                            "The target file size for compaction, which determines a level-1 file size. "
-                                    + "The default value is '64MB'.");
+                            Description.builder()
+                                    .text(
+                                            "The target file size for compaction, which determines a level-1 file size. "
+                                                    + "The default value is '%s'.",
+                                            text(MemorySize.parse("64mb").toString()))
+                                    .build());
 
     public static final ConfigOption<MemorySize> MAX_SIZE_LEVEL_BASE =
             key("state.backend.forst.compaction.level.max-size-level-base")
                     .memoryType()
                     .defaultValue(MemorySize.parse("256mb"))
                     .withDescription(
-                            "The upper-bound of the total size of level base files in bytes. "
-                                    + "The default value is '256MB'.");
+                            Description.builder()
+                                    .text(
+                                            "The upper-bound of the total size of level base files in bytes. "
+                                                    + "The default value is '%s'.",
+                                            text(MemorySize.parse("256mb").toString()))
+                                    .build());
 
     public static final ConfigOption<MemorySize> WRITE_BUFFER_SIZE =
             key("state.backend.forst.writebuffer.size")
@@ -289,15 +298,14 @@ public class ForStConfigurableOptions implements Serializable {
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "If true, every newly created SST file will contain a Bloom filter. "
-                                    + "It is disabled by default.");
+                            "Whether every newly created SST file will contain a Bloom filter. Default 'false'.");
 
     public static final ConfigOption<Double> BLOOM_FILTER_BITS_PER_KEY =
             key("state.backend.forst.bloom-filter.bits-per-key")
                     .doubleType()
                     .defaultValue(10.0)
                     .withDescription(
-                            "Bits per key that bloom filter will use, this only take effect when bloom filter is used. "
+                            "Bits per key that the bloom filter will use, this only takes effect when the bloom filter is used. "
                                     + "The default value is 10.0.");
 
     public static final ConfigOption<Boolean> BLOOM_FILTER_BLOCK_BASED_MODE =
@@ -305,7 +313,7 @@ public class ForStConfigurableOptions implements Serializable {
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "If true, ForSt will use block-based filter instead of full filter, this only take effect when bloom filter is used. "
+                            "If set 'true', ForSt will use block-based filter instead of full filter, this only takes effect when bloom filter is used. "
                                     + "The default value is 'false'.");
 
     public static final ConfigOption<Long> COMPACT_FILTER_QUERY_TIME_AFTER_NUM_ENTRIES =
@@ -325,14 +333,14 @@ public class ForStConfigurableOptions implements Serializable {
                             "Periodic compaction could speed up expired state entries cleanup, especially for state"
                                     + " entries rarely accessed. Files older than this value will be picked up for compaction,"
                                     + " and re-written to the same level as they were before. It makes sure a file goes through"
-                                    + " compaction filters periodically. 0 means turning off periodic compaction.The default value is '30days'.");
+                                    + " compaction filters periodically. 0 means turning off periodic compaction.The default value is '30 d' (30 days).");
 
     public static final ConfigOption<Double> RESTORE_OVERLAP_FRACTION_THRESHOLD =
             key("state.backend.forst.restore-overlap-fraction-threshold")
                     .doubleType()
                     .defaultValue(0.0)
                     .withDescription(
-                            "The threshold of overlap fraction between the handle's key-group range and target key-group range. "
+                            "The threshold of overlap fraction between the state handle's key-group range and target key-group range. "
                                     + "When restore base DB, only the handle which overlap fraction greater than or equal to threshold "
                                     + "has a chance to be an initial handle. "
                                     + "The default value is 0.0, there is always a handle will be selected for initialization. ");
@@ -351,7 +359,7 @@ public class ForStConfigurableOptions implements Serializable {
                     .defaultValue(Boolean.FALSE)
                     .withDescription(
                             "If true, during rescaling, the deleteFilesInRange API will be invoked "
-                                    + "to clean up the useless files so that local disk space can be reclaimed more promptly.");
+                                    + "to clean up the useless key-values so that primary storage space can be reclaimed more promptly.");
 
     static final ConfigOption<?>[] CANDIDATE_CONFIGS =
             new ConfigOption<?>[] {
@@ -389,7 +397,9 @@ public class ForStConfigurableOptions implements Serializable {
                 BLOOM_FILTER_BLOCK_BASED_MODE,
                 RESTORE_OVERLAP_FRACTION_THRESHOLD,
                 USE_INGEST_DB_RESTORE_MODE,
-                USE_DELETE_FILES_IN_RANGE_DURING_RESCALING
+                USE_DELETE_FILES_IN_RANGE_DURING_RESCALING,
+                COMPACT_FILTER_QUERY_TIME_AFTER_NUM_ENTRIES,
+                COMPACT_FILTER_PERIODIC_COMPACTION_TIME
             };
 
     private static final Set<ConfigOption<?>> POSITIVE_INT_CONFIG_SET =

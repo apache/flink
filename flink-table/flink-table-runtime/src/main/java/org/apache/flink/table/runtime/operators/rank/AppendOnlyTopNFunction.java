@@ -28,32 +28,24 @@ import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.runtime.operators.rank.utils.AppendOnlyTopNHelper;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Collector;
-
-import org.apache.flink.shaded.guava32.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava32.com.google.common.cache.CacheBuilder;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 /**
  * A TopN function could handle insert-only stream.
  *
  * <p>The input stream should only contain INSERT messages.
  */
-public class AppendOnlyTopNFunction extends AbstractTopNFunction {
+public class AppendOnlyTopNFunction extends AbstractSyncStateTopNFunction {
 
     private static final long serialVersionUID = -4708453213104128011L;
-
-    private static final Logger LOG = LoggerFactory.getLogger(AppendOnlyTopNFunction.class);
 
     private final InternalTypeInfo<RowData> sortKeyType;
     private final TypeSerializer<RowData> inputRowSer;
@@ -65,8 +57,7 @@ public class AppendOnlyTopNFunction extends AbstractTopNFunction {
     // the buffer stores mapping from sort key to records list, a heap mirror to dataState
     private transient TopNBuffer buffer;
 
-    // the kvSortedMap stores mapping from partition key to it's buffer
-    private transient Cache<RowData, TopNBuffer> kvSortedMap;
+    private transient SyncStateAppendOnlyTopNHelper helper;
 
     public AppendOnlyTopNFunction(
             StateTtlConfig ttlConfig,
@@ -95,17 +86,6 @@ public class AppendOnlyTopNFunction extends AbstractTopNFunction {
     @Override
     public void open(OpenContext openContext) throws Exception {
         super.open(openContext);
-        int lruCacheSize = Math.max(1, (int) (cacheSize / getDefaultTopNSize()));
-        CacheBuilder<Object, Object> cacheBuilder = CacheBuilder.newBuilder();
-        if (ttlConfig.isEnabled()) {
-            cacheBuilder.expireAfterWrite(
-                    ttlConfig.getTimeToLive().toMillis(), TimeUnit.MILLISECONDS);
-        }
-        kvSortedMap = cacheBuilder.maximumSize(lruCacheSize).build();
-        LOG.info(
-                "Top{} operator is using LRU caches key-size: {}",
-                getDefaultTopNSize(),
-                lruCacheSize);
 
         ListTypeInfo<RowData> valueTypeInfo = new ListTypeInfo<>(inputRowType);
         MapStateDescriptor<RowData, List<RowData>> mapStateDescriptor =
@@ -115,8 +95,9 @@ public class AppendOnlyTopNFunction extends AbstractTopNFunction {
         }
         dataState = getRuntimeContext().getMapState(mapStateDescriptor);
 
-        // metrics
-        registerMetric(kvSortedMap.size() * getDefaultTopNSize());
+        helper = new SyncStateAppendOnlyTopNHelper();
+
+        helper.registerMetric();
     }
 
     @Override
@@ -139,20 +120,20 @@ public class AppendOnlyTopNFunction extends AbstractTopNFunction {
             if (outputRankNumber || hasOffset()) {
                 // the without-number-algorithm can't handle topN with offset,
                 // so use the with-number-algorithm to handle offset
-                processElementWithRowNumber(sortKey, input, out);
+                helper.processElementWithRowNumber(buffer, sortKey, input, rankEnd, out);
             } else {
-                processElementWithoutRowNumber(input, out);
+                helper.processElementWithoutRowNumber(buffer, input, rankEnd, out);
             }
         }
     }
 
     private void initHeapStates() throws Exception {
-        requestCount += 1;
+        helper.accRequestCount();
         RowData currentKey = (RowData) keyContext.getCurrentKey();
-        buffer = kvSortedMap.getIfPresent(currentKey);
+        buffer = helper.getTopNBufferFromCache(currentKey);
         if (buffer == null) {
             buffer = new TopNBuffer(sortKeyComparator, ArrayList::new);
-            kvSortedMap.put(currentKey, buffer);
+            helper.saveTopNBufferToCache(currentKey, buffer);
             // restore buffer
             Iterator<Map.Entry<RowData, List<RowData>>> iter = dataState.iterator();
             if (iter != null) {
@@ -165,84 +146,27 @@ public class AppendOnlyTopNFunction extends AbstractTopNFunction {
                 }
             }
         } else {
-            hitCount += 1;
+            helper.accHitCount();
         }
     }
 
-    private void processElementWithRowNumber(RowData sortKey, RowData input, Collector<RowData> out)
-            throws Exception {
-        Iterator<Map.Entry<RowData, Collection<RowData>>> iterator = buffer.entrySet().iterator();
-        long currentRank = 0L;
-        boolean findsSortKey = false;
-        RowData currentRow = null;
-        while (iterator.hasNext() && isInRankEnd(currentRank)) {
-            Map.Entry<RowData, Collection<RowData>> entry = iterator.next();
-            Collection<RowData> records = entry.getValue();
-            // meet its own sort key
-            if (!findsSortKey && entry.getKey().equals(sortKey)) {
-                currentRank += records.size();
-                currentRow = input;
-                findsSortKey = true;
-            } else if (findsSortKey) {
-                Iterator<RowData> recordsIter = records.iterator();
-                while (recordsIter.hasNext() && isInRankEnd(currentRank)) {
-                    RowData prevRow = recordsIter.next();
-                    collectUpdateBefore(out, prevRow, currentRank);
-                    collectUpdateAfter(out, currentRow, currentRank);
-                    currentRow = prevRow;
-                    currentRank += 1;
-                }
-            } else {
-                currentRank += records.size();
-            }
-        }
-        if (isInRankEnd(currentRank)) {
-            // there is no enough elements in Top-N, emit INSERT message for the new record.
-            collectInsert(out, currentRow, currentRank);
+    private class SyncStateAppendOnlyTopNHelper extends AppendOnlyTopNHelper {
+
+        public SyncStateAppendOnlyTopNHelper() {
+            super(
+                    AppendOnlyTopNFunction.this,
+                    cacheSize,
+                    AppendOnlyTopNFunction.this.getDefaultTopNSize());
         }
 
-        // remove the records associated to the sort key which is out of topN
-        List<RowData> toDeleteSortKeys = new ArrayList<>();
-        while (iterator.hasNext()) {
-            Map.Entry<RowData, Collection<RowData>> entry = iterator.next();
-            RowData key = entry.getKey();
+        @Override
+        protected void removeFromState(RowData key) throws Exception {
             dataState.remove(key);
-            toDeleteSortKeys.add(key);
         }
-        for (RowData toDeleteKey : toDeleteSortKeys) {
-            buffer.removeAll(toDeleteKey);
-        }
-    }
 
-    private void processElementWithoutRowNumber(RowData input, Collector<RowData> out)
-            throws Exception {
-        // remove retired element
-        if (buffer.getCurrentTopNum() > rankEnd) {
-            Map.Entry<RowData, Collection<RowData>> lastEntry = buffer.lastEntry();
-            RowData lastKey = lastEntry.getKey();
-            Collection<RowData> lastList = lastEntry.getValue();
-            RowData lastElement = buffer.lastElement();
-            int size = lastList.size();
-            // remove last one
-            if (size <= 1) {
-                buffer.removeAll(lastKey);
-                dataState.remove(lastKey);
-            } else {
-                buffer.removeLast();
-                // last element has been removed from lastList, we have to copy a new collection
-                // for lastList to avoid mutating state values, see CopyOnWriteStateMap,
-                // otherwise, the result might be corrupt.
-                // don't need to perform a deep copy, because RowData elements will not be updated
-                dataState.put(lastKey, new ArrayList<>(lastList));
-            }
-            if (size == 0 || input.equals(lastElement)) {
-                return;
-            } else {
-                // lastElement shouldn't be null
-                collectDelete(out, lastElement);
-            }
+        @Override
+        protected void updateState(RowData key, List<RowData> value) throws Exception {
+            dataState.put(key, value);
         }
-        // it first appears in the TopN, send INSERT message
-        collectInsert(out, input);
     }
 }

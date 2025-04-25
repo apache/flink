@@ -1010,27 +1010,6 @@ class TableEnvironmentTest {
   }
 
   @Test
-  def testAlterTableCompactOnNonManagedTable(): Unit = {
-    val statement =
-      """
-        |CREATE TABLE MyTable (
-        |  a bigint,
-        |  b int,
-        |  c varchar
-        |) WITH (
-        |  'connector' = 'COLLECTION',
-        |  'is-bounded' = 'false'
-        |)
-      """.stripMargin
-    tableEnv.executeSql(statement)
-
-    assertThatThrownBy(() => tableEnv.executeSql("alter table MyTable compact"))
-      .hasMessageContaining("ALTER TABLE COMPACT operation is not supported for " +
-        "non-managed table `default_catalog`.`default_database`.`MyTable`")
-      .isInstanceOf[ValidationException]
-  }
-
-  @Test
   def testQueryViewWithHints(): Unit = {
     val statement =
       """
@@ -1068,23 +1047,6 @@ class TableEnvironmentTest {
         "cannot be enriched with new options. Hints can only be applied to tables.")
       .isInstanceOf(classOf[ValidationException])
 
-  }
-
-  @Test
-  def testAlterTableCompactOnManagedTableUnderStreamingMode(): Unit = {
-    val statement =
-      """
-        |CREATE TABLE MyTable (
-        |  a bigint,
-        |  b int,
-        |  c varchar
-        |)
-      """.stripMargin
-    tableEnv.executeSql(statement)
-
-    assertThatThrownBy(() => tableEnv.executeSql("alter table MyTable compact"))
-      .hasMessageContaining("Compact managed table only works under batch mode.")
-      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -1667,12 +1629,6 @@ class TableEnvironmentTest {
     // check result after unloading module
     tableEnv.executeSql("UNLOAD MODULE dummy")
     validateShowModules(("core", false))
-  }
-
-  @Test
-  def testLegacyModule(): Unit = {
-    tableEnv.executeSql("LOAD MODULE LegacyModule")
-    validateShowModules(("core", true), ("LegacyModule", true))
   }
 
   @Test
@@ -2983,11 +2939,12 @@ class TableEnvironmentTest {
         table: CatalogBaseTable): CatalogBaseTable = {
       numTempTable += 1
       if (table.isInstanceOf[CatalogTable]) {
-        CatalogTable.of(
-          table.getUnresolvedSchema,
-          tableComment,
-          Collections.emptyList(),
-          table.getOptions)
+        CatalogTable
+          .newBuilder()
+          .schema(table.getUnresolvedSchema)
+          .comment(tableComment)
+          .options(table.getOptions)
+          .build()
       } else {
         val view = table.asInstanceOf[CatalogView]
         CatalogView.of(

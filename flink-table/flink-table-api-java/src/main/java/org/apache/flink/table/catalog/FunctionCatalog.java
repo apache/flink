@@ -876,12 +876,6 @@ public final class FunctionCatalog {
         }
 
         @Override
-        public boolean isGeneric() {
-            throw new UnsupportedOperationException(
-                    "This CatalogFunction is a InlineCatalogFunction. This method should not be called.");
-        }
-
-        @Override
         public FunctionLanguage getFunctionLanguage() {
             return FunctionLanguage.JAVA;
         }

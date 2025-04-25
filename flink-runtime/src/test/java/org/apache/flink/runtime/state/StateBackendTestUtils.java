@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -36,6 +37,7 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.List;
 import java.util.concurrent.RunnableFuture;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -136,8 +138,9 @@ public class StateBackendTestUtils {
                 S getOrCreateKeyedState(
                         N defaultNamespace,
                         TypeSerializer<N> namespaceSerializer,
-                        org.apache.flink.runtime.state.v2.StateDescriptor<SV> stateDesc)
+                        org.apache.flink.api.common.state.v2.StateDescriptor<SV> stateDesc)
                         throws Exception {
+            stateDesc.initializeSerializerUnlessSet(new ExecutionConfig());
             return (S) innerStateSupplier.get();
         }
 
@@ -146,8 +149,9 @@ public class StateBackendTestUtils {
         public <N, S extends InternalKeyedState, SV> S createStateInternal(
                 @Nonnull N defaultNamespace,
                 @Nonnull TypeSerializer<N> namespaceSerializer,
-                @Nonnull org.apache.flink.runtime.state.v2.StateDescriptor<SV> stateDesc)
+                @Nonnull org.apache.flink.api.common.state.v2.StateDescriptor<SV> stateDesc)
                 throws Exception {
+            stateDesc.initializeSerializerUnlessSet(new ExecutionConfig());
             return (S) innerStateSupplier.get();
         }
 
@@ -239,6 +243,7 @@ public class StateBackendTestUtils {
                     parameters.getEnv().getExecutionConfig(),
                     parameters.getTtlTimeProvider(),
                     delegatedKeyedStateBackend.getLatencyTrackingStateConfig(),
+                    delegatedKeyedStateBackend.getSizeTrackingStateConfig(),
                     parameters.getCancelStreamRegistry(),
                     delegatedKeyedStateBackend.getKeyContext()) {
                 @Override
@@ -265,6 +270,11 @@ public class StateBackendTestUtils {
                 @Override
                 public <N> Stream<K> getKeys(String state, N namespace) {
                     return delegatedKeyedStateBackend.getKeys(state, namespace);
+                }
+
+                @Override
+                public <N> Stream<K> getKeys(List<String> states, N namespace) {
+                    return delegatedKeyedStateBackend.getKeys(states, namespace);
                 }
 
                 @Override

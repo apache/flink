@@ -327,6 +327,24 @@ public final class DataTypeUtils {
         return new AtomicDataType(new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3));
     }
 
+    /**
+     * {@link ResolvedSchema#toPhysicalRowDataType()} erases time attributes. This method keeps them
+     * during conversion for very specific use cases mostly in Table API.
+     */
+    public static DataType fromResolvedSchemaPreservingTimeAttributes(
+            ResolvedSchema resolvedSchema) {
+        final List<String> fieldNames = resolvedSchema.getColumnNames();
+        final List<DataType> fieldTypes = resolvedSchema.getColumnDataTypes();
+        return DataTypes.ROW(
+                        IntStream.range(0, fieldNames.size())
+                                .mapToObj(
+                                        pos ->
+                                                DataTypes.FIELD(
+                                                        fieldNames.get(pos), fieldTypes.get(pos)))
+                                .collect(Collectors.toList()))
+                .notNull();
+    }
+
     private DataTypeUtils() {
         // no instantiation
     }

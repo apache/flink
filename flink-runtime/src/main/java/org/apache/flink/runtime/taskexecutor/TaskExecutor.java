@@ -154,8 +154,8 @@ import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableList;
-import org.apache.flink.shaded.guava32.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Sets;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -1288,15 +1288,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             SlotID slotId, JobID jobId, AllocationID allocationId, ResourceProfile resourceProfile)
             throws SlotAllocationException {
         if (taskSlotTable.isSlotFree(slotId.getSlotNumber())) {
-            if (!taskSlotTable.allocateSlot(
+            taskSlotTable.allocateSlot(
                     slotId.getSlotNumber(),
                     jobId,
                     allocationId,
                     resourceProfile,
-                    taskManagerConfiguration.getSlotTimeout())) {
-                log.info("Could not allocate slot for {}.", allocationId);
-                throw new SlotAllocationException("Could not allocate slot.");
-            }
+                    taskManagerConfiguration.getSlotTimeout());
         } else if (!taskSlotTable.isAllocated(slotId.getSlotNumber(), jobId, allocationId)) {
             final String message =
                     "The slot " + slotId + " has already been allocated for a different job.";

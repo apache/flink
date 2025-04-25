@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.state.v2;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.state.v2.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
@@ -50,8 +52,10 @@ public class AbstractReducingStateTest extends AbstractKeyedStateTestBase {
         ReduceFunction<Integer> reducer = Integer::sum;
         ReducingStateDescriptor<Integer> descriptor =
                 new ReducingStateDescriptor<>("testState", reducer, BasicTypeInfo.INT_TYPE_INFO);
+        descriptor.initializeSerializerUnlessSet(new ExecutionConfig());
         AbstractReducingState<String, Void, Integer> reducingState =
-                new AbstractReducingState<>(aec, descriptor);
+                new AbstractReducingState<>(
+                        aec, descriptor.getReduceFunction(), descriptor.getSerializer());
         aec.setCurrentContext(aec.buildContext("test", "test"));
 
         reducingState.asyncClear();
@@ -80,6 +84,7 @@ public class AbstractReducingStateTest extends AbstractKeyedStateTestBase {
         ReduceFunction<Integer> reducer = Integer::sum;
         ReducingStateDescriptor<Integer> descriptor =
                 new ReducingStateDescriptor<>("testState", reducer, BasicTypeInfo.INT_TYPE_INFO);
+        descriptor.initializeSerializerUnlessSet(new ExecutionConfig());
         AsyncExecutionController<String> aec =
                 new AsyncExecutionController<>(
                         new SyncMailboxExecutor(),
@@ -90,9 +95,11 @@ public class AbstractReducingStateTest extends AbstractKeyedStateTestBase {
                         100,
                         10000,
                         1,
+                        null,
                         null);
         AbstractReducingState<String, String, Integer> reducingState =
-                new AbstractReducingState<>(aec, descriptor);
+                new AbstractReducingState<>(
+                        aec, descriptor.getReduceFunction(), descriptor.getSerializer());
         aec.setCurrentContext(aec.buildContext("test", "test"));
         aec.setCurrentNamespaceForState(reducingState, "1");
         reducingState.asyncAdd(1);
@@ -183,6 +190,11 @@ public class AbstractReducingStateTest extends AbstractKeyedStateTestBase {
         @Override
         public StateRequestContainer createStateRequestContainer() {
             return new MockStateRequestContainer();
+        }
+
+        @Override
+        public void executeRequestSync(StateRequest<?, ?, ?, ?> stateRequest) {
+            throw new UnsupportedOperationException("Unsupported synchronous execution");
         }
 
         @Override

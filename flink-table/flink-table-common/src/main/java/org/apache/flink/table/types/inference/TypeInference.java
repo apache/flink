@@ -20,6 +20,7 @@ package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
@@ -160,7 +161,7 @@ public final class TypeInference {
                         .collect(Collectors.toList());
         if (!invalidStateEntries.isEmpty()) {
             throw new ValidationException(
-                    "Invalid state names. A state entry must follow the pattern [a-zA-Z_$][a-zA-Z_$0-9]. But found: "
+                    "Invalid state names. A state entry must follow the pattern [a-zA-Z_$][a-zA-Z_$0-9]*. But found: "
                             + invalidStateEntries);
         }
     }
@@ -234,7 +235,8 @@ public final class TypeInference {
             Preconditions.checkNotNull(
                     accumulatorTypeStrategy, "Accumulator type strategy must not be null.");
             this.stateTypeStrategies.put(
-                    "acc", StateTypeStrategyWrapper.of(accumulatorTypeStrategy));
+                    UserDefinedFunctionHelper.DEFAULT_ACCUMULATOR_NAME,
+                    StateTypeStrategy.of(accumulatorTypeStrategy));
             return this;
         }
 

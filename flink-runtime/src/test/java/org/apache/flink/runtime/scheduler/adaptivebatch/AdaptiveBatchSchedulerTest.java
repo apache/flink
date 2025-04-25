@@ -68,16 +68,18 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
 import static org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder.createCustomParallelismDecider;
+import static org.apache.flink.runtime.scheduler.DefaultSchedulerTest.runCloseAsyncCompletesInMainThreadTest;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFailedTaskExecutionState;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFinishedTaskExecutionState;
 import static org.apache.flink.runtime.scheduler.adaptivebatch.DefaultVertexParallelismAndInputInfosDeciderTest.createDecider;
 import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
-import static org.apache.flink.shaded.guava32.com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.flink.shaded.guava33.com.google.common.collect.Iterables.getOnlyElement;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link AdaptiveBatchScheduler}. */
@@ -191,7 +193,7 @@ class AdaptiveBatchSchedulerTest {
         // trigger source finished.
         transitionExecutionsState(scheduler, ExecutionState.FINISHED, source);
         assertThat(mapExecutionJobVertex.getParallelism()).isEqualTo(5);
-        assertThat(sinkExecutionJobVertex.getParallelism()).isEqualTo(-1);
+        assertThat(sinkExecutionJobVertex.getParallelism()).isEqualTo(5);
 
         // trigger map finished.
         transitionExecutionsState(scheduler, ExecutionState.FINISHED, map);
@@ -386,6 +388,22 @@ class AdaptiveBatchSchedulerTest {
         assertThat(mergedSourceParallelismFuture.join()).isEqualTo(4);
     }
 
+    @Test
+    void testCloseAsyncReturnsMainThreadFuture() throws Exception {
+        final ScheduledExecutorService scheduledExecutorServiceForMainThread =
+                Executors.newSingleThreadScheduledExecutor();
+        try {
+            runCloseAsyncCompletesInMainThreadTest(
+                    scheduledExecutorServiceForMainThread,
+                    (mainThread, checkpointsCleaner) ->
+                            createSchedulerBuilder(createJobGraph(), mainThread)
+                                    .setCheckpointCleaner(checkpointsCleaner)
+                                    .buildAdaptiveBatchJobScheduler());
+        } finally {
+            scheduledExecutorServiceForMainThread.shutdownNow();
+        }
+    }
+
     void testUserConfiguredMaxParallelism(
             int globalMinParallelism,
             int globalMaxParallelism,
@@ -576,6 +594,11 @@ class AdaptiveBatchSchedulerTest {
     }
 
     private DefaultSchedulerBuilder createSchedulerBuilder(JobGraph jobGraph) {
+        return createSchedulerBuilder(jobGraph, mainThreadExecutor);
+    }
+
+    private DefaultSchedulerBuilder createSchedulerBuilder(
+            JobGraph jobGraph, ComponentMainThreadExecutor mainThreadExecutor) {
         return new DefaultSchedulerBuilder(
                         jobGraph, mainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
                 .setDelayExecutor(taskRestartExecutor);

@@ -17,15 +17,16 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>2.0-SNAPSHOT</version>
+		<version>2.1-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-python</artifactId>
@@ -377,6 +378,12 @@ under the License.
 			<artifactId>commons-lang3</artifactId>
 		</dependency>
 
+		<dependency>
+			<groupId>com.fasterxml.jackson.datatype</groupId>
+			<artifactId>jackson-datatype-jdk8</artifactId>
+			<version>${jackson-bom.version}</version>
+		</dependency>
+
 	</dependencies>
 
 	<dependencyManagement>
@@ -448,7 +455,8 @@ under the License.
 								<delete dir="${project.basedir}/build"/>
 								<delete dir="${project.basedir}/apache-flink-libraries/build"/>
 								<delete dir="${project.basedir}/apache_flink.egg-info"/>
-								<delete dir="${project.basedir}/apache-flink-libraries/apache_flink_libraries.egg-info"/>
+								<delete
+									dir="${project.basedir}/apache-flink-libraries/apache_flink_libraries.egg-info"/>
 							</target>
 						</configuration>
 					</execution>
@@ -498,15 +506,17 @@ under the License.
 									 basedir="${project.build.directory}/test-classes"
 									 includes="**/PythonFunctionFactoryTest.class"/>
 
-								<jar destfile="${project.build.directory}/artifacts/testDataStream.jar"
-									 basedir="${project.build.directory}/test-classes"
-									 includes="**/DataStreamTestCollectSink.class,**/MyCustomSourceFunction.class,**/PartitionCustomTestMapFunction.class"/>
+								<jar
+									destfile="${project.build.directory}/artifacts/testDataStream.jar"
+									basedir="${project.build.directory}/test-classes"
+									includes="**/DataStreamTestCollectSink.class,**/MyCustomSourceFunction.class,**/PartitionCustomTestMapFunction.class"/>
 
 								<jar destfile="${project.build.directory}/artifacts/dummy.jar"
 									 basedir="${project.build.directory}/test-classes"
 									 includes="**/TestJob.class">
 									<manifest>
-										<attribute name="Main-Class" value="org.apache.flink.client.cli.TestJob" />
+										<attribute name="Main-Class"
+												   value="org.apache.flink.client.cli.TestJob"/>
 									</manifest>
 								</jar>
 							</target>
@@ -575,7 +585,8 @@ under the License.
 								</artifactItem>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-sql-connector-aws-kinesis-firehose</artifactId>
+									<artifactId>flink-sql-connector-aws-kinesis-firehose
+									</artifactId>
 								</artifactItem>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
@@ -587,7 +598,8 @@ under the License.
 								</artifactItem>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-connector-cassandra_${scala.binary.version}</artifactId>
+									<artifactId>flink-connector-cassandra_${scala.binary.version}
+									</artifactId>
 								</artifactItem>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
@@ -612,7 +624,8 @@ under the License.
 									<artifactId>flink-test-utils-junit</artifactId>
 								</artifactItem>
 							</artifactItems>
-							<outputDirectory>${project.build.directory}/test-dependencies</outputDirectory>
+							<outputDirectory>${project.build.directory}/test-dependencies
+							</outputDirectory>
 						</configuration>
 					</execution>
 				</executions>
@@ -629,7 +642,8 @@ under the License.
 						</goals>
 						<configuration>
 							<includeGroupIds>junit</includeGroupIds>
-							<outputDirectory>${project.build.directory}/test-dependencies</outputDirectory>
+							<outputDirectory>${project.build.directory}/test-dependencies
+							</outputDirectory>
 						</configuration>
 					</execution>
 				</executions>
@@ -663,17 +677,25 @@ under the License.
 								<filter>
 									<artifact>org.apache.beam:beam-sdks-java-core</artifact>
 									<excludes>
-										<exclude>org/apache/beam/repackaged/core/org/antlr/**</exclude>
-										<exclude>org/apache/beam/repackaged/core/org/apache/commons/compress/**</exclude>
-										<exclude>org/apache/beam/repackaged/core/org/apache/commons/lang3/**</exclude>
+										<exclude>org/apache/beam/repackaged/core/org/antlr/**
+										</exclude>
+										<exclude>
+											org/apache/beam/repackaged/core/org/apache/commons/compress/**
+										</exclude>
+										<exclude>
+											org/apache/beam/repackaged/core/org/apache/commons/lang3/**
+										</exclude>
 									</excludes>
 								</filter>
 								<filter>
 									<artifact>org.apache.beam:beam-vendor-grpc-1_43_2</artifact>
 									<excludes>
-										<exclude>org/apache/beam/vendor/grpc/v1p43p2/org/jboss/**</exclude>
+										<exclude>org/apache/beam/vendor/grpc/v1p43p2/org/jboss/**
+										</exclude>
 										<exclude>schema/**</exclude>
-										<exclude>org/apache/beam/vendor/grpc/v1p43p2/org/eclipse/jetty/**</exclude>
+										<exclude>
+											org/apache/beam/vendor/grpc/v1p43p2/org/eclipse/jetty/**
+										</exclude>
 									</excludes>
 								</filter>
 								<filter>
@@ -681,6 +703,7 @@ under the License.
 									<excludes>
 										<exclude>LICENSE-junit.txt</exclude>
 										<exclude>LICENSE.txt</exclude>
+										<exclude>LICENSE</exclude>
 										<exclude>META-INF/LICENSE.txt</exclude>
 										<exclude>*.proto</exclude>
 									</excludes>
@@ -689,43 +712,60 @@ under the License.
 							<relocations combine.children="append">
 								<relocation>
 									<pattern>py4j</pattern>
-									<shadedPattern>org.apache.flink.api.python.shaded.py4j</shadedPattern>
+									<shadedPattern>org.apache.flink.api.python.shaded.py4j
+									</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>net.razorvine</pattern>
-									<shadedPattern>org.apache.flink.api.python.shaded.net.razorvine</shadedPattern>
+									<shadedPattern>
+										org.apache.flink.api.python.shaded.net.razorvine
+									</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>com.fasterxml.jackson</pattern>
-									<shadedPattern>org.apache.flink.api.python.shaded.com.fasterxml.jackson</shadedPattern>
+									<shadedPattern>
+										org.apache.flink.api.python.shaded.com.fasterxml.jackson
+									</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.joda.time</pattern>
-									<shadedPattern>org.apache.flink.api.python.shaded.org.joda.time</shadedPattern>
+									<shadedPattern>
+										org.apache.flink.api.python.shaded.org.joda.time
+									</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>com.google.protobuf</pattern>
-									<shadedPattern>org.apache.flink.api.python.shaded.com.google.protobuf</shadedPattern>
+									<shadedPattern>
+										org.apache.flink.api.python.shaded.com.google.protobuf
+									</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.apache.arrow</pattern>
-									<shadedPattern>org.apache.flink.api.python.shaded.org.apache.arrow</shadedPattern>
+									<shadedPattern>
+										org.apache.flink.api.python.shaded.org.apache.arrow
+									</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>io.netty</pattern>
-									<shadedPattern>org.apache.flink.api.python.shaded.io.netty</shadedPattern>
+									<shadedPattern>org.apache.flink.api.python.shaded.io.netty
+									</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>com.google.flatbuffers</pattern>
-									<shadedPattern>org.apache.flink.api.python.shaded.com.google.flatbuffers</shadedPattern>
+									<shadedPattern>
+										org.apache.flink.api.python.shaded.com.google.flatbuffers
+									</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>com.google.protobuf</pattern>
-									<shadedPattern>org.apache.flink.api.python.shaded.com.google.protobuf</shadedPattern>
+									<shadedPattern>
+										org.apache.flink.api.python.shaded.com.google.protobuf
+									</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.apache.avro</pattern>
-									<shadedPattern>org.apache.flink.avro.shaded.org.apache.avro</shadedPattern>
+									<shadedPattern>org.apache.flink.avro.shaded.org.apache.avro
+									</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>
@@ -743,7 +783,8 @@ under the License.
 							<goal>run</goal>
 						</goals>
 						<configuration>
-							<protocArtifact>com.google.protobuf:protoc:${protoc.version}</protocArtifact>
+							<protocArtifact>com.google.protobuf:protoc:${protoc.version}
+							</protocArtifact>
 							<inputDirectories>
 								<include>pyflink/proto</include>
 							</inputDirectories>
@@ -758,7 +799,8 @@ under the License.
 					<systemPropertyVariables>
 						<!-- Arrow requires the property io.netty.tryReflectionSetAccessible to
 						be set to true for JDK >= 9. Please refer to ARROW-5412 for more details. -->
-						<io.netty.tryReflectionSetAccessible>true</io.netty.tryReflectionSetAccessible>
+						<io.netty.tryReflectionSetAccessible>true
+						</io.netty.tryReflectionSetAccessible>
 					</systemPropertyVariables>
 				</configuration>
 			</plugin>

@@ -289,8 +289,6 @@ final class TestValuesRuntimeFunctions {
                 RowData next;
                 try {
                     next = serializer.deserialize(input);
-                    generator.onEvent(next, Long.MIN_VALUE, output);
-                    generator.onPeriodicEmit(output);
                 } catch (Exception e) {
                     throw new IOException(
                             "Failed to deserialize an element from the source. "
@@ -303,6 +301,8 @@ final class TestValuesRuntimeFunctions {
                 synchronized (lock) {
                     ctx.collect(next);
                     numElementsEmitted++;
+                    generator.onEvent(next, Long.MIN_VALUE, output);
+                    generator.onPeriodicEmit(output);
                 }
             }
         }
@@ -518,13 +518,17 @@ final class TestValuesRuntimeFunctions {
                         .flatMap(List::stream)
                         .forEach(
                                 row -> {
-                                    boolean isDelete = row.getKind() == RowKind.DELETE;
+                                    boolean isDelete =
+                                            row.getKind() == RowKind.DELETE
+                                                    || row.getKind() == RowKind.UPDATE_BEFORE;
                                     Row key = Row.project(row, keyIndices);
                                     key.setKind(RowKind.INSERT);
                                     if (isDelete) {
                                         localUpsertResult.remove(key);
                                     } else {
-                                        localUpsertResult.put(key, row);
+                                        final Row upsertRow = Row.copy(row);
+                                        upsertRow.setKind(RowKind.INSERT);
+                                        localUpsertResult.put(key, upsertRow);
                                     }
                                 });
             }

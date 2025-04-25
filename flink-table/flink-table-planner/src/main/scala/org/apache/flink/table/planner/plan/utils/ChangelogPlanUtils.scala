@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.connector.ChangelogMode
-import org.apache.flink.table.planner.plan.`trait`.{ModifyKind, ModifyKindSetTraitDef, UpdateKind, UpdateKindTraitDef}
+import org.apache.flink.table.planner.plan.`trait`.{DeleteKind, DeleteKindTraitDef, ModifyKind, ModifyKindSetTraitDef, UpdateKind, UpdateKindTraitDef}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.program.FlinkChangelogModeInferenceProgram
 import org.apache.flink.types.RowKind
@@ -85,6 +85,11 @@ object ChangelogPlanUtils {
     val updateKind = node.getTraitSet
       .getTrait(UpdateKindTraitDef.INSTANCE)
       .updateKind
+    val deleteKind = Option(
+      node.getTraitSet
+        .getTrait(DeleteKindTraitDef.INSTANCE))
+      .map(_.deleteKind)
+      .getOrElse(DeleteKind.NONE)
 
     if (modifyKindSet.isEmpty) {
       None
@@ -102,6 +107,11 @@ object ChangelogPlanUtils {
           modeBuilder.addContainedKind(RowKind.UPDATE_BEFORE)
         }
       }
+
+      if (deleteKind == DeleteKind.DELETE_BY_KEY) {
+        modeBuilder.keyOnlyDeletes(true)
+      }
+
       Some(modeBuilder.build())
     }
   }
@@ -121,7 +131,11 @@ object ChangelogPlanUtils {
         kinds += "UA"
       }
       if (mode.contains(RowKind.DELETE)) {
-        kinds += "D"
+        if (mode.keyOnlyDeletes()) {
+          kinds += "PD"
+        } else {
+          kinds += "D"
+        }
       }
       kinds.mkString(",")
   }

@@ -95,12 +95,50 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
 
 The total memory amount of RocksDB instance(s) per slot can also be bounded, please refer to documentation [here]({{< ref "docs/ops/state/large_state_tuning" >}}#bounding-rocksdb-memory-usage) for details.
 
+## The ForStStateBackend
+
+The *ForStStateBackend* is a state backend that is based on [ForSt project](https://github.com/ververica/ForSt),
+which is also a LSM-tree structured key-value store and built on top of the RocksDB.
+It is designed for disaggregated state management, for more details, see [here]({{< ref "docs/ops/state/disaggregated_state" >}}).
+Most importantly, it can hold its sst files on remote file systems that Flink supports, such as HDFS, S3, etc.
+This allows Flink to scale the state size beyond the local disk capacity of the TaskManager.
+Moreover, by putting the sst files on remote file systems, it can also provide a more lightweight
+way to perform checkpoint and recovery.
+
+The ForStStateBackend is still in the experimental stage and is not fully available for production.
+It always performs asynchronous incremental snapshots.
+
+The ForStStateBackend is encouraged for:
+
+- Jobs with very large state, long windows, large key/value states. Local disk may not be enough to 
+store the state.
+- All high-availability setups.
+- Asynchronous state access is preferred. Since the ForStStateBackend is the only one supporting 
+asynchronous state access.
+- Jobs that require lightweight checkpoint and recovery, such as cloud-native applications.
+
+Limitations of the ForStStateBackend (for now):
+
+- Same as EmbeddedRocksDBStateBackend, the maximum supported size per key and per value is 2^31 bytes each.
+- Does not support canonical savepoint, full snapshot, changelog and file-merging checkpoints.
+Always perform incremental snapshots.
+
+Compared with EmbeddedRocksDBStateBackend, ForStStateBackend stores data on remote file system, thus
+the amount of state that you can keep is unlimited. The local disk of TaskManager is only used to
+store cache of file, to provide better performance. Note that when most of the active state is on
+remote file system, the performance of state access may be affected by the network latency. Flink
+introduces asynchronous state access to mitigate this issue. If you are using the asynchronous state
+methods in State API V2, you can benefit from the asynchronous state access. To get familiar with the
+State API V2, please refer to the [State API V2 documentation]({{< ref "docs/dev/datastream/fault-tolerance/state_v2" >}}).
+
 ## Choose The Right State Backend
 
 When deciding between `HashMapStateBackend` and `RocksDB`, it is a choice between performance and scalability.
 `HashMapStateBackend` is very fast as each state access and update operates on objects on the Java heap; however, state size is limited by available memory within the cluster.
-On the other hand, `RocksDB` can scale based on available disk space and is the only state backend to support incremental snapshots.
+On the other hand, `RocksDB` can scale based on available disk space.
 However, each state access and update requires (de-)serialization and potentially reading from disk which leads to average performance that is an order of magnitude slower than the memory state backends.
+If you are handling very large state even exceeding the available disk space,
+or you prefer a fast rescale under cloud-native setup, you should consider using `ForStStateBackend`.
 
 {{< hint info >}}
 In Flink 1.13 we unified the binary format of Flink's savepoints. That means you can take a savepoint and then restore from it using a different state backend.
@@ -110,7 +148,7 @@ take a savepoint with the new version, and only after that you can restore it wi
 
 ## Configuring a State Backend
 
-The default state backend, if you specify nothing, is the jobmanager. If you wish to establish a different default for all jobs on your cluster, you can do so by defining a new default state backend in [**Flink configuration file**]({{< ref "docs/deployment/config#flink-configuration-file" >}}). The default state backend can be overridden on a per-job basis, as shown below.
+The default state backend, if you specify nothing, is the `HashMapStateBackend`. If you wish to establish a different default for all jobs on your cluster, you can do so by defining a new default state backend in [**Flink configuration file**]({{< ref "docs/deployment/config#flink-configuration-file" >}}). The default state backend can be overridden on a per-job basis, as shown below.
 
 ### Setting the Per-job State Backend
 
@@ -122,12 +160,6 @@ The per-job state backend is set on the `StreamExecutionEnvironment` of the job,
 Configuration config = new Configuration();
 config.set(StateBackendOptions.STATE_BACKEND, "hashmap");
 env.configure(config);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-env.setStateBackend(new HashMapStateBackend())
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -150,8 +182,18 @@ If you want to use the `EmbeddedRocksDBStateBackend` in your IDE or configure it
 </dependency>
 ```
 
+Same for `ForStStateBackend`:
+```xml
+<dependency>
+    <groupId>org.apache.flink</groupId>
+    <artifactId>flink-statebackend-forst</artifactId>
+    <version>{{< version >}}</version>
+    <scope>provided</scope>
+</dependency>
+```
+
 {{< hint info >}}
-Since RocksDB is part of the default Flink distribution, you do not need this dependency if you are not using any RocksDB code in your job and configure the state backend via `state.backend.type` and further [checkpointing]({{< ref "docs/deployment/config" >}}#checkpointing) and [RocksDB-specific]({{< ref "docs/deployment/config" >}}#rocksdb-state-backend) parameters in your [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
+Since RocksDB and ForSt is part of the default Flink distribution, you do not need this dependency if you are not using any RocksDB code in your job and configure the state backend via `state.backend.type` and further [checkpointing]({{< ref "docs/deployment/config" >}}#checkpointing) and [RocksDB-specific]({{< ref "docs/deployment/config" >}}#rocksdb-state-backend) or [ForSt-specific]({{< ref "docs/deployment/config" >}}#forst-state-backend) parameters in your [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
 {{< /hint >}}
 
 
@@ -159,9 +201,10 @@ Since RocksDB is part of the default Flink distribution, you do not need this de
 
 A default state backend can be configured in the [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}), using the configuration key `state.backend.type`.
 
-Possible values for the config entry are *hashmap* (HashMapStateBackend), *rocksdb* (EmbeddedRocksDBStateBackend), or the fully qualified class
+Possible values for the config entry are *hashmap* (HashMapStateBackend), *rocksdb* (EmbeddedRocksDBStateBackend), *forst* (ForStStateBackend) or the fully qualified class
 name of the class that implements the state backend factory {{< gh_link file="flink-runtime/src/main/java/org/apache/flink/runtime/state/StateBackendFactory.java" name="StateBackendFactory" >}},
-such as `org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackendFactory` for EmbeddedRocksDBStateBackend.
+such as `org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackendFactory` for EmbeddedRocksDBStateBackend
+and `org.apache.flink.state.forst.ForStStateBackendFactory` for ForStStateBackend.
 
 The `execution.checkpointing.dir` option defines the directory to which all backends write checkpoint data and meta data files.
 You can find more details about the checkpoint directory structure [here]({{< ref "docs/ops/state/checkpoints" >}}#directory-structure).
@@ -422,12 +465,6 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 env.enableChangelogStateBackend(true);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-env.enableChangelogStateBackend(true)
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 env = StreamExecutionEnvironment.get_execution_environment()
@@ -496,13 +533,6 @@ config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "jobmanager");
 env.configure(config);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment
-env.setStateBackend(new HashMapStateBackend)
-env.getCheckpointConfig().setCheckpointStorage(new JobManagerCheckpointStorage)
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 config = Configuration()
@@ -544,18 +574,6 @@ env.configure(config);
 // can be set manually by using CheckpointingOptions.
 config.set(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, 4 * 1024);
 env.configure(config);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment
-env.setStateBackend(new HashMapStateBackend)
-env.getCheckpointConfig().setCheckpointStorage("file:///checkpoint-dir")
-
-
-// Advanced FsStateBackend configurations, such as write buffer size
-// can be set by using manually instantiating a FileSystemCheckpointStorage object.
-env.getCheckpointConfig().setCheckpointStorage(new FileSystemCheckpointStorage("file:///checkpoint-dir"))
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -607,19 +625,6 @@ env.configure(config);
 // you can achieve the same results by using CheckpointingOptions.
 config.set(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, 4 * 1024);
 env.configure(config);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment
-env.setStateBackend(new EmbeddedRocksDBStateBackend)
-env.getCheckpointConfig().setCheckpointStorage("file:///checkpoint-dir")
-
-
-// If you manually passed FsStateBackend into the RocksDBStateBackend constructor
-// to specify advanced checkpointing configurations such as write buffer size,
-// you can achieve the same results by using manually instantiating a FileSystemCheckpointStorage object.
-env.getCheckpointConfig().setCheckpointStorage(new FileSystemCheckpointStorage("file:///checkpoint-dir"))
 ```
 {{< /tab >}}
 {{< tab "Python" >}}

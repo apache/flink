@@ -221,7 +221,15 @@ public class IntermediateResultPartitionTest {
 
         // add a new job vertex
         dataSet.addConsumer(
-                new JobEdge(dataSet, sink2, DistributionPattern.ALL_TO_ALL, false, false));
+                new JobEdge(
+                        dataSet,
+                        sink2,
+                        DistributionPattern.ALL_TO_ALL,
+                        false,
+                        false,
+                        1,
+                        false,
+                        false));
         scheduler
                 .getExecutionGraph()
                 .addNewJobVertices(

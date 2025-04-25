@@ -26,8 +26,12 @@ import org.apache.flink.table.annotation.StateHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import org.apache.flink.shaded.asm9.org.objectweb.asm.ClassReader;
 import org.apache.flink.shaded.asm9.org.objectweb.asm.ClassVisitor;
@@ -399,6 +403,28 @@ public final class ExtractionUtils {
         }
         // Otherwise assume it's a basic type that can be cast.
         return (Class<?>) type;
+    }
+
+    /**
+     * Checks whether the given data type can be used as a state entry for {@link
+     * ProcessTableFunction}.
+     */
+    public static void checkStateDataType(DataType dataType) {
+        final LogicalType type = dataType.getLogicalType();
+        if (!LogicalTypeChecks.isCompositeType(type)) {
+            throw extractionError(
+                    "State entries must use a mutable, composite data type. But was: %s", dataType);
+        }
+        if (type.is(LogicalTypeRoot.ROW)) {
+            return;
+        }
+        if (!hasInvokableConstructor(dataType.getConversionClass())) {
+            throw extractionError(
+                    "Class '%s' cannot be used as state because a default constructor is missing. "
+                            + "State entries must provide an argument-less constructor so that all "
+                            + "fields are mutable.",
+                    dataType.getConversionClass().getName());
+        }
     }
 
     // --------------------------------------------------------------------------------------------

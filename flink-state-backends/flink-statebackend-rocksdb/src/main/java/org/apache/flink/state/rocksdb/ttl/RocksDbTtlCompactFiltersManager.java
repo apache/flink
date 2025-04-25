@@ -27,7 +27,7 @@ import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
-import org.apache.flink.runtime.state.ttl.TtlStateFactory;
+import org.apache.flink.runtime.state.ttl.TtlAwareSerializer;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.state.ttl.TtlUtils;
 import org.apache.flink.runtime.state.ttl.TtlValue;
@@ -92,8 +92,7 @@ public class RocksDbTtlCompactFiltersManager {
         if (metaInfoBase instanceof RegisteredKeyValueStateBackendMetaInfo) {
             RegisteredKeyValueStateBackendMetaInfo kvMetaInfoBase =
                     (RegisteredKeyValueStateBackendMetaInfo) metaInfoBase;
-            if (TtlStateFactory.TtlSerializer.isTtlStateSerializer(
-                    kvMetaInfoBase.getStateSerializer())) {
+            if (TtlAwareSerializer.isSerializerTtlEnabled(kvMetaInfoBase.getStateSerializer())) {
                 createAndSetCompactFilterFactory(metaInfoBase.getName(), options);
             }
         }

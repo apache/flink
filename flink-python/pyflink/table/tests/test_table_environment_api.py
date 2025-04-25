@@ -34,7 +34,7 @@ from pyflink.datastream.window import TimeWindowSerializer
 from pyflink.java_gateway import get_gateway
 from pyflink.table import (DataTypes, StreamTableEnvironment, EnvironmentSettings, Module,
                            ResultKind, ModuleEntry, Schema)
-from pyflink.table.catalog import ObjectPath, CatalogBaseTable
+from pyflink.table.catalog import ObjectPath, CatalogBaseTable, CatalogDescriptor
 from pyflink.table.explain_detail import ExplainDetail
 from pyflink.table.expressions import col, source_watermark
 from pyflink.table.table_descriptor import TableDescriptor
@@ -168,7 +168,7 @@ class TableEnvironmentTest(PyFlinkUTTestCase):
             get_gateway().jvm.org.apache.flink.table.module.CoreModule.INSTANCE))
         table_result = t_env.execute_sql("select concat('unload', 'load') as test_module")
         self.assertEqual(table_result.get_result_kind(), ResultKind.SUCCESS_WITH_CONTENT)
-        self.assert_equals(table_result.get_table_schema().get_field_names(), ['test_module'])
+        self.assert_equals(table_result.get_resolved_schema().get_column_names(), ['test_module'])
 
     def test_create_and_drop_java_function(self):
         t_env = self.t_env
@@ -257,8 +257,9 @@ class TableEnvironmentTest(PyFlinkUTTestCase):
 
         table = self.t_env.from_descriptor(descriptor)
         self.assertEqual(schema,
-                         Schema(Schema.new_builder()._j_builder
-                                .fromResolvedSchema(table._j_table.getResolvedSchema()).build()))
+                         Schema.new_builder().from_resolved_schema(
+                             table.get_resolved_schema()
+                         ).build())
         contextResolvedTable = table._j_table.getQueryOperation().getContextResolvedTable()
         options = contextResolvedTable.getTable().getOptions()
         self.assertEqual("fake", options.get("connector"))
@@ -407,7 +408,7 @@ class DataStreamConversionTestCases(PyFlinkUTTestCase):
         self.assertEqual("""(
   `f0` RAW('[B', '...')
 )""",
-                         result._j_table_result.getResolvedSchema().toString())
+                         str(result.get_resolved_schema()))
         with result.collect() as result:
             collected_result = [str(item) for item in result]
             expected_result = [item for item
@@ -517,7 +518,7 @@ class DataStreamConversionTestCases(PyFlinkUTTestCase):
   `rowtime` TIMESTAMP_LTZ(3) *ROWTIME* METADATA,
   WATERMARK FOR `rowtime`: TIMESTAMP_LTZ(3) AS SOURCE_WATERMARK()
 )""",
-                         table._j_table.getResolvedSchema().toString())
+                         str(table.get_resolved_schema()))
         self.t_env.create_temporary_view("t",
                                          ds,
                                          Schema.new_builder()
@@ -657,6 +658,14 @@ class DataStreamConversionTestCases(PyFlinkUTTestCase):
         result.sort()
         self.assertEqual(expected, result)
 
+    def test_create_catalog(self):
+        config = Configuration()
+        config.set_string("type", "generic_in_memory")
+        catalog_desc = CatalogDescriptor.of("mycat", config, None)
+        self.t_env.create_catalog("mycat", catalog_desc)
+        mycat = self.t_env.get_catalog("mycat")
+        self.assertIsNotNone(mycat)
+
 
 class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
 
@@ -691,8 +700,11 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
                                1.98932, bytearray(b'pyflink'), 'pyflink',
                                datetime.date(2014, 9, 13), datetime.time(12, 0, 0, 123000),
                                datetime.datetime(2018, 3, 11, 3, 0, 0, 123000),
-                               [Row(['[pyflink]']), Row(['[pyflink]']), Row(['[pyflink]'])],
-                               {1: Row(['[flink]']), 2: Row(['[pyflink]'])},
+                               [['a', 'b'], ['c', 'd'], ['e', 'f']],
+                               [Row('pyflink'), Row('pyflink'), Row('pyflink')],
+                               {1: Row('flink'), 2: Row('pyflink')},
+                               [Row('a1', {1: Row('b1')}, [Row('c1', 'd1'), Row('e1', 'f1')]),
+                                Row('a2', {2: Row('b2')}, [Row('c2', 'd2'), Row('e2', 'f2')])],
                                decimal.Decimal('1000000000000000000.050000000000000000'),
                                decimal.Decimal('1000000000000000000.059999999999999999'))]
         source = self.t_env.from_elements(
@@ -700,10 +712,16 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
               datetime.date(2014, 9, 13), datetime.time(hour=12, minute=0, second=0,
                                                         microsecond=123000),
               datetime.datetime(2018, 3, 11, 3, 0, 0, 123000),
-              [Row(['pyflink']), Row(['pyflink']), Row(['pyflink'])],
-              {1: Row(['flink']), 2: Row(['pyflink'])}, decimal.Decimal('1000000000000000000.05'),
-              decimal.Decimal('1000000000000000000.05999999999999999899999999999'))], DataTypes.ROW(
-                [DataTypes.FIELD("a", DataTypes.BIGINT()), DataTypes.FIELD("b", DataTypes.BIGINT()),
+              [['a', 'b'], ['c', 'd'], ['e', 'f']],
+              [Row('pyflink'), Row('pyflink'), Row('pyflink')],
+              {1: Row('flink'), 2: Row('pyflink')},
+              [Row('a1', {1: Row('b1')}, [Row('c1', 'd1'), Row('e1', 'f1')]),
+               Row('a2', {2: Row('b2')}, [Row('c2', 'd2'), Row('e2', 'f2')])],
+              decimal.Decimal('1000000000000000000.05'),
+              decimal.Decimal('1000000000000000000.05999999999999999899999999999'))],
+            DataTypes.ROW(
+                [DataTypes.FIELD("a", DataTypes.BIGINT()),
+                 DataTypes.FIELD("b", DataTypes.BIGINT()),
                  DataTypes.FIELD("c", DataTypes.TINYINT()),
                  DataTypes.FIELD("d", DataTypes.BOOLEAN()),
                  DataTypes.FIELD("e", DataTypes.SMALLINT()),
@@ -715,12 +733,52 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
                  DataTypes.FIELD("k", DataTypes.DATE()),
                  DataTypes.FIELD("l", DataTypes.TIME()),
                  DataTypes.FIELD("m", DataTypes.TIMESTAMP(3)),
-                 DataTypes.FIELD("n", DataTypes.ARRAY(DataTypes.ROW([DataTypes.FIELD('ss2',
-                                                                     DataTypes.STRING())]))),
-                 DataTypes.FIELD("o", DataTypes.MAP(DataTypes.BIGINT(), DataTypes.ROW(
-                     [DataTypes.FIELD('ss', DataTypes.STRING())]))),
-                 DataTypes.FIELD("p", DataTypes.DECIMAL(38, 18)), DataTypes.FIELD("q",
-                 DataTypes.DECIMAL(38, 18))]))
+                 DataTypes.FIELD("n", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING()))),
+                 DataTypes.FIELD(
+                     "o",
+                     DataTypes.ARRAY(
+                         DataTypes.ROW([DataTypes.FIELD("ss2", DataTypes.STRING())])
+                     )),
+                 DataTypes.FIELD(
+                     "p",
+                     DataTypes.MAP(
+                         DataTypes.BIGINT(),
+                         DataTypes.ROW([DataTypes.FIELD("ss", DataTypes.STRING())]),
+                     )),
+                 DataTypes.FIELD(
+                     "q",
+                     DataTypes.ARRAY(
+                         DataTypes.ROW(
+                             [
+                                 DataTypes.FIELD("a1", DataTypes.STRING()),
+                                 DataTypes.FIELD(
+                                     "a2",
+                                     DataTypes.MAP(
+                                         DataTypes.BIGINT(),
+                                         DataTypes.ROW(
+                                             [DataTypes.FIELD("ss", DataTypes.STRING())]
+                                         ),
+                                     ),
+                                 ),
+                                 DataTypes.FIELD(
+                                     "a3",
+                                     DataTypes.ARRAY(
+                                         DataTypes.ROW(
+                                             [
+                                                 DataTypes.FIELD("a1", DataTypes.STRING()),
+                                                 DataTypes.FIELD("a2", DataTypes.STRING()),
+                                             ]
+                                         )
+                                     ),
+                                 ),
+                             ]
+                         )
+                     )),
+                 DataTypes.FIELD("r", DataTypes.DECIMAL(38, 18)),
+                 DataTypes.FIELD("s", DataTypes.DECIMAL(38, 18))
+                 ]
+            )
+        )
         table_result = source.execute()
         with table_result.collect() as result:
             collected_result = []

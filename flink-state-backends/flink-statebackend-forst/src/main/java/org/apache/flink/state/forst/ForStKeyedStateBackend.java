@@ -18,7 +18,12 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.state.v2.AggregatingStateDescriptor;
+import org.apache.flink.api.common.state.v2.MapStateDescriptor;
+import org.apache.flink.api.common.state.v2.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.v2.State;
+import org.apache.flink.api.common.state.v2.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -42,23 +47,19 @@ import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
-import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
-import org.apache.flink.runtime.state.v2.AggregatingStateDescriptor;
-import org.apache.flink.runtime.state.v2.ListStateDescriptor;
-import org.apache.flink.runtime.state.v2.ReducingStateDescriptor;
+import org.apache.flink.runtime.state.v2.RegisteredKeyAndUserKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo;
-import org.apache.flink.runtime.state.v2.StateDescriptor;
-import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.runtime.state.v2.internal.InternalKeyedState;
 import org.apache.flink.runtime.state.v2.ttl.TtlStateFactory;
 import org.apache.flink.state.forst.snapshot.ForStSnapshotStrategyBase;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.ResourceGuard;
 import org.apache.flink.util.StateMigrationException;
 
 import org.forstdb.ColumnFamilyHandle;
@@ -92,6 +93,8 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
 
     private static final Logger LOG = LoggerFactory.getLogger(ForStKeyedStateBackend.class);
 
+    private final ExecutionConfig executionConfig;
+
     /** Number of bytes required to prefix the key groups. */
     private final int keyGroupPrefixBytes;
 
@@ -116,6 +119,12 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
 
     /** The container of ForSt options. */
     private final ForStResourceContainer optionsContainer;
+
+    /**
+     * Protects access to ForSt in other threads, like the checkpointing thread from parallel call
+     * that disposes the ForSt object.
+     */
+    private final ResourceGuard resourceGuard;
 
     /** Factory function to create column family options from state name. */
     private final Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory;
@@ -178,7 +187,9 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
 
     public ForStKeyedStateBackend(
             UUID backendUID,
+            ExecutionConfig executionConfig,
             ForStResourceContainer optionsContainer,
+            ResourceGuard resourceGuard,
             int keyGroupPrefixBytes,
             TypeSerializer<K> keySerializer,
             Supplier<SerializedCompositeKeyBuilder<K>> serializedKeyBuilder,
@@ -197,7 +208,9 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
             TtlTimeProvider ttlTimeProvider,
             ForStDBTtlCompactFiltersManager ttlCompactFiltersManager) {
         this.backendUID = backendUID;
+        this.executionConfig = executionConfig;
         this.optionsContainer = Preconditions.checkNotNull(optionsContainer);
+        this.resourceGuard = resourceGuard;
         this.keyGroupPrefixBytes = keyGroupPrefixBytes;
         this.keyGroupRange = keyContext.getKeyGroupRange();
         this.keySerializer = keySerializer;
@@ -242,6 +255,9 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
         checkNotNull(namespaceSerializer, "Namespace serializer");
         InternalKeyedState<K, ?, ?> kvState = keyValueStatesByName.get(stateDesc.getStateId());
         if (kvState == null) {
+            if (!stateDesc.isSerializerInitialized()) {
+                stateDesc.initializeSerializerUnlessSet(executionConfig);
+            }
             kvState = createState(defaultNamespace, namespaceSerializer, stateDesc);
             keyValueStatesByName.put(stateDesc.getStateId(), kvState);
         }
@@ -282,7 +298,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                         new ForStValueState<>(
                                 stateRequestHandler,
                                 columnFamilyHandle,
-                                (ValueStateDescriptor<SV>) stateDesc,
+                                registerResult.f1.getStateSerializer(),
                                 serializedKeyBuilder,
                                 defaultNamespace,
                                 namespaceSerializer::duplicate,
@@ -294,7 +310,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                         new ForStListState<>(
                                 stateRequestHandler,
                                 columnFamilyHandle,
-                                (ListStateDescriptor<SV>) stateDesc,
+                                registerResult.f1.getStateSerializer(),
                                 serializedKeyBuilder,
                                 defaultNamespace,
                                 namespaceSerializer::duplicate,
@@ -302,23 +318,28 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                                 valueDeserializerView);
             case MAP:
                 Supplier<DataInputDeserializer> keyDeserializerView = DataInputDeserializer::new;
-                return ForStMapState.create(
-                        stateDesc,
-                        stateRequestHandler,
-                        columnFamilyHandle,
-                        serializedKeyBuilder,
-                        defaultNamespace,
-                        namespaceSerializer::duplicate,
-                        valueSerializerView,
-                        keyDeserializerView,
-                        valueDeserializerView,
-                        keyGroupPrefixBytes);
+                RegisteredKeyAndUserKeyValueStateBackendMetaInfo mapStateMetaInfo =
+                        (RegisteredKeyAndUserKeyValueStateBackendMetaInfo) registerResult.f1;
+                return (S)
+                        ForStMapState.create(
+                                mapStateMetaInfo.getUserKeySerializer(),
+                                mapStateMetaInfo.getStateSerializer(),
+                                stateRequestHandler,
+                                columnFamilyHandle,
+                                serializedKeyBuilder,
+                                defaultNamespace,
+                                namespaceSerializer::duplicate,
+                                valueSerializerView,
+                                keyDeserializerView,
+                                valueDeserializerView,
+                                keyGroupPrefixBytes);
             case REDUCING:
                 return (S)
                         new ForStReducingState<>(
                                 stateRequestHandler,
                                 columnFamilyHandle,
-                                (ReducingStateDescriptor<SV>) stateDesc,
+                                ((ReducingStateDescriptor<SV>) stateDesc).getReduceFunction(),
+                                registerResult.f1.getStateSerializer(),
                                 serializedKeyBuilder,
                                 defaultNamespace,
                                 namespaceSerializer::duplicate,
@@ -327,7 +348,9 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
             case AGGREGATING:
                 return (S)
                         new ForStAggregatingState<>(
-                                (AggregatingStateDescriptor<?, SV, ?>) stateDesc,
+                                ((AggregatingStateDescriptor<?, SV, ?>) stateDesc)
+                                        .getAggregateFunction(),
+                                registerResult.f1.getStateSerializer(),
                                 stateRequestHandler,
                                 columnFamilyHandle,
                                 serializedKeyBuilder,
@@ -352,6 +375,11 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
 
         TypeSerializer<SV> stateSerializer = stateDesc.getSerializer();
 
+        TypeSerializer<?> userKeySerializer =
+                stateDesc instanceof MapStateDescriptor
+                        ? ((MapStateDescriptor<?, SV>) stateDesc).getUserKeySerializer()
+                        : null;
+
         ForStOperationUtils.ForStKvStateInfo newStateInfo;
         RegisteredKeyValueStateBackendMetaInfo<N, SV> newMetaInfo;
         if (oldStateInfo != null) {
@@ -364,6 +392,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                             Tuple2.of(oldStateInfo.columnFamilyHandle, castedMetaInfo),
                             stateDesc,
                             stateSerializer,
+                            userKeySerializer,
                             namespaceSerializer);
 
             newStateInfo =
@@ -371,13 +400,22 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                             oldStateInfo.columnFamilyHandle, newMetaInfo);
             kvStateInformation.put(stateDesc.getStateId(), newStateInfo);
         } else {
-            newMetaInfo =
-                    new RegisteredKeyValueStateBackendMetaInfo<>(
-                            stateDesc.getStateId(),
-                            stateDesc.getType(),
-                            namespaceSerializer,
-                            stateSerializer,
-                            StateSnapshotTransformer.StateSnapshotTransformFactory.noTransform());
+            if (stateDesc.getType().equals(StateDescriptor.Type.MAP)) {
+                newMetaInfo =
+                        new RegisteredKeyAndUserKeyValueStateBackendMetaInfo<>(
+                                stateDesc.getStateId(),
+                                stateDesc.getType(),
+                                namespaceSerializer,
+                                stateSerializer,
+                                userKeySerializer);
+            } else {
+                newMetaInfo =
+                        new RegisteredKeyValueStateBackendMetaInfo<>(
+                                stateDesc.getStateId(),
+                                stateDesc.getType(),
+                                namespaceSerializer,
+                                stateSerializer);
+            }
 
             newStateInfo =
                     ForStOperationUtils.createStateInfo(
@@ -397,14 +435,31 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
         return Tuple2.of(newStateInfo.columnFamilyHandle, newMetaInfo);
     }
 
-    private <N, SV> RegisteredKeyValueStateBackendMetaInfo<N, SV> updateRestoredStateMetaInfo(
+    private <N, UK, SV> RegisteredKeyValueStateBackendMetaInfo<N, SV> updateRestoredStateMetaInfo(
             Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> oldStateInfo,
             StateDescriptor<SV> stateDesc,
             TypeSerializer<SV> stateSerializer,
+            TypeSerializer<UK> userKeySerializer,
             TypeSerializer<N> namespaceSerializer)
             throws Exception {
 
         RegisteredKeyValueStateBackendMetaInfo<N, SV> restoredKvStateMetaInfo = oldStateInfo.f1;
+
+        // fetch current namespace serializer now because if it is incompatible, we can't access
+        // it anymore to improve the error message
+        TypeSerializer<N> previousNamespaceSerializer =
+                restoredKvStateMetaInfo.getNamespaceSerializer();
+
+        TypeSerializerSchemaCompatibility<N> s =
+                restoredKvStateMetaInfo.updateNamespaceSerializer(namespaceSerializer);
+        if (s.isCompatibleAfterMigration() || s.isIncompatible()) {
+            throw new StateMigrationException(
+                    "The new namespace serializer ("
+                            + namespaceSerializer
+                            + ") must be compatible with the old namespace serializer ("
+                            + previousNamespaceSerializer
+                            + ").");
+        }
 
         restoredKvStateMetaInfo.checkStateMetaInfo(stateDesc);
 
@@ -428,6 +483,17 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                             + ") must not be incompatible with the old state serializer ("
                             + previousStateSerializer
                             + ").");
+        }
+
+        if (userKeySerializer != null) {
+            TypeSerializerSchemaCompatibility<UK> userKeySerializerCompatibility =
+                    ((RegisteredKeyAndUserKeyValueStateBackendMetaInfo<N, UK, SV>)
+                                    restoredKvStateMetaInfo)
+                            .updateUserKeySerializer(userKeySerializer);
+            if (!userKeySerializerCompatibility.isCompatibleAsIs()) {
+                throw new StateMigrationException(
+                        "The new serializer for a MapState requires state migration in order for the job to proceed. State migration not support yet.");
+            }
         }
 
         return restoredKvStateMetaInfo;
@@ -502,6 +568,14 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
             if (this.disposed) {
                 return;
             }
+            // This call will block until all clients that still acquire access to the ForSt
+            // instance
+            // have released it,
+            // so that we cannot release the native resources while clients are still working with
+            // it in
+            // parallel.
+            resourceGuard.close();
+
             for (StateExecutor executor : managedStateExecutors) {
                 executor.shutdown();
             }

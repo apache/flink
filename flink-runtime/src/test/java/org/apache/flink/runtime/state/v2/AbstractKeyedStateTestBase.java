@@ -19,7 +19,9 @@
 package org.apache.flink.runtime.state.v2;
 
 import org.apache.flink.api.common.state.v2.State;
+import org.apache.flink.api.common.state.v2.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.asyncprocessing.StateRequest;
@@ -84,6 +86,7 @@ public class AbstractKeyedStateTestBase {
                         1,
                         1000,
                         1,
+                        null,
                         null);
         exception = new AtomicReference<>(null);
     }
@@ -235,14 +238,9 @@ public class AbstractKeyedStateTestBase {
         @Override
         public CompletableFuture<Void> executeBatchRequests(
                 StateRequestContainer stateRequestContainer) {
-            receivedRequest.addAll(((TestStateRequestContainer) stateRequestContainer).requests);
-            for (StateRequest request : receivedRequest) {
-                if (request.getRequestType() == StateRequestType.MAP_CONTAINS
-                        || request.getRequestType() == StateRequestType.MAP_IS_EMPTY) {
-                    request.getFuture().complete(true);
-                } else {
-                    request.getFuture().complete(null);
-                }
+            for (StateRequest request :
+                    ((TestStateRequestContainer) stateRequestContainer).requests) {
+                executeRequestSync(request);
             }
             CompletableFuture<Void> future = new CompletableFuture<>();
             future.complete(null);
@@ -252,6 +250,17 @@ public class AbstractKeyedStateTestBase {
         @Override
         public StateRequestContainer createStateRequestContainer() {
             return new TestStateRequestContainer();
+        }
+
+        @Override
+        public void executeRequestSync(StateRequest<?, ?, ?, ?> request) {
+            receivedRequest.add(request);
+            if (request.getRequestType() == StateRequestType.MAP_CONTAINS
+                    || request.getRequestType() == StateRequestType.MAP_IS_EMPTY) {
+                ((InternalStateFuture<Boolean>) request.getFuture()).complete(true);
+            } else {
+                request.getFuture().complete(null);
+            }
         }
 
         @Override

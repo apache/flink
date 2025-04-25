@@ -194,7 +194,6 @@ public class TimerGauge implements Gauge<Long>, View {
         return currentCount;
     }
 
-    @VisibleForTesting
     public synchronized boolean isMeasuring() {
         return currentMeasurementStartTS != 0;
     }

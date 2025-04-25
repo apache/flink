@@ -168,6 +168,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -2328,6 +2329,86 @@ class JobMasterTest {
                     .eventuallySucceeds()
                     .isEqualTo(jobResourceRequirements);
         }
+    }
+
+    @Test
+    public void testJobMasterDoesNotReconnectToResourceManagerEvenIfCleanupStalls()
+            throws Exception {
+
+        // the ResourceManager should count the connect attempts
+        final TestingResourceManagerGateway resourceManagerGateway =
+                createAndRegisterTestingResourceManagerGateway();
+        final AtomicInteger connectCount = new AtomicInteger();
+        final OneShotLatch firstRegistrationLatch = new OneShotLatch();
+        resourceManagerGateway.setRegisterJobManagerFunction(
+                (jobMasterId, resourceID, s, jobID) -> {
+                    connectCount.incrementAndGet();
+                    firstRegistrationLatch.trigger();
+
+                    return CompletableFuture.completedFuture(
+                            resourceManagerGateway.getJobMasterRegistrationSuccess());
+                });
+
+        final OneShotLatch schedulerCloseLatch = new OneShotLatch();
+        final CompletableFuture<Void> schedulerCloseFuture = new CompletableFuture<>();
+        final TestingSchedulerNG scheduler =
+                TestingSchedulerNG.newBuilder()
+                        .setCloseAsyncSupplier(
+                                () -> {
+                                    schedulerCloseLatch.trigger();
+                                    return schedulerCloseFuture;
+                                })
+                        .build();
+
+        final OneShotLatch closeSlotPoolLatch = new OneShotLatch();
+        final JobMaster jobMaster =
+                new JobMasterBuilder(jobGraph, rpcService)
+                        .withHighAvailabilityServices(haServices)
+                        .withSlotPoolServiceSchedulerFactory(
+                                DefaultSlotPoolServiceSchedulerFactory.create(
+                                        TestingSlotPoolServiceBuilder.newBuilder()
+                                                .setCloseRunnable(closeSlotPoolLatch::awaitQuietly),
+                                        new TestingSchedulerNGFactory(scheduler)))
+                        .createJobMaster();
+        jobMaster.start();
+
+        notifyResourceManagerLeaderListeners(resourceManagerGateway);
+        firstRegistrationLatch.await();
+
+        final CompletableFuture<Void> jobMasterCloseFuture = jobMaster.closeAsync();
+
+        // force the scheduler closing to happen outside the main thread
+        schedulerCloseLatch.await();
+        CompletableFuture.runAsync(
+                () -> {
+                    try {
+                        // we don't want the future to be completed right away because that could
+                        // lead to the subsequent calls being executed by the main thread again
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    schedulerCloseFuture.complete(null);
+                });
+
+        // wait for the ResourceManager connection to be closed (happens before closing the slot
+        // pool)
+        CommonTestUtils.waitUntilCondition(() -> closeSlotPoolLatch.getWaitersCount() > 0);
+
+        final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
+        jobMasterGateway.disconnectResourceManager(
+                resourceManagerGateway.getFencingToken(),
+                new FlinkException(
+                        "The JobMaster triggered a connection shutdown which is confirmed by the ResourceManager through this disconnectResourceManager call."));
+
+        // unblocks JobMaster's close procedure
+        closeSlotPoolLatch.trigger();
+        assertThatFuture(jobMasterCloseFuture).eventuallySucceeds();
+
+        assertThat(connectCount.get())
+                .as(
+                        "The disconnect shouldn't trigger another reconnect because the ResourceManager connection was already closed.")
+                .isEqualTo(1);
     }
 
     @Test

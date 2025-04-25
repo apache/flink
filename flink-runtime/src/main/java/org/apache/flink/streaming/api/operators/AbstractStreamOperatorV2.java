@@ -197,8 +197,11 @@ public abstract class AbstractStreamOperatorV2<OUT>
         return metrics;
     }
 
+    /** Initialize necessary state components before initializing state components. */
+    protected void beforeInitializeStateHandler() {}
+
     @Override
-    public void initializeState(StreamTaskStateInitializer streamTaskStateManager)
+    public final void initializeState(StreamTaskStateInitializer streamTaskStateManager)
             throws Exception {
         final TypeSerializer<?> keySerializer =
                 config.getStateKeySerializer(getUserCodeClassloader());
@@ -225,6 +228,8 @@ public abstract class AbstractStreamOperatorV2<OUT>
                 isAsyncStateProcessingEnabled()
                         ? context.asyncInternalTimerServiceManager()
                         : context.internalTimerServiceManager();
+
+        beforeInitializeStateHandler();
         stateHandler.initializeOperatorState(this);
 
         if (useSplittableTimers()

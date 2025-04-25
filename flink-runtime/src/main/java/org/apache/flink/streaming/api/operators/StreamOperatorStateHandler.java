@@ -57,7 +57,7 @@ import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.util.CloseableIterable;
 import org.apache.flink.util.IOUtils;
 
-import org.apache.flink.shaded.guava32.com.google.common.io.Closer;
+import org.apache.flink.shaded.guava33.com.google.common.io.Closer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,8 +85,6 @@ public class StreamOperatorStateHandler {
 
     @Nullable private final AsyncKeyedStateBackend<?> asyncKeyedStateBackend;
 
-    @Nullable private final org.apache.flink.runtime.state.v2.KeyedStateStore keyedStateStoreV2;
-
     /** Backend for keyed state. This might be empty if we're not on a keyed stream. */
     @Nullable private final CheckpointableKeyedStateBackend<?> keyedStateBackend;
 
@@ -103,12 +101,14 @@ public class StreamOperatorStateHandler {
         this.keySerializer = context.keySerializer();
         this.operatorStateBackend = context.operatorStateBackend();
         this.keyedStateBackend = context.keyedStateBackend();
+        this.asyncKeyedStateBackend = context.asyncKeyedStateBackend();
         this.closeableRegistry = closeableRegistry;
 
-        if (keyedStateBackend != null) {
+        if (keyedStateBackend != null || asyncKeyedStateBackend != null) {
             keyedStateStore =
                     new DefaultKeyedStateStore(
                             keyedStateBackend,
+                            asyncKeyedStateBackend,
                             new SerializerFactory() {
                                 @Override
                                 public <T> TypeSerializer<T> createSerializer(
@@ -120,13 +120,6 @@ public class StreamOperatorStateHandler {
         } else {
             keyedStateStore = null;
         }
-
-        this.asyncKeyedStateBackend = context.asyncKeyedStateBackend();
-        this.keyedStateStoreV2 =
-                asyncKeyedStateBackend != null
-                        ? new org.apache.flink.runtime.state.v2.DefaultKeyedStateStore(
-                                asyncKeyedStateBackend)
-                        : null;
     }
 
     public void initializeOperatorState(CheckpointedStreamOperator streamOperator)
@@ -239,12 +232,10 @@ public class StreamOperatorStateHandler {
         try {
             if (timeServiceManager.isPresent()) {
                 boolean requiresLegacyRawKeyedStateSnapshots;
-                final InternalTimeServiceManager<?> manager;
                 if (useAsyncState) {
                     checkState(
                             asyncKeyedStateBackend != null,
-                            "keyedStateBackend should be available with timeServiceManager");
-                    manager = timeServiceManager.get();
+                            "asyncKeyedStateBackend should be available with timeServiceManager");
                     requiresLegacyRawKeyedStateSnapshots =
                             asyncKeyedStateBackend.requiresLegacySynchronousTimerSnapshots(
                                     checkpointOptions.getCheckpointType());
@@ -252,8 +243,6 @@ public class StreamOperatorStateHandler {
                     checkState(
                             keyedStateBackend != null,
                             "keyedStateBackend should be available with timeServiceManager");
-                    manager = timeServiceManager.get();
-
                     requiresLegacyRawKeyedStateSnapshots =
                             keyedStateBackend instanceof AbstractKeyedStateBackend
                                     && ((AbstractKeyedStateBackend<?>) keyedStateBackend)
@@ -264,6 +253,7 @@ public class StreamOperatorStateHandler {
                     checkState(
                             !isUsingCustomRawKeyedState,
                             "Attempting to snapshot timers to raw keyed state, but this operator has custom raw keyed state to write.");
+                    final InternalTimeServiceManager<?> manager = timeServiceManager.get();
                     manager.snapshotToRawKeyedState(
                             snapshotContext.getRawKeyedOperatorStateOutput(), operatorName);
                 }
@@ -413,7 +403,7 @@ public class StreamOperatorStateHandler {
     public <N, S extends org.apache.flink.api.common.state.v2.State, T> S getOrCreateKeyedState(
             N defaultNamespace,
             TypeSerializer<N> namespaceSerializer,
-            org.apache.flink.runtime.state.v2.StateDescriptor<T> stateDescriptor)
+            org.apache.flink.api.common.state.v2.StateDescriptor<T> stateDescriptor)
             throws Exception {
 
         if (asyncKeyedStateBackend != null) {
@@ -486,10 +476,6 @@ public class StreamOperatorStateHandler {
 
     public Optional<KeyedStateStore> getKeyedStateStore() {
         return Optional.ofNullable(keyedStateStore);
-    }
-
-    public Optional<org.apache.flink.runtime.state.v2.KeyedStateStore> getKeyedStateStoreV2() {
-        return Optional.ofNullable(keyedStateStoreV2);
     }
 
     /** Custom state handling hooks to be invoked by {@link StreamOperatorStateHandler}. */

@@ -25,8 +25,10 @@ from pyflink.table.expression import Expression, _get_java_expression
 from pyflink.table.expressions import col, with_columns, without_columns
 from pyflink.table.serializers import ArrowSerializer
 from pyflink.table.table_descriptor import TableDescriptor
+from pyflink.table.table_pipeline import TablePipeline
 from pyflink.table.table_result import TableResult
 from pyflink.table.table_schema import TableSchema
+from pyflink.table.catalog import ResolvedSchema
 from pyflink.table.types import create_arrow_schema
 from pyflink.table.udf import UserDefinedScalarFunctionWrapper, \
     UserDefinedAggregateFunctionWrapper, UserDefinedTableFunctionWrapper
@@ -962,8 +964,19 @@ class Table(object):
         Returns the :class:`~pyflink.table.TableSchema` of this table.
 
         :return: The schema of this table.
+
+        .. deprecated:: 2.1.0
+           Use :func:`Table.get_resolved_schema` instead.
         """
         return TableSchema(j_table_schema=self._j_table.getSchema())
+
+    def get_resolved_schema(self) -> ResolvedSchema:
+        """
+        Returns the :class:`~pyflink.table.catalog.ResolvedSchema` of this table.
+
+        :return: the resolved schema of this table.
+        """
+        return ResolvedSchema(j_resolved_schema=self._j_table.getResolvedSchema())
 
     def print_schema(self):
         """
@@ -975,7 +988,7 @@ class Table(object):
                        table_path_or_descriptor: Union[str, TableDescriptor],
                        overwrite: bool = False) -> TableResult:
         """
-        1. When target_path_or_descriptor is a tale path:
+        1. When target_path_or_descriptor is a table path:
 
             Writes the :class:`~pyflink.table.Table` to a :class:`~pyflink.table.TableSink` that was
             registered under the specified name, and then execute the insert operation. For the path
@@ -1076,6 +1089,99 @@ class Table(object):
         TEXT = get_gateway().jvm.org.apache.flink.table.api.ExplainFormat.TEXT
         j_extra_details = to_j_explain_detail_arr(extra_details)
         return self._j_table.explain(TEXT, j_extra_details)
+
+    def print_explain(self, *extra_details: ExplainDetail):
+        """
+        Like :func:`~pyflink.table.Table.explain`, but prints the result to the client
+        console.
+
+        .. versionadded:: 2.1.0
+        """
+        print(self.explain(*extra_details))
+
+    def insert_into(
+        self, table_path_or_descriptor: Union[str, TableDescriptor], overwrite: bool = False
+    ) -> TablePipeline:
+        """
+        When ``target_path_or_descriptor`` is a table path:
+
+            Declares that the pipeline defined by the given :class:`Table` should be written to a
+            table (backed by a DynamicTableSink) that was registered under the specified path.
+
+            See the documentation of
+            :func:`pyflink.table.table_environment.TableEnvironment.use_database` or
+            :func:`pyflink.table.table_environment.TableEnvironment.use_catalog` for the rules on
+            the path resolution.
+
+            Example:
+            ::
+
+                >>> table = table_env.sql_query("SELECT * FROM MyTable")
+                >>> table_pipeline = table.insert_into("MySinkTable", True)
+                >>> table_result = table_pipeline.execute().wait()
+
+        When ``target_path_or_descriptor`` is a  :class:`~pyflink.table.TableDescriptor` :
+
+            Declares that the pipeline defined by the given :class:`Table` object should be written
+            to a table (backed by a DynamicTableSink) expressed via the given
+            :class:`~pyflink.table.TableDescriptor`.
+
+            The descriptor won't be registered in the catalog, but it will be propagated directly
+            in the operation tree. Note that calling this method multiple times, even with the same
+            descriptor, results in multiple sink tables instances.
+
+            A :class:`~pyflink.table.Schema` can be associated with the sink descriptor, which
+            asserts a structure on the described table, and can be used to:
+
+            - overwrite automatically derived columns with a custom
+              :class:`~pyflink.table.types.DataType`
+            - add metadata columns next to the physical columns
+            - declare a primary key
+
+            It is possible to declare a schema without physical/regular columns. In this case, those
+            columns will be automatically derived and implicitly put at the beginning of the schema
+            declaration.
+
+            Examples:
+            ::
+
+                >>> schema = Schema.new_builder()
+                ...      .column("f0", DataTypes.STRING())
+                ...      .build()
+                >>> table = table_env.from_descriptor(TableDescriptor.for_connector("datagen")
+                ...      .schema(schema)
+                ...      .build())
+                >>> table.insert_into(TableDescriptor.for_connector("blackhole")
+                ...      .schema(schema)
+                ...      .build(), True)
+
+        One can execute the returned :class:`~pyflink.table.TablePipeline` using
+        :func:`~pyflink.table.TablePipeline.execute`.
+
+        If multiple pipelines should insert data into one or more sink tables as part of a single
+        execution, use a :class:`~pyflink.table.StatementSet` (see
+        :func:`~pyflink.table.TableEnvironment.create_statement_set()`).
+
+        :param table_path_or_descriptor: The path of the registered
+            :class:`~pyflink.table.TableSink` or the descriptor describing the sink table into which
+            data should be inserted.
+        :param overwrite: Indicates whether existing data should be overwritten.
+        :return: The complete pipeline from one or more source tables to a sink table.
+
+        .. versionadded:: 2.1.0
+        """
+        if isinstance(table_path_or_descriptor, str):
+            return TablePipeline(
+                j_table_pipeline=self._j_table.insertInto(table_path_or_descriptor, overwrite),
+                t_env=self._t_env,
+            )
+        else:
+            return TablePipeline(
+                j_table_pipeline=self._j_table.insertInto(
+                    table_path_or_descriptor._j_table_descriptor, overwrite
+                ),
+                t_env=self._t_env,
+            )
 
 
 class GroupedTable(object):

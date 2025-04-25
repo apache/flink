@@ -1,8 +1,0 @@
-== Abstract Syntax Tree ==
-LoadData(filepath=[$filepath], table=[default.p_table], overwrite=[true], local=[true], partition=[dateint=2022])
-
-== Optimized Physical Plan ==
-LoadData(filepath=[$filepath], table=[default.p_table], overwrite=[true], local=[true], partition=[dateint=2022])
-
-== Optimized Execution Plan ==
-LoadData(filepath=[$filepath], table=[default.p_table], overwrite=[true], local=[true], partition=[dateint=2022])

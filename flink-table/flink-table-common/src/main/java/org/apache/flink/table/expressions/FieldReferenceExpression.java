@@ -105,7 +105,7 @@ public final class FieldReferenceExpression implements ResolvedExpression {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SqlFactory sqlFactory) {
         if (inputAlias != null) {
             return String.format(
                     "%s.%s",

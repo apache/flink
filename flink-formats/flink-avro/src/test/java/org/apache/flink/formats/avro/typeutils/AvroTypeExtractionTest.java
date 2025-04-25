@@ -19,6 +19,7 @@
 package org.apache.flink.formats.avro.typeutils;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -129,7 +130,7 @@ class AvroTypeExtractionTest {
     void testSerializeWithAvro(boolean useMiniCluster, @InjectMiniCluster MiniCluster miniCluster)
             throws Exception {
         final StreamExecutionEnvironment env = getExecutionEnvironment(useMiniCluster, miniCluster);
-        env.getConfig().getSerializerConfig().setForceAvro(true);
+        ((SerializerConfigImpl) env.getConfig().getSerializerConfig()).setForceKryoAvro(true);
         Path in = new Path(inFile.getAbsoluteFile().toURI());
 
         AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);
@@ -209,7 +210,7 @@ class AvroTypeExtractionTest {
     void testWithAvroGenericSer(boolean useMiniCluster, @InjectMiniCluster MiniCluster miniCluster)
             throws Exception {
         final StreamExecutionEnvironment env = getExecutionEnvironment(useMiniCluster, miniCluster);
-        env.getConfig().getSerializerConfig().setForceAvro(true);
+        ((SerializerConfigImpl) env.getConfig().getSerializerConfig()).setForceKryoAvro(true);
         Path in = new Path(inFile.getAbsoluteFile().toURI());
 
         AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);
@@ -237,7 +238,7 @@ class AvroTypeExtractionTest {
     void testWithKryoGenericSer(boolean useMiniCluster, @InjectMiniCluster MiniCluster miniCluster)
             throws Exception {
         final StreamExecutionEnvironment env = getExecutionEnvironment(useMiniCluster, miniCluster);
-        env.getConfig().getSerializerConfig().setForceKryo(true);
+        ((SerializerConfigImpl) env.getConfig().getSerializerConfig()).setForceKryoAvro(true);
         Path in = new Path(inFile.getAbsoluteFile().toURI());
 
         AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);

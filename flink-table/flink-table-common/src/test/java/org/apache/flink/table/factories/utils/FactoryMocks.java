@@ -65,11 +65,11 @@ public final class FactoryMocks {
                 null,
                 IDENTIFIER,
                 new ResolvedCatalogTable(
-                        CatalogTable.of(
-                                Schema.newBuilder().fromResolvedSchema(schema).build(),
-                                "mock source",
-                                Collections.emptyList(),
-                                options),
+                        CatalogTable.newBuilder()
+                                .schema(Schema.newBuilder().fromResolvedSchema(schema).build())
+                                .comment("mock source")
+                                .options(options)
+                                .build(),
                         schema),
                 Collections.emptyMap(),
                 readableConfig,
@@ -88,11 +88,12 @@ public final class FactoryMocks {
                 null,
                 IDENTIFIER,
                 new ResolvedCatalogTable(
-                        CatalogTable.of(
-                                Schema.newBuilder().fromResolvedSchema(schema).build(),
-                                "mock sink",
-                                partitionKeys,
-                                options),
+                        CatalogTable.newBuilder()
+                                .schema(Schema.newBuilder().fromResolvedSchema(schema).build())
+                                .comment("mock source")
+                                .partitionKeys(partitionKeys)
+                                .options(options)
+                                .build(),
                         schema),
                 Collections.emptyMap(),
                 new Configuration(),
@@ -112,11 +113,11 @@ public final class FactoryMocks {
         return new FactoryUtil.DefaultDynamicTableContext(
                 IDENTIFIER,
                 new ResolvedCatalogTable(
-                        CatalogTable.of(
-                                Schema.newBuilder().fromResolvedSchema(schema).build(),
-                                "mock context",
-                                Collections.emptyList(),
-                                options),
+                        CatalogTable.newBuilder()
+                                .schema(Schema.newBuilder().fromResolvedSchema(schema).build())
+                                .comment("mock context")
+                                .options(options)
+                                .build(),
                         schema),
                 enrichmentOptions,
                 new Configuration(),

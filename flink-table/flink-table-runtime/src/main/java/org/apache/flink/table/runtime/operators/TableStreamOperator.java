@@ -115,25 +115,25 @@ public abstract class TableStreamOperator<OUT> extends AbstractStreamOperator<OU
         @Override
         public void registerProcessingTimeTimer(long time) {
             throw new UnsupportedOperationException(
-                    "Setting timers is only supported on a keyed streams.");
+                    "Setting timers is only supported on keyed streams.");
         }
 
         @Override
         public void registerEventTimeTimer(long time) {
             throw new UnsupportedOperationException(
-                    "Setting timers is only supported on a keyed streams.");
+                    "Setting timers is only supported on keyed streams.");
         }
 
         @Override
         public void deleteProcessingTimeTimer(long time) {
             throw new UnsupportedOperationException(
-                    "Delete timers is only supported on a keyed streams.");
+                    "Delete timers is only supported on keyed streams.");
         }
 
         @Override
         public void deleteEventTimeTimer(long time) {
             throw new UnsupportedOperationException(
-                    "Delete timers is only supported on a keyed streams.");
+                    "Delete timers is only supported on keyed streams.");
         }
 
         public TimerService timerService() {

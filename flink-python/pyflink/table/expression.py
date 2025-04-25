@@ -859,6 +859,31 @@ class Expression(Generic[T]):
         gateway = get_gateway()
         return _ternary_op("as")(self, name, to_jarray(gateway.jvm.String, extra_names))
 
+    def as_argument(self, name: str) -> 'Expression':
+        """
+        Converts this expression into a named argument.
+
+        If the function declares a static signature (usually indicated by the "=>" assignment
+        operator), the framework is able to reorder named arguments and consider optional arguments
+        accordingly, before passing them into the function call.
+
+        .. note::
+            Not every function supports named arguments. Named arguments are not available for
+            signatures that are overloaded, use varargs, or any other kind of input type strategy.
+
+        Example:
+        ::
+
+            >>> table.select(
+            ...     call(
+            ...         "MyFunction",
+            ...         col("my_column").as_argument("input"),
+            ...         lit(42).as_argument("threshold")
+            ...     )
+            ... )
+        """
+        return _binary_op("asArgument")(self, name)
+
     def cast(self, data_type: DataType) -> 'Expression':
         """
         Returns a new value being cast to type type.

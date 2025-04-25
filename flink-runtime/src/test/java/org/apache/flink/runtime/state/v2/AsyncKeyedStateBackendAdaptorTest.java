@@ -21,6 +21,12 @@ package org.apache.flink.runtime.state.v2;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.AggregateFunction;
+import org.apache.flink.api.common.state.v2.AggregatingStateDescriptor;
+import org.apache.flink.api.common.state.v2.ListStateDescriptor;
+import org.apache.flink.api.common.state.v2.MapStateDescriptor;
+import org.apache.flink.api.common.state.v2.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.v2.StateDescriptor;
+import org.apache.flink.api.common.state.v2.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -36,6 +42,7 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
+import org.apache.flink.runtime.state.metrics.SizeTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.state.v2.adaptor.AsyncKeyedStateBackendAdaptor;
 import org.apache.flink.runtime.state.v2.internal.InternalAggregatingState;
@@ -436,6 +443,7 @@ public class AsyncKeyedStateBackendAdaptorTest {
                         executionConfig,
                         TtlTimeProvider.DEFAULT,
                         LatencyTrackingStateConfig.disabled(),
+                        SizeTrackingStateConfig.disabled(),
                         Collections.EMPTY_LIST,
                         AbstractStateBackend.getCompressionDecorator(executionConfig),
                         TestLocalRecoveryConfig.disabled(),

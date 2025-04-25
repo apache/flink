@@ -49,8 +49,8 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
-import org.apache.flink.runtime.metrics.ReporterSetup;
-import org.apache.flink.runtime.metrics.TraceReporterSetup;
+import org.apache.flink.runtime.metrics.ReporterSetupBuilder;
+import org.apache.flink.runtime.metrics.filter.DefaultReporterFilters;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.rpc.AddressResolution;
@@ -221,8 +221,18 @@ public class TaskManagerRunner implements FatalErrorHandler {
                             MetricRegistryConfiguration.fromConfiguration(
                                     configuration,
                                     rpcSystem.getMaximumMessageSizeInBytes(configuration)),
-                            ReporterSetup.fromConfiguration(configuration, pluginManager),
-                            TraceReporterSetup.fromConfiguration(configuration, pluginManager));
+                            ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
+                                    configuration,
+                                    DefaultReporterFilters::metricsFromConfiguration,
+                                    pluginManager),
+                            ReporterSetupBuilder.TRACE_SETUP_BUILDER.fromConfiguration(
+                                    configuration,
+                                    DefaultReporterFilters::tracesFromConfiguration,
+                                    pluginManager),
+                            ReporterSetupBuilder.EVENT_SETUP_BUILDER.fromConfiguration(
+                                    configuration,
+                                    DefaultReporterFilters::eventsFromConfiguration,
+                                    pluginManager));
 
             final RpcService metricQueryServiceRpcService =
                     MetricUtils.startRemoteMetricsRpcService(

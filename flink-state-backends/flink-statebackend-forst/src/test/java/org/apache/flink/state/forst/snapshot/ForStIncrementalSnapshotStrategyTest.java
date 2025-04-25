@@ -18,20 +18,22 @@
 
 package org.apache.flink.state.forst.snapshot;
 
+import org.apache.flink.api.common.state.v2.StateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.state.ArrayListSerializer;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.SnapshotResources;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
 import org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo;
-import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.state.forst.ForStExtension;
 import org.apache.flink.state.forst.ForStOperationUtils;
-import org.apache.flink.state.forst.ForStStateDataTransfer;
+import org.apache.flink.state.forst.datatransfer.ForStStateDataTransfer;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
 import org.forstdb.ColumnFamilyHandle;
@@ -62,13 +64,27 @@ class ForStIncrementalSnapshotStrategyTest {
     // Verify the next checkpoint is still incremental after a savepoint completed.
     @Test
     void testCheckpointIsIncremental() throws Exception {
+        testCheckpointIsIncremental(false);
+    }
+
+    @Test
+    void testIncrementalCheckpointWithFirstBeingFull() throws Exception {
+        testCheckpointIsIncremental(true);
+    }
+
+    private void testCheckpointIsIncremental(boolean forceFirstFull) throws Exception {
 
         try (CloseableRegistry closeableRegistry = new CloseableRegistry();
                 ForStSnapshotStrategyBase checkpointSnapshotStrategy = createSnapshotStrategy()) {
             FsCheckpointStreamFactory checkpointStreamFactory = createFsCheckpointStreamFactory();
 
             // make and notify checkpoint with id 1
-            snapshot(1L, checkpointSnapshotStrategy, checkpointStreamFactory, closeableRegistry);
+            snapshot(
+                    1L,
+                    checkpointSnapshotStrategy,
+                    checkpointStreamFactory,
+                    closeableRegistry,
+                    forceFirstFull);
             checkpointSnapshotStrategy.notifyCheckpointComplete(1L);
 
             // notify savepoint with id 2
@@ -201,7 +217,24 @@ class ForStIncrementalSnapshotStrategyTest {
             FsCheckpointStreamFactory checkpointStreamFactory,
             CloseableRegistry closeableRegistry)
             throws Exception {
+        return snapshot(
+                checkpointId, snapshotStrategy, checkpointStreamFactory, closeableRegistry, false);
+    }
 
+    private <SR extends SnapshotResources> IncrementalRemoteKeyedStateHandle snapshot(
+            long checkpointId,
+            ForStSnapshotStrategyBase<?, SR> snapshotStrategy,
+            FsCheckpointStreamFactory checkpointStreamFactory,
+            CloseableRegistry closeableRegistry,
+            boolean forceFullCheckpoint)
+            throws Exception {
+
+        CheckpointOptions checkpointOptions =
+                new CheckpointOptions(
+                        forceFullCheckpoint
+                                ? CheckpointType.FULL_CHECKPOINT
+                                : CheckpointType.CHECKPOINT,
+                        CheckpointStorageLocationReference.getDefault());
         return (IncrementalRemoteKeyedStateHandle)
                 snapshotStrategy
                         .asyncSnapshot(
@@ -209,7 +242,7 @@ class ForStIncrementalSnapshotStrategyTest {
                                 checkpointId,
                                 checkpointId,
                                 checkpointStreamFactory,
-                                CheckpointOptions.forCheckpointWithDefaultLocation())
+                                checkpointOptions)
                         .get(closeableRegistry)
                         .getJobManagerOwnedSnapshot();
     }

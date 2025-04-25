@@ -19,13 +19,13 @@
 package org.apache.flink.streaming.api.operators.sorted.state;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.PriorityQueueSetFactory;
+import org.apache.flink.runtime.state.v2.adaptor.AsyncKeyedStateBackendAdaptor;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.KeyContext;
@@ -39,7 +39,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An implementation of a {@link InternalTimeServiceManager} that manages timers with a single
@@ -52,8 +51,14 @@ public class BatchExecutionInternalTimeServiceManager<K>
     private final Map<String, BatchExecutionInternalTimeService<K, ?>> timerServices =
             new HashMap<>();
 
-    public BatchExecutionInternalTimeServiceManager(ProcessingTimeService processingTimeService) {
+    // In batch mode, there is a chance that the operator is {@link AsyncStateProcessing} and we
+    // should perform correctly when the timer fires.
+    private final boolean asyncStateProcessingMode;
+
+    public BatchExecutionInternalTimeServiceManager(
+            ProcessingTimeService processingTimeService, boolean asyncStateProcessingMode) {
         this.processingTimeService = checkNotNull(processingTimeService);
+        this.asyncStateProcessingMode = asyncStateProcessingMode;
     }
 
     @Override
@@ -67,22 +72,15 @@ public class BatchExecutionInternalTimeServiceManager<K>
                 (BatchExecutionInternalTimeService<K, N>) timerServices.get(name);
         if (timerService == null) {
             timerService =
-                    new BatchExecutionInternalTimeService<>(processingTimeService, triggerable);
+                    asyncStateProcessingMode
+                            ? new BatchExecutionInternalTimeServiceWithAsyncState<>(
+                                    processingTimeService, triggerable)
+                            : new BatchExecutionInternalTimeService<>(
+                                    processingTimeService, triggerable);
             timerServices.put(name, timerService);
         }
 
         return timerService;
-    }
-
-    @Override
-    public <N> InternalTimerService<N> getAsyncInternalTimerService(
-            String name,
-            TypeSerializer<K> keySerializer,
-            TypeSerializer<N> namespaceSerializer,
-            Triggerable<K, N> triggerable,
-            AsyncExecutionController<K> asyncExecutionController) {
-        throw new UnsupportedOperationException(
-                "Async timer service is not supported in BATCH execution mode.");
     }
 
     @Override
@@ -105,6 +103,7 @@ public class BatchExecutionInternalTimeServiceManager<K>
         throw new UnsupportedOperationException("Checkpoints are not supported in BATCH execution");
     }
 
+    @SuppressWarnings("unchecked")
     public static <K> InternalTimeServiceManager<K> create(
             TaskIOMetricGroup taskIOMetricGroup,
             PriorityQueueSetFactory factory,
@@ -114,14 +113,27 @@ public class BatchExecutionInternalTimeServiceManager<K>
             ProcessingTimeService processingTimeService,
             Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates,
             StreamTaskCancellationContext cancellationContext) {
-        checkState(
-                factory instanceof BatchExecutionKeyedStateBackend,
-                "Batch execution specific time service can work only with BatchExecutionKeyedStateBackend");
+        BatchExecutionKeyedStateBackend<K> theFactory = null;
+        boolean asyncStateProcessingMode = false;
+        if (factory instanceof BatchExecutionKeyedStateBackend) {
+            theFactory = (BatchExecutionKeyedStateBackend<K>) factory;
+        } else if (factory instanceof AsyncKeyedStateBackendAdaptor) {
+            KeyedStateBackend<K> keyedStateBackend =
+                    ((AsyncKeyedStateBackendAdaptor<K>) factory).getKeyedStateBackend();
+            if (keyedStateBackend instanceof BatchExecutionKeyedStateBackend) {
+                theFactory = (BatchExecutionKeyedStateBackend<K>) keyedStateBackend;
+                asyncStateProcessingMode = true;
+            }
+        }
+        if (theFactory == null) {
+            throw new IllegalStateException(
+                    "Batch execution specific time service can work only with BatchExecutionKeyedStateBackend");
+        }
 
         BatchExecutionInternalTimeServiceManager<K> timeServiceManager =
-                new BatchExecutionInternalTimeServiceManager<>(processingTimeService);
-        ((BatchExecutionKeyedStateBackend) factory)
-                .registerKeySelectionListener(timeServiceManager);
+                new BatchExecutionInternalTimeServiceManager<>(
+                        processingTimeService, asyncStateProcessingMode);
+        theFactory.registerKeySelectionListener(timeServiceManager);
         return timeServiceManager;
     }
 

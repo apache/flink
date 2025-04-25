@@ -59,7 +59,9 @@ public class ProcessFunctionTest {
 
                     @Override
                     public void processRecord(
-                            Integer record, Collector<Integer> output, PartitionedContext ctx)
+                            Integer record,
+                            Collector<Integer> output,
+                            PartitionedContext<Integer> ctx)
                             throws Exception {}
 
                     @Override
@@ -94,7 +96,9 @@ public class ProcessFunctionTest {
 
                     @Override
                     public void processRecordFromNonBroadcastInput(
-                            Integer record, Collector<Integer> output, PartitionedContext ctx)
+                            Integer record,
+                            Collector<Integer> output,
+                            PartitionedContext<Integer> ctx)
                             throws Exception {}
 
                     @Override
@@ -134,12 +138,16 @@ public class ProcessFunctionTest {
 
                     @Override
                     public void processRecordFromFirstInput(
-                            Integer record, Collector<Integer> output, PartitionedContext ctx)
+                            Integer record,
+                            Collector<Integer> output,
+                            PartitionedContext<Integer> ctx)
                             throws Exception {}
 
                     @Override
                     public void processRecordFromSecondInput(
-                            Integer record, Collector<Integer> output, PartitionedContext ctx)
+                            Integer record,
+                            Collector<Integer> output,
+                            PartitionedContext<Integer> ctx)
                             throws Exception {}
 
                     @Override
@@ -179,7 +187,7 @@ public class ProcessFunctionTest {
                             Integer record,
                             Collector<Integer> output1,
                             Collector<Integer> output2,
-                            TwoOutputPartitionedContext ctx)
+                            TwoOutputPartitionedContext<Integer, Integer> ctx)
                             throws Exception {}
 
                     @Override

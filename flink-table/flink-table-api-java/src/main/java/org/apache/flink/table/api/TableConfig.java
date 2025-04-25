@@ -96,9 +96,8 @@ import static org.apache.flink.table.api.internal.TableConfigValidation.validate
 @PublicEvolving
 public final class TableConfig implements WritableConfig, ReadableConfig {
 
-    /** Please use {@link TableConfig#getDefault()} instead. */
-    @Deprecated
-    public TableConfig() {}
+    /** Please use {@link TableConfig#getDefault()} to get the default {@link TableConfig}. */
+    private TableConfig() {}
 
     // Note to implementers:
     // TableConfig is a ReadableConfig which is built once the TableEnvironment is created and
@@ -354,43 +353,6 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
     public void setMaxGeneratedCodeLength(Integer maxGeneratedCodeLength) {
         this.configuration.set(
                 TableConfigOptions.MAX_LENGTH_GENERATED_CODE, maxGeneratedCodeLength);
-    }
-
-    /**
-     * Specifies a minimum and a maximum time interval for how long idle state, i.e., state which
-     * was not updated, will be retained. State will never be cleared until it was idle for less
-     * than the minimum time and will never be kept if it was idle for more than the maximum time.
-     *
-     * <p>When new data arrives for previously cleaned-up state, the new data will be handled as if
-     * it was the first data. This can result in previous results being overwritten.
-     *
-     * <p>Set to 0 (zero) to never clean-up the state.
-     *
-     * <p>NOTE: Cleaning up state requires additional bookkeeping which becomes less expensive for
-     * larger differences of minTime and maxTime. The difference between minTime and maxTime must be
-     * at least 5 minutes.
-     *
-     * <p>NOTE: Currently maxTime will be ignored and it will automatically derived from minTime as
-     * 1.5 x minTime.
-     *
-     * @param minTime The minimum time interval for which idle state is retained. Set to 0 (zero) to
-     *     never clean-up the state.
-     * @param maxTime The maximum time interval for which idle state is retained. Must be at least 5
-     *     minutes greater than minTime. Set to 0 (zero) to never clean-up the state.
-     * @deprecated use {@link #setIdleStateRetention(Duration)} instead.
-     */
-    @Deprecated
-    public void setIdleStateRetentionTime(Duration minTime, Duration maxTime) {
-        if (maxTime.minus(minTime).toMillis() < 300000
-                && !(maxTime.toMillis() == 0 && minTime.toMillis() == 0)) {
-            throw new IllegalArgumentException(
-                    "Difference between minTime: "
-                            + minTime
-                            + " and maxTime: "
-                            + maxTime
-                            + " should be at least 5 minutes.");
-        }
-        setIdleStateRetention(minTime);
     }
 
     /**

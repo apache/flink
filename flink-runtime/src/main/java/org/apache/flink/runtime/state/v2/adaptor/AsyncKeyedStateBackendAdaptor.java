@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state.v2.adaptor;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.InternalCheckpointListener;
 import org.apache.flink.api.common.state.v2.State;
+import org.apache.flink.api.common.state.v2.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
@@ -44,7 +45,6 @@ import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
-import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.runtime.state.v2.StateDescriptorUtils;
 import org.apache.flink.runtime.state.v2.internal.InternalKeyedState;
 
@@ -196,5 +196,9 @@ public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend<
     @Override
     public boolean isSafeToReuseKVState() {
         return keyedStateBackend.isSafeToReuseKVState();
+    }
+
+    public CheckpointableKeyedStateBackend<K> getKeyedStateBackend() {
+        return keyedStateBackend;
     }
 }

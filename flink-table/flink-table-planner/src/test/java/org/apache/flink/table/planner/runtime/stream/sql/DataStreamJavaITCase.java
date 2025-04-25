@@ -53,6 +53,7 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
@@ -577,6 +578,7 @@ class DataStreamJavaITCase {
                 tableEnv.fromChangelogStream(
                         changelogStream,
                         Schema.newBuilder().primaryKey("f0").build(),
+                        // produce partial deletes
                         ChangelogMode.upsert()));
 
         final Table result = tableEnv.sqlQuery("SELECT f0, SUM(f1) FROM t GROUP BY f0");
@@ -585,7 +587,8 @@ class DataStreamJavaITCase {
                 tableEnv.toChangelogStream(
                         result,
                         Schema.newBuilder().primaryKey("f0").build(),
-                        ChangelogMode.upsert()),
+                        // expect full deletes, therefore, require changelog normalize
+                        ChangelogMode.upsert(false)),
                 getOutput(inputOrOutput));
     }
 
@@ -1005,7 +1008,9 @@ class DataStreamJavaITCase {
                         RecursiveComparisonConfiguration.builder()
                                 .withComparatorForType(
                                         Comparator.comparing(
-                                                ResolvedExpression::asSerializableString),
+                                                resolvedExpression ->
+                                                        resolvedExpression.asSerializableString(
+                                                                DefaultSqlFactory.INSTANCE)),
                                         ResolvedExpression.class)
                                 .build())
                 .isEqualTo(table.getResolvedSchema());

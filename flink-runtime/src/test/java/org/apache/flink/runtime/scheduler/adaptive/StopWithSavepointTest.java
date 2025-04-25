@@ -28,6 +28,7 @@ import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.TestingAccessExecution;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointStoppingException;
@@ -36,6 +37,8 @@ import org.apache.flink.util.FlinkException;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -267,7 +270,7 @@ class StopWithSavepointTest {
             ctx.setExpectRestarting(
                     (restartingArguments) -> {
                         assertThat(restartingArguments).isNotNull();
-                        assertThat(restartingArguments.isForcedRestart()).isFalse();
+                        assertThat(restartingArguments.getRestartWithParallelism()).isEmpty();
                     });
 
             Exception exception = new RuntimeException();
@@ -580,7 +583,7 @@ class StopWithSavepointTest {
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
                 Duration backoffTime,
-                boolean forcedRestart,
+                @Nullable VertexParallelism restartWithParallelism,
                 List<ExceptionHistoryEntry> failureCollection) {
             if (hadStateTransition) {
                 throw new IllegalStateException("Only one state transition is allowed.");
@@ -592,7 +595,7 @@ class StopWithSavepointTest {
                             executionGraphHandler,
                             operatorCoordinatorHandler,
                             backoffTime,
-                            forcedRestart));
+                            restartWithParallelism));
             hadStateTransition = true;
         }
 

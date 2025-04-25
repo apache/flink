@@ -22,10 +22,11 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.state.v2.ValueState;
+import org.apache.flink.api.common.state.v2.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
@@ -71,7 +72,7 @@ public class StateMachineExample {
         System.out.println(
                 "Usage with Kafka: StateMachineExample --kafka-topic <topic> [--brokers <brokers>]");
         System.out.println("Options for both the above setups: ");
-        System.out.println("\t[--backend <hashmap|rocks>]");
+        System.out.println("\t[--backend <hashmap|rocksdb|forst>]");
         System.out.println("\t[--checkpoint-dir <filepath>]");
         System.out.println("\t[--incremental-checkpoints <true|false>]");
         System.out.println("\t[--output <filepath> OR null for stdout]");
@@ -91,12 +92,10 @@ public class StateMachineExample {
             configuration.set(StateBackendOptions.STATE_BACKEND, "hashmap");
             configuration.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
             configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
-        } else if ("rocks".equals(stateBackend)) {
+        } else if ("rocksdb".equals(stateBackend) || "forst".equals(stateBackend)) {
             final String checkpointDir = params.get("checkpoint-dir");
             boolean incrementalCheckpoints = params.getBoolean("incremental-checkpoints", false);
-            configuration.set(
-                    StateBackendOptions.STATE_BACKEND,
-                    "org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackendFactory");
+            configuration.set(StateBackendOptions.STATE_BACKEND, stateBackend);
             configuration.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, incrementalCheckpoints);
             configuration.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
             configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
@@ -164,7 +163,7 @@ public class StateMachineExample {
                         // partition on the address to make sure equal addresses
                         // end up in the same state machine flatMap function
                         .keyBy(Event::sourceAddress)
-
+                        .enableAsyncState()
                         // the function that evaluates the state machine over the sequence of events
                         .flatMap(new StateMachineMapper());
 
@@ -206,32 +205,41 @@ public class StateMachineExample {
         public void open(OpenContext openContext) {
             // get access to the state object
             currentState =
-                    getRuntimeContext().getState(new ValueStateDescriptor<>("state", State.class));
+                    getRuntimeContext()
+                            .getState(
+                                    new ValueStateDescriptor<>(
+                                            "state", TypeExtractor.createTypeInfo(State.class)));
         }
 
         @Override
         public void flatMap(Event evt, Collector<Alert> out) throws Exception {
             // get the current state for the key (source address)
-            // if no state exists, yet, the state must be the state machine's initial state
-            State state = currentState.value();
-            if (state == null) {
-                state = State.Initial;
-            }
+            currentState
+                    .asyncValue()
+                    .thenAccept(
+                            state -> {
+                                // if no state exists, yet, the state must be the state machine's
+                                // initial state
+                                if (state == null) {
+                                    state = State.Initial;
+                                }
 
-            // ask the state machine what state we should go to based on the given event
-            State nextState = state.transition(evt.type());
+                                // ask the state machine what state we should go to based on the
+                                // given event
 
-            if (nextState == State.InvalidTransition) {
-                // the current event resulted in an invalid transition
-                // raise an alert!
-                out.collect(new Alert(evt.sourceAddress(), state, evt.type()));
-            } else if (nextState.isTerminal()) {
-                // we reached a terminal state, clean up the current state
-                currentState.clear();
-            } else {
-                // remember the new state
-                currentState.update(nextState);
-            }
+                                State nextState = state.transition(evt.type());
+                                if (nextState == State.InvalidTransition) {
+                                    // the current event resulted in an invalid transition
+                                    // raise an alert!
+                                    out.collect(new Alert(evt.sourceAddress(), state, evt.type()));
+                                } else if (nextState.isTerminal()) {
+                                    // we reached a terminal state, clean up the current state
+                                    currentState.asyncClear();
+                                } else {
+                                    // remember the new state
+                                    currentState.asyncUpdate(nextState);
+                                }
+                            });
         }
     }
 

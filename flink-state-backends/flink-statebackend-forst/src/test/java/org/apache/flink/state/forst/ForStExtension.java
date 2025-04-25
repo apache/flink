@@ -171,6 +171,9 @@ public class ForStExtension implements BeforeEachCallback, AfterEachCallback {
                         null,
                         new Path(localWorkingDir.getAbsolutePath()),
                         null,
+                        null,
+                        null,
+                        null,
                         enableStatistics);
         resourceContainer.prepareDirectories();
 

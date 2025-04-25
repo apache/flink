@@ -20,11 +20,9 @@ package org.apache.flink.table.annotation;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.functions.ProcessTableFunction;
+import org.apache.flink.table.functions.ProcessTableFunction.TimeContext;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
-
-import java.util.Arrays;
-import java.util.Set;
-import java.util.stream.Collectors;
+import org.apache.flink.types.RowKind;
 
 /**
  * Declares traits for {@link ArgumentHint}. They enable basic validation by the framework.
@@ -82,25 +80,102 @@ public enum ArgumentTrait {
     /**
      * Defines that a PARTITION BY clause is optional for {@link #TABLE_AS_SET}. By default, it is
      * mandatory for improving the parallel execution by distributing the table by key.
+     *
+     * <p>Note: This trait is only valid for {@link #TABLE_AS_SET} arguments.
      */
-    OPTIONAL_PARTITION_BY(false, StaticArgumentTrait.OPTIONAL_PARTITION_BY, TABLE_AS_SET);
+    OPTIONAL_PARTITION_BY(false, StaticArgumentTrait.OPTIONAL_PARTITION_BY),
+
+    /**
+     * Defines that all columns of a table argument (i.e. {@link #TABLE_AS_ROW} or {@link
+     * #TABLE_AS_SET}) are included in the output of the PTF. By default, only columns of the
+     * PARTITION BY clause are passed through.
+     *
+     * <p>Given a table t (containing columns k and v), and a PTF f() (producing columns c1 and c2),
+     * the output of a {@code SELECT * FROM f(table_arg => TABLE t PARTITION BY k)} uses the
+     * following order:
+     *
+     * <pre>
+     *     Default: | k | c1 | c2 |
+     *     With pass-through columns: | k | v | c1 | c2 |
+     * </pre>
+     *
+     * <p>In case of multiple table arguments, pass-through columns are added according to the
+     * declaration order in the PTF signature.
+     *
+     * <p>Timers are not available when pass-through columns are enabled.
+     *
+     * <p>Note: This trait is valid for {@link #TABLE_AS_ROW} and {@link #TABLE_AS_SET} arguments.
+     */
+    PASS_COLUMNS_THROUGH(false, StaticArgumentTrait.PASS_COLUMNS_THROUGH),
+
+    /**
+     * Defines that updates are allowed as input to the given table argument. By default, a table
+     * argument is insert-only and updates will be rejected.
+     *
+     * <p>Input tables become updating when sub queries such as aggregations or outer joins force an
+     * incremental computation. For example, the following query only works if the function is able
+     * to digest retraction messages:
+     *
+     * <pre>
+     *     // Changes +[1] followed by -U[1], +U[2], -U[2], +U[3] will enter the function
+     *     WITH UpdatingTable AS (
+     *       SELECT COUNT(*) FROM (VALUES 1, 2, 3)
+     *     )
+     *     SELECT * FROM f(table_arg => TABLE UpdatingTable)
+     * </pre>
+     *
+     * <p>If updates should be supported, ensure that the data type of the table argument is chosen
+     * in a way that it can encode changes. In other words: choose a row type that exposes the
+     * {@link RowKind} change flag.
+     *
+     * <p>This trait is intended for advanced use cases. Please note that inputs are always
+     * insert-only in batch mode. Thus, if the PTF should produce the same results in both batch and
+     * streaming mode, results should be emitted based on watermarks and event-time. The trait
+     * {@link #PASS_COLUMNS_THROUGH} is not supported if this trait is declared.
+     *
+     * <p>Timers are not available when updates are enabled.
+     *
+     * <p>Note: This trait is valid for {@link #TABLE_AS_ROW} and {@link #TABLE_AS_SET} arguments.
+     */
+    SUPPORT_UPDATES(false, StaticArgumentTrait.SUPPORT_UPDATES),
+
+    /**
+     * Defines that an {@code on_time} argument must be provided, referencing a watermarked
+     * timestamp column in the given table.
+     *
+     * <p>The {@code on_time} argument indicates which column provides the event-time timestamp. In
+     * other words, it specifies the column that defines the timestamp for when a row was generated.
+     * This timestamp is used within the PTF for timers and time-based operations when the watermark
+     * progresses the logical clock.
+     *
+     * <p>By default, the {@code on_time} argument is optional. If no timestamp column is set for
+     * the PTF, the {@link TimeContext#time()} will return null. If the {@code on_time} argument is
+     * provided, {@link TimeContext#time()} will return it and the PTF will return a {@code rowtime}
+     * column in the output, allowing subsequent operations to access and propagate the resulting
+     * event-time timestamp.
+     *
+     * <p>For example:
+     *
+     * <pre>
+     *     CREATE TABLE t (v STRING, ts TIMESTAMP_LTZ(3), WATERMARK FOR ts AS ts - INTERVAL '2' SECONDS);
+     *
+     *     SELECT v, rowtime FROM f(table_arg => TABLE t, on_time => DESCRIPTOR(ts));
+     * </pre>
+     *
+     * <p>Note: This trait is valid for {@link #TABLE_AS_ROW} and {@link #TABLE_AS_SET} arguments.
+     */
+    REQUIRE_ON_TIME(false, StaticArgumentTrait.REQUIRE_ON_TIME);
 
     private final boolean isRoot;
     private final StaticArgumentTrait staticTrait;
-    private final Set<ArgumentTrait> requirements;
 
-    ArgumentTrait(boolean isRoot, StaticArgumentTrait staticTrait, ArgumentTrait... requirements) {
+    ArgumentTrait(boolean isRoot, StaticArgumentTrait staticTrait) {
         this.isRoot = isRoot;
         this.staticTrait = staticTrait;
-        this.requirements = Arrays.stream(requirements).collect(Collectors.toSet());
     }
 
     public boolean isRoot() {
         return isRoot;
-    }
-
-    public Set<ArgumentTrait> getRequirements() {
-        return requirements;
     }
 
     public StaticArgumentTrait toStaticTrait() {

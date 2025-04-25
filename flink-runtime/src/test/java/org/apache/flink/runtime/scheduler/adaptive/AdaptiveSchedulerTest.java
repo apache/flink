@@ -92,6 +92,8 @@ import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.operators.coordination.TestOperatorEvent;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerTest;
+import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
+import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
@@ -100,6 +102,7 @@ import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.TestingSlot;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.TestingSlotAllocator;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -118,7 +121,6 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
-import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -160,6 +162,7 @@ import java.util.stream.IntStream;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
+import static org.apache.flink.runtime.jobgraph.JobGraphTestUtils.singleNoOpJobGraph;
 import static org.apache.flink.runtime.jobgraph.JobGraphTestUtils.streamingJobGraph;
 import static org.apache.flink.runtime.jobmaster.slotpool.SlotPoolTestUtils.createSlotOffersForResourceRequirements;
 import static org.apache.flink.runtime.jobmaster.slotpool.SlotPoolTestUtils.offerSlots;
@@ -455,12 +458,7 @@ public class AdaptiveSchedulerTest {
         assertThat(executionGraph.getJobVertex(JOB_VERTEX.getID()).getParallelism())
                 .isEqualTo(numAvailableSlots);
 
-        assertThat(
-                        JacksonMapperFactory.createObjectMapper()
-                                .readTree(executionGraph.getJsonPlan())
-                                .get("nodes")
-                                .size())
-                .isOne();
+        assertThat(executionGraph.getPlan().getNodes().size()).isOne();
     }
 
     @Test
@@ -592,13 +590,16 @@ public class AdaptiveSchedulerTest {
     }
 
     @Test
-    void testNumRestartsMetric() throws Exception {
+    void testNumRescalesAndStartsMetricForRescale() throws Exception {
+        final CompletableFuture<Gauge<Long>> numRescalesMetricFuture = new CompletableFuture<>();
         final CompletableFuture<Gauge<Long>> numRestartsMetricFuture = new CompletableFuture<>();
         final MetricRegistry metricRegistry =
                 TestingMetricRegistry.builder()
                         .setRegisterConsumer(
                                 (metric, name, group) -> {
-                                    if (MetricNames.NUM_RESTARTS.equals(name)) {
+                                    if (MetricNames.NUM_RESCALES.equals(name)) {
+                                        numRescalesMetricFuture.complete((Gauge<Long>) metric);
+                                    } else if (MetricNames.NUM_RESTARTS.equals(name)) {
                                         numRestartsMetricFuture.complete((Gauge<Long>) metric);
                                     }
                                 })
@@ -629,6 +630,7 @@ public class AdaptiveSchedulerTest {
                         .setDeclarativeSlotPool(declarativeSlotPool)
                         .build();
 
+        final Gauge<Long> numRescalesMetric = numRescalesMetricFuture.get();
         final Gauge<Long> numRestartsMetric = numRestartsMetricFuture.get();
 
         final SubmissionBufferingTaskManagerGateway taskManagerGateway =
@@ -649,6 +651,7 @@ public class AdaptiveSchedulerTest {
         // wait for the first task submission
         taskManagerGateway.waitForSubmissions(1);
 
+        assertThat(numRescalesMetric.getValue()).isEqualTo(0L);
         assertThat(numRestartsMetric.getValue()).isEqualTo(0L);
 
         // offer more slots, which will cause a restart in order to scale up
@@ -664,7 +667,73 @@ public class AdaptiveSchedulerTest {
         // wait for the second task submissions
         taskManagerGateway.waitForSubmissions(PARALLELISM);
 
+        assertThat(numRescalesMetric.getValue()).isEqualTo(1L);
         assertThat(numRestartsMetric.getValue()).isEqualTo(1L);
+    }
+
+    @Test
+    void testNumRescalesAndStartsMetricForFailureRecovery() throws Exception {
+        final CompletableFuture<Gauge<Long>> numRescalesMetricFuture = new CompletableFuture<>();
+        final CompletableFuture<Gauge<Long>> numRestartsMetricFuture = new CompletableFuture<>();
+        final MetricRegistry metricRegistry =
+                TestingMetricRegistry.builder()
+                        .setRegisterConsumer(
+                                (metric, name, group) -> {
+                                    if (MetricNames.NUM_RESCALES.equals(name)) {
+                                        numRescalesMetricFuture.complete((Gauge<Long>) metric);
+                                    } else if (MetricNames.NUM_RESTARTS.equals(name)) {
+                                        numRestartsMetricFuture.complete((Gauge<Long>) metric);
+                                    }
+                                })
+                        .build();
+
+        scheduler =
+                new AdaptiveSchedulerBuilder(
+                                createJobGraph(),
+                                singleThreadMainThreadExecutor,
+                                EXECUTOR_RESOURCE.getExecutor())
+                        .setJobMasterConfiguration(createConfigurationWithNoTimeouts())
+                        .setJobManagerJobMetricGroup(
+                                JobManagerMetricGroup.createJobManagerMetricGroup(
+                                                metricRegistry, "localhost")
+                                        .addJob(new JobID(), "jobName"))
+                        .build();
+
+        try (MockRestartingContext ctx = new MockRestartingContext()) {
+            StateTrackingMockExecutionGraph executionGraph = new StateTrackingMockExecutionGraph();
+
+            final ExecutionGraphHandler executionGraphHandler =
+                    new ExecutionGraphHandler(
+                            executionGraph,
+                            LOG,
+                            ctx.getMainThreadExecutor(),
+                            ctx.getMainThreadExecutor());
+            final OperatorCoordinatorHandler operatorCoordinatorHandler =
+                    new TestingOperatorCoordinatorHandler();
+            executionGraph.transitionToRunning();
+
+            List<ExceptionHistoryEntry> failureCollection =
+                    List.of(
+                            ExceptionHistoryEntry.createGlobal(
+                                    new Exception("test"),
+                                    CompletableFuture.completedFuture(Collections.emptyMap())));
+            runInMainThread(
+                    () ->
+                            scheduler.goToRestarting(
+                                    executionGraph,
+                                    executionGraphHandler,
+                                    operatorCoordinatorHandler,
+                                    Duration.ZERO,
+                                    new VertexParallelism(
+                                            Collections.singletonMap(JOB_VERTEX.getID(), 1)),
+                                    failureCollection));
+        }
+
+        final Gauge<Long> numRestartsMetric = numRestartsMetricFuture.get();
+        assertThat(numRestartsMetric.getValue()).isEqualTo(1L);
+
+        final Gauge<Long> numScalesMetric = numRescalesMetricFuture.get();
+        assertThat(numScalesMetric.getValue()).isEqualTo(0L);
     }
 
     @Test
@@ -1040,6 +1109,19 @@ public class AdaptiveSchedulerTest {
 
         assertThat(completedCheckpointStoreShutdownFuture.get()).isEqualTo(JobStatus.FAILED);
         assertThat(checkpointIdCounterShutdownFuture.get()).isEqualTo(JobStatus.FAILED);
+    }
+
+    @Test
+    void testCloseAsyncReturnsMainThreadFuture() throws Exception {
+        DefaultSchedulerTest.runCloseAsyncCompletesInMainThreadTest(
+                TEST_EXECUTOR_RESOURCE.getExecutor(),
+                (mainThreadExecutor, checkpointsCleaner) ->
+                        new AdaptiveSchedulerBuilder(
+                                        singleNoOpJobGraph(),
+                                        mainThreadExecutor,
+                                        EXECUTOR_RESOURCE.getExecutor())
+                                .setCheckpointCleaner(checkpointsCleaner)
+                                .build());
     }
 
     @Test

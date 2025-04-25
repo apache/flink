@@ -37,6 +37,6 @@ public interface TwoOutputApplyPartitionFunction<OUT1, OUT2> extends Function {
     void apply(
             Collector<OUT1> firstOutput,
             Collector<OUT2> secondOutput,
-            TwoOutputPartitionedContext ctx)
+            TwoOutputPartitionedContext<OUT1, OUT2> ctx)
             throws Exception;
 }

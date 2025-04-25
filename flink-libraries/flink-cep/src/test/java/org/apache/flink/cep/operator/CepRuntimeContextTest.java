@@ -192,6 +192,51 @@ public class CepRuntimeContextTest extends TestLogger {
         }
 
         try {
+            runtimeContext.getState(
+                    new org.apache.flink.api.common.state.v2.ValueStateDescriptor<>(
+                            "foobar", Integer.class));
+            fail("Expected getState to fail with unsupported operation exception.");
+        } catch (UnsupportedOperationException e) {
+            // expected
+        }
+
+        try {
+            runtimeContext.getListState(
+                    new org.apache.flink.api.common.state.v2.ListStateDescriptor<>(
+                            "foobar", Integer.class));
+            fail("Expected getListState to fail with unsupported operation exception.");
+        } catch (UnsupportedOperationException e) {
+            // expected
+        }
+
+        try {
+            runtimeContext.getReducingState(
+                    new org.apache.flink.api.common.state.v2.ReducingStateDescriptor<>(
+                            "foobar", mock(ReduceFunction.class), Integer.class));
+            fail("Expected getReducingState to fail with unsupported operation exception.");
+        } catch (UnsupportedOperationException e) {
+            // expected
+        }
+
+        try {
+            runtimeContext.getAggregatingState(
+                    new org.apache.flink.api.common.state.v2.AggregatingStateDescriptor<>(
+                            "foobar", mock(AggregateFunction.class), Integer.class));
+            fail("Expected getAggregatingState to fail with unsupported operation exception.");
+        } catch (UnsupportedOperationException e) {
+            // expected
+        }
+
+        try {
+            runtimeContext.getMapState(
+                    new org.apache.flink.api.common.state.v2.MapStateDescriptor<>(
+                            "foobar", Integer.class, String.class));
+            fail("Expected getMapState to fail with unsupported operation exception.");
+        } catch (UnsupportedOperationException e) {
+            // expected
+        }
+
+        try {
             runtimeContext.addAccumulator("foobar", mock(Accumulator.class));
             fail("Expected addAccumulator to fail with unsupported operation exception.");
         } catch (UnsupportedOperationException e) {

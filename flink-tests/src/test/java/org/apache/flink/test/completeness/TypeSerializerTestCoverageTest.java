@@ -30,6 +30,7 @@ import org.apache.flink.api.common.typeutils.base.LocalDateSerializer;
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
 import org.apache.flink.api.common.typeutils.base.LocalTimeSerializer;
 import org.apache.flink.api.common.typeutils.base.NullValueSerializer;
+import org.apache.flink.api.common.typeutils.base.SetSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BooleanPrimitiveArraySerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
@@ -146,6 +147,8 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         CoGroupedStreams.UnionSerializer.class.getName(),
                         TtlStateFactory.TtlSerializer.class.getName(),
                         TtlAwareSerializer.class.getName(),
+                        TtlAwareSerializer.TtlAwareListSerializer.class.getName(),
+                        TtlAwareSerializer.TtlAwareMapSerializer.class.getName(),
                         org.apache.flink.runtime.state.v2.ttl.TtlStateFactory.TtlSerializer.class
                                 .getName(),
                         TimeWindow.Serializer.class.getName(),
@@ -210,6 +213,8 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         UnloadableDummyTypeSerializer.class.getName(),
                         TimeWindow.Serializer.class.getName(),
                         CoGroupedStreams.UnionSerializer.class.getName(),
+                        TtlAwareSerializer.TtlAwareListSerializer.class.getName(),
+                        TtlAwareSerializer.TtlAwareMapSerializer.class.getName(),
                         InternalTimersSnapshotReaderWriters.LegacyTimerSerializer.class.getName(),
                         TwoPhaseCommitSinkFunction.StateSerializer.class.getName(),
                         GlobalWindow.Serializer.class.getName(),
@@ -243,7 +248,8 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         AvroSerializer.class.getName(),
                         // KeyAndValueSerializer shouldn't be used to serialize data to state and
                         // doesn't need to ensure upgrade compatibility.
-                        "org.apache.flink.streaming.api.operators.sortpartition.KeyAndValueSerializer");
+                        "org.apache.flink.streaming.api.operators.sortpartition.KeyAndValueSerializer",
+                        SetSerializer.class.getName());
 
         // check if a test exists for each type serializer
         for (Class<? extends TypeSerializer> typeSerializer : typeSerializers) {

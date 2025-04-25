@@ -51,7 +51,7 @@ public interface TwoInputBroadcastStreamProcessFunction<IN1, IN2, OUT> extends P
      * @param ctx runtime context in which this function is executed.
      */
     void processRecordFromNonBroadcastInput(
-            IN1 record, Collector<OUT> output, PartitionedContext ctx) throws Exception;
+            IN1 record, Collector<OUT> output, PartitionedContext<OUT> ctx) throws Exception;
 
     /**
      * Process record from broadcast input. In general, the broadcast side is not allowed to
@@ -70,7 +70,7 @@ public interface TwoInputBroadcastStreamProcessFunction<IN1, IN2, OUT> extends P
      *
      * @param ctx the context in which this function is executed.
      */
-    default void endNonBroadcastInput(NonPartitionedContext<OUT> ctx) {}
+    default void endNonBroadcastInput(NonPartitionedContext<OUT> ctx) throws Exception {}
 
     /**
      * This is a life-cycle method indicates that this function will no longer receive any data from
@@ -78,7 +78,7 @@ public interface TwoInputBroadcastStreamProcessFunction<IN1, IN2, OUT> extends P
      *
      * @param ctx the context in which this function is executed.
      */
-    default void endBroadcastInput(NonPartitionedContext<OUT> ctx) {}
+    default void endBroadcastInput(NonPartitionedContext<OUT> ctx) throws Exception {}
 
     /**
      * Callback for processing timer.
@@ -87,7 +87,8 @@ public interface TwoInputBroadcastStreamProcessFunction<IN1, IN2, OUT> extends P
      * @param output to emit record.
      * @param ctx runtime context in which this function is executed.
      */
-    default void onProcessingTimer(long timestamp, Collector<OUT> output, PartitionedContext ctx) {}
+    default void onProcessingTimer(
+            long timestamp, Collector<OUT> output, PartitionedContext<OUT> ctx) throws Exception {}
 
     /**
      * Callback function when receive the watermark from broadcast input.
@@ -97,7 +98,8 @@ public interface TwoInputBroadcastStreamProcessFunction<IN1, IN2, OUT> extends P
      * @param ctx runtime context in which this function is executed.
      */
     default WatermarkHandlingResult onWatermarkFromBroadcastInput(
-            Watermark watermark, Collector<OUT> output, NonPartitionedContext<OUT> ctx) {
+            Watermark watermark, Collector<OUT> output, NonPartitionedContext<OUT> ctx)
+            throws Exception {
         return WatermarkHandlingResult.PEEK;
     }
 
@@ -109,7 +111,8 @@ public interface TwoInputBroadcastStreamProcessFunction<IN1, IN2, OUT> extends P
      * @param ctx runtime context in which this function is executed.
      */
     default WatermarkHandlingResult onWatermarkFromNonBroadcastInput(
-            Watermark watermark, Collector<OUT> output, NonPartitionedContext<OUT> ctx) {
+            Watermark watermark, Collector<OUT> output, NonPartitionedContext<OUT> ctx)
+            throws Exception {
         return WatermarkHandlingResult.PEEK;
     }
 }

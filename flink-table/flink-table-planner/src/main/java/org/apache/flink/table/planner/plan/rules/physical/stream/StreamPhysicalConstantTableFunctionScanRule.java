@@ -18,16 +18,22 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.stream;
 
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalCorrelate;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalProcessTableFunction;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalValues;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 
 import com.google.common.collect.ImmutableList;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rex.RexUtil;
 import org.immutables.value.Value;
@@ -35,20 +41,26 @@ import org.immutables.value.Value;
 import scala.Option;
 
 /**
- * Converts {@link FlinkLogicalTableFunctionScan} with constant RexCall. To
+ * Converts {@link FlinkLogicalTableFunctionScan} with constant parameters. Add the rule to support
+ * selecting from a UDF directly, e.g. {@code SELECT * FROM func() as T(c)}.
+ *
+ * <p>For {@link org.apache.flink.table.functions.FunctionKind#TABLE}:
  *
  * <pre>
- *                           {@link StreamPhysicalCorrelate}
- *                              /                     \
- *       empty {@link StreamPhysicalValues}  {@link FlinkLogicalTableFunctionScan}
+ *   empty {@link StreamPhysicalValues} -> {@link StreamPhysicalCorrelate}
  * </pre>
  *
- * <p>Add the rule to support select from a UDF directly, such as the following SQL: {@code SELECT *
- * FROM LATERAL TABLE(func()) as T(c)}
+ * <p>{@link StreamPhysicalCorrelateRule} powers queries such as {@code SELECT * FROM T, LATERAL
+ * TABLE(func()) as T(c)} or {@code SELECT a, c FROM T, LATERAL TABLE(func(a)) as T(c)}.
  *
- * <p>Note: @{link StreamPhysicalCorrelateRule} is responsible for converting a reasonable physical
- * plan for the normal correlate query, such as the following SQL: example1: {@code SELECT * FROM T,
- * LATERAL TABLE(func()) as T(c) example2: SELECT a, c FROM T, LATERAL TABLE(func(a)) as T(c)}
+ * <p>For {@link org.apache.flink.table.functions.FunctionKind#PROCESS_TABLE}:
+ *
+ * <pre>
+ *   empty {@link StreamPhysicalValues} -> {@link StreamPhysicalProcessTableFunction}
+ * </pre>
+ *
+ * <p>{@link StreamPhysicalProcessTableFunction} powers queries such as {@code SELECT * FROM func(t
+ * => TABLE T)} or {@code SELECT * FROM func(t => TABLE T PARTITION BY k)}.
  */
 @Value.Enclosing
 public class StreamPhysicalConstantTableFunctionScanRule
@@ -67,18 +79,17 @@ public class StreamPhysicalConstantTableFunctionScanRule
     }
 
     public boolean matches(RelOptRuleCall call) {
-        FlinkLogicalTableFunctionScan scan = call.rel(0);
-        return !RexUtil.containsInputRef(scan.getCall()) && scan.getInputs().isEmpty();
+        final FlinkLogicalTableFunctionScan scan = call.rel(0);
+        return !RexUtil.containsInputRef(scan.getCall());
     }
 
     public void onMatch(RelOptRuleCall call) {
-        FlinkLogicalTableFunctionScan scan = call.rel(0);
-
-        // create correlate left
-        RelOptCluster cluster = scan.getCluster();
-        RelTraitSet traitSet =
+        final FlinkLogicalTableFunctionScan scan = call.rel(0);
+        final RelOptCluster cluster = scan.getCluster();
+        final RelTraitSet traitSet =
                 call.getPlanner().emptyTraitSet().replace(FlinkConventions.STREAM_PHYSICAL());
-        StreamPhysicalValues values =
+
+        final StreamPhysicalValues values =
                 new StreamPhysicalValues(
                         cluster,
                         traitSet,
@@ -86,20 +97,32 @@ public class StreamPhysicalConstantTableFunctionScanRule
                         cluster.getTypeFactory()
                                 .createStructType(ImmutableList.of(), ImmutableList.of()));
 
-        StreamPhysicalCorrelate correlate =
-                new StreamPhysicalCorrelate(
-                        cluster,
-                        traitSet,
-                        values,
-                        scan,
-                        Option.empty(),
-                        scan.getRowType(),
-                        JoinRelType.INNER);
-        call.transformTo(correlate);
+        final FunctionDefinition function = ShortcutUtils.unwrapFunctionDefinition(scan.getCall());
+        assert function != null;
+        final RelNode replacement;
+        if (function.getKind() == FunctionKind.TABLE) {
+            replacement =
+                    new StreamPhysicalCorrelate(
+                            cluster,
+                            traitSet,
+                            values,
+                            scan,
+                            Option.empty(),
+                            scan.getRowType(),
+                            JoinRelType.INNER);
+        } else if (function.getKind() == FunctionKind.PROCESS_TABLE) {
+            replacement =
+                    new StreamPhysicalProcessTableFunction(
+                            cluster, traitSet, values, scan, scan.getRowType());
+        } else {
+            throw new TableException("Unsupported function for scan:" + function.getKind());
+        }
+
+        call.transformTo(replacement);
     }
 
     /** Configuration for {@link StreamPhysicalConstantTableFunctionScanRule}. */
-    @Value.Immutable(singleton = false)
+    @Value.Immutable
     public interface StreamPhysicalConstantTableFunctionScanRuleConfig extends RelRule.Config {
         StreamPhysicalConstantTableFunctionScanRule
                         .StreamPhysicalConstantTableFunctionScanRuleConfig

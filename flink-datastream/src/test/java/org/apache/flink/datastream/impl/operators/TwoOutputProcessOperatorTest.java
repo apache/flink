@@ -48,7 +48,7 @@ class TwoOutputProcessOperatorTest {
                                     Integer record,
                                     Collector<Integer> output1,
                                     Collector<Long> output2,
-                                    TwoOutputPartitionedContext ctx) {
+                                    TwoOutputPartitionedContext<Integer, Long> ctx) {
                                 output1.collect(record);
                                 output2.collect((long) (record * 2));
                             }
@@ -86,7 +86,7 @@ class TwoOutputProcessOperatorTest {
                                     Integer record,
                                     Collector<Integer> output1,
                                     Collector<Long> output2,
-                                    TwoOutputPartitionedContext ctx) {
+                                    TwoOutputPartitionedContext<Integer, Long> ctx) {
                                 // do nothing.
                             }
 

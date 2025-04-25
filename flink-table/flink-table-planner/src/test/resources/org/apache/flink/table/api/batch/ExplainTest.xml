@@ -265,14 +265,14 @@ Calc(select=[a, b, c, e, f])
   <TestCase name="testExplainWithMultiSinks[extended=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, cnt])
+LogicalSink(table=[default_catalog.default_database.sink1], fields=[a, cnt])
 +- LogicalProject(a=[$0], cnt=[$1])
    +- LogicalFilter(condition=[>($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
          +- LogicalProject(a=[$0])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, cnt])
+LogicalSink(table=[default_catalog.default_database.sink2], fields=[a, cnt])
 +- LogicalProject(a=[$0], cnt=[$1])
    +- LogicalFilter(condition=[<($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
@@ -280,7 +280,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Physical Plan ==
-LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, cnt])
+Sink(table=[default_catalog.default_database.sink1], fields=[a, cnt])
 +- Calc(select=[a, cnt], where=[>(cnt, 10)])
    +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt])
       +- Exchange(distribution=[hash[a]])
@@ -288,7 +288,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, cnt])
             +- Calc(select=[a])
                +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
-LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, cnt])
+Sink(table=[default_catalog.default_database.sink2], fields=[a, cnt])
 +- Calc(select=[a, cnt], where=[<(cnt, 10)])
    +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt])
       +- Exchange(distribution=[hash[a]])
@@ -303,11 +303,11 @@ HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS c
       +- Calc(select=[a])
          +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
-LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, cnt])
+Sink(table=[default_catalog.default_database.sink1], fields=[a, cnt])
 +- Calc(select=[a, cnt], where=[(cnt > 10)])
    +- Reused(reference_id=[1])
 
-LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, cnt])
+Sink(table=[default_catalog.default_database.sink2], fields=[a, cnt])
 +- Calc(select=[a, cnt], where=[(cnt < 10)])
    +- Reused(reference_id=[1])
 ]]>
@@ -316,14 +316,14 @@ LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, cnt])
   <TestCase name="testExplainWithMultiSinks[extended=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, cnt])
+LogicalSink(table=[default_catalog.default_database.sink1], fields=[a, cnt])
 +- LogicalProject(a=[$0], cnt=[$1])
    +- LogicalFilter(condition=[>($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
          +- LogicalProject(a=[$0])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, cnt])
+LogicalSink(table=[default_catalog.default_database.sink2], fields=[a, cnt])
 +- LogicalProject(a=[$0], cnt=[$1])
    +- LogicalFilter(condition=[<($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
@@ -331,7 +331,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Physical Plan ==
-LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, cnt]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+Sink(table=[default_catalog.default_database.sink1], fields=[a, cnt]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Calc(select=[a, cnt], where=[>(cnt, 10)]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
       +- Exchange(distribution=[hash[a]]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
@@ -339,7 +339,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, cnt])
             +- Calc(select=[a]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
                +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, cnt]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+Sink(table=[default_catalog.default_database.sink2], fields=[a, cnt]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Calc(select=[a, cnt], where=[<(cnt, 10)]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
       +- Exchange(distribution=[hash[a]]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
@@ -354,11 +354,11 @@ HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS c
       +- Calc(select=[a])
          +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
-LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, cnt])
+Sink(table=[default_catalog.default_database.sink1], fields=[a, cnt])
 +- Calc(select=[a, cnt], where=[(cnt > 10)])
    +- Reused(reference_id=[1])
 
-LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, cnt])
+Sink(table=[default_catalog.default_database.sink2], fields=[a, cnt])
 +- Calc(select=[a, cnt], where=[(cnt < 10)])
    +- Reused(reference_id=[1])
 ]]>
@@ -367,18 +367,18 @@ LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, cnt])
   <TestCase name="testExplainWithSingleSink[extended=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalFilter(condition=[>($0, 10)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Physical Plan ==
-LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
+Sink(table=[default_catalog.default_database.sink], fields=[a, b, c])
 +- Calc(select=[a, b, c], where=[>(a, 10)])
    +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
 == Optimized Execution Plan ==
-LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
+Sink(table=[default_catalog.default_database.sink], fields=[a, b, c])
 +- Calc(select=[a, b, c], where=[(a > 10)])
    +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
@@ -387,18 +387,18 @@ LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
   <TestCase name="testExplainWithSingleSink[extended=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalFilter(condition=[>($0, 10)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Physical Plan ==
-LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+Sink(table=[default_catalog.default_database.sink], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Calc(select=[a, b, c], where=[>(a, 10)]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Optimized Execution Plan ==
-LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
+Sink(table=[default_catalog.default_database.sink], fields=[a, b, c])
 +- Calc(select=[a, b, c], where=[(a > 10)])
    +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>

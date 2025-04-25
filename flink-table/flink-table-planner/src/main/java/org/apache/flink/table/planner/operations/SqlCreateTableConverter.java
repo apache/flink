@@ -84,7 +84,7 @@ class SqlCreateTableConverter {
 
     /** Convert the {@link SqlCreateTable} node. */
     Operation convertCreateTable(SqlCreateTable sqlCreateTable) {
-        CatalogTable catalogTable = createCatalogTable(sqlCreateTable);
+        ResolvedCatalogTable catalogTable = createCatalogTable(sqlCreateTable);
 
         UnresolvedIdentifier unresolvedIdentifier =
                 UnresolvedIdentifier.of(sqlCreateTable.fullTableName());
@@ -188,7 +188,7 @@ class SqlCreateTableConverter {
         return catalogManager.resolveCatalogTable(catalogTable);
     }
 
-    private CatalogTable createCatalogTable(SqlCreateTable sqlCreateTable) {
+    private ResolvedCatalogTable createCatalogTable(SqlCreateTable sqlCreateTable) {
 
         final Schema sourceTableSchema;
         final Optional<TableDistribution> sourceTableDistribution;

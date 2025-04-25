@@ -30,6 +30,7 @@ import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UniqueConstraint;
+import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.utils.EncodingUtils;
 
 import org.apache.commons.lang3.StringUtils;
@@ -50,7 +51,8 @@ public class ShowCreateUtil {
     public static String buildShowCreateTableRow(
             ResolvedCatalogBaseTable<?> table,
             ObjectIdentifier tableIdentifier,
-            boolean isTemporary) {
+            boolean isTemporary,
+            SqlFactory sqlFactory) {
         if (table.getTableKind() == CatalogBaseTable.TableKind.VIEW) {
             throw new TableException(
                     String.format(
@@ -61,7 +63,7 @@ public class ShowCreateUtil {
                 new StringBuilder()
                         .append(buildCreateFormattedPrefix("TABLE", isTemporary, tableIdentifier));
         sb.append(extractFormattedColumns(table, PRINT_INDENT));
-        extractFormattedWatermarkSpecs(table, PRINT_INDENT)
+        extractFormattedWatermarkSpecs(table, PRINT_INDENT, sqlFactory)
                 .ifPresent(watermarkSpecs -> sb.append(",\n").append(watermarkSpecs));
         extractFormattedPrimaryKey(table, PRINT_INDENT)
                 .ifPresent(pk -> sb.append(",\n").append(pk));
@@ -90,7 +92,9 @@ public class ShowCreateUtil {
                             "SHOW CREATE VIEW is only supported for views, but %s is a table. Please use SHOW CREATE TABLE instead.",
                             viewIdentifier.asSerializableString()));
         }
-        if (view.getOrigin() instanceof QueryOperationCatalogView) {
+        final CatalogBaseTable origin = view.getOrigin();
+        if (origin instanceof QueryOperationCatalogView
+                && !((QueryOperationCatalogView) origin).supportsShowCreateView()) {
             throw new TableException(
                     "SHOW CREATE VIEW is not supported for views registered by Table API.");
         }
@@ -99,7 +103,7 @@ public class ShowCreateUtil {
                         .append(buildCreateFormattedPrefix("VIEW", isTemporary, viewIdentifier));
         sb.append(extractFormattedColumnNames(view, PRINT_INDENT)).append("\n)\n");
         extractComment(view).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
-        sb.append("AS ").append(((CatalogView) view.getOrigin()).getExpandedQuery()).append("\n");
+        sb.append("AS ").append(((CatalogView) origin).getExpandedQuery()).append("\n");
 
         return sb.toString();
     }
@@ -174,7 +178,7 @@ public class ShowCreateUtil {
     }
 
     static Optional<String> extractFormattedWatermarkSpecs(
-            ResolvedCatalogBaseTable<?> table, String printIndent) {
+            ResolvedCatalogBaseTable<?> table, String printIndent, SqlFactory sqlFactory) {
         if (table.getResolvedSchema().getWatermarkSpecs().isEmpty()) {
             return Optional.empty();
         }
@@ -189,7 +193,7 @@ public class ShowCreateUtil {
                                                         watermarkSpec.getRowtimeAttribute()),
                                                 watermarkSpec
                                                         .getWatermarkExpression()
-                                                        .asSerializableString()))
+                                                        .asSerializableString(sqlFactory)))
                         .collect(Collectors.joining("\n")));
     }
 

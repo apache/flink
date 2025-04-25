@@ -228,6 +228,7 @@ import static java.util.Objects.requireNonNull;
 import static org.apache.calcite.linq4j.Nullness.castNonNull;
 import static org.apache.calcite.runtime.FlatLists.append;
 import static org.apache.calcite.sql.SqlUtil.stripAs;
+import static org.apache.calcite.util.Static.RESOURCE;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -239,18 +240,25 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Added in FLINK-29081, FLINK-28682, FLINK-33395: Lines 661 ~ 678
- *   <li>Added in Flink-24024: Lines 1453 ~ 1463
- *   <li>Added in Flink-24024: Lines 1477 ~ 1520
- *   <li>Added in FLINK-28682: Lines 2346 ~ 2363
- *   <li>Added in FLINK-28682: Lines 2400 ~ 2428
- *   <li>Added in FLINK-32474: Lines 2480 ~ 2482
- *   <li>Added in FLINK-32474: Lines 2486 ~ 2488
- *   <li>Added in FLINK-32474: Lines 2499 ~ 2501
- *   <li>Added in FLINK-32474: Lines 2906 ~ 2918
- *   <li>Added in FLINK-32474: Lines 3019 ~ 3053
- *   <li>Added in FLINK-34312: Lines 5693 ~ 5696
- *   <li>Added in FLINK-34057, FLINK-34058, FLINK-34312: Lines 6144 ~ 6162
+ *   <li>Added in FLINK-29081, FLINK-28682, FLINK-33395: Lines 670 ~ 687
+ *   <li>Added in Flink-24024: Lines 1463 ~ 1469
+ *   <li>Added in Flink-24024: Lines 1483 ~ 1522
+ *   <li>Added in Flink-37269: Lines 2239 ~ 2261
+ *   <li>Added in FLINK-28682: Lines 2372 ~ 2389
+ *   <li>Added in FLINK-28682: Lines 2426 ~ 2454
+ *   <li>Added in FLINK-32474: Lines 2507 ~ 2509
+ *   <li>Added in FLINK-32474: Lines 2513 ~ 2515
+ *   <li>Added in FLINK-32474: Lines 2526 ~ 2528
+ *   <li>Added in FLINK-32474: Lines 2934 ~ 2945
+ *   <li>Added in FLINK-32474: Lines 3046 ~ 3080
+ *   <li>Added in FLINK-34312: Lines 5827 ~ 5838
+ *   <li>Added in FLINK-34057, FLINK-34058, FLINK-34312: Lines 6285 ~ 6303
+ * </ol>
+ *
+ * <p>In official extension point (i.e. {@link #convertExtendedExpression(SqlNode, Blackboard)}):
+ *
+ * <ol>
+ *   <li>FLINK-37269
  * </ol>
  */
 @SuppressWarnings("UnstableApiUsage")
@@ -1454,11 +1462,7 @@ public class SqlToRelConverter {
                 return;
             case SET_SEMANTICS_TABLE:
                 // ----- FLINK MODIFICATION BEGIN -----
-                // We always expand the SET SEMANTICS TABLE for two reasons:
-                // 1. Calcite has a bug when not expanding the SET SEMANTICS TABLE. For more
-                // information, see CALCITE-6204.
-                // 2. Currently, Flink’s built-in Session Window TVF is the only PTF with SET
-                // SEMANTICS. We will expand it by default, like other built-in window TVFs, to
+                // We always expand the SET_SEMANTICS_TABLE due to CALCITE-6204 and to
                 // reuse some subsequent processing and optimization logic.
                 // if (!config.isExpand()) {
                 //     return;
@@ -1477,17 +1481,13 @@ public class SqlToRelConverter {
         call = (SqlBasicCall) subQuery.node;
         query = call.operand(0);
 
-        // FLINK MODIFICATION BEGIN
+        // ----- FLINK MODIFICATION BEGIN -----
 
-        // We modified it for two reasons:
-        // 1. In Flink, Exchange nodes should not appear in the logical stage, which will bring
-        // uncertainty to the implementation of plan optimization in the current logical stage.
-        // Instead, Flink will add exchanges based on traits during the physical phase.
-        // 2. Currently, Flink’s built-in Session Window TVF is the only SET SEMANTICS
-        // TABLE. We will convert it into the same plan tree as other Window TVFs. The partition key
-        // and order key will be recorded using a custom RexCall when subsequently converting the
-        // SqlCall of SET SEMANTICS TABLE. See more at
-        // FlinkConvertletTable#convertSetSemanticsWindowTableFunction
+        // In Flink, exchange nodes do not appear in the logical phase. Instead,
+        // exchanges are added based on traits during the physical phase. The partition keys
+        // and order keys will be recorded using a custom RexCall when converting the
+        // SqlCall of SqlKind.SET_SEMANTICS_TABLE.
+        // See FlinkConvertletTable#convertTableArgs
 
         final RelNode inputOfSetSemanticsTable =
                 convertQueryRecursive(query, false, null).project();
@@ -1520,7 +1520,7 @@ public class SqlToRelConverter {
         //     relBuilder.sortExchange(distribution, orders);
         // }
 
-        // FLINK MODIFICATION END
+        // ----- FLINK MODIFICATION END -----
 
         RelNode tableRel = relBuilder.build();
         subQuery.expr = bb.register(tableRel, JoinRelType.LEFT);
@@ -2236,6 +2236,29 @@ public class SqlToRelConverter {
      * @return null to proceed with the usual expression translation process
      */
     protected @Nullable RexNode convertExtendedExpression(SqlNode node, Blackboard bb) {
+        // ----- FLINK MODIFICATION BEGIN -----
+        if (node.getKind() == SqlKind.DESCRIPTOR) {
+            final SqlCall call = (SqlCall) node;
+            // Similar to AS operator, we store string literals.
+            // Storing their data types is future work.
+            return rexBuilder.makeCall(
+                    rexBuilder.getTypeFactory().createSqlType(SqlTypeName.COLUMN_LIST),
+                    call.getOperator(),
+                    call.getOperandList().stream()
+                            .map(
+                                    operand -> {
+                                        if (!(operand instanceof SqlIdentifier)
+                                                || !((SqlIdentifier) operand).isSimple()) {
+                                            throw SqlUtil.newContextException(
+                                                    operand.getParserPosition(),
+                                                    RESOURCE.aliasMustBeSimpleIdentifier());
+                                        }
+                                        return rexBuilder.makeLiteral(
+                                                ((SqlIdentifier) operand).getSimple());
+                                    })
+                            .collect(Collectors.toList()));
+        }
+        // ----- FLINK MODIFICATION END -----
         return null;
     }
 
@@ -5801,8 +5824,16 @@ public class SqlToRelConverter {
                 }
             }
             // ----- FLINK MODIFICATION BEGIN -----
-            return exprConverter.convertCall(
-                    this, new FlinkSqlCallBinding(validator(), scope, call).permutedCall());
+            final SqlCall permutedCall =
+                    new FlinkSqlCallBinding(validator(), scope, call).permutedCall();
+            final RelDataType typeIfKnown = validator().getValidatedNodeTypeIfKnown(call);
+            if (typeIfKnown != null) {
+                // Argument permutation should not affect the output type,
+                // reset it if it was known. Otherwise, the type inference would be called twice
+                // when converting to RexNode.
+                validator().setValidatedNodeType(permutedCall, typeIfKnown);
+            }
+            return exprConverter.convertCall(this, permutedCall);
             // ----- FLINK MODIFICATION END -----
         }
 

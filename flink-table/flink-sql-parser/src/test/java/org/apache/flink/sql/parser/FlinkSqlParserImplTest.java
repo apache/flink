@@ -936,23 +936,6 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    void testAlterTableCompact() {
-        sql("alter table if exists t1 compact").ok("ALTER TABLE IF EXISTS `T1` COMPACT");
-
-        sql("alter table t1 compact").ok("ALTER TABLE `T1` COMPACT");
-
-        sql("alter table db1.t1 compact").ok("ALTER TABLE `DB1`.`T1` COMPACT");
-
-        sql("alter table cat1.db1.t1 compact").ok("ALTER TABLE `CAT1`.`DB1`.`T1` COMPACT");
-
-        sql("alter table t1 partition(x='y',m='n') compact")
-                .ok("ALTER TABLE `T1` PARTITION (`X` = 'y', `M` = 'n') COMPACT");
-
-        sql("alter table t1 partition(^)^ compact")
-                .fails("(?s).*Encountered \"\\)\" at line 1, column 26.\n.*");
-    }
-
-    @Test
     public void testAddPartition() {
         sql("alter table c1.d1.tbl add partition (p1=1,p2='a')")
                 .ok("ALTER TABLE `C1`.`D1`.`TBL`\n" + "ADD\n" + "PARTITION (`P1` = 1, `P2` = 'a')");

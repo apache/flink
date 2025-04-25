@@ -18,6 +18,8 @@
 
 package org.apache.flink.state.forst.fs.cache;
 
+import org.apache.flink.metrics.MetricGroup;
+
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -35,13 +37,18 @@ public class BundledCacheLimitPolicy implements CacheLimitPolicy {
     }
 
     @Override
+    public boolean directWriteInCache() {
+        return policies.stream().allMatch(CacheLimitPolicy::directWriteInCache);
+    }
+
+    @Override
     public boolean isSafeToAdd(long toAddSize) {
         return policies.stream().allMatch(policy -> policy.isSafeToAdd(toAddSize));
     }
 
     @Override
-    public boolean isOverflow(long toAddSize) {
-        return policies.stream().anyMatch(policy -> policy.isOverflow(toAddSize));
+    public boolean isOverflow(long toAddSize, boolean hasFile) {
+        return policies.stream().anyMatch(policy -> policy.isOverflow(toAddSize, hasFile));
     }
 
     @Override
@@ -52,6 +59,16 @@ public class BundledCacheLimitPolicy implements CacheLimitPolicy {
     @Override
     public void release(long toReleaseSize) {
         policies.forEach(policy -> policy.release(toReleaseSize));
+    }
+
+    @Override
+    public long usedBytes() {
+        return policies.stream().mapToLong(CacheLimitPolicy::usedBytes).max().getAsLong();
+    }
+
+    @Override
+    public void registerCustomizedMetrics(String prefix, MetricGroup metricGroup) {
+        policies.forEach(policy -> policy.registerCustomizedMetrics(prefix, metricGroup));
     }
 
     @Override

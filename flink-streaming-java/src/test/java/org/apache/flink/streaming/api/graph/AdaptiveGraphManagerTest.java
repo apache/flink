@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.graph;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -32,8 +33,12 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
+import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
+import org.apache.flink.streaming.runtime.partitioner.ForwardForConsecutiveHashPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Iterables;
 
 import org.junit.jupiter.api.Test;
 
@@ -181,9 +186,13 @@ public class AdaptiveGraphManagerTest extends JobGraphGeneratorTestBase {
                                 });
 
         result.sinkTo(new DiscardingSink<>());
-        StreamGraph streamGraph = env.getStreamGraph();
-        JobGraph jobGraph1 = generateJobGraphInLazilyMode(streamGraph);
-        JobGraph jobGraph2 = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+        StreamGraph streamGraph1 = env.getStreamGraph(false);
+        JobGraph jobGraph1 = generateJobGraphInLazilyMode(streamGraph1);
+
+        // we could not reuse the streamGraph1 because the streamGraph1 could have been modified in
+        // the adaptive graph manager.
+        StreamGraph streamGraph2 = env.getStreamGraph(false);
+        JobGraph jobGraph2 = StreamingJobGraphGenerator.createJobGraph(streamGraph2);
         assertThat(isJobGraphEquivalent(jobGraph1, jobGraph2)).isEqualTo(true);
     }
 
@@ -229,6 +238,33 @@ public class AdaptiveGraphManagerTest extends JobGraphGeneratorTestBase {
         streamGraph.setDynamic(true);
         JobGraph jobGraph = createJobGraph(streamGraph);
         assertThat(jobGraph.getVerticesSortedTopologicallyFromSources().size()).isEqualTo(4);
+    }
+
+    @Test
+    void testForwardForConsecutiveHashPartitionerChain() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        env.setParallelism(1);
+
+        final DataStream<Integer> source = env.fromData(1, 2, 3);
+        final DataStream<Integer> forward =
+                new DataStream<>(
+                        env,
+                        new PartitionTransformation<>(
+                                source.getTransformation(),
+                                new ForwardForConsecutiveHashPartitioner<>(
+                                        new RebalancePartitioner<>()),
+                                StreamExchangeMode.BATCH));
+        forward.print();
+
+        StreamGraph streamGraph1 = env.getStreamGraph(false);
+        streamGraph1.setDynamic(true);
+        JobGraph jobGraph1 = generateJobGraphInLazilyMode(streamGraph1);
+
+        StreamGraph streamGraph2 = env.getStreamGraph(false);
+        streamGraph2.setDynamic(true);
+        JobGraph jobGraph2 = StreamingJobGraphGenerator.createJobGraph(streamGraph2);
+        assertThat(isJobGraphEquivalent(jobGraph1, jobGraph2)).isTrue();
     }
 
     private static JobGraph generateJobGraphInLazilyMode(StreamGraph streamGraph) {

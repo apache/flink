@@ -43,7 +43,7 @@ import org.apache.flink.table.operations.materializedtable.CreateMaterializedTab
 import org.apache.flink.table.operations.materializedtable.DropMaterializedTableOperation;
 import org.apache.flink.table.planner.utils.TableFunc0;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableMap;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -78,7 +78,12 @@ public class SqlMaterializedTableNodeToOperationConverterTest
         Map<String, String> options = new HashMap<>();
         options.put("connector", "COLLECTION");
         final CatalogTable catalogTable =
-                CatalogTable.of(tableSchema, "", Arrays.asList("b", "c"), options);
+                CatalogTable.newBuilder()
+                        .schema(tableSchema)
+                        .comment("")
+                        .partitionKeys(Arrays.asList("b", "c"))
+                        .options(options)
+                        .build();
         catalog.createTable(path3, catalogTable, true);
 
         // create materialized table

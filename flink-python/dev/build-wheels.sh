@@ -18,12 +18,14 @@ set -e -x
 ## 1. install python env
 dev/lint-python.sh -s py_env
 
-PY_ENV_DIR=`pwd`/dev/.conda/envs
+PY_ENV_DIR=`pwd`/dev/.uv/envs
 py_env=("3.8" "3.9" "3.10" "3.11")
 ## 2. install dependency
 for ((i=0;i<${#py_env[@]};i++)) do
+    source `pwd`/dev/.uv/envs/${py_env[i]}/bin/activate
     echo "Installing dependencies for environment: ${py_env[i]}"
-    ${PY_ENV_DIR}/${py_env[i]}/bin/pip install -r dev/dev-requirements.txt
+    uv pip install -r dev/dev-requirements.txt
+    deactivate
 done
 
 ## 3. build wheels
@@ -39,17 +41,15 @@ done
 ## 4. convert linux_x86_64 wheel to manylinux1 wheel in Linux
 if [[ "$(uname)" != "Darwin" ]]; then
     echo "Converting linux_x86_64 wheel to manylinux1"
-    source `pwd`/dev/.conda/bin/activate
-    # 4.1 install patchelf
-    conda install -c conda-forge patchelf=0.11 -y
-    # 4.2 install auditwheel
-    pip install auditwheel==3.2.0
-    # 4.3 convert Linux wheel
+    source `pwd`/dev/.uv/bin/activate
+    # 4.1 install patchelf and auditwheel
+    uv pip install patchelf==0.17.2.1 auditwheel==3.2.0
+    # 4.2 convert Linux wheel
     for wheel_file in dist/*.whl; do
         auditwheel repair ${wheel_file} -w dist
         rm -f ${wheel_file}
     done
-    source deactivate
+    deactivate
 fi
 ## see the result
 ls -al dist/

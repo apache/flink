@@ -87,15 +87,15 @@ make_python_release() {
   cd flink-python/
   # use lint-python.sh script to create a python environment.
   dev/lint-python.sh -s basic
-  source dev/.conda/bin/activate
-  pip install -r dev/dev-requirements.txt
+  source dev/.uv/bin/activate
+  uv pip install -r dev/dev-requirements.txt
 
   # build apache-flink-libraries sdist
   pushd apache-flink-libraries
   python setup.py sdist
   pushd dist/
   apache_flink_libraries_actual_name=`echo *.tar.gz`
-  apache_flink_libraries_release_name="apache-flink-libraries-${PYFLINK_VERSION}.tar.gz"
+  apache_flink_libraries_release_name="apache_flink_libraries-${PYFLINK_VERSION}.tar.gz"
 
   if [[ "$apache_flink_libraries_actual_name" != "$apache_flink_libraries_release_name" ]] ; then
     echo -e "\033[31;1mThe file name of the python package: ${apache_flink_libraries_actual_name} is not consistent with given release version: ${PYFLINK_VERSION}!\033[0m"
@@ -109,10 +109,10 @@ make_python_release() {
   popd
 
   python setup.py sdist
-  conda deactivate
+  deactivate
   cd dist/
   pyflink_actual_name=`echo *.tar.gz`
-  pyflink_release_name="apache-flink-${PYFLINK_VERSION}.tar.gz"
+  pyflink_release_name="apache_flink-${PYFLINK_VERSION}.tar.gz"
 
   if [[ "$pyflink_actual_name" != "$pyflink_release_name" ]] ; then
     echo -e "\033[31;1mThe file name of the python package: ${pyflink_actual_name} is not consistent with given release version: ${PYFLINK_VERSION}!\033[0m"

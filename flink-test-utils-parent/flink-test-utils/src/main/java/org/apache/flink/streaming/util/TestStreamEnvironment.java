@@ -201,6 +201,11 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
             }
             miniCluster.overrideRestoreModeForChangelogStateBackend();
         }
+        randomize(
+                conf,
+                ConfigOptions.key("table.exec.unbounded-over.version").intType().noDefaultValue(),
+                1,
+                2);
     }
 
     /**

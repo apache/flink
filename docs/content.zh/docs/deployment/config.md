@@ -39,15 +39,11 @@ On session clusters, the provided configuration will only be used for configurin
 
 # Flink 配置文件
 
-自 Flink-1.19 版本起，Flink 正式引入了对标准 YAML 1.2 语法的完整支持。与之前版本中仅支持简单键值对的配置方式相比，这一更新为用户提供了更加灵活和强大的配置能力。为了利用这一新特性，用户需使用新引入的配置文件 `config.yaml`。原有的 `flink-conf.yaml` 配置文件不再推荐使用，并在即将到来的 Flink-2.0 版本中不再支持。为了确保平滑迁移，建议用户尽早将现有作业配置迁移到新的配置方式。
+自 Flink-2.0 版本起，Flink 仅支持使用支持标准 YAML 1.2 语法的配置文件 `config.yaml`，原有的 `flink-conf.yaml` 配置文件将不再支持。与之前版本中仅支持简单键值对的配置方式相比，这一更新为用户提供了更加灵活和强大的配置能力。
 
 本节将帮助用户理解如何通过 `config.yaml` 配置文件对 Flink 集群和作业进行配置，以及如何将老配置迁移至新的配置文件中。
 
 ### 用法
-
-从 Flink-1.19 版本开始，默认的配置文件已更改为 `config.yaml`，并置于 `conf/` 目录下。用户在进行配置时应直接修改此文件。
-
-如果用户希望继续使用 Flink-1.19 之前的配置文件 `flink-conf.yaml`，只需将该文件拷贝到 `conf/` 目录下。一旦检测到 `flink-conf.yaml` 文件，Flink 会优先使用其作为配置文件。
 
 `config.yaml` 的配置方式如下：
 
@@ -119,8 +115,6 @@ bin/migrate-config-file.sh
 ````
 运行上述指令后，该迁移脚本会自动读取 `conf/` 目录下的旧配置文件 `flink-conf.yaml`，并将迁移后的结果输出到 `conf/` 目录下的新配置文件 `config.yaml` 中。需要注意的是，因为老配置项解析器的限制，`flink-conf.yaml` 中所有的 value 会被识别为 `String` 类型，所以生成的 `config.yaml` 文件中的 value 也都为 `String` 类型，即部分 value 会被引号引起来。不过 Flink 会在后续的配置解析时将其转换为使用 `ConfigOption` 定义的实际类型。
 
-此外，用户需要在迁移完成后删除 `conf/` 目录下的 `flink-conf.yaml` 文件来使 `config.yaml` 文件生效。
-
 # Basic Setup
 
 The default configuration supports starting a single-node Flink session cluster without any changes.
@@ -160,7 +154,7 @@ These values are configured as memory sizes, for example *1536m* or *2g*.
 
 You can configure checkpointing directly in code within your Flink job or application. Putting these values here in the configuration defines them as defaults in case the application does not configure anything.
 
-  - `state.backend.type`: The state backend to use. This defines the data structure mechanism for taking snapshots. Common values are `hashmap` or `rocksdb`.
+  - `state.backend.type`: The state backend to use. This defines the data structure mechanism for taking snapshots. Common values are `hashmap`, `rocksdb` or `forst`.
   - `execution.checkpointing.dir`: The directory to write checkpoints to. This takes a path URI like *s3://mybucket/flink-app/checkpoints* or *hdfs://namenode:port/flink/checkpoints*.
   - `execution.checkpointing.savepoint-dir`: The default directory for savepoints. Takes a path URI, similar to `execution.checkpointing.dir`.
   - `execution.checkpointing.interval`: The base interval setting. To enable checkpointing, you need to set this value larger than 0.
@@ -205,7 +199,7 @@ You do not need to configure any TaskManager hosts and ports, unless the setup r
 ### Fault Tolerance
 
 These configuration options control Flink's restart behaviour in case of failures during the execution. 
-By configuring these options in your `flink-conf.yaml`, you define the cluster's default restart strategy. 
+By configuring these options in your `config.yaml`, you define the cluster's default restart strategy. 
 
 The default restart strategy will only take effect if no job specific restart strategy has been configured via the `ExecutionConfig`.
 
@@ -352,6 +346,12 @@ These are the options commonly needed to configure the RocksDB state backend. Se
 
 {{< generated/state_backend_rocksdb_section >}}
 
+### ForSt State Backend
+
+These are the options commonly needed to configure the ForSt state backend. See the [Advanced ForSt Backend Section](#advanced-forst-state-backends-options) for options necessary for advanced low level configurations and trouble-shooting.
+
+{{< generated/state_backend_forst_section >}}
+
 ----
 ----
 
@@ -373,6 +373,16 @@ Enabling RocksDB's native metrics may cause degraded performance and should be s
 {{< /hint >}}
 
 {{< generated/rocksdb_native_metric_configuration >}}
+
+### ForSt Native Metrics
+
+ForSt has similar native metric mechanism to RocksDB.
+
+{{< hint warning >}}
+Enabling ForSt's native metrics may cause degraded performance and should be set carefully.
+{{< /hint >}}
+
+{{< generated/forst_native_metric_configuration >}}
 
 ----
 ----
@@ -474,6 +484,12 @@ Advanced options to tune RocksDB and RocksDB checkpoints.
 
 {{< generated/expert_rocksdb_section >}}
 
+### Advanced ForSt State Backends Options
+
+Advanced options to tune ForSt and ForSt checkpoints.
+
+{{< generated/expert_forst_section >}}
+
 ### State Changelog Options
 
 Please refer to [State Backends]({{< ref "docs/ops/state/state_backends#enabling-changelog" >}}) for information on
@@ -484,12 +500,16 @@ using State Changelog. {{< generated/state_changelog_section >}}
 These settings take effect when the `state.changelog.storage`  is set to `filesystem` (see [above](#state-changelog-storage)).
 {{< generated/fs_state_changelog_configuration >}}
 
-**RocksDB Configurable Options**
+### RocksDB Configurable Options
 
 These options give fine-grained control over the behavior and resources of ColumnFamilies.
 With the introduction of `state.backend.rocksdb.memory.managed` and `state.backend.rocksdb.memory.fixed-per-slot` (Apache Flink 1.10), it should be only necessary to use the options here for advanced performance tuning. These options here can also be specified in the application program via `RocksDBStateBackend.setRocksDBOptions(RocksDBOptionsFactory)`.
 
 {{< generated/rocksdb_configurable_configuration >}}
+
+### ForSt State Backend Configurable Options
+
+{{< generated/forst_configurable_configuration >}}
 
 ### Advanced Fault Tolerance Options
 
@@ -585,7 +605,7 @@ You can configure environment variables to be set on the JobManager and TaskMana
 
   - `containerized.master.env.`: Prefix for passing custom environment variables to Flink's JobManager process. 
    For example for passing LD_LIBRARY_PATH as an env variable to the JobManager, set containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native"
-    in the flink-conf.yaml.
+    in the config.yaml.
 
   - `containerized.taskmanager.env.`: Similar to the above, this configuration prefix allows setting custom environment variables for the workers (TaskManagers).
 
@@ -597,15 +617,15 @@ You can configure environment variables to be set on the JobManager and TaskMana
 These options relate to parts of Flink that are not actively developed any more.
 These options may be removed in a future release.
 
-**DataSet API Optimizer**
+**Optimizer**
 
 {{< generated/optimizer_configuration >}}
 
-**DataSet API Runtime Algorithms**
+**Runtime Algorithms**
 
 {{< generated/algorithm_configuration >}}
 
-**DataSet File Sinks**
+**File Sinks**
 
 {{< generated/deprecated_file_sinks_section >}}
 

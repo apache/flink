@@ -23,7 +23,7 @@
 # You can refer to the README.MD in ${flink-python} to learn how easy to run the script.
 #
 
-# Download some software, such as miniconda.sh
+# Download some software, such as the uv installer
 function download() {
     local DOWNLOAD_STATUS=
     if hash "wget" 2>/dev/null; then
@@ -126,9 +126,9 @@ function check_valid_stage() {
 function parse_component_args() {
     local REAL_COMPONENTS=()
     for component in ${INSTALLATION_COMPONENTS[@]}; do
-        # because all other components depends on conda, the install of conda is
+        # because all other components depends on uv, the install of uv is
         # required component.
-        if [[ "$component" == "basic" ]] || [[ "$component" == "miniconda" ]]; then
+        if [[ "$component" == "basic" ]] || [[ "$component" == "uv" ]]; then
             continue
         fi
         if [[ "$component" == "all" ]]; then
@@ -173,79 +173,57 @@ function install_brew() {
     fi
 }
 
-# Considering the file size of miniconda.sh,
-# "wget" is better than "curl" in the weak network environment.
-function install_wget() {
-    if [ $1 -eq 0 ]; then  # Darwin
-        install_brew
+# We are using uv as our package management and python version management tool.
+# The downstream scripts use uv to install packages, like tox and flake8, as well
+# as manage different Python virtual environments that have different version of
+# Python installed.
 
-        hash "wget" 2>/dev/null
+function install_uv() {
+    UV_INSTALL_URL="https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/uv-installer.sh"
+    if [ ! -f "$UV_INSTALL" ]; then
+        print_function "STEP" "download uv from ${UV_INSTALL_URL}..."
+        download $UV_INSTALL_URL $UV_INSTALL_SH
+        chmod +x $UV_INSTALL_SH
         if [ $? -ne 0 ]; then
-            print_function "STEP" "install wget..."
-            brew install wget 2>&1 >/dev/null
-            if [ $? -ne 0 ]; then
-                echo "Failed to install wget"
-                exit 1
-            fi
-            print_function "STEP" "install wget... [SUCCESS]"
-        fi
-    fi
-}
-
-# The script choose miniconda as our package management tool.
-# The script use miniconda to create all kinds of python versions and
-# some packages including checks such as tox and flake8.
-
-function install_miniconda() {
-    local sys_machine=$(uname -m)
-    echo "Detected machine: ${sys_machine}"
-    OS_TO_CONDA_URL=("https://repo.anaconda.com/miniconda/Miniconda3-py310_23.5.2-0-MacOSX-${sys_machine}.sh" \
-        "https://repo.anaconda.com/miniconda/Miniconda3-py310_23.5.2-0-Linux-${sys_machine}.sh")
-    if [ ! -f "$CONDA_INSTALL" ]; then
-        print_function "STEP" "download miniconda from ${OS_TO_CONDA_URL[$1]}..."
-        download ${OS_TO_CONDA_URL[$1]} $CONDA_INSTALL_SH
-        chmod +x $CONDA_INSTALL_SH
-        if [ $? -ne 0 ]; then
-            echo "Please manually chmod +x $CONDA_INSTALL_SH"
+            echo "Please manually chmod +x $UV_INSTALL_SH"
             exit 1
         fi
-        if [ -d "$CURRENT_DIR/.conda" ]; then
-            rm -rf "$CURRENT_DIR/.conda"
+        if [ -d "$CURRENT_DIR/.uv" ]; then
+            rm -rf "$CURRENT_DIR/.uv"
             if [ $? -ne 0 ]; then
-                echo "Please manually rm -rf $CURRENT_DIR/.conda directory.\
+                echo "Please manually rm -rf $CURRENT_DIR/.uv-bin directory.\
                 Then retry to exec the script."
                 exit 1
             fi
         fi
-        print_function "STEP" "download miniconda... [SUCCESS]"
+
+        UV_UNMANAGED_INSTALL="$CURRENT_DIR/download" $UV_INSTALL_SH
+        print_function "STEP" "download uv... [SUCCESS]"
     fi
 
-    if [ ! -d "$CURRENT_DIR/.conda" ]; then
-        print_function "STEP" "installing conda..."
-        $CONDA_INSTALL_SH -b -p $CURRENT_DIR/.conda 2>&1 >/dev/null
-
+    if [ ! -d "$CURRENT_DIR/.uv/venv" ]; then
+        print_function "STEP" "setup uv virtualenv"
+        # Create a Python 3.11 virtual environment as the base environment.
+        $CURRENT_DIR/download/uv venv "$CURRENT_DIR/.uv" --seed --python 3.11
+        print_function "STEP" "setup uv virtualenv... [SUCCESS]"
         # orjson depend on pip >= 20.3
         print_function "STEP" "upgrade pip..."
-        $CURRENT_DIR/.conda/bin/python -m pip install --upgrade pip 2>&1 >/dev/null
+        $CURRENT_DIR/.uv/bin/pip install --upgrade pip setuptools 2>&1 >/dev/null
         print_function "STEP" "upgrade pip... [SUCCESS]"
-
-        if [ $? -ne 0 ]; then
-            echo "install miniconda failed"
-            exit $CONDA_INSTALL_STATUS
-        fi
-        print_function "STEP" "install conda ... [SUCCESS]"
+        # move uv binaries into virtual env
+        mv "$CURRENT_DIR/download/uv" "$CURRENT_DIR/.uv/bin/"
     fi
 }
 
-# Install some kinds of py env.
+# Create different Python virtual environments for different Python versions
 function install_py_env() {
     py_env=("3.8" "3.9" "3.10" "3.11")
     for ((i=0;i<${#py_env[@]};i++)) do
-        if [ -d "$CURRENT_DIR/.conda/envs/${py_env[i]}" ]; then
-            rm -rf "$CURRENT_DIR/.conda/envs/${py_env[i]}"
+        if [ -d "$CURRENT_DIR/.uv/envs/${py_env[i]}" ]; then
+            rm -rf "$CURRENT_DIR/.uv/envs/${py_env[i]}"
             if [ $? -ne 0 ]; then
-                echo "rm -rf $CURRENT_DIR/.conda/envs/${py_env[i]} failed, please \
-                rm -rf $CURRENT_DIR/.conda/envs/${py_env[i]} manually.\
+                echo "rm -rf $CURRENT_DIR/.uv/envs/${py_env[i]} failed, please \
+                rm -rf $CURRENT_DIR/.uv/envs/${py_env[i]} manually.\
                 Then retry to exec the script."
                 exit 1
             fi
@@ -253,22 +231,24 @@ function install_py_env() {
         print_function "STEP" "installing python${py_env[i]}..."
         max_retry_times=3
         retry_times=0
-        install_command="$CONDA_PATH create --name ${py_env[i]} -y -q python=${py_env[i]}"
+        install_command="$UV_PATH venv $CURRENT_DIR/.uv/envs/${py_env[i]} -q --python=${py_env[i]} --seed"
         ${install_command} 2>&1 >/dev/null
         status=$?
         while [[ ${status} -ne 0 ]] && [[ ${retry_times} -lt ${max_retry_times} ]]; do
             retry_times=$((retry_times+1))
             # sleep 3 seconds and then reinstall.
             sleep 3
-            echo "conda install ${py_env[i]} retrying ${retry_times}/${max_retry_times}"
+            echo "uv venv ${py_env[i]} retrying ${retry_times}/${max_retry_times}"
             ${install_command} 2>&1 >/dev/null
             status=$?
         done
         if [[ ${status} -ne 0 ]]; then
-            echo "conda install ${py_env[i]} failed after retrying ${max_retry_times} times.\
+            echo "uv venv ${py_env[i]} failed after retrying ${max_retry_times} times.\
             You can retry to execute the script again."
             exit 1
         fi
+
+        $CURRENT_DIR/.uv/envs/${py_env[i]}/bin/pip install -q uv==${UV_VERSION}
         print_function "STEP" "install python${py_env[i]}... [SUCCESS]"
     done
 }
@@ -276,38 +256,35 @@ function install_py_env() {
 # Install tox.
 # In some situations,you need to run the script with "sudo". e.g. sudo ./lint-python.sh
 function install_tox() {
-    source $CONDA_HOME/bin/activate
+    source $ENV_HOME/bin/activate
     if [ -f "$TOX_PATH" ]; then
-        $PIP_PATH uninstall tox -y -q 2>&1 >/dev/null
+        $UV_PATH pip uninstall tox -q 2>&1 >/dev/null
         if [ $? -ne 0 ]; then
-            echo "pip uninstall tox failed \
+            echo "uv pip uninstall tox failed \
             please try to exec the script again.\
             if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
             exit 1
         fi
     fi
 
-    # tox 3.14.0 depends on both 0.19 and 0.23 of importlib_metadata at the same time and
-    # conda will try to install both these two versions and it will cause problems occasionally.
-    # Using pip as the package manager could avoid this problem.
-    $CURRENT_DIR/install_command.sh -q virtualenv==20.10.0 tox==3.14.0 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q tox==3.14.0 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
-        echo "pip install tox failed \
+        echo "uv pip install tox failed \
         please try to exec the script again.\
         if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
         exit 1
     fi
-    conda deactivate
+    deactivate
 }
 
 # Install flake8.
 # In some situations,you need to run the script with "sudo". e.g. sudo ./lint-python.sh
 function install_flake8() {
-    source $CONDA_HOME/bin/activate
+    source $UV_HOME/bin/activate
     if [ -f "$FLAKE8_PATH" ]; then
-        $PIP_PATH uninstall flake8 -y -q 2>&1 >/dev/null
+        $UV_PATH pip uninstall flake8 -q 2>&1 >/dev/null
         if [ $? -ne 0 ]; then
-            echo "pip uninstall flake8 failed \
+            echo "uv pip uninstall flake8 failed \
             please try to exec the script again.\
             if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
             exit 1
@@ -316,22 +293,22 @@ function install_flake8() {
 
     $CURRENT_DIR/install_command.sh -q flake8==4.0.1 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
-        echo "pip install flake8 failed \
+        echo "uv pip install flake8 failed \
         please try to exec the script again.\
         if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
         exit 1
     fi
-    conda deactivate
+    deactivate
 }
 
 # Install sphinx.
 # In some situations,you need to run the script with "sudo". e.g. sudo ./lint-python.sh
 function install_sphinx() {
-    source $CONDA_HOME/bin/activate
+    source $UV_HOME/bin/activate
     if [ -f "$SPHINX_PATH" ]; then
-        $PIP_PATH uninstall Sphinx -y -q 2>&1 >/dev/null
+        $UV_PATH pip uninstall Sphinx -q 2>&1 >/dev/null
         if [ $? -ne 0 ]; then
-            echo "pip uninstall sphinx failed \
+            echo "uv pip uninstall sphinx failed \
             please try to exec the script again.\
             if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
             exit 1
@@ -340,36 +317,36 @@ function install_sphinx() {
 
     $CURRENT_DIR/install_command.sh -q Sphinx==4.5.0 importlib-metadata==4.4.0 Docutils==0.17.1 pydata_sphinx_theme==0.11.0 sphinx_mdinclude==0.5.3 "Jinja2<3.1.0" "sphinxcontrib-applehelp<1.0.8" "sphinxcontrib.devhelp<1.0.6" "sphinxcontrib.htmlhelp<2.0.5" "sphinxcontrib-serializinghtml<1.1.10" "sphinxcontrib-qthelp<1.0.7" 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
-        echo "pip install sphinx failed \
+        echo "uv pip install sphinx failed \
         please try to exec the script again.\
         if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
         exit 1
     fi
-    conda deactivate
+    deactivate
 }
 
 
 # Install mypy.
 # In some situations, you need to run the script with "sudo". e.g. sudo ./lint-python.sh
 function install_mypy() {
-    source ${CONDA_HOME}/bin/activate
+    source ${UV_HOME}/bin/activate
     if [[ -f "$MYPY_PATH" ]]; then
-        ${PIP_PATH} uninstall mypy -y -q 2>&1 >/dev/null
+        ${UV_PATH} pip uninstall mypy -q 2>&1 >/dev/null
         if [[ $? -ne 0 ]]; then
-            echo "pip uninstall mypy failed \
+            echo "uv pip uninstall mypy failed \
             please try to exec the script again.\
             if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
             exit 1
         fi
     fi
-    ${CURRENT_DIR}/install_command.sh -q mypy==1.5.1 2>&1 >/dev/null
+    ${CURRENT_DIR}/install_command.sh -q mypy==1.5.1 types-pytz types-python-dateutil 2>&1 >/dev/null
     if [[ $? -ne 0 ]]; then
-        echo "pip install mypy failed \
+        echo "uv pip install mypy failed \
         please try to exec the script again.\
         if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
         exit 1
     fi
-    conda deactivate
+    deactivate
 }
 
 function need_install_component() {
@@ -390,69 +367,58 @@ function install_environment() {
     get_os_index $sys_os
     local os_index=$?
 
-    # step-1 install wget
-    # the file size of the miniconda.sh is too big to use "wget" tool to download instead
-    # of the "curl" in the weak network environment.
+    # step-1 install uv
     if [ $STEP -lt 1 ]; then
-        print_function "STEP" "installing wget..."
-        install_wget $os_index
+        print_function "STEP" "installing uv..."
+        create_dir $CURRENT_DIR/download
+        install_uv
         STEP=1
         checkpoint_stage $STAGE $STEP
-        print_function "STEP" "install wget... [SUCCESS]"
+        print_function "STEP" "install uv... [SUCCESS]"
     fi
 
-    # step-2 install miniconda
-    if [ $STEP -lt 2 ]; then
-        print_function "STEP" "installing miniconda..."
-        create_dir $CURRENT_DIR/download
-        install_miniconda $os_index
-        STEP=2
-        checkpoint_stage $STAGE $STEP
-        print_function "STEP" "install miniconda... [SUCCESS]"
-    fi
-
-    # step-3 install python environment which includes
+    # step-2 install python environment which includes
     # 3.8 3.9 3.10 3.11
-    if [ $STEP -lt 3 ] && [ `need_install_component "py_env"` = true ]; then
+    if [ $STEP -lt 2 ] && [ `need_install_component "py_env"` = true ]; then
         print_function "STEP" "installing python environment..."
         install_py_env
-        STEP=3
+        STEP=2
         checkpoint_stage $STAGE $STEP
         print_function "STEP" "install python environment... [SUCCESS]"
     fi
 
-    # step-4 install tox
-    if [ $STEP -lt 4 ] && [ `need_install_component "tox"` = true ]; then
+    # step-3 install tox
+    if [ $STEP -lt 3 ] && [ `need_install_component "tox"` = true ]; then
         print_function "STEP" "installing tox..."
         install_tox
-        STEP=4
+        STEP=3
         checkpoint_stage $STAGE $STEP
         print_function "STEP" "install tox... [SUCCESS]"
     fi
 
-    # step-5 install  flake8
-    if [ $STEP -lt 5 ] && [ `need_install_component "flake8"` = true ]; then
+    # step-4 install  flake8
+    if [ $STEP -lt 4 ] && [ `need_install_component "flake8"` = true ]; then
         print_function "STEP" "installing flake8..."
         install_flake8
-        STEP=5
+        STEP=4
         checkpoint_stage $STAGE $STEP
         print_function "STEP" "install flake8... [SUCCESS]"
     fi
 
-    # step-6 install sphinx
-    if [ $STEP -lt 6 ] && [ `need_install_component "sphinx"` = true ]; then
+    # step-5 install sphinx
+    if [ $STEP -lt 5 ] && [ `need_install_component "sphinx"` = true ]; then
         print_function "STEP" "installing sphinx..."
         install_sphinx
-        STEP=6
+        STEP=5
         checkpoint_stage $STAGE $STEP
         print_function "STEP" "install sphinx... [SUCCESS]"
     fi
 
-    # step-7 install mypy
-    if [[ ${STEP} -lt 7 ]] && [[ `need_install_component "mypy"` = true ]]; then
+    # step-5 install mypy
+    if [[ ${STEP} -lt 6 ]] && [[ `need_install_component "mypy"` = true ]]; then
         print_function "STEP" "installing mypy..."
         install_mypy
-        STEP=7
+        STEP=6
         checkpoint_stage ${STAGE} ${STEP}
         print_function "STEP" "install mypy... [SUCCESS]"
     fi
@@ -474,13 +440,13 @@ function create_dir() {
 
 # Set created py-env in $PATH for tox's creating virtual env
 function activate () {
-    if [ ! -d $CURRENT_DIR/.conda/envs ]; then
-        echo "For some unknown reasons, missing the directory $CURRENT_DIR/.conda/envs,\
+    if [ ! -d $CURRENT_DIR/.uv/envs ]; then
+        echo "For some unknown reasons, missing the directory $CURRENT_DIR/.uv/envs,\
         you should exec the script with the option: -f"
         exit 1
     fi
 
-    for py_dir in $CURRENT_DIR/.conda/envs/*
+    for py_dir in $CURRENT_DIR/.uv/envs/*
     do
         PATH=$py_dir/bin:$PATH
     done
@@ -625,6 +591,7 @@ function tox_check() {
     fi
     # Reset the $PATH
     deactivate
+
     # If check failed, stop the running script.
     if [ $TOX_RESULT -eq '0' ]; then
         exit 1
@@ -710,17 +677,17 @@ CURRENT_DIR="$(cd "$( dirname "$0" )" && pwd)"
 # FLINK_PYTHON_DIR is "flink/flink-python"
 FLINK_PYTHON_DIR=$(dirname "$CURRENT_DIR")
 
-# conda home path
-if [ -z "${FLINK_CONDA_HOME+x}" ]; then
-    CONDA_HOME="$CURRENT_DIR/.conda"
-    ENV_HOME="$CONDA_HOME"
+# uv home path
+if [ -z "${FLINK_UV_HOME+x}" ]; then
+    UV_HOME="$CURRENT_DIR/.uv"
+    ENV_HOME="$UV_HOME"
 else
-    CONDA_HOME=$FLINK_CONDA_HOME
-    ENV_HOME="${CONDA_PREFIX-$CONDA_HOME}"
+    UV_HOME=$FLINK_UV_HOME
+    ENV_HOME="${UV_PREFIX-$UV_HOME}"
 fi
 
-# conda path
-CONDA_PATH=$CONDA_HOME/bin/conda
+# uv path
+UV_PATH=$UV_HOME/bin/uv
 
 # pip path
 PIP_PATH=$ENV_HOME/bin/pip
@@ -745,7 +712,7 @@ SUPPORT_OS=("Darwin" "Linux")
 STAGE_FILE=$CURRENT_DIR/.stage.txt
 
 # the dir includes all kinds of py env installed.
-VIRTUAL_ENV=$CONDA_HOME/envs
+VIRTUAL_ENV=$UV_HOME/envs
 
 LOG_DIR=$CURRENT_DIR/log
 
@@ -763,11 +730,14 @@ create_dir $LOG_DIR
 # clean LOG_FILE content
 echo >$LOG_FILE
 
-# miniconda script
-CONDA_INSTALL_SH=$CURRENT_DIR/download/miniconda.sh
+# static version of uv that we use across all envs
+UV_VERSION=0.5.23
+
+# location of uv installation script
+UV_INSTALL_SH=$CURRENT_DIR/download/uv.sh
 
 # stage "install" includes the num of steps.
-STAGE_INSTALL_STEPS=7
+STAGE_INSTALL_STEPS=6
 
 # whether force to restart the script.
 FORCE_START=0
@@ -808,7 +778,6 @@ usage: $0 [options]
 -l          list all checks supported.
 Examples:
   ./lint-python.sh -s basic        =>  install environment with basic components.
-  ./lint-python.sh -s py_env       =>  install environment with python env(3.8,3.9,3.10, 3.11).
   ./lint-python.sh -s all          =>  install environment with all components such as python env,tox,flake8,sphinx,mypy etc.
   ./lint-python.sh -s tox,flake8   =>  install environment with tox,flake8.
   ./lint-python.sh -s tox -f       =>  reinstall environment with tox.
@@ -860,7 +829,7 @@ skip_checks=0
 
 if [[ ${CLEAN_UP_FLAG} -eq 1 ]]; then
     printf "clean up python environment"
-    rm -rf ${CONDA_HOME}
+    rm -rf ${UV_HOME}
     rm -rf ${STAGE_FILE}
     rm -rf ${FLINK_PYTHON_DIR}/.tox
     skip_checks=1

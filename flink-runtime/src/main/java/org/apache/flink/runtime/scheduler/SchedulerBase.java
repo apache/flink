@@ -549,14 +549,6 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         return result;
     }
 
-    protected void transitionToScheduled(final List<ExecutionVertexID> verticesToDeploy) {
-        verticesToDeploy.forEach(
-                executionVertexId ->
-                        getExecutionVertex(executionVertexId)
-                                .getCurrentExecutionAttempt()
-                                .transitionState(ExecutionState.SCHEDULED));
-    }
-
     protected void setGlobalFailureCause(@Nullable final Throwable cause, long timestamp) {
         if (cause != null) {
             executionGraph.initFailureCause(cause, timestamp);
@@ -604,6 +596,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
     protected abstract long getNumberOfRestarts();
 
+    protected abstract long getNumberOfRescales();
+
     protected MarkPartitionFinishedStrategy getMarkPartitionFinishedStrategy() {
         // blocking partition always need mark finished.
         return ResultPartitionType::isBlockingOrBlockingPersistentResultPartition;
@@ -650,6 +644,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                 jobManagerJobMetricGroup,
                 executionGraph,
                 this::getNumberOfRestarts,
+                this::getNumberOfRescales,
                 deploymentStateTimeMetrics,
                 executionGraph::registerJobStatusListener,
                 executionGraph.getStatusTimestamp(JobStatus.INITIALIZING),
@@ -662,6 +657,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
             MetricGroup metrics,
             JobStatusProvider jobStatusProvider,
             Gauge<Long> numberOfRestarts,
+            Gauge<Long> numberOfRescales,
             DeploymentStateTimeMetrics deploymentTimeMetrics,
             Consumer<JobStatusListener> jobStatusListenerRegistrar,
             long initializationTimestamp,
@@ -669,6 +665,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         metrics.gauge(DownTimeGauge.METRIC_NAME, new DownTimeGauge(jobStatusProvider));
         metrics.gauge(UpTimeGauge.METRIC_NAME, new UpTimeGauge(jobStatusProvider));
         metrics.gauge(MetricNames.NUM_RESTARTS, numberOfRestarts::getValue);
+        metrics.gauge(MetricNames.NUM_RESCALES, numberOfRescales::getValue);
 
         final JobStatusMetrics jobStatusMetrics =
                 new JobStatusMetrics(initializationTimestamp, jobStatusMetricsSettings);
@@ -687,12 +684,13 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         final FlinkException cause = new FlinkException("Scheduler is being stopped.");
 
         final CompletableFuture<Void> checkpointServicesShutdownFuture =
-                FutureUtils.composeAfterwards(
+                FutureUtils.composeAfterwardsAsync(
                         executionGraph
                                 .getTerminationFuture()
                                 .thenAcceptAsync(
                                         this::shutDownCheckpointServices, getMainThreadExecutor()),
-                        checkpointsCleaner::closeAsync);
+                        checkpointsCleaner::closeAsync,
+                        getMainThreadExecutor());
 
         FutureUtils.assertNoException(checkpointServicesShutdownFuture);
 

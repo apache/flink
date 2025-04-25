@@ -322,7 +322,7 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
                                                 /usr/local/bin/python3). The
                                                 python UDF worker depends on
                                                 Python 3.8+, Apache Beam
-                                                (version == 2.43.0), Pip
+                                                (version >= 2.54.0, <= 2.61.0), Pip
                                                 (version >= 20.3) and SetupTools
                                                 (version >= 37.0.0). Please
                                                 ensure that the specified
@@ -610,9 +610,9 @@ SQL Client will print success message if the statement is executed successfully.
 By default, the error message only contains the error cause. In order to print the full exception stack for debugging, please set the
 `sql-client.verbose` to true through command `SET 'sql-client.verbose' = 'true';`.
 
-### Execute SQL Files
+### Execute SQL Files in a Session Cluster
 
-SQL Client supports to execute a SQL script file with the `-f` option. SQL Client will execute
+SQL Client supports executing a SQL script file with the `-f` option. SQL Client will execute
 statements one by one in the SQL script file and print execution messages for each executed statements.
 Once a statement fails, the SQL Client will exit and all the remaining statements will not be executed.
 
@@ -662,6 +662,24 @@ This configuration:
 - submit a sql job that load the savepoint from the specified savepoint path.
 
 <span class="label label-danger">Attention</span> Compared to the interactive mode, SQL Client will stop execution and exits when there are errors.
+
+### Deploy SQL Files to an Application Cluster
+
+SQL Client also supports deploying a SQL script file to an Application Cluster with the `-f` option, if you specify the deployment target in the config.yaml or startup options.
+Here is an example to deploy script file in an Application Cluster.
+
+```bash 
+./bin/sql-client.sh -f oss://path/to/script.sql \
+      -Dexecution.target=kubernetes-application \
+      -Dkubernetes.cluster-id=${CLUSTER_ID} \
+      -Dkubernetes.container.image.ref=${FLINK_IMAGE_NAME}'
+```
+
+After execution, SQL Client will print the cluster id on the terminal. The script can contain any statement that is supported by Flink. But Application cluster only supports one job, please refer to the
+[Application Mode]({{< ref "docs/deployment/overview#application-mode" >}}) for the limitations.
+
+<span class="label label-danger">Attention</span> When deploying a script to the cluster, SQL Client only supports running with `--jars` startup option, other options, e.g. `--init`
+are not supported.
 
 ### Execute a set of SQL statements
 
@@ -847,7 +865,7 @@ When the path to savepoint is specified, Flink will try to restore the state fro
 Because the specified savepoint path will affect all the following DML statements, you can use `RESET` command to reset this config option, i.e. disable restoring from savepoint.
 
 ```sql
-Flink SQL> RESET execution.state-recovery.path;
+Flink SQL> RESET 'execution.state-recovery.path';
 [INFO] Session property has been reset.
 ```
 
@@ -868,7 +886,7 @@ Flink SQL> INSERT INTO ...
 Because the specified job name will affect all the following queries and DML statements, you can also use `RESET` command to reset this configuration, i.e. use default job names.
 
 ```sql
-Flink SQL> RESET pipeline.name;
+Flink SQL> RESET 'pipeline.name';
 [INFO] Session property has been reset.
 ```
 

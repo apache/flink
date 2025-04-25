@@ -28,15 +28,11 @@ import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManage
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamWithResultProvider;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
-import org.apache.flink.runtime.state.DirectoryStateHandle;
-import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
-import org.apache.flink.runtime.state.IncrementalLocalKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
-import org.apache.flink.runtime.state.SnapshotDirectory;
 import org.apache.flink.runtime.state.SnapshotResources;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategy;
@@ -50,8 +46,6 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ResourceGuard;
 
 import org.forstdb.RocksDB;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
@@ -75,8 +69,6 @@ import java.util.stream.Collectors;
  */
 public abstract class ForStSnapshotStrategyBase<K, R extends SnapshotResources>
         implements CheckpointListener, SnapshotStrategy<KeyedStateHandle, R>, AutoCloseable {
-
-    private static final Logger LOG = LoggerFactory.getLogger(ForStSnapshotStrategyBase.class);
 
     @Nonnull private final String description;
 
@@ -194,28 +186,6 @@ public abstract class ForStSnapshotStrategyBase<K, R extends SnapshotResources>
     @Override
     public abstract void close();
 
-    protected void cleanupIncompleteSnapshot(
-            @Nonnull CloseableRegistry tmpResourcesRegistry,
-            @Nonnull SnapshotDirectory localBackupDirectory) {
-        try {
-            tmpResourcesRegistry.close();
-        } catch (Exception e) {
-            LOG.warn("Could not properly clean tmp resources.", e);
-        }
-
-        if (localBackupDirectory.isSnapshotCompleted()) {
-            try {
-                DirectoryStateHandle directoryStateHandle =
-                        localBackupDirectory.completeSnapshotAndGetHandle();
-                if (directoryStateHandle != null) {
-                    directoryStateHandle.discardState();
-                }
-            } catch (Exception e) {
-                LOG.warn("Could not properly discard local state.", e);
-            }
-        }
-    }
-
     /** Common operation in native ForSt snapshot result supplier. */
     protected abstract class ForStSnapshotOperation
             implements SnapshotResultSupplier<KeyedStateHandle> {
@@ -229,27 +199,6 @@ public abstract class ForStSnapshotStrategyBase<K, R extends SnapshotResources>
             this.checkpointId = checkpointId;
             this.checkpointStreamFactory = checkpointStreamFactory;
             this.tmpResourcesRegistry = new CloseableRegistry();
-        }
-
-        protected Optional<KeyedStateHandle> getLocalSnapshot(
-                SnapshotDirectory localBackupDirectory,
-                @Nullable StreamStateHandle localStreamStateHandle,
-                List<IncrementalKeyedStateHandle.HandleAndLocalPath> sharedState)
-                throws IOException {
-            final DirectoryStateHandle directoryStateHandle =
-                    localBackupDirectory.completeSnapshotAndGetHandle();
-            if (directoryStateHandle != null && localStreamStateHandle != null) {
-                return Optional.of(
-                        new IncrementalLocalKeyedStateHandle(
-                                backendUID,
-                                checkpointId,
-                                directoryStateHandle,
-                                keyGroupRange,
-                                localStreamStateHandle,
-                                sharedState));
-            } else {
-                return Optional.empty();
-            }
         }
     }
 
@@ -301,42 +250,6 @@ public abstract class ForStSnapshotStrategyBase<K, R extends SnapshotResources>
         }
     }
 
-    /** A {@link SnapshotResources} for forst sync snapshot. */
-    protected static class ForStSyncSnapshotResources implements SnapshotResources {
-        @Nonnull protected final SnapshotDirectory snapshotDirectory;
-
-        @Nonnull protected final PreviousSnapshot previousSnapshot;
-
-        @Nonnull protected final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
-
-        public ForStSyncSnapshotResources(
-                SnapshotDirectory snapshotDirectory,
-                PreviousSnapshot previousSnapshot,
-                List<StateMetaInfoSnapshot> stateMetaInfoSnapshots) {
-            this.snapshotDirectory = snapshotDirectory;
-            this.previousSnapshot = previousSnapshot;
-            this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
-        }
-
-        @Override
-        public void release() {
-            try {
-                if (snapshotDirectory.exists()) {
-                    LOG.trace(
-                            "Running cleanup for local RocksDB backup directory {}.",
-                            snapshotDirectory);
-                    boolean cleanupOk = snapshotDirectory.cleanup();
-
-                    if (!cleanupOk) {
-                        LOG.debug("Could not properly cleanup local RocksDB backup directory.");
-                    }
-                }
-            } catch (IOException e) {
-                LOG.warn("Could not properly cleanup local RocksDB backup directory.", e);
-            }
-        }
-    }
-
     protected static final PreviousSnapshot EMPTY_PREVIOUS_SNAPSHOT =
             new PreviousSnapshot(Collections.emptyList());
 
@@ -372,6 +285,10 @@ public abstract class ForStSnapshotStrategyBase<K, R extends SnapshotResources>
                 // (by TM) if the previous checkpoint failed. See FLINK-25395
                 return Optional.empty();
             }
+        }
+
+        protected boolean isEmpty() {
+            return confirmedSstFiles.isEmpty();
         }
     }
 }

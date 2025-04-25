@@ -416,6 +416,14 @@ public class OperationExecutor {
                 sessionContext.getSessionState().functionCatalog.copy(resourceManager));
     }
 
+    public <ClusterID> Optional<String> getSessionClusterId() {
+        ClusterClientFactory<ClusterID> clusterClientFactory =
+                clusterClientServiceLoader.getClusterClientFactory(sessionContext.getSessionConf());
+        ClusterID clusterID = clusterClientFactory.getClusterId(sessionContext.getSessionConf());
+
+        return Optional.ofNullable(clusterID).map(ClusterID::toString);
+    }
+
     private static Executor lookupExecutor(
             StreamExecutionEnvironment executionEnvironment, ClassLoader userClassLoader) {
         try {

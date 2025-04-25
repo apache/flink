@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from pyflink.table.catalog import ResolvedSchema
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import DataTypes
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
@@ -34,6 +35,14 @@ class StreamTableSchemaTests(PyFlinkStreamTableTestCase):
 
         assert schema == TableSchema(["a", "b"], [DataTypes.BIGINT(), DataTypes.STRING()])
 
+    def test_get_resolved_schema(self):
+        t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
+        resolved_schema = t.get_resolved_schema()
+        expected_schema = ResolvedSchema.physical(
+            ['a', 'b', 'c'],
+            [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()],
+        )
+        assert resolved_schema == expected_schema
 
 if __name__ == '__main__':
     import unittest

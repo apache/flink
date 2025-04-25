@@ -21,16 +21,21 @@ package org.apache.flink.state.forst.fs.filemapping;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.state.forst.fs.cache.FileBasedCache;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * A manager to manage file mapping of forst file system, including misc file mapping (remote file
@@ -42,47 +47,123 @@ public class FileMappingManager {
 
     private static final Logger LOG = LoggerFactory.getLogger(FileMappingManager.class);
 
-    public static final String SST_SUFFIX = ".sst";
-
     private final FileSystem fileSystem;
-
-    private final FileSystem localFileSystem;
 
     private final HashMap<String, MappingEntry> mappingTable;
 
     private final String remoteBase;
-
     private final String localBase;
 
-    public FileMappingManager(
-            FileSystem fileSystem,
-            FileSystem localFileSystem,
-            String remoteBase,
-            String localBase) {
+    public FileMappingManager(FileSystem fileSystem, String remoteBase, String localBase) {
         this.fileSystem = fileSystem;
-        this.localFileSystem = localFileSystem;
         this.mappingTable = new HashMap<>();
         this.remoteBase = remoteBase;
         this.localBase = localBase;
     }
 
-    /** Create a mapping entry for a file. */
-    public RealPath createFile(Path file) {
-        String fileName = file.toString();
-        Preconditions.checkState(!mappingTable.containsKey(fileName));
-        if (!fileName.endsWith(SST_SUFFIX) && fileName.startsWith(remoteBase)) {
-            Path localFile = new Path(localBase, file.getName());
-            mappingTable.put(
-                    fileName,
-                    new MappingEntry(1, localFileSystem, localFile.toString(), true, false));
-            return new RealPath(localFile, true);
-        } else {
-            mappingTable.put(fileName, new MappingEntry(1, fileSystem, fileName, false, false));
-            return new RealPath(file, false);
+    /** Create a new file in the mapping table. */
+    public MappingEntry createNewFile(Path filePath, boolean overwrite, FileBasedCache cache) {
+        String key = filePath.toString();
+        boolean isLocal = FileOwnershipDecider.shouldAlwaysBeLocal(filePath);
+        if (isLocal) {
+            filePath = forceLocalPath(filePath);
         }
+
+        return addFileToMappingTable(
+                key,
+                toUUIDPath(filePath),
+                FileOwnershipDecider.decideForNewFile(filePath),
+                isLocal ? null : cache,
+                true,
+                overwrite);
     }
 
-    /** Called by link/copy. Directory link is not supported now. */
+    /** Register a file restored from checkpoints to the mapping table. */
+    public MappingEntry registerReusedRestoredFile(
+            String key, StreamStateHandle stateHandle, Path dbFilePath, FileBasedCache cache) {
+        // The checkpoint file may contain only the UUID without the file extension, so we：
+        //  - Decide file ownership based on dbFilePath, so we can know the real file type.
+        //  - Add to mapping table based on cpFilePath, so we can access the real file.
+        LOG.trace("decide restored file ownership based on dbFilePath: {}", dbFilePath);
+        return addHandleBackedFileToMappingTable(
+                key, stateHandle, FileOwnershipDecider.decideForRestoredFile(dbFilePath), cache);
+    }
+
+    private MappingEntry addHandleBackedFileToMappingTable(
+            String key,
+            StreamStateHandle stateHandle,
+            FileOwnership fileOwnership,
+            FileBasedCache cache) {
+        MappingEntrySource source = new HandleBackedMappingEntrySource(stateHandle);
+        MappingEntry existingEntry = mappingTable.getOrDefault(key, null);
+        if (existingEntry != null) {
+            Preconditions.checkState(
+                    existingEntry.source.equals(source)
+                            && existingEntry.fileOwnership == fileOwnership,
+                    "Try to add a file that is already in mappingTable,"
+                            + " but with inconsistent entry. Key: %s, source: %s, fileOwnership: %s. "
+                            + " Entry in table: %s",
+                    key,
+                    source,
+                    fileOwnership,
+                    existingEntry);
+
+            LOG.trace("Skip adding a file that already exists in mapping table: {}", key);
+        }
+        return existingEntry == null
+                ? addMappingEntry(
+                        key, new MappingEntry(1, source, fileOwnership, cache, false, false))
+                : existingEntry;
+    }
+
+    private MappingEntry addFileToMappingTable(
+            String key,
+            Path filePath,
+            FileOwnership fileOwnership,
+            FileBasedCache cache,
+            boolean writing,
+            boolean overwrite) {
+        MappingEntrySource source = new FileBackedMappingEntrySource(filePath);
+        MappingEntry existingEntry = mappingTable.getOrDefault(key, null);
+        if (existingEntry != null) {
+            if (!(existingEntry.source.equals(source)
+                    && existingEntry.fileOwnership == fileOwnership)) {
+                if (overwrite) {
+                    // if the file is already in the mapping table, but with different source or
+                    // fileOwnership,
+                    // we should remove the existing entry and add a new entry.
+                    LOG.trace(
+                            "Replace the mapping entry for file: {} from {} to {}",
+                            key,
+                            existingEntry.source,
+                            source);
+                    mappingTable.remove(key).release();
+                    existingEntry = null;
+                } else {
+                    throw new IllegalStateException(
+                            String.format(
+                                    "Try to add a file that is already in mappingTable,"
+                                            + " but with inconsistent entry. Key: %s, source: %s, fileOwnership: %s. "
+                                            + " Entry in table: %s",
+                                    key, source, fileOwnership, existingEntry));
+                }
+            } else {
+                LOG.trace("Skip adding a file that already exists in mapping table: {}", key);
+            }
+        }
+        return existingEntry == null
+                ? addMappingEntry(
+                        key, new MappingEntry(1, source, fileOwnership, cache, false, writing))
+                : existingEntry;
+    }
+
+    private MappingEntry addMappingEntry(String key, MappingEntry entry) {
+        mappingTable.put(key, entry);
+        LOG.trace("Add entry to mapping table: {} -> {}", key, entry);
+        return entry;
+    }
+
+    /** Add a mapping 'dst -> src' to the mapping table. */
     public int link(String src, String dst) {
         if (src.equals(dst)) {
             return -1;
@@ -92,31 +173,14 @@ public class FileMappingManager {
             return -1;
         }
         MappingEntry sourceEntry = mappingTable.get(src);
-        if (sourceEntry != null) {
-            sourceEntry.retain();
-            mappingTable.putIfAbsent(dst, sourceEntry);
-        } else {
-            sourceEntry = new MappingEntry(0, fileSystem, src, false, false);
-            sourceEntry.retain();
-            mappingTable.put(src, sourceEntry);
-            sourceEntry.retain();
-            mappingTable.put(dst, sourceEntry);
+        if (sourceEntry == null) {
+            throw new RuntimeException(
+                    "Unexpected: linking to a file that doesn't exist in ForSt FileMappingManager.");
         }
+        sourceEntry.retain();
+        mappingTable.putIfAbsent(dst, sourceEntry);
         LOG.trace("link: {} -> {}", dst, src);
         return 0;
-    }
-
-    /**
-     * Get the real path of a file, the real path maybe a local file or a remote file/dir. Due to
-     * the lazy deletion, if the path is a directory, the exists check may have false positives.
-     */
-    public RealPath realPath(Path path) {
-        String fileName = path.toString();
-        MappingEntry entry = mappingTable.getOrDefault(fileName, null);
-        if (entry != null) {
-            return new RealPath(new Path(entry.sourcePath), entry.isLocal);
-        }
-        return null;
     }
 
     public List<String> listByPrefix(String path) {
@@ -139,12 +203,18 @@ public class FileMappingManager {
      * @return always return true except for IOException
      */
     public boolean renameFile(String src, String dst) throws IOException {
+        if (src.equals(dst)) {
+            return true;
+        }
+
         MappingEntry srcEntry = mappingTable.get(src);
         if (srcEntry != null) { // rename file
             if (mappingTable.containsKey(dst)) {
                 MappingEntry dstEntry = mappingTable.remove(dst);
                 dstEntry.release();
             }
+
+            LOG.trace("rename: {} -> {}", src, dst);
             mappingTable.remove(src);
             mappingTable.put(dst, srcEntry);
         } else { // rename directory = link to dst dir + delete src dir
@@ -164,7 +234,7 @@ public class FileMappingManager {
                 fileSystem.mkdirs(dstPath);
             }
             // step 2: delete src dir
-            deleteFile(new Path(src), true);
+            deleteFileOrDirectory(new Path(src), true);
         }
         return true;
     }
@@ -178,10 +248,10 @@ public class FileMappingManager {
      * @return true if the file or directory is deleted successfully, false otherwise.
      * @throws IOException if an error occurs during deletion
      */
-    public boolean deleteFile(Path file, boolean recursive) throws IOException {
+    public boolean deleteFileOrDirectory(Path file, boolean recursive) throws IOException {
         String fileStr = file.toString();
         MappingEntry entry = mappingTable.getOrDefault(fileStr, null);
-        LOG.trace("delete: {}, source:{}", file, entry == null ? "null" : entry.sourcePath);
+        LOG.trace("Remove from mapping table: {}, entry:{}", fileStr, entry);
         // case 1: delete file
         if (entry != null) {
             mappingTable.remove(fileStr);
@@ -193,25 +263,37 @@ public class FileMappingManager {
         if (!recursive) {
             throw new IOException(fileStr + "is a directory, delete failed.");
         }
-        MappingEntry parentEntry = new MappingEntry(0, fileSystem, fileStr, false, recursive);
+        MappingEntry parentEntry =
+                new MappingEntry(0, file, FileOwnership.PRIVATE_OWNED_BY_DB, true);
 
-        // step 2.1: find all matched entries, mark delete dir as parent dir
+        // step 2.1: find all entries under this directory and set their parentDir to this directory
         for (Map.Entry<String, MappingEntry> currentEntry : mappingTable.entrySet()) {
-            if (!isParentDir(currentEntry.getValue().sourcePath, fileStr)) {
+            MappingEntry mappingEntry = currentEntry.getValue();
+            if (!isParentDir(mappingEntry.getSourcePath(), fileStr)) {
                 continue;
             }
-            MappingEntry oldParentDir = currentEntry.getValue().parentDir;
+            MappingEntry oldParentDir = mappingEntry.parentDir;
             if (oldParentDir == null
-                    || isParentDir(oldParentDir.sourcePath, fileStr)
+                    || isParentDir(oldParentDir.getSourcePath(), fileStr)
                             && !oldParentDir.equals(parentEntry)) {
                 parentEntry.retain();
-                currentEntry.getValue().parentDir = parentEntry;
+                mappingEntry.parentDir = parentEntry;
+                // if the file is not owned by DB, set the parentDir to NOT_OWNED
+                if (mappingEntry.fileOwnership == FileOwnership.NOT_OWNED) {
+                    parentEntry.setFileOwnership(FileOwnership.NOT_OWNED);
+                }
             }
         }
 
+        // We always treat parentEntry not owned for now, to avoid deleting directory.
+        // This is a safety guard but no good reason to keep it if we have a better solution.
+        // TODO: Reconsider the directory deletion strategy in FLINK-37442.
+        parentEntry.setFileOwnership(FileOwnership.NOT_OWNED);
+
         boolean status = true;
         // step 2.2: release file under directory
-        if (parentEntry.getReferenceCount() == 0) {
+        if (parentEntry.getReferenceCount() == 0
+                && parentEntry.getFileOwnership() != FileOwnership.NOT_OWNED) {
             // an empty directory
             status = fileSystem.delete(file, recursive);
         }
@@ -223,8 +305,15 @@ public class FileMappingManager {
     }
 
     @VisibleForTesting
-    public MappingEntry mappingEntry(String path) {
+    public @Nullable MappingEntry mappingEntry(String path) {
         return mappingTable.getOrDefault(path, null);
+    }
+
+    private boolean isParentDir(@Nullable Path path, String dir) {
+        if (path == null) {
+            return false;
+        }
+        return isParentDir(path.toString(), dir);
     }
 
     private boolean isParentDir(String path, String dir) {
@@ -238,14 +327,30 @@ public class FileMappingManager {
         }
     }
 
-    /** A wrapper of real path. */
-    public static class RealPath {
-        public final Path path;
-        public final boolean isLocal;
+    public void giveUpOwnership(Path path, StreamStateHandle stateHandle) {
+        MappingEntry mappingEntry = mappingTable.getOrDefault(path.toString(), null);
+        Preconditions.checkArgument(
+                mappingEntry != null,
+                "Try to give up ownership of a file that is not in mapping table: %s",
+                path);
+        Preconditions.checkArgument(
+                mappingEntry.fileOwnership != FileOwnership.PRIVATE_OWNED_BY_DB,
+                "Try to give up ownership of a file that is not shareable: %s ",
+                mappingEntry);
 
-        public RealPath(Path path, boolean isLocal) {
-            this.path = path;
-            this.isLocal = isLocal;
-        }
+        mappingEntry.setFileOwnership(FileOwnership.NOT_OWNED);
+        mappingEntry.setSource(stateHandle);
+        LOG.trace(
+                "Give up ownership for file: {}, the source is now backed by: {}",
+                mappingEntry,
+                stateHandle);
+    }
+
+    private Path forceLocalPath(Path filePath) {
+        return new Path(localBase, filePath.getName());
+    }
+
+    private Path toUUIDPath(Path filePath) {
+        return new Path(filePath.getParent(), UUID.randomUUID().toString());
     }
 }

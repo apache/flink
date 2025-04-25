@@ -31,13 +31,11 @@ import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.inference.TypeInferenceOperandChecker;
 import org.apache.flink.table.planner.functions.inference.TypeInferenceOperandInference;
 import org.apache.flink.table.planner.functions.inference.TypeInferenceReturnInference;
 import org.apache.flink.table.types.inference.TypeInference;
 
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.parser.SqlParserPos;
@@ -47,9 +45,7 @@ import org.apache.calcite.sql.type.SqlReturnTypeInference;
 
 import javax.annotation.Nullable;
 
-import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /** Utilities for bridging {@link FunctionDefinition} with Calcite's representation of functions. */
 final class BridgingUtils {
@@ -160,21 +156,6 @@ final class BridgingUtils {
             FunctionDefinition definition,
             TypeInference typeInference) {
         return new TypeInferenceOperandChecker(dataTypeFactory, definition, typeInference);
-    }
-
-    static @Nullable List<RelDataType> createParamTypes(
-            FlinkTypeFactory typeFactory, TypeInference typeInference) {
-        return typeInference
-                .getTypedArguments()
-                .map(
-                        dataTypes ->
-                                dataTypes.stream()
-                                        .map(
-                                                dataType ->
-                                                        typeFactory.createFieldTypeFromLogicalType(
-                                                                dataType.getLogicalType()))
-                                        .collect(Collectors.toList()))
-                .orElse(null);
     }
 
     static SqlFunctionCategory createSqlFunctionCategory(ContextResolvedFunction resolvedFunction) {

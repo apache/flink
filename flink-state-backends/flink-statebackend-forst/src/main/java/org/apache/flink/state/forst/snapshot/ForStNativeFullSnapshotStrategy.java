@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
@@ -33,7 +34,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.state.forst.ForStOperationUtils;
 import org.apache.flink.state.forst.ForStResourceContainer;
-import org.apache.flink.state.forst.ForStStateDataTransfer;
+import org.apache.flink.state.forst.datatransfer.ForStStateDataTransfer;
 import org.apache.flink.util.ResourceGuard;
 
 import org.forstdb.RocksDB;
@@ -151,11 +152,12 @@ public class ForStNativeFullSnapshotStrategy<K>
         final PreviousSnapshot previousSnapshot =
                 snapshotMetaData(checkpointId, stateMetaInfoSnapshots);
 
-        // Disable file deletion for file transformation. ForSt will decide whether to allow file
+        ResourceGuard.Lease lease = resourceGuard.acquireResource();
+        // Disable file deletion for file transformation. ForSt will decide whether to allow
+        // file
         // deletion based on the number of calls to disableFileDeletions() and
         // enableFileDeletions(), so disableFileDeletions() should be call only once.
         db.disableFileDeletions();
-
         try {
             // get live files with flush memtable
             RocksDB.LiveFiles liveFiles = db.getLiveFiles(true);
@@ -184,6 +186,7 @@ public class ForStNativeFullSnapshotStrategy<K>
                     () -> {
                         try {
                             db.enableFileDeletions(false);
+                            lease.close();
                             LOG.info(
                                     "Release one file deletion lock with ForStNativeSnapshotResources, backendUID:{}, checkpointId:{}.",
                                     backendUID,
@@ -202,6 +205,7 @@ public class ForStNativeFullSnapshotStrategy<K>
                     backendUID,
                     checkpointId);
             db.enableFileDeletions(false);
+            lease.close();
             throw e;
         }
     }
@@ -228,20 +232,27 @@ public class ForStNativeFullSnapshotStrategy<K>
         if (syncPartResource.stateMetaInfoSnapshots.isEmpty()) {
             return registry -> SnapshotResult.empty();
         }
-        return new ForStNativeFullSnapshotOperation(checkpointId, streamFactory, syncPartResource);
+        return new ForStNativeFullSnapshotOperation(
+                checkpointOptions.getCheckpointType().getSharingFilesStrategy(),
+                checkpointId,
+                streamFactory,
+                syncPartResource);
     }
 
     /** Encapsulates the process to perform a full snapshot of a ForStKeyedStateBackend. */
     private final class ForStNativeFullSnapshotOperation extends ForStSnapshotOperation {
 
         @Nonnull private final ForStNativeSnapshotResources snapshotResources;
+        @Nonnull private final SnapshotType.SharingFilesStrategy sharingFilesStrategy;
 
         private ForStNativeFullSnapshotOperation(
+                SnapshotType.SharingFilesStrategy sharingFilesStrategy,
                 long checkpointId,
                 @Nonnull CheckpointStreamFactory checkpointStreamFactory,
                 @Nonnull ForStNativeSnapshotResources snapshotResources) {
             super(checkpointId, checkpointStreamFactory);
             this.snapshotResources = snapshotResources;
+            this.sharingFilesStrategy = sharingFilesStrategy;
         }
 
         @Override
@@ -301,6 +312,7 @@ public class ForStNativeFullSnapshotStrategy<K>
             if (snapshotResources.liveFiles.size() > 0) {
                 List<IncrementalKeyedStateHandle.HandleAndLocalPath> uploadedFiles =
                         stateTransfer.transferFilesToCheckpointFs(
+                                sharingFilesStrategy,
                                 snapshotResources.liveFiles.stream()
                                         .filter(
                                                 file ->
@@ -312,18 +324,21 @@ public class ForStNativeFullSnapshotStrategy<K>
                                 checkpointStreamFactory,
                                 CheckpointedStateScope.EXCLUSIVE,
                                 snapshotCloseableRegistry,
-                                tmpResourcesRegistry);
+                                tmpResourcesRegistry,
+                                true);
                 uploadedSize += uploadedFiles.stream().mapToLong(e -> e.getStateSize()).sum();
                 privateFiles.addAll(uploadedFiles);
 
                 IncrementalKeyedStateHandle.HandleAndLocalPath manifestFileTransferResult =
                         stateTransfer.transferFileToCheckpointFs(
+                                SnapshotType.SharingFilesStrategy.NO_SHARING,
                                 snapshotResources.manifestFilePath,
                                 snapshotResources.manifestFileSize,
                                 checkpointStreamFactory,
                                 CheckpointedStateScope.EXCLUSIVE,
                                 snapshotCloseableRegistry,
-                                tmpResourcesRegistry);
+                                tmpResourcesRegistry,
+                                true);
                 privateFiles.add(manifestFileTransferResult);
                 uploadedSize += manifestFileTransferResult.getStateSize();
 

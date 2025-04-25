@@ -90,7 +90,7 @@ public class JobManagerOperatorMetricGroup extends ComponentMetricGroup<JobManag
     }
 
     @Override
-    protected Iterable<? extends ComponentMetricGroup> subComponents() {
+    protected Iterable<? extends ComponentMetricGroup<?>> subComponents() {
         return Collections.emptyList();
     }
 }

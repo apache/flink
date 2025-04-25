@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.process.FlinkMetricContainer;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.runners.python.beam.BeamPythonFunctionRunner;
@@ -52,6 +53,7 @@ public class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
     private final GeneratedMessageV3 userDefinedFunctionProto;
 
     public BeamTablePythonFunctionRunner(
+            Environment environment,
             String taskName,
             ProcessPythonEnvironmentManager environmentManager,
             String functionUrn,
@@ -65,6 +67,7 @@ public class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
             FlinkFnApi.CoderInfoDescriptor inputCoderDescriptor,
             FlinkFnApi.CoderInfoDescriptor outputCoderDescriptor) {
         super(
+                environment,
                 taskName,
                 environmentManager,
                 flinkMetricContainer,
@@ -92,7 +95,7 @@ public class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
                                 RunnerApi.FunctionSpec.newBuilder()
                                         .setUrn(functionUrn)
                                         .setPayload(
-                                                org.apache.beam.vendor.grpc.v1p48p1.com.google
+                                                org.apache.beam.vendor.grpc.v1p60p1.com.google
                                                         .protobuf.ByteString.copyFrom(
                                                         userDefinedFunctionProto.toByteArray()))
                                         .build())
@@ -117,6 +120,7 @@ public class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
     }
 
     public static BeamTablePythonFunctionRunner stateless(
+            Environment environment,
             String taskName,
             ProcessPythonEnvironmentManager environmentManager,
             String functionUrn,
@@ -127,6 +131,7 @@ public class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
             FlinkFnApi.CoderInfoDescriptor inputCoderDescriptor,
             FlinkFnApi.CoderInfoDescriptor outputCoderDescriptor) {
         return new BeamTablePythonFunctionRunner(
+                environment,
                 taskName,
                 environmentManager,
                 functionUrn,
@@ -142,6 +147,7 @@ public class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
     }
 
     public static BeamTablePythonFunctionRunner stateful(
+            Environment environment,
             String taskName,
             ProcessPythonEnvironmentManager environmentManager,
             String functionUrn,
@@ -155,6 +161,7 @@ public class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
             FlinkFnApi.CoderInfoDescriptor inputCoderDescriptor,
             FlinkFnApi.CoderInfoDescriptor outputCoderDescriptor) {
         return new BeamTablePythonFunctionRunner(
+                environment,
                 taskName,
                 environmentManager,
                 functionUrn,

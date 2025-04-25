@@ -54,8 +54,8 @@ import java.util.concurrent.CompletableFuture
 import scala.collection.JavaConverters._
 
 /**
- * Helps in generating a call to a user-defined [[ScalarFunction]], [[TableFunction]], or
- * [[AsyncTableFunction]].
+ * Helps in generating a call to a user-defined [[ScalarFunction]], [[TableFunction]],
+ * [[ProcessTableFunction]] or [[AsyncTableFunction]].
  *
  * Table functions are a special case because they are using a collector. Thus, the result of the
  * generation will be a reference to a [[WrappingCollector]]. Furthermore, atomic types are wrapped
@@ -99,13 +99,13 @@ object BridgingFunctionGenUtil {
       skipIfArgsNull: Boolean): (GeneratedExpression, DataType) = {
 
     // enrich argument types with conversion class
-    val adaptedCallContext = TypeInferenceUtil.adaptArguments(inference, callContext, null)
-    val enrichedArgumentDataTypes = toScala(adaptedCallContext.getArgumentDataTypes)
+    val castCallContext = TypeInferenceUtil.castArguments(inference, callContext, null)
+    val enrichedArgumentDataTypes = toScala(castCallContext.getArgumentDataTypes)
     verifyArgumentTypes(operands.map(_.resultType), enrichedArgumentDataTypes)
 
     // enrich output types with conversion class
     val enrichedOutputDataType =
-      TypeInferenceUtil.inferOutputType(adaptedCallContext, inference.getOutputTypeStrategy)
+      TypeInferenceUtil.inferOutputType(castCallContext, inference.getOutputTypeStrategy)
     verifyFunctionAwareOutputType(returnType, enrichedOutputDataType, udf)
 
     // find runtime method and generate call
@@ -121,7 +121,8 @@ object BridgingFunctionGenUtil {
       enrichedOutputDataType,
       returnType,
       udf,
-      skipIfArgsNull)
+      skipIfArgsNull,
+      None)
     (call, enrichedOutputDataType)
   }
 
@@ -132,21 +133,24 @@ object BridgingFunctionGenUtil {
       outputDataType: DataType,
       returnType: LogicalType,
       udf: UserDefinedFunction,
-      skipIfArgsNull: Boolean): GeneratedExpression = {
+      skipIfArgsNull: Boolean,
+      contextTerm: Option[String]): GeneratedExpression = {
 
     val functionTerm = ctx.addReusableFunction(udf)
 
     // operand conversion
     val externalOperands = prepareExternalOperands(ctx, operands, argumentDataTypes)
 
-    if (udf.getKind == FunctionKind.TABLE) {
+    if (udf.getKind == FunctionKind.TABLE || udf.getKind == FunctionKind.PROCESS_TABLE) {
       generateTableFunctionCall(
         ctx,
         functionTerm,
         externalOperands,
         outputDataType,
         returnType,
-        skipIfArgsNull)
+        skipIfArgsNull,
+        contextTerm
+      )
     } else if (udf.getKind == FunctionKind.ASYNC_TABLE) {
       generateAsyncTableFunctionCall(functionTerm, externalOperands, returnType)
     } else if (udf.getKind == FunctionKind.ASYNC_SCALAR) {
@@ -161,13 +165,14 @@ object BridgingFunctionGenUtil {
     }
   }
 
-  private def generateTableFunctionCall(
+  def generateTableFunctionCall(
       ctx: CodeGeneratorContext,
       functionTerm: String,
       externalOperands: Seq[GeneratedExpression],
       functionOutputDataType: DataType,
       outputType: LogicalType,
-      skipIfArgsNull: Boolean): GeneratedExpression = {
+      skipIfArgsNull: Boolean,
+      contextTerm: Option[String] = None): GeneratedExpression = {
     val resultCollectorTerm = generateResultCollector(ctx, functionOutputDataType, outputType)
 
     val setCollectorCode = s"""
@@ -175,19 +180,21 @@ object BridgingFunctionGenUtil {
                               |""".stripMargin
     ctx.addReusableOpenStatement(setCollectorCode)
 
+    val contextOperand = contextTerm.map(c => c + ", ").getOrElse("")
+
     val functionCallCode = if (skipIfArgsNull) {
       s"""
          |${externalOperands.map(_.code).mkString("\n")}
          |if (${externalOperands.map(_.nullTerm).mkString(" || ")}) {
          |  // skip
          |} else {
-         |  $functionTerm.eval(${externalOperands.map(_.resultTerm).mkString(", ")});
+         |  $functionTerm.eval($contextOperand${externalOperands.map(_.resultTerm).mkString(", ")});
          |}
          |""".stripMargin
     } else {
       s"""
          |${externalOperands.map(_.code).mkString("\n")}
-         |$functionTerm.eval(${externalOperands.map(_.resultTerm).mkString(", ")});
+         |$functionTerm.eval($contextOperand${externalOperands.map(_.resultTerm).mkString(", ")});
          |""".stripMargin
     }
 
@@ -245,7 +252,7 @@ object BridgingFunctionGenUtil {
    * Generates a collector that converts the output of a table function (possibly as an atomic type)
    * into an internal row type. Returns a collector term for referencing the collector.
    */
-  private def generateResultCollector(
+  def generateResultCollector(
       ctx: CodeGeneratorContext,
       outputDataType: DataType,
       returnType: LogicalType): String = {
@@ -329,7 +336,7 @@ object BridgingFunctionGenUtil {
       copy)
   }
 
-  private def prepareExternalOperands(
+  def prepareExternalOperands(
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
       argumentDataTypes: Seq[DataType]): Seq[GeneratedExpression] = {
@@ -364,12 +371,15 @@ object BridgingFunctionGenUtil {
     enrichedDataTypes.foreach(validateOutputDataType)
   }
 
-  private def verifyFunctionAwareOutputType(
+  def verifyFunctionAwareOutputType(
       returnType: LogicalType,
       enrichedDataType: DataType,
       udf: UserDefinedFunction): Unit = {
     val enrichedType = enrichedDataType.getLogicalType
-    if (udf.getKind == FunctionKind.TABLE && !isCompositeType(enrichedType)) {
+    if (
+      (udf.getKind == FunctionKind.TABLE || udf.getKind == FunctionKind.PROCESS_TABLE) && !isCompositeType(
+        enrichedType)
+    ) {
       // logically table functions wrap atomic types into ROW, however, the physical function might
       // return an atomic type
       Preconditions.checkState(
@@ -383,7 +393,9 @@ object BridgingFunctionGenUtil {
       throw new CodeGenException(
         "Async table functions must not emit an atomic type. " +
           "Only a composite type such as the row type are supported.")
-    } else if (udf.getKind == FunctionKind.TABLE || udf.getKind == FunctionKind.ASYNC_TABLE) {
+    } else if (
+      udf.getKind == FunctionKind.TABLE || udf.getKind == FunctionKind.PROCESS_TABLE || udf.getKind == FunctionKind.ASYNC_TABLE
+    ) {
       // null values are skipped therefore, the result top level row will always be not null
       verifyOutputType(returnType.copy(true), enrichedDataType)
     } else {

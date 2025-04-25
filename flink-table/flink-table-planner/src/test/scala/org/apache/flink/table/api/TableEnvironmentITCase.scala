@@ -28,13 +28,14 @@ import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.runtime.utils.{StreamingEnvUtil, TestingAppendSink}
+import org.apache.flink.table.planner.runtime.utils.{TestingAppendSink, TestSinkUtil}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.{row => buildRow}
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
 import org.apache.flink.table.planner.utils.TableTestUtil.{readFromResource, replaceStageId}
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.testutils.junit.utils.TempDirUtils
 import org.apache.flink.types.{Row, RowKind}
-import org.apache.flink.util.{CollectionUtil, FileUtils}
+import org.apache.flink.util.CollectionUtil
 
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
@@ -42,7 +43,7 @@ import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.extension.ExtendWith
 import org.junit.jupiter.api.io.TempDir
 
-import java.io.{File, FileFilter}
+import java.io.File
 import java.lang.{Long => JLong}
 import java.nio.file.Path
 import java.util
@@ -89,22 +90,22 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
       new TableSchema(Array("first"), Array(STRING)),
       "MySink2")
 
-    checkEmptyFile(sink1Path)
-    checkEmptyFile(sink2Path)
+    checkEmptyDir(sink1Path)
+    checkEmptyDir(sink2Path)
 
     val table1 = tEnv.sqlQuery("select first from MyTable")
     table1.executeInsert("MySink1").await()
-    assertFirstValues(sink1Path)
-    checkEmptyFile(sink2Path)
+    assertFirstValues("MySink1")
+    checkEmptyDir(sink2Path)
 
     // delete first csv file
-    new File(sink1Path).delete()
+    deleteDir(sink1Path)
     assertFalse(new File(sink1Path).exists())
 
     val table2 = tEnv.sqlQuery("select last from MyTable")
     table2.executeInsert("MySink2").await()
     assertFalse(new File(sink1Path).exists())
-    assertLastValues(sink2Path)
+    assertLastValues("MySink2")
   }
 
   @TestTemplate
@@ -116,7 +117,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
 
     val table1 = tEnv.sqlQuery("select first from MyTable")
     table1.executeInsert("MySink1").await()
-    assertFirstValues(sinkPath)
+    assertFirstValues("MySink1")
   }
 
   @TestTemplate
@@ -125,10 +126,10 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
       tEnv,
       new TableSchema(Array("first"), Array(STRING)),
       "MySink1")
-    checkEmptyFile(sinkPath)
+    checkEmptyDir(sinkPath)
     val tableResult = tEnv.executeSql("insert into MySink1 select first from MyTable")
     checkInsertTableResult(tableResult, "default_catalog.default_database.MySink1")
-    assertFirstValues(sinkPath)
+    assertFirstValues("MySink1")
   }
 
   @TestTemplate
@@ -153,11 +154,11 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
 
     val tableResult1 = tEnv.executeSql("insert overwrite MySink select first from MyTable")
     checkInsertTableResult(tableResult1, "default_catalog.default_database.MySink")
-    assertFirstValues(sinkPath)
+    assertFirstValues("MySink")
 
     val tableResult2 = tEnv.executeSql("insert overwrite MySink select first from MyTable")
     checkInsertTableResult(tableResult2, "default_catalog.default_database.MySink")
-    assertFirstValues(sinkPath)
+    assertFirstValues("MySink")
   }
 
   @TestTemplate
@@ -170,22 +171,22 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
       tEnv,
       new TableSchema(Array("last"), Array(STRING)),
       "MySink2")
-    checkEmptyFile(sink1Path)
-    checkEmptyFile(sink2Path)
+    checkEmptyDir(sink1Path)
+    checkEmptyDir(sink2Path)
 
     val tableResult = tEnv.executeSql("insert into MySink1 select first from MyTable")
     checkInsertTableResult(tableResult, "default_catalog.default_database.MySink1")
 
-    assertFirstValues(sink1Path)
-    checkEmptyFile(sink2Path)
+    assertFirstValues("MySink1")
+    checkEmptyDir(sink2Path)
 
     // delete first csv file
-    new File(sink1Path).delete()
+    deleteDir(sink1Path)
     assertFalse(new File(sink1Path).exists())
 
     tEnv.sqlQuery("select last from MyTable").executeInsert("MySink2").await()
     assertFalse(new File(sink1Path).exists())
-    assertLastValues(sink2Path)
+    assertLastValues("MySink2")
   }
 
   @TestTemplate
@@ -200,7 +201,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
       streamTableEnv,
       new TableSchema(Array("first"), Array(STRING)),
       "MySink1")
-    checkEmptyFile(sink1Path)
+    checkEmptyDir(sink1Path)
 
     val table = streamTableEnv.sqlQuery("select last from MyTable where id > 0")
     val resultSet = streamTableEnv.toDataStream(table)
@@ -209,17 +210,17 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
 
     val tableResult = streamTableEnv.executeSql("insert into MySink1 select first from MyTable")
     checkInsertTableResult(tableResult, "default_catalog.default_database.MySink1")
-    assertFirstValues(sink1Path)
+    assertFirstValues(streamTableEnv, "MySink1")
 
     // the DataStream program is not executed
     assertFalse(sink.isInitialized)
 
-    deleteFile(sink1Path)
+    deleteDir(sink1Path)
 
     streamEnv.execute("test2")
     assertEquals(getExpectedLastValues.sorted, sink.getAppendResults.sorted)
     // the table program is not executed again
-    assertFileNotExist(sink1Path)
+    checkEmptyDir(sink1Path)
   }
 
   @TestTemplate
@@ -234,7 +235,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
       streamTableEnv,
       new TableSchema(Array("first"), Array(STRING)),
       "MySink1")
-    checkEmptyFile(sink1Path)
+    checkEmptyDir(sink1Path)
 
     val table = streamTableEnv.sqlQuery("select last from MyTable where id > 0")
     val resultSet = streamTableEnv.toDataStream(table)
@@ -255,11 +256,11 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
 
     streamEnv.execute("test2")
     // the table program is not executed
-    checkEmptyFile(sink1Path)
+    checkEmptyDir(sink1Path)
     assertEquals(getExpectedLastValues.sorted, sink.getAppendResults.sorted)
 
     streamTableEnv.executeSql(insertStmt).await()
-    assertFirstValues(sink1Path)
+    assertFirstValues(streamTableEnv, "MySink1")
     // the DataStream program is not executed again because the result in sink is not changed
     assertEquals(getExpectedLastValues.sorted, sink.getAppendResults.sorted)
   }
@@ -279,7 +280,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
       streamTableEnv,
       new TableSchema(Array("first"), Array(STRING)),
       "MySink1")
-    checkEmptyFile(sink1Path)
+    checkEmptyDir(sink1Path)
 
     val table = streamTableEnv.sqlQuery("select last from MyTable where id > 0")
     val resultSet = streamTableEnv.toDataStream(table)
@@ -301,11 +302,11 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
 
     streamEnv.execute("test2")
     // the table program is not executed
-    checkEmptyFile(sink1Path)
+    checkEmptyDir(sink1Path)
     assertEquals(getExpectedLastValues.sorted, sink.getAppendResults.sorted)
 
     streamTableEnv.executeSql(insertStmt).await()
-    assertFirstValues(sink1Path)
+    assertFirstValues(streamTableEnv, "MySink1")
     // the DataStream program is not executed again because the result in sink is not changed
     assertEquals(getExpectedLastValues.sorted, sink.getAppendResults.sorted)
   }
@@ -316,11 +317,11 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
       tEnv,
       new TableSchema(Array("first"), Array(STRING)),
       "MySink")
-    checkEmptyFile(sinkPath)
+    checkEmptyDir(sinkPath)
     val table = tEnv.sqlQuery("select first from MyTable")
     val tableResult = table.executeInsert("MySink")
     checkInsertTableResult(tableResult, "default_catalog.default_database.MySink")
-    assertFirstValues(sinkPath)
+    assertFirstValues("MySink")
   }
 
   @TestTemplate
@@ -329,10 +330,10 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
       tEnv,
       new TableSchema(Array("first"), Array(STRING)),
       "MySink")
-    checkEmptyFile(sinkPath)
+    checkEmptyDir(sinkPath)
     val tableResult = tEnv.executeSql("execute insert into MySink select first from MyTable")
     checkInsertTableResult(tableResult, "default_catalog.default_database.MySink")
-    assertFirstValues(sinkPath)
+    assertFirstValues("MySink")
   }
 
   @TestTemplate
@@ -355,11 +356,11 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
     )
     val tableResult1 = tEnv.sqlQuery("select first from MyTable").executeInsert("MySink", true)
     checkInsertTableResult(tableResult1, "default_catalog.default_database.MySink")
-    assertFirstValues(sinkPath)
+    assertFirstValues("MySink")
 
     val tableResult2 = tEnv.sqlQuery("select first from MyTable").executeInsert("MySink", true)
     checkInsertTableResult(tableResult2, "default_catalog.default_database.MySink")
-    assertFirstValues(sinkPath)
+    assertFirstValues("MySink")
   }
 
   @TestTemplate
@@ -415,8 +416,8 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
 
     // checkInsertTableResult will wait the job finished,
     // we should assert file values first to verify job has been finished
-    assertFirstValues(sink2Path)
-    assertLastValues(sink3Path)
+    assertFirstValues("MySink2")
+    assertLastValues("MySink3")
 
     // check TableResult after verifying file values
     checkInsertTableResult(
@@ -469,8 +470,8 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
       "default_catalog.default_database.MySink1",
       "default_catalog.default_database.MySink2")
 
-    assertFirstValues(sink1Path)
-    assertLastValues(sink2Path)
+    assertFirstValues("MySink1")
+    assertLastValues("MySink2")
   }
 
   @TestTemplate
@@ -494,8 +495,8 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
       "default_catalog.default_database.MySink1",
       "default_catalog.default_database.MySink2")
 
-    assertFirstValues(sink1Path)
-    assertLastValues(sink2Path)
+    assertFirstValues("MySink1")
+    assertLastValues("MySink2")
   }
 
   @TestTemplate
@@ -540,8 +541,8 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
       "default_catalog.default_database.MySink1",
       "default_catalog.default_database.MySink2")
 
-    assertFirstValues(sink1Path)
-    assertLastValues(sink2Path)
+    assertFirstValues("MySink1")
+    assertLastValues("MySink2")
 
     // execute again using same StatementSet instance
     stmtSet
@@ -554,8 +555,8 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
       "default_catalog.default_database.MySink1",
       "default_catalog.default_database.MySink2")
 
-    assertFirstValues(sink1Path)
-    assertLastValues(sink2Path)
+    assertFirstValues("MySink1")
+    assertLastValues("MySink2")
   }
 
   @TestTemplate
@@ -728,14 +729,18 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
     data.toList
   }
 
-  private def assertFirstValues(csvFilePath: String): Unit = {
+  private def assertFirstValues(tableName: String): Unit = {
+    assertFirstValues(tEnv, tableName)
+  }
+
+  private def assertFirstValues(tEnv: TableEnvironment, tableName: String): Unit = {
     val expected = List("Mike", "Bob", "Sam", "Peter", "Liz", "Sally", "Alice", "Kelly")
-    val actual = readFile(csvFilePath)
+    val actual = getTableData(tEnv, tableName)
     assertEquals(expected.sorted, actual.sorted)
   }
 
-  private def assertLastValues(csvFilePath: String): Unit = {
-    val actual = readFile(csvFilePath)
+  private def assertLastValues(tableName: String): Unit = {
+    val actual = getTableData(tEnv, tableName)
     assertEquals(getExpectedLastValues.sorted, actual.sorted)
   }
 
@@ -743,16 +748,40 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
     List("Smith", "Taylor", "Miller", "Smith", "Williams", "Miller", "Smith", "Williams")
   }
 
-  private def checkEmptyFile(csvFilePath: String): Unit = {
-    assertTrue(FileUtils.readFileUtf8(new File(csvFilePath)).isEmpty)
+  private def getTableData(tEnv: TableEnvironment, tableName: String): List[String] = {
+    val iterator = tEnv.executeSql(s"select * from $tableName").collect()
+    val result = new mutable.MutableList[String]
+    try {
+      while (iterator.hasNext) {
+        result.+=(TestSinkUtil.rowToString(iterator.next()))
+      }
+    } finally {
+      iterator.close()
+    }
+    result.toList
+  }
+
+  private def checkEmptyDir(dirPath: String): Unit = {
+    val dir = new File(dirPath)
+    assertTrue(!dir.exists() || dir.listFiles().isEmpty)
+  }
+
+  private def deleteDir(dirPath: String): Unit = {
+    val dir = new File(dirPath)
+    if (!dir.exists()) {
+      return
+    }
+    if (dir.isFile) {
+      deleteFile(dir.getAbsolutePath)
+      return
+    }
+    dir.listFiles().foreach(file => deleteDir(file.getAbsolutePath))
+    dir.delete()
+    assertFalse(new File(dirPath).exists())
   }
 
   private def deleteFile(path: String): Unit = {
     new File(path).delete()
-    assertFalse(new File(path).exists())
-  }
-
-  private def assertFileNotExist(path: String): Unit = {
     assertFalse(new File(path).exists())
   }
 
@@ -766,21 +795,6 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
     val affectedRowCounts = fieldNames.map(_ => JLong.valueOf(-1L))
     assertEquals(Row.of(affectedRowCounts: _*), it.next())
     assertFalse(it.hasNext)
-  }
-
-  private def readFile(csvFilePath: String): List[String] = {
-    val file = new File(csvFilePath)
-    if (file.isDirectory) {
-      file
-        .listFiles(new FileFilter() {
-          override def accept(f: File): Boolean = f.isFile
-        })
-        .map(FileUtils.readFileUtf8)
-        .flatMap(_.split("\n"))
-        .toList
-    } else {
-      FileUtils.readFileUtf8(file).split("\n").toList
-    }
   }
 
 }

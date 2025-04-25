@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state.v2;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.v2.ValueState;
+import org.apache.flink.api.common.state.v2.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -86,18 +87,23 @@ import static org.assertj.core.api.Assertions.assertThat;
 public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
 
     protected MockEnvironment env;
+    protected JobID jobID;
 
     // lazily initialized stream storage
     private CheckpointStreamFactory checkpointStreamFactory;
 
     @BeforeEach
     void before() throws Exception {
+        jobID = new JobID();
         env = buildMockEnv();
     }
 
-    private MockEnvironment buildMockEnv() throws Exception {
+    protected MockEnvironment buildMockEnv() throws Exception {
         MockEnvironment mockEnvironment =
-                MockEnvironment.builder().setTaskStateManager(getTestTaskStateManager()).build();
+                MockEnvironment.builder()
+                        .setTaskStateManager(getTestTaskStateManager())
+                        .setJobID(jobID)
+                        .build();
         mockEnvironment.setCheckpointStorageAccess(getCheckpointStorageAccess());
         return mockEnvironment;
     }
@@ -113,6 +119,8 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
 
     protected abstract ConfigurableStateBackend getStateBackend() throws Exception;
 
+    protected abstract void restoreJob() throws Exception;
+
     protected CheckpointStorage getCheckpointStorage() throws Exception {
         ConfigurableStateBackend stateBackend = getStateBackend();
         if (stateBackend instanceof CheckpointStorage) {
@@ -126,14 +134,14 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
     }
 
     protected CheckpointStorageAccess getCheckpointStorageAccess() throws Exception {
-        return getCheckpointStorage().createCheckpointStorage(new JobID());
+        return getCheckpointStorage().createCheckpointStorage(jobID);
     }
 
     protected CheckpointStreamFactory createStreamFactory() throws Exception {
         if (checkpointStreamFactory == null) {
             checkpointStreamFactory =
                     getCheckpointStorage()
-                            .createCheckpointStorage(new JobID())
+                            .createCheckpointStorage(jobID)
                             .resolveCheckpointStorageLocation(
                                     1L, CheckpointStorageLocationReference.getDefault());
         }
@@ -142,7 +150,11 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
     }
 
     protected <K> AsyncKeyedStateBackend<K> createAsyncKeyedBackend(
-            TypeSerializer<K> keySerializer, KeyGroupRange keyGroupRange, Environment env)
+            int subtaskId,
+            int parallelism,
+            TypeSerializer<K> keySerializer,
+            KeyGroupRange keyGroupRange,
+            Environment env)
             throws Exception {
 
         env.setCheckpointStorageAccess(getCheckpointStorageAccess());
@@ -151,8 +163,8 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                 .createAsyncKeyedStateBackend(
                         new KeyedStateBackendParametersImpl<>(
                                 env,
-                                new JobID(),
-                                "test_op",
+                                jobID,
+                                String.format("test_op_%d_%d", subtaskId, parallelism),
                                 keySerializer,
                                 keyGroupRange.getNumberOfKeyGroups(),
                                 keyGroupRange,
@@ -170,6 +182,8 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
     }
 
     protected <K> AsyncKeyedStateBackend<K> restoreAsyncKeyedBackend(
+            int subtaskId,
+            int parallelism,
             TypeSerializer<K> keySerializer,
             KeyGroupRange keyGroupRange,
             List<KeyedStateHandle> state,
@@ -180,8 +194,8 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                 .createAsyncKeyedStateBackend(
                         new KeyedStateBackendParametersImpl<>(
                                 env,
-                                new JobID(),
-                                "test_op",
+                                jobID,
+                                String.format("test_op_%d_%d", subtaskId, parallelism),
                                 keySerializer,
                                 keyGroupRange.getNumberOfKeyGroups(),
                                 keyGroupRange,
@@ -220,6 +234,8 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
         try {
             backend =
                     createAsyncKeyedBackend(
+                            0,
+                            1,
                             IntSerializer.INSTANCE,
                             new KeyGroupRange(0, jobMaxParallelism - 1),
                             env);
@@ -233,6 +249,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                             aecBatchSize,
                             aecBufferTimeout,
                             aecMaxInFlightRecords,
+                            null,
                             null);
             backend.setup(aec);
 
@@ -305,10 +322,13 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
         assertThat(stateHandle).isNotNull();
 
         backend = null;
+        restoreJob();
 
         try {
             backend =
                     restoreAsyncKeyedBackend(
+                            0,
+                            1,
                             IntSerializer.INSTANCE,
                             new KeyGroupRange(0, jobMaxParallelism - 1),
                             Collections.singletonList(stateHandle),
@@ -323,6 +343,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                             aecBatchSize,
                             aecBufferTimeout,
                             aecMaxInFlightRecords,
+                            null,
                             null);
             backend.setup(aec);
 
@@ -398,7 +419,8 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                             maxParallelism * i / sourceParallelism,
                             maxParallelism * (i + 1) / sourceParallelism - 1);
             AsyncKeyedStateBackend<Integer> backend =
-                    createAsyncKeyedBackend(IntSerializer.INSTANCE, range, env);
+                    createAsyncKeyedBackend(
+                            i, sourceParallelism, IntSerializer.INSTANCE, range, env);
             aec =
                     new AsyncExecutionController<>(
                             new SyncMailboxExecutor(),
@@ -409,6 +431,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                             aecBatchSize,
                             aecBufferTimeout,
                             aecMaxInFlightRecords,
+                            null,
                             null);
             backend.setup(aec);
 
@@ -422,7 +445,6 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                     int keyInKeyGroup =
                             getKeyInKeyGroup(random, maxParallelism, KeyGroupRange.of(j, j));
                     RecordContext recordContext = aec.buildContext(keyInKeyGroup, keyInKeyGroup);
-                    ;
                     recordContext.retain();
                     aec.setCurrentContext(recordContext);
                     keyInKeyGroups.add(keyInKeyGroup);
@@ -465,6 +487,8 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
         for (int i = 0; i < targetParallelism; ++i) {
             AsyncKeyedStateBackend<Integer> backend =
                     restoreAsyncKeyedBackend(
+                            i,
+                            targetParallelism,
                             IntSerializer.INSTANCE,
                             keyGroupRangesRestore.get(i),
                             keyGroupStatesAfterDistribute.get(i),
@@ -479,6 +503,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                             aecBatchSize,
                             aecBufferTimeout,
                             aecMaxInFlightRecords,
+                            null,
                             null);
             backend.setup(aec);
 
@@ -517,7 +542,8 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
     void testKeyGroupedInternalPriorityQueue(boolean addAll) throws Exception {
         String fieldName = "key-grouped-priority-queue";
         AsyncKeyedStateBackend<Integer> backend =
-                createAsyncKeyedBackend(IntSerializer.INSTANCE, new KeyGroupRange(0, 127), env);
+                createAsyncKeyedBackend(
+                        0, 1, IntSerializer.INSTANCE, new KeyGroupRange(0, 127), env);
         try {
             KeyGroupedInternalPriorityQueue<TestType> priorityQueue =
                     backend.create(fieldName, new TestType.V1TestTypeSerializer());
@@ -573,7 +599,8 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
         TestAsyncFrameworkExceptionHandler testExceptionHandler =
                 new TestAsyncFrameworkExceptionHandler();
         AsyncKeyedStateBackend<Long> backend =
-                createAsyncKeyedBackend(LongSerializer.INSTANCE, new KeyGroupRange(0, 127), env);
+                createAsyncKeyedBackend(
+                        0, 1, LongSerializer.INSTANCE, new KeyGroupRange(0, 127), env);
         AsyncExecutionController<Long> aec =
                 new AsyncExecutionController<>(
                         new SyncMailboxExecutor(),
@@ -584,6 +611,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                         1,
                         -1,
                         1,
+                        null,
                         null);
         backend.setup(aec);
         try {

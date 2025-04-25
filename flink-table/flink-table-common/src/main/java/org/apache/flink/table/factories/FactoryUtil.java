@@ -53,7 +53,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -69,7 +68,6 @@ import java.util.stream.StreamSupport;
 import static org.apache.flink.configuration.ConfigurationUtils.canBePrefixMap;
 import static org.apache.flink.configuration.ConfigurationUtils.filterPrefixMapKey;
 import static org.apache.flink.configuration.GlobalConfiguration.HIDDEN_CONTENT;
-import static org.apache.flink.table.factories.ManagedTableFactory.DEFAULT_IDENTIFIER;
 import static org.apache.flink.table.module.CommonModuleOptions.MODULE_TYPE;
 
 /** Utility for working with {@link Factory}s. */
@@ -428,41 +426,32 @@ public final class FactoryUtil {
                             MODULE_TYPE.key(), options.get(MODULE_TYPE.key())));
         }
 
+        final DefaultModuleContext discoveryContext =
+                new DefaultModuleContext(options, configuration, classLoader);
         try {
-            final Map<String, String> optionsWithType = new HashMap<>(options);
-            optionsWithType.put(MODULE_TYPE.key(), moduleName);
+            final ModuleFactory factory =
+                    discoverFactory(
+                            ((ModuleFactory.Context) discoveryContext).getClassLoader(),
+                            ModuleFactory.class,
+                            moduleName);
 
-            final ModuleFactory legacyFactory =
-                    TableFactoryService.find(ModuleFactory.class, optionsWithType, classLoader);
-            return legacyFactory.createModule(optionsWithType);
-        } catch (NoMatchingTableFactoryException e) {
-            final DefaultModuleContext discoveryContext =
+            final DefaultModuleContext context =
                     new DefaultModuleContext(options, configuration, classLoader);
-            try {
-                final ModuleFactory factory =
-                        discoverFactory(
-                                ((ModuleFactory.Context) discoveryContext).getClassLoader(),
-                                ModuleFactory.class,
-                                moduleName);
-
-                final DefaultModuleContext context =
-                        new DefaultModuleContext(options, configuration, classLoader);
-                return factory.createModule(context);
-            } catch (Throwable t) {
-                throw new ValidationException(
-                        String.format(
-                                "Unable to create module '%s'.%n%nModule options are:%n%s",
-                                moduleName,
-                                options.entrySet().stream()
-                                        .map(
-                                                optionEntry ->
-                                                        stringifyOption(
-                                                                optionEntry.getKey(),
-                                                                optionEntry.getValue()))
-                                        .sorted()
-                                        .collect(Collectors.joining("\n"))),
-                        t);
-            }
+            return factory.createModule(context);
+        } catch (Throwable t) {
+            throw new ValidationException(
+                    String.format(
+                            "Unable to create module '%s'.%n%nModule options are:%n%s",
+                            moduleName,
+                            options.entrySet().stream()
+                                    .map(
+                                            optionEntry ->
+                                                    stringifyOption(
+                                                            optionEntry.getKey(),
+                                                            optionEntry.getValue()))
+                                    .sorted()
+                                    .collect(Collectors.joining("\n"))),
+                    t);
         }
     }
 
@@ -507,7 +496,6 @@ public final class FactoryUtil {
                             factoryClass.getName(),
                             foundFactories.stream()
                                     .map(Factory::factoryIdentifier)
-                                    .filter(identifier -> !DEFAULT_IDENTIFIER.equals(identifier))
                                     .distinct()
                                     .sorted()
                                     .collect(Collectors.joining("\n"))));
@@ -658,7 +646,10 @@ public final class FactoryUtil {
             Class<T> factoryClass, DynamicTableFactory.Context context) {
         final String connectorOption = context.getCatalogTable().getOptions().get(CONNECTOR.key());
         if (connectorOption == null) {
-            return discoverManagedTableFactory(context.getClassLoader(), factoryClass);
+            throw new ValidationException(
+                    String.format(
+                            "Table options do not contain an option key '%s' for discovering a connector.",
+                            CONNECTOR.key()));
         }
         try {
             return discoverFactory(context.getClassLoader(), factoryClass, connectorOption);
@@ -720,41 +711,6 @@ public final class FactoryUtil {
                             sourceFactoryClass.getName(),
                             sinkFactoryClass.getName()));
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    static <T extends DynamicTableFactory> T discoverManagedTableFactory(
-            ClassLoader classLoader, Class<T> implementClass) {
-        final List<Factory> factories = discoverFactories(classLoader);
-
-        final List<Factory> foundFactories =
-                factories.stream()
-                        .filter(f -> ManagedTableFactory.class.isAssignableFrom(f.getClass()))
-                        .filter(f -> implementClass.isAssignableFrom(f.getClass()))
-                        .collect(Collectors.toList());
-
-        if (foundFactories.isEmpty()) {
-            throw new ValidationException(
-                    String.format(
-                            "Table options do not contain an option key 'connector' for discovering a connector. "
-                                    + "Therefore, Flink assumes a managed table. However, a managed table factory "
-                                    + "that implements %s is not in the classpath.",
-                            implementClass.getName()));
-        }
-
-        if (foundFactories.size() > 1) {
-            throw new ValidationException(
-                    String.format(
-                            "Multiple factories for managed table found in the classpath.\n\n"
-                                    + "Ambiguous factory classes are:\n\n"
-                                    + "%s",
-                            foundFactories.stream()
-                                    .map(f -> f.getClass().getName())
-                                    .sorted()
-                                    .collect(Collectors.joining("\n"))));
-        }
-
-        return (T) foundFactories.get(0);
     }
 
     static List<Factory> discoverFactories(ClassLoader classLoader) {

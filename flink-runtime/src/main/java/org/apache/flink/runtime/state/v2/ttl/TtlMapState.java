@@ -24,6 +24,8 @@ import org.apache.flink.runtime.state.ttl.TtlStateContext;
 import org.apache.flink.runtime.state.ttl.TtlUtils;
 import org.apache.flink.runtime.state.ttl.TtlValue;
 import org.apache.flink.runtime.state.v2.internal.InternalMapState;
+import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import javax.annotation.Nonnull;
 
@@ -34,7 +36,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -243,24 +244,26 @@ class TtlMapState<K, N, UK, UV>
 
         @Override
         public <U> StateFuture<Collection<U>> onNext(
-                Function<R, StateFuture<? extends U>> iterating) {
-            Function<Map.Entry<UK, TtlValue<UV>>, StateFuture<? extends U>> ttlIterating =
-                    (item) -> {
-                        UV value = getElementWithTtlCheck(item.getValue());
-                        if (value == null) {
-                            return null;
-                        }
-                        R result =
-                                resultMapper.apply(
-                                        new AbstractMap.SimpleEntry<>(item.getKey(), value));
-                        return iterating.apply(result);
-                    };
+                FunctionWithException<R, StateFuture<? extends U>, Exception> iterating) {
+            FunctionWithException<Map.Entry<UK, TtlValue<UV>>, StateFuture<? extends U>, Exception>
+                    ttlIterating =
+                            (item) -> {
+                                UV value = getElementWithTtlCheck(item.getValue());
+                                if (value == null) {
+                                    return null;
+                                }
+                                R result =
+                                        resultMapper.apply(
+                                                new AbstractMap.SimpleEntry<>(
+                                                        item.getKey(), value));
+                                return iterating.apply(result);
+                            };
             return originalIterator.onNext(ttlIterating);
         }
 
         @Override
-        public StateFuture<Void> onNext(Consumer<R> iterating) {
-            Consumer<Map.Entry<UK, TtlValue<UV>>> ttlIterating =
+        public StateFuture<Void> onNext(ThrowingConsumer<R, Exception> iterating) {
+            ThrowingConsumer<Map.Entry<UK, TtlValue<UV>>, Exception> ttlIterating =
                     (item) -> {
                         UV value = getElementWithTtlCheck(item.getValue());
                         if (value == null) {

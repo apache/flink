@@ -259,11 +259,6 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
         }
     }
 
-    @Override
-    public boolean supportsManagedTable() {
-        return true;
-    }
-
     // ------ tables and views ------
 
     @Override

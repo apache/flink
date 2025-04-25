@@ -19,7 +19,13 @@
 package org.apache.flink.runtime.state.v2.ttl;
 
 import org.apache.flink.api.common.state.StateTtlConfig;
+import org.apache.flink.api.common.state.v2.AggregatingStateDescriptor;
+import org.apache.flink.api.common.state.v2.ListStateDescriptor;
+import org.apache.flink.api.common.state.v2.MapStateDescriptor;
+import org.apache.flink.api.common.state.v2.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.v2.State;
+import org.apache.flink.api.common.state.v2.StateDescriptor;
+import org.apache.flink.api.common.state.v2.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.CompositeSerializer;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -31,12 +37,6 @@ import org.apache.flink.runtime.state.ttl.TtlReduceFunction;
 import org.apache.flink.runtime.state.ttl.TtlStateContext;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.state.ttl.TtlValue;
-import org.apache.flink.runtime.state.v2.AggregatingStateDescriptor;
-import org.apache.flink.runtime.state.v2.ListStateDescriptor;
-import org.apache.flink.runtime.state.v2.MapStateDescriptor;
-import org.apache.flink.runtime.state.v2.ReducingStateDescriptor;
-import org.apache.flink.runtime.state.v2.StateDescriptor;
-import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SupplierWithException;

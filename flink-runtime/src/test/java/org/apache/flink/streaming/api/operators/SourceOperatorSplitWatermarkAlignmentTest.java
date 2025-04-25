@@ -19,6 +19,7 @@ limitations under the License.
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
@@ -28,8 +29,15 @@ import org.apache.flink.api.connector.source.mocks.MockSourceReader.WaitingForSp
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Metric;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
+import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.operators.coordination.MockOperatorEventGateway;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
@@ -39,6 +47,7 @@ import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.streaming.api.operators.source.CollectingDataOutput;
 import org.apache.flink.streaming.api.operators.source.TestingSourceOperator;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
@@ -54,8 +63,14 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit test for split alignment in {@link SourceOperator}. */
@@ -303,13 +318,217 @@ class SourceOperatorSplitWatermarkAlignmentTest {
         assertThat(sourceReader.getPausedSplits()).isEmpty();
     }
 
+    @Test
+    void testMetricGroupIsClosedForFinishedSplitAndMetricsAreUnregistered() throws Exception {
+        long idleTimeout = 100;
+        Collection<String> expectedMetricNames =
+                Arrays.asList(
+                        MetricNames.SPLIT_IDLE_TIME,
+                        MetricNames.ACC_SPLIT_IDLE_TIME,
+                        MetricNames.SPLIT_ACTIVE_TIME,
+                        MetricNames.ACC_SPLIT_ACTIVE_TIME,
+                        MetricNames.SPLIT_PAUSED_TIME,
+                        MetricNames.ACC_SPLIT_PAUSED_TIME,
+                        MetricNames.SPLIT_CURRENT_WATERMARK);
+        final Map<String, Metric> registry = new ConcurrentHashMap<>();
+        MockSourceReader sourceReader =
+                new MockSourceReader(WaitingForSplits.DO_NOT_WAIT_FOR_SPLITS, false, true);
+        TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
+        SourceOperator<Integer, MockSourceSplit> operator =
+                createAndOpenSourceOperatorWithIdlenessAndRegistry(
+                        sourceReader, processingTimeService, idleTimeout, registry);
+
+        MockSourceSplit split0 = new MockSourceSplit(0, 0, 1);
+        split0.addRecord(5);
+
+        operator.handleOperatorEvent(
+                new AddSplitEvent<>(Arrays.asList(split0), new MockSourceSplitSerializer()));
+        CollectingDataOutput<Integer> dataOutput = new CollectingDataOutput<>();
+        AbstractMetricGroup metricGroup =
+                (AbstractMetricGroup)
+                        operator.getSplitMetricGroup(split0.splitId())
+                                .getSplitWatermarkMetricGroup();
+        expectedMetricNames.forEach(metric -> assertThat(registry.containsKey(metric)).isTrue());
+        while (operator.emitNext(dataOutput) == DataInputStatus.MORE_AVAILABLE) {
+            // split0 emits records until finished/released
+        }
+        assertThat(metricGroup.isClosed()).isTrue();
+        expectedMetricNames.forEach(metric -> assertThat(registry.containsKey(metric)).isFalse());
+    }
+
+    @Test
+    void testStateReportingForMultiSplitWatermarkAlignmentAndIdleness() throws Exception {
+        long idleTimeout = 100;
+        MockSourceReader sourceReader =
+                new MockSourceReader(WaitingForSplits.DO_NOT_WAIT_FOR_SPLITS, false, true);
+        TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
+        SourceOperator<Integer, MockSourceSplit> operator =
+                createAndOpenSourceOperatorWithIdleness(
+                        sourceReader, processingTimeService, idleTimeout);
+
+        MockSourceSplit split0 = new MockSourceSplit(0, 0, 10);
+        MockSourceSplit split1 = new MockSourceSplit(1, 10, 20);
+        int allowedWatermark4 = 4;
+        int allowedWatermark7 = 7;
+        int allowedWatermark10 = 10;
+        split0.addRecord(5);
+        split1.addRecord(3);
+        split0.addRecord(6);
+        split1.addRecord(8);
+        operator.handleOperatorEvent(
+                new AddSplitEvent<>(
+                        Arrays.asList(split0, split1), new MockSourceSplitSerializer()));
+        CollectingDataOutput<Integer> dataOutput = new CollectingDataOutput<>();
+
+        // at this point, both splits are neither paused nor idle
+        assertThat(operator.getSplitMetricGroup(split0.splitId()).isActive()).isTrue();
+        assertThat(operator.getSplitMetricGroup(split1.splitId()).isActive()).isTrue();
+
+        operator.emitNext(dataOutput); // split0 emits 5
+        operator.emitNext(dataOutput); // split1 emits 3
+
+        operator.handleOperatorEvent(
+                new WatermarkAlignmentEvent(allowedWatermark4)); // blocks split0
+        assertThat(operator.getSplitMetricGroup(split0.splitId()).isPaused()).isTrue();
+        assertThat(operator.getSplitMetricGroup(split1.splitId()).isActive()).isTrue();
+
+        processingTimeService.advance(idleTimeout - 1);
+        operator.emitNext(dataOutput); // split0 emits 6
+        for (int i = 0; i < 10; i++) {
+            processingTimeService.advance(idleTimeout); // split1 eventually turns idle
+        }
+        assertThat(operator.getSplitMetricGroup(split0.splitId()).isPaused()).isTrue();
+        assertThat(operator.getSplitMetricGroup(split1.splitId()).isIdle()).isTrue();
+
+        operator.handleOperatorEvent(
+                new WatermarkAlignmentEvent(allowedWatermark7)); // unblocks split0
+        assertThat(operator.getSplitMetricGroup(split0.splitId()).isActive()).isTrue();
+        assertThat(operator.getSplitMetricGroup(split1.splitId()).isIdle()).isTrue();
+
+        operator.emitNext(dataOutput); // split1 emits 8
+        assertThat(operator.getSplitMetricGroup(split1.splitId()).isPaused()).isTrue();
+
+        operator.handleOperatorEvent(
+                new WatermarkAlignmentEvent(allowedWatermark10)); // unblocks split0
+        assertThat(operator.getSplitMetricGroup(split0.splitId()).isActive()).isTrue();
+        assertThat(operator.getSplitMetricGroup(split1.splitId()).isActive()).isTrue();
+    }
+
+    @Test
+    void testStateReportingForSingleSplitWatermarkAlignmentAndIdleness() throws Exception {
+        long idleTimeout = 100;
+        MockSourceReader sourceReader =
+                new MockSourceReader(WaitingForSplits.DO_NOT_WAIT_FOR_SPLITS, true, true);
+        TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
+        SourceOperator<Integer, MockSourceSplit> operator =
+                createAndOpenSourceOperatorWithIdleness(
+                        sourceReader, processingTimeService, idleTimeout);
+
+        MockSourceSplit split0 = new MockSourceSplit(0, 0, 10);
+        int allowedWatermark4 = 4;
+        int allowedWatermark5 = 5;
+        int allowedWatermark7 = 7;
+        split0.addRecord(5);
+        split0.addRecord(6);
+        split0.addRecord(7);
+        operator.handleOperatorEvent(
+                new AddSplitEvent<>(Arrays.asList(split0), new MockSourceSplitSerializer()));
+        CollectingDataOutput<Integer> actualOutput = new CollectingDataOutput<>();
+
+        operator.emitNext(actualOutput);
+        assertOutput(actualOutput, Arrays.asList(5));
+        assertThat(operator.getSplitMetricGroup(split0.splitId()).isActive()).isTrue();
+
+        // testing transition active -> paused
+        operator.handleOperatorEvent(new WatermarkAlignmentEvent(allowedWatermark4));
+        assertThat(operator.getSplitMetricGroup(split0.splitId()).isPaused()).isTrue();
+
+        // Testing the split doesn't become idle after idle timeout if paused
+        for (int i = 0; i < 10; i++) {
+            processingTimeService.advance(idleTimeout);
+        }
+        assertThat(operator.getSplitMetricGroup(split0.splitId()).isIdle()).isFalse();
+        assertThat(operator.getSplitMetricGroup(split0.splitId()).isPaused()).isTrue();
+
+        // testing transition paused -> active
+        operator.handleOperatorEvent(
+                new WatermarkAlignmentEvent(allowedWatermark5)); // unblocks split0
+        assertThat(operator.getSplitMetricGroup(split0.splitId()).isActive()).isTrue();
+
+        // testing transition active -> idle
+        for (int i = 0; i < 10; i++) {
+            processingTimeService.advance(idleTimeout);
+        }
+        assertThat(operator.getSplitMetricGroup(split0.splitId()).isIdle()).isTrue();
+
+        // testing transition idle -> paused
+        operator.emitNext(actualOutput);
+        assertOutput(actualOutput, Arrays.asList(5, 6));
+        assertThat(operator.getSplitMetricGroup(split0.splitId()).isPaused()).isTrue();
+        assertThat(operator.getSplitMetricGroup(split0.splitId()).isIdle()).isFalse();
+
+        operator.handleOperatorEvent(
+                new WatermarkAlignmentEvent(allowedWatermark7)); // unblocks split0
+        assertThat(operator.getSplitMetricGroup(split0.splitId()).isActive()).isTrue();
+
+        // testing transition idle -> active
+        for (int i = 0; i < 10; i++) {
+            processingTimeService.advance(idleTimeout);
+        }
+        assertThat(operator.getSplitMetricGroup(split0.splitId()).isIdle()).isTrue();
+        operator.emitNext(actualOutput);
+        assertOutput(actualOutput, Arrays.asList(5, 6, 7));
+        assertThat(operator.getSplitMetricGroup(split0.splitId()).isActive()).isTrue();
+    }
+
+    private void assertOutput(
+            CollectingDataOutput<Integer> actualOutput, List<Integer> expectedOutput) {
+        assertThat(
+                        actualOutput.getEvents().stream()
+                                .filter(o -> o instanceof StreamRecord)
+                                .mapToInt(object -> ((StreamRecord<Integer>) object).getValue())
+                                .boxed()
+                                .collect(Collectors.toList()))
+                .containsExactly(expectedOutput.toArray(new Integer[0]));
+    }
+
     private SourceOperator<Integer, MockSourceSplit> createAndOpenSourceOperatorWithIdleness(
             MockSourceReader sourceReader,
             TestProcessingTimeService processingTimeService,
             long idleTimeout)
             throws Exception {
 
-        Environment env = getTestingEnvironment();
+        return createAndOpenSourceOperatorWithIdlenessAndEnv(
+                sourceReader, processingTimeService, idleTimeout, getTestingEnvironment());
+    }
+
+    private SourceOperator<Integer, MockSourceSplit>
+            createAndOpenSourceOperatorWithIdlenessAndRegistry(
+                    MockSourceReader sourceReader,
+                    TestProcessingTimeService processingTimeService,
+                    long idleTimeout,
+                    Map<String, Metric> registry)
+                    throws Exception {
+
+        StreamMockEnvironment env = getTestingEnvironment();
+        TaskMetricGroup metricGroup =
+                TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                                new TestMetricRegistry(registry),
+                                "localhost",
+                                ResourceID.generate())
+                        .addJob(new JobID(), "jobName")
+                        .addTask(createExecutionAttemptId(), "test");
+        env.setTaskMetricGroup(metricGroup);
+        return createAndOpenSourceOperatorWithIdlenessAndEnv(
+                sourceReader, processingTimeService, idleTimeout, env);
+    }
+
+    private SourceOperator<Integer, MockSourceSplit> createAndOpenSourceOperatorWithIdlenessAndEnv(
+            MockSourceReader sourceReader,
+            TestProcessingTimeService processingTimeService,
+            long idleTimeout,
+            Environment env)
+            throws Exception {
         SourceOperator<Integer, MockSourceSplit> operator =
                 new TestingSourceOperator<>(
                         new StreamOperatorParameters<>(
@@ -335,7 +554,7 @@ class SourceOperatorSplitWatermarkAlignmentTest {
         return operator;
     }
 
-    private Environment getTestingEnvironment() {
+    private StreamMockEnvironment getTestingEnvironment() {
         return new StreamMockEnvironment(
                 new Configuration(),
                 new Configuration(),
@@ -388,6 +607,28 @@ class SourceOperatorSplitWatermarkAlignmentTest {
             super(
                     event -> event instanceof org.apache.flink.streaming.api.watermark.Watermark,
                     "any watermark");
+        }
+    }
+
+    /** The metric registry for storing the registered metrics to verify in tests. */
+    static class TestMetricRegistry extends NoOpMetricRegistry {
+        private final Map<String, Metric> metrics;
+
+        TestMetricRegistry(Map<String, Metric> metrics) {
+            super();
+            this.metrics = metrics;
+        }
+
+        @Override
+        public void register(Metric metric, String metricName, AbstractMetricGroup<?> group) {
+            metrics.put(metricName, metric);
+        }
+
+        @Override
+        public void unregister(Metric metric, String metricName, AbstractMetricGroup<?> group) {
+            if (metrics.get(metricName) != null) {
+                metrics.remove(metricName);
+            }
         }
     }
 }

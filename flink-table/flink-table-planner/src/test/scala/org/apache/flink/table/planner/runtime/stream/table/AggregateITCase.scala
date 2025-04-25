@@ -17,12 +17,12 @@
  */
 package org.apache.flink.table.planner.runtime.stream.table
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.DataTypes.DECIMAL
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.legacy.api.Types
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, DataViewTestAgg, WeightedAvg}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
@@ -38,6 +38,7 @@ import org.junit.jupiter.api.extension.ExtendWith
 
 import java.time.Duration
 
+import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 /** Tests of groupby (without window) aggregations */
@@ -396,14 +397,21 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .groupBy('c)
       .select('c, 'b.max)
 
-    val tableSink = new TestingUpsertTableSink(Array(0))
-      .configure(Array[String]("c", "bMax"), Array[TypeInformation[_]](Types.STRING, Types.LONG))
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "testSink",
+      List("c", "bMax"),
+      List(DataTypes.STRING, DataTypes.BIGINT),
+      ChangelogMode.upsert(),
+      List("c"))
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("testSink", tableSink)
     t.executeInsert("testSink").await()
 
-    val expected = List("A,1", "B,2", "C,3")
-    assertThat(tableSink.getUpsertResults.sorted).isEqualTo(expected.sorted)
+    val expected = List("+I[A, 1]", "+I[B, 2]", "+I[C, 3]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("testSink")
+        .sorted).isEqualTo(expected)
   }
 
   @TestTemplate

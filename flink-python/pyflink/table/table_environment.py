@@ -33,7 +33,9 @@ from pyflink.java_gateway import get_gateway
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table import Table, EnvironmentSettings, Expression, ExplainDetail, \
     Module, ModuleEntry, Schema, ChangelogMode
-from pyflink.table.catalog import Catalog
+from pyflink.table.catalog import Catalog, CatalogDescriptor
+from pyflink.table.compiled_plan import CompiledPlan
+from pyflink.table.plan_reference import PlanReference
 from pyflink.table.serializers import ArrowSerializer
 from pyflink.table.statement_set import StatementSet
 from pyflink.table.table_config import TableConfig
@@ -116,6 +118,17 @@ class TableEnvironment(object):
 
         j_tenv = gateway.jvm.TableEnvironment.create(environment_settings._j_environment_settings)
         return TableEnvironment(j_tenv)
+
+    def create_catalog(self, catalog_name: str, catalog_descriptor: CatalogDescriptor):
+        """
+        Creates a :class:`~pyflink.table.catalog.Catalog` using the provided
+        :class:`~pyflink.table.catalog.CatalogDescriptor`. All table registered in the
+        :class:`~pyflink.table.catalog.Catalog` can be accessed.
+
+         :param catalog_name: The name under which the catalog will be created.
+         :param catalog_descriptor: The catalog descriptor for creating catalog.
+        """
+        self._j_tenv.createCatalog(catalog_name, catalog_descriptor._j_catalog_descriptor)
 
     def register_catalog(self, catalog_name: str, catalog: Catalog):
         """
@@ -1398,6 +1411,68 @@ class TableEnvironment(object):
         finally:
             os.unlink(temp_file.name)
 
+    def load_plan(self, plan_reference: PlanReference) -> CompiledPlan:
+        """
+        Loads a plan from a :class:`~pyflink.table.PlanReference` into a
+        :class:`~pyflink.table.CompiledPlan`.
+
+        Compiled plans can be persisted and reloaded across Flink versions. They describe static
+        pipelines to ensure backwards compatibility and enable stateful streaming job upgrades. See
+        :class:`~pyflink.table.CompiledPlan` and the website documentation for more information.
+
+        This method will parse the input reference and will validate the plan. The returned
+        instance can be executed via :func:`~pyflink.table.CompiledPlan.execute`.
+
+        .. note::
+            The compiled plan feature is experimental in batch mode.
+
+        :raises TableException: if the plan cannot be loaded from the filesystem, or if the plan
+            is invalid.
+
+        .. versionadded:: 2.1.0
+        """
+        return CompiledPlan(
+            j_compiled_plan=self._j_tenv.loadPlan(plan_reference._j_plan_reference),
+            t_env=self._j_tenv
+        )
+
+    def compile_plan_sql(self, stmt: str) -> CompiledPlan:
+        """
+        Compiles a SQL DML statement into a :class:`~pyflink.table.CompiledPlan`.
+
+        Compiled plans can be persisted and reloaded across Flink versions. They describe static
+        pipelines to ensure backwards compatibility and enable stateful streaming job upgrades. See
+        :class:`~pyflink.table.CompiledPlan` and the website documentation for more information.
+
+        .. note::
+            Only ``INSERT INTO`` is supported at the moment.
+
+        .. note::
+            The compiled plan feature is experimental in batch mode.
+
+        .. seealso::
+            :func:`~pyflink.table.TableEnvironment.load_plan`
+            :func:`~pyflink.table.CompiledPlan.execute`
+
+        :raises TableException: if the SQL statement is invalid or if the plan cannot be
+            persisted.
+
+        .. versionadded:: 2.1.0
+        """
+        return CompiledPlan(j_compiled_plan=self._j_tenv.compilePlanSql(stmt), t_env=self._j_tenv)
+
+    def execute_plan(self, plan_reference: PlanReference) -> TableResult:
+        """
+        Shorthand for ``tEnv.load_plan(plan_reference).execute()``.
+
+        .. seealso::
+            :func:`~pyflink.table.TableEnvironment.load_plan`
+            :func:`~pyflink.table.CompiledPlan.execute`
+
+        .. versionadded:: 2.1.0
+        """
+        return self.load_plan(plan_reference).execute()
+
     def _set_python_executable_for_local_executor(self):
         jvm = get_gateway().jvm
         j_config = get_j_env_configuration(self._get_j_env())
@@ -1411,7 +1486,7 @@ class TableEnvironment(object):
         if jar_urls:
             jvm = get_gateway().jvm
             jar_urls_list = []
-            parsed_jar_urls = Configuration.parse_jars_value(jar_urls, jvm)
+            parsed_jar_urls = Configuration.parse_list_value(jar_urls)
             url_strings = [
                 jvm.java.net.URL(url).toString() if url else ""
                 for url in parsed_jar_urls
@@ -1419,9 +1494,8 @@ class TableEnvironment(object):
             self._parse_urls(url_strings, jar_urls_list)
 
             j_configuration = get_j_env_configuration(self._get_j_env())
-            parsed_jar_urls = Configuration.parse_jars_value(
-                j_configuration.getString(config_key, ""),
-                jvm
+            parsed_jar_urls = Configuration.parse_list_value(
+                j_configuration.getString(config_key, "")
             )
             self._parse_urls(parsed_jar_urls, jar_urls_list)
 

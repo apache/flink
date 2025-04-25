@@ -150,7 +150,6 @@ class TableSinkITCase extends BatchTestBase {
 
   @Test
   def testCreateTableAsSelectWithoutOptions(): Unit = {
-    // TODO CTAS supports ManagedTable
     assertThatThrownBy(
       () =>
         tEnv
@@ -160,7 +159,8 @@ class TableSinkITCase extends BatchTestBase {
                         | SELECT * FROM MyTable
                         |""".stripMargin)
           .await())
-      .hasRootCauseMessage("\nExpecting actual not to be null")
+      .hasRootCauseMessage(
+        "Table options do not contain an option key 'connector' for discovering a connector.")
   }
 
   @Test

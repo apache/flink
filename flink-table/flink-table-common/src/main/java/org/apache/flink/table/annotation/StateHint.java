@@ -40,12 +40,12 @@ import java.lang.annotation.Target;
  * support a single state entry at the beginning of an accumulate()/retract() method (i.e. the
  * accumulator).
  *
- * <p>For example, {@code @StateHint(name = "count", type = @DataTypeHint("BIGINT"))} is a state
- * entry with the data type BIGINT named "count".
+ * <p>Because state needs to be mutable for read and write access, only row or structured types
+ * qualify as a data type for state entries. For example, {@code @StateHint(name = "count", type
+ * = @DataTypeHint("ROW<count BIGINT>"))} is a state entry with the data type BIGINT named "count".
  *
- * <p>Note: Usually, a state entry is partitioned by a key and can not be accessed globally. The
- * partitioning (or whether it is only a single partition) is defined by the corresponding function
- * call.
+ * <p>Note: A state entry is partitioned by a key and can not be accessed globally. The partitioning
+ * (or a single partition in case of no partitioning) is defined by the corresponding function call.
  *
  * @see FunctionHint
  */
@@ -70,4 +70,27 @@ public @interface StateHint {
      * or provide hints for the reflection-based extraction of the data type.
      */
     DataTypeHint type() default @DataTypeHint();
+
+    /**
+     * The time-to-live (TTL) duration that automatically cleans up the state entry.
+     *
+     * <p>It specifies a minimum time interval for how long idle state (i.e., state which was not
+     * updated by a create or write operation) will be retained. State will never be cleared until
+     * it was idle for less than the minimum time, and will be cleared at some time after it was
+     * idle.
+     *
+     * <p>Use this for being able to efficiently manage an ever-growing state size or for complying
+     * with data protection requirements.
+     *
+     * <p>The cleanup is based on processing time, which effectively corresponds to the wall clock
+     * time as defined by {@link System#currentTimeMillis()}).
+     *
+     * <p>The provided string must use Flink's duration syntax (e.g., "3 days", "45 min", "3 hours",
+     * "60 s"). If no unit is specified, the value is interpreted as milliseconds. The TTL setting
+     * on a state entry has higher precedence than the global state TTL configuration for the entire
+     * pipeline.
+     *
+     * @see org.apache.flink.util.TimeUtils#parseDuration(String)
+     */
+    String ttl() default "";
 }

@@ -45,13 +45,12 @@ public class ScriptRunner {
     @VisibleForTesting
     public static void run(String script, OutputStream outputStream) throws Exception {
         DefaultContext defaultContext =
-                DefaultContext.load(
+                new DefaultContext(
                         (Configuration)
                                 StreamExecutionEnvironment.getExecutionEnvironment(
                                                 new Configuration())
                                         .getConfiguration(),
-                        Collections.emptyList(),
-                        false);
+                        Collections.emptyList());
         SessionContext sessionContext =
                 SessionContext.create(
                         defaultContext,

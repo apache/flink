@@ -24,6 +24,7 @@ import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.process.FlinkMetricContainer;
 import org.apache.flink.python.util.ProtoUtils;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.OperatorStateBackend;
@@ -69,6 +70,7 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
     private final List<FlinkFnApi.UserDefinedDataStreamFunction> userDefinedDataStreamFunctions;
 
     public BeamDataStreamPythonFunctionRunner(
+            Environment environment,
             String taskName,
             ProcessPythonEnvironmentManager environmentManager,
             String headOperatorFunctionUrn,
@@ -86,6 +88,7 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
             @Nullable FlinkFnApi.CoderInfoDescriptor timerCoderDescriptor,
             Map<String, FlinkFnApi.CoderInfoDescriptor> sideOutputCoderDescriptors) {
         super(
+                environment,
                 taskName,
                 environmentManager,
                 flinkMetricContainer,
@@ -179,7 +182,7 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
                                 RunnerApi.FunctionSpec.newBuilder()
                                         .setUrn(STATELESS_FUNCTION_URN)
                                         .setPayload(
-                                                org.apache.beam.vendor.grpc.v1p48p1.com.google
+                                                org.apache.beam.vendor.grpc.v1p60p1.com.google
                                                         .protobuf.ByteString.copyFrom(
                                                         proto.toByteArray()))
                                         .build());
@@ -196,7 +199,7 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
                                 RunnerApi.FunctionSpec.newBuilder()
                                         .setUrn(urn)
                                         .setPayload(
-                                                org.apache.beam.vendor.grpc.v1p48p1.com.google
+                                                org.apache.beam.vendor.grpc.v1p60p1.com.google
                                                         .protobuf.ByteString.copyFrom(
                                                         proto.toByteArray()))
                                         .build());

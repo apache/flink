@@ -32,6 +32,7 @@ import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.streaming.api.graph.util.JobVertexBuildContext;
 import org.apache.flink.streaming.api.graph.util.OperatorChainInfo;
+import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.partitioner.ForwardForConsecutiveHashPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardForUnspecifiedPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
@@ -135,6 +136,9 @@ public class AdaptiveGraphManager
     // Records the ID of the job vertex that has completed execution.
     private final Set<JobVertexID> finishedJobVertices;
 
+    // Records the ID of the stream nodes that has completed execution.
+    private final Set<Integer> finishedStreamNodeIds;
+
     private final AtomicBoolean hasHybridResultPartition;
 
     private final SlotSharingGroup defaultSlotSharingGroup;
@@ -171,6 +175,7 @@ public class AdaptiveGraphManager
         this.streamNodeIdsToJobVertexMap = new HashMap<>();
 
         this.finishedJobVertices = new HashSet<>();
+        this.finishedStreamNodeIds = new HashSet<>();
 
         this.streamGraphContext =
                 new DefaultStreamGraphContext(
@@ -179,6 +184,8 @@ public class AdaptiveGraphManager
                         frozenNodeToStartNodeMap,
                         intermediateOutputsCaches,
                         consumerEdgeIdToIntermediateDataSetMap,
+                        finishedStreamNodeIds,
+                        userClassloader,
                         this);
 
         this.jobGraph = createAndInitializeJobGraph(streamGraph, streamGraph.getJobID());
@@ -206,6 +213,10 @@ public class AdaptiveGraphManager
             streamNodes.add(streamGraph.getStreamNode(outEdge.getTargetId()));
         }
         return createJobVerticesAndUpdateGraph(streamNodes);
+    }
+
+    public void addFinishedStreamNodeIds(List<Integer> finishedStreamNodeIds) {
+        this.finishedStreamNodeIds.addAll(finishedStreamNodeIds);
     }
 
     /**
@@ -608,6 +619,20 @@ public class AdaptiveGraphManager
                                     streamGraph.getStreamNode(edge.getSourceId()), streamGraph))
                     || isChainable(edge, streamGraph)) {
                 edge.setPartitioner(new ForwardPartitioner<>());
+
+                // ForwardForConsecutiveHashPartitioner may use BATCH exchange mode, which prevents
+                // operator chaining. To enable chaining for edges using this partitioner, we need
+                // to set their exchange mode to UNDEFINED.
+                if (partitioner instanceof ForwardForConsecutiveHashPartitioner
+                        && edge.getExchangeMode() == StreamExchangeMode.BATCH) {
+                    edge.setExchangeMode(StreamExchangeMode.UNDEFINED);
+                }
+
+                // Currently, there is no intra input key correlation for edge with
+                // ForwardForUnspecifiedPartitioner, and we need to modify it to false.
+                if (partitioner instanceof ForwardForUnspecifiedPartitioner) {
+                    edge.setIntraInputKeyCorrelated(false);
+                }
             }
         }
     }

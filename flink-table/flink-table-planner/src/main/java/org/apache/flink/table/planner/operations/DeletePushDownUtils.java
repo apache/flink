@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.operations;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
-import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -68,9 +67,7 @@ public class DeletePushDownUtils {
      * can't get the {@link DynamicTableSink}.
      */
     public static Optional<DynamicTableSink> getDynamicTableSink(
-            ContextResolvedTable contextResolvedTable,
-            LogicalTableModify tableModify,
-            CatalogManager catalogManager) {
+            ContextResolvedTable contextResolvedTable, LogicalTableModify tableModify) {
         final FlinkContext context = ShortcutUtils.unwrapContext(tableModify.getCluster());
 
         CatalogBaseTable catalogBaseTable = contextResolvedTable.getTable();
@@ -83,9 +80,6 @@ public class DeletePushDownUtils {
             // only consider the CatalogTable that doesn't use legacy connector sink option
             if (!contextResolvedTable.isAnonymous()
                     && !TableFactoryUtil.isLegacyConnectorOptions(
-                            catalogManager
-                                    .getCatalog(objectIdentifier.getCatalogName())
-                                    .orElse(null),
                             context.getTableConfig(),
                             !context.isBatchMode(),
                             objectIdentifier,

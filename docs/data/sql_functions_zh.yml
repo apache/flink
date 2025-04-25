@@ -299,9 +299,9 @@ arithmetic:
   - sql: UNHEX(expr)
     table: expr.unhex()
     description: |
-      将十六进制字符串 expr 转换为 BINARY。
+      将十六进制字符串 expr 转换为 BINARY。如果 expr 的长度为奇数，则会舍弃第一个字符，并在结果开头补充一个空字节。
       
-      如果 expr 的长度为奇数，则会舍弃第一个字符，并在结果开头补充一个空字节。
+      E.g., SELECT DECODE(UNHEX('466C696E6B') , 'UTF-8' ) or '466C696E6B'.unhex().decode('UTF-8') returns "Flink".
       
       expr <CHAR | VARCHAR>
       
@@ -317,6 +317,8 @@ arithmetic:
     table: expr.percentile(percentage[, frequency])
     description: |
       返回 expr 的 percentage 百分位值。
+      
+      E.g., SELECT PERCENTILE(age, 0.25) FROM (VALUES  (10), (20), (30), (40)) AS age or $('age').percentile(0.25) returns 17.5
 
       percentage 必须是一个在 `[0.0, 1.0]` 之间的字面数值，或者是一个该范围的数组。
       如果传递了一个可变表达式给这个函数，结果将根据其中的任意一个值进行计算。
@@ -394,8 +396,10 @@ string:
       返回一个 STRING 格式的裁剪后的 str。如果任何参数为 `NULL`，则返回 `NULL`。
   - sql: BTRIM(str[, trimStr])
     table: str.btrim([trimStr])
-    description: |      
+    description: |
       从 str 的开头和结尾删除 trimStr 中的字符。trimStr 默认设置为空格。      
+      
+      E.g., BTRIM('  www.apache.org  ') or '  www.apache.org  '.btrim() returns "www.apache.org", BTRIM('/www.apache.org/', '/') or '  www.apache.org  '.btrim() returns "www.apache.org".
       
       str <CHAR | VARCHAR>, trimStr <CHAR | VARCHAR>
       
@@ -498,10 +502,10 @@ string:
   - sql: TRANSLATE(expr, fromStr, toStr)
     table: expr.translate(fromStr, toStr)
     description: |
-      将 expr 中所有出现在 fromStr 之中的字符替换为 toStr 中的相应字符。
+      将 expr 中所有出现在 fromStr 之中的字符替换为 toStr 中的相应字符。如果 toStr 的长度短于 fromStr，则未匹配的字符将被移除。
 
-      如果 toStr 的长度短于 fromStr，则未匹配的字符将被移除。
-
+      E.g., SELECT TRANSLATE3('www.apache.org', 'wapcheorg', ' APCHEcom') or 'www.apache.org'.translate('wapcheorg', ' APCHEcom') returns "   .APACHE.com".
+      
       `expr <CHAR | VARCHAR>, fromStr <CHAR | VARCHAR>, toStr <CHAR | VARCHAR>`
 
       返回 `STRING` 格式的转换结果。
@@ -627,6 +631,8 @@ string:
     table: index.elt(expr, exprs...)
     description: |
       返回第 index 个表达式。index 必须是介于 1 和 表达式数量之间的整数。
+      
+      E.g., SELECT ELT(2, 'scala-1', 'java-2', 'go-3') or 2.elt('scala-1', 'java-2', 'go-3') returns "java-2".
       
       index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <CHAR | VARCHAR>, exprs <CHAR | VARCHAR>
       
@@ -805,11 +811,12 @@ temporal:
   - sql: TO_DATE(string1[, string2])
     table: toDate(STRING1[, STRING2])
     description: 将格式为 string2（默认为 'yyyy-MM-dd'）的字符串 string1 转换为日期。
-  - sql: TO_TIMESTAMP_LTZ(numeric, precision)
-    table: toTimestampLtz(numeric, PRECISION)
-    description: |
-      将纪元秒或纪元毫秒转换为 TIMESTAMP_LTZ，有效精度为 0 或 3，0 代表 `TO_TIMESTAMP_LTZ(epochSeconds, 0)`，
-      3 代表` TO_TIMESTAMP_LTZ(epochMilliseconds, 3)`。
+  - sql: TO_TIMESTAMP_LTZ(numeric[, precision])
+    table: toTimestampLtz(NUMERIC, PRECISION)
+    description: Converts an epoch seconds or epoch milliseconds to a TIMESTAMP_LTZ, the valid precision is 0 or 3, the 0 represents TO_TIMESTAMP_LTZ(epochSeconds, 0), the 3 represents TO_TIMESTAMP_LTZ(epochMilliseconds, 3). If no precision is provided, the default precision is 3. If any input is null, the function will return null.
+  - sql: TO_TIMESTAMP_LTZ(string1[, string2[, string3]])
+    table: toTimestampLtz(STRING1[, STRING2[, STRING3]])
+    description: Converts a timestamp string string1 with format string2 (by default 'yyyy-MM-dd HH:mm:ss.SSS') in time zone string3 (by default 'UTC') to a TIMESTAMP_LTZ. If any input is null, the function will return null.
   - sql: TO_TIMESTAMP(string1[, string2])
     table: toTimestamp(STRING1[, STRING2])
     description: 将格式为 string2（默认为：'yyyy-MM-dd HH:mm:ss'）的字符串 string1 转换为 timestamp，不带时区。
@@ -850,7 +857,7 @@ conditional:
     description: ｜
       从 value1, value2, ... 返回第一个不为 `NULL` 的值。例如 `COALESCE(3, 5, 3)` 返回 3。
       如果所有参数为 `NULL`，返回 `NULL`。返回类型是所有参数的限制最最少的通用类型，如果所有参数是可空的类型，返回类型也是可空的类型。
-    
+      
       ```sql
       -- 返回 'default'
       COALESCE(NULL, 'default')
@@ -916,7 +923,7 @@ collection:
   - sql: CARDINALITY(map)
     table: MAP.cardinality()
     description: 返回 map 中的 entries 数量。
-  - sql: map ‘[’ value ‘]’
+  - sql: map '[' value ']'
     table: MAP.at(ANY)
     description: 返回 map 中指定 key 对应的值。
   - sql: ARRAY_APPEND(array, element)
@@ -1076,7 +1083,7 @@ json:
 
       对于空路径表达式或错误，可以将行为定义为返回 `null`、引发错误或返回定义的默认值。当省略时，默认为 `NULL ON EMPTY` 或
       `NULL ON ERROR`。默认值可以是文字或表达式。如果默认值本身引发错误，就会造成 `ON EMPTY` 的错误行为，并引发 `ON ERROR` 的错误。
- 
+      
       对于路径表达式中包含特殊字符（如空格），你可以使用`['property']` 或 `["property"]`来引用父对象中指定的属性。请确保在属性名两侧加上单引号或双引号。
       当在 SQL 使用 JSON_VALUE 时，路径作为一个字符串参数已经被单引号引用了，因此你必须将属性名上的单引号转义，如`JSON_VALUE('{"a b": "true"}', '$.[''a b'']')`。
       
@@ -1170,6 +1177,9 @@ json:
       JSON_OBJECT(KEY 'K1' VALUE CAST(NULL AS STRING) NULL ON NULL)   -- '{"K1":null}'
       JSON_OBJECT(KEY 'K1' VALUE CAST(NULL AS STRING) ABSENT ON NULL) -- '{}'
 
+      -- '{"K1":{"K2":{"value":42}}}'
+      JSON_OBJECT('K1' VALUE JSON('{"K2": {"value": 42}}'))
+      
       -- '{"K1":{"K2":"V"}}'
       JSON_OBJECT(
         KEY 'K1'
@@ -1179,6 +1189,22 @@ json:
         )
       )
       ```
+      - sql: JSON(value)
+      table: json(value)  
+        description: |
+          需要的参数是一个原始的、预先格式化的 JSON 字符串，返回值是这个字符串对应的JSON值，而不将其作为字符串转义。
+          该函数目前只能在“JSON_OBJECT”函数中使用。它允许通过预格式化的 JSON 字符串将直接插入到生成的 JSON 结构中，而不是作为字符串值转义。
+          该函数通常用来读取外部的Json字符串，将其转成 JSON 结构存储在JSON_OBJECT。如果值为 NULL 或空，则该函数返回 NULL。
+          ```sql
+          -- {"K":{"K2":42}}
+          JSON_OBJECT('K' VALUE JSON('{"K2": 42}'))
+          -- {"K":{"K2":{"K3":42}}}
+          JSON_OBJECT('K' VALUE JSON('{"K2":{"K3":42}}'))
+          -- {"K": null}
+          JSON_OBJECT('K' VALUE JSON(''))
+          -- JSON 函数只能在 JSON_OBJECT 函数中使用
+          JSON('{"value": 42}')
+          ```
   - sql: JSON_ARRAY([value]* [ { NULL | ABSENT } ON NULL ])
     table: jsonArray(JsonOnNull, values...)
     description: |
@@ -1218,12 +1244,21 @@ valueconstruction:
     description: |
       返回从值列表 (value1, value2, ...) 创建的行。隐式行构造函数至少需要两个字段。显式行构造函数可以处理任意数量的字段。
       两者都支持任意表达式作为字段
-  - sql: ARRAY ‘[’ value1 [, value2 ]* ‘]’
+  - sql: ARRAY '[' value1 [, value2 ]* ']'
     table: array(ANY1, ANY2, ...)
     description: 返回从值列表 (value1, value2, ...) 创建的数组。
-  - sql: MAP ‘[’ value1, value2 [, value3, value4 ]* ‘]’
+  - sql: MAP '[' value1, value2 [, value3, value4 ]* ']'
     table: map(ANY1, ANY2, ANY3, ANY4, ...)
     description: 返回从键值对列表 ((value1, value2), (value3, value4), ...) 创建的 map。
+  - sql: DESCRIPTOR '(' identifier1 [, identifier2  ]* ')'
+    table: descriptor(STRING1, STRING2, ...)
+    description: |
+      Returns a literal describing an arbitrary, unvalidated list of column names. Passing a list of columns
+      can be useful for parameterizing a function. In particular, it enables declaring the `on_time` argument
+      for process table functions (PTFs).
+      ```sql
+      f(columns => DESCRIPTOR(`col1`, `col2`), on_time => DESCRIPTOR(`ts`))
+      ```
   - table: NUMERIC.rows
     description: 创建一个 NUMERIC 行间隔（通常用于窗口创建）。
 

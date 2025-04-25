@@ -287,13 +287,13 @@ The next sections show examples of configuration files to run Flink.
 * Launch a cluster in the foreground (use `-d` for background)
 
     ```sh
-    $ docker-compose up
+    $ docker compose up
     ```
 
 * Scale the cluster up or down to `N` TaskManagers
 
     ```sh
-    $ docker-compose scale taskmanager=<N>
+    $ docker compose scale taskmanager=<N>
     ```
 
 * Access the JobManager container
@@ -305,7 +305,7 @@ The next sections show examples of configuration files to run Flink.
 * Kill the cluster
 
     ```sh
-    $ docker-compose down
+    $ docker compose down
     ```
 
 * Access Web UI
@@ -355,7 +355,7 @@ services:
 
 ### Session Mode
 
-In Session Mode you use docker-compose to spin up a long-running Flink Cluster to which you can then submit Jobs.
+In Session Mode you use docker compose to spin up a long-running Flink Cluster to which you can then submit Jobs.
 
 <a id="session-cluster-yml">`docker-compose.yml`</a> for *Session Mode*:
 
@@ -427,7 +427,7 @@ services:
 ```
 * In order to start the SQL Client run
   ```sh
-  docker-compose run sql-client
+  docker compose run sql-client
   ```
   You can then start creating tables and queries those.
 
@@ -463,8 +463,8 @@ RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN pip3 install apache-flink=={{< version >}}
 {{< /stable >}}
 {{< unstable >}}
-COPY apache-flink*.tar.gz /
-RUN pip3 install /apache-flink-libraries*.tar.gz && pip3 install /apache-flink*.tar.gz
+COPY apache_flink*.tar.gz /
+RUN pip3 install /apache_flink_libraries*.tar.gz && pip3 install /apache_flink*.tar.gz
 {{< /unstable >}}
 ```
 

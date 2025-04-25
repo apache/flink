@@ -27,6 +27,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
+import org.apache.flink.table.planner.calcite.RexTableArgCall;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.functions.sql.BuiltInSqlOperator;
@@ -77,7 +78,7 @@ import static com.google.common.collect.Range.lessThan;
 import static org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanRestore.IDENTIFIER;
 import static org.apache.flink.table.api.config.TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS;
 import static org.apache.flink.table.api.config.TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.loadClass;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.loadClass;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_ALPHA;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_BOUND_LOWER;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_BOUND_TYPE;
@@ -93,6 +94,8 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSe
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_NAME;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_NULL_AS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_OPERANDS;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_ORDER_KEYS;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_PARTITION_KEYS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_RANGES;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_SARG;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_SQL_KIND;
@@ -107,6 +110,7 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSe
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.KIND_INPUT_REF;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.KIND_LITERAL;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.KIND_PATTERN_INPUT_REF;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.KIND_TABLE_ARG_CALL;
 import static org.apache.flink.table.planner.typeutils.SymbolUtil.serializableToCalcite;
 
 /**
@@ -144,6 +148,8 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
                 return deserializeCorrelVariable(jsonNode, serdeContext);
             case KIND_PATTERN_INPUT_REF:
                 return deserializePatternFieldRef(jsonNode, serdeContext);
+            case KIND_TABLE_ARG_CALL:
+                return deserializeTableArgCall(jsonNode, serdeContext);
             case KIND_CALL:
                 return deserializeCall(jsonNode, serdeContext);
             default:
@@ -311,6 +317,28 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
         final RelDataType fieldType =
                 RelDataTypeJsonDeserializer.deserialize(logicalTypeNode, serdeContext);
         return serdeContext.getRexBuilder().makePatternFieldRef(alpha, fieldType, inputIndex);
+    }
+
+    private static RexNode deserializeTableArgCall(JsonNode jsonNode, SerdeContext serdeContext) {
+        final JsonNode logicalTypeNode = jsonNode.required(FIELD_NAME_TYPE);
+        final RelDataType callType =
+                RelDataTypeJsonDeserializer.deserialize(logicalTypeNode, serdeContext);
+
+        final int inputIndex = jsonNode.required(FIELD_NAME_INPUT_INDEX).intValue();
+
+        final JsonNode partitionKeysNode = jsonNode.required(FIELD_NAME_PARTITION_KEYS);
+        final int[] partitionKeys = new int[partitionKeysNode.size()];
+        for (int i = 0; i < partitionKeysNode.size(); ++i) {
+            partitionKeys[i] = partitionKeysNode.get(i).asInt();
+        }
+
+        final JsonNode orderKeysNode = jsonNode.required(FIELD_NAME_ORDER_KEYS);
+        final int[] orderKeys = new int[orderKeysNode.size()];
+        for (int i = 0; i < orderKeysNode.size(); ++i) {
+            orderKeys[i] = orderKeysNode.get(i).asInt();
+        }
+
+        return new RexTableArgCall(callType, inputIndex, partitionKeys, orderKeys);
     }
 
     private static RexNode deserializeCall(JsonNode jsonNode, SerdeContext serdeContext)

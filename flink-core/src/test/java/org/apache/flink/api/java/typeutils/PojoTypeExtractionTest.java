@@ -421,7 +421,8 @@ public class PojoTypeExtractionTest {
                     fail("already seen");
                 }
                 collectionSeen = true;
-                assertThat(field.getTypeInformation()).isEqualTo(new GenericTypeInfo(List.class));
+                assertThat(field.getTypeInformation())
+                        .isEqualTo(new NullableListTypeInfo<>(String.class));
 
             } else {
                 fail("Unexpected field " + field);

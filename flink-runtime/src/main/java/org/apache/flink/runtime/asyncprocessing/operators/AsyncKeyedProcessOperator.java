@@ -61,8 +61,6 @@ public class AsyncKeyedProcessOperator<K, IN, OUT>
 
     private transient OnTimerContextImpl onTimerContext;
 
-    private transient DeclarationContext declarationContext;
-
     private transient ThrowingConsumer<IN, Exception> processor;
     private transient ThrowingConsumer<Long, Exception> timerProcessor;
 
@@ -74,7 +72,6 @@ public class AsyncKeyedProcessOperator<K, IN, OUT>
     @SuppressWarnings({"unchecked", "rawtypes"})
     public void open() throws Exception {
         super.open();
-        declarationContext = new DeclarationContext(getDeclarationManager());
         sharedTimestamp =
                 declarationContext.declareVariable(
                         LongSerializer.INSTANCE,

@@ -17,15 +17,13 @@
  */
 package org.apache.flink.table.api.runtime.types
 
-import _root_.java.lang.{Iterable => JIterable}
-import com.twitter.chill.{Input, Kryo, KSerializer, Output}
+import com.esotericsoftware.kryo.{Kryo, Serializer}
+import com.esotericsoftware.kryo.io.{Input => KryoInput, Output => KryoOutput}
+
+import java.{lang, util}
 
 /*
-This code is copied as is from Twitter Chill 0.7.4 because we need to user a newer chill version
-but want to ensure that the serializers that are registered by default stay the same.
-
-The only changes to the code are those that are required to make it compile and pass checkstyle
-checks in our code base.
+This code was copied as is from Twitter Chill 0.7.4 and modified to use Kryo 5.x
  */
 
 /**
@@ -36,25 +34,30 @@ checks in our code base.
  *
  * Ported from Apache Spark's KryoSerializer.scala.
  */
-private class JavaIterableWrapperSerializer extends KSerializer[JIterable[_]] {
 
-  import JavaIterableWrapperSerializer._
-
-  override def write(kryo: Kryo, out: Output, obj: JIterable[_]): Unit = {
+private class JavaIterableWrapperSerializer extends Serializer[lang.Iterable[_]] {
+  override def write(kryo: Kryo, output: KryoOutput, t: lang.Iterable[_]): Unit = {
     // If the object is the wrapper, simply serialize the underlying Scala Iterable object.
     // Otherwise, serialize the object itself.
-    if (obj.getClass == wrapperClass && underlyingMethodOpt.isDefined) {
-      kryo.writeClassAndObject(out, underlyingMethodOpt.get.invoke(obj))
+    if (
+      t.getClass == JavaIterableWrapperSerializer.wrapperClass && JavaIterableWrapperSerializer.underlyingMethodOpt.isDefined
+    ) {
+      kryo.writeClassAndObject(
+        output,
+        JavaIterableWrapperSerializer.underlyingMethodOpt.get.invoke(t))
     } else {
-      kryo.writeClassAndObject(out, obj)
+      kryo.writeClassAndObject(output, t)
     }
   }
 
-  override def read(kryo: Kryo, in: Input, clz: Class[JIterable[_]]): JIterable[_] = {
-    kryo.readClassAndObject(in) match {
+  override def read(
+      kryo: Kryo,
+      input: KryoInput,
+      aClass: Class[_ <: lang.Iterable[_]]): lang.Iterable[_] = {
+    kryo.readClassAndObject(input) match {
       case scalaIterable: Iterable[_] =>
         scala.collection.JavaConversions.asJavaIterable(scalaIterable)
-      case javaIterable: JIterable[_] =>
+      case javaIterable: lang.Iterable[_] =>
         javaIterable
     }
   }

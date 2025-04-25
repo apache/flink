@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver.ExpressionResolverBuilder;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
@@ -33,6 +34,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.table.utils.ExpressionResolverMocks;
+import org.apache.flink.table.utils.ParserMock;
 
 import org.junit.jupiter.api.Test;
 
@@ -144,7 +146,8 @@ class CatalogBaseTableResolutionTest {
                             "primary_constraint", Collections.singletonList("id")));
 
     private static final ContinuousRefreshHandler CONTINUOUS_REFRESH_HANDLER =
-            new ContinuousRefreshHandler("remote", JobID.generate().toHexString());
+            new ContinuousRefreshHandler(
+                    "remote", "StandaloneClusterId", JobID.generate().toHexString());
 
     private static final String DEFINITION_QUERY =
             String.format(
@@ -214,7 +217,8 @@ class CatalogBaseTableResolutionTest {
         final ResolvedCatalogTable resolvedTable =
                 resolveCatalogBaseTable(ResolvedCatalogTable.class, table);
 
-        assertThat(resolvedTable.toProperties()).isEqualTo(catalogTableAsProperties());
+        assertThat(resolvedTable.toProperties(DefaultSqlFactory.INSTANCE))
+                .isEqualTo(catalogTableAsProperties());
 
         assertThat(resolvedTable.getResolvedSchema()).isEqualTo(RESOLVED_TABLE_SCHEMA);
 
@@ -227,7 +231,7 @@ class CatalogBaseTableResolutionTest {
                         ResolvedCatalogMaterializedTable.class, catalogMaterializedTable);
         assertThat(
                         CatalogPropertiesUtil.serializeCatalogMaterializedTable(
-                                resolvedCatalogMaterializedTable))
+                                resolvedCatalogMaterializedTable, DefaultSqlFactory.INSTANCE))
                 .isEqualTo(catalogMaterializedTableAsProperties());
 
         assertThat(resolvedCatalogMaterializedTable.getResolvedSchema())
@@ -341,7 +345,12 @@ class CatalogBaseTableResolutionTest {
         options.put("connector", "custom");
         options.put("version", "12");
 
-        return CatalogTable.of(TABLE_SCHEMA, comment, partitionKeys, options);
+        return CatalogTable.newBuilder()
+                .schema(TABLE_SCHEMA)
+                .comment(comment)
+                .partitionKeys(partitionKeys)
+                .options(options)
+                .build();
     }
 
     private static Map<String, String> catalogTableAsProperties() {
@@ -455,7 +464,7 @@ class CatalogBaseTableResolutionTest {
                 ExpressionResolverMocks.forSqlExpression(
                         CatalogBaseTableResolutionTest::resolveSqlExpression);
 
-        catalogManager.initSchemaResolver(true, expressionResolverBuilder);
+        catalogManager.initSchemaResolver(true, expressionResolverBuilder, new ParserMock());
 
         return catalogManager;
     }

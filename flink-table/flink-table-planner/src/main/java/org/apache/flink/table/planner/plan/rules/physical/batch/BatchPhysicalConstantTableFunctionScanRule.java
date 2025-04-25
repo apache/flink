@@ -18,16 +18,21 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.batch;
 
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalCorrelate;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalValues;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 
 import com.google.common.collect.ImmutableList;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rex.RexUtil;
 import org.immutables.value.Value;
@@ -35,20 +40,21 @@ import org.immutables.value.Value;
 import scala.Option;
 
 /**
- * Converts {@link FlinkLogicalTableFunctionScan} with constant RexCall to
+ * Converts {@link FlinkLogicalTableFunctionScan} with constant parameters. Add the rule to support
+ * selecting from a UDF directly, e.g. {@code SELECT * FROM func() as T(c)}.
+ *
+ * <p>For {@link FunctionKind#TABLE}:
  *
  * <pre>
- *                            {@link BatchPhysicalCorrelate}
- *                                   /               \
- * empty {@link BatchPhysicalValuesRule}}     {@link FlinkLogicalTableFunctionScan}.
+ *   empty {@link BatchPhysicalValues} -> {@link BatchPhysicalCorrelate}
  * </pre>
  *
- * <p>Add the rule to support select from a UDF directly, such as the following SQL: {@code SELECT *
- * FROM LATERAL TABLE(func()) as T(c)}
+ * <p>{@link BatchPhysicalCorrelateRule} powers queries such as {@code SELECT * FROM T, LATERAL
+ * TABLE(func()) as T(c)} or {@code SELECT a, c FROM T, LATERAL TABLE(func(a)) as T(c)}.
  *
- * <p>Note: {@link BatchPhysicalCorrelateRule} is responsible for converting a reasonable physical
- * plan for the normal correlate query, such as the following SQL: example1: {@code SELECT * FROM T,
- * LATERAL TABLE(func()) as T(c) example2: SELECT a, c FROM T, LATERAL TABLE(func(a)) as T(c)}
+ * <p>For {@link FunctionKind#PROCESS_TABLE}:
+ *
+ * <p>{@link FunctionKind#PROCESS_TABLE} is currently unsupported.
  */
 @Value.Enclosing
 public class BatchPhysicalConstantTableFunctionScanRule
@@ -65,18 +71,17 @@ public class BatchPhysicalConstantTableFunctionScanRule
     }
 
     public boolean matches(RelOptRuleCall call) {
-        FlinkLogicalTableFunctionScan scan = call.rel(0);
-        return RexUtil.isConstant(scan.getCall()) && scan.getInputs().isEmpty();
+        final FlinkLogicalTableFunctionScan scan = call.rel(0);
+        return !RexUtil.containsInputRef(scan.getCall());
     }
 
     public void onMatch(RelOptRuleCall call) {
-        FlinkLogicalTableFunctionScan scan = call.rel(0);
-
-        // create correlate left
-        RelOptCluster cluster = scan.getCluster();
-        RelTraitSet traitSet =
+        final FlinkLogicalTableFunctionScan scan = call.rel(0);
+        final RelOptCluster cluster = scan.getCluster();
+        final RelTraitSet traitSet =
                 call.getPlanner().emptyTraitSet().replace(FlinkConventions.BATCH_PHYSICAL());
-        BatchPhysicalValues values =
+
+        final BatchPhysicalValues values =
                 new BatchPhysicalValues(
                         cluster,
                         traitSet,
@@ -84,35 +89,37 @@ public class BatchPhysicalConstantTableFunctionScanRule
                         cluster.getTypeFactory()
                                 .createStructType(ImmutableList.of(), ImmutableList.of()));
 
-        BatchPhysicalCorrelate correlate =
-                new BatchPhysicalCorrelate(
-                        cluster,
-                        traitSet,
-                        values,
-                        scan,
-                        Option.empty(),
-                        scan.getRowType(),
-                        JoinRelType.INNER);
-        call.transformTo(correlate);
+        final FunctionDefinition function = ShortcutUtils.unwrapFunctionDefinition(scan.getCall());
+        assert function != null;
+        final RelNode replacement;
+        if (function.getKind() == FunctionKind.TABLE) {
+            replacement =
+                    new BatchPhysicalCorrelate(
+                            cluster,
+                            traitSet,
+                            values,
+                            scan,
+                            Option.empty(),
+                            scan.getRowType(),
+                            JoinRelType.INNER);
+        } else {
+            throw new TableException("Unsupported function for scan:" + function.getKind());
+        }
+
+        call.transformTo(replacement);
     }
 
     /** Configuration for {@link BatchPhysicalConstantTableFunctionScanRule}. */
-    @Value.Immutable(singleton = false)
+    @Value.Immutable
     public interface BatchPhysicalConstantTableFunctionScanRuleConfig extends RelRule.Config {
-        BatchPhysicalConstantTableFunctionScanRule.BatchPhysicalConstantTableFunctionScanRuleConfig
-                DEFAULT =
-                        ImmutableBatchPhysicalConstantTableFunctionScanRule
-                                .BatchPhysicalConstantTableFunctionScanRuleConfig.builder()
-                                .build()
-                                .withOperandSupplier(
-                                        b0 ->
-                                                b0.operand(FlinkLogicalTableFunctionScan.class)
-                                                        .anyInputs())
-                                .withDescription("BatchPhysicalConstantTableFunctionScanRule")
-                                .as(
-                                        BatchPhysicalConstantTableFunctionScanRule
-                                                .BatchPhysicalConstantTableFunctionScanRuleConfig
-                                                .class);
+        BatchPhysicalConstantTableFunctionScanRuleConfig DEFAULT =
+                ImmutableBatchPhysicalConstantTableFunctionScanRule
+                        .BatchPhysicalConstantTableFunctionScanRuleConfig.builder()
+                        .build()
+                        .withOperandSupplier(
+                                b0 -> b0.operand(FlinkLogicalTableFunctionScan.class).anyInputs())
+                        .withDescription("BatchPhysicalConstantTableFunctionScanRule")
+                        .as(BatchPhysicalConstantTableFunctionScanRuleConfig.class);
 
         @Override
         default BatchPhysicalConstantTableFunctionScanRule toRule() {

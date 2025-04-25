@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.StructuredType;
@@ -173,6 +174,10 @@ public class StaticArgument {
         return traits;
     }
 
+    public boolean is(StaticArgumentTrait trait) {
+        return traits.contains(trait);
+    }
+
     @Override
     public String toString() {
         final StringBuilder s = new StringBuilder();
@@ -181,13 +186,18 @@ public class StaticArgument {
         // (myTypedTable ROW<i INT> {TABLE BY ROW})
         // (myUntypedTable {TABLE BY ROW})
         s.append(name);
+        s.append(" =>");
         if (dataType != null) {
             s.append(" ");
             s.append(dataType);
         }
         if (!traits.equals(EnumSet.of(StaticArgumentTrait.SCALAR))) {
             s.append(" ");
-            s.append(traits.stream().map(Enum::name).collect(Collectors.joining(", ", "{", "}")));
+            s.append(
+                    traits.stream()
+                            .map(Enum::name)
+                            .map(n -> n.replace('_', ' '))
+                            .collect(Collectors.joining(", ", "{", "}")));
         }
         return s.toString();
     }
@@ -218,7 +228,7 @@ public class StaticArgument {
             throw new ValidationException(
                     String.format(
                             "Invalid argument name '%s'. An argument must follow "
-                                    + "the pattern [a-zA-Z_$][a-zA-Z_$0-9].",
+                                    + "the pattern [a-zA-Z_$][a-zA-Z_$0-9]*.",
                             name));
         }
     }
@@ -251,7 +261,7 @@ public class StaticArgument {
         }
         // e.g. for untyped table arguments
         if (dataType == null) {
-            return;
+            throw new ValidationException("Untyped table arguments must not be optional.");
         }
 
         final LogicalType type = dataType.getLogicalType();
@@ -264,29 +274,46 @@ public class StaticArgument {
         }
     }
 
-    void checkTableType() {
+    private void checkTableType() {
         if (!traits.contains(StaticArgumentTrait.TABLE)) {
             return;
         }
-        if (dataType == null
-                && conversionClass != null
-                && !DUMMY_ROW_TYPE.supportsInputConversion(conversionClass)) {
+        checkPolymorphicTableType();
+        checkTypedTableType();
+    }
+
+    private void checkPolymorphicTableType() {
+        if (dataType != null || conversionClass == null) {
+            return;
+        }
+        if (!DUMMY_ROW_TYPE.supportsInputConversion(conversionClass)) {
             throw new ValidationException(
                     String.format(
                             "Invalid conversion class '%s' for argument '%s'. "
                                     + "Polymorphic, untyped table arguments must use a row class.",
                             conversionClass.getName(), name));
         }
-        if (dataType != null) {
-            final LogicalType type = dataType.getLogicalType();
-            if (traits.contains(StaticArgumentTrait.TABLE)
-                    && !LogicalTypeChecks.isCompositeType(type)) {
-                throw new ValidationException(
-                        String.format(
-                                "Invalid data type '%s' for table argument '%s'. "
-                                        + "Typed table arguments must use a composite type (i.e. row or structured type).",
-                                type, name));
-            }
+    }
+
+    private void checkTypedTableType() {
+        if (dataType == null) {
+            return;
+        }
+        final LogicalType type = dataType.getLogicalType();
+        if (traits.contains(StaticArgumentTrait.TABLE)
+                && !LogicalTypeChecks.isCompositeType(type)) {
+            throw new ValidationException(
+                    String.format(
+                            "Invalid data type '%s' for table argument '%s'. "
+                                    + "Typed table arguments must use a composite type (i.e. row or structured type).",
+                            type, name));
+        }
+        if (is(StaticArgumentTrait.SUPPORT_UPDATES) && !type.is(LogicalTypeRoot.ROW)) {
+            throw new ValidationException(
+                    String.format(
+                            "Invalid data type '%s' for table argument '%s'. "
+                                    + "Table arguments that support updates must use a row type.",
+                            type, name));
         }
     }
 }

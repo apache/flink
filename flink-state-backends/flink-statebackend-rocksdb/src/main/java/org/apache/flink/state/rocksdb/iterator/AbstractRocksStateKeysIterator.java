@@ -72,4 +72,17 @@ public abstract class AbstractRocksStateKeysIterator<K> implements AutoCloseable
     public void close() {
         iterator.close();
     }
+
+    public static boolean isMatchingNameSpace(
+            @Nonnull byte[] key, int namespaceBytesStartPos, @Nonnull byte[] namespaceBytes) {
+        if (key.length >= namespaceBytesStartPos + namespaceBytes.length) {
+            for (int i = 0; i < namespaceBytes.length; ++i) {
+                if (key[namespaceBytesStartPos + i] != namespaceBytes[i]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
 }

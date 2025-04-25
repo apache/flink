@@ -49,6 +49,12 @@ public final class ConfigConstants {
      */
     public static final String TRACES_REPORTER_PREFIX = "traces.reporter.";
 
+    /**
+     * The prefix for per-event reporter configs. Has to be combined with a reporter name and the
+     * configs mentioned below.
+     */
+    public static final String EVENTS_REPORTER_PREFIX = "events.reporter.";
+
     // ------------------------------------------------------------------------
     //                            Default Values
     // ------------------------------------------------------------------------
@@ -110,6 +116,13 @@ public final class ConfigConstants {
     // ---------------------------- Encoding ------------------------------
 
     public static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
+
+    /** The suffix of sink operator name. */
+    public static final String COMMITTER_NAME = "Committer";
+
+    public static final String WRITER_NAME = "Writer";
+
+    public static final int METRICS_OPERATOR_NAME_MAX_LENGTH = 80;
 
     /** Not instantiable. */
     private ConfigConstants() {}

@@ -28,12 +28,9 @@ jobs:
       matrix:
         branch:
           - master
-          # Since release-2.0-preview doesn't have specific branch, use rc branch as workaround.
-          # This should be replaced to release-2.0 once it was released.
-          - release-2.0-preview1-rc1
+          - release-2.0
           - release-1.20
           - release-1.19
-          - release-1.18
     steps:
       - uses: actions/checkout@v3
         with:
@@ -42,16 +39,14 @@ jobs:
         run: |
           currentBranch=$(git branch --show-current)
 
-          if  [ "${currentBranch}" = "release-2.0-preview1-rc1" ]; then
-            echo "flink_branch=release-2.0-preview1" >> ${GITHUB_ENV}
-          else
-            echo "flink_branch=${currentBranch}" >> ${GITHUB_ENV}
-          fi
+          echo "flink_branch=${currentBranch}" >> ${GITHUB_ENV}
 
           if [ "${currentBranch}" = "master" ]; then
-            echo "flink_alias=release-2.0" >> ${GITHUB_ENV}
-          elif [ "${currentBranch}" = "release-1.20" ]; then
+            echo "flink_alias=release-2.1" >> ${GITHUB_ENV}
+          elif [ "${currentBranch}" = "release-2.0" ]; then
             echo "flink_alias=stable" >> ${GITHUB_ENV}
+          elif [ "${currentBranch}" = "release-1.20" ]; then
+            echo "flink_alias=lts" >> ${GITHUB_ENV}
           fi
       - name: Build documentation
         run: |

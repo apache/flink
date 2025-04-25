@@ -18,6 +18,8 @@
 
 package org.apache.flink.state.forst.fs.cache;
 
+import org.apache.flink.metrics.MetricGroup;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,22 +33,31 @@ public class SizeBasedCacheLimitPolicy implements CacheLimitPolicy {
     /** The capacity. */
     private final long capacity;
 
+    /** The estimated sst file size. */
+    private final long sstFileSize;
+
     /** The usage size. */
     private long usageSize;
 
-    public SizeBasedCacheLimitPolicy(long capacity) {
+    public SizeBasedCacheLimitPolicy(long capacity, long sstFileSize) {
         this.capacity = capacity;
+        this.sstFileSize = sstFileSize;
         this.usageSize = 0;
         LOG.info("Creating SizeBasedCacheLimitPolicy with capacity {}", capacity);
     }
 
     @Override
-    public boolean isSafeToAdd(long toAddSize) {
-        return toAddSize < capacity;
+    public boolean directWriteInCache() {
+        return isSafeToAdd(sstFileSize);
     }
 
     @Override
-    public boolean isOverflow(long toAddSize) {
+    public boolean isSafeToAdd(long toAddSize) {
+        return toAddSize <= capacity;
+    }
+
+    @Override
+    public boolean isOverflow(long toAddSize, boolean hasFile) {
         return usageSize + toAddSize > capacity;
     }
 
@@ -59,6 +70,14 @@ public class SizeBasedCacheLimitPolicy implements CacheLimitPolicy {
     public void release(long toReleaseSize) {
         usageSize -= Math.min(usageSize, toReleaseSize);
     }
+
+    @Override
+    public long usedBytes() {
+        return usageSize;
+    }
+
+    @Override
+    public void registerCustomizedMetrics(String prefix, MetricGroup metricGroup) {}
 
     @Override
     public String toString() {

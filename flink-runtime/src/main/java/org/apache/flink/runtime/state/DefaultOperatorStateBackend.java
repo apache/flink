@@ -224,14 +224,14 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
     @Override
     public <K, V> BroadcastState<K, V> getBroadcastState(
-            org.apache.flink.runtime.state.v2.MapStateDescriptor<K, V> stateDescriptor)
+            org.apache.flink.api.common.state.v2.MapStateDescriptor<K, V> stateDescriptor)
             throws Exception {
         return getBroadcastState(StateDescriptorUtils.transformFromV2ToV1(stateDescriptor));
     }
 
     @Override
     public <S> org.apache.flink.api.common.state.v2.ListState<S> getListState(
-            org.apache.flink.runtime.state.v2.ListStateDescriptor<S> stateDescriptor)
+            org.apache.flink.api.common.state.v2.ListStateDescriptor<S> stateDescriptor)
             throws Exception {
         return new OperatorListStateAdaptor<>(
                 getListState(StateDescriptorUtils.transformFromV2ToV1(stateDescriptor)));
@@ -239,7 +239,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
     @Override
     public <S> org.apache.flink.api.common.state.v2.ListState<S> getUnionListState(
-            org.apache.flink.runtime.state.v2.ListStateDescriptor<S> stateDescriptor)
+            org.apache.flink.api.common.state.v2.ListStateDescriptor<S> stateDescriptor)
             throws Exception {
         return new OperatorListStateAdaptor<>(
                 getListState(StateDescriptorUtils.transformFromV2ToV1(stateDescriptor)));

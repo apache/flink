@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.processor;
 
+import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
@@ -60,12 +61,14 @@ public class AdaptiveJoinProcessor implements ExecNodeGraphProcessor {
                     @Override
                     protected void visitNode(ExecNode<?> node) {
                         visitInputs(node);
-                        // AdaptiveJoin conversion should be avoided when there is a
-                        // KEEP_INPUT_AS_IS constraint downstream. And we don't need to check all
-                        // downstream nodes of the join, because the KEEP_INPUT_AS_IS constraint
-                        // will be bound to BatchExecExchange, which will be the direct downstream
-                        // node of the join.
-                        if (shouldKeepInputAsIs(node.getInputProperties())) {
+                        // To avoid data correctness issues, we will refrain from transforming join
+                        // nodes with a strict KEEP_INPUT_AS_IS constraint downstream. Meanwhile,
+                        // deeper evaluations will be conducted in the corresponding
+                        // StreamGraphOptimizationStrategy.
+                        // And we don't need to check all downstream nodes of the join, because the
+                        // KEEP_INPUT_AS_IS constraint will be bound to BatchExecExchange, which
+                        // will be the direct downstream node of the join.
+                        if (shouldStrictKeepInputAsIs(node.getInputProperties())) {
                             return;
                         }
                         for (int i = 0; i < node.getInputEdges().size(); ++i) {
@@ -115,6 +118,17 @@ public class AdaptiveJoinProcessor implements ExecNodeGraphProcessor {
         return newNode;
     }
 
+    private boolean shouldStrictKeepInputAsIs(List<InputProperty> inputProperties) {
+        return inputProperties.stream()
+                .anyMatch(
+                        inputProperty ->
+                                (inputProperty.getRequiredDistribution().getType()
+                                                == KEEP_INPUT_AS_IS)
+                                        && ((InputProperty.KeepInputAsIsDistribution)
+                                                        inputProperty.getRequiredDistribution())
+                                                .isStrict());
+    }
+
     private boolean shouldKeepInputAsIs(List<InputProperty> inputProperties) {
         return inputProperties.stream()
                 .anyMatch(
@@ -141,6 +155,11 @@ public class AdaptiveJoinProcessor implements ExecNodeGraphProcessor {
                                 != OptimizerConfigOptions.AdaptiveBroadcastJoinStrategy.NONE
                         && !TableConfigUtils.isOperatorDisabled(
                                 tableConfig, OperatorType.BroadcastHashJoin);
+        isAdaptiveJoinEnabled |=
+                tableConfig.get(
+                                OptimizerConfigOptions
+                                        .TABLE_OPTIMIZER_ADAPTIVE_SKEWED_JOIN_OPTIMIZATION_STRATEGY)
+                        != OptimizerConfigOptions.AdaptiveSkewedJoinOptimizationStrategy.NONE;
         JobManagerOptions.SchedulerType schedulerType =
                 context.getPlanner()
                         .getExecEnv()
@@ -149,8 +168,12 @@ public class AdaptiveJoinProcessor implements ExecNodeGraphProcessor {
                         .orElse(JobManagerOptions.SchedulerType.AdaptiveBatch);
         boolean isAdaptiveBatchSchedulerEnabled =
                 schedulerType == JobManagerOptions.SchedulerType.AdaptiveBatch;
-
-        return isAdaptiveJoinEnabled && isAdaptiveBatchSchedulerEnabled;
+        // Currently, adaptive join optimization and batch job progress recovery cannot be enabled
+        // simultaneously so we should disable it here.
+        // TODO: If job recovery for adaptive execution is supported in the future, this logic will
+        //  need to be removed.
+        boolean isJobRecoveryEnabled = tableConfig.get(BatchExecutionOptions.JOB_RECOVERY_ENABLED);
+        return isAdaptiveJoinEnabled && isAdaptiveBatchSchedulerEnabled && !isJobRecoveryEnabled;
     }
 
     private boolean areAllInputsHashShuffle(ExecNode<?> node) {

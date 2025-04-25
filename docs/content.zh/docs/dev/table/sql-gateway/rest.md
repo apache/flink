@@ -93,11 +93,13 @@ REST API
 
 OpenAPI 规范如下，默认版本是 v3。
 
-| Version                       | Description                    |
-| ----------- |--------------------------------|
-| [Open API v1 specification]({{< ref_static "generated/rest_v1_sql_gateway.yml" >}}) | 允许用户提交 SQL 语句到 Gateway 并执行。 |
-| [Open API v2 specification]({{< ref_static "generated/rest_v2_sql_gateway.yml" >}}) | 支持 SQL 客户端连接到 Gateway。 |
-| [Open API v3 specification]({{< ref_static "generated/rest_v3_sql_gateway.yml" >}}) | 支持 Materialized Table 刷新操作。 |
+| Version                       | Description                   |
+| ----------- |-------------------------------|
+| [Open API v1 specification]({{< ref_static "generated/rest_v1_sql_gateway.yml" >}}) | 允许用户提交 SQL 语句到 Gateway 并执行。   |
+| [Open API v2 specification]({{< ref_static "generated/rest_v2_sql_gateway.yml" >}}) | 支持 SQL 客户端连接到 Gateway。        |
+| [Open API v3 specification]({{< ref_static "generated/rest_v3_sql_gateway.yml" >}}) | 支持 Materialized Table 刷新操作。   |
+| [Open API v4 specification]({{< ref_static "generated/rest_v4_sql_gateway.yml" >}}) | 支持使用 Application 模式部署 SQL 脚本。 |
+
 
 {{< hint warning >}}
 OpenAPI 规范目前仍处于实验阶段。
@@ -106,6 +108,11 @@ OpenAPI 规范目前仍处于实验阶段。
 #### API reference
 
 {{< tabs "f00ed142-b05f-44f0-bafc-799080c1d40d" >}}
+{{< tab "v4" >}}
+
+{{< generated/rest_v4_sql_gateway >}}
+
+{{< /tab >}}
 {{< tab "v3" >}}
 
 {{< generated/rest_v3_sql_gateway >}}

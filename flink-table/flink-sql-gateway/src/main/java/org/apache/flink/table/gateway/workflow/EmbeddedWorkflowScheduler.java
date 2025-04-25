@@ -81,7 +81,9 @@ public class EmbeddedWorkflowScheduler implements WorkflowScheduler<EmbeddedRefr
 
     @Override
     public void close() throws WorkflowException {
-        restClient.closeAsync();
+        if (restClient != null) {
+            restClient.closeAsync();
+        }
     }
 
     @Override

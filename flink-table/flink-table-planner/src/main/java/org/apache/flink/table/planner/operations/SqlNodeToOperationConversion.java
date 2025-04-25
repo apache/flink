@@ -22,7 +22,6 @@ import org.apache.flink.sql.parser.ddl.SqlAddJar;
 import org.apache.flink.sql.parser.ddl.SqlAlterDatabase;
 import org.apache.flink.sql.parser.ddl.SqlAlterFunction;
 import org.apache.flink.sql.parser.ddl.SqlAlterTable;
-import org.apache.flink.sql.parser.ddl.SqlAlterTableCompact;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropColumn;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropConstraint;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropDistribution;
@@ -92,7 +91,6 @@ import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.FunctionLanguage;
-import org.apache.flink.table.catalog.ManagedTableListener;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -123,7 +121,6 @@ import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.ModifyType;
 import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowColumnsOperation;
 import org.apache.flink.table.operations.ShowCreateTableOperation;
 import org.apache.flink.table.operations.ShowCreateViewOperation;
@@ -131,7 +128,6 @@ import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
 import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
 import org.apache.flink.table.operations.ShowModulesOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
-import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
@@ -455,11 +451,6 @@ public class SqlNodeToOperationConversion {
         } else if (sqlAlterTable instanceof SqlAlterTableRenameColumn) {
             return alterSchemaConverter.convertAlterSchema(
                     (SqlAlterTableRenameColumn) sqlAlterTable, resolvedCatalogTable);
-        } else if (sqlAlterTable instanceof SqlAlterTableCompact) {
-            return convertAlterTableCompact(
-                    tableIdentifier,
-                    optionalCatalogTable.get(),
-                    (SqlAlterTableCompact) sqlAlterTable);
         } else if (sqlAlterTable instanceof SqlAlterTableSchema) {
             return alterSchemaConverter.convertAlterSchema(
                     (SqlAlterTableSchema) sqlAlterTable, resolvedCatalogTable);
@@ -533,59 +524,6 @@ public class SqlNodeToOperationConversion {
                 resetKeys.stream().map(TableChange::reset).collect(Collectors.toList()),
                 oldTable.copy(newOptions),
                 alterTableReset.ifTableExists());
-    }
-
-    /**
-     * Convert `ALTER TABLE ... COMPACT` operation to {@link ModifyOperation} for Flink's managed
-     * table to trigger a compaction batch job.
-     */
-    private ModifyOperation convertAlterTableCompact(
-            ObjectIdentifier tableIdentifier,
-            ContextResolvedTable contextResolvedTable,
-            SqlAlterTableCompact alterTableCompact) {
-        Catalog catalog = catalogManager.getCatalog(tableIdentifier.getCatalogName()).orElse(null);
-        ResolvedCatalogTable resolvedCatalogTable = contextResolvedTable.getResolvedTable();
-
-        if (ManagedTableListener.isManagedTable(catalog, resolvedCatalogTable)) {
-            Map<String, String> partitionKVs = alterTableCompact.getPartitionKVs();
-            CatalogPartitionSpec partitionSpec = new CatalogPartitionSpec(Collections.emptyMap());
-            if (partitionKVs != null) {
-                List<String> partitionKeys = resolvedCatalogTable.getPartitionKeys();
-                Set<String> validPartitionKeySet = new HashSet<>(partitionKeys);
-                String exMsg =
-                        partitionKeys.isEmpty()
-                                ? String.format("Table %s is not partitioned.", tableIdentifier)
-                                : String.format(
-                                        "Available ordered partition columns: [%s]",
-                                        partitionKeys.stream()
-                                                .collect(Collectors.joining("', '", "'", "'")));
-                partitionKVs.forEach(
-                        (partitionKey, partitionValue) -> {
-                            if (!validPartitionKeySet.contains(partitionKey)) {
-                                throw new ValidationException(
-                                        String.format(
-                                                "Partition column '%s' not defined in the table schema. %s",
-                                                partitionKey, exMsg));
-                            }
-                        });
-                partitionSpec = new CatalogPartitionSpec(partitionKVs);
-            }
-            Map<String, String> compactOptions =
-                    catalogManager.resolveCompactManagedTableOptions(
-                            resolvedCatalogTable, tableIdentifier, partitionSpec);
-            QueryOperation child = new SourceQueryOperation(contextResolvedTable, compactOptions);
-            return new SinkModifyOperation(
-                    contextResolvedTable,
-                    child,
-                    partitionSpec.getPartitionSpec(),
-                    null, // targetColumns
-                    false,
-                    compactOptions);
-        }
-        throw new ValidationException(
-                String.format(
-                        "ALTER TABLE COMPACT operation is not supported for non-managed table %s",
-                        tableIdentifier));
     }
 
     /** Convert ALTER TABLE DROP DISTRIBUTION statement. */
@@ -1285,8 +1223,7 @@ public class SqlNodeToOperationConversion {
                         catalogManager.qualifyIdentifier(unresolvedTableIdentifier));
         // try push down delete
         Optional<DynamicTableSink> optionalDynamicTableSink =
-                DeletePushDownUtils.getDynamicTableSink(
-                        contextResolvedTable, tableModify, catalogManager);
+                DeletePushDownUtils.getDynamicTableSink(contextResolvedTable, tableModify);
         if (optionalDynamicTableSink.isPresent()) {
             DynamicTableSink dynamicTableSink = optionalDynamicTableSink.get();
             // if the table sink supports delete push down

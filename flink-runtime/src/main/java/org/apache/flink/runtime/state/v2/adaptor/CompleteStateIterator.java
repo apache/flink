@@ -19,53 +19,78 @@
 package org.apache.flink.runtime.state.v2.adaptor;
 
 import org.apache.flink.api.common.state.v2.StateFuture;
-import org.apache.flink.api.common.state.v2.StateIterator;
+import org.apache.flink.core.state.InternalStateIterator;
 import org.apache.flink.core.state.StateFutureUtils;
+import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Iterator;
-import java.util.function.Consumer;
-import java.util.function.Function;
 
 /** A {@link org.apache.flink.api.common.state.v2.StateIterator} that has all elements. */
-public class CompleteStateIterator<T> implements StateIterator<T> {
+public class CompleteStateIterator<T> implements InternalStateIterator<T> {
 
-    final Iterator<T> iterator;
+    final Iterable<T> iterable;
     final boolean empty;
 
     public CompleteStateIterator(@Nullable Iterable<T> iterable) {
         if (iterable == null) {
-            this.iterator = Collections.emptyIterator();
+            this.iterable = Collections.emptyList();
             this.empty = true;
         } else {
-            this.iterator = iterable.iterator();
-            this.empty = !iterator.hasNext();
+            this.iterable = iterable;
+            this.empty = !iterable.iterator().hasNext();
         }
     }
 
     @Override
-    public <U> StateFuture<Collection<U>> onNext(Function<T, StateFuture<? extends U>> iterating) {
+    public <U> StateFuture<Collection<U>> onNext(
+            FunctionWithException<T, StateFuture<? extends U>, Exception> iterating) {
         if (isEmpty()) {
             return StateFutureUtils.completedFuture(Collections.emptyList());
         }
         Collection<StateFuture<? extends U>> resultFutures = new ArrayList<>();
 
-        iterator.forEachRemaining(item -> resultFutures.add(iterating.apply(item)));
+        try {
+            for (T item : iterable) {
+                resultFutures.add(iterating.apply(item));
+            }
+        } catch (Exception e) {
+            // Since this is on task thread, we can directly throw the runtime exception.
+            throw new FlinkRuntimeException("Failed to iterate over state.", e);
+        }
         return StateFutureUtils.combineAll(resultFutures);
     }
 
     @Override
-    public StateFuture<Void> onNext(Consumer<T> iterating) {
-        iterator.forEachRemaining(iterating);
+    public StateFuture<Void> onNext(ThrowingConsumer<T, Exception> iterating) {
+        try {
+            for (T item : iterable) {
+                iterating.accept(item);
+            }
+        } catch (Exception e) {
+            // Since this is on task thread, we can directly throw the runtime exception.
+            throw new FlinkRuntimeException("Failed to iterate over state.", e);
+        }
         return StateFutureUtils.completedVoidFuture();
     }
 
     @Override
     public boolean isEmpty() {
         return empty;
+    }
+
+    @Override
+    public boolean hasNextLoading() {
+        return false;
+    }
+
+    @Override
+    public Iterable<T> getCurrentCache() {
+        return iterable;
     }
 }

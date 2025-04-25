@@ -532,31 +532,4 @@ object LookupJoinCodeGenerator {
       classLoader
     )
   }
-
-  /**
-   * Generates pre-filter condition for lookup join which can be applied before access the dimension
-   * table.
-   */
-  def generatePreFilterCondition(
-      tableConfig: ReadableConfig,
-      classLoader: ClassLoader,
-      preFilterCondition: RexNode,
-      leftType: LogicalType): GeneratedFilterCondition = {
-    val ctx = new CodeGeneratorContext(tableConfig, classLoader)
-    // should consider null fields
-    val exprGenerator =
-      new ExprCodeGenerator(ctx, false).bindInput(leftType, CodeGenUtils.DEFAULT_INPUT_TERM)
-
-    val bodyCode = if (preFilterCondition == null) {
-      "return true;"
-    } else {
-      val condition = exprGenerator.generateExpression(preFilterCondition)
-      s"""
-         |${condition.code}
-         |return ${condition.resultTerm};
-         |""".stripMargin
-    }
-
-    FunctionCodeGenerator.generateFilterCondition(ctx, "PreFilterCondition", bodyCode)
-  }
 }

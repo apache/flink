@@ -58,6 +58,7 @@ import static org.apache.flink.runtime.state.StateBackendLoader.FORST_STATE_BACK
  *       </code>.
  *   <li><code>--execution-mode &lt;mode&gt;</code>The execution mode (BATCH, STREAMING, or
  *       AUTOMATIC) of this pipeline.
+ *   <li><code>--async-state</code> Whether enable async state.
  * </ul>
  *
  * <p>This example shows how to:
@@ -82,9 +83,13 @@ public class WordCount {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         // For async state, by default we will use the forst state backend.
-        Configuration config = Configuration.fromMap(env.getConfiguration().toMap());
-        config.set(StateBackendOptions.STATE_BACKEND, FORST_STATE_BACKEND_NAME);
-        env.configure(config);
+        if (params.isAsyncState()) {
+            Configuration config = Configuration.fromMap(env.getConfiguration().toMap());
+            if (!config.containsKey(StateBackendOptions.STATE_BACKEND.key())) {
+                config.set(StateBackendOptions.STATE_BACKEND, FORST_STATE_BACKEND_NAME);
+                env.configure(config);
+            }
+        }
 
         // Apache Flink’s unified approach to stream and batch processing means that a DataStream
         // application executed over bounded input will produce the same final results regardless

@@ -869,7 +869,6 @@ SqlAlterTable SqlAlterTable() :
     boolean ifNotExists = false;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlNodeList propertyKeyList = SqlNodeList.EMPTY;
-    SqlNodeList partitionSpec = null;
     SqlDistribution distribution = null;
     SqlIdentifier constraintName;
     SqlTableConstraint constraint;
@@ -1047,17 +1046,6 @@ SqlAlterTable SqlAlterTable() :
             }
          )
         )
-    |
-        [
-            <PARTITION>
-            {   partitionSpec = new SqlNodeList(getPos());
-                PartitionSpecCommaList(partitionSpec);
-            }
-        ]
-        <COMPACT>
-        {
-            return new SqlAlterTableCompact(startPos.plus(getPos()), tableIdentifier, partitionSpec, ifExists);
-        }
     )
 }
 

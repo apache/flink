@@ -207,6 +207,79 @@ class RichAsyncFunctionTest {
 
         assertThatThrownBy(
                         () ->
+                                runtimeContext.getState(
+                                        new org.apache.flink.api.common.state.v2
+                                                .ValueStateDescriptor<>("foobar", Integer.class)))
+                .isInstanceOf(UnsupportedOperationException.class);
+
+        assertThatThrownBy(
+                        () ->
+                                runtimeContext.getListState(
+                                        new org.apache.flink.api.common.state.v2
+                                                .ListStateDescriptor<>("foobar", Integer.class)))
+                .isInstanceOf(UnsupportedOperationException.class);
+
+        assertThatThrownBy(
+                        () ->
+                                runtimeContext.getReducingState(
+                                        new org.apache.flink.api.common.state.v2
+                                                .ReducingStateDescriptor<>(
+                                                "foobar",
+                                                new ReduceFunction<Integer>() {
+                                                    private static final long serialVersionUID =
+                                                            2136425961884441050L;
+
+                                                    @Override
+                                                    public Integer reduce(
+                                                            Integer value1, Integer value2) {
+                                                        return value1;
+                                                    }
+                                                },
+                                                Integer.class)))
+                .isInstanceOf(UnsupportedOperationException.class);
+
+        assertThatThrownBy(
+                        () ->
+                                runtimeContext.getAggregatingState(
+                                        new org.apache.flink.api.common.state.v2
+                                                .AggregatingStateDescriptor<>(
+                                                "foobar",
+                                                new AggregateFunction<Integer, Integer, Integer>() {
+
+                                                    @Override
+                                                    public Integer createAccumulator() {
+                                                        return null;
+                                                    }
+
+                                                    @Override
+                                                    public Integer add(
+                                                            Integer value, Integer accumulator) {
+                                                        return null;
+                                                    }
+
+                                                    @Override
+                                                    public Integer getResult(Integer accumulator) {
+                                                        return null;
+                                                    }
+
+                                                    @Override
+                                                    public Integer merge(Integer a, Integer b) {
+                                                        return null;
+                                                    }
+                                                },
+                                                Integer.class)))
+                .isInstanceOf(UnsupportedOperationException.class);
+
+        assertThatThrownBy(
+                        () ->
+                                runtimeContext.getMapState(
+                                        new org.apache.flink.api.common.state.v2
+                                                .MapStateDescriptor<>(
+                                                "foobar", Integer.class, String.class)))
+                .isInstanceOf(UnsupportedOperationException.class);
+
+        assertThatThrownBy(
+                        () ->
                                 runtimeContext.addAccumulator(
                                         "foobar",
                                         new Accumulator<Integer, Integer>() {

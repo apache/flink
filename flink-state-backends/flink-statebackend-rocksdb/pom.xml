@@ -27,7 +27,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-state-backends</artifactId>
-		<version>2.0-SNAPSHOT</version>
+		<version>2.1-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-statebackend-rocksdb</artifactId>
@@ -63,7 +63,7 @@ under the License.
 		<dependency>
 			<groupId>com.ververica</groupId>
 			<artifactId>frocksdbjni</artifactId>
-			<version>8.10.0-ververica-beta-1.0</version>
+			<version>8.10.0-ververica-1.0</version>
 		</dependency>
 
 		<dependency>

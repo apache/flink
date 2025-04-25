@@ -18,11 +18,11 @@
 
 package org.apache.flink.datastream.impl.context;
 
+import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.datastream.api.context.ProcessingTimeManager;
 import org.apache.flink.datastream.api.context.RuntimeContext;
 import org.apache.flink.datastream.api.context.TwoOutputNonPartitionedContext;
 import org.apache.flink.datastream.api.context.TwoOutputPartitionedContext;
-import org.apache.flink.runtime.state.v2.OperatorStateStore;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
 import java.util.function.BiConsumer;

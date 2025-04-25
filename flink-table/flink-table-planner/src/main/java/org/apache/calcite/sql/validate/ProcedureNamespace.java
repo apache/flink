@@ -57,39 +57,27 @@ public final class ProcedureNamespace extends AbstractNamespace {
 
     public RelDataType validateImpl(RelDataType targetRowType) {
         validator.inferUnknownTypes(validator.unknownType, scope, call);
+
         final SqlOperator operator = call.getOperator();
         final SqlCallBinding callBinding = new FlinkSqlCallBinding(validator, scope, call);
+        final SqlCall permutedCall = callBinding.permutedCall();
+        if (operator instanceof SqlWindowTableFunction) {
+            permutedCall.validate(validator, scope);
+        }
+
         // The result is ignored but the type is derived to trigger the function resolution
-        validator.deriveTypeImpl(scope, callBinding.permutedCall());
+        validator.deriveTypeImpl(scope, permutedCall);
+
         if (!(operator instanceof SqlTableFunction)) {
             throw new IllegalArgumentException(
                     "Argument must be a table function: " + operator.getNameAsId());
         }
-        if (operator instanceof SqlWindowTableFunction) {
-            callBinding.permutedCall().validate(validator, scope);
-        }
+
         final SqlTableFunction tableFunction = (SqlTableFunction) operator;
         final SqlReturnTypeInference rowTypeInference = tableFunction.getRowTypeInference();
-        final RelDataType rowRelDataType =
-                requireNonNull(
-                        rowTypeInference.inferReturnType(callBinding),
-                        () -> "got null from inferReturnType for call " + callBinding.getCall());
-        // For BridgingSqlFunction the type can still be atomic
-        // and will be wrapped with a proper field alias
-        return toStruct(rowRelDataType, getNode());
-    }
-
-    /** Converts a type to a struct if it is not already. */
-    protected RelDataType toStruct(RelDataType type, SqlNode unnest) {
-        if (type.isStruct()) {
-            return validator.getTypeFactory().createTypeWithNullability(type, false);
-        }
-        return validator
-                .getTypeFactory()
-                .builder()
-                .kind(type.getStructKind())
-                .add(validator.deriveAlias(unnest, 0), type)
-                .build();
+        return requireNonNull(
+                rowTypeInference.inferReturnType(callBinding),
+                () -> "got null from inferReturnType for call " + callBinding.getCall());
     }
 
     public SqlNode getNode() {

@@ -81,7 +81,8 @@ public final class StreamTestUtils {
         }
 
         @Override
-        public void processRecord(Integer record, Collector<Long> output, PartitionedContext ctx) {
+        public void processRecord(
+                Integer record, Collector<Long> output, PartitionedContext<Long> ctx) {
             // do nothing.
         }
     }
@@ -110,7 +111,7 @@ public final class StreamTestUtils {
                 Integer record,
                 Collector<Integer> output1,
                 Collector<Long> output2,
-                TwoOutputPartitionedContext ctx) {
+                TwoOutputPartitionedContext<Integer, Long> ctx) {
             //  do nothing.
         }
     }
@@ -139,13 +140,14 @@ public final class StreamTestUtils {
 
         @Override
         public void processRecordFromFirstInput(
-                Integer record, Collector<Long> output, PartitionedContext ctx) {
+                Integer record, Collector<Long> output, PartitionedContext<Long> ctx) {
             // do nothing.
         }
 
         @Override
         public void processRecordFromSecondInput(
-                Long record, Collector<Long> output, PartitionedContext ctx) throws Exception {
+                Long record, Collector<Long> output, PartitionedContext<Long> ctx)
+                throws Exception {
             // do nothing.
         }
     }
@@ -174,7 +176,7 @@ public final class StreamTestUtils {
 
         @Override
         public void processRecordFromNonBroadcastInput(
-                Long record, Collector<Long> output, PartitionedContext ctx) {
+                Long record, Collector<Long> output, PartitionedContext<Long> ctx) {
             // do nothing.
         }
 

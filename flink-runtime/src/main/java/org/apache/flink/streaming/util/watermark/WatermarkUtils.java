@@ -21,6 +21,7 @@ package org.apache.flink.streaming.util.watermark;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.watermark.Watermark;
 import org.apache.flink.api.common.watermark.WatermarkDeclaration;
+import org.apache.flink.datastream.api.extension.eventtime.EventTimeExtension;
 import org.apache.flink.datastream.api.function.ProcessFunction;
 import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateUdfStreamOperator;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -29,9 +30,12 @@ import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.watermark.AbstractInternalWatermarkDeclaration;
+import org.apache.flink.streaming.runtime.watermark.WatermarkCombiner;
+import org.apache.flink.streaming.runtime.watermark.extension.eventtime.EventTimeWatermarkCombiner;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -94,5 +98,27 @@ public final class WatermarkUtils {
         return watermarkDeclarations.stream()
                 .map(AbstractInternalWatermarkDeclaration::from)
                 .collect(Collectors.toSet());
+    }
+
+    /** Create watermark combiners if there are event time watermark declarations. */
+    public static void addEventTimeWatermarkCombinerIfNeeded(
+            Set<AbstractInternalWatermarkDeclaration<?>> watermarkDeclarationSet,
+            Map<String, WatermarkCombiner> watermarkCombiners,
+            int numberOfInputChannels) {
+        if (watermarkDeclarationSet.stream()
+                .anyMatch(
+                        declaration ->
+                                EventTimeExtension.isEventTimeWatermark(
+                                        declaration.getIdentifier()))) {
+            // create event time watermark combiner
+            EventTimeWatermarkCombiner eventTimeWatermarkCombiner =
+                    new EventTimeWatermarkCombiner(numberOfInputChannels);
+            watermarkCombiners.put(
+                    EventTimeExtension.EVENT_TIME_WATERMARK_DECLARATION.getIdentifier(),
+                    eventTimeWatermarkCombiner);
+            watermarkCombiners.put(
+                    EventTimeExtension.IDLE_STATUS_WATERMARK_DECLARATION.getIdentifier(),
+                    eventTimeWatermarkCombiner);
+        }
     }
 }

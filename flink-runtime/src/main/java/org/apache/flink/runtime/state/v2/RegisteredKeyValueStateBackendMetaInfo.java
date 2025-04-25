@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.v2;
 
+import org.apache.flink.api.common.state.v2.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
@@ -42,10 +43,10 @@ import java.util.Objects;
  */
 public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStateMetaInfoBase {
 
-    @Nonnull private final StateDescriptor.Type stateType;
-    @Nonnull private final StateSerializerProvider<N> namespaceSerializerProvider;
-    @Nonnull private final StateSerializerProvider<S> stateSerializerProvider;
-    @Nonnull private StateSnapshotTransformFactory<S> stateSnapshotTransformFactory;
+    @Nonnull protected final StateDescriptor.Type stateType;
+    @Nonnull protected final StateSerializerProvider<N> namespaceSerializerProvider;
+    @Nonnull protected final StateSerializerProvider<S> stateSerializerProvider;
+    @Nonnull protected StateSnapshotTransformFactory<S> stateSnapshotTransformFactory;
 
     public RegisteredKeyValueStateBackendMetaInfo(
             @Nonnull String name,
@@ -102,7 +103,7 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
                         == snapshot.getBackendStateType());
     }
 
-    private RegisteredKeyValueStateBackendMetaInfo(
+    protected RegisteredKeyValueStateBackendMetaInfo(
             @Nonnull String name,
             @Nonnull StateDescriptor.Type stateType,
             @Nonnull StateSerializerProvider<N> namespaceSerializerProvider,
@@ -135,6 +136,13 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
     public TypeSerializerSchemaCompatibility<S> updateStateSerializer(
             TypeSerializer<S> newStateSerializer) {
         return stateSerializerProvider.registerNewSerializerForRestoredState(newStateSerializer);
+    }
+
+    @Nonnull
+    public TypeSerializerSchemaCompatibility<N> updateNamespaceSerializer(
+            TypeSerializer<N> newNamespaceSerializer) {
+        return namespaceSerializerProvider.registerNewSerializerForRestoredState(
+                newNamespaceSerializer);
     }
 
     @Override

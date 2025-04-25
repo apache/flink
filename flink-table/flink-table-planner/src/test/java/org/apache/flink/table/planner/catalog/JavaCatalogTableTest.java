@@ -53,6 +53,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.lit;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for resolving types of computed columns (including time attributes) of tables from catalog.
@@ -177,6 +178,53 @@ class JavaCatalogTableTest extends TableTestBase {
                         + "GROUP BY window_start, window_end");
     }
 
+    @TestTemplate
+    void testTimeAttributeOfViewSelect() {
+        if (!streamingMode) {
+            // time attributes not supported in batch
+            return;
+        }
+        TableTestUtil testUtil = getTestUtil();
+        TableEnvironment tableEnvironment = testUtil.getTableEnv();
+        tableEnvironment.registerCatalog("cat", new CustomCatalog("cat"));
+        tableEnvironment.executeSql(
+                "CREATE TABLE `cat`.`default`.`t`("
+                        + " order_id INT, "
+                        + " customer_id INT, "
+                        + " product_id INT, "
+                        + " product_ids ARRAY<INT>, "
+                        + " ts TIMESTAMP_LTZ(3), WATERMARK FOR ts AS ts) "
+                        + "WITH ('connector' = 'datagen')");
+        tableEnvironment.executeSql(
+                "CREATE VIEW `cat`.`default`.v AS "
+                        + "SELECT `o`.`order_id`, `o`.`customer_id`, `pids`.`product_id`, `o`.`ts`\n"
+                        + "FROM `cat`.`default`.`t` AS `o`\n"
+                        + "CROSS JOIN UNNEST(`o`.`product_ids`) AS `pids` (`product_id`)");
+        testUtil.verifyExecPlan("SELECT * FROM `cat`.`default`.v");
+    }
+
+    @TestTemplate
+    void testShowCreateViewUsesCorrectColumnNames() {
+        TableTestUtil testUtil = getTestUtil();
+        TableEnvironment tableEnvironment = testUtil.getTableEnv();
+        tableEnvironment.registerCatalog("cat", new CustomCatalog("cat"));
+        tableEnvironment.executeSql(
+                "CREATE VIEW `cat`.`default`.v (`customer_id`, `product_id`) AS " + "SELECT 1, 1");
+        String result =
+                tableEnvironment
+                        .executeSql("SHOW CREATE VIEW `cat`.`default`.v")
+                        .collect()
+                        .next()
+                        .getFieldAs(0);
+        assertThat(result)
+                .isEqualTo(
+                        "CREATE VIEW `cat`.`default`.`v` (\n"
+                                + "  `customer_id`,\n"
+                                + "  `product_id`\n"
+                                + ")\n"
+                                + "AS SELECT 1, 1\n");
+    }
+
     private static class CustomCatalog extends GenericInMemoryCatalog {
         public CustomCatalog(String name) {
             super(name);
@@ -283,11 +331,6 @@ class JavaCatalogTableTest extends TableTestBase {
         @Override
         public CatalogTable copy(Map<String, String> options) {
             return this;
-        }
-
-        @Override
-        public Map<String, String> toProperties() {
-            return Collections.emptyMap();
         }
 
         @Override
