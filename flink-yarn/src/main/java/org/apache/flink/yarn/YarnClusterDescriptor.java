@@ -87,6 +87,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
+import org.apache.hadoop.yarn.api.records.LogAggregationContext;
 import org.apache.hadoop.yarn.api.records.NodeReport;
 import org.apache.hadoop.yarn.api.records.NodeState;
 import org.apache.hadoop.yarn.api.records.Priority;
@@ -180,8 +181,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
     private final String yarnQueue;
 
-    private Path flinkJarPath;
-
     private final Configuration flinkConfiguration;
 
     private final String customName;
@@ -189,6 +188,12 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
     private final String nodeLabel;
 
     private final String applicationType;
+
+    private final String rolledLogIncludePattern;
+
+    private final String rolledLogExcludePattern;
+
+    private Path flinkJarPath;
 
     private YarnConfigOptions.UserJarInclusion userJarInclusion;
 
@@ -221,6 +226,10 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         this.customName = flinkConfiguration.get(YarnConfigOptions.APPLICATION_NAME);
         this.applicationType = flinkConfiguration.get(YarnConfigOptions.APPLICATION_TYPE);
         this.nodeLabel = flinkConfiguration.get(YarnConfigOptions.NODE_LABEL);
+        this.rolledLogIncludePattern =
+                flinkConfiguration.get(YarnConfigOptions.ROLLED_LOGS_INCLUDE_PATTERN);
+        this.rolledLogExcludePattern =
+                flinkConfiguration.get(YarnConfigOptions.ROLLED_LOGS_EXCLUDE_PATTERN);
     }
 
     /** Adapt flink env setting. */
@@ -1237,6 +1246,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
         setApplicationTags(appContext);
 
+        setRolledLogConfigs(appContext);
+
         // add a hook to clean up in case deployment fails
         Thread deploymentFailureHook =
                 new DeploymentFailureHook(yarnApplication, fileUploader.getApplicationDir());
@@ -1530,6 +1541,25 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             final ApplicationSubmissionContextReflector reflector =
                     ApplicationSubmissionContextReflector.getInstance();
             reflector.setApplicationNodeLabel(appContext, nodeLabel);
+        }
+    }
+
+    @VisibleForTesting
+    void setRolledLogConfigs(final ApplicationSubmissionContext appContext) {
+        LogAggregationContext ctx = null;
+
+        if (!StringUtils.isNullOrWhitespaceOnly(rolledLogIncludePattern)) {
+            ctx = Records.newRecord(LogAggregationContext.class);
+            ctx.setRolledLogsIncludePattern(rolledLogIncludePattern);
+        }
+
+        if (!StringUtils.isNullOrWhitespaceOnly(rolledLogExcludePattern)) {
+            ctx = ctx == null ? Records.newRecord(LogAggregationContext.class) : ctx;
+            ctx.setRolledLogsExcludePattern(rolledLogExcludePattern);
+        }
+
+        if (ctx != null) {
+            appContext.setLogAggregationContext(ctx);
         }
     }
 
