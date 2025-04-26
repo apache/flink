@@ -19,7 +19,10 @@ import atexit
 import os
 import sys
 import tempfile
-from typing import Union, List, Tuple, Iterable, Optional
+from typing import Union, List, Tuple, Iterable, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import pandas
 
 from py4j.java_gateway import get_java_class, get_method
 
@@ -1330,7 +1333,7 @@ class TableEnvironment(object):
         finally:
             atexit.register(lambda: os.unlink(temp_file.name))
 
-    def from_pandas(self, pdf,
+    def from_pandas(self, pdf: 'pandas.DataFrame',
                     schema: Union[RowType, List[str], Tuple[str], List[DataType],
                                   Tuple[DataType]] = None,
                     splits_num: int = 1) -> Table:
