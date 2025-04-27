@@ -71,7 +71,7 @@ public abstract class StreamingMultiJoinOperatorTestBase {
     protected final List<RowDataKeySelector> keySelectors;
     protected final List<JoinInputSideSpec> inputSpecs;
     protected final List<JoinType> joinTypes;
-    protected final List<GeneratedMultiJoinCondition> outerJoinConditions;
+    protected final List<GeneratedMultiJoinCondition> joinConditions;
     protected final boolean isFullOuterJoin;
     protected final InternalTypeInfo<RowData> joinKeyTypeInfo;
 
@@ -89,17 +89,17 @@ public abstract class StreamingMultiJoinOperatorTestBase {
     protected StreamingMultiJoinOperatorTestBase(
             int numInputs,
             List<JoinType> joinTypes,
-            List<GeneratedMultiJoinCondition> outerJoinConditions,
+            List<GeneratedMultiJoinCondition> joinConditions,
             boolean isFullOuterJoin) {
         this.inputTypeInfos = new ArrayList<>(numInputs);
         this.keySelectors = new ArrayList<>(numInputs);
         this.inputSpecs = new ArrayList<>(numInputs);
         this.joinTypes = joinTypes;
         this.isFullOuterJoin = isFullOuterJoin;
-        this.outerJoinConditions = outerJoinConditions;
+        this.joinConditions = joinConditions;
 
         initializeInputs(numInputs);
-        initializeOuterJoinConditions();
+        initializeJoinConditions();
 
         this.joinKeyTypeInfo = InternalTypeInfo.of(new CharType(false, 20));
     }
@@ -244,7 +244,7 @@ public abstract class StreamingMultiJoinOperatorTestBase {
 
     private void initializeInputs(int numInputs) {
         if (numInputs < 2) {
-            throw new IllegalArgumentException("Number of inputs must be at least 2");
+            throw new IllegalArgumentException("Number of inputs must be a" + "t least 2");
         }
 
         // In our test, the first input is always the one with the unique key as a join key
@@ -263,15 +263,22 @@ public abstract class StreamingMultiJoinOperatorTestBase {
         }
     }
 
-    private void initializeOuterJoinConditions() {
-        if (outerJoinConditions.isEmpty()) {
-            for (int i = 0; i < joinTypes.size(); i++) {
-                if (joinTypes.get(i) != JoinType.INNER) {
-                    outerJoinConditions.add(createMultiJoinOuterJoinCondition(i, i - 1));
-                } else {
-                    outerJoinConditions.add(null);
-                }
+    private void initializeJoinConditions() {
+        if (joinConditions.isEmpty()) {
+            // Add a null condition for the first input (index 0) as it doesn't have a preceding
+            // join
+            joinConditions.add(null);
+
+            for (int i = 1; i < joinTypes.size(); i++) {
+                joinConditions.add(createJoinCondition(i, i - 1));
             }
+
+        } else if (joinConditions.size() != inputSpecs.size()) {
+            throw new IllegalArgumentException(
+                    "The number of provided join conditions must match the number of inputs ("
+                            + inputSpecs.size()
+                            + "), but got "
+                            + joinConditions.size());
         }
     }
 
@@ -310,7 +317,7 @@ public abstract class StreamingMultiJoinOperatorTestBase {
         KeyedMultiInputStreamOperatorTestHarness<String, RowData> harness =
                 new KeyedMultiInputStreamOperatorTestHarness<>(
                         new MultiStreamingJoinOperatorFactory(
-                                inputSpecs, inputTypeInfos, joinTypes, outerJoinConditions),
+                                inputSpecs, inputTypeInfos, joinTypes, joinConditions),
                         TypeInformation.of(String.class));
 
         // Setup key selectors for each input
@@ -349,17 +356,17 @@ public abstract class StreamingMultiJoinOperatorTestBase {
         private final List<JoinInputSideSpec> inputSpecs;
         private final List<InternalTypeInfo<RowData>> inputTypeInfos;
         private final List<JoinType> joinTypes;
-        private final List<GeneratedMultiJoinCondition> outerJoinConditions;
+        private final List<GeneratedMultiJoinCondition> joinConditions;
 
         public MultiStreamingJoinOperatorFactory(
                 List<JoinInputSideSpec> inputSpecs,
                 List<InternalTypeInfo<RowData>> inputTypeInfos,
                 List<JoinType> joinTypes,
-                List<GeneratedMultiJoinCondition> outerJoinConditions) {
+                List<GeneratedMultiJoinCondition> joinConditions) {
             this.inputSpecs = inputSpecs;
             this.inputTypeInfos = inputTypeInfos;
             this.joinTypes = joinTypes;
-            this.outerJoinConditions = outerJoinConditions;
+            this.joinConditions = joinConditions;
         }
 
         @Override
@@ -367,7 +374,7 @@ public abstract class StreamingMultiJoinOperatorTestBase {
                 StreamOperatorParameters<RowData> parameters) {
             StreamingMultiJoinOperator op =
                     createJoinOperator(
-                            parameters, inputSpecs, inputTypeInfos, joinTypes, outerJoinConditions);
+                            parameters, inputSpecs, inputTypeInfos, joinTypes, joinConditions);
 
             @SuppressWarnings("unchecked")
             T operator = (T) op;
@@ -385,7 +392,7 @@ public abstract class StreamingMultiJoinOperatorTestBase {
                 List<JoinInputSideSpec> inputSpecs,
                 List<InternalTypeInfo<RowData>> inputTypeInfos,
                 List<JoinType> joinTypes,
-                List<GeneratedMultiJoinCondition> outerJoinConditions) {
+                List<GeneratedMultiJoinCondition> joinConditions) {
 
             long[] retentionTime = new long[inputSpecs.size()];
             Arrays.fill(retentionTime, 9999999L);
@@ -393,7 +400,7 @@ public abstract class StreamingMultiJoinOperatorTestBase {
             MultiJoinCondition multiJoinCondition =
                     createMultiJoinCondition(inputSpecs.size())
                             .newInstance(getClass().getClassLoader());
-            MultiJoinCondition[] outJoinConditions = createOuterJoinConditions(outerJoinConditions);
+            MultiJoinCondition[] createdJoinConditions = createJoinConditions(joinConditions);
 
             return new StreamingMultiJoinOperator(
                     parameters,
@@ -402,20 +409,30 @@ public abstract class StreamingMultiJoinOperatorTestBase {
                     joinTypes,
                     multiJoinCondition,
                     retentionTime,
-                    outJoinConditions);
+                    createdJoinConditions);
         }
 
-        private MultiJoinCondition[] createOuterJoinConditions(
-                List<GeneratedMultiJoinCondition> outerJoinConditions) {
+        private MultiJoinCondition[] createJoinConditions(
+                List<GeneratedMultiJoinCondition> generatedJoinConditions) {
             MultiJoinCondition[] conditions = new MultiJoinCondition[inputSpecs.size()];
+            // We expect generatedJoinConditions size to match inputSpecs size (or joinTypes size)
+            if (generatedJoinConditions.size() != inputSpecs.size()) {
+                throw new IllegalArgumentException(
+                        "The number of generated join conditions must match the number of inputs/joins.");
+            }
             for (int i = 0; i < inputSpecs.size(); i++) {
-                if (joinTypes.get(i) != JoinType.INNER) {
+                GeneratedMultiJoinCondition generatedCondition = generatedJoinConditions.get(i);
+                if (generatedCondition
+                        != null) { // Allow null conditions (e.g., for INNER joins without specific
+                    // cond)
                     try {
-                        conditions[i] =
-                                outerJoinConditions.get(i).newInstance(getClass().getClassLoader());
+                        conditions[i] = generatedCondition.newInstance(getClass().getClassLoader());
                     } catch (Exception e) {
-                        throw new RuntimeException("Failed to instantiate outer join condition", e);
+                        throw new RuntimeException(
+                                "Failed to instantiate join condition for input " + i, e);
                     }
+                } else {
+                    conditions[i] = null; // Explicitly set to null if no condition provided
                 }
             }
             return conditions;
@@ -485,41 +502,63 @@ public abstract class StreamingMultiJoinOperatorTestBase {
         return new GeneratedMultiJoinCondition("MultiConditionFunction", funcCode, new Object[0]);
     }
 
-    protected static GeneratedMultiJoinCondition createMultiJoinOuterJoinCondition(
+    /**
+     * Creates a default GeneratedMultiJoinCondition that compares the join key (field 0) between
+     * the input at `index` and the input at `indexToCompare`. This is typically used for the ON
+     * clause of a specific join step (e.g., A LEFT JOIN B **ON A.key = B.key**).
+     *
+     * @param index The index of the current input stream (the right side of the conceptual join
+     *     step).
+     * @param indexToCompare The index of the input stream to compare against (the left side).
+     * @return A GeneratedMultiJoinCondition representing the equality check.
+     */
+    protected static GeneratedMultiJoinCondition createJoinCondition(
             int index, int indexToCompare) {
+        // Ensure indices are valid for comparison
+        if (index <= 0 || indexToCompare < 0 || index == indexToCompare) {
+            throw new IllegalArgumentException("Invalid indices for creating join condition.");
+        }
+
         String funcCode =
-                "public class MultiOuterJoinConditionFunction extends org.apache.flink.api.common.functions.AbstractRichFunction "
+                "public class JoinConditionFunction_"
+                        + index
+                        + "_"
+                        + indexToCompare
+                        + " extends org.apache.flink.api.common.functions.AbstractRichFunction "
                         + "implements org.apache.flink.table.runtime.generated.MultiJoinCondition {\n"
-                        + "    private final int index;\n"
-                        + "    public MultiOuterJoinConditionFunction(Object[] reference) {\n"
-                        + "        this.index = "
+                        + "    private final int index = "
                         + index
                         + ";\n"
-                        + "    }\n"
+                        + "    private final int indexToCompare = "
+                        + indexToCompare
+                        + ";\n"
+                        + "    public JoinConditionFunction_"
+                        + index
+                        + "_"
+                        + indexToCompare
+                        + "(Object[] reference) {}\n"
                         + "    @Override\n"
                         + "    public boolean apply(org.apache.flink.table.data.RowData[] inputs) {\n"
-                        + "        if (inputs == null || index < 1 || inputs["
-                        + indexToCompare
-                        + "] == null || inputs[index] == null) {\n"
+                        + "        // Basic null checks for safety\n"
+                        + "        if (inputs == null || inputs.length <= Math.max(index, indexToCompare) || inputs[indexToCompare] == null || inputs[index] == null) {\n"
                         + "            return false;\n"
                         + "        }\n"
-                        + "        if (inputs["
-                        + indexToCompare
-                        + "].isNullAt(0) || inputs[index].isNullAt(0)) {\n"
+                        + "        // Check null keys\n"
+                        + "        if (inputs[indexToCompare].isNullAt(0) || inputs[index].isNullAt(0)) {\n"
                         + "            return false;\n"
                         + "        }\n"
-                        + "        String firstKey = inputs["
-                        + indexToCompare
-                        + "].getString(0).toString();\n"
-                        + "        String secondKey = inputs[index].getString(0).toString();\n"
-                        + "        return firstKey.equals(secondKey);\n"
+                        + "        // Compare the join keys (field 0 in this test setup)\n"
+                        + "        String keyToCompare = inputs[indexToCompare].getString(0).toString();\n"
+                        + "        String currentKey = inputs[index].getString(0).toString();\n"
+                        + "        return keyToCompare.equals(currentKey);\n"
                         + "    }\n"
                         + "    @Override\n"
                         + "    public void close() throws Exception {\n"
                         + "        super.close();\n"
                         + "    }\n"
                         + "}\n";
+        // Use unique class name to avoid conflicts if multiple conditions are generated
         return new GeneratedMultiJoinCondition(
-                "MultiOuterJoinConditionFunction", funcCode, new Object[0]);
+                "JoinConditionFunction_" + index + "_" + indexToCompare, funcCode, new Object[0]);
     }
 }

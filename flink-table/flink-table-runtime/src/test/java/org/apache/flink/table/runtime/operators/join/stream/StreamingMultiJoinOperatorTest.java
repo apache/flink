@@ -1114,10 +1114,7 @@ class StreamingThreeWayOuterJoinCustomConditionOperatorTest
     // This condition joins ON user.user_id = payment.user_id instead of ON order.user_id =
     // payment.user_id
     private static final List<GeneratedMultiJoinCondition> customJoinCondition =
-            Arrays.asList(
-                    null,
-                    createMultiJoinOuterJoinCondition(1, 0),
-                    createMultiJoinOuterJoinCondition(2, 0));
+            Arrays.asList(null, createJoinCondition(1, 0), createJoinCondition(2, 0));
 
     public StreamingThreeWayOuterJoinCustomConditionOperatorTest() {
         // Testing left joins with custom conditions for a chain of tables:
