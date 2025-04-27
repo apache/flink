@@ -632,6 +632,35 @@ Some metrics might not be exposed when using other JVM implementations (e.g. IBM
   </tbody>                                                         
 </table>
 
+### File Descriptors
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 22%">Infix</th>
+      <th class="text-left" style="width: 20%">Metrics</th>
+      <th class="text-left" style="width: 32%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="1"><strong>Job-/TaskManager</strong></th>
+      <td rowspan="1">Status.FileDescriptor.Max</td>
+      <td>Count</td>
+      <td>The max number of file descriptors.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <th rowspan="1"><strong>Job-/TaskManager</strong></th>
+      <td rowspan="1">Status.FileDescriptor.Open</td>
+      <td>Count</td>
+      <td>The total open of file descriptors.</td>
+      <td>Gauge</td>
+    </tr>
+  </tbody>
+</table>
+
 ### Threads
 <table class="table table-bordered">
   <thead>
