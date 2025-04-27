@@ -40,13 +40,13 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Streaming multi-way join operator which supports inner join and left/right/full outer join. It
- * only supports a combination of joins that joins on at least one common column due to
- * partitioning. It eliminates the intermediate state necessary for a chain of multiple binary
- * joins. In other words, it reduces the total amount of state necessary for chained joins. As of
- * time complexity, it performs better in the worst cases where the number of records in the
- * intermediate state is large but worst than reordered binary joins when the number of records in
- * the intermediate state is small.
+ * Streaming multi-way join operator which supports inner join and left outer join, right joins are
+ * transformed into right joins by the optimizer. It only supports a combination of joins that joins
+ * on at least one common column due to partitioning. It eliminates the intermediate state necessary
+ * for a chain of multiple binary joins. In other words, it reduces the total amount of state
+ * necessary for chained joins. As of time complexity, it performs better in the worst cases where
+ * the number of records in the intermediate state is large but worst than reordered binary joins
+ * when the number of records in the intermediate state is small.
  *
  * <p>Performs the multi-way join logic recursively. This method drives the join process by
  * traversing through the input streams (represented by `depth`) and their corresponding states. It
@@ -70,8 +70,8 @@ import java.util.List;
  *       <i>without</i> the actual input record (unless {@link #isInputLevel(int, int)} is true,
  *       where it switches phases). Its primary purpose is to calculate the `associations` counts
  *       for LEFT joins. This determines if rows from the "left" side found any matches on their
- *       respective "right" sides based on the {@code outerJoinConditions}. No results are emitted
- *       in this phase.
+ *       respective "right" sides based on the {@link #joinConditions}. No results are emitted in
+ *       this phase.
  *   <li><b>{@link JoinPhase#EMIT_RESULTS}:</b> This phase is triggered when the recursion reaches
  *       the level of the input record (`depth == inputId`) or continues from there. It incorporates
  *       the actual `input` record and proceeds with the recursion. When the base case (checked via
@@ -83,11 +83,9 @@ import java.util.List;
  * side are emitted even if they have no matching rows on the right side.
  *
  * <ul>
- *   <li><b>Outer Join Conditions:</b> At each depth `d` that represents the "right" side of a LEFT
- *       join (i.e., `isLeftJoinAtDepth(d)` is true), the {@code outerJoinConditions[d]} is
- *       evaluated using the rows accumulated up to `currentRows[d]`. If this condition fails
- *       (`noMatch`), we shortcircuit and the combination is discarded for that specific state
- *       record.
+ *   <li><b>Join Conditions:</b> For each join, we evaluate the join condition for the level rows
+ *       accumulated up to `currentRows[d]` at that depth. If this condition fails, we shortcircuit
+ *       and the combination is discarded.
  *   <li><b>Association Tracking ({@code associations} array):</b> {@code associations[d-1]} counts
  *       how many records from subsequent inputs (depth `d` onwards) have matched the current row at
  *       {@code currentRows[d-1]} based on the outer join conditions. This count is primarily
@@ -134,7 +132,7 @@ import java.util.List;
  * <p>Conditions:
  *
  * <ul>
- *   <li>{@code outerJoinConditions[1]}: {@code A.id == B.id}
+ *   <li>{@code joinConditions[1]}: {@code A.id == B.id}
  *   <li>{@code multiJoinCondition}: {@code (A.id == B.id) && (B.id == C.id)}
  * </ul>
  *
@@ -381,7 +379,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
     private final MultiJoinCondition multiJoinCondition;
     private final long[] stateRetentionTime;
     private final List<Input<RowData>> typedInputs;
-    private final MultiJoinCondition[] outerJoinConditions;
+    private final MultiJoinCondition[] joinConditions;
 
     private transient List<JoinRecordStateView> stateHandlers;
     private transient TimestampedCollector<RowData> collector;
@@ -402,14 +400,14 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             List<JoinType> joinTypes,
             MultiJoinCondition multiJoinCondition,
             long[] stateRetentionTime,
-            MultiJoinCondition[] outerJoinConditions) {
+            MultiJoinCondition[] joinConditions) {
         super(parameters, inputSpecs.size());
         this.inputTypes = inputTypes;
         this.inputSpecs = inputSpecs;
         this.joinTypes = joinTypes;
         this.multiJoinCondition = multiJoinCondition;
         this.stateRetentionTime = stateRetentionTime;
-        this.outerJoinConditions = outerJoinConditions;
+        this.joinConditions = joinConditions;
         this.typedInputs = new ArrayList<>(inputSpecs.size());
     }
 
@@ -474,7 +472,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             throws Exception {
         // Base case: If we've processed all inputs, evaluate the final join condition.
         if (isMaxDepth(depth)) {
-            return evalMultiJoin(depth, input, currentRows, phase);
+            return emitJoinedRow(depth, input, currentRows, phase);
         }
 
         boolean isLeftJoin = isLeftJoinAtDepth(depth);
@@ -499,26 +497,19 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         return matched;
     }
 
-    private boolean evalMultiJoin(
+    // This can simply emit the resulting join row between all n inputs.
+    private boolean emitJoinedRow(
             int depth, RowData input, RowData[] currentRows, JoinPhase phase) {
-        // If the join condition is satisfied, we emit the result.
+        // In the CALCULATE_MATCHES phase, we don't emit rows
         if (phase == JoinPhase.CALCULATE_MATCHES) {
-            // In the CALCULATE_MATCHES phase, we only care if a match *exists* for association
-            // tracking.
             return true;
         }
 
-        // Check if inner join matches
-        // We don't have to check for outer joins because we check for them for each input with
-        // outerJoinConditions
-        boolean isInnerJoin = !isLeftJoinAtLastLevel(depth);
-        if (isInnerJoin && !multiJoinCondition.apply(currentRows)) {
-            return false;
-        }
         emitRow(input.getRowKind(), currentRows);
         return true;
     }
 
+    // Problem: we are not using the primary key but rather always the partitioning key
     private boolean processRecords(
             int depth,
             RowData input,
@@ -535,15 +526,14 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         for (RowData record : records) {
             currentRows[depth] = record;
 
-            // For LEFT joins, check the outer condition before proceeding deeper.
+            // Shortcircuit: if the join condition fails, this path yields no results.
+            if (noMatch(depth, currentRows)) {
+                // Continue with next record.
+                continue;
+            }
+
+            // For LEFT joins, update the association count for the preceding level (depth - 1).
             if (isLeftJoin) {
-                // Shortcircuit: if the outer condition fails for this state record, skip to the
-                // next.
-                if (noMatch(depth, currentRows)) {
-                    continue;
-                }
-                // If outer condition passes, update the association count for the preceding level
-                // (depth - 1).
                 updateAssociationCount(
                         depth, associations, shouldIncrementAssociation(phase, input));
             }
@@ -594,12 +584,13 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         // Place the actual input record into the currentRows array for this depth.
         currentRows[depth] = input;
 
+        // Shortcircuit: if the join condition fails, this path yields no results.
+        if (noMatch(depth, currentRows)) {
+            return false;
+        }
+
         // --- Left Join Association Update for Input Record ---
         if (isLeftJoin) {
-            // If the outer condition fails with the input record, this path yields no results.
-            if (noMatch(depth, currentRows)) {
-                return false; // No need to restore RowKind, as we are returning.
-            }
             // If outer condition passes, update the association count for the preceding level.
             // Always use EMIT_RESULTS phase logic here, as we are processing the actual input.
             updateAssociationCount(
@@ -760,7 +751,8 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
     }
 
     private boolean noMatch(int depth, RowData[] currentRows) {
-        return !outerJoinConditions[depth].apply(currentRows);
+        // The first depth has no join condition
+        return depth > 0 && !joinConditions[depth].apply(currentRows);
     }
 
     private void updateAssociationCount(int depth, int[] associations, boolean isUpsert) {
