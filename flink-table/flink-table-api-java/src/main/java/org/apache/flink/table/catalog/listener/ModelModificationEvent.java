@@ -22,48 +22,13 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.CatalogModel;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
-/** When a model is created, a {@link CreateModelEvent} event will be created and fired. */
+/** Basic event for model modification such as create, alter and drop. */
 @PublicEvolving
-public interface CreateModelEvent extends ModelModificationEvent {
+public interface ModelModificationEvent extends CatalogModificationEvent {
+
     ObjectIdentifier identifier();
 
     CatalogModel model();
 
-    boolean ignoreIfExists();
-
     boolean isTemporary();
-
-    static CreateModelEvent createEvent(
-            final CatalogContext context,
-            final ObjectIdentifier identifier,
-            final CatalogModel model,
-            final boolean ignoreIfExists,
-            final boolean isTemporary) {
-        return new CreateModelEvent() {
-            @Override
-            public boolean ignoreIfExists() {
-                return ignoreIfExists;
-            }
-
-            @Override
-            public ObjectIdentifier identifier() {
-                return identifier;
-            }
-
-            @Override
-            public CatalogModel model() {
-                return model;
-            }
-
-            @Override
-            public CatalogContext context() {
-                return context;
-            }
-
-            @Override
-            public boolean isTemporary() {
-                return isTemporary;
-            }
-        };
-    }
 }

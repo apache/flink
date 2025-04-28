@@ -3179,7 +3179,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    void testAlterModel() {
+    void testAlterModelSet() {
         final String sql = "alter model m1 set ('key1' = 'value1','key2' = 'value2')";
         final String expected =
                 "ALTER MODEL `M1` SET (\n"
@@ -3211,6 +3211,20 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     void testAlterModelRenameIfExists() {
         final String sql = "alter model if exists m1 rename to m2";
         final String expected = "ALTER MODEL IF EXISTS `M1` RENAME TO `M2`";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testAlterModelReset() {
+        final String sql = "alter model m1 reset ('key1', 'key2')";
+        final String expected = "ALTER MODEL `M1` RESET (\n  'key1',\n  'key2'\n)";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testAlterModelResetIfExists() {
+        final String sql = "alter model if exists m1 reset ('key1', 'key2')";
+        final String expected = "ALTER MODEL IF EXISTS `M1` RESET (\n  'key1',\n  'key2'\n)";
         sql(sql).ok(expected);
     }
 

@@ -52,6 +52,7 @@ public class SqlNodeConverters {
         register(new SqlShowPartitionsConverter());
         register(new SqlTruncateTableConverter());
         register(new SqlShowFunctionsConverter());
+        register(new SqlShowModelsConverter());
         register(new SqlShowProcedureConverter());
         register(new SqlReplaceTableAsConverter());
         register(new SqlProcedureCallConverter());
@@ -60,15 +61,21 @@ public class SqlNodeConverters {
         register(new SqlDescribeCatalogConverter());
         register(new SqlDescribeJobConverter());
         register(new SqlCreateMaterializedTableConverter());
+        register(new SqlCreateModelConverter());
         register(new SqlAlterMaterializedTableRefreshConverter());
         register(new SqlAlterMaterializedTableSuspendConverter());
         register(new SqlAlterMaterializedTableResumeConverter());
         register(new SqlAlterMaterializedTableAsQueryConverter());
+        register(new SqlAlterModelRenameConverter());
+        register(new SqlAlterModelResetConverter());
+        register(new SqlAlterModelSetConverter());
         register(new SqlDropMaterializedTableConverter());
+        register(new SqlDropModelConverter());
         register(new SqlShowTablesConverter());
         register(new SqlShowViewsConverter());
         register(new SqlShowCatalogsConverter());
         register(new SqlDescribeFunctionConverter());
+        register(new SqlDescribeModelConverter());
     }
 
     /**

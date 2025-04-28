@@ -403,15 +403,15 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
     public void alterModel(ObjectPath modelPath, CatalogModel newModel, boolean ignoreIfNotExists)
             throws ModelNotExistException {
         checkNotNull(modelPath);
-        checkNotNull(newModel);
 
         CatalogModel existingModel = models.get(modelPath);
-        if (existingModel == null) {
+        if (existingModel == null || newModel == null) {
             if (ignoreIfNotExists) {
                 return;
             }
             throw new ModelNotExistException(getName(), modelPath);
         }
+
         models.put(modelPath, newModel.copy());
     }
 
