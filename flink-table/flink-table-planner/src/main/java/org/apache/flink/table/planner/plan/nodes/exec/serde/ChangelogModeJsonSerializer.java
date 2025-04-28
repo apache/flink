@@ -27,6 +27,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.Serialize
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
 import java.io.IOException;
+import java.util.Objects;
 
 /**
  * JSON serializer for {@link ChangelogMode}.
@@ -49,7 +50,12 @@ final class ChangelogModeJsonSerializer extends StdSerializer<ChangelogMode> {
             throws IOException {
         jsonGenerator.writeStartArray();
         for (RowKind rowKind : changelogMode.getContainedKinds()) {
-            jsonGenerator.writeString(rowKind.name());
+            if (Objects.requireNonNull(rowKind) == RowKind.DELETE
+                    && changelogMode.keyOnlyDeletes()) {
+                jsonGenerator.writeString("~" + rowKind.name());
+            } else {
+                jsonGenerator.writeString(rowKind.name());
+            }
         }
         jsonGenerator.writeEndArray();
     }
