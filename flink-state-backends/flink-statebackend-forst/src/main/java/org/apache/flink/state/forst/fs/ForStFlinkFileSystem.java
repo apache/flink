@@ -38,6 +38,7 @@ import org.apache.flink.state.forst.fs.cache.SpaceBasedCacheLimitPolicy;
 import org.apache.flink.state.forst.fs.filemapping.FSDataOutputStreamWithEntry;
 import org.apache.flink.state.forst.fs.filemapping.FileBackedMappingEntrySource;
 import org.apache.flink.state.forst.fs.filemapping.FileMappingManager;
+import org.apache.flink.state.forst.fs.filemapping.FileOwnership;
 import org.apache.flink.state.forst.fs.filemapping.FileOwnershipDecider;
 import org.apache.flink.state.forst.fs.filemapping.MappingEntry;
 import org.apache.flink.state.forst.fs.filemapping.MappingEntrySource;
@@ -211,7 +212,11 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
 
         // Try to create file cache for SST files
         CachedDataOutputStream cachedDataOutputStream =
-                createCachedDataOutputStream(dbFilePath, sourceRealPath, outputStream);
+                createCachedDataOutputStream(
+                        dbFilePath,
+                        sourceRealPath,
+                        outputStream,
+                        createdMappingEntry.getFileOwnership());
 
         LOG.trace(
                 "Create file: dbFilePath: {}, sourceRealPath: {}, cachedDataOutputStream: {}",
@@ -233,7 +238,11 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
                 () -> {
                     FSDataInputStream inputStream = source.openInputStream(bufferSize);
                     CachedDataInputStream cachedDataInputStream =
-                            createCachedDataInputStream(dbFilePath, source, inputStream);
+                            createCachedDataInputStream(
+                                    dbFilePath,
+                                    source,
+                                    inputStream,
+                                    mappingEntry.getFileOwnership());
                     return cachedDataInputStream == null ? inputStream : cachedDataInputStream;
                 },
                 DEFAULT_INPUT_STREAM_CAPACITY,
@@ -251,7 +260,11 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
                 () -> {
                     FSDataInputStream inputStream = source.openInputStream();
                     CachedDataInputStream cachedDataInputStream =
-                            createCachedDataInputStream(dbFilePath, source, inputStream);
+                            createCachedDataInputStream(
+                                    dbFilePath,
+                                    source,
+                                    inputStream,
+                                    mappingEntry.getFileOwnership());
                     return cachedDataInputStream == null ? inputStream : cachedDataInputStream;
                 },
                 DEFAULT_INPUT_STREAM_CAPACITY,
@@ -285,7 +298,7 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
             return delegateFS.exists(f) && delegateFS.getFileStatus(f).isDir();
         }
 
-        if (FileOwnershipDecider.shouldAlwaysBeLocal(f)) {
+        if (FileOwnershipDecider.shouldAlwaysBeLocal(f, mappingEntry.getFileOwnership())) {
             return localFS.exists(mappingEntry.getSourcePath());
         } else {
             // Should be protected with synchronized, since the file closing is not an atomic
@@ -305,7 +318,7 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
         if (mappingEntry == null) {
             return new FileStatusWrapper(delegateFS.getFileStatus(path), path);
         }
-        if (FileOwnershipDecider.shouldAlwaysBeLocal(path)) {
+        if (FileOwnershipDecider.shouldAlwaysBeLocal(path, mappingEntry.getFileOwnership())) {
             return new FileStatusWrapper(localFS.getFileStatus(mappingEntry.getSourcePath()), path);
         } else {
             // Should be protected with synchronized, since the file closing is not an atomic
@@ -401,9 +414,13 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
     }
 
     private @Nullable CachedDataOutputStream createCachedDataOutputStream(
-            Path dbFilePath, Path srcRealPath, FSDataOutputStream outputStream) throws IOException {
+            Path dbFilePath,
+            Path srcRealPath,
+            FSDataOutputStream outputStream,
+            FileOwnership fileOwnership)
+            throws IOException {
         // do not create cache for local files
-        if (FileOwnershipDecider.shouldAlwaysBeLocal(dbFilePath)) {
+        if (FileOwnershipDecider.shouldAlwaysBeLocal(dbFilePath, fileOwnership)) {
             return null;
         }
 
@@ -411,9 +428,13 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
     }
 
     private @Nullable CachedDataInputStream createCachedDataInputStream(
-            Path dbFilePath, MappingEntrySource source, FSDataInputStream inputStream)
+            Path dbFilePath,
+            MappingEntrySource source,
+            FSDataInputStream inputStream,
+            FileOwnership fileOwnership)
             throws IOException {
-        if (FileOwnershipDecider.shouldAlwaysBeLocal(dbFilePath) || !source.cacheable()) {
+        if (FileOwnershipDecider.shouldAlwaysBeLocal(dbFilePath, fileOwnership)
+                || !source.cacheable()) {
             return null;
         }
 
