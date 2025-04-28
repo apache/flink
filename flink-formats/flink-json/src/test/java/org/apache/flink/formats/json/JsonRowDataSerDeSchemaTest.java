@@ -228,6 +228,26 @@ public class JsonRowDataSerDeSchemaTest {
     }
 
     @Test
+    public void testEmptyJsonArrayDeserialization() throws Exception {
+        DataType dataType = ROW(FIELD("f1", INT()), FIELD("f2", BOOLEAN()), FIELD("f3", STRING()));
+        RowType rowType = (RowType) dataType.getLogicalType();
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        ArrayNode arrayNode = objectMapper.createArrayNode();
+
+        DeserializationSchema<RowData> deserializationSchema =
+                createDeserializationSchema(
+                        isJsonParser, rowType, false, false, TimestampFormat.ISO_8601);
+
+        open(deserializationSchema);
+
+        List<RowData> result = new ArrayList<>();
+        Collector<RowData> collector = new ListCollector<>(result);
+        deserializationSchema.deserialize(objectMapper.writeValueAsBytes(arrayNode), collector);
+        assertThat(result).isEmpty();
+    }
+
+    @Test
     public void testJsonArrayToMultiRecords() throws Exception {
         DataType dataType = ROW(FIELD("f1", INT()), FIELD("f2", BOOLEAN()), FIELD("f3", STRING()));
         RowType rowType = (RowType) dataType.getLogicalType();

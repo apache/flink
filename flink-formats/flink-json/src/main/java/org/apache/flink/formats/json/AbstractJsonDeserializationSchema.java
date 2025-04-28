@@ -105,6 +105,12 @@ public abstract class AbstractJsonDeserializationSchema implements Deserializati
         collector = new ListCollector<>(reusableCollectList);
     }
 
+    /**
+     * @deprecated Use {@link DeserializationSchema#deserialize(byte[], Collector)} instead. The
+     *     implementation of {@link AbstractJsonDeserializationSchema#deserialize(byte[])} will be
+     *     removed in <a href="https://issues.apache.org/jira/browse/FLINK-37707">FLINK-37707</a>.
+     */
+    @Deprecated
     @Override
     public RowData deserialize(@Nullable byte[] message) throws IOException {
         reusableCollectList.clear();

@@ -264,7 +264,7 @@ CREATE TABLE user_behavior (
 )
 ```
 
-以下两种情况下 Flink JSON Format 都将会产生两条数据 `(123, "a")` 和 `(456, "b")`.
+以下两种情况下 Flink JSON Format 都将会产生两条数据 `(123, "a")` 和 `(456, "b")`。
 最外层是一个 JSON Array：
 ```json lines
 [{"col1": 123, "col2": "a"}, {"col1": 456, "col2": "b"}]
