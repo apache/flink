@@ -520,6 +520,11 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             boolean isLeftJoin)
             throws Exception {
         boolean matched = false;
+        // Optimization: for inner joins, we do not  need to reprocess records in the inputId level
+        // In other words, we'll just do records[inputId] = [input] for the join
+        if (!isLeftJoin && inputId == depth) {
+            return matched;
+        }
         Iterable<RowData> records = stateHandlers.get(depth).getRecords();
 
         // Iterate through all records stored in the state for the current depth.
