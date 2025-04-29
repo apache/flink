@@ -464,8 +464,8 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     // throw exception if json function is called outside JSON_OBJECT or JSON_ARRAY function
     if (isJsonFunctionOperand(call)) {
       throw new ValidationException(
-        "The JSON() function is currently only supported inside a JSON_OBJECT() or JSON_ARRAY()" +
-          " function. Example: JSON_OBJECT('a', JSON('{\"key\": \"value\"}')) or " +
+        "The JSON() function is currently only supported inside JSON_ARRAY() or as the VALUE param" +
+          " of JSON_OBJECT(). Example: JSON_OBJECT('a', JSON('{\"key\": \"value\"}')) or " +
           "JSON_ARRAY(JSON('{\"key\": \"value\"}')).")
     }
 

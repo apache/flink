@@ -821,12 +821,15 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                         json("[1, 2, 3]")),
                                 "JSON_OBJECT(KEY 'p1' VALUE JSON(f0), KEY 'p2' VALUE JSON(f1), KEY 'p3' VALUE JSON('[1, 2, 3]'))",
                                 "{\"p1\":{\"key\":\"value\"},\"p2\":{\"key\":{\"value\":42}},\"p3\":[1,2,3]}",
-                                STRING().notNull()),
-
-                // Tests for JSON calls inside of JSON_ARRAY
-                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_ARRAY)
-                        .onFieldsWithData("{\"key\":\"value\"}", "{\"key\": {\"value\": 42}}")
-                        .andDataTypes(STRING(), STRING())
+                                STRING().notNull())
+                        .testSqlValidationError(
+                                "JSON_OBJECT(KEY JSON('{}') VALUE 'value' ABSENT ON NULL)",
+                                "The JSON() function is currently only supported inside JSON_ARRAY() or as the VALUE param of JSON_OBJECT()")
+                        .testTableApiValidationError(
+                                jsonObject(JsonOnNull.NULL, json($("f0")), "value"),
+                                "Invalid function call:\n"
+                                        + "JSON_OBJECT(SYMBOL NOT NULL, STRING, CHAR(5) NOT NULL)")
+                        // Tests for JSON calls inside of JSON_ARRAY
                         .testResult(
                                 jsonArray(JsonOnNull.NULL, json("{}")),
                                 "JSON_ARRAY(JSON('{}'))",
@@ -905,10 +908,10 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "line: 1, column: 1")
                         .testTableApiValidationError(
                                 json($("f0")),
-                                "The JSON() function is currently only supported inside a JSON_OBJECT() or JSON_ARRAY() function.")
+                                "The JSON() function is currently only supported inside JSON_ARRAY() or as the VALUE param of JSON_OBJECT()")
                         .testSqlValidationError(
                                 "JSON(f0)",
-                                "The JSON() function is currently only supported inside a JSON_OBJECT() or JSON_ARRAY() function."));
+                                "The JSON() function is currently only supported inside JSON_ARRAY() or as the VALUE param of JSON_OBJECT()"));
     }
 
     private static List<TestSetSpec> jsonObjectSpec() {
