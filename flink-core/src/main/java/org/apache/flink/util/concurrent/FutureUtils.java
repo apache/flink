@@ -39,7 +39,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -487,7 +486,7 @@ public class FutureUtils {
     // ------------------------------------------------------------------------
     //  Future actions
     // ------------------------------------------------------------------------
-    
+
     /**
      * Run the given action after the completion of the given future. The given future can be
      * completed normally or exceptionally. In case of an exceptional completion the, the action's
