@@ -226,7 +226,8 @@ class SinkV2CommitterOperatorTest {
                 records.element(0, as(committableSummary()))
                         .hasCheckpointId(checkpointId)
                         .hasFailedCommittables(0)
-                        .hasSubtaskId(subtaskIdAfterRecovery);
+                        .hasSubtaskId(subtaskIdAfterRecovery)
+                        .hasNumberOfSubtasks(1);
         objectCommittableSummaryAssert.hasOverallCommittables(2);
 
         // Expect the same checkpointId that the original snapshot was made with.

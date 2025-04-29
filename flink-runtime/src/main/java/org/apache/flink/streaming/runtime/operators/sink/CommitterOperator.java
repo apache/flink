@@ -183,7 +183,10 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
 
     private void emit(CheckpointCommittableManager<CommT> committableManager) {
         int subtaskId = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
-        int numberOfSubtasks = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
+        int numberOfSubtasks =
+                Math.min(
+                        getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks(),
+                        committableManager.getNumberOfSubtasks());
         long checkpointId = committableManager.getCheckpointId();
         Collection<CommT> committables = committableManager.getSuccessfulCommittables();
         output.collect(
