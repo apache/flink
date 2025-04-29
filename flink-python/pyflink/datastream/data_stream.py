@@ -2806,7 +2806,7 @@ def _get_one_input_stream_operator(data_stream: DataStream,
                 gateway.jvm.org.apache.flink.table.runtime.operators.window.CountWindow.Serializer()
         elif isinstance(window_serializer, GlobalWindowSerializer):
             j_namespace_serializer = \
-                gateway.jvm.org.apache.flink.streaming.api.windowing.windows.GlobalWindow \
+                gateway.jvm.org.apache.flink.table.runtime.operators.window.GlobalWindow \
                 .Serializer()
         else:
             j_namespace_serializer = \
