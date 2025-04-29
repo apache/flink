@@ -469,6 +469,19 @@ class StreamingThreeWayJoinOperatorTest extends StreamingMultiJoinOperatorTestBa
                 "2",
                 "payment_2",
                 "Payment 2 Details");
+
+        insertPayment("2", "payment_3", "Payment 3 Details");
+        emits(
+                INSERT,
+                "2",
+                "Bob_Updated",
+                "User 2 Details Updated",
+                "2",
+                "order_2",
+                "Order 2 Details",
+                "2",
+                "payment_3",
+                "Payment 3 Details");
     }
 }
 
