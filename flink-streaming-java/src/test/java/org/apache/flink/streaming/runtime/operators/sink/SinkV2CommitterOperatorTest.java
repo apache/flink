@@ -165,81 +165,21 @@ class SinkV2CommitterOperatorTest {
     }
 
     @Test
-    void testStateRestore() throws Exception {
+    void testStateRestoreForScalingUp() throws Exception {
 
-        final int originalSubtaskId = 0;
-        final int subtaskIdAfterRecovery = 9;
+        testStateRestore(1, 10, 9);
+    }
 
-        final OneInputStreamOperatorTestHarness<
-                        CommittableMessage<String>, CommittableMessage<String>>
-                testHarness =
-                        createTestHarness(
-                                sinkWithPostCommitWithRetry().sink,
-                                false,
-                                true,
-                                1,
-                                1,
-                                originalSubtaskId);
-        testHarness.open();
+    @Test
+    void testStateRestoreForScalingDown() throws Exception {
 
-        // We cannot test a different checkpoint thant 0 because when using the OperatorTestHarness
-        // for recovery the lastCompleted checkpoint is always reset to 0.
-        long checkpointId = 0L;
+        testStateRestore(2, 1, 0);
+    }
 
-        final CommittableSummary<String> committableSummary =
-                new CommittableSummary<>(originalSubtaskId, 1, checkpointId, 1, 0);
-        testHarness.processElement(new StreamRecord<>(committableSummary));
-        final CommittableWithLineage<String> first =
-                new CommittableWithLineage<>("1", checkpointId, originalSubtaskId);
-        testHarness.processElement(new StreamRecord<>(first));
+    @Test
+    void testStateRestoreNoScaling() throws Exception {
 
-        // another committable for the same checkpointId but from different subtask.
-        final CommittableSummary<String> committableSummary2 =
-                new CommittableSummary<>(originalSubtaskId + 1, 1, checkpointId, 1, 0);
-        testHarness.processElement(new StreamRecord<>(committableSummary2));
-        final CommittableWithLineage<String> second =
-                new CommittableWithLineage<>("2", checkpointId, originalSubtaskId + 1);
-        testHarness.processElement(new StreamRecord<>(second));
-
-        final OperatorSubtaskState snapshot = testHarness.snapshot(checkpointId, 2L);
-        assertThat(testHarness.getOutput()).isEmpty();
-        testHarness.close();
-
-        // create new testHarness but with different parallelism level and subtaskId that original
-        // one.
-        // we will make sure that new subtaskId was used during committable recovery.
-        SinkAndCounters restored = sinkWithPostCommit();
-        final OneInputStreamOperatorTestHarness<
-                        CommittableMessage<String>, CommittableMessage<String>>
-                restoredHarness =
-                        createTestHarness(
-                                restored.sink, false, true, 10, 10, subtaskIdAfterRecovery);
-
-        restoredHarness.initializeState(snapshot);
-        restoredHarness.open();
-
-        // Previous committables are immediately committed if possible
-        assertThat(restored.commitCounter.getAsInt()).isEqualTo(2);
-        ListAssert<CommittableMessage<String>> records =
-                assertThat(restoredHarness.extractOutputValues()).hasSize(3);
-        CommittableSummaryAssert<Object> objectCommittableSummaryAssert =
-                records.element(0, as(committableSummary()))
-                        .hasCheckpointId(checkpointId)
-                        .hasFailedCommittables(0)
-                        .hasSubtaskId(subtaskIdAfterRecovery)
-                        .hasNumberOfSubtasks(1);
-        objectCommittableSummaryAssert.hasOverallCommittables(2);
-
-        // Expect the same checkpointId that the original snapshot was made with.
-        records.element(1, as(committableWithLineage()))
-                .hasCheckpointId(checkpointId)
-                .hasSubtaskId(subtaskIdAfterRecovery)
-                .hasCommittable(first.getCommittable());
-        records.element(2, as(committableWithLineage()))
-                .hasCheckpointId(checkpointId)
-                .hasSubtaskId(subtaskIdAfterRecovery)
-                .hasCommittable(second.getCommittable());
-        restoredHarness.close();
+        testStateRestore(2, 2, 1);
     }
 
     @ParameterizedTest
@@ -313,6 +253,92 @@ class SinkV2CommitterOperatorTest {
 
             assertThat(testHarness.getOutput()).hasSize(2);
         }
+    }
+
+    private void testStateRestore(
+            int parallelismBeforeScaling, int parallelismAfterScaling, int subtaskIdAfterRecovery)
+            throws Exception {
+
+        final int originalSubtaskId = 0;
+
+        final OneInputStreamOperatorTestHarness<
+                        CommittableMessage<String>, CommittableMessage<String>>
+                testHarness =
+                        createTestHarness(
+                                sinkWithPostCommitWithRetry().sink,
+                                false,
+                                true,
+                                parallelismBeforeScaling,
+                                parallelismBeforeScaling,
+                                originalSubtaskId);
+        testHarness.open();
+
+        // We cannot test a different checkpoint thant 0 because when using the OperatorTestHarness
+        // for recovery the lastCompleted checkpoint is always reset to 0.
+        long checkpointId = 0L;
+
+        final CommittableSummary<String> committableSummary =
+                new CommittableSummary<>(
+                        originalSubtaskId, parallelismBeforeScaling, checkpointId, 1, 0);
+        testHarness.processElement(new StreamRecord<>(committableSummary));
+        final CommittableWithLineage<String> first =
+                new CommittableWithLineage<>("1", checkpointId, originalSubtaskId);
+        testHarness.processElement(new StreamRecord<>(first));
+
+        // another committable for the same checkpointId but from different subtask.
+        final CommittableSummary<String> committableSummary2 =
+                new CommittableSummary<>(
+                        originalSubtaskId + 1, parallelismBeforeScaling, checkpointId, 1, 0);
+        testHarness.processElement(new StreamRecord<>(committableSummary2));
+        final CommittableWithLineage<String> second =
+                new CommittableWithLineage<>("2", checkpointId, originalSubtaskId + 1);
+        testHarness.processElement(new StreamRecord<>(second));
+
+        final OperatorSubtaskState snapshot = testHarness.snapshot(checkpointId, 2L);
+        assertThat(testHarness.getOutput()).isEmpty();
+        testHarness.close();
+
+        // create new testHarness but with different parallelism level and subtaskId that original
+        // one.
+        // we will make sure that new subtaskId was used during committable recovery.
+        SinkAndCounters restored = sinkWithPostCommit();
+        final OneInputStreamOperatorTestHarness<
+                        CommittableMessage<String>, CommittableMessage<String>>
+                restoredHarness =
+                        createTestHarness(
+                                restored.sink,
+                                false,
+                                true,
+                                parallelismAfterScaling,
+                                parallelismAfterScaling,
+                                subtaskIdAfterRecovery);
+
+        restoredHarness.initializeState(snapshot);
+        restoredHarness.open();
+
+        // Previous committables are immediately committed if possible
+        assertThat(restored.commitCounter.getAsInt()).isEqualTo(2);
+        ListAssert<CommittableMessage<String>> records =
+                assertThat(restoredHarness.extractOutputValues()).hasSize(3);
+        CommittableSummaryAssert<Object> objectCommittableSummaryAssert =
+                records.element(0, as(committableSummary()))
+                        .hasCheckpointId(checkpointId)
+                        .hasFailedCommittables(0)
+                        .hasSubtaskId(subtaskIdAfterRecovery)
+                        .hasNumberOfSubtasks(
+                                Math.min(parallelismBeforeScaling, parallelismAfterScaling));
+        objectCommittableSummaryAssert.hasOverallCommittables(2);
+
+        // Expect the same checkpointId that the original snapshot was made with.
+        records.element(1, as(committableWithLineage()))
+                .hasCheckpointId(checkpointId)
+                .hasSubtaskId(subtaskIdAfterRecovery)
+                .hasCommittable(first.getCommittable());
+        records.element(2, as(committableWithLineage()))
+                .hasCheckpointId(checkpointId)
+                .hasSubtaskId(subtaskIdAfterRecovery)
+                .hasCommittable(second.getCommittable());
+        restoredHarness.close();
     }
 
     private OneInputStreamOperatorTestHarness<
