@@ -51,7 +51,7 @@ final class ChangelogModeJsonDeserializer extends StdDeserializer<ChangelogMode>
         ChangelogMode.Builder builder = ChangelogMode.newBuilder();
         JsonNode rowKindsNode = jsonParser.readValueAsTree();
         for (JsonNode rowKindNode : rowKindsNode) {
-            final String rowKindText = rowKindNode.asText().toUpperCase();
+            final String rowKindText = rowKindNode.asText();
             if (Objects.equals(PARTIAL_DELETE, rowKindText)) {
                 builder.keyOnlyDeletes(true);
                 builder.addContainedKind(RowKind.DELETE);
