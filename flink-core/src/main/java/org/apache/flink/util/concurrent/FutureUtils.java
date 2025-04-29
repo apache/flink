@@ -487,30 +487,7 @@ public class FutureUtils {
     // ------------------------------------------------------------------------
     //  Future actions
     // ------------------------------------------------------------------------
-
-    /**
-     * Run the given {@code RunnableFuture} if it is not done, and then retrieves its result.
-     *
-     * @param future to run if not done and get
-     * @param <T> type of the result
-     * @return the result after running the future
-     * @throws ExecutionException if a problem occurred
-     * @throws InterruptedException if the current thread has been interrupted
-     */
-    public static <T> T runIfNotDoneAndGet(RunnableFuture<T> future)
-            throws ExecutionException, InterruptedException {
-
-        if (null == future) {
-            return null;
-        }
-
-        if (!future.isDone()) {
-            future.run();
-        }
-
-        return future.get();
-    }
-
+    
     /**
      * Run the given action after the completion of the given future. The given future can be
      * completed normally or exceptionally. In case of an exceptional completion the, the action's
