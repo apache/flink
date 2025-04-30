@@ -24,7 +24,6 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -128,19 +127,19 @@ public final class ChangelogMode {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        ChangelogMode that = (ChangelogMode) o;
-        return kinds.equals(that.kinds);
+
+        final ChangelogMode that = (ChangelogMode) o;
+        return keyOnlyDeletes == that.keyOnlyDeletes && kinds.equals(that.kinds);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(kinds);
+        int result = kinds.hashCode();
+        result = 31 * result + Boolean.hashCode(keyOnlyDeletes);
+        return result;
     }
 
     @Override
