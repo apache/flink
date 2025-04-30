@@ -59,6 +59,12 @@ under the License.
 
 		<!-- Hadoop as an optional dependency, so we can hard depend on this without -->
 		<!-- pulling in Hadoop by default -->
+		<!-- Pin jackson-mapper-asl to resolve vulnerability in hadoop-common (FLINK-37078) -->
+		<dependency>
+			<groupId>org.codehaus.jackson</groupId>
+			<artifactId>jackson-mapper-asl</artifactId>
+			<optional>true</optional>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
