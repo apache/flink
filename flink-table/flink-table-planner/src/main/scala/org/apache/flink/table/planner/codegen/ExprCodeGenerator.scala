@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexDistinctKeyV
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.GenerateUtils._
-import org.apache.flink.table.planner.codegen.JsonGenerateUtils.{isJsonArrayOperand, isJsonFunctionOperand, isJsonObjectOperand}
+import org.apache.flink.table.planner.codegen.JsonGenerateUtils.{isJsonFunctionOperand, isSupportedJsonOperand}
 import org.apache.flink.table.planner.codegen.calls._
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
 import org.apache.flink.table.planner.codegen.calls.SearchOperatorGen.generateSearch
@@ -464,8 +464,8 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     // throw exception if json function is called outside JSON_OBJECT or JSON_ARRAY function
     if (isJsonFunctionOperand(call)) {
       throw new ValidationException(
-        "The JSON() function is currently only supported inside a JSON_OBJECT() or JSON_ARRAY()" +
-          " function. Example: JSON_OBJECT('a', JSON('{\"key\": \"value\"}')) or " +
+        "The JSON() function is currently only supported inside JSON_ARRAY() or as the VALUE param" +
+          " of JSON_OBJECT(). Example: JSON_OBJECT('a', JSON('{\"key\": \"value\"}')) or " +
           "JSON_ARRAY(JSON('{\"key\": \"value\"}')).")
     }
 
@@ -486,10 +486,8 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
             call.getOperator.getReturnTypeInference == ReturnTypes.ARG0 =>
         generateNullLiteral(resultType)
 
-      // We only support JSON function operands as the value param of a JSON_OBJECT or JSON_ARRAY function
-      case (operand: RexNode, i)
-          if isJsonFunctionOperand(operand) &&
-            (isJsonArrayOperand(call) || i == 2 && isJsonObjectOperand(call)) =>
+      // We only support the JSON function inside of JSON_OBJECT or JSON_ARRAY
+      case (operand: RexNode, i) if isSupportedJsonOperand(operand, call, i) =>
         generateJsonCall(operand)
 
       case (o @ _, _) => o.accept(this)
