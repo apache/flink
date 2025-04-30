@@ -125,6 +125,32 @@ class JsonFormatFactoryTest {
         testSchemaDeserializationSchema(tableOptions);
     }
 
+    @Test
+    void testDecodeJsonParseEnabled() {
+        final Map<String, String> enabledTableOptions =
+                getModifyOptions(options -> options.put("json.decode.json-parser.enabled", "true"));
+
+        DeserializationSchema<RowData> enabledActualDeser =
+                createTableSource(enabledTableOptions)
+                        .valueFormat
+                        .createRuntimeDecoder(
+                                ScanRuntimeProviderContext.INSTANCE,
+                                SCHEMA.toPhysicalRowDataType());
+        assertThat(enabledActualDeser).isInstanceOf(JsonParserRowDataDeserializationSchema.class);
+
+        final Map<String, String> disabledTableOptions =
+                getModifyOptions(
+                        options -> options.put("json.decode.json-parser.enabled", "false"));
+
+        DeserializationSchema<RowData> disabledActualDeser =
+                createTableSource(disabledTableOptions)
+                        .valueFormat
+                        .createRuntimeDecoder(
+                                ScanRuntimeProviderContext.INSTANCE,
+                                SCHEMA.toPhysicalRowDataType());
+        assertThat(disabledActualDeser).isInstanceOf(JsonRowDataDeserializationSchema.class);
+    }
+
     // ------------------------------------------------------------------------
     //  Utilities
     // ------------------------------------------------------------------------
@@ -229,6 +255,7 @@ class JsonFormatFactoryTest {
         options.put("json.map-null-key.literal", "null");
         options.put("json.encode.decimal-as-plain-number", "true");
         options.put("json.encode.ignore-null-fields", "true");
+        options.put("json.decode.json-parser.enabled", "true");
         return options;
     }
 }
