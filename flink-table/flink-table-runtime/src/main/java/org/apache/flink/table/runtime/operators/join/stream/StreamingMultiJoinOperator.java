@@ -33,11 +33,17 @@ import org.apache.flink.table.runtime.operators.join.stream.state.JoinRecordStat
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinRecordStateViews;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 /**
  * Streaming multi-way join operator which supports inner join and left outer join, right joins are
@@ -196,7 +202,7 @@ import java.util.List;
  * [Depth 1][a1, _, _]         Return from processWithNullPadding: false. (Restores currentRows[1] to _ implicitly)
  * [Depth 1][a1, _, _]       'matched' from null padding is false.
  * [Depth 1][a1, _, _] INPUT_LVL? isInputLevel(1, 1): true -> Process the input record +b1 itself.
- * [Depth 1][a1, _, _] PROC_INPUT Call processInputRecord(1, +b1, 1, [a1,_,_], [0,0,0]) -------> *** PHASE SWITCHES TO EMIT_RESULTS ***
+ * [Depth 1][a1, _, _] PROC_INPUT Call processInputRecord(1, +b1, 1, [a1,_,_], [0,0,0], true) -------> *** PHASE SWITCHES TO EMIT_RESULTS ***
  * [Depth 1][a1, _, _]           isLeftJoin(1): true
  * [Depth 1][a1, _, _] RETRACT?    Check Retract: isUpsert(+b1) && isLeftJoin(1) && hasNoAssociations(1, [0,0,0]) -> true
  * [Depth 1][a1, _, _] DO_RETRACT  Call handleRetractBeforeInput(1, +b1, 1, [a1,_,_], [0,0,0])
@@ -306,7 +312,7 @@ import java.util.List;
  * [Depth 1][a1, b1, _]        StateB loop finishes. matched = true.
  * [Depth 1][a1, b1, _] NULL_PAD?    Check Null Padding: isLeftJoin(1) && !matched -> false. Skip null padding.
  * [Depth 1][a1, b1, _] INPUT_LVL?   isInputLevel(1, 1): true -> Process input record -b1.
- * [Depth 1][a1, _, _] PROC_INPUT   Call processInputRecord(1, -b1, 1, [a1,_,_], [1,0,0]) -- PHASE SWITCHES TO EMIT_RESULTS (Implicitly clears currentRows[1])
+ * [Depth 1][a1, _, _] PROC_INPUT   Call processInputRecord(1, -b1, 1, [a1,_,_], [1,0,0], true) -- PHASE SWITCHES TO EMIT_RESULTS (Implicitly clears currentRows[1])
  * [Depth 1][a1, _, _]            isLeftJoin(1): true
  * [Depth 1][a1, _, _] RETRACT?     Check Retract: isUpsert(-b1) is false. Skip handleRetractBeforeInput.
  * [Depth 1][a1, -b1, _]         Set currentRows = [a1, -b1, _].
@@ -458,11 +464,9 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
      *     stores the number of successful matches found for `currentRows[d]` against inputs `d+1`
      *     onwards based on outer join conditions.
      * @param phase The current execution phase (CALCULATE_MATCHES or EMIT_RESULTS).
-     * @return {@code true} if at least one matching combination was found down this recursive path,
-     *     {@code false} otherwise. This is primarily used for the null-padding logic in LEFT joins.
      * @throws Exception If state access or condition evaluation fails.
      */
-    private boolean recursiveMultiJoin(
+    private void recursiveMultiJoin(
             int depth,
             RowData input,
             int inputId,
@@ -472,7 +476,8 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             throws Exception {
         // Base case: If we've processed all inputs, evaluate the final join condition.
         if (isMaxDepth(depth)) {
-            return emitJoinedRow(depth, input, currentRows, phase);
+            emitJoinedRow(input, currentRows, phase);
+            return;
         }
 
         boolean isLeftJoin = isLeftJoinAtDepth(depth);
@@ -482,31 +487,23 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
                 processRecords(depth, input, inputId, currentRows, associations, phase, isLeftJoin);
 
         // Step 2: For LEFT joins, if no matches were found in the state and the left side has no
-        // associations from deeper levels yet, process with null padding for the current depth.
-        if (isLeftJoin && !matched && hasNoAssociations(depth, associations)) {
-            matched =
-                    processWithNullPadding(depth, input, inputId, currentRows, associations, phase);
+        // associations, process with null padding for the current depth.
+        if (isLeftJoin && !matched) {
+            processWithNullPadding(depth, input, inputId, currentRows, associations, phase);
         }
 
         // Step 3: If the current depth is the one where the triggering input record arrived,
         // now process the input record itself with the current combination of rows we are at.
         if (isInputLevel(depth, inputId)) {
-            matched = processInputRecord(depth, input, inputId, currentRows, associations);
+            processInputRecord(depth, input, inputId, currentRows, associations, matched);
         }
-
-        return matched;
     }
 
     // This can simply emit the resulting join row between all n inputs.
-    private boolean emitJoinedRow(
-            int depth, RowData input, RowData[] currentRows, JoinPhase phase) {
-        // In the CALCULATE_MATCHES phase, we don't emit rows
-        if (phase == JoinPhase.CALCULATE_MATCHES) {
-            return true;
+    private void emitJoinedRow(RowData input, RowData[] currentRows, JoinPhase phase) {
+        if (phase == JoinPhase.EMIT_RESULTS) {
+            emitRow(input.getRowKind(), currentRows);
         }
-
-        emitRow(input.getRowKind(), currentRows);
-        return true;
     }
 
     // Problem: we are not using the primary key but rather always the partitioning key
@@ -519,7 +516,8 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             JoinPhase phase,
             boolean isLeftJoin)
             throws Exception {
-        boolean matched = false;
+        boolean matched = false; // Tracks if any record at this depth matched the condition
+
         // Optimization: for inner joins, we do not  need to reprocess records in the inputId level
         // In other words, we'll just do records[inputId] = [input] for the join
         if (!isLeftJoin && inputId == depth) {
@@ -535,12 +533,26 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             if (noMatch(depth, currentRows)) {
                 // Continue with next record.
                 continue;
+            } else {
+                matched = true;
             }
 
             // For LEFT joins, update the association count for the preceding level (depth - 1).
             if (isLeftJoin) {
                 updateAssociationCount(
                         depth, associations, shouldIncrementAssociation(phase, input));
+
+                // Optimization: we can reduce unnecessary association counting for the input level
+                if (skipAssociationCounting(depth, inputId, input, associations)) {
+                    return matched;
+                }
+
+                // Optimization: if we're only calculating matches at the input level
+                // we don't need to check if there joins to the right match, we only need to
+                // count the amount of assocations.
+                if (phase == JoinPhase.CALCULATE_MATCHES && inputId == depth) {
+                    continue;
+                }
             }
 
             // Reset association count for the *current* depth before recursing.
@@ -550,14 +562,15 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
                 associations[depth] = 0;
             }
 
-            matched =
-                    recursiveMultiJoin(depth + 1, input, inputId, currentRows, associations, phase);
+            // Recursively call for the next depth just for side effects.
+            recursiveMultiJoin(depth + 1, input, inputId, currentRows, associations, phase);
         }
 
+        // Returns whether any record at this level matched the local condition.
         return matched;
     }
 
-    private boolean processWithNullPadding(
+    private void processWithNullPadding(
             int depth,
             RowData input,
             int inputId,
@@ -565,16 +578,20 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             int[] associations,
             JoinPhase phase)
             throws Exception {
-        // Place a null row at the current depth and continue the recursion.
-        // This handles the case where a LEFT join's left side found no matches on the right.
+        // Place a null row at the current depth and continue the recursion for side effects.
         currentRows[depth] = nullRows.get(depth);
-        return recursiveMultiJoin(depth + 1, input, inputId, currentRows, associations, phase);
+        recursiveMultiJoin(depth + 1, input, inputId, currentRows, associations, phase);
     }
 
-    private boolean processInputRecord(
-            int depth, RowData input, int inputId, RowData[] currentRows, int[] associations)
+    private void processInputRecord(
+            int depth,
+            RowData input,
+            int inputId,
+            RowData[] currentRows,
+            int[] associations,
+            boolean matched)
             throws Exception {
-        boolean matched;
+
         boolean isLeftJoin = isLeftJoinAtDepth(depth);
         RowKind inputRowKind = input.getRowKind(); // Preserve original RowKind
 
@@ -582,7 +599,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         // If it's an INSERT/UPDATE_AFTER for a LEFT join's right side,
         // and the left side previously had no matches (requiring null padding),
         // we might need to retract the old null-padded result first.
-        if (isUpsert(input) && isLeftJoin && hasNoAssociations(depth, associations)) {
+        if (isUpsert(input) && isLeftJoin && !matched) {
             handleRetractBeforeInput(depth, input, inputId, currentRows, associations);
         }
 
@@ -591,7 +608,9 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
 
         // Shortcircuit: if the join condition fails, this path yields no results.
         if (noMatch(depth, currentRows)) {
-            return false;
+            // Restore original kind before returning
+            input.setRowKind(inputRowKind);
+            return; // No match, nothing more to do on this path
         }
 
         // --- Left Join Association Update for Input Record ---
@@ -605,28 +624,20 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         // Restore original RowKind before recursing to avoid side effects.
         input.setRowKind(inputRowKind);
 
-        // Recurse to the next depth, switching to the EMIT_RESULTS phase.
-        matched =
-                recursiveMultiJoin(
-                        depth + 1,
-                        input,
-                        inputId,
-                        currentRows,
-                        associations,
-                        JoinPhase.EMIT_RESULTS);
+        // Recurse to the next depth, switching to the EMIT_RESULTS phase for side effects.
+        recursiveMultiJoin(
+                depth + 1, input, inputId, currentRows, associations, JoinPhase.EMIT_RESULTS);
 
         // --- Left Join Insertion Handling ---
         // If it's a DELETE/UPDATE_BEFORE for a LEFT join's right side,
         // and the left side now has no matches after removing the input record,
-        // we might need to insert a new null-padded result.
+        // we have to insert a new null-padded result.
         if (isRetraction(input) && isLeftJoin && hasNoAssociations(depth, associations)) {
-            // Note: handleInsertAfterInput might update the 'matched' status.
-            matched = handleInsertAfterInput(depth, input, inputId, currentRows, associations);
+            handleInsertAfterInput(depth, input, inputId, currentRows, associations);
         }
 
         // Restore original RowKind again as handleInsertAfterInput might have changed it.
         input.setRowKind(inputRowKind);
-        return matched;
     }
 
     private void handleRetractBeforeInput(
@@ -646,7 +657,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         input.setRowKind(originalKind);
     }
 
-    private boolean handleInsertAfterInput(
+    private void handleInsertAfterInput(
             int depth, RowData input, int inputId, RowData[] currentRows, int[] associations)
             throws Exception {
         // Temporarily place a null row at the current depth.
@@ -655,19 +666,12 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         // Temporarily change RowKind to INSERT to trigger insertion downstream.
         input.setRowKind(RowKind.INSERT);
 
-        // Recurse to emit the potential insertion for the new null-padded row.
-        boolean matched =
-                recursiveMultiJoin(
-                        depth + 1,
-                        input,
-                        inputId,
-                        currentRows,
-                        associations,
-                        JoinPhase.EMIT_RESULTS);
+        // Recurse to emit the potential insertion for the new null-padded row for side effects.
+        recursiveMultiJoin(
+                depth + 1, input, inputId, currentRows, associations, JoinPhase.EMIT_RESULTS);
 
         // Restore original RowKind.
         input.setRowKind(originalKind);
-        return matched;
     }
 
     private void addRecordToState(RowData input, int inputId) throws Exception {
@@ -751,10 +755,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         return depth > 0 && joinTypes.get(depth) == JoinType.LEFT;
     }
 
-    private boolean isLeftJoinAtLastLevel(int depth) {
-        return depth > 0 && joinTypes.get(depth - 1) == JoinType.LEFT;
-    }
-
+    // todo gustavo transform this to matches
     private boolean noMatch(int depth, RowData[] currentRows) {
         // The first depth has no join condition
         return depth > 0 && !joinConditions[depth].apply(currentRows);
@@ -798,6 +799,36 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
     }
 
     private boolean hasNoAssociations(int depth, int[] associations) {
-        return associations[depth - 1] == 0;
+        return depth > 0 && associations[depth - 1] == 0;
+    }
+
+    // Optimization: the information we have to reprocess is if we have at least one match for
+    // insertions
+    // or if we have at least two matches for deletions. This is the information we need to be able
+    // to
+    // emit the correct changelog. If we have this, we can skip reprocessing the input level.
+    // Obs.: if we add an optimization where we cache the amount of associations for an specific
+    // level
+    // and avoid reprocessing records to the left, we have to remove this, because we then need
+    // the exact total amount of associations to be cached
+    private boolean skipAssociationCounting(
+            int depth, int inputId, RowData input, int[] associations) {
+        // No associations at the top level
+        // We also cant skip association counting if at a different level than where we received the
+        // input
+
+        if (depth == 0 || inputId != depth) {
+            return false;
+        }
+
+        if (isUpsert(input)) {
+            return associations[depth - 1]
+                    > 0; // At least one match, we know we don't need to retract before emitting new
+            // row
+        } else {
+            return associations[depth - 1]
+                    > 1; // Multiple matches, we know we don't have to insert a null padded row
+            // after retracting
+        }
     }
 }
