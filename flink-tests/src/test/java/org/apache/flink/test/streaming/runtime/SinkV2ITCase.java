@@ -162,14 +162,11 @@ public class SinkV2ITCase extends AbstractTestBase {
             throws Exception {
         SharedReference<Queue<Committer.CommitRequest<Record<Integer>>>> committed =
                 SHARED_OBJECTS.add(new ConcurrentLinkedQueue<>());
-        TrackingCommitter trackingCommitter = new TrackingCommitter(committed);
-        StreamExecutionEnvironment env;
-        Source<Integer, ?, ?> source;
-        JobID jobID;
-        Configuration config = createConfigForScalingTest(checkpointDir, initialParallelism);
+        final TrackingCommitter trackingCommitter = new TrackingCommitter(committed);
+        final Configuration config = createConfigForScalingTest(checkpointDir, initialParallelism);
 
         // first run
-        jobID =
+        final JobID jobID =
                 runStreamingWithScalingTest(
                         config,
                         initialParallelism,
