@@ -69,6 +69,8 @@ import org.apache.flink.runtime.rest.messages.JobCancellationMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobClientHeartbeatHeaders;
 import org.apache.flink.runtime.rest.messages.JobClientHeartbeatParameters;
 import org.apache.flink.runtime.rest.messages.JobClientHeartbeatRequestBody;
+import org.apache.flink.runtime.rest.messages.JobExceptionsHeaders;
+import org.apache.flink.runtime.rest.messages.JobExceptionsInfoWithHistory;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
@@ -92,6 +94,7 @@ import org.apache.flink.runtime.rest.messages.dataset.ClusterDataSetEntry;
 import org.apache.flink.runtime.rest.messages.dataset.ClusterDataSetListHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
+import org.apache.flink.runtime.rest.messages.job.JobExceptionsMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobResourceRequirementsBody;
 import org.apache.flink.runtime.rest.messages.job.JobResourcesRequirementsUpdateHeaders;
@@ -328,6 +331,20 @@ public class RestClusterClient<T> implements ClusterClient<T> {
         params.jobPathParameter.resolve(jobId);
 
         return sendRequest(detailsHeaders, params);
+    }
+
+    /**
+     * Requests the job exception history.
+     *
+     * @param jobID The job id
+     * @return Job exceptions
+     */
+    public CompletableFuture<JobExceptionsInfoWithHistory> getJobExceptions(JobID jobID) {
+        final JobExceptionsHeaders jobExceptionsHeaders = JobExceptionsHeaders.getInstance();
+        final JobExceptionsMessageParameters params = new JobExceptionsMessageParameters();
+        params.jobPathParameter.resolve(jobID);
+
+        return sendRequest(jobExceptionsHeaders, params);
     }
 
     @Override
