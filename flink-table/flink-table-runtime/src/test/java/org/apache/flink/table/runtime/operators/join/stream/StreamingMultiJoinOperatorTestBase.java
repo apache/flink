@@ -25,11 +25,15 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedMultiInputStreamOperatorTestHarness;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedMultiJoinCondition;
 import org.apache.flink.table.runtime.generated.MultiJoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
+import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor;
+import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.AttributeRef;
+import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
@@ -46,7 +50,9 @@ import org.junit.jupiter.api.BeforeEach;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Base class for testing the StreamingMultiJoinOperator. Provides common functionality and helper
@@ -73,14 +79,16 @@ public abstract class StreamingMultiJoinOperatorTestBase {
     protected final List<JoinType> joinTypes;
     protected final List<GeneratedMultiJoinCondition> joinConditions;
     protected final boolean isFullOuterJoin;
+    protected final Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap;
     protected final InternalTypeInfo<RowData> joinKeyTypeInfo;
+    protected final JoinKeyExtractor keyExtractor;
 
     // ==========================================================================
     // Test State
     // ==========================================================================
 
     protected RowDataHarnessAssertor assertor;
-    protected KeyedMultiInputStreamOperatorTestHarness<String, RowData> testHarness;
+    protected KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> testHarness;
 
     // ==========================================================================
     // Constructor
@@ -97,11 +105,36 @@ public abstract class StreamingMultiJoinOperatorTestBase {
         this.joinTypes = joinTypes;
         this.isFullOuterJoin = isFullOuterJoin;
         this.joinConditions = joinConditions;
+        this.joinAttributeMap = new HashMap<>();
 
         initializeInputs(numInputs);
         initializeJoinConditions();
 
         this.joinKeyTypeInfo = InternalTypeInfo.of(new CharType(false, 20));
+        this.keyExtractor =
+                new AttributeBasedJoinKeyExtractor(this.joinAttributeMap, this.inputTypeInfos);
+    }
+
+    /** Constructor allowing explicit provision of joinAttributeMap for custom conditions. */
+    protected StreamingMultiJoinOperatorTestBase(
+            int numInputs,
+            List<JoinType> joinTypes,
+            List<GeneratedMultiJoinCondition> joinConditions,
+            Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap,
+            boolean isFullOuterJoin) {
+        this.inputTypeInfos = new ArrayList<>(numInputs);
+        this.keySelectors = new ArrayList<>(numInputs);
+        this.inputSpecs = new ArrayList<>(numInputs);
+        this.joinTypes = joinTypes;
+        this.isFullOuterJoin = isFullOuterJoin;
+        this.joinConditions = joinConditions; // Use provided conditions
+        this.joinAttributeMap = joinAttributeMap; // Use provided map
+
+        initializeInputs(numInputs);
+
+        this.joinKeyTypeInfo = InternalTypeInfo.of(new CharType(false, 20));
+        this.keyExtractor =
+                new AttributeBasedJoinKeyExtractor(this.joinAttributeMap, this.inputTypeInfos);
     }
 
     // ==========================================================================
@@ -202,7 +235,7 @@ public abstract class StreamingMultiJoinOperatorTestBase {
 
     protected void emits(RowKind kind1, String[] fields1, RowKind kind2, String[] fields2)
             throws Exception {
-        assertor.shouldEmit(testHarness, rowOfKind(kind1, fields1), rowOfKind(kind2, fields2));
+        assertor.shouldEmitAll(testHarness, rowOfKind(kind1, fields1), rowOfKind(kind2, fields2));
     }
 
     protected void emits(
@@ -213,7 +246,7 @@ public abstract class StreamingMultiJoinOperatorTestBase {
             RowKind kind3,
             String[] fields3)
             throws Exception {
-        assertor.shouldEmit(
+        assertor.shouldEmitAll(
                 testHarness,
                 rowOfKind(kind1, fields1),
                 rowOfKind(kind2, fields2),
@@ -230,7 +263,7 @@ public abstract class StreamingMultiJoinOperatorTestBase {
             RowKind kind4,
             String[] fields4)
             throws Exception {
-        assertor.shouldEmit(
+        assertor.shouldEmitAll(
                 testHarness,
                 rowOfKind(kind1, fields1),
                 rowOfKind(kind2, fields2),
@@ -252,25 +285,44 @@ public abstract class StreamingMultiJoinOperatorTestBase {
         keySelectors.add(createKeySelector(0));
         inputSpecs.add(
                 JoinInputSideSpec.withUniqueKeyContainedByJoinKey(
-                        inputTypeInfos.get(0), keySelectors.get(0)));
+                        createUniqueKeyType(0), keySelectors.get(0)));
 
         // Following tables contain a unique key but are not contained in the join key
         for (int i = 1; i < numInputs; i++) {
             inputTypeInfos.add(createInputTypeInfo(i));
             keySelectors.add(createKeySelector(i));
             inputSpecs.add(
-                    JoinInputSideSpec.withUniqueKey(inputTypeInfos.get(i), keySelectors.get(i)));
+                    JoinInputSideSpec.withUniqueKey(createUniqueKeyType(i), keySelectors.get(i)));
         }
     }
 
     private void initializeJoinConditions() {
-        if (joinConditions.isEmpty()) {
-            // Add a null condition for the first input (index 0) as it doesn't have a preceding
-            // join
-            joinConditions.add(null);
+        // If the map is already populated, it means conditions and map were provided explicitly.
+        // Validation happened in the specific constructor.
+        if (!joinAttributeMap.isEmpty()) {
+            return;
+        }
 
-            for (int i = 1; i < joinTypes.size(); i++) {
-                joinConditions.add(createJoinCondition(i, i - 1));
+        // Proceed with default generation only if conditions AND map were not provided.
+        if (joinConditions.isEmpty()) {
+            // First input doesn't have a left input to join with
+            joinConditions.add(null);
+            for (int i = 0; i < inputSpecs.size(); i++) { // Iterate based on number of inputs
+                // Add the join condition comparing current input (i) with previous (i-1)
+                if (i > 0) {
+                    GeneratedMultiJoinCondition condition = createJoinCondition(i, i - 1);
+                    joinConditions.add(condition);
+                }
+
+                // Populate the attribute map based on the condition's logic (field 0 <-> field 0)
+                Map<AttributeRef, AttributeRef> currentJoinMap = new HashMap<>();
+                // Left side attribute (previous input, field 0)
+                AttributeRef leftAttr = new AttributeRef(i - 1, 0);
+                // Right side attribute (current input, field 0)
+                AttributeRef rightAttr = new AttributeRef(i, 0);
+                // Map: right_input_id -> { left_attr -> right_attr }
+                currentJoinMap.put(leftAttr, rightAttr);
+                joinAttributeMap.put(i, currentJoinMap);
             }
 
         } else if (joinConditions.size() != inputSpecs.size()) {
@@ -304,21 +356,25 @@ public abstract class StreamingMultiJoinOperatorTestBase {
     }
 
     private void setupKeySelectorsForTestHarness(
-            KeyedMultiInputStreamOperatorTestHarness<String, RowData> harness) {
+            KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> harness) {
         for (int i = 0; i < this.inputSpecs.size(); i++) {
             /* Testcase: our join key is always the first key for all tables and that's why 0 */
-            KeySelector<RowData, String> keySelector = row -> row.getString(0).toString();
+            KeySelector<RowData, RowData> keySelector = row -> GenericRowData.of(row.getString(0));
             harness.setKeySelector(i, keySelector);
         }
     }
 
-    protected KeyedMultiInputStreamOperatorTestHarness<String, RowData> createTestHarness()
+    protected KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> createTestHarness()
             throws Exception {
-        KeyedMultiInputStreamOperatorTestHarness<String, RowData> harness =
+        KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> harness =
                 new KeyedMultiInputStreamOperatorTestHarness<>(
                         new MultiStreamingJoinOperatorFactory(
-                                inputSpecs, inputTypeInfos, joinTypes, joinConditions),
-                        TypeInformation.of(String.class));
+                                inputSpecs,
+                                inputTypeInfos,
+                                joinTypes,
+                                joinConditions,
+                                joinAttributeMap),
+                        TypeInformation.of(RowData.class));
 
         // Setup key selectors for each input
         setupKeySelectorsForTestHarness(harness);
@@ -357,16 +413,22 @@ public abstract class StreamingMultiJoinOperatorTestBase {
         private final List<InternalTypeInfo<RowData>> inputTypeInfos;
         private final List<JoinType> joinTypes;
         private final List<GeneratedMultiJoinCondition> joinConditions;
+        private final Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap;
+        private final JoinKeyExtractor keyExtractor;
 
         public MultiStreamingJoinOperatorFactory(
                 List<JoinInputSideSpec> inputSpecs,
                 List<InternalTypeInfo<RowData>> inputTypeInfos,
                 List<JoinType> joinTypes,
-                List<GeneratedMultiJoinCondition> joinConditions) {
+                List<GeneratedMultiJoinCondition> joinConditions,
+                Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap) {
             this.inputSpecs = inputSpecs;
             this.inputTypeInfos = inputTypeInfos;
             this.joinTypes = joinTypes;
             this.joinConditions = joinConditions;
+            this.joinAttributeMap = joinAttributeMap;
+            this.keyExtractor =
+                    new AttributeBasedJoinKeyExtractor(joinAttributeMap, inputTypeInfos);
         }
 
         @Override
@@ -374,7 +436,12 @@ public abstract class StreamingMultiJoinOperatorTestBase {
                 StreamOperatorParameters<RowData> parameters) {
             StreamingMultiJoinOperator op =
                     createJoinOperator(
-                            parameters, inputSpecs, inputTypeInfos, joinTypes, joinConditions);
+                            parameters,
+                            inputSpecs,
+                            inputTypeInfos,
+                            joinTypes,
+                            joinConditions,
+                            keyExtractor);
 
             @SuppressWarnings("unchecked")
             T operator = (T) op;
@@ -392,7 +459,8 @@ public abstract class StreamingMultiJoinOperatorTestBase {
                 List<JoinInputSideSpec> inputSpecs,
                 List<InternalTypeInfo<RowData>> inputTypeInfos,
                 List<JoinType> joinTypes,
-                List<GeneratedMultiJoinCondition> joinConditions) {
+                List<GeneratedMultiJoinCondition> joinConditions,
+                JoinKeyExtractor keyExtractor) {
 
             long[] retentionTime = new long[inputSpecs.size()];
             Arrays.fill(retentionTime, 9999999L);
@@ -409,7 +477,8 @@ public abstract class StreamingMultiJoinOperatorTestBase {
                     joinTypes,
                     multiJoinCondition,
                     retentionTime,
-                    createdJoinConditions);
+                    createdJoinConditions,
+                    keyExtractor);
         }
 
         private MultiJoinCondition[] createJoinConditions(
@@ -455,6 +524,17 @@ public abstract class StreamingMultiJoinOperatorTestBase {
                             String.format("user_id_%d", inputIndex),
                             String.format("id_%d", inputIndex),
                             String.format("details_%d", inputIndex)
+                        }));
+    }
+
+    protected InternalTypeInfo<RowData> createUniqueKeyType(int inputIndex) {
+        return InternalTypeInfo.of(
+                RowType.of(
+                        new LogicalType[] {
+                            new CharType(false, 20),
+                        },
+                        new String[] {
+                            String.format("id_%d", inputIndex),
                         }));
     }
 
