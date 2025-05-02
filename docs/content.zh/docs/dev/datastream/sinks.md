@@ -81,7 +81,7 @@ Please check the [Java doc](https://nightlies.apache.org/flink/flink-docs-releas
 
 The {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/sink2/SupportsWriterState.java" name="SupportsWriterState" >}} interface is used to indicate that the sink supports writer state, which means that the sink can be recovered from a failure.
 
-The `SupportsWriterState` interface requires the `SinkWriter` to implement the {{ gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/sink2/StatefulSinkWriter.java" name="StatefulSinkWriter" >}} interface.
+The `SupportsWriterState` interface requires the `SinkWriter` to implement the {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/sink2/StatefulSinkWriter.java" name="StatefulSinkWriter" >}} interface.
 
 ### SupportsCommitter
 
@@ -111,7 +111,7 @@ In the figure above, user add a `PrePartition` and `PostPartition` operator in t
 
 The following figure shows the operator topology of using {{< gh_link file="flink-runtime/src/main/java/org/apache/flink/streaming/api/connector/sink2/SupportsPreCommitTopology.java" name="SupportsPreCommitTopology" >}}:
 
-{{< img src="/fig/dev/datastream/SupportsPreWriteTopology.png" class="center" >}}
+{{< img src="/fig/dev/datastream/SupportsPreCommitTopology.png" class="center" >}}
 
 In the figure above, user add a `CollectCommit` operator in the `SupportsPreCommitTopology` topology, and collect all the commit messages from the `SinkWriter` to one subtask, then send to the `Committer` to process them centrally, this can reduce the number of interactions with the server. 
 
