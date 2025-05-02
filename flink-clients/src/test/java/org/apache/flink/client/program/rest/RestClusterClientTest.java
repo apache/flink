@@ -1316,7 +1316,7 @@ class RestClusterClientTest {
             assertThat(result.getExceptionHistory().getEntries()).hasSize(1);
             JobExceptionsInfoWithHistory.RootExceptionInfo rootExceptionInfo =
                     result.getExceptionHistory().getEntries().get(0);
-            assertThat(rootExceptionInfo.getExceptionName()).isEqualTo("TestException");
+            assertThat(rootExceptionInfo.getExceptionName()).isEqualTo("TestRootException");
             assertThat(rootExceptionInfo.getStacktrace()).contains("Simulated failure");
             assertThat(rootExceptionInfo.getConcurrentExceptions()).hasSize(1);
             JobExceptionsInfoWithHistory.ExceptionInfo concurrent =
