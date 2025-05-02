@@ -61,6 +61,11 @@ public class RowDataHarnessAssertor {
         assertThat(getEmittedRows(harness)).containsExactly(expected);
     }
 
+    public void shouldEmitAll(
+            AbstractStreamOperatorTestHarness<RowData> harness, RowData... expected) {
+        assertThat(getEmittedRows(harness)).containsAll(List.of(expected));
+    }
+
     /**
      * Compare the two queues containing operator/task output by converting them to an array first.
      * Asserts two converted array should be same.
