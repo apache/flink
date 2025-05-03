@@ -150,8 +150,6 @@ public final class GlobalConfiguration {
             configuration = loadYAMLResource(yamlConfigFile);
         }
 
-        logConfiguration("Loading", configuration);
-
         if (dynamicProperties != null) {
             logConfiguration("Loading dynamic", dynamicProperties);
             configuration.addAll(dynamicProperties);
@@ -250,7 +248,14 @@ public final class GlobalConfiguration {
 
         try {
             Map<String, Object> configDocument = flatten(YamlParserUtils.loadYamlFile(file));
-            configDocument.forEach((k, v) -> config.setValueInternal(k, v, false));
+            configDocument.forEach(
+                    (k, v) -> {
+                        config.setValueInternal(k, v, false);
+                        LOG.info(
+                                "Loading configuration property: {}, {}",
+                                k,
+                                isSensitive(k) ? HIDDEN_CONTENT : v);
+                    });
 
             return config;
         } catch (Exception e) {
