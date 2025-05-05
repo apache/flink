@@ -17,7 +17,10 @@
 ################################################################################
 
 from py4j.java_gateway import get_method
-from typing import Union
+from typing import Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import pandas
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table import ExplainDetail
@@ -914,7 +917,7 @@ class Table(object):
                 func = func(with_columns(col("*")))
             return FlatAggregateTable(self._j_table.flatAggregate(func._j_expr), self._t_env)
 
-    def to_pandas(self):
+    def to_pandas(self) -> 'pandas.DataFrame':
         """
         Converts the table to a pandas DataFrame. It will collect the content of the table to
         the client side and so please make sure that the content of the table could fit in memory
