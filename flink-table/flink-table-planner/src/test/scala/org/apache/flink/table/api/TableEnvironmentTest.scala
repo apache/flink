@@ -2958,6 +2958,136 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testShowCreateModel(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  INPUT(f0 char(10), f1 varchar(10))
+        |  OUTPUT(f2 string)
+        |COMMENT 'this is a model'
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+
+    tableEnv.executeSql(sourceDDL)
+
+    val expectedDDL =
+      """|CREATE MODEL `default_catalog`.`default_database`.`M1`
+         |INPUT (`f0` CHAR(10), `f1` VARCHAR(10))
+         |OUTPUT (`f2` VARCHAR(2147483647))
+         |COMMENT 'this is a model'
+         |WITH (
+         |  'openai.endpoint' = 'some-endpoint',
+         |  'provider' = 'openai',
+         |  'task' = 'clustering'
+         |)
+         |""".stripMargin
+    val row = tableEnv.executeSql("show create MODEL M1").collect().next()
+    assertEquals(expectedDDL, row.getField(0))
+  }
+
+  @Test
+  def testShowCreateTemporaryModel(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE TEMPORARY MODEL M1
+        |  INPUT(f0 char(10), f1 varchar(10))
+        |  OUTPUT(f2 string)
+        |COMMENT 'this is a model'
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+
+    tableEnv.executeSql(sourceDDL)
+
+    val expectedDDL =
+      """|CREATE TEMPORARY MODEL `default_catalog`.`default_database`.`M1`
+         |INPUT (`f0` CHAR(10), `f1` VARCHAR(10))
+         |OUTPUT (`f2` VARCHAR(2147483647))
+         |COMMENT 'this is a model'
+         |WITH (
+         |  'openai.endpoint' = 'some-endpoint',
+         |  'provider' = 'openai',
+         |  'task' = 'clustering'
+         |)
+         |""".stripMargin
+    val row = tableEnv.executeSql("show create MODEL M1").collect().next()
+    assertEquals(expectedDDL, row.getField(0))
+  }
+
+  @Test
+  def testShowCreateNonExistModel(): Unit = {
+    assertThatThrownBy(() => tableEnv.executeSql("SHOW CREATE MODEL M1"))
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessageContaining(
+        "Could not execute SHOW CREATE MODEL. Model with identifier `default_catalog`.`default_database`.`M1` does not exist.")
+  }
+
+  @Test
+  def testShowCreateModelNoInputOutput(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  COMMENT 'this is a model'
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+
+    tableEnv.executeSql(sourceDDL)
+
+    val expectedDDL =
+      """|CREATE MODEL `default_catalog`.`default_database`.`M1`
+         |COMMENT 'this is a model'
+         |WITH (
+         |  'openai.endpoint' = 'some-endpoint',
+         |  'provider' = 'openai',
+         |  'task' = 'clustering'
+         |)
+         |""".stripMargin
+    val row = tableEnv.executeSql("show create MODEL M1").collect().next()
+    assertEquals(expectedDDL, row.getField(0))
+  }
+
+  @Test
+  def testShowCreateModelNoComment(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  INPUT(f0 char(10), f1 varchar(10))
+        |  OUTPUT(f2 string)
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+
+    tableEnv.executeSql(sourceDDL)
+
+    val expectedDDL =
+      """|CREATE MODEL `default_catalog`.`default_database`.`M1`
+         |INPUT (`f0` CHAR(10), `f1` VARCHAR(10))
+         |OUTPUT (`f2` VARCHAR(2147483647))
+         |WITH (
+         |  'openai.endpoint' = 'some-endpoint',
+         |  'provider' = 'openai',
+         |  'task' = 'clustering'
+         |)
+         |""".stripMargin
+    val row = tableEnv.executeSql("show create MODEL M1").collect().next()
+    assertEquals(expectedDDL, row.getField(0))
+  }
+
+  @Test
   def testDropModel(): Unit = {
     val sourceDDL =
       """
