@@ -130,6 +130,14 @@ public class ExecutionConfigOptions {
                                     + "will match the one defined by the length of their respective "
                                     + "CHAR/VARCHAR/BINARY/VARBINARY column type.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_EXEC_SINK_NESTED_CONSTRAINT_ENFORCER =
+            key("table.exec.sink.nested-constraint-enforcer")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Determines if constraints should be enforced for nested fields.");
+
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<UpsertMaterialize> TABLE_EXEC_SINK_UPSERT_MATERIALIZE =
             key("table.exec.sink.upsert-materialize")
@@ -665,7 +673,12 @@ public class ExecutionConfigOptions {
         TRIM_PAD(
                 text(
                         "Trim and pad string and binary values to match the length "
-                                + "defined by the CHAR/VARCHAR/BINARY/VARBINARY length."));
+                                + "defined by the CHAR/VARCHAR/BINARY/VARBINARY length.")),
+        THROW(
+                text(
+                        "Throw a runtime exception when writing data into a "
+                                + "CHAR/VARCHAR/BINARY/VARBINARY column which does not match the length"
+                                + " constraint"));
 
         private final InlineElement description;
 
