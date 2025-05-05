@@ -21,14 +21,15 @@ package org.apache.flink.table.runtime.operators.process;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
 
 /** Forwards all columns of the given row. */
 @Internal
 public class PassAllCollector extends PassThroughCollectorBase {
 
-    public PassAllCollector(Output<StreamRecord<RowData>> output) {
-        super(output);
+    public PassAllCollector(Output<StreamRecord<RowData>> output, ChangelogMode changelogMode) {
+        super(output, changelogMode);
     }
 
     public void setPrefix(RowData input) {

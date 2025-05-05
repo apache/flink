@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.process;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.ProjectedRowData;
 
@@ -28,8 +29,11 @@ import org.apache.flink.table.data.utils.ProjectedRowData;
 @Internal
 public class PassPartitionKeysCollector extends PassThroughCollectorBase {
 
-    public PassPartitionKeysCollector(Output<StreamRecord<RowData>> output, int[] partitionKeys) {
-        super(output);
+    public PassPartitionKeysCollector(
+            Output<StreamRecord<RowData>> output,
+            ChangelogMode changelogMode,
+            int[] partitionKeys) {
+        super(output, changelogMode);
         prefix = ProjectedRowData.from(partitionKeys);
     }
 

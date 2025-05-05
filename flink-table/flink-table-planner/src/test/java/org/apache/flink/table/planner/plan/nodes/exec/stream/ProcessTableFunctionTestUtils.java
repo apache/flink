@@ -25,6 +25,8 @@ import org.apache.flink.table.annotation.StateHint;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.functions.ChangelogFunction;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableSemantics;
@@ -32,18 +34,22 @@ import org.apache.flink.table.runtime.operators.process.ProcessTableOperator;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.annotation.ArgumentTrait.OPTIONAL_PARTITION_BY;
 import static org.apache.flink.table.annotation.ArgumentTrait.PASS_COLUMNS_THROUGH;
+import static org.apache.flink.table.annotation.ArgumentTrait.REQUIRE_FULL_DELETE;
 import static org.apache.flink.table.annotation.ArgumentTrait.REQUIRE_ON_TIME;
+import static org.apache.flink.table.annotation.ArgumentTrait.REQUIRE_UPDATE_BEFORE;
 import static org.apache.flink.table.annotation.ArgumentTrait.SUPPORT_UPDATES;
 import static org.apache.flink.table.annotation.ArgumentTrait.TABLE_AS_ROW;
 import static org.apache.flink.table.annotation.ArgumentTrait.TABLE_AS_SET;
@@ -98,22 +104,24 @@ public class ProcessTableFunctionTestUtils {
                             Row.of("Bob", 4, Instant.ofEpochMilli(4)))
                     .build();
 
-    /** Corresponds to {@link TestProcessTableFunctionBase}. */
-    public static final String BASE_SINK_SCHEMA = "`out` STRING";
+    /** Corresponds to {@link AppendProcessTableFunctionBase}. */
+    public static final List<String> BASE_SINK_SCHEMA = List.of("`out` STRING");
 
-    /** Corresponds to {@link TestProcessTableFunctionBase}. */
-    public static final String TIMED_BASE_SINK_SCHEMA = "`out` STRING, `rowtime` TIMESTAMP_LTZ(3)";
+    /** Corresponds to {@link AppendProcessTableFunctionBase}. */
+    public static final List<String> TIMED_BASE_SINK_SCHEMA =
+            List.of("`out` STRING", "`rowtime` TIMESTAMP_LTZ(3)");
 
-    /** Corresponds to {@link TestProcessTableFunctionBase}. */
-    public static final String KEYED_TIMED_BASE_SINK_SCHEMA =
-            "`name` STRING, `out` STRING, `rowtime` TIMESTAMP_LTZ(3)";
+    /** Corresponds to {@link AppendProcessTableFunctionBase}. */
+    public static final List<String> KEYED_TIMED_BASE_SINK_SCHEMA =
+            List.of("`name` STRING", "`out` STRING", "`rowtime` TIMESTAMP_LTZ(3)");
 
-    /** Corresponds to {@link TestProcessTableFunctionBase}. */
-    public static final String KEYED_BASE_SINK_SCHEMA = "`name` STRING, `out` STRING";
+    /** Corresponds to {@link AppendProcessTableFunctionBase}. */
+    public static final List<String> KEYED_BASE_SINK_SCHEMA =
+            List.of("`name` STRING", "`out` STRING");
 
-    /** Corresponds to {@link TestProcessTableFunctionBase}. */
-    public static final String PASS_THROUGH_BASE_SINK_SCHEMA =
-            "`name` STRING, `score` INT, `out` STRING";
+    /** Corresponds to {@link AppendProcessTableFunctionBase}. */
+    public static final List<String> PASS_THROUGH_BASE_SINK_SCHEMA =
+            List.of("`name` STRING", "`score` INT", "`out` STRING");
 
     /** Testing function. */
     public static class AtomicTypeWrappingFunction extends ProcessTableFunction<Integer> {
@@ -123,7 +131,7 @@ public class ProcessTableFunctionTestUtils {
     }
 
     @DataTypeHint("ROW<`out` STRING>")
-    public abstract static class TestProcessTableFunctionBase extends ProcessTableFunction<Row> {
+    public abstract static class AppendProcessTableFunctionBase extends ProcessTableFunction<Row> {
         protected void collectObjects(Object... objects) {
             // Row.toString is useful because it can handle all common objects,
             // but we use '{}' to indicate that this is a custom string output.
@@ -189,85 +197,107 @@ public class ProcessTableFunctionTestUtils {
     }
 
     /** Testing function. */
-    public static class ScalarArgsFunction extends TestProcessTableFunctionBase {
+    public static class ScalarArgsFunction extends AppendProcessTableFunctionBase {
         public void eval(Integer i, Boolean b) {
             collectObjects(i, b);
         }
     }
 
     /** Testing function. */
-    public static class TableAsRowFunction extends TestProcessTableFunctionBase {
+    public static class TableAsRowFunction extends AppendProcessTableFunctionBase {
         public void eval(@ArgumentHint(ArgumentTrait.TABLE_AS_ROW) Row r, Integer i) {
             collectObjects(r, i);
         }
     }
 
     /** Testing function. */
-    public static class TypedTableAsRowFunction extends TestProcessTableFunctionBase {
+    public static class TypedTableAsRowFunction extends AppendProcessTableFunctionBase {
         public void eval(@ArgumentHint(ArgumentTrait.TABLE_AS_ROW) User u, Integer i) {
             collectObjects(u, i);
         }
     }
 
     /** Testing function. */
-    public static class TableAsSetFunction extends TestProcessTableFunctionBase {
+    public static class TableAsSetFunction extends AppendProcessTableFunctionBase {
         public void eval(@ArgumentHint(TABLE_AS_SET) Row r, Integer i) {
             collectObjects(r, i);
         }
     }
 
     /** Testing function. */
-    public static class TypedTableAsSetFunction extends TestProcessTableFunctionBase {
+    public static class TypedTableAsSetFunction extends AppendProcessTableFunctionBase {
         public void eval(@ArgumentHint(TABLE_AS_SET) User u, Integer i) {
             collectObjects(u, i);
         }
     }
 
     /** Testing function. */
-    public static class PojoArgsFunction extends TestProcessTableFunctionBase {
+    public static class PojoArgsFunction extends AppendProcessTableFunctionBase {
         public void eval(@ArgumentHint(TABLE_AS_ROW) User input, User scalar) {
             collectObjects(input, scalar);
         }
     }
 
     /** Testing function. */
-    public static class EmptyArgFunction extends TestProcessTableFunctionBase {
+    public static class EmptyArgFunction extends AppendProcessTableFunctionBase {
         public void eval() {
             collectObjects("empty");
         }
     }
 
     /** Testing function. */
-    public static class TableAsRowPassThroughFunction extends TestProcessTableFunctionBase {
+    public static class TableAsRowPassThroughFunction extends AppendProcessTableFunctionBase {
         public void eval(@ArgumentHint({TABLE_AS_ROW, PASS_COLUMNS_THROUGH}) Row r, Integer i) {
             collectObjects(r, i);
         }
     }
 
     /** Testing function. */
-    public static class TableAsSetPassThroughFunction extends TestProcessTableFunctionBase {
+    public static class TableAsSetPassThroughFunction extends AppendProcessTableFunctionBase {
         public void eval(@ArgumentHint({TABLE_AS_SET, PASS_COLUMNS_THROUGH}) Row r, Integer i) {
             collectObjects(r, i);
         }
     }
 
     /** Testing function. */
-    public static class TableAsSetUpdatingArgFunction extends TestProcessTableFunctionBase {
+    public static class TableAsSetUpdatingArgFunction extends AppendProcessTableFunctionBase {
         public void eval(
+                Context ctx,
                 @ArgumentHint({TABLE_AS_SET, OPTIONAL_PARTITION_BY, SUPPORT_UPDATES}) Row r) {
+            collectObjects(
+                    r,
+                    toModeSummary(
+                            ctx.tableSemanticsFor("r")
+                                    .changelogMode()
+                                    .orElseThrow(IllegalStateException::new)));
+        }
+    }
+
+    /** Testing function. */
+    public static class TableAsSetRetractArgFunction extends AppendProcessTableFunctionBase {
+        public void eval(
+                @ArgumentHint({TABLE_AS_SET, SUPPORT_UPDATES, REQUIRE_UPDATE_BEFORE}) Row r) {
             collectObjects(r);
         }
     }
 
     /** Testing function. */
-    public static class TableAsSetOptionalPartitionFunction extends TestProcessTableFunctionBase {
+    public static class TableAsSetFullDeletesArgFunction extends AppendProcessTableFunctionBase {
+        public void eval(
+                @ArgumentHint({TABLE_AS_SET, SUPPORT_UPDATES, REQUIRE_FULL_DELETE}) Row r) {
+            collectObjects(r);
+        }
+    }
+
+    /** Testing function. */
+    public static class TableAsSetOptionalPartitionFunction extends AppendProcessTableFunctionBase {
         public void eval(@ArgumentHint({TABLE_AS_SET, OPTIONAL_PARTITION_BY}) Row r, Integer i) {
             collectObjects(r, i);
         }
     }
 
     /** Testing function. */
-    public static class ContextFunction extends TestProcessTableFunctionBase {
+    public static class ContextFunction extends AppendProcessTableFunctionBase {
         public void eval(Context ctx, @ArgumentHint(TABLE_AS_SET) Row r, String s) {
             final TableSemantics semantics = ctx.tableSemanticsFor("r");
             collectObjects(
@@ -280,7 +310,7 @@ public class ProcessTableFunctionTestUtils {
     }
 
     /** Testing function. */
-    public static class PojoStateFunction extends TestProcessTableFunctionBase {
+    public static class PojoStateFunction extends AppendProcessTableFunctionBase {
         public void eval(@StateHint Score s, @ArgumentHint(TABLE_AS_SET) Row r) {
             collectObjects(s, r);
             if (r.getFieldAs("name").equals("Bob")) {
@@ -295,7 +325,7 @@ public class ProcessTableFunctionTestUtils {
     }
 
     /** Testing function. */
-    public static class PojoWithDefaultStateFunction extends TestProcessTableFunctionBase {
+    public static class PojoWithDefaultStateFunction extends AppendProcessTableFunctionBase {
         public void eval(@StateHint ScoreWithDefaults s, @ArgumentHint(TABLE_AS_SET) Row r) {
             collectObjects(s, r);
             if (r.getFieldAs("name").equals("Bob")) {
@@ -310,7 +340,7 @@ public class ProcessTableFunctionTestUtils {
     }
 
     /** Testing function. */
-    public static class MultiStateFunction extends TestProcessTableFunctionBase {
+    public static class MultiStateFunction extends AppendProcessTableFunctionBase {
         public void eval(
                 @StateHint(type = @DataTypeHint("ROW<i INT>")) Row s1,
                 @StateHint(type = @DataTypeHint("ROW<s STRING>")) Row s2,
@@ -326,7 +356,7 @@ public class ProcessTableFunctionTestUtils {
     }
 
     /** Testing function. */
-    public static class ClearStateFunction extends TestProcessTableFunctionBase {
+    public static class ClearStateFunction extends AppendProcessTableFunctionBase {
         public void eval(
                 Context ctx, @StateHint ScoreWithDefaults s, @ArgumentHint(TABLE_AS_SET) Row r) {
             collectObjects(s, r);
@@ -362,7 +392,7 @@ public class ProcessTableFunctionTestUtils {
     }
 
     /** Testing function. */
-    public static class DescriptorFunction extends TestProcessTableFunctionBase {
+    public static class DescriptorFunction extends AppendProcessTableFunctionBase {
         public void eval(
                 ColumnList columnList1,
                 @ArgumentHint(isOptional = true) ColumnList columnList2,
@@ -372,14 +402,14 @@ public class ProcessTableFunctionTestUtils {
     }
 
     /** Testing function. */
-    public static class RequiredTimeFunction extends TestProcessTableFunctionBase {
+    public static class RequiredTimeFunction extends AppendProcessTableFunctionBase {
         public void eval(@ArgumentHint({ArgumentTrait.TABLE_AS_ROW, REQUIRE_ON_TIME}) Row r) {
             collectObjects(r);
         }
     }
 
     /** Testing function. */
-    public static class TimeConversionsFunction extends TestProcessTableFunctionBase {
+    public static class TimeConversionsFunction extends AppendProcessTableFunctionBase {
         public void eval(Context ctx, @ArgumentHint({TABLE_AS_ROW, REQUIRE_ON_TIME}) Row r) {
             final TimeContext<Long> asLong = ctx.timeContext(Long.class);
             final TimeContext<Instant> asInstant = ctx.timeContext(Instant.class);
@@ -400,7 +430,7 @@ public class ProcessTableFunctionTestUtils {
 
     /** Testing function. */
     @SuppressWarnings("SameParameterValue")
-    public static class NamedTimersFunction extends TestProcessTableFunctionBase {
+    public static class NamedTimersFunction extends AppendProcessTableFunctionBase {
         public void eval(Context ctx, @ArgumentHint({TABLE_AS_SET, REQUIRE_ON_TIME}) Row r) {
             final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
             collectEvalEvent(timeCtx, r);
@@ -433,7 +463,7 @@ public class ProcessTableFunctionTestUtils {
 
     /** Testing function. */
     @SuppressWarnings("SameParameterValue")
-    public static class UnnamedTimersFunction extends TestProcessTableFunctionBase {
+    public static class UnnamedTimersFunction extends AppendProcessTableFunctionBase {
         public void eval(Context ctx, @ArgumentHint({TABLE_AS_SET, REQUIRE_ON_TIME}) Row r) {
             final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
             collectEvalEvent(timeCtx, r);
@@ -463,7 +493,7 @@ public class ProcessTableFunctionTestUtils {
     }
 
     /** Testing function. */
-    public static class LateTimersFunction extends TestProcessTableFunctionBase {
+    public static class LateTimersFunction extends AppendProcessTableFunctionBase {
         public void eval(Context ctx, @ArgumentHint({TABLE_AS_SET, REQUIRE_ON_TIME}) Row r) {
             final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
             collectEvalEvent(timeCtx, r);
@@ -485,7 +515,7 @@ public class ProcessTableFunctionTestUtils {
     }
 
     /** Testing function. */
-    public static class ScalarArgsTimeFunction extends TestProcessTableFunctionBase {
+    public static class ScalarArgsTimeFunction extends AppendProcessTableFunctionBase {
         public void eval(Context ctx) {
             final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
             collectObjects(
@@ -496,7 +526,7 @@ public class ProcessTableFunctionTestUtils {
     }
 
     /** Testing function. */
-    public static class OptionalPartitionOnTimeFunction extends TestProcessTableFunctionBase {
+    public static class OptionalPartitionOnTimeFunction extends AppendProcessTableFunctionBase {
         public void eval(
                 Context ctx,
                 @ArgumentHint({TABLE_AS_SET, OPTIONAL_PARTITION_BY, REQUIRE_ON_TIME}) Row r) {
@@ -517,7 +547,7 @@ public class ProcessTableFunctionTestUtils {
     }
 
     /** Testing function. */
-    public static class OptionalOnTimeFunction extends TestProcessTableFunctionBase {
+    public static class OptionalOnTimeFunction extends AppendProcessTableFunctionBase {
         public void eval(Context ctx, @ArgumentHint(TABLE_AS_SET) Row r) {
             final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
             collectEvalEvent(timeCtx, r);
@@ -531,7 +561,7 @@ public class ProcessTableFunctionTestUtils {
     }
 
     /** Testing function. */
-    public static class PojoStateTimeFunction extends TestProcessTableFunctionBase {
+    public static class PojoStateTimeFunction extends AppendProcessTableFunctionBase {
         public void eval(
                 Context ctx,
                 @StateHint Score s,
@@ -554,7 +584,7 @@ public class ProcessTableFunctionTestUtils {
     }
 
     /** Testing function. */
-    public static class ChainedSendingFunction extends TestProcessTableFunctionBase {
+    public static class ChainedSendingFunction extends AppendProcessTableFunctionBase {
         public void eval(
                 Context ctx,
                 @ArgumentHint({TABLE_AS_SET, OPTIONAL_PARTITION_BY, REQUIRE_ON_TIME}) Row r) {
@@ -571,7 +601,7 @@ public class ProcessTableFunctionTestUtils {
     }
 
     /** Testing function. */
-    public static class ChainedReceivingFunction extends TestProcessTableFunctionBase {
+    public static class ChainedReceivingFunction extends AppendProcessTableFunctionBase {
         public void eval(
                 Context ctx,
                 @ArgumentHint({TABLE_AS_SET, OPTIONAL_PARTITION_BY, REQUIRE_ON_TIME}) Row r) {
@@ -581,7 +611,7 @@ public class ProcessTableFunctionTestUtils {
     }
 
     /** Testing function. */
-    public static class InvalidTableAsRowTimersFunction extends TestProcessTableFunctionBase {
+    public static class InvalidTableAsRowTimersFunction extends AppendProcessTableFunctionBase {
         public void eval(Context ctx, @ArgumentHint(TABLE_AS_ROW) Row r) {
             final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
             timeCtx.registerOnTime(42L);
@@ -589,7 +619,7 @@ public class ProcessTableFunctionTestUtils {
     }
 
     /** Testing function. */
-    public static class InvalidPassThroughTimersFunction extends TestProcessTableFunctionBase {
+    public static class InvalidPassThroughTimersFunction extends AppendProcessTableFunctionBase {
         public void eval(
                 Context ctx,
                 @ArgumentHint({TABLE_AS_SET, PASS_COLUMNS_THROUGH, REQUIRE_ON_TIME}) Row r) {
@@ -599,15 +629,7 @@ public class ProcessTableFunctionTestUtils {
     }
 
     /** Testing function. */
-    public static class InvalidUpdatingTimersFunction extends TestProcessTableFunctionBase {
-        public void eval(Context ctx, @ArgumentHint({TABLE_AS_SET, SUPPORT_UPDATES}) Row r) {
-            final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
-            timeCtx.registerOnTime(42L);
-        }
-    }
-
-    /** Testing function. */
-    public static class OptionalFunction extends TestProcessTableFunctionBase {
+    public static class OptionalFunction extends AppendProcessTableFunctionBase {
         public void eval(
                 Context ctx, @ArgumentHint(value = TABLE_AS_ROW, isOptional = true) Row r) {
             collectObjects(r);
@@ -615,7 +637,7 @@ public class ProcessTableFunctionTestUtils {
     }
 
     /** Testing function. */
-    public static class ListStateFunction extends TestProcessTableFunctionBase {
+    public static class ListStateFunction extends AppendProcessTableFunctionBase {
         public void eval(
                 Context ctx,
                 @StateHint ListView<String> s,
@@ -645,7 +667,7 @@ public class ProcessTableFunctionTestUtils {
     }
 
     /** Testing function. */
-    public static class MapStateFunction extends TestProcessTableFunctionBase {
+    public static class MapStateFunction extends AppendProcessTableFunctionBase {
         public void eval(
                 Context ctx,
                 @StateHint MapView<String, Integer> s,
@@ -685,6 +707,94 @@ public class ProcessTableFunctionTestUtils {
             if (count == 2) {
                 ctx.clearState("s");
             }
+        }
+    }
+
+    @DataTypeHint("ROW<name STRING, count BIGINT, mode STRING>")
+    public abstract static class ChangelogProcessTableFunctionBase extends ProcessTableFunction<Row>
+            implements ChangelogFunction {
+
+        void collectUpdate(Context ctx, Row r) {
+            collect(
+                    Row.ofKind(
+                            r.getKind(),
+                            r.getField(0),
+                            r.getField(1),
+                            toModeSummary(ctx.getChangelogMode())));
+        }
+    }
+
+    /** Testing function. */
+    public static class UpdatingRetractFunction extends ChangelogProcessTableFunctionBase {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({TABLE_AS_SET, SUPPORT_UPDATES, REQUIRE_UPDATE_BEFORE}) Row r) {
+            collectUpdate(ctx, r);
+        }
+
+        @Override
+        public ChangelogMode getChangelogMode(ChangelogContext changelogContext) {
+            return ChangelogMode.all();
+        }
+    }
+
+    /** Testing function. */
+    public static class UpdatingUpsertFunction extends ChangelogProcessTableFunctionBase {
+        public void eval(Context ctx, @ArgumentHint({TABLE_AS_SET, SUPPORT_UPDATES}) Row r) {
+            collectUpdate(ctx, r);
+        }
+
+        @Override
+        public ChangelogMode getChangelogMode(ChangelogContext changelogContext) {
+            return ChangelogMode.upsert(
+                    changelogContext.getRequiredChangelogMode().keyOnlyDeletes());
+        }
+    }
+
+    /** Testing function. */
+    public static class UpdatingUpsertPartialDeletesFunction
+            extends ChangelogProcessTableFunctionBase {
+        public void eval(Context ctx, @ArgumentHint({TABLE_AS_SET, SUPPORT_UPDATES}) Row r) {
+            collectUpdate(ctx, r);
+        }
+
+        @Override
+        public ChangelogMode getChangelogMode(ChangelogContext changelogContext) {
+            return ChangelogMode.upsert();
+        }
+    }
+
+    /** Testing function. */
+    public static class UpdatingUpsertFullDeletesFunction
+            extends ChangelogProcessTableFunctionBase {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({TABLE_AS_SET, SUPPORT_UPDATES, REQUIRE_FULL_DELETE}) Row r) {
+            collectUpdate(ctx, r);
+        }
+
+        @Override
+        public ChangelogMode getChangelogMode(ChangelogContext changelogContext) {
+            return ChangelogMode.upsert(false);
+        }
+    }
+
+    /** Testing function. */
+    public static class InvalidUpdatingSemanticsFunction extends ChangelogProcessTableFunctionBase {
+        public void eval(Context ctx, @ArgumentHint({TABLE_AS_ROW, SUPPORT_UPDATES}) Row r) {
+            collectUpdate(ctx, r);
+        }
+
+        @Override
+        public ChangelogMode getChangelogMode(ChangelogContext changelogContext) {
+            return ChangelogMode.all();
+        }
+    }
+
+    /** Testing function. */
+    public static class InvalidRowKindFunction extends AppendProcessTableFunctionBase {
+        public void eval(@ArgumentHint(TABLE_AS_ROW) Row r) {
+            collect(Row.ofKind(RowKind.DELETE, "invalidate"));
         }
     }
 
@@ -734,5 +844,17 @@ public class ProcessTableFunctionTestUtils {
         public String toString() {
             return String.format("ScoreWithDefaults(s='%s', i=%s)", s, i);
         }
+    }
+
+    private static final Map<String, String> MODE_SUMMARY =
+            Map.ofEntries(
+                    Map.entry("[INSERT, UPDATE_BEFORE, UPDATE_AFTER]", "retract-no-delete"),
+                    Map.entry("[INSERT, UPDATE_AFTER]", "upsert-no-delete"),
+                    Map.entry("[INSERT, UPDATE_BEFORE, UPDATE_AFTER, DELETE]", "retract"),
+                    Map.entry("[INSERT, UPDATE_AFTER, DELETE]", "upsert-full-delete"),
+                    Map.entry("[INSERT, UPDATE_AFTER, ~DELETE]", "upsert-partial-delete"));
+
+    private static String toModeSummary(ChangelogMode mode) {
+        return MODE_SUMMARY.get(mode.toString());
     }
 }

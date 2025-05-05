@@ -27,6 +27,7 @@ import org.apache.flink.table.annotation.StateHint;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.types.extraction.TypeInferenceExtractor;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.util.Collector;
@@ -500,6 +501,17 @@ public abstract class ProcessTableFunction<T> extends UserDefinedFunction {
 
         /** Clears the virtual partition including timers and state. */
         void clearAll();
+
+        /**
+         * Returns the {@link ChangelogMode} that the framework expects from this function.
+         *
+         * <p>By default, a PTF can only emit insert-only (append-only) changes and this method will
+         * therefore return {@link ChangelogMode#insertOnly()}. If the PTF needs to emit update or
+         * delete changes, it should implement {@link ChangelogFunction}.
+         *
+         * @return the produced {@link ChangelogMode}
+         */
+        ChangelogMode getChangelogMode();
     }
 
     /**

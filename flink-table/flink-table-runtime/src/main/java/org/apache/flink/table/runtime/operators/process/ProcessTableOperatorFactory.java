@@ -46,18 +46,21 @@ public class ProcessTableOperatorFactory extends AbstractStreamOperatorFactory<R
     private final GeneratedProcessTableRunner generatedProcessTableRunner;
     private final GeneratedHashFunction[] generatedStateHashCode;
     private final GeneratedRecordEqualiser[] generatedStateEquals;
+    private final RuntimeChangelogMode producedChangelogMode;
 
     public ProcessTableOperatorFactory(
             @Nullable RuntimeTableSemantics tableSemantics,
             List<RuntimeStateInfo> stateInfos,
             GeneratedProcessTableRunner generatedProcessTableRunner,
             GeneratedHashFunction[] generatedStateHashCode,
-            GeneratedRecordEqualiser[] generatedStateEquals) {
+            GeneratedRecordEqualiser[] generatedStateEquals,
+            RuntimeChangelogMode producedChangelogMode) {
         this.tableSemantics = tableSemantics;
         this.stateInfos = stateInfos;
         this.generatedProcessTableRunner = generatedProcessTableRunner;
         this.generatedStateHashCode = generatedStateHashCode;
         this.generatedStateEquals = generatedStateEquals;
+        this.producedChangelogMode = producedChangelogMode;
     }
 
     @Override
@@ -74,7 +77,13 @@ public class ProcessTableOperatorFactory extends AbstractStreamOperatorFactory<R
                         .map(g -> g.newInstance(classLoader))
                         .toArray(RecordEqualiser[]::new);
         return new ProcessTableOperator(
-                parameters, tableSemantics, stateInfos, runner, stateHashCode, stateEquals);
+                parameters,
+                tableSemantics,
+                stateInfos,
+                runner,
+                stateHashCode,
+                stateEquals,
+                producedChangelogMode);
     }
 
     @Override

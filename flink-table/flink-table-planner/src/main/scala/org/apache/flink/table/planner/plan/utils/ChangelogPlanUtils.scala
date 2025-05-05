@@ -18,11 +18,12 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.connector.ChangelogMode
-import org.apache.flink.table.planner.plan.`trait`.{DeleteKind, DeleteKindTraitDef, ModifyKind, ModifyKindSetTraitDef, UpdateKind, UpdateKindTraitDef}
+import org.apache.flink.table.planner.plan.`trait`.{DeleteKind, DeleteKindTrait, DeleteKindTraitDef, ModifyKind, ModifyKindSet, ModifyKindSetTrait, ModifyKindSetTraitDef, UpdateKind, UpdateKindTrait, UpdateKindTraitDef}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.program.FlinkChangelogModeInferenceProgram
 import org.apache.flink.types.RowKind
 
+import org.apache.calcite.plan.RelTraitSet
 import org.apache.calcite.rel.RelNode
 
 import scala.collection.JavaConversions._
@@ -30,15 +31,6 @@ import scala.collection.mutable.ArrayBuffer
 
 /** Utilities for changelog plan. */
 object ChangelogPlanUtils {
-
-  /** A [[ChangelogMode]] contains all kinds of [[RowKind]]. */
-  val FULL_CHANGELOG_MODE: ChangelogMode = ChangelogMode
-    .newBuilder()
-    .addContainedKind(RowKind.INSERT)
-    .addContainedKind(RowKind.UPDATE_BEFORE)
-    .addContainedKind(RowKind.UPDATE_AFTER)
-    .addContainedKind(RowKind.DELETE)
-    .build()
 
   /**
    * Returns true if the inputs of current node produce insert-only changes.
@@ -79,41 +71,32 @@ object ChangelogPlanUtils {
    * <p>Note: this method must be called after [[FlinkChangelogModeInferenceProgram]] is applied.
    */
   def getChangelogMode(node: StreamPhysicalRel): Option[ChangelogMode] = {
-    val modifyKindSet = node.getTraitSet
+    val traitSet = node.getTraitSet
+    val modifyKindSet = traitSet
       .getTrait(ModifyKindSetTraitDef.INSTANCE)
       .modifyKindSet
-    val updateKind = node.getTraitSet
+    val updateKind = traitSet
       .getTrait(UpdateKindTraitDef.INSTANCE)
       .updateKind
-    val deleteKind = Option(
-      node.getTraitSet
-        .getTrait(DeleteKindTraitDef.INSTANCE))
+    val deleteKind = Option(traitSet.getTrait(DeleteKindTraitDef.INSTANCE))
       .map(_.deleteKind)
       .getOrElse(DeleteKind.NONE)
 
     if (modifyKindSet.isEmpty) {
-      None
-    } else {
-      val modeBuilder = ChangelogMode.newBuilder()
-      if (modifyKindSet.contains(ModifyKind.INSERT)) {
-        modeBuilder.addContainedKind(RowKind.INSERT)
-      }
-      if (modifyKindSet.contains(ModifyKind.DELETE)) {
-        modeBuilder.addContainedKind(RowKind.DELETE)
-      }
-      if (modifyKindSet.contains(ModifyKind.UPDATE)) {
-        modeBuilder.addContainedKind(RowKind.UPDATE_AFTER)
-        if (updateKind == UpdateKind.BEFORE_AND_AFTER) {
-          modeBuilder.addContainedKind(RowKind.UPDATE_BEFORE)
-        }
-      }
-
-      if (deleteKind == DeleteKind.DELETE_BY_KEY) {
-        modeBuilder.keyOnlyDeletes(true)
-      }
-
-      Some(modeBuilder.build())
+      return None
     }
+    val modeBuilder = modifyKindSet.toChangelogModeBuilder
+    if (modifyKindSet.contains(ModifyKind.UPDATE)) {
+      if (updateKind == UpdateKind.BEFORE_AND_AFTER) {
+        modeBuilder.addContainedKind(RowKind.UPDATE_BEFORE)
+      }
+    }
+
+    if (deleteKind == DeleteKind.DELETE_BY_KEY) {
+      modeBuilder.keyOnlyDeletes(true)
+    }
+
+    Some(modeBuilder.build())
   }
 
   /** Returns the string representation of an optional ChangelogMode. */

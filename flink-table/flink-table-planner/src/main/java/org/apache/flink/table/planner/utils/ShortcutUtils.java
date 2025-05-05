@@ -39,6 +39,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.tools.RelBuilder;
 
@@ -148,6 +149,14 @@ public final class ShortcutUtils {
             return null;
         }
         return ((BridgingSqlFunction) call.getOperator()).getDefinition();
+    }
+
+    public static @Nullable BridgingSqlFunction unwrapBridgingSqlFunction(RexCall call) {
+        final SqlOperator operator = call.getOperator();
+        if (operator instanceof BridgingSqlFunction) {
+            return (BridgingSqlFunction) operator;
+        }
+        return null;
     }
 
     private ShortcutUtils() {
