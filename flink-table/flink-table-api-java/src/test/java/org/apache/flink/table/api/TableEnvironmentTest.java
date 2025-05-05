@@ -50,7 +50,7 @@ import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 /** Tests for {@link TableEnvironment}. */
 class TableEnvironmentTest {
-    TableEnvironmentMock tEnv;
+    private TableEnvironmentMock tEnv;
     private static final Schema TEST_SCHEMA =
             Schema.newBuilder().column("f0", DataTypes.INT()).build();
     private static final Schema TEST_SCHEMA_2 =
@@ -177,7 +177,7 @@ class TableEnvironmentTest {
         assertThat(tEnv.getCatalogManager().listTables()).isEmpty();
     }
 
-    @ParameterizedTest()
+    @ParameterizedTest
     @MethodSource("getModelNamesAndDescriptors")
     void testCreateModelFromDescriptor(String modelPath, ModelDescriptor modelDescriptor)
             throws Exception {
@@ -234,7 +234,7 @@ class TableEnvironmentTest {
                         "Model with identifier 'default_catalog.default_database.M' does not exist.");
     }
 
-    @ParameterizedTest()
+    @ParameterizedTest
     @MethodSource("getModelNamesAndDescriptors")
     void testCreateTemporaryModelFromDescriptor(String modelPath, ModelDescriptor modelDescriptor) {
         assertTemporaryCreateModelFromDescriptor(tEnv, modelPath, modelDescriptor);
@@ -348,7 +348,7 @@ class TableEnvironmentTest {
                 .isEqualTo(modelDescriptor.getOutputSchema().get());
         for (Map.Entry<String, String> entry : modelDescriptor.getOptions().entrySet()) {
             assertThat(catalogModel.getOptions()).contains(entry);
-            assertThat(catalogModel.getOptions().get(entry.getKey())).isEqualTo(entry.getValue());
+            assertThat(catalogModel.getOptions()).containsEntry(entry.getKey(), entry.getValue());
         }
     }
 }
