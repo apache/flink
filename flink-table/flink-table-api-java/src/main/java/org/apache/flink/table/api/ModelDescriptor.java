@@ -133,7 +133,10 @@ public class ModelDescriptor {
 
         return String.format(
                 "%s%n%s%nCOMMENT '%s'%nWITH (%n%s%n)",
-                inputSchema, outputSchema, comment != null ? comment : "", serializedOptions);
+                inputSchema != null ? inputSchema : "",
+                outputSchema != null ? outputSchema : "",
+                comment != null ? comment : "",
+                serializedOptions);
     }
 
     @Override
