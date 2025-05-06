@@ -183,6 +183,8 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
 
     private void emit(CheckpointCommittableManager<CommT> committableManager) {
         int subtaskId = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
+        // Ensure that numberOfSubtasks is in sync with the number of actually emitted
+        // CommittableSummaries during upscaling recovery (see FLINK-37747).
         int numberOfSubtasks =
                 Math.min(
                         getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks(),

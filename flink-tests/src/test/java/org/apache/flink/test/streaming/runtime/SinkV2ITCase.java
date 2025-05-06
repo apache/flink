@@ -44,7 +44,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2;
 import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2.Record;
 import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2.RecordSerializer;
-import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.InjectMiniCluster;
 import org.apache.flink.test.util.AbstractTestBase;
@@ -55,8 +54,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,7 +71,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -152,8 +150,8 @@ public class SinkV2ITCase extends AbstractTestBase {
     }
 
     @ParameterizedTest
-    @MethodSource("getScalingParallelism")
-    public void writerAndCommitterExecuteInStreamingModeWithScalingUp(
+    @CsvSource({"1, 2", "2, 1", "1, 1"})
+    public void writerAndCommitterExecuteInStreamingModeWithScaling(
             int initialParallelism,
             int scaledParallelism,
             @TempDir File checkpointDir,
@@ -183,11 +181,15 @@ public class SinkV2ITCase extends AbstractTestBase {
 
         assertThat(committed.get())
                 .extracting(Committer.CommitRequest::getCommittable)
-                .containsExactlyInAnyOrderElementsOf(EXPECTED_COMMITTED_DATA_IN_STREAMING_MODE);
+                .containsExactlyInAnyOrderElementsOf(
+                        duplicate(EXPECTED_COMMITTED_DATA_IN_STREAMING_MODE));
     }
 
-    static Stream<Arguments> getScalingParallelism() {
-        return Stream.of(Arguments.of(1, 2), Arguments.of(2, 1), Arguments.of(1, 1));
+    private static List<Record<Integer>> duplicate(List<Record<Integer>> values) {
+        return IntStream.range(0, 2)
+                .boxed()
+                .flatMap(i -> values.stream())
+                .collect(Collectors.toList());
     }
 
     @Test
@@ -263,15 +265,9 @@ public class SinkV2ITCase extends AbstractTestBase {
         return config;
     }
 
-    private StreamExecutionEnvironment buildStreamEnvWithCheckpointDir(
-            Configuration config, int parallelism, MiniCluster miniCluster) {
+    private StreamExecutionEnvironment buildStreamEnvWithCheckpointDir(Configuration config) {
         final StreamExecutionEnvironment env =
-                new TestStreamEnvironment(
-                        miniCluster,
-                        config,
-                        parallelism,
-                        Collections.emptyList(),
-                        Collections.emptyList());
+                StreamExecutionEnvironment.getExecutionEnvironment(config);
         env.setRuntimeMode(RuntimeExecutionMode.STREAMING);
         env.enableCheckpointing(100);
 
@@ -286,17 +282,18 @@ public class SinkV2ITCase extends AbstractTestBase {
             MiniCluster miniCluster,
             ClusterClient<?> clusterClient)
             throws Exception {
-        final StreamExecutionEnvironment env =
-                buildStreamEnvWithCheckpointDir(config, parallelism, miniCluster);
+        final StreamExecutionEnvironment env = buildStreamEnvWithCheckpointDir(config);
         final Source<Integer, ?, ?> source = createStreamingSource();
 
         env.fromSource(source, WatermarkStrategy.noWatermarks(), "source")
+                .rebalance()
                 .map(
                         new FailingCheckpointMapper(
-                                SHARED_OBJECTS.add(new AtomicBoolean(shouldMapperFail))))
+                                SHARED_OBJECTS.add(new AtomicBoolean(!shouldMapperFail))))
                 .sinkTo(
                         TestSinkV2.<Integer>newBuilder()
                                 .setCommitter(trackingCommitter, RecordSerializer::new)
+                                .setWithPostCommitTopology(true)
                                 .build());
 
         final JobID jobId = clusterClient.submitJob(env.getStreamGraph().getJobGraph()).get();

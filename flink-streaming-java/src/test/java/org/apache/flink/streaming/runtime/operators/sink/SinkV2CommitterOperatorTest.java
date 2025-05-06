@@ -36,6 +36,7 @@ import org.assertj.core.api.AbstractThrowableAssert;
 import org.assertj.core.api.ListAssert;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Collection;
@@ -131,7 +132,7 @@ class SinkV2CommitterOperatorTest {
         SinkAndCounters sinkAndCounters = sinkWithPostCommit();
         final OneInputStreamOperatorTestHarness<
                         CommittableMessage<String>, CommittableMessage<String>>
-                testHarness = createTestHarness(sinkAndCounters.sink, false, true);
+                testHarness = createTestHarness(sinkAndCounters.sink, false, true, 1, 1, 0);
         testHarness.open();
         testHarness.setProcessingTime(0);
 
@@ -164,98 +165,9 @@ class SinkV2CommitterOperatorTest {
         testHarness.close();
     }
 
-    @Test
-    void testStateRestoreForScalingUp() throws Exception {
-
-        testStateRestore(1, 10, 9);
-    }
-
-    @Test
-    void testStateRestoreForScalingDown() throws Exception {
-
-        testStateRestore(2, 1, 0);
-    }
-
-    @Test
-    void testStateRestoreNoScaling() throws Exception {
-
-        testStateRestore(2, 2, 1);
-    }
-
     @ParameterizedTest
-    @ValueSource(ints = {0, 1})
-    void testNumberOfRetries(int numRetries) throws Exception {
-        try (OneInputStreamOperatorTestHarness<
-                        CommittableMessage<String>, CommittableMessage<String>>
-                testHarness =
-                        createTestHarness(
-                                sinkWithPostCommitWithRetry().sink, false, true, 1, 1, 0)) {
-            testHarness
-                    .getStreamConfig()
-                    .getConfiguration()
-                    .set(SinkOptions.COMMITTER_RETRIES, numRetries);
-            testHarness.open();
-
-            long ckdId = 1L;
-            testHarness.processElement(
-                    new StreamRecord<>(new CommittableSummary<>(0, 1, ckdId, 1, 0)));
-            testHarness.processElement(
-                    new StreamRecord<>(new CommittableWithLineage<>("1", ckdId, 0)));
-            AbstractThrowableAssert<?, ? extends Throwable> throwableAssert =
-                    assertThatCode(() -> testHarness.notifyOfCompletedCheckpoint(ckdId));
-            if (numRetries == 0) {
-                throwableAssert.hasMessageContaining("Failed to commit 1 committables");
-            } else {
-                throwableAssert.doesNotThrowAnyException();
-            }
-        }
-    }
-
-    @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    void testHandleEndInputInStreamingMode(boolean isCheckpointingEnabled) throws Exception {
-        final SinkAndCounters sinkAndCounters = sinkWithPostCommit();
-
-        try (OneInputStreamOperatorTestHarness<
-                        CommittableMessage<String>, CommittableMessage<String>>
-                testHarness =
-                        new OneInputStreamOperatorTestHarness<>(
-                                new CommitterOperatorFactory<>(
-                                        sinkAndCounters.sink, false, isCheckpointingEnabled))) {
-            testHarness.open();
-
-            final CommittableSummary<String> committableSummary =
-                    new CommittableSummary<>(1, 1, 1L, 1, 0);
-            testHarness.processElement(new StreamRecord<>(committableSummary));
-            final CommittableWithLineage<String> committableWithLineage =
-                    new CommittableWithLineage<>("1", 1L, 1);
-            testHarness.processElement(new StreamRecord<>(committableWithLineage));
-
-            testHarness.endInput();
-
-            // If checkpointing enabled endInput does not emit anything because a final checkpoint
-            // follows
-            if (isCheckpointingEnabled) {
-                testHarness.notifyOfCompletedCheckpoint(1);
-            }
-
-            ListAssert<CommittableMessage<String>> records =
-                    assertThat(testHarness.extractOutputValues()).hasSize(2);
-            CommittableSummaryAssert<Object> objectCommittableSummaryAssert =
-                    records.element(0, as(committableSummary())).hasCheckpointId(1L);
-            objectCommittableSummaryAssert.hasOverallCommittables(1);
-            records.element(1, as(committableWithLineage()))
-                    .isEqualTo(committableWithLineage.withSubtaskId(0));
-
-            // Future emission calls should change the output
-            testHarness.notifyOfCompletedCheckpoint(2);
-            testHarness.endInput();
-
-            assertThat(testHarness.getOutput()).hasSize(2);
-        }
-    }
-
-    private void testStateRestore(
+    @CsvSource({"1, 10, 9", "2, 1, 0", "2, 2, 1"})
+    void testStateRestoreWithScaling(
             int parallelismBeforeScaling, int parallelismAfterScaling, int subtaskIdAfterRecovery)
             throws Exception {
 
@@ -341,15 +253,77 @@ class SinkV2CommitterOperatorTest {
         restoredHarness.close();
     }
 
-    private OneInputStreamOperatorTestHarness<
-                    CommittableMessage<String>, CommittableMessage<String>>
-            createTestHarness(
-                    SupportsCommitter<String> sink,
-                    boolean isBatchMode,
-                    boolean isCheckpointingEnabled)
-                    throws Exception {
-        return new OneInputStreamOperatorTestHarness<>(
-                new CommitterOperatorFactory<>(sink, isBatchMode, isCheckpointingEnabled));
+    @ParameterizedTest
+    @ValueSource(ints = {0, 1})
+    void testNumberOfRetries(int numRetries) throws Exception {
+        try (OneInputStreamOperatorTestHarness<
+                        CommittableMessage<String>, CommittableMessage<String>>
+                testHarness =
+                        createTestHarness(
+                                sinkWithPostCommitWithRetry().sink, false, true, 1, 1, 0)) {
+            testHarness
+                    .getStreamConfig()
+                    .getConfiguration()
+                    .set(SinkOptions.COMMITTER_RETRIES, numRetries);
+            testHarness.open();
+
+            long ckdId = 1L;
+            testHarness.processElement(
+                    new StreamRecord<>(new CommittableSummary<>(0, 1, ckdId, 1, 0)));
+            testHarness.processElement(
+                    new StreamRecord<>(new CommittableWithLineage<>("1", ckdId, 0)));
+            AbstractThrowableAssert<?, ? extends Throwable> throwableAssert =
+                    assertThatCode(() -> testHarness.notifyOfCompletedCheckpoint(ckdId));
+            if (numRetries == 0) {
+                throwableAssert.hasMessageContaining("Failed to commit 1 committables");
+            } else {
+                throwableAssert.doesNotThrowAnyException();
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testHandleEndInputInStreamingMode(boolean isCheckpointingEnabled) throws Exception {
+        final SinkAndCounters sinkAndCounters = sinkWithPostCommit();
+
+        try (OneInputStreamOperatorTestHarness<
+                        CommittableMessage<String>, CommittableMessage<String>>
+                testHarness =
+                        new OneInputStreamOperatorTestHarness<>(
+                                new CommitterOperatorFactory<>(
+                                        sinkAndCounters.sink, false, isCheckpointingEnabled))) {
+            testHarness.open();
+
+            final CommittableSummary<String> committableSummary =
+                    new CommittableSummary<>(1, 1, 1L, 1, 0);
+            testHarness.processElement(new StreamRecord<>(committableSummary));
+            final CommittableWithLineage<String> committableWithLineage =
+                    new CommittableWithLineage<>("1", 1L, 1);
+            testHarness.processElement(new StreamRecord<>(committableWithLineage));
+
+            testHarness.endInput();
+
+            // If checkpointing enabled endInput does not emit anything because a final checkpoint
+            // follows
+            if (isCheckpointingEnabled) {
+                testHarness.notifyOfCompletedCheckpoint(1);
+            }
+
+            ListAssert<CommittableMessage<String>> records =
+                    assertThat(testHarness.extractOutputValues()).hasSize(2);
+            CommittableSummaryAssert<Object> objectCommittableSummaryAssert =
+                    records.element(0, as(committableSummary())).hasCheckpointId(1L);
+            objectCommittableSummaryAssert.hasOverallCommittables(1);
+            records.element(1, as(committableWithLineage()))
+                    .isEqualTo(committableWithLineage.withSubtaskId(0));
+
+            // Future emission calls should change the output
+            testHarness.notifyOfCompletedCheckpoint(2);
+            testHarness.endInput();
+
+            assertThat(testHarness.getOutput()).hasSize(2);
+        }
     }
 
     private OneInputStreamOperatorTestHarness<
