@@ -666,6 +666,7 @@
   # Example: DateFunctionCall().
   builtinFunctionCallMethods: [
     "TryCastFunctionCall()"
+    "ExplicitModel()"
   ]
 
   # List of methods for parsing extensions to "ALTER <scope>" calls.

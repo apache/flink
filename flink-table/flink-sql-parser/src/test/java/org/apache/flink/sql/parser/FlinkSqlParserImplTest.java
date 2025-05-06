@@ -3360,6 +3360,22 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                         "CREATE MODEL AS SELECT syntax does not support to specify explicit output columns."));
     }
 
+    @Test
+    void testModelInFunction() {
+        sql("select * from table(ml_predict(TABLE my_table, MODEL my_model))")
+                .ok(
+                        "SELECT *\n"
+                                + "FROM TABLE(`ML_PREDICT`((TABLE `MY_TABLE`), MODEL `MY_MODEL`))");
+    }
+
+    @Test
+    void testModelInFunctionWithoutTable() {
+        sql("select * from func(TABLE my_table, MODEL cat.db.my_model)")
+                .ok(
+                        "SELECT *\n"
+                                + "FROM TABLE(`FUNC`((TABLE `MY_TABLE`), MODEL `CAT`.`DB`.`MY_MODEL`))");
+    }
+
     /*
      * This test was backported from Calcite 1.38 (CALCITE-6266).
      * Remove it together with upgrade to Calcite 1.38.
