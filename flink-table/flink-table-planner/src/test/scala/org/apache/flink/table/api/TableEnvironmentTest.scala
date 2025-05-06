@@ -2985,7 +2985,7 @@ class TableEnvironmentTest {
          |  'task' = 'clustering'
          |)
          |""".stripMargin
-    val row = tableEnv.executeSql("show create MODEL M1").collect().next()
+    val row = tableEnv.executeSql("SHOW CREATE MODEL M1").collect().next()
     assertEquals(expectedDDL, row.getField(0))
   }
 
@@ -3017,7 +3017,7 @@ class TableEnvironmentTest {
          |  'task' = 'clustering'
          |)
          |""".stripMargin
-    val row = tableEnv.executeSql("show create MODEL M1").collect().next()
+    val row = tableEnv.executeSql("SHOW CREATE MODEL M1").collect().next()
     assertEquals(expectedDDL, row.getField(0))
   }
 
@@ -3025,7 +3025,7 @@ class TableEnvironmentTest {
   def testShowCreateNonExistModel(): Unit = {
     assertThatThrownBy(() => tableEnv.executeSql("SHOW CREATE MODEL M1"))
       .isInstanceOf(classOf[ValidationException])
-      .hasMessageContaining(
+      .hasMessage(
         "Could not execute SHOW CREATE MODEL. Model with identifier `default_catalog`.`default_database`.`M1` does not exist.")
   }
 
@@ -3053,7 +3053,7 @@ class TableEnvironmentTest {
          |  'task' = 'clustering'
          |)
          |""".stripMargin
-    val row = tableEnv.executeSql("show create MODEL M1").collect().next()
+    val row = tableEnv.executeSql("SHOW CREATE MODEL M1").collect().next()
     assertEquals(expectedDDL, row.getField(0))
   }
 
@@ -3083,7 +3083,7 @@ class TableEnvironmentTest {
          |  'task' = 'clustering'
          |)
          |""".stripMargin
-    val row = tableEnv.executeSql("show create MODEL M1").collect().next()
+    val row = tableEnv.executeSql("SHOW CREATE MODEL M1").collect().next()
     assertEquals(expectedDDL, row.getField(0))
   }
 
