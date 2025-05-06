@@ -2479,6 +2479,15 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testFunctionCall() {
+        this.expr("foo(x, y)").ok("`FOO`(`X`, `Y`)");
+        this.expr("foo(t1.x, t2.y, t3.z)").ok("`FOO`(`T1`.`X`, `T2`.`Y`, `T3`.`Z`)");
+        this.expr("foo(*)").ok("`FOO`(*)");
+        this.expr("foo(*^,^ x)").fails("(?s).*Encountered \",\" at line 1, column 6.*");
+        this.expr("foo(t1.*)").ok("`FOO`(`T1`.*)");
+    }
+
+    @Test
     void testLoadModule() {
         sql("load module core").ok("LOAD MODULE `CORE`");
 
