@@ -109,7 +109,8 @@ public class SavepointDataStreamScanProvider implements DataStreamScanProvider {
                         break;
 
                     case MAP:
-                        if (columnConfig.getMapKeyTypeInfo() == null) {
+                        TypeInformation<?> mapKeyTypeInfo = columnConfig.getMapKeyTypeInfo();
+                        if (mapKeyTypeInfo == null) {
                             throw new ConfigurationException(
                                     "Map key type information is required for map state");
                         }
