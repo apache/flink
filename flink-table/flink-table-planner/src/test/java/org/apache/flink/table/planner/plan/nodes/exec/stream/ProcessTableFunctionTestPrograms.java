@@ -29,8 +29,8 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.DescriptorFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidPassThroughTimersFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidRowKindFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidTableAsRowTimersFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidUpdatingTimersFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.LateTimersFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ListStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MapStateFunction;
@@ -47,19 +47,24 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarArgsTimeFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsRowFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsRowPassThroughFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetFullDeletesArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetOptionalPartitionFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetPassThroughFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetRetractArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetUpdatingArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TimeConversionsFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TimeToLiveStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedTableAsRowFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedTableAsSetFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UnnamedTimersFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingRetractFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingUpsertFunction;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -375,20 +380,247 @@ public class ProcessTableFunctionTestPrograms {
                             "INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name, i => 1)")
                     .build();
 
-    public static final TableTestProgram PROCESS_UPDATING_INPUT =
-            TableTestProgram.of("process-updating-input", "table argument accepts retractions")
+    public static final TableTestProgram PROCESS_UPDATING_INPUT_RETRACT =
+            TableTestProgram.of(
+                            "process-updating-input-retract",
+                            "table argument accepts updates which leads to retract due to missing upsert key")
                     .setupTemporarySystemFunction("f", TableAsSetUpdatingArgFunction.class)
                     .setupSql(UPDATING_VALUES)
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
                                     .addSchema(BASE_SINK_SCHEMA)
                                     .consumedValues(
-                                            "+I[{+I[Bob, 1]}]",
-                                            "+I[{+I[Alice, 1]}]",
-                                            "+I[{-U[Bob, 1]}]",
-                                            "+I[{+U[Bob, 2]}]")
+                                            "+I[{+I[Bob, 1], retract-no-delete}]",
+                                            "+I[{+I[Alice, 1], retract-no-delete}]",
+                                            "+I[{-U[Bob, 1], retract-no-delete}]",
+                                            "+I[{+U[Bob, 2], retract-no-delete}]")
                                     .build())
                     .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_UPDATING_INPUT_UPSERT =
+            TableTestProgram.of(
+                            "process-updating-input-upsert",
+                            "table argument accepts updates which leads to upsert due to matching upsert key")
+                    .setupTemporarySystemFunction("f", TableAsSetUpdatingArgFunction.class)
+                    .setupSql(UPDATING_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {+I[Bob, 1], upsert-no-delete}]",
+                                            "+I[Alice, {+I[Alice, 1], upsert-no-delete}]",
+                                            "+I[Bob, {+U[Bob, 2], upsert-no-delete}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_UPDATING_INPUT_ENFORCED_RETRACT =
+            TableTestProgram.of(
+                            "process-updating-input-enforced-retract",
+                            "table argument accepts updates and enforces retract")
+                    .setupTemporarySystemFunction("f", TableAsSetRetractArgFunction.class)
+                    .setupSql(UPDATING_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {+I[Bob, 1]}]",
+                                            "+I[Alice, {+I[Alice, 1]}]",
+                                            "+I[Bob, {-U[Bob, 1]}]",
+                                            "+I[Bob, {+U[Bob, 2]}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_UPDATING_INPUT_PARTIAL_DELETES =
+            TableTestProgram.of(
+                            "process-updating-input-partial-deletes",
+                            "table argument accepts updates which contain partial deletes")
+                    .setupTemporarySystemFunction("f", TableAsSetUpdatingArgFunction.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED",
+                                            "score INT NOT NULL")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Bob", 5),
+                                            Row.ofKind(RowKind.INSERT, "Alice", 2),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Bob", 3),
+                                            Row.ofKind(RowKind.DELETE, "Bob", null),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 2),
+                                            Row.ofKind(RowKind.DELETE, "Alice", null))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {+I[Bob, 5], upsert-partial-delete}]",
+                                            "+I[Alice, {+I[Alice, 2], upsert-partial-delete}]",
+                                            "+I[Bob, {+U[Bob, 3], upsert-partial-delete}]",
+                                            "+I[Bob, {-D[Bob, null], upsert-partial-delete}]",
+                                            "+I[Bob, {+I[Bob, 2], upsert-partial-delete}]",
+                                            "+I[Alice, {-D[Alice, null], upsert-partial-delete}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_UPDATING_INPUT_ENFORCED_FULL_DELETES =
+            TableTestProgram.of(
+                            "process-updating-input-enforced-full-deletes",
+                            "table argument accepts updates which enforces full deletes")
+                    .setupTemporarySystemFunction("f", TableAsSetFullDeletesArgFunction.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED",
+                                            "score INT NOT NULL")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Bob", 5),
+                                            Row.ofKind(RowKind.INSERT, "Alice", 2),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Bob", 3),
+                                            Row.ofKind(RowKind.DELETE, "Bob", null),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 2),
+                                            Row.ofKind(RowKind.DELETE, "Alice", null))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {+I[Bob, 5]}]",
+                                            "+I[Alice, {+I[Alice, 2]}]",
+                                            "+I[Bob, {+U[Bob, 3]}]",
+                                            "+I[Bob, {-D[Bob, 3]}]",
+                                            "+I[Bob, {+I[Bob, 2]}]",
+                                            "+I[Alice, {-D[Alice, 2]}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_UPDATING_OUTPUT_RETRACT =
+            TableTestProgram.of("process-updating-output-retract", "outputs retract changelog")
+                    .setupTemporarySystemFunction("f", UpdatingRetractFunction.class)
+                    .setupSql(UPDATING_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "`name` STRING",
+                                            "`name0` STRING",
+                                            "`count` BIGINT",
+                                            "`mode` STRING")
+                                    .consumedValues(
+                                            "+I[Bob, Bob, 1, retract]",
+                                            "+I[Alice, Alice, 1, retract]",
+                                            "-U[Bob, Bob, 1, retract]",
+                                            "+U[Bob, Bob, 2, retract]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_UPDATING_OUTPUT_UPSERT =
+            TableTestProgram.of("process-updating-output-upsert", "outputs upsert changelog")
+                    .setupTemporarySystemFunction("f", UpdatingUpsertFunction.class)
+                    .setupSql(UPDATING_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "`name` STRING PRIMARY KEY NOT ENFORCED",
+                                            "`name0` STRING",
+                                            "`count` BIGINT",
+                                            "`mode` STRING")
+                                    .addOption("sink-changelog-mode-enforced", "I,UA,D")
+                                    .consumedValues(
+                                            "+I[Bob, Bob, 1, upsert-full-delete]",
+                                            "+I[Alice, Alice, 1, upsert-full-delete]",
+                                            "+U[Bob, Bob, 2, upsert-full-delete]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_UPDATING_OUTPUT_PARTIAL_DELETES =
+            TableTestProgram.of(
+                            "process-updating-output-partial-deletes",
+                            "outputs upsert changelog with partial deletes")
+                    .setupTemporarySystemFunction("f", UpdatingUpsertFunction.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "`name` STRING PRIMARY KEY NOT ENFORCED",
+                                            "`score` BIGINT")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Alice", 1L),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 2L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Alice", 10L),
+                                            Row.ofKind(RowKind.DELETE, "Bob", null))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "`name` STRING PRIMARY KEY NOT ENFORCED",
+                                            "`name0` STRING",
+                                            "`count` BIGINT",
+                                            "`mode` STRING")
+                                    .addOption("sink-changelog-mode-enforced", "I,UA,D")
+                                    .addOption("sink.supports-delete-by-key", "true")
+                                    .consumedValues(
+                                            "+I[Alice, Alice, 1, upsert-partial-delete]",
+                                            "+I[Bob, Bob, 2, upsert-partial-delete]",
+                                            "+U[Alice, Alice, 10, upsert-partial-delete]",
+                                            "-D[Bob, Bob, null, upsert-partial-delete]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_UPDATING_OUTPUT_FULL_DELETES =
+            TableTestProgram.of(
+                            "process-updating-output-full-deletes",
+                            "outputs upsert changelog with full deletes")
+                    .setupTemporarySystemFunction("f", UpdatingUpsertFunction.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "`name` STRING PRIMARY KEY NOT ENFORCED",
+                                            "`score` BIGINT")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "false")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Alice", 1L),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 2L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Alice", 10L),
+                                            Row.ofKind(RowKind.DELETE, "Bob", 2L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "`name` STRING PRIMARY KEY NOT ENFORCED",
+                                            "`name0` STRING",
+                                            "`count` BIGINT",
+                                            "`mode` STRING")
+                                    .addOption("sink-changelog-mode-enforced", "I,UA,D")
+                                    .addOption("sink.supports-delete-by-key", "false")
+                                    .consumedValues(
+                                            "+I[Alice, Alice, 1, upsert-full-delete]",
+                                            "+I[Bob, Bob, 2, upsert-full-delete]",
+                                            "+U[Alice, Alice, 10, upsert-full-delete]",
+                                            "-D[Bob, Bob, 2, upsert-full-delete]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_INVALID_ROW_KIND =
+            TableTestProgram.of("process-invalid-row-kind", "error if PTFs emit unexpected changes")
+                    .setupTemporarySystemFunction("f", InvalidRowKindFunction.class)
+                    .setupSql(BASIC_VALUES)
+                    .runFailingSql(
+                            "SELECT * FROM f(r => TABLE t)",
+                            TableRuntimeException.class,
+                            "Invalid row kind received: DELETE. Expected produced changelog mode: [INSERT]")
                     .build();
 
     public static final TableTestProgram PROCESS_OPTIONAL_PARTITION_BY =
@@ -947,18 +1179,6 @@ public class ProcessTableFunctionTestPrograms {
                     .setupTableSource(TIMED_SOURCE)
                     .runFailingSql(
                             "SELECT * FROM f(r => TABLE t PARTITION BY name, on_time => DESCRIPTOR(ts))",
-                            TableRuntimeException.class,
-                            "Timers are not supported in the current PTF declaration.")
-                    .build();
-
-    public static final TableTestProgram PROCESS_INVALID_UPDATING_TIMERS =
-            TableTestProgram.of(
-                            "process-invalid-updating-timers",
-                            "error if timers are registered for PTFs with updating inputs")
-                    .setupTemporarySystemFunction("f", InvalidUpdatingTimersFunction.class)
-                    .setupSql(UPDATING_VALUES)
-                    .runFailingSql(
-                            "SELECT * FROM f(r => TABLE t PARTITION BY name, uid => DEFAULT)",
                             TableRuntimeException.class,
                             "Timers are not supported in the current PTF declaration.")
                     .build();

@@ -17,23 +17,29 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream;
 
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexTableArgCall;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
+import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecProcessTableFunction;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
 import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
+import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.table.types.inference.SystemTypeInference;
+import org.apache.flink.types.RowKind;
 
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCluster;
@@ -47,16 +53,22 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexCallBinding;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.util.ImmutableBitSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig;
 import static org.apache.flink.table.types.inference.SystemTypeInference.PROCESS_TABLE_FUNCTION_ARG_ON_TIME_OFFSET;
@@ -144,8 +156,12 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
                         .map(JavaScalaConversionUtil::toJava)
                         .map(optional -> optional.orElseThrow(IllegalStateException::new))
                         .collect(Collectors.toList());
+        final ChangelogMode outputChangelogMode =
+                JavaScalaConversionUtil.toJava(ChangelogPlanUtils.getChangelogMode(this))
+                        .orElseThrow(IllegalStateException::new);
         final RexCall call = (RexCall) scan.getCall();
-        verifyTimeAttributes(getInputs(), call);
+        verifyTimeAttributes(getInputs(), call, inputChangelogModes, outputChangelogMode);
+        verifyPassThroughColumnsForUpdates(call, outputChangelogMode);
         return new StreamExecProcessTableFunction(
                 unwrapTableConfig(this),
                 getInputs().stream().map(i -> InputProperty.DEFAULT).collect(Collectors.toList()),
@@ -153,7 +169,8 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
                 getRelDetailedDescription(),
                 uid,
                 call,
-                inputChangelogModes);
+                inputChangelogModes,
+                outputChangelogMode);
     }
 
     @Override
@@ -218,8 +235,13 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
         return RexLiteral.stringValue(uidRexNode);
     }
 
-    private static void verifyTimeAttributes(List<RelNode> inputs, RexCall call) {
-        final Set<String> onTimeFields = deriveOnTimeFields(call.getOperands());
+    private static void verifyTimeAttributes(
+            List<RelNode> inputs,
+            RexCall call,
+            List<ChangelogMode> inputChangelogModes,
+            ChangelogMode outputChangelogMode) {
+        final Set<String> onTimeFields = deriveOnTimeFields(call);
+        verifyOnTimeForUpdates(onTimeFields, inputChangelogModes, outputChangelogMode);
         inputs.stream()
                 .map(RelNode::getRowType)
                 .forEach(rowType -> verifyTimeAttribute(rowType, onTimeFields));
@@ -243,10 +265,41 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
         }
     }
 
+    private static void verifyOnTimeForUpdates(
+            Set<String> onTimeFields,
+            List<ChangelogMode> inputChangelogModes,
+            ChangelogMode outputChangelogMode) {
+        if (onTimeFields.isEmpty()) {
+            return;
+        }
+        final boolean isUpdating =
+                inputChangelogModes.stream().anyMatch(c -> !c.containsOnly(RowKind.INSERT))
+                        || !outputChangelogMode.containsOnly(RowKind.INSERT);
+        if (isUpdating) {
+            throw new ValidationException(
+                    "Time operations using the `on_time` argument are currently not supported "
+                            + "for PTFs that consume or produce updates.");
+        }
+    }
+
+    private static void verifyPassThroughColumnsForUpdates(
+            RexCall call, ChangelogMode outputChangelogMode) {
+        if (!outputChangelogMode.containsOnly(RowKind.INSERT)
+                && getProvidedInputArgs(call).stream()
+                        .anyMatch(arg -> arg.e.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH))) {
+            throw new ValidationException(
+                    "Pass-through columns are not supported for PTFs that produce updates.");
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
     // Shared utilities
     // --------------------------------------------------------------------------------------------
 
+    /**
+     * Returns a list of table arguments (and their position) that have been provided in the call
+     * and thus correspond to the {@link StreamPhysicalRel}'s input.
+     */
     public static List<Ord<StaticArgument>> getProvidedInputArgs(RexCall call) {
         final List<RexNode> operands = call.getOperands();
         final BridgingSqlFunction.WithTableFunction function =
@@ -263,7 +316,8 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
                 .collect(Collectors.toList());
     }
 
-    public static Set<String> deriveOnTimeFields(List<RexNode> operands) {
+    public static Set<String> deriveOnTimeFields(RexCall call) {
+        final List<RexNode> operands = call.getOperands();
         final RexCall onTimeOperand =
                 (RexCall)
                         operands.get(
@@ -275,5 +329,128 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
                 .map(RexLiteral::stringValue)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
+    }
+
+    /**
+     * Removes all columns added by the {@link SystemTypeInference} and returns a call that
+     * corresponds to the signature of the UDF.
+     */
+    public static RexCall toUdfCall(RexCall call) {
+        final BridgingSqlFunction function = ShortcutUtils.unwrapBridgingSqlFunction(call);
+        assert function != null;
+        final List<StaticArgument> staticArgs =
+                function.getTypeInference()
+                        .getStaticArguments()
+                        .orElseThrow(IllegalStateException::new);
+        final List<RexNode> operands = call.getOperands();
+
+        // Remove system arguments
+        final List<RexNode> newOperands =
+                operands.subList(
+                        0,
+                        operands.size()
+                                - SystemTypeInference.PROCESS_TABLE_FUNCTION_SYSTEM_ARGS.size());
+
+        // Remove system output columns
+        final int prefixOutputSystemFields =
+                Ord.zip(newOperands).stream()
+                        .mapToInt(
+                                operand -> {
+                                    if (!(operand.e instanceof RexTableArgCall)) {
+                                        return 0;
+                                    }
+                                    final RexTableArgCall tableArg = (RexTableArgCall) operand.e;
+                                    final StaticArgument staticArg = staticArgs.get(0);
+                                    if (staticArg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH)) {
+                                        return tableArg.getType().getFieldCount();
+                                    } else {
+                                        return tableArg.getPartitionKeys().length;
+                                    }
+                                })
+                        .sum();
+        final RexNode onTimeArg =
+                operands.get(operands.size() - 1 - PROCESS_TABLE_FUNCTION_ARG_ON_TIME_OFFSET);
+        final int suffixOutputSystemFields =
+                (onTimeArg.getKind() == SqlKind.DEFAULT || RexUtil.isNullLiteral(onTimeArg, true))
+                        ? 0
+                        : 1;
+        final List<RelDataTypeField> projectedFields =
+                call.getType()
+                        .getFieldList()
+                        .subList(
+                                prefixOutputSystemFields,
+                                call.getType().getFieldCount() - suffixOutputSystemFields);
+        final RelDataType newReturnType =
+                function.getTypeFactory().createStructType(projectedFields);
+
+        return call.clone(newReturnType, newOperands);
+    }
+
+    /**
+     * Returns the time column corresponding to each table argument's {@link StreamPhysicalRel}
+     * input. Contains -1 if a time attribute was not defined for the input.
+     */
+    public static List<Integer> toInputTimeColumns(RexCall call) {
+        final List<RexNode> operands = call.getOperands();
+        final Set<String> onTimeFields = deriveOnTimeFields(call);
+        final List<Ord<StaticArgument>> providedInputArgs =
+                StreamPhysicalProcessTableFunction.getProvidedInputArgs(call);
+        return providedInputArgs.stream()
+                .map(
+                        providedInputArg -> {
+                            final RexTableArgCall tableArgCall =
+                                    (RexTableArgCall) operands.get(providedInputArg.i);
+                            return onTimeFields.stream()
+                                    .map(
+                                            onTimeField ->
+                                                    tableArgCall
+                                                            .getType()
+                                                            .getField(onTimeField, true, false))
+                                    .filter(Objects::nonNull)
+                                    .map(RelDataTypeField::getIndex)
+                                    .findFirst()
+                                    .orElse(-1);
+                        })
+                .collect(Collectors.toList());
+    }
+
+    public static ImmutableBitSet toPartitionColumns(RexCall call) {
+        final List<RexNode> operands = call.getOperands();
+        final List<Ord<StaticArgument>> providedInputArgs =
+                StreamPhysicalProcessTableFunction.getProvidedInputArgs(call);
+        if (providedInputArgs.size() > 1) {
+            throw new TableException("More than one table input is not supported yet.");
+        }
+        final List<Integer> partitionColumns = new ArrayList<>();
+        for (Ord<StaticArgument> providedInputArg : providedInputArgs) {
+            final RexTableArgCall tableArgCall = (RexTableArgCall) operands.get(providedInputArg.i);
+            if (providedInputArg.e.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH)) {
+                // Output preserved key positions
+                Arrays.stream(tableArgCall.getPartitionKeys()).forEach(partitionColumns::add);
+            } else {
+                // Output is prefixed with partition keys only
+                IntStream.range(0, tableArgCall.getPartitionKeys().length)
+                        .forEach(partitionColumns::add);
+            }
+        }
+        return ImmutableBitSet.of(partitionColumns);
+    }
+
+    public static CallContext toCallContext(
+            RexCall udfCall,
+            List<Integer> inputTimeColumns,
+            List<ChangelogMode> inputChangelogModes,
+            @Nullable ChangelogMode outputChangelogMode) {
+        final BridgingSqlFunction function = ShortcutUtils.unwrapBridgingSqlFunction(udfCall);
+        assert function != null;
+        final FunctionDefinition definition = ShortcutUtils.unwrapFunctionDefinition(udfCall);
+        return new OperatorBindingCallContext(
+                function.getDataTypeFactory(),
+                definition,
+                RexCallBinding.create(function.getTypeFactory(), udfCall, Collections.emptyList()),
+                udfCall.getType(),
+                inputTimeColumns,
+                inputChangelogModes,
+                outputChangelogMode);
     }
 }

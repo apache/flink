@@ -49,6 +49,7 @@ import org.apache.flink.table.runtime.generated.GeneratedProcessTableRunner;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.process.ProcessTableOperatorFactory;
+import org.apache.flink.table.runtime.operators.process.RuntimeChangelogMode;
 import org.apache.flink.table.runtime.operators.process.RuntimeStateInfo;
 import org.apache.flink.table.runtime.operators.process.RuntimeTableSemantics;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -57,13 +58,11 @@ import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.table.types.inference.TypeInferenceUtil.StateInfo;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.types.RowKind;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.linq4j.Ord;
-import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -71,13 +70,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.planner.codegen.ProcessTableRunnerGenerator.GeneratedRunnerResult;
-import static org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalProcessTableFunction.deriveOnTimeFields;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldCount;
 
 /**
@@ -102,6 +98,7 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
     public static final String FIELD_NAME_UID = "uid";
     public static final String FIELD_NAME_FUNCTION_CALL = "functionCall";
     public static final String FIELD_NAME_INPUT_CHANGELOG_MODES = "inputChangelogModes";
+    public static final String FIELD_NAME_OUTPUT_CHANGELOG_MODE = "outputChangelogMode";
 
     @JsonProperty(FIELD_NAME_UID)
     private final @Nullable String uid;
@@ -112,6 +109,9 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
     @JsonProperty(FIELD_NAME_INPUT_CHANGELOG_MODES)
     private final List<ChangelogMode> inputChangelogModes;
 
+    @JsonProperty(FIELD_NAME_OUTPUT_CHANGELOG_MODE)
+    private final ChangelogMode outputChangelogMode;
+
     public StreamExecProcessTableFunction(
             ReadableConfig tableConfig,
             List<InputProperty> inputProperties,
@@ -119,7 +119,8 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
             String description,
             @Nullable String uid,
             RexCall invocation,
-            List<ChangelogMode> inputChangelogModes) {
+            List<ChangelogMode> inputChangelogModes,
+            ChangelogMode outputChangelogMode) {
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecProcessTableFunction.class),
@@ -130,7 +131,8 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
                 description,
                 uid,
                 invocation,
-                inputChangelogModes);
+                inputChangelogModes,
+                outputChangelogMode);
     }
 
     @JsonCreator
@@ -143,12 +145,13 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description,
             @JsonProperty(FIELD_NAME_UID) @Nullable String uid,
             @JsonProperty(FIELD_NAME_FUNCTION_CALL) RexNode invocation,
-            @JsonProperty(FIELD_NAME_INPUT_CHANGELOG_MODES)
-                    List<ChangelogMode> inputChangelogModes) {
+            @JsonProperty(FIELD_NAME_INPUT_CHANGELOG_MODES) List<ChangelogMode> inputChangelogModes,
+            @JsonProperty(FIELD_NAME_OUTPUT_CHANGELOG_MODE) ChangelogMode outputChangelogMode) {
         super(id, context, persistedConfig, inputProperties, outputType, description);
         this.uid = uid;
         this.invocation = (RexCall) invocation;
         this.inputChangelogModes = inputChangelogModes;
+        this.outputChangelogMode = outputChangelogMode;
     }
 
     public @Nullable String getUid() {
@@ -171,29 +174,27 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
         final List<Ord<StaticArgument>> providedInputArgs =
                 StreamPhysicalProcessTableFunction.getProvidedInputArgs(invocation);
         final List<RexNode> operands = invocation.getOperands();
-        final Set<String> onTimeFields = deriveOnTimeFields(operands);
+        final List<Integer> inputTimeColumns =
+                StreamPhysicalProcessTableFunction.toInputTimeColumns(invocation);
         final List<RuntimeTableSemantics> runtimeTableSemantics =
                 providedInputArgs.stream()
                         .map(
                                 providedInputArg -> {
                                     final RexTableArgCall tableArgCall =
                                             (RexTableArgCall) operands.get(providedInputArg.i);
-                                    final StaticArgument tabledArg = providedInputArg.e;
+                                    final StaticArgument tableArg = providedInputArg.e;
                                     return createRuntimeTableSemantics(
-                                            tabledArg, tableArgCall, onTimeFields);
+                                            tableArg, tableArgCall, inputTimeColumns);
                                 })
-                        .collect(Collectors.toList());
-        final List<Integer> timeColumns =
-                runtimeTableSemantics.stream()
-                        .map(RuntimeTableSemantics::timeColumn)
                         .collect(Collectors.toList());
 
         final CodeGeneratorContext ctx =
                 new CodeGeneratorContext(config, planner.getFlinkContext().getClassLoader());
 
+        final RexCall udfCall = StreamPhysicalProcessTableFunction.toUdfCall(invocation);
         final GeneratedRunnerResult generated =
                 ProcessTableRunnerGenerator.generate(
-                        ctx, invocation, timeColumns, inputChangelogModes);
+                        ctx, udfCall, inputTimeColumns, inputChangelogModes, outputChangelogMode);
         final GeneratedProcessTableRunner generatedRunner = generated.runner();
         final LinkedHashMap<String, StateInfo> stateInfos = generated.stateInfos();
 
@@ -231,13 +232,17 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
             singleTableSemantics = runtimeTableSemantics.get(0);
         }
 
+        final RuntimeChangelogMode producedChangelogMode =
+                RuntimeChangelogMode.serialize(outputChangelogMode);
+
         final ProcessTableOperatorFactory operatorFactory =
                 new ProcessTableOperatorFactory(
                         singleTableSemantics,
                         runtimeStateInfos,
                         generatedRunner,
                         stateHashCode,
-                        stateEquals);
+                        stateEquals,
+                        producedChangelogMode);
 
         final String effectiveUid =
                 uid != null ? uid : createTransformationUid(PROCESS_TRANSFORMATION, config);
@@ -277,14 +282,10 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
     }
 
     private RuntimeTableSemantics createRuntimeTableSemantics(
-            StaticArgument tableArg, RexTableArgCall tableArgCall, Set<String> onTimeFields) {
-        final RowKind[] kinds =
-                inputChangelogModes
-                        .get(tableArgCall.getInputIndex())
-                        .getContainedKinds()
-                        .toArray(RowKind[]::new);
-        final byte[] expectedChanges = new byte[kinds.length];
-        IntStream.range(0, kinds.length).forEach(i -> expectedChanges[i] = kinds[i].toByteValue());
+            StaticArgument tableArg, RexTableArgCall tableArgCall, List<Integer> inputTimeColumns) {
+        final RuntimeChangelogMode consumedChangelogMode =
+                RuntimeChangelogMode.serialize(
+                        inputChangelogModes.get(tableArgCall.getInputIndex()));
         final DataType dataType;
         if (tableArg.getDataType().isPresent()) {
             dataType = tableArg.getDataType().get();
@@ -292,22 +293,14 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
             dataType = DataTypes.of(FlinkTypeFactory.toLogicalRowType(tableArgCall.type));
         }
 
-        final int timeColumn =
-                onTimeFields.stream()
-                        .map(
-                                onTimeField ->
-                                        tableArgCall.getType().getField(onTimeField, true, false))
-                        .filter(Objects::nonNull)
-                        .map(RelDataTypeField::getIndex)
-                        .findFirst()
-                        .orElse(-1);
+        final int timeColumn = inputTimeColumns.get(tableArgCall.getInputIndex());
 
         return new RuntimeTableSemantics(
                 tableArg.getName(),
                 tableArgCall.getInputIndex(),
                 dataType,
                 tableArgCall.getPartitionKeys(),
-                expectedChanges,
+                consumedChangelogMode,
                 tableArg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH),
                 tableArg.is(StaticArgumentTrait.TABLE_AS_SET),
                 timeColumn);

@@ -44,6 +44,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.ProcessTableFunction;
@@ -64,7 +65,6 @@ import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.types.RowKind;
 
 import javax.annotation.Nullable;
 
@@ -84,7 +84,9 @@ public class ProcessTableOperator extends AbstractStreamOperator<RowData>
     private final ProcessTableRunner processTableRunner;
     private final HashFunction[] stateHashCode;
     private final RecordEqualiser[] stateEquals;
+    private final RuntimeChangelogMode producedChangelogMode;
 
+    private transient ChangelogMode changelogMode;
     private transient ReadableInternalTimeContext internalTimeContext;
     private transient PassThroughCollectorBase evalCollector;
     private transient PassAllCollector onTimerCollector;
@@ -101,13 +103,15 @@ public class ProcessTableOperator extends AbstractStreamOperator<RowData>
             List<RuntimeStateInfo> stateInfos,
             ProcessTableRunner processTableRunner,
             HashFunction[] stateHashCode,
-            RecordEqualiser[] stateEquals) {
+            RecordEqualiser[] stateEquals,
+            RuntimeChangelogMode producedChangelogMode) {
         super(parameters);
         this.tableSemantics = tableSemantics;
         this.stateInfos = stateInfos;
         this.processTableRunner = processTableRunner;
         this.stateHashCode = stateHashCode;
         this.stateEquals = stateEquals;
+        this.producedChangelogMode = producedChangelogMode;
     }
 
     @Override
@@ -116,6 +120,8 @@ public class ProcessTableOperator extends AbstractStreamOperator<RowData>
 
         final RunnerContext runnerContext = new RunnerContext();
         final RunnerOnTimerContext runnerOnTimerContext = new RunnerOnTimerContext();
+
+        this.changelogMode = producedChangelogMode.deserialize();
 
         setTimerServices();
         setTimeContext();
@@ -249,6 +255,11 @@ public class ProcessTableOperator extends AbstractStreamOperator<RowData>
             clearAllTimers();
         }
 
+        @Override
+        public ChangelogMode getChangelogMode() {
+            return changelogMode;
+        }
+
         @VisibleForTesting
         public StateDescriptor<?, ?> getStateDescriptor(String stateName) {
             final Integer statePos = stateNameToPosMap.get(stateName);
@@ -312,12 +323,13 @@ public class ProcessTableOperator extends AbstractStreamOperator<RowData>
 
     private void setCollectors() {
         if (tableSemantics == null || tableSemantics.passColumnsThrough()) {
-            evalCollector = new PassAllCollector(output);
+            evalCollector = new PassAllCollector(output, changelogMode);
         } else {
             evalCollector =
-                    new PassPartitionKeysCollector(output, tableSemantics.partitionByColumns());
+                    new PassPartitionKeysCollector(
+                            output, changelogMode, tableSemantics.partitionByColumns());
         }
-        onTimerCollector = new PassAllCollector(output);
+        onTimerCollector = new PassAllCollector(output, changelogMode);
     }
 
     private void setStateDescriptors() {
@@ -390,7 +402,6 @@ public class ProcessTableOperator extends AbstractStreamOperator<RowData>
     private boolean shouldEnableTimers() {
         return tableSemantics != null
                 && tableSemantics.hasSetSemantics()
-                && !tableSemantics.passColumnsThrough()
-                && tableSemantics.getChangelogMode().containsOnly(RowKind.INSERT);
+                && !tableSemantics.passColumnsThrough();
     }
 }

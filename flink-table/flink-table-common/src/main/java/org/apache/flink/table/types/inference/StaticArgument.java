@@ -261,7 +261,7 @@ public class StaticArgument {
         }
         // e.g. for untyped table arguments
         if (dataType == null) {
-            throw new ValidationException("Untyped table arguments must not be optional.");
+            return;
         }
 
         final LogicalType type = dataType.getLogicalType();
@@ -278,8 +278,15 @@ public class StaticArgument {
         if (!traits.contains(StaticArgumentTrait.TABLE)) {
             return;
         }
+        checkTableNotOptional();
         checkPolymorphicTableType();
         checkTypedTableType();
+    }
+
+    private void checkTableNotOptional() {
+        if (isOptional) {
+            throw new ValidationException("Table arguments must not be optional.");
+        }
     }
 
     private void checkPolymorphicTableType() {

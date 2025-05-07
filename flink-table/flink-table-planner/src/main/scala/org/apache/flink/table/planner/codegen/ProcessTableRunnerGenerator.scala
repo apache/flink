@@ -35,6 +35,7 @@ import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.{ver
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalProcessTableFunction
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.dataview.DataViewUtils
 import org.apache.flink.table.runtime.dataview.StateListView.KeyedStateListView
@@ -65,32 +66,25 @@ object ProcessTableRunnerGenerator {
 
   def generate(
       ctx: CodeGeneratorContext,
-      invocation: RexCall,
+      udfCall: RexCall,
       inputTimeColumns: java.util.List[Integer],
-      inputChangelogModes: java.util.List[ChangelogMode]): GeneratedRunnerResult = {
-    val function: BridgingSqlFunction = invocation.getOperator.asInstanceOf[BridgingSqlFunction]
+      inputChangelogModes: java.util.List[ChangelogMode],
+      outputChangelogMode: ChangelogMode): GeneratedRunnerResult = {
+    val function: BridgingSqlFunction = udfCall.getOperator.asInstanceOf[BridgingSqlFunction]
     val definition: FunctionDefinition = function.getDefinition
     val dataTypeFactory = function.getDataTypeFactory
-    val typeFactory = function.getTypeFactory
     val rexFactory = function.getRexFactory
     val functionName = function.getName
+    val returnType = FlinkTypeFactory.toLogicalType(udfCall.getType)
 
-    val call = removeSystemTypeInference(
-      invocation,
-      function.getTypeInference.getStaticArguments.get().asScala,
-      typeFactory)
-    val returnType = FlinkTypeFactory.toLogicalType(call.getType)
-
-    // For specialized functions, this call context is able to provide the final input changelog modes.
+    // For specialized functions, this call context is able to provide the final changelog modes.
     // Thus, functions can reconfigure themselves for the exact use case.
     // Including updating their state layout.
-    val callContext = new OperatorBindingCallContext(
-      dataTypeFactory,
-      definition,
-      RexCallBinding.create(typeFactory, call, Collections.emptyList()),
-      call.getType,
+    val callContext = StreamPhysicalProcessTableFunction.toCallContext(
+      udfCall,
       inputTimeColumns,
-      inputChangelogModes)
+      inputChangelogModes,
+      outputChangelogMode)
 
     // Create the final UDF for runtime
     val udf = UserDefinedFunctionHelper.createSpecializedFunction(
@@ -144,7 +138,7 @@ object ProcessTableRunnerGenerator {
     // Generate call to eval()
     val evalCallCode = generateEvalCode(
       ctx,
-      call,
+      udfCall,
       enrichedArgumentDataTypes,
       externalStateOperands,
       stateDataTypes,
@@ -208,40 +202,6 @@ object ProcessTableRunnerGenerator {
       new GeneratedProcessTableRunner(name, code, ctx.references.toArray, ctx.tableConfig)
 
     GeneratedRunnerResult(generatedRunner, stateInfos)
-  }
-
-  private def removeSystemTypeInference(
-      invocation: RexCall,
-      staticArgs: Seq[StaticArgument],
-      typeFactory: FlinkTypeFactory): RexCall = {
-    val operands = invocation.getOperands.asScala
-    // Remove system arguments
-    val newOperands = operands
-      .dropRight(SystemTypeInference.PROCESS_TABLE_FUNCTION_SYSTEM_ARGS.size())
-    // Remove system output columns
-    val prefixOutputSystemFields = newOperands.zipWithIndex.map {
-      case (tableArgCall: RexTableArgCall, pos) =>
-        val staticArg = staticArgs(pos)
-        if (staticArg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH)) {
-          tableArgCall.getType.getFieldCount
-        } else {
-          tableArgCall.getPartitionKeys.length
-        }
-      case _ => 0
-    }.sum
-    val onTimeArg = operands(
-      operands.size - 1 - SystemTypeInference.PROCESS_TABLE_FUNCTION_ARG_ON_TIME_OFFSET)
-    val suffixOutputSystemFields =
-      if (onTimeArg.getKind == SqlKind.DEFAULT || RexUtil.isNullLiteral(onTimeArg, true)) {
-        0
-      } else {
-        1
-      }
-    val projectedFields = invocation.getType.getFieldList.asScala
-      .drop(prefixOutputSystemFields)
-      .dropRight(suffixOutputSystemFields)
-    val newReturnType = typeFactory.createStructType(projectedFields.asJava)
-    invocation.clone(newReturnType, newOperands.asJava)
   }
 
   private def generateStateToFunction(

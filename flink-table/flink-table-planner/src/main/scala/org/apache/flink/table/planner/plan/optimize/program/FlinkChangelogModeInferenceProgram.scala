@@ -18,13 +18,15 @@
 package org.apache.flink.table.planner.plan.optimize.program
 
 import org.apache.flink.legacy.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, StreamTableSink, UpsertStreamTableSink}
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.config.ExecutionConfigOptions.UpsertMaterialize
 import org.apache.flink.table.connector.ChangelogMode
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.functions.ChangelogFunction
+import org.apache.flink.table.functions.ChangelogFunction.ChangelogContext
+import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexTableArgCall}
 import org.apache.flink.table.planner.plan.`trait`._
-import org.apache.flink.table.planner.plan.`trait`.DeleteKindTrait.{deleteOnKeyOrNone, fullDeleteOrNone, DELETE_BY_KEY, FULL_DELETE}
+import org.apache.flink.table.planner.plan.`trait`.DeleteKindTrait.{deleteOnKeyOrNone, fullDeleteOrNone, DELETE_BY_KEY}
 import org.apache.flink.table.planner.plan.`trait`.UpdateKindTrait.{beforeAfterOrNone, onlyAfterOrNone, BEFORE_AND_AFTER, ONLY_UPDATE_AFTER}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
@@ -32,13 +34,15 @@ import org.apache.flink.table.planner.plan.optimize.ChangelogNormalizeRequiremen
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.plan.utils.RankProcessStrategy.{AppendFastStrategy, RetractStrategy, UpdateFastStrategy}
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
+import org.apache.flink.table.planner.utils.{JavaScalaConversionUtil, ShortcutUtils}
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
-import org.apache.flink.table.types.inference.StaticArgumentTrait
+import org.apache.flink.table.types.inference.{StaticArgument, StaticArgumentTrait}
 import org.apache.flink.types.RowKind
 
+import org.apache.calcite.linq4j.Ord
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rex.RexCall
 import org.apache.calcite.util.ImmutableBitSet
 
 import scala.collection.JavaConversions._
@@ -413,7 +417,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         createNewNode(scan, List(), providedTrait, requiredTrait, requester)
 
       case process: StreamPhysicalProcessTableFunction =>
-        // Accepted changes depend on input argument declaration
+        // Accepted changes depend on table argument declaration
         val requiredChildrenTraits = StreamPhysicalProcessTableFunction
           .getProvidedInputArgs(process.getCall)
           .map(arg => arg.e)
@@ -425,17 +429,20 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
                 ModifyKindSetTrait.INSERT_ONLY
               })
           .toList
-
         val children = if (requiredChildrenTraits.isEmpty) {
           // Constant function has a single StreamPhysicalValues input
           visitChildren(process, ModifyKindSetTrait.INSERT_ONLY)
         } else {
           visitChildren(process, requiredChildrenTraits)
         }
-
-        // Currently, PTFs will only output insert-only
-        val providedTrait = ModifyKindSetTrait.INSERT_ONLY
-        createNewNode(process, children, providedTrait, requiredTrait, requester)
+        // Query PTF for updating vs. non-updating
+        val providedModifyTrait = queryPtfChangelogMode(
+          process,
+          children,
+          requiredTrait.modifyKindSet.toChangelogModeBuilder.build(),
+          ModifyKindSetTrait.fromChangelogMode,
+          ModifyKindSetTrait.INSERT_ONLY)
+        createNewNode(process, children, providedModifyTrait, requiredTrait, requester)
 
       case _ =>
         throw new UnsupportedOperationException(
@@ -493,7 +500,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     private def deriveQueryDefaultChangelogMode(queryNode: RelNode, name: String): ChangelogMode = {
       val newNode =
         visit(queryNode.asInstanceOf[StreamPhysicalRel], ModifyKindSetTrait.ALL_CHANGES, name)
-      getModifyKindSet(newNode).toChangelogMode
+      getModifyKindSet(newNode).toDefaultChangelogMode
     }
 
     private def createNewNode(
@@ -799,19 +806,50 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           }
 
         case process: StreamPhysicalProcessTableFunction =>
-          // ProcessTableFunction currently only consumes retract or insert-only
-          val children = process.getInputs.map {
-            case child: StreamPhysicalRel =>
-              val childModifyKindSet = getModifyKindSet(child)
-              val requiredUpdateChildTrait =
-                if (childModifyKindSet.isInsertOnly) {
-                  UpdateKindTrait.NONE
-                } else {
-                  UpdateKindTrait.BEFORE_AND_AFTER
+          // Required update traits depend on the table argument declaration,
+          // input traits, partition keys, and upsert keys
+          val inputArgs = StreamPhysicalProcessTableFunction
+            .getProvidedInputArgs(process.getCall)
+          val children = process.getInputs
+            .map(_.asInstanceOf[StreamPhysicalRel])
+            .zipWithIndex
+            .map {
+              case (child, inputIndex) =>
+                // For PTF without table arguments (i.e. values child)
+                if (inputArgs.isEmpty) {
+                  this.visit(child, UpdateKindTrait.NONE)
                 }
-              this.visit(child, requiredUpdateChildTrait)
-          }.toList
-          createNewNode(rel, Some(children.flatten), UpdateKindTrait.NONE)
+                // Derive the required update trait for table arguments
+                else {
+                  val inputArg = inputArgs.get(inputIndex)
+                  val (tableArg, tableArgCall, modifyKindSet) =
+                    extractPtfTableArgComponents(process, child, inputArg)
+                  val requiredUpdateTrait =
+                    if (
+                      !modifyKindSet.isInsertOnly && tableArg.is(
+                        StaticArgumentTrait.SUPPORT_UPDATES)
+                    ) {
+                      if (isPtfUpsert(tableArg, tableArgCall, child)) {
+                        UpdateKindTrait.ONLY_UPDATE_AFTER
+                      } else {
+                        UpdateKindTrait.BEFORE_AND_AFTER
+                      }
+                    } else {
+                      UpdateKindTrait.NONE
+                    }
+                  this.visit(child, requiredUpdateTrait)
+                }
+            }
+            .toList
+            .flatten
+          // Query PTF for upsert vs. retract
+          val providedUpdateTrait = queryPtfChangelogMode(
+            process,
+            children,
+            toChangelogMode(process, Some(requiredUpdateTrait), None),
+            UpdateKindTrait.fromChangelogMode,
+            UpdateKindTrait.NONE)
+          createNewNode(rel, Some(children), providedUpdateTrait)
 
         case _ =>
           throw new UnsupportedOperationException(
@@ -920,7 +958,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       val onlyAfter = onlyAfterOrNone(childModifyKindSet)
       val beforeAndAfter = beforeAfterOrNone(childModifyKindSet)
       val sinkTrait = UpdateKindTrait.fromChangelogMode(
-        sink.tableSink.getChangelogMode(childModifyKindSet.toChangelogMode))
+        sink.tableSink.getChangelogMode(childModifyKindSet.toDefaultChangelogMode))
 
       val sinkRequiredTraits = if (sinkTrait.equals(ONLY_UPDATE_AFTER)) {
         // if sink's pk(s) are not exactly match input changeLogUpsertKeys then it will fallback
@@ -1045,16 +1083,65 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             _: StreamPhysicalWindowRank | _: StreamPhysicalWindowDeduplicate |
             _: StreamPhysicalTemporalSort | _: StreamPhysicalMatch |
             _: StreamPhysicalOverAggregate | _: StreamPhysicalIntervalJoin |
-            _: StreamPhysicalPythonOverAggregate | _: StreamPhysicalWindowJoin |
-            _: StreamPhysicalProcessTableFunction =>
+            _: StreamPhysicalPythonOverAggregate | _: StreamPhysicalWindowJoin =>
           // if not explicitly supported, all operators require full deletes if there are updates
-          // ProcessTableFunction currently only consumes full deletes or insert-only
           val children = rel.getInputs.map {
             case child: StreamPhysicalRel =>
               val childModifyKindSet = getModifyKindSet(child)
               this.visit(child, fullDeleteOrNone(childModifyKindSet))
           }.toList
           createNewNode(rel, Some(children.flatten), fullDeleteOrNone(getModifyKindSet(rel)))
+
+        case process: StreamPhysicalProcessTableFunction =>
+          // Required delete traits depend on the table argument declaration,
+          // input traits, partition keys, and upsert keys
+          val call = process.getCall
+          val inputArgs = StreamPhysicalProcessTableFunction
+            .getProvidedInputArgs(call)
+          val children = process.getInputs
+            .map(_.asInstanceOf[StreamPhysicalRel])
+            .zipWithIndex
+            .map {
+              case (child, inputIndex) =>
+                // For PTF without table arguments (i.e. values child)
+                if (inputArgs.isEmpty) {
+                  this.visit(child, DeleteKindTrait.NONE)
+                }
+                // Derive the required delete trait for table arguments
+                else {
+                  val inputArg = inputArgs.get(inputIndex)
+                  val (tableArg, tableArgCall, modifyKindSet) =
+                    extractPtfTableArgComponents(process, child, inputArg)
+                  if (
+                    tableArg.is(StaticArgumentTrait.SUPPORT_UPDATES)
+                    && isPtfUpsert(tableArg, tableArgCall, child)
+                    && !tableArg.is(StaticArgumentTrait.REQUIRE_FULL_DELETE)
+                  ) {
+                    this
+                      .visit(child, deleteOnKeyOrNone(modifyKindSet))
+                      .orElse(this.visit(child, fullDeleteOrNone(modifyKindSet)))
+                  } else {
+                    this.visit(child, fullDeleteOrNone(modifyKindSet))
+                  }
+                }
+            }
+            .toList
+            .flatten
+          val modifyTrait = getModifyKindSet(rel)
+          // Query the PTF for full vs. partial deletes
+          val providedDeleteTrait = queryPtfChangelogMode(
+            process,
+            children,
+            toChangelogMode(process, None, Some(requiredTrait)),
+            mode =>
+              if (mode.keyOnlyDeletes()) {
+                deleteOnKeyOrNone(modifyTrait)
+              } else {
+                fullDeleteOrNone(modifyTrait)
+              },
+            fullDeleteOrNone(modifyTrait)
+          )
+          createNewNode(process, Some(children), providedDeleteTrait)
 
         case join: StreamPhysicalJoin =>
           val children = join.getInputs.zipWithIndex.map {
@@ -1266,7 +1353,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
      */
     private def inferSinkRequiredTraits(sink: StreamPhysicalSink): Seq[DeleteKindTrait] = {
       val childModifyKindSet = getModifyKindSet(sink.getInput)
-      val sinkChangelogMode = sink.tableSink.getChangelogMode(childModifyKindSet.toChangelogMode)
+      val sinkChangelogMode =
+        sink.tableSink.getChangelogMode(childModifyKindSet.toDefaultChangelogMode)
 
       val sinkDeleteTrait = DeleteKindTrait.fromChangelogMode(sinkChangelogMode)
 
@@ -1334,5 +1422,145 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
   private def getDeleteKind(node: RelNode): DeleteKind = {
     val deleteKindTrait = node.getTraitSet.getTrait(DeleteKindTraitDef.INSTANCE)
     deleteKindTrait.deleteKind
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // PTF helper methods
+  // ----------------------------------------------------------------------------------------------
+
+  private def toChangelogMode(
+      node: StreamPhysicalRel,
+      updateKindTrait: Option[UpdateKindTrait],
+      deleteKindTrait: Option[DeleteKindTrait]): ChangelogMode = {
+    val modeBuilder = ChangelogMode.newBuilder()
+    val givenMode = ChangelogPlanUtils
+      .getChangelogMode(node)
+      .getOrElse(
+        throw new IllegalStateException(
+          s"Unable to derive changelog mode from node $node. This is a bug."))
+    givenMode.getContainedKinds.foreach(modeBuilder.addContainedKind)
+    updateKindTrait match {
+      case None =>
+      case Some(updateKindTrait: UpdateKindTrait) =>
+        if (updateKindTrait == BEFORE_AND_AFTER) {
+          modeBuilder.addContainedKind(RowKind.UPDATE_BEFORE)
+        }
+    }
+    deleteKindTrait match {
+      case None =>
+      case Some(deleteKindTrait: DeleteKindTrait) =>
+        if (deleteKindTrait == DELETE_BY_KEY) {
+          modeBuilder.keyOnlyDeletes(true)
+        }
+    }
+    modeBuilder.build()
+  }
+
+  private def isPtfUpsert(
+      tableArg: StaticArgument,
+      tableArgCall: RexTableArgCall,
+      input: StreamPhysicalRel): Boolean = {
+    val partitionKeys = ImmutableBitSet.of(tableArgCall.getPartitionKeys: _*)
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(input.getCluster.getMetadataQuery)
+    val upsertKeys = fmq.getUpsertKeys(input)
+    if (
+      upsertKeys == null || partitionKeys.isEmpty || !upsertKeys.contains(partitionKeys)
+      || tableArg.is(StaticArgumentTrait.REQUIRE_UPDATE_BEFORE)
+    ) {
+      false
+    } else {
+      true
+    }
+  }
+
+  private def extractPtfTableArgComponents(
+      process: StreamPhysicalProcessTableFunction,
+      child: StreamPhysicalRel,
+      inputArg: Ord[StaticArgument]): (StaticArgument, RexTableArgCall, ModifyKindSet) = {
+    val tableArg = inputArg.e
+    val call = process.getCall
+    val tableArgCall = call.operands.get(inputArg.i).asInstanceOf[RexTableArgCall]
+    val modifyKindSet = getModifyKindSet(child)
+    (tableArg, tableArgCall, modifyKindSet)
+  }
+
+  private def toPtfChangelogContext(
+      process: StreamPhysicalProcessTableFunction,
+      inputChangelogModes: List[ChangelogMode],
+      outputChangelogMode: ChangelogMode): ChangelogContext = {
+    val udfCall = StreamPhysicalProcessTableFunction.toUdfCall(process.getCall)
+    val inputTimeColumns = StreamPhysicalProcessTableFunction.toInputTimeColumns(process.getCall)
+    val callContext = StreamPhysicalProcessTableFunction.toCallContext(
+      udfCall,
+      inputTimeColumns,
+      inputChangelogModes,
+      outputChangelogMode)
+
+    // Expose a simplified context to let users focus on important characteristics.
+    // If necessary, we can expose the full CallContext in the future.
+    new ChangelogContext {
+      override def getTableChangelogMode(pos: Int): ChangelogMode = {
+        val tableSemantics = callContext.getTableSemantics(pos).orElse(null)
+        if (tableSemantics == null) {
+          return null
+        }
+        tableSemantics.changelogMode().orElse(null)
+      }
+
+      override def getRequiredChangelogMode: ChangelogMode = {
+        callContext.getOutputChangelogMode.orElse(null)
+      }
+    }
+  }
+
+  private def queryPtfChangelogMode[T](
+      process: StreamPhysicalProcessTableFunction,
+      children: List[StreamPhysicalRel],
+      requiredChangelogMode: ChangelogMode,
+      toTraitSet: ChangelogMode => T,
+      defaultTraitSet: T): T = {
+    val call = process.getCall
+    val definition = ShortcutUtils.unwrapFunctionDefinition(call)
+    definition match {
+      case changelogFunction: ChangelogFunction =>
+        val inputChangelogModes = children.map(toChangelogMode(_, None, None))
+        val changelogContext =
+          toPtfChangelogContext(process, inputChangelogModes, requiredChangelogMode)
+        val changelogMode = changelogFunction.getChangelogMode(changelogContext)
+        if (!changelogMode.containsOnly(RowKind.INSERT)) {
+          verifyPtfTableArgsForUpdates(call)
+          verifyPtfRequirementsForUpdates(call, requiredChangelogMode, changelogMode)
+        }
+        toTraitSet(changelogMode)
+      case _ =>
+        defaultTraitSet
+    }
+  }
+
+  private def verifyPtfTableArgsForUpdates(call: RexCall): Unit = {
+    StreamPhysicalProcessTableFunction
+      .getProvidedInputArgs(call)
+      .map(_.e)
+      .foreach {
+        tableArg =>
+          if (tableArg.is(StaticArgumentTrait.TABLE_AS_ROW)) {
+            throw new ValidationException(
+              s"PTFs that take table arguments with row semantics don't support updating output. " +
+                s"Table argument '${tableArg.getName}' of function '${call.getOperator.toString}' " +
+                s"must use set semantics.")
+          }
+      }
+  }
+
+  private def verifyPtfRequirementsForUpdates(
+      call: RexCall,
+      required: ChangelogMode,
+      returned: ChangelogMode): Unit = {
+    if (!required.keyOnlyDeletes() && returned.keyOnlyDeletes()) {
+      throw new ValidationException(
+        s"Unsupported changelog mode returned from PTF '${call.getOperator.toString}'. " +
+          s"The system requires that deletions include all fields in DELETE messages. " +
+          s"Key-only deletes are not sufficient.")
+    }
   }
 }

@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.catalog.{CatalogTable, ResolvedCatalogBaseTable}
+import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.planner._
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WatermarkAssigner, WindowAggregate}
@@ -25,10 +26,11 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
-import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, RankUtil}
+import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, FlinkRelMdUtil, RankUtil}
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 import org.apache.flink.table.runtime.operators.rank.RankType
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts
+import org.apache.flink.types.RowKind
 
 import com.google.common.collect.ImmutableSet
 import org.apache.calcite.plan.RelOptTable
@@ -643,6 +645,31 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
       mq: RelMetadataQuery,
       ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
     mq.getUniqueKeys(subset.getInput, ignoreNulls)
+  }
+
+  def getUniqueKeys(
+      rel: StreamPhysicalProcessTableFunction,
+      mq: RelMetadataQuery,
+      ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
+    getPtfUniqueKeys(rel)
+  }
+
+  def getPtfUniqueKeys(rel: StreamPhysicalProcessTableFunction): JSet[ImmutableBitSet] = {
+    ChangelogPlanUtils.getChangelogMode(rel) match {
+      case None =>
+        // Not enough information
+        null
+      case Some(mode: ChangelogMode) =>
+        val isUpsert = mode.contains(RowKind.UPDATE_AFTER) && !mode.contains(RowKind.UPDATE_BEFORE)
+        if (isUpsert) {
+          // Upsert PTFs use the partition keys as upsert keys,
+          // thus the keys are unique
+          val partitionColumns = StreamPhysicalProcessTableFunction.toPartitionColumns(rel.getCall)
+          ImmutableSet.of(partitionColumns)
+        } else {
+          null
+        }
+    }
   }
 
   // Catch-all rule when none of the others apply.

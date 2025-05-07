@@ -62,13 +62,14 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
     private final @Nullable DataType outputDataType;
     private final @Nullable List<Integer> inputTimeColumns;
     private final @Nullable List<ChangelogMode> inputChangelogModes;
+    private final @Nullable ChangelogMode outputChangelogMode;
 
     public OperatorBindingCallContext(
             DataTypeFactory dataTypeFactory,
             FunctionDefinition definition,
             SqlOperatorBinding binding,
             RelDataType returnRelDataType) {
-        this(dataTypeFactory, definition, binding, returnRelDataType, null, null);
+        this(dataTypeFactory, definition, binding, returnRelDataType, null, null, null);
     }
 
     public OperatorBindingCallContext(
@@ -77,7 +78,8 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
             SqlOperatorBinding binding,
             RelDataType returnRelDataType,
             @Nullable List<Integer> inputTimeColumns,
-            @Nullable List<ChangelogMode> inputChangelogModes) {
+            @Nullable List<ChangelogMode> inputChangelogModes,
+            @Nullable ChangelogMode outputChangelogMode) {
         super(
                 dataTypeFactory,
                 definition,
@@ -105,6 +107,7 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
                         : null;
         this.inputTimeColumns = inputTimeColumns;
         this.inputChangelogModes = inputChangelogModes;
+        this.outputChangelogMode = outputChangelogMode;
     }
 
     @Override
@@ -173,6 +176,11 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
                         tableArgCall,
                         timeColumn,
                         changelogMode));
+    }
+
+    @Override
+    public Optional<ChangelogMode> getOutputChangelogMode() {
+        return Optional.ofNullable(outputChangelogMode);
     }
 
     @Override

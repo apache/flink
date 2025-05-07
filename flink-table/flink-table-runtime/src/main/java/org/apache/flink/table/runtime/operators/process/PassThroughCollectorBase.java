@@ -21,11 +21,14 @@ package org.apache.flink.table.runtime.operators.process;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.table.api.TableRuntimeException;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
+import org.apache.flink.types.RowKind;
 
 /** Base class for collectors that pass input columns. */
 @Internal
@@ -33,12 +36,15 @@ public abstract class PassThroughCollectorBase extends StreamRecordCollector<Row
 
     private final JoinedRowData withPrefix;
     private final JoinedRowData withRowtime;
+    private final ChangelogMode changelogMode;
 
     private RowData rowtime;
     protected RowData prefix;
 
-    public PassThroughCollectorBase(Output<StreamRecord<RowData>> output) {
+    public PassThroughCollectorBase(
+            Output<StreamRecord<RowData>> output, ChangelogMode changelogMode) {
         super(output);
+        this.changelogMode = changelogMode;
         // constructs a flattened row of [[prefix | function output] | rowtime]
         withPrefix = new JoinedRowData();
         withRowtime = new JoinedRowData();
@@ -56,6 +62,16 @@ public abstract class PassThroughCollectorBase extends StreamRecordCollector<Row
     public void collect(RowData functionOutput) {
         withPrefix.replace(prefix, functionOutput);
         withRowtime.replace(withPrefix, rowtime);
+        // Forward supported change flags.
+        final RowKind kind = functionOutput.getRowKind();
+        if (!changelogMode.contains(kind)) {
+            throw new TableRuntimeException(
+                    String.format(
+                            "Invalid row kind received: %s. "
+                                    + "Expected produced changelog mode: %s",
+                            kind, changelogMode));
+        }
+        withRowtime.setRowKind(kind);
         super.collect(withRowtime);
     }
 }
