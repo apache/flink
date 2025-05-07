@@ -156,12 +156,12 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
                         .map(JavaScalaConversionUtil::toJava)
                         .map(optional -> optional.orElseThrow(IllegalStateException::new))
                         .collect(Collectors.toList());
-        final ChangelogMode requiredChangelogMode =
+        final ChangelogMode outputChangelogMode =
                 JavaScalaConversionUtil.toJava(ChangelogPlanUtils.getChangelogMode(this))
                         .orElseThrow(IllegalStateException::new);
         final RexCall call = (RexCall) scan.getCall();
-        verifyTimeAttributes(getInputs(), call, inputChangelogModes, requiredChangelogMode);
-        verifyPassThroughColumnsForUpdates(call, requiredChangelogMode);
+        verifyTimeAttributes(getInputs(), call, inputChangelogModes, outputChangelogMode);
+        verifyPassThroughColumnsForUpdates(call, outputChangelogMode);
         return new StreamExecProcessTableFunction(
                 unwrapTableConfig(this),
                 getInputs().stream().map(i -> InputProperty.DEFAULT).collect(Collectors.toList()),
@@ -170,7 +170,7 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
                 uid,
                 call,
                 inputChangelogModes,
-                requiredChangelogMode);
+                outputChangelogMode);
     }
 
     @Override
@@ -239,9 +239,9 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
             List<RelNode> inputs,
             RexCall call,
             List<ChangelogMode> inputChangelogModes,
-            ChangelogMode requiredChangelogMode) {
+            ChangelogMode outputChangelogMode) {
         final Set<String> onTimeFields = deriveOnTimeFields(call);
-        verifyOnTimeForUpdates(onTimeFields, inputChangelogModes, requiredChangelogMode);
+        verifyOnTimeForUpdates(onTimeFields, inputChangelogModes, outputChangelogMode);
         inputs.stream()
                 .map(RelNode::getRowType)
                 .forEach(rowType -> verifyTimeAttribute(rowType, onTimeFields));
@@ -268,13 +268,13 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
     private static void verifyOnTimeForUpdates(
             Set<String> onTimeFields,
             List<ChangelogMode> inputChangelogModes,
-            ChangelogMode requiredChangelogMode) {
+            ChangelogMode outputChangelogMode) {
         if (onTimeFields.isEmpty()) {
             return;
         }
         final boolean isUpdating =
                 inputChangelogModes.stream().anyMatch(c -> !c.containsOnly(RowKind.INSERT))
-                        || !requiredChangelogMode.containsOnly(RowKind.INSERT);
+                        || !outputChangelogMode.containsOnly(RowKind.INSERT);
         if (isUpdating) {
             throw new ValidationException(
                     "Time operations using the `on_time` argument are currently not supported "
@@ -283,8 +283,8 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
     }
 
     private static void verifyPassThroughColumnsForUpdates(
-            RexCall call, ChangelogMode requiredChangelogMode) {
-        if (!requiredChangelogMode.containsOnly(RowKind.INSERT)
+            RexCall call, ChangelogMode outputChangelogMode) {
+        if (!outputChangelogMode.containsOnly(RowKind.INSERT)
                 && getProvidedInputArgs(call).stream()
                         .anyMatch(arg -> arg.e.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH))) {
             throw new ValidationException(
@@ -440,7 +440,7 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
             RexCall udfCall,
             List<Integer> inputTimeColumns,
             List<ChangelogMode> inputChangelogModes,
-            @Nullable ChangelogMode requiredChangelogMode) {
+            @Nullable ChangelogMode outputChangelogMode) {
         final BridgingSqlFunction function = ShortcutUtils.unwrapBridgingSqlFunction(udfCall);
         assert function != null;
         final FunctionDefinition definition = ShortcutUtils.unwrapFunctionDefinition(udfCall);
@@ -451,6 +451,6 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
                 udfCall.getType(),
                 inputTimeColumns,
                 inputChangelogModes,
-                requiredChangelogMode);
+                outputChangelogMode);
     }
 }

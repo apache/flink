@@ -1157,6 +1157,7 @@ example, the following query only works if the function is able to digest retrac
 
 ```text
 // The change +I[1] followed by -U[1], +U[2], -U[2], +U[3] will enter the function
+// if `table_arg` is declared with SUPPORTS_UPDATES
 WITH UpdatingTable AS (
   SELECT COUNT(*) FROM (VALUES 1, 2, 3)
 )
@@ -1195,6 +1196,7 @@ The following example shows how the input changelog encodes updates differently:
 // backed by upsert changelog with changes
 // +I[Alice, 42], +I[Bob, 0], +U[Bob, 2], +U[Bob, 100], -D[Bob, NULL].
 
+// Given a function `f` that declares `table_arg` with REQUIRE_UPDATE_BEFORE.
 SELECT * FROM f(table_arg => TABLE UpdatingTable PARTITION BY name)
 
 // The following changes will enter the function:
@@ -1218,6 +1220,7 @@ The following example shows how the input changelog encodes updates differently:
 // backed by upsert changelog with changes
 // +I[Alice, 42], +I[Bob, 0], +U[Bob, 2], +U[Bob, 100], -D[Bob, NULL].
 
+// Given a function `f` that declares `table_arg` with REQUIRE_FULL_DELETE.
 SELECT * FROM f(table_arg => TABLE UpdatingTable PARTITION BY name)
 
 // The following changes will enter the function:
@@ -1344,7 +1347,7 @@ determined. The final changelog mode is also available during runtime via
 
 #### Example: Custom Aggregation
 
-The following function demonstrates how a PTF can implement a aggregation function that is able to emit updates based
+The following function demonstrates how a PTF can implement an aggregation function that is able to emit updates based
 on custom conditional logic. The function takes a table of score results partitioned by `name` and maintains a sum per
 partition. Scores that are lower than `0` are treated as incorrect and invalidate the entire aggregation for this key.
 

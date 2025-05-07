@@ -98,7 +98,7 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
     public static final String FIELD_NAME_UID = "uid";
     public static final String FIELD_NAME_FUNCTION_CALL = "functionCall";
     public static final String FIELD_NAME_INPUT_CHANGELOG_MODES = "inputChangelogModes";
-    public static final String FIELD_NAME_REQUIRED_CHANGELOG_MODE = "requiredChangelogMode";
+    public static final String FIELD_NAME_OUTPUT_CHANGELOG_MODE = "outputChangelogMode";
 
     @JsonProperty(FIELD_NAME_UID)
     private final @Nullable String uid;
@@ -109,8 +109,8 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
     @JsonProperty(FIELD_NAME_INPUT_CHANGELOG_MODES)
     private final List<ChangelogMode> inputChangelogModes;
 
-    @JsonProperty(FIELD_NAME_REQUIRED_CHANGELOG_MODE)
-    private final ChangelogMode requiredChangelogMode;
+    @JsonProperty(FIELD_NAME_OUTPUT_CHANGELOG_MODE)
+    private final ChangelogMode outputChangelogMode;
 
     public StreamExecProcessTableFunction(
             ReadableConfig tableConfig,
@@ -120,7 +120,7 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
             @Nullable String uid,
             RexCall invocation,
             List<ChangelogMode> inputChangelogModes,
-            ChangelogMode requiredChangelogMode) {
+            ChangelogMode outputChangelogMode) {
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecProcessTableFunction.class),
@@ -132,7 +132,7 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
                 uid,
                 invocation,
                 inputChangelogModes,
-                requiredChangelogMode);
+                outputChangelogMode);
     }
 
     @JsonCreator
@@ -146,12 +146,12 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_UID) @Nullable String uid,
             @JsonProperty(FIELD_NAME_FUNCTION_CALL) RexNode invocation,
             @JsonProperty(FIELD_NAME_INPUT_CHANGELOG_MODES) List<ChangelogMode> inputChangelogModes,
-            @JsonProperty(FIELD_NAME_REQUIRED_CHANGELOG_MODE) ChangelogMode requiredChangelogMode) {
+            @JsonProperty(FIELD_NAME_OUTPUT_CHANGELOG_MODE) ChangelogMode outputChangelogMode) {
         super(id, context, persistedConfig, inputProperties, outputType, description);
         this.uid = uid;
         this.invocation = (RexCall) invocation;
         this.inputChangelogModes = inputChangelogModes;
-        this.requiredChangelogMode = requiredChangelogMode;
+        this.outputChangelogMode = outputChangelogMode;
     }
 
     public @Nullable String getUid() {
@@ -194,7 +194,7 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
         final RexCall udfCall = StreamPhysicalProcessTableFunction.toUdfCall(invocation);
         final GeneratedRunnerResult generated =
                 ProcessTableRunnerGenerator.generate(
-                        ctx, udfCall, inputTimeColumns, inputChangelogModes, requiredChangelogMode);
+                        ctx, udfCall, inputTimeColumns, inputChangelogModes, outputChangelogMode);
         final GeneratedProcessTableRunner generatedRunner = generated.runner();
         final LinkedHashMap<String, StateInfo> stateInfos = generated.stateInfos();
 
@@ -233,7 +233,7 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
         }
 
         final RuntimeChangelogMode producedChangelogMode =
-                RuntimeChangelogMode.serialize(requiredChangelogMode);
+                RuntimeChangelogMode.serialize(outputChangelogMode);
 
         final ProcessTableOperatorFactory operatorFactory =
                 new ProcessTableOperatorFactory(

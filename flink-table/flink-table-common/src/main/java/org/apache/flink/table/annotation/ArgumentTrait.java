@@ -118,6 +118,7 @@ public enum ArgumentTrait {
      *
      * <pre>
      * // The change +I[1] followed by -U[1], +U[2], -U[2], +U[3] will enter the function
+     * // if `table_arg` is declared with SUPPORTS_UPDATES
      * WITH UpdatingTable AS (
      *   SELECT COUNT(*) FROM (VALUES 1, 2, 3)
      * )
@@ -171,6 +172,7 @@ public enum ArgumentTrait {
      * // backed by upsert changelog with changes
      * // +I[Alice, 42], +I[Bob, 0], +U[Bob, 2], +U[Bob, 100], -D[Bob, NULL].
      *
+     * // Given a function `f` that declares `table_arg` with REQUIRE_UPDATE_BEFORE.
      * SELECT * FROM f(table_arg => TABLE UpdatingTable PARTITION BY name)
      *
      * // The following changes will enter the function:
@@ -202,6 +204,7 @@ public enum ArgumentTrait {
      * // backed by upsert changelog with changes
      * // +I[Alice, 42], +I[Bob, 0], +U[Bob, 2], +U[Bob, 100], -D[Bob, NULL].
      *
+     * // Given a function `f` that declares `table_arg` with REQUIRE_FULL_DELETE.
      * SELECT * FROM f(table_arg => TABLE UpdatingTable PARTITION BY name)
      *
      * // The following changes will enter the function:

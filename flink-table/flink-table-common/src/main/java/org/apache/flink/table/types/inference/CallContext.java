@@ -81,12 +81,12 @@ public interface CallContext {
     /**
      * Returns the {@link ChangelogMode} that the framework requires from the function.
      *
-     * <p>This method applies only to {@link ProcessTableFunction}s.
+     * <p>This method applies only to {@link ProcessTableFunction}.
      *
      * <p>Returns empty during type inference phase as the changelog mode is still unknown. Returns
      * an actual changelog mode, when the PTF implements the {@link ChangelogFunction} interface.
      */
-    default Optional<ChangelogMode> getRequiredChangelogMode() {
+    default Optional<ChangelogMode> getOutputChangelogMode() {
         return Optional.empty();
     }
 

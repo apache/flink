@@ -1487,14 +1487,14 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
   private def toPtfChangelogContext(
       process: StreamPhysicalProcessTableFunction,
       inputChangelogModes: List[ChangelogMode],
-      requiredChangelogMode: ChangelogMode): ChangelogContext = {
+      outputChangelogMode: ChangelogMode): ChangelogContext = {
     val udfCall = StreamPhysicalProcessTableFunction.toUdfCall(process.getCall)
     val inputTimeColumns = StreamPhysicalProcessTableFunction.toInputTimeColumns(process.getCall)
     val callContext = StreamPhysicalProcessTableFunction.toCallContext(
       udfCall,
       inputTimeColumns,
       inputChangelogModes,
-      requiredChangelogMode)
+      outputChangelogMode)
 
     // Expose a simplified context to let users focus on important characteristics.
     // If necessary, we can expose the full CallContext in the future.
@@ -1508,7 +1508,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       }
 
       override def getRequiredChangelogMode: ChangelogMode = {
-        callContext.getRequiredChangelogMode.orElse(null)
+        callContext.getOutputChangelogMode.orElse(null)
       }
     }
   }
