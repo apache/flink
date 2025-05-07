@@ -60,7 +60,7 @@ public class SavepointDynamicTableSourceTest {
                         + "  'connector' = 'savepoint',\n"
                         + "  'state.path' = 'src/test/resources/table-state',\n"
                         + "  'operator.uid' = 'keyed-state-process-uid',\n"
-                        + "  'fields.KeyedPojoValue.value-format' = 'com.example.state.writer.job.schema.PojoData'\n"
+                        + "  'fields.KeyedPojoValue.value-class' = 'com.example.state.writer.job.schema.PojoData'\n"
                         + ")";
         tEnv.executeSql(sql);
         Table table = tEnv.sqlQuery("SELECT * FROM state_table");
@@ -143,7 +143,7 @@ public class SavepointDynamicTableSourceTest {
                         + "  'connector' = 'savepoint',\n"
                         + "  'state.path' = 'src/test/resources/table-state-nulls',\n"
                         + "  'operator.uid' = 'keyed-state-process-uid-null',\n"
-                        + "  'fields.total.value-format' = 'com.example.state.writer.job.schema.PojoData'\n"
+                        + "  'fields.total.value-class' = 'com.example.state.writer.job.schema.PojoData'\n"
                         + ")";
         tEnv.executeSql(sql);
         Table table = tEnv.sqlQuery("SELECT * FROM state_table");
