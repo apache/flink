@@ -27,6 +27,7 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
+import org.apache.flink.table.planner.functions.sql.ml.SqlMlTableFunction;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.logical.DecimalType;
@@ -43,12 +44,14 @@ import org.apache.calcite.sql.JoinType;
 import org.apache.calcite.sql.SqlAsOperator;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlExplicitModelCall;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlJoin;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
+import org.apache.calcite.sql.SqlModelCall;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
@@ -371,7 +374,14 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
         final SqlBasicCall call = (SqlBasicCall) node;
         final SqlOperator operator = call.getOperator();
 
-        if (operator instanceof SqlWindowTableFunction) {
+        if (node instanceof SqlExplicitModelCall) {
+            // Convert it so that model can be accessed in planner. SqlExplicitModelCall
+            // from parser can't access model.
+            SqlExplicitModelCall modelCall = (SqlExplicitModelCall) node;
+            return new SqlModelCall(modelCall);
+        }
+
+        if (operator instanceof SqlWindowTableFunction || operator instanceof SqlMlTableFunction) {
             if (tableArgs.stream().allMatch(Objects::isNull)) {
                 return rewritten;
             }
