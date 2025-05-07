@@ -125,6 +125,51 @@ class JsonFormatFactoryTest {
         testSchemaDeserializationSchema(tableOptions);
     }
 
+    @Test
+    void testDecodeJsonParseEnabled() {
+        // test enabled
+        final Map<String, String> enabledParseTableOptions =
+                getModifyOptions(options -> options.put("json.decode.json-parser.enabled", "true"));
+
+        DeserializationSchema<RowData> actualEnabledParseDeser =
+                createTableSource(enabledParseTableOptions)
+                        .valueFormat
+                        .createRuntimeDecoder(
+                                ScanRuntimeProviderContext.INSTANCE,
+                                SCHEMA.toPhysicalRowDataType());
+        final JsonParserRowDataDeserializationSchema expectedEnabledParseDeser =
+                new JsonParserRowDataDeserializationSchema(
+                        PHYSICAL_TYPE,
+                        InternalTypeInfo.of(PHYSICAL_TYPE),
+                        false,
+                        true,
+                        TimestampFormat.ISO_8601);
+        assertThat(actualEnabledParseDeser)
+                .isInstanceOf(JsonParserRowDataDeserializationSchema.class);
+        assertThat(actualEnabledParseDeser).isEqualTo(expectedEnabledParseDeser);
+
+        // test disabled
+        final Map<String, String> disabledParseTableOptions =
+                getModifyOptions(
+                        options -> options.put("json.decode.json-parser.enabled", "false"));
+
+        DeserializationSchema<RowData> actualDisabledParseDeser =
+                createTableSource(disabledParseTableOptions)
+                        .valueFormat
+                        .createRuntimeDecoder(
+                                ScanRuntimeProviderContext.INSTANCE,
+                                SCHEMA.toPhysicalRowDataType());
+        final JsonRowDataDeserializationSchema expectedDisabledParseDeser =
+                new JsonRowDataDeserializationSchema(
+                        PHYSICAL_TYPE,
+                        InternalTypeInfo.of(PHYSICAL_TYPE),
+                        false,
+                        true,
+                        TimestampFormat.ISO_8601);
+        assertThat(actualDisabledParseDeser).isInstanceOf(JsonRowDataDeserializationSchema.class);
+        assertThat(actualDisabledParseDeser).isEqualTo(expectedDisabledParseDeser);
+    }
+
     // ------------------------------------------------------------------------
     //  Utilities
     // ------------------------------------------------------------------------
@@ -229,6 +274,7 @@ class JsonFormatFactoryTest {
         options.put("json.map-null-key.literal", "null");
         options.put("json.encode.decimal-as-plain-number", "true");
         options.put("json.encode.ignore-null-fields", "true");
+        options.put("json.decode.json-parser.enabled", "true");
         return options;
     }
 }
