@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.operators.InternalTimer;
@@ -84,6 +85,9 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
     private static final String RIGHT_STATE_NAME = "right";
     private static final String REGISTERED_TIMER_STATE_NAME = "timer";
     private static final String TIMERS_STATE_NAME = "timers";
+    private static final String RIGHT_LATE_ELEMENTS_METRIC_NAME = "rightNumLateRecords";
+
+    private transient Counter rightNumLateRecords;
 
     private final boolean isLeftOuterJoin;
     private final InternalTypeInfo<RowData> leftType;
@@ -174,6 +178,9 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
         outRow = new JoinedRowData();
         rightNullRow = new GenericRowData(rightType.toRowType().getFieldCount());
         collector = new TimestampedCollector<>(output);
+
+        this.rightNumLateRecords =
+                getRuntimeContext().getMetricGroup().counter(RIGHT_LATE_ELEMENTS_METRIC_NAME);
     }
 
     @Override
@@ -194,6 +201,10 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
         registerSmallestTimer(rowTime); // Timer to clean up the state
 
         registerProcessingCleanupTimer();
+
+        if (rowTime < timerService.currentWatermark()) {
+            rightNumLateRecords.inc();
+        }
     }
 
     @Override
