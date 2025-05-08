@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.events.Event;
+import org.apache.flink.events.EventBuilder;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -355,12 +357,18 @@ class DefaultCheckpointStatsTrackerTest {
     }
 
     @Test
-    public void testSpanCreation() throws Exception {
+    public void testSpanAndEventCreation() throws Exception {
         JobVertexID jobVertexID = new JobVertexID();
         final List<Span> reportedSpans = new ArrayList<>();
+        final List<Event> reportedEvents = new ArrayList<>();
 
         JobManagerJobMetricGroup metricGroup =
                 new UnregisteredMetricGroups.UnregisteredJobManagerJobMetricGroup() {
+
+                    @Override
+                    public void addEvent(EventBuilder eventBuilder) {
+                        reportedEvents.add(eventBuilder.build());
+                    }
 
                     @Override
                     public void addSpan(SpanBuilder spanBuilder) {
@@ -385,11 +393,14 @@ class DefaultCheckpointStatsTrackerTest {
 
         assertThat(reportedSpans.size()).isEqualTo(1);
         Span reportedSpan = Iterables.getOnlyElement(reportedSpans);
-        assertThat(reportedSpan.getAttributes().get("checkpointId")).isEqualTo(42L);
-        assertThat(reportedSpan.getAttributes().get("checkpointType")).isEqualTo("Checkpoint");
-        assertThat(reportedSpan.getAttributes().get("isUnaligned")).isEqualTo("false");
+        assertThat(reportedEvents.size()).isEqualTo(1);
+        Event reportedEvent = Iterables.getOnlyElement(reportedEvents);
+
+        assertCheckpointAttributes(reportedSpan.getAttributes(), 42L, "Checkpoint", false);
+        assertCheckpointAttributes(reportedEvent.getAttributes(), 42L, "Checkpoint", false);
 
         reportedSpans.clear();
+        reportedEvents.clear();
 
         pending =
                 tracker.reportPendingCheckpoint(
@@ -406,9 +417,21 @@ class DefaultCheckpointStatsTrackerTest {
 
         assertThat(reportedSpans.size()).isEqualTo(1);
         reportedSpan = Iterables.getOnlyElement(reportedSpans);
-        assertThat(reportedSpan.getAttributes().get("checkpointId")).isEqualTo(43L);
-        assertThat(reportedSpan.getAttributes().get("checkpointType")).isEqualTo("Checkpoint");
-        assertThat(reportedSpan.getAttributes().get("isUnaligned")).isEqualTo("true");
+        assertThat(reportedEvents.size()).isEqualTo(1);
+        reportedEvent = Iterables.getOnlyElement(reportedEvents);
+
+        assertCheckpointAttributes(reportedSpan.getAttributes(), 43L, "Checkpoint", true);
+        assertCheckpointAttributes(reportedEvent.getAttributes(), 43L, "Checkpoint", true);
+    }
+
+    private void assertCheckpointAttributes(
+            Map<String, Object> attributes,
+            long checkpointId,
+            String checkpointType,
+            boolean isUnaligned) {
+        assertThat(attributes.get("checkpointId")).isEqualTo(checkpointId);
+        assertThat(attributes.get("checkpointType")).isEqualTo(checkpointType);
+        assertThat(attributes.get("isUnaligned")).isEqualTo(Boolean.toString(isUnaligned));
     }
 
     @Test
