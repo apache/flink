@@ -424,14 +424,6 @@ public abstract class AbstractKeyedStateBackend<K>
             return (S) lastState;
         }
 
-        InternalKvState<K, ?, ?> previous = keyValueStatesByName.get(stateDescriptor.getName());
-        if (previous != null) {
-            lastState = previous;
-            lastState.setCurrentNamespace(namespace);
-            lastName = stateDescriptor.getName();
-            return (S) previous;
-        }
-
         final S state = getOrCreateKeyedState(namespaceSerializer, stateDescriptor);
         final InternalKvState<K, N, ?> kvState = (InternalKvState<K, N, ?>) state;
 
