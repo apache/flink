@@ -32,8 +32,9 @@ class FloorCeilCallGen(
     arithmeticMethod: Method,
     arithmeticIntegralMethod: Option[Method] = None,
     decimalMethod: Option[Method] = None,
-    temporalMethod: Option[Method] = None)
-  extends MethodCallGen(arithmeticMethod) {
+    temporalMethod: Option[Method] = None,
+    temporalPrecisionMethod: Option[Method] = None
+) extends MethodCallGen(arithmeticMethod) {
 
   override def generate(
       ctx: CodeGeneratorContext,
@@ -65,16 +66,20 @@ class FloorCeilCallGen(
           unit match {
             // for Timestamp with timezone info
             case MILLENNIUM | CENTURY | DECADE | YEAR | QUARTER | MONTH | WEEK | DAY | HOUR |
-                MINUTE | SECOND | MILLISECOND
-                if terms.length + 1 == method.getParameterCount &&
-                  method.getParameterTypes()(terms.length) == classOf[TimeZone] =>
+                MINUTE | SECOND | MILLISECOND | MICROSECOND | NANOSECOND
+                if terms.length + 2 == method.getParameterCount &&
+                  method.getParameterTypes()(terms.length + 1) == classOf[TimeZone] =>
               val timeZone = ctx.addReusableSessionTimeZone()
               val longTerm = s"${terms.head}.getMillisecond()"
+              val nanosTerm = s"${terms.head}.getNanoOfMillisecond()"
               s"""
                  |$TIMESTAMP_DATA.fromEpochMillis(
                  |  ${qualifyMethod(temporalMethod.get)}(${terms(1)},
                  |  $longTerm,
-                 |  $timeZone))
+                 |  $nanosTerm,
+                 |  $timeZone),
+                 |  ${qualifyMethod(temporalPrecisionMethod.get)}(${terms(1)},
+                 |  $nanosTerm))
                  |""".stripMargin
 
             // for Unix Date / Unix Time
