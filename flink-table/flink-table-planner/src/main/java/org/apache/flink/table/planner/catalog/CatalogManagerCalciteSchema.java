@@ -91,6 +91,11 @@ public class CatalogManagerCalciteSchema extends FlinkSchema {
     }
 
     @Override
+    public CatalogSchemaModel getModel(String name) {
+        return null;
+    }
+
+    @Override
     public FlinkSchema copy() {
         return new CatalogManagerCalciteSchema(catalogManager, isStreamingMode);
     }
