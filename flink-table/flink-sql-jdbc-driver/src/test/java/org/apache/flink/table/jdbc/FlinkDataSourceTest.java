@@ -21,9 +21,14 @@ package org.apache.flink.table.jdbc;
 import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for flink data source. */
 public class FlinkDataSourceTest extends FlinkJdbcDriverTestBase {
@@ -35,5 +40,25 @@ public class FlinkDataSourceTest extends FlinkJdbcDriverTestBase {
             assertEquals("default_catalog", connection.getCatalog());
             assertEquals("default_database", connection.getSchema());
         }
+    }
+
+    @Test
+    public void testUnwrapSuccessful() throws Exception {
+        FlinkDataSource dataSource = new FlinkDataSource(getDriverUri().getURL(), new Properties());
+        FlinkDataSource unwrap = dataSource.unwrap(FlinkDataSource.class);
+        assertNotNull(unwrap);
+    }
+
+    @Test
+    public void testUnwrapFailed() throws Exception {
+        FlinkDataSource dataSource = new FlinkDataSource(getDriverUri().getURL(), new Properties());
+        assertThrows(SQLException.class, () -> dataSource.unwrap(TestingDataSource.class));
+    }
+
+    @Test
+    public void testIsWrapperFor() throws Exception {
+        FlinkDataSource dataSource = new FlinkDataSource(getDriverUri().getURL(), new Properties());
+        assertTrue(dataSource.isWrapperFor(FlinkDataSource.class));
+        assertFalse(dataSource.isWrapperFor(TestingDataSource.class));
     }
 }

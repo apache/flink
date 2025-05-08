@@ -723,9 +723,4 @@ public class FlinkDatabaseMetaData extends BaseDatabaseMetaData {
     public boolean dataDefinitionIgnoredInTransactions() throws SQLException {
         return false;
     }
-
-    @Override
-    public boolean isWrapperFor(Class<?> iface) throws SQLException {
-        return false;
-    }
 }
