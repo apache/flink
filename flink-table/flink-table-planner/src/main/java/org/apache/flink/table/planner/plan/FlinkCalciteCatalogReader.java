@@ -37,7 +37,9 @@ import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.legacy.sources.LookupableTableSource;
 import org.apache.flink.table.legacy.sources.TableSource;
 import org.apache.flink.table.planner.calcite.FlinkSqlNameMatcher;
+import org.apache.flink.table.planner.catalog.CatalogSchemaModel;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
+import org.apache.flink.table.planner.catalog.FlinkSchema;
 import org.apache.flink.table.planner.catalog.QueryOperationCatalogViewTable;
 import org.apache.flink.table.planner.catalog.SqlCatalogViewTable;
 import org.apache.flink.table.planner.plan.schema.CatalogSourceTable;
@@ -47,6 +49,7 @@ import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.utils.TableSchemaUtils;
 
+import com.google.common.collect.Iterables;
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.plan.RelOptSchema;
@@ -55,11 +58,14 @@ import org.apache.calcite.prepare.Prepare;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.validate.SqlNameMatchers;
+import org.apache.calcite.util.Util;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static org.apache.calcite.sql.validate.SqlValidatorUtil.getSchema;
 
 /**
  * Flink specific {@link CalciteCatalogReader} that changes the RelOptTable which wrapped a {@link
@@ -102,6 +108,26 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
                 return originRelOptTable;
             }
         }
+    }
+
+    public CatalogSchemaModel getModel(List<String> names) {
+        for (List<String> schemaPath : getSchemaPaths()) {
+            CalciteSchema schema =
+                    getSchema(
+                            getRootSchema(),
+                            Iterables.concat(schemaPath, Util.skipLast(names)),
+                            nameMatcher());
+            if (schema == null) {
+                continue;
+            }
+
+            FlinkSchema flinkSchema = (FlinkSchema) schema.schema;
+            CatalogSchemaModel model = flinkSchema.getModel(Util.last(names));
+            if (model != null) {
+                return model;
+            }
+        }
+        return null;
     }
 
     /** Translate this {@link CatalogSchemaTable} into Flink source table. */
