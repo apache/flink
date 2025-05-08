@@ -19,12 +19,13 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.jobmaster.SlotContext;
+import org.apache.flink.runtime.scheduler.loading.WeightLoadable;
 
 /**
  * The context of an {@link AllocatedSlot}. This represent an interface to classes outside the slot
  * pool to interact with allocated slots.
  */
-public interface PhysicalSlot extends SlotContext {
+public interface PhysicalSlot extends SlotContext, WeightLoadable {
 
     /**
      * Tries to assign the given payload to this allocated slot. This only works if there has not
