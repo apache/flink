@@ -33,7 +33,11 @@ public interface PbCodegenDeserializer {
      *     by outsider codegen environment. {@code resultVariable} should be flink object
      * @param pbObjectCode may be a variable or expression. Current codegen environment can use this
      *     literal name directly to access the input. {@code pbObject} should be a protobuf object
+     * @param depth the level of recursion, used to get the protobuf field name
+     * @param projectField protobuf fields names
      * @return The java code generated
      */
-    String codegen(String resultVar, String pbObjectCode, int indent) throws PbCodegenException;
+    String codegen(
+            String resultVar, String pbObjectCode, int indent, String[] projectField, int depth)
+            throws PbCodegenException;
 }

@@ -48,7 +48,7 @@ public class PbRowDataSerializationSchema implements SerializationSchema<RowData
         this.pbFormatConfig = pbFormatConfig;
         Descriptors.Descriptor descriptor =
                 PbFormatUtils.getDescriptor(pbFormatConfig.getMessageClassName());
-        PbSchemaValidationUtils.validate(descriptor, rowType);
+        PbSchemaValidationUtils.validate(descriptor, rowType, null);
     }
 
     @Override
