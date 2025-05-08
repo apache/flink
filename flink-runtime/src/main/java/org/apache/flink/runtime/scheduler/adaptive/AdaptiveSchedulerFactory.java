@@ -42,7 +42,9 @@ import org.apache.flink.runtime.scheduler.DefaultExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.DefaultSlotSharingStrategy;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingStrategy;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -117,7 +119,8 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
         final SlotSharingSlotAllocator slotAllocator =
                 createSlotSharingSlotAllocator(
                         declarativeSlotPool,
-                        jobMasterConfiguration.get(StateRecoveryOptions.LOCAL_RECOVERY));
+                        jobMasterConfiguration.get(StateRecoveryOptions.LOCAL_RECOVERY),
+                        DefaultSlotSharingStrategy.INSTANCE);
 
         final ExecutionGraphFactory executionGraphFactory =
                 new DefaultExecutionGraphFactory(
@@ -160,11 +163,14 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
     }
 
     public static SlotSharingSlotAllocator createSlotSharingSlotAllocator(
-            DeclarativeSlotPool declarativeSlotPool, boolean localRecoveryEnabled) {
+            DeclarativeSlotPool declarativeSlotPool,
+            boolean localRecoveryEnabled,
+            SlotSharingStrategy slotSharingStrategy) {
         return SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                 declarativeSlotPool::reserveFreeSlot,
                 declarativeSlotPool::freeReservedSlot,
                 declarativeSlotPool::containsFreeSlot,
-                localRecoveryEnabled);
+                localRecoveryEnabled,
+                slotSharingStrategy);
     }
 }
