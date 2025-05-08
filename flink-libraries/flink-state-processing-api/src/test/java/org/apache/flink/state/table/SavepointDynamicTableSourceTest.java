@@ -186,8 +186,8 @@ public class SavepointDynamicTableSourceTest {
                         + "  'connector' = 'savepoint',\n"
                         + "  'state.path' = 'src/test/resources/table-state-avro',\n"
                         + "  'operator.uid' = 'keyed-state-process-uid',\n"
-                        + "  'fields.KeyedSpecificAvroValue.value-type-info-factory' = 'org.apache.flink.state.table.SpecificAvroSavepointTypeInformationFactory',\n"
-                        + "  'fields.KeyedGenericAvroValue.value-type-info-factory' = 'org.apache.flink.state.table.GenericAvroSavepointTypeInformationFactory'\n"
+                        + "  'fields.KeyedSpecificAvroValue.value-type-factory' = 'org.apache.flink.state.table.SpecificAvroSavepointTypeInformationFactory',\n"
+                        + "  'fields.KeyedGenericAvroValue.value-type-factory' = 'org.apache.flink.state.table.GenericAvroSavepointTypeInformationFactory'\n"
                         + ")";
         tEnv.executeSql(sql);
         Table table = tEnv.sqlQuery("SELECT * FROM state_table");

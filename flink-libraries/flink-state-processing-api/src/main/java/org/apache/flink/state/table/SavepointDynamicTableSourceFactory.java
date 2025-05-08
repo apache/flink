@@ -54,7 +54,7 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.state.table.SavepointConnectorOptions.FIELDS;
 import static org.apache.flink.state.table.SavepointConnectorOptions.KEY_CLASS;
 import static org.apache.flink.state.table.SavepointConnectorOptions.KEY_CLASS_PLACEHOLDER;
-import static org.apache.flink.state.table.SavepointConnectorOptions.KEY_TYPE_INFO_FACTORY;
+import static org.apache.flink.state.table.SavepointConnectorOptions.KEY_TYPE_FACTORY;
 import static org.apache.flink.state.table.SavepointConnectorOptions.KEY_TYPE_INFO_FACTORY_PLACEHOLDER;
 import static org.apache.flink.state.table.SavepointConnectorOptions.OPERATOR_UID;
 import static org.apache.flink.state.table.SavepointConnectorOptions.OPERATOR_UID_HASH;
@@ -66,7 +66,7 @@ import static org.apache.flink.state.table.SavepointConnectorOptions.STATE_TYPE;
 import static org.apache.flink.state.table.SavepointConnectorOptions.STATE_TYPE_PLACEHOLDER;
 import static org.apache.flink.state.table.SavepointConnectorOptions.VALUE_CLASS;
 import static org.apache.flink.state.table.SavepointConnectorOptions.VALUE_CLASS_PLACEHOLDER;
-import static org.apache.flink.state.table.SavepointConnectorOptions.VALUE_TYPE_INFO_FACTORY;
+import static org.apache.flink.state.table.SavepointConnectorOptions.VALUE_TYPE_FACTORY;
 import static org.apache.flink.state.table.SavepointConnectorOptions.VALUE_TYPE_INFO_FACTORY_PLACEHOLDER;
 import static org.apache.flink.state.table.SavepointConnectorOptionsUtil.getOperatorIdentifier;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
@@ -100,8 +100,7 @@ public class SavepointDynamicTableSourceFactory implements DynamicTableSourceFac
         optionalOptions.add(keyFormatOption);
 
         ConfigOption<String> keyTypeInfoFactoryOption =
-                key(String.format(
-                                "%s.%s.%s", FIELDS, keyRowField.getName(), VALUE_TYPE_INFO_FACTORY))
+                key(String.format("%s.%s.%s", FIELDS, keyRowField.getName(), VALUE_TYPE_FACTORY))
                         .stringType()
                         .noDefaultValue();
         optionalOptions.add(keyTypeInfoFactoryOption);
@@ -157,7 +156,7 @@ public class SavepointDynamicTableSourceFactory implements DynamicTableSourceFac
                                                                     "%s.%s.%s",
                                                                     FIELDS,
                                                                     valueRowField.getName(),
-                                                                    KEY_TYPE_INFO_FACTORY))
+                                                                    KEY_TYPE_FACTORY))
                                                             .stringType()
                                                             .noDefaultValue();
                                             optionalOptions.add(mapKeyTypeInfoFactoryOption);
@@ -177,7 +176,7 @@ public class SavepointDynamicTableSourceFactory implements DynamicTableSourceFac
                                                                     "%s.%s.%s",
                                                                     FIELDS,
                                                                     valueRowField.getName(),
-                                                                    VALUE_TYPE_INFO_FACTORY))
+                                                                    VALUE_TYPE_FACTORY))
                                                             .stringType()
                                                             .noDefaultValue();
                                             optionalOptions.add(valueTypeInfoFactoryOption);

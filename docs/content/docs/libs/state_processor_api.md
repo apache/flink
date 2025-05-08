@@ -610,7 +610,7 @@ CREATE TABLE state_table (
   'state.backend.type' = 'rocksdb',
   'state.path' = '/root/dir/of/checkpoint-data/chk-1',
   'operator.uid' = 'my-uid',
-  'fields.MyAvroState.value-type-info-factory' = 'org.apache.flink.state.table.AvroSavepointTypeInformationFactory'
+  'fields.MyAvroState.value-type-factory' = 'org.apache.flink.state.table.AvroSavepointTypeInformationFactory'
 );
 ```
 
@@ -630,10 +630,10 @@ CREATE TABLE state_table (
 |----------------------------------|----------|---------|----------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | fields.#.state-name              | optional | (none)  | String                                 | Overrides the state name which must be used for state reading. This can be useful when the state name contains characters which are not compliant with SQL column names.                                                                                                         |
 | fields.#.state-type              | optional | (none)  | Enum Possible values: list, map, value | Defines the state type which must be used for state reading, including value, list and map. When it's not provided then it tries to infer from the SQL type (ARRAY=list, MAP=map, all others=value).                                                                             |
-| fields.#.key-class               | optional | (none)  | String                                 | Defines the format class scheme for decoding map key data (for ex. java.lang.Long). Either key-class or key-type-info-factory can be specified. When none of them are provided then the format class scheme tries to infer from the SQL type (only primitive types supported).   |
-| fields.#.key-type-info-factory   | optional | (none)  | String                                 | Defines the type information factory for decoding map key data. Either key-class or key-type-info-factory can be specified. When none of them are provided then the format class scheme tries to infer from the SQL type (only primitive types supported).                       |
-| fields.#.value-class             | optional | (none)  | String                                 | Defines the format class scheme for decoding value data (for ex. java.lang.Long). Either value-class or value-type-info-factory can be specified. When none of them are provided then the format class scheme tries to infer from the SQL type (only primitive types supported). |
-| fields.#.value-type-info-factory | optional | (none)  | String                                 | Defines the type information factory for decoding value data. Either value-class or value-type-info-factory can be specified. When none of them are provided then the format class scheme tries to infer from the SQL type (only primitive types supported).                     |
+| fields.#.key-class               | optional | (none)  | String                                 | Defines the format class scheme for decoding map key data (for ex. java.lang.Long). Either key-class or key-type-factory can be specified. When none of them are provided then the format class scheme tries to infer from the SQL type (only primitive types supported).        |
+| fields.#.key-type-factory        | optional | (none)  | String                                 | Defines the type information factory for decoding map key data. Either key-class or key-type-factory can be specified. When none of them are provided then the format class scheme tries to infer from the SQL type (only primitive types supported).                            |
+| fields.#.value-class             | optional | (none)  | String                                 | Defines the format class scheme for decoding value data (for ex. java.lang.Long). Either value-class or value-info-factory can be specified. When none of them are provided then the format class scheme tries to infer from the SQL type (only primitive types supported).      |
+| fields.#.value-type-factory      | optional | (none)  | String                                 | Defines the type information factory for decoding value data. Either value-class or value-type-factory can be specified. When none of them are provided then the format class scheme tries to infer from the SQL type (only primitive types supported).                          |
 
 ### Default Data Type Mapping
 
