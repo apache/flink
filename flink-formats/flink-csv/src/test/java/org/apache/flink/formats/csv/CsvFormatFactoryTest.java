@@ -38,6 +38,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -345,6 +346,24 @@ class CsvFormatFactoryTest {
         GenericRowData expected = GenericRowData.of();
 
         assertThat(deserialized).isEqualTo(expected);
+    }
+
+    @Test
+    public void testDeserializeWithCharset() throws IOException {
+        final Map<String, String> options =
+                getModifiedOptions(opts -> opts.put("csv.charset", "GBK"));
+
+        TestDynamicTableFactory.DynamicTableSourceMock sourceMock =
+                createDynamicTableSourceMock(options);
+
+        DeserializationSchema<RowData> deserializationSchema =
+                sourceMock.valueFormat.createRuntimeDecoder(
+                        ScanRuntimeProviderContext.INSTANCE, PHYSICAL_DATA_TYPE);
+        open(deserializationSchema);
+        RowData expected = GenericRowData.of(fromString("你好"), 123, false);
+        RowData actual =
+                deserializationSchema.deserialize("你好;123;false".getBytes(Charset.forName("GBK")));
+        assertThat(actual).isEqualTo(expected);
     }
 
     // ------------------------------------------------------------------------
