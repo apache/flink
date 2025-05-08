@@ -18,27 +18,14 @@
 package org.apache.calcite.sql;
 
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.sql.type.SqlOperandTypeChecker;
-import org.apache.calcite.sql.type.SqlOperandTypeInference;
-import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.util.ImmutableNullableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** SqlExplicitModelOperator is a SQL operator that represents an explicit model. */
 public class SqlExplicitModelOperator extends SqlPrefixOperator {
 
-    public SqlExplicitModelOperator(
-            int prec,
-            @Nullable SqlReturnTypeInference returnTypeInference,
-            @Nullable SqlOperandTypeInference operandTypeInference,
-            @Nullable SqlOperandTypeChecker operandTypeChecker) {
-        super(
-                "MODEL",
-                SqlKind.OTHER_FUNCTION,
-                prec,
-                returnTypeInference,
-                operandTypeInference,
-                operandTypeChecker);
+    public SqlExplicitModelOperator(int prec) {
+        super("MODEL", SqlKind.OTHER_FUNCTION, prec, null, null, null);
     }
 
     @Override

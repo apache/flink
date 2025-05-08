@@ -3101,7 +3101,7 @@ SqlNode ExplicitModel() :
     <MODEL> modelRef = CompoundIdentifier()
     {
         s = span();
-        return new SqlExplicitModelOperator(2, null, null, null).createCall(s.pos(), modelRef);
+        return new SqlExplicitModelOperator(2).createCall(s.pos(), modelRef);
     }
 }
 
