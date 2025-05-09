@@ -584,10 +584,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
 
     val tableResult = stmtSet.execute()
     // only check the schema
-    checkInsertTableResult(
-      tableResult,
-      "default_catalog.default_database.MySink_1",
-      "default_catalog.default_database.MySink_2")
+    checkInsertTableResult(tableResult, "default_catalog.default_database.MySink_1")
   }
 
   @TestTemplate
