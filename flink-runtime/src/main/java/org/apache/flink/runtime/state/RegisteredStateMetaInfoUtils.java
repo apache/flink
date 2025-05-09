@@ -45,8 +45,8 @@ public class RegisteredStateMetaInfoUtils {
         TypeSerializerSnapshot oldValueSerializerSnapshot =
                 stateMeta.getTypeSerializerSnapshot(
                         StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER);
-        TypeSerializerSnapshot newUserKeySerializerSnapshot = oldValueSerializerSnapshot;
-        TypeSerializerSnapshot newStateSerializerSnapshot = null;
+        TypeSerializerSnapshot newUserKeySerializerSnapshot = null;
+        TypeSerializerSnapshot newStateSerializerSnapshot = oldValueSerializerSnapshot;
 
         switch (org.apache.flink.api.common.state.StateDescriptor.Type.valueOf(
                 stateMeta.getOption(StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE))) {
@@ -124,8 +124,7 @@ public class RegisteredStateMetaInfoUtils {
         TypeSerializerSnapshot oldUserKeySerializerSnapshot =
                 stateMeta.getTypeSerializerSnapshot(
                         StateMetaInfoSnapshot.CommonSerializerKeys.USER_KEY_SERIALIZER);
-        ;
-        TypeSerializerSnapshot newUserKeySerializerSnapshot = oldValueSerializerSnapshot;
+        TypeSerializerSnapshot newStateSerializerSnapshot = oldValueSerializerSnapshot;
 
         switch (org.apache.flink.api.common.state.StateDescriptor.Type.valueOf(
                 stateMeta.getOption(StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE))) {
@@ -140,7 +139,7 @@ public class RegisteredStateMetaInfoUtils {
                 break;
             case LIST:
                 newStateType = org.apache.flink.api.common.state.StateDescriptor.Type.LIST;
-                newUserKeySerializerSnapshot =
+                newStateSerializerSnapshot =
                         new ListSerializer<>(oldValueSerializerSnapshot.restoreSerializer())
                                 .snapshotConfiguration();
                 break;
@@ -152,7 +151,7 @@ public class RegisteredStateMetaInfoUtils {
                     throw new UnsupportedOperationException(
                             "RegisteredKeyAndUserKeyValueStateBackendMetaInfo can not transform to org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo since oldUserKeySerializerSnapshot is null");
                 } else {
-                    newUserKeySerializerSnapshot =
+                    newStateSerializerSnapshot =
                             new MapSerializer<>(
                                             oldUserKeySerializerSnapshot.restoreSerializer(),
                                             oldValueSerializerSnapshot.restoreSerializer())
@@ -169,8 +168,7 @@ public class RegisteredStateMetaInfoUtils {
                 StateSerializerProvider.fromPreviousSerializerSnapshot(
                         stateMeta.getTypeSerializerSnapshot(
                                 StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER)),
-                StateSerializerProvider.fromPreviousSerializerSnapshot(
-                        newUserKeySerializerSnapshot),
+                StateSerializerProvider.fromPreviousSerializerSnapshot(newStateSerializerSnapshot),
                 StateSnapshotTransformer.StateSnapshotTransformFactory.noTransform());
     }
 }
