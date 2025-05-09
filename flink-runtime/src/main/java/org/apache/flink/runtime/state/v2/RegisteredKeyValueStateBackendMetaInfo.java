@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
+import org.apache.flink.runtime.state.RegisteredStateMetaInfoUtils;
 import org.apache.flink.runtime.state.StateSerializerProvider;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
@@ -103,7 +104,7 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
                         == snapshot.getBackendStateType());
     }
 
-    protected RegisteredKeyValueStateBackendMetaInfo(
+    public RegisteredKeyValueStateBackendMetaInfo(
             @Nonnull String name,
             @Nonnull StateDescriptor.Type stateType,
             @Nonnull StateSerializerProvider<N> namespaceSerializerProvider,
@@ -260,5 +261,26 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
                 optionsMap,
                 serializerConfigSnapshotsMap,
                 serializerMap);
+    }
+
+    public static RegisteredStateMetaInfoBase fromMetaInfoSnapshot(
+            @Nonnull StateMetaInfoSnapshot snapshot) {
+
+        final StateMetaInfoSnapshot.BackendStateType backendStateType =
+                snapshot.getBackendStateType();
+        switch (backendStateType) {
+            case KEY_VALUE:
+                return RegisteredStateMetaInfoUtils.createMetaInfoV2FromV1Snapshot(snapshot);
+            case KEY_VALUE_V2:
+                if (snapshot.getOption(
+                                StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE.toString())
+                        .equals(StateDescriptor.Type.MAP.toString())) {
+                    return new RegisteredKeyAndUserKeyValueStateBackendMetaInfo<>(snapshot);
+                } else {
+                    return new RegisteredKeyValueStateBackendMetaInfo<>(snapshot);
+                }
+            default:
+                return RegisteredStateMetaInfoBase.fromMetaInfoSnapshot(snapshot);
+        }
     }
 }

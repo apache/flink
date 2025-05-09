@@ -402,7 +402,9 @@ public class ForStKeyedStateBackendBuilder<K>
                     overlapFractionThreshold,
                     useIngestDbRestoreMode,
                     rescalingUseDeleteFilesInRange,
-                    recoveryClaimMode);
+                    recoveryClaimMode,
+                    org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo
+                            ::fromMetaInfoSnapshot);
         } else if (priorityQueueConfig.getPriorityQueueStateType()
                 == ForStStateBackend.PriorityQueueStateType.HEAP) {
             // Note: This branch can be touched after ForSt Support canonical savepoint,
