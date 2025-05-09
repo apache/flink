@@ -29,9 +29,10 @@ public class TestingSlot implements PhysicalSlot {
 
     private final AllocationID allocationId;
     private final ResourceProfile resourceProfile;
+    private final TaskManagerLocation taskManagerLocation;
 
     public TestingSlot() {
-        this(new AllocationID(), ResourceProfile.ANY);
+        this(new AllocationID());
     }
 
     public TestingSlot(AllocationID allocationId) {
@@ -43,8 +44,14 @@ public class TestingSlot implements PhysicalSlot {
     }
 
     public TestingSlot(AllocationID allocationId, ResourceProfile resourceProfile) {
-        this.allocationId = allocationId;
+        this(allocationId, resourceProfile, new LocalTaskManagerLocation());
+    }
+
+    public TestingSlot(
+            AllocationID allocationID, ResourceProfile resourceProfile, TaskManagerLocation tml) {
+        this.allocationId = allocationID;
         this.resourceProfile = resourceProfile;
+        this.taskManagerLocation = tml;
     }
 
     @Override
@@ -54,7 +61,7 @@ public class TestingSlot implements PhysicalSlot {
 
     @Override
     public TaskManagerLocation getTaskManagerLocation() {
-        return new LocalTaskManagerLocation();
+        return taskManagerLocation;
     }
 
     @Override

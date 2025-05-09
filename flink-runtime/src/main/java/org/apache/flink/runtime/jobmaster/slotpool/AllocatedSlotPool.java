@@ -124,6 +124,13 @@ public interface AllocatedSlotPool {
      */
     Collection<? extends SlotInfo> getAllSlotsInformation();
 
+    /**
+     * Returns the task executors loading information.
+     *
+     * @return the task executors loading information.
+     */
+    TaskExecutorsLoadInformation getTaskExecutorsLoadInformation();
+
     /** Information about a free slot. */
     interface FreeSlotInfo {
         SlotInfo asSlotInfo();
