@@ -35,7 +35,7 @@ public class Histogram implements Accumulator<Integer, TreeMap<Integer, Integer>
 
     private static final long serialVersionUID = 1L;
 
-    private TreeMap<Integer, Integer> treeMap = new TreeMap<Integer, Integer>();
+    private TreeMap<Integer, Integer> treeMap = new TreeMap<>();
 
     @Override
     public void add(Integer value) {
@@ -53,12 +53,7 @@ public class Histogram implements Accumulator<Integer, TreeMap<Integer, Integer>
     public void merge(Accumulator<Integer, TreeMap<Integer, Integer>> other) {
         // Merge the values into this map
         for (Map.Entry<Integer, Integer> entryFromOther : other.getLocalValue().entrySet()) {
-            Integer ownValue = this.treeMap.get(entryFromOther.getKey());
-            if (ownValue == null) {
-                this.treeMap.put(entryFromOther.getKey(), entryFromOther.getValue());
-            } else {
-                this.treeMap.put(entryFromOther.getKey(), entryFromOther.getValue() + ownValue);
-            }
+            this.treeMap.merge(entryFromOther.getKey(), entryFromOther.getValue(), Integer::sum);
         }
     }
 
@@ -75,7 +70,7 @@ public class Histogram implements Accumulator<Integer, TreeMap<Integer, Integer>
     @Override
     public Accumulator<Integer, TreeMap<Integer, Integer>> clone() {
         Histogram result = new Histogram();
-        result.treeMap = new TreeMap<Integer, Integer>(treeMap);
+        result.treeMap = new TreeMap<>(treeMap);
         return result;
     }
 }
