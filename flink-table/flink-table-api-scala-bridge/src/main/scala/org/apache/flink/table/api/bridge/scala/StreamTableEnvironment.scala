@@ -722,32 +722,6 @@ trait StreamTableEnvironment extends TableEnvironment {
   def createTemporaryView[T](path: String, dataStream: DataStream[T], fields: Expression*): Unit
 
   /**
-   * Converts the given [[Table]] into an append [[DataStream]] of a specified type.
-   *
-   * The [[Table]] must only have insert (append) changes. If the [[Table]] is also modified by
-   * update or delete changes, the conversion will fail.
-   *
-   * The fields of the [[Table]] are mapped to [[DataStream]] fields as follows:
-   *   - [[Row]] and Scala Tuple types: Fields are mapped by position, field types must match.
-   *   - POJO [[DataStream]] types: Fields are mapped by field name, field types must match.
-   *
-   * @param table
-   *   The [[Table]] to convert.
-   * @tparam T
-   *   The type of the resulting [[DataStream]].
-   * @return
-   *   The converted [[DataStream]].
-   * @deprecated
-   *   Use [[toDataStream(Table, Class)]] instead. It integrates with the new type system and
-   *   supports all kinds of [[DataTypes]] that the table runtime can produce. The semantics might
-   *   be slightly different for raw and structured types. Use
-   *   `toDataStream(DataTypes.of(Types.of[Class]))` if [[TypeInformation]] should be used as source
-   *   of truth.
-   */
-  @deprecated
-  def toAppendStream[T: TypeInformation](table: Table): DataStream[T]
-
-  /**
    * Converts the given [[Table]] into a [[DataStream]] of add and retract messages. The message
    * will be encoded as [[Tuple2]]. The first field is a [[Boolean]] flag, the second field holds
    * the record of the specified type [[T]].
