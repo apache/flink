@@ -27,7 +27,9 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
+import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.expressions.SqlFactory;
@@ -35,6 +37,7 @@ import org.apache.flink.table.utils.EncodingUtils;
 
 import org.apache.commons.lang3.StringUtils;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -47,6 +50,23 @@ public class ShowCreateUtil {
     private static final String PRINT_INDENT = "  ";
 
     private ShowCreateUtil() {}
+
+    public static String buildShowCreateModelRow(
+            ResolvedCatalogModel model, ObjectIdentifier modelIdentifier, boolean isTemporary) {
+        StringBuilder sb =
+                new StringBuilder()
+                        .append(buildCreateModelFormattedPrefix(modelIdentifier, isTemporary));
+        extractFormattedColumns(model.getResolvedInputSchema())
+                .ifPresent(
+                        c -> sb.append(String.format("INPUT (%s)%s", c, System.lineSeparator())));
+        extractFormattedColumns(model.getResolvedOutputSchema())
+                .ifPresent(
+                        c -> sb.append(String.format("OUTPUT (%s)%s", c, System.lineSeparator())));
+        extractComment(model).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
+        extractFormattedOptions(model.getOptions(), PRINT_INDENT)
+                .ifPresent(v -> sb.append("WITH (\n").append(v).append("\n)\n"));
+        return sb.toString();
+    }
 
     public static String buildShowCreateTableRow(
             ResolvedCatalogBaseTable<?> table,
@@ -130,6 +150,15 @@ public class ShowCreateUtil {
                 System.lineSeparator());
     }
 
+    static String buildCreateModelFormattedPrefix(
+            ObjectIdentifier modelIdentifier, boolean isTemporary) {
+        return String.format(
+                "CREATE %sMODEL %s%s",
+                isTemporary ? "TEMPORARY " : "",
+                modelIdentifier.asSerializableString(),
+                System.lineSeparator());
+    }
+
     static Optional<String> extractFormattedPrimaryKey(
             ResolvedCatalogBaseTable<?> table, String printIndent) {
         Optional<UniqueConstraint> primaryKey = table.getResolvedSchema().getPrimaryKey();
@@ -177,6 +206,17 @@ public class ShowCreateUtil {
                 .collect(Collectors.joining(",\n"));
     }
 
+    static Optional<String> extractFormattedColumns(ResolvedSchema schema) {
+        List<Column> columns = schema.getColumns();
+        if (columns.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(
+                columns.stream()
+                        .map(ShowCreateUtil::getColumnString)
+                        .collect(Collectors.joining(", ")));
+    }
+
     static Optional<String> extractFormattedWatermarkSpecs(
             ResolvedCatalogBaseTable<?> table, String printIndent, SqlFactory sqlFactory) {
         if (table.getResolvedSchema().getWatermarkSpecs().isEmpty()) {
@@ -205,6 +245,12 @@ public class ShowCreateUtil {
         return StringUtils.isEmpty(table.getComment())
                 ? Optional.empty()
                 : Optional.of(table.getComment());
+    }
+
+    static Optional<String> extractComment(ResolvedCatalogModel model) {
+        return StringUtils.isEmpty(model.getComment())
+                ? Optional.empty()
+                : Optional.of(model.getComment());
     }
 
     static Optional<String> extractFormattedDistributedInfo(ResolvedCatalogTable catalogTable) {

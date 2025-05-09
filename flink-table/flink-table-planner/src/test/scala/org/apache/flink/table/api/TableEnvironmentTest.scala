@@ -2958,6 +2958,177 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testShowCreateModel(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  INPUT(f0 char(10), f1 varchar(10))
+        |  OUTPUT(f2 string)
+        |COMMENT 'this is a model'
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+
+    tableEnv.executeSql(sourceDDL)
+
+    val expectedDDL =
+      """|CREATE MODEL `default_catalog`.`default_database`.`M1`
+         |INPUT (`f0` CHAR(10), `f1` VARCHAR(10))
+         |OUTPUT (`f2` VARCHAR(2147483647))
+         |COMMENT 'this is a model'
+         |WITH (
+         |  'openai.endpoint' = 'some-endpoint',
+         |  'provider' = 'openai',
+         |  'task' = 'clustering'
+         |)
+         |""".stripMargin
+    val row = tableEnv.executeSql("SHOW CREATE MODEL M1").collect().next()
+    assertEquals(expectedDDL, row.getField(0))
+  }
+
+  @Test
+  def testShowCreateModelComplexTypes(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  INPUT(
+        |    f0 ARRAY<INT>,
+        |    f1 MAP<STRING, INT>,
+        |    f2 ROW<name STRING, age INT>,
+        |    f3 ROW<name STRING, address ROW<street STRING, city STRING>>,
+        |    f4 ARRAY<ROW<id INT, details ROW<color STRING, size INT>>>
+        |  )
+        |  OUTPUT(
+        |    f5 ARRAY<MAP<STRING, INT>>,
+        |    f6 ARRAY<ARRAY<STRING>>
+        |  )
+        |COMMENT 'this is a model'
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+
+    tableEnv.executeSql(sourceDDL)
+
+    val expectedDDL =
+      """|CREATE MODEL `default_catalog`.`default_database`.`M1`
+         |INPUT (`f0` ARRAY<INT>, `f1` MAP<VARCHAR(2147483647), INT>, `f2` ROW<`name` VARCHAR(2147483647), `age` INT>, `f3` ROW<`name` VARCHAR(2147483647), `address` ROW<`street` VARCHAR(2147483647), `city` VARCHAR(2147483647)>>, `f4` ARRAY<ROW<`id` INT, `details` ROW<`color` VARCHAR(2147483647), `size` INT>>>)
+         |OUTPUT (`f5` ARRAY<MAP<VARCHAR(2147483647), INT>>, `f6` ARRAY<ARRAY<VARCHAR(2147483647)>>)
+         |COMMENT 'this is a model'
+         |WITH (
+         |  'openai.endpoint' = 'some-endpoint',
+         |  'provider' = 'openai',
+         |  'task' = 'clustering'
+         |)
+         |""".stripMargin
+    val row = tableEnv.executeSql("SHOW CREATE MODEL M1").collect().next()
+    assertEquals(expectedDDL, row.getField(0))
+  }
+
+  @Test
+  def testShowCreateTemporaryModel(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE TEMPORARY MODEL M1
+        |  INPUT(f0 char(10), f1 varchar(10))
+        |  OUTPUT(f2 string)
+        |COMMENT 'this is a model'
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+
+    tableEnv.executeSql(sourceDDL)
+
+    val expectedDDL =
+      """|CREATE TEMPORARY MODEL `default_catalog`.`default_database`.`M1`
+         |INPUT (`f0` CHAR(10), `f1` VARCHAR(10))
+         |OUTPUT (`f2` VARCHAR(2147483647))
+         |COMMENT 'this is a model'
+         |WITH (
+         |  'openai.endpoint' = 'some-endpoint',
+         |  'provider' = 'openai',
+         |  'task' = 'clustering'
+         |)
+         |""".stripMargin
+    val row = tableEnv.executeSql("SHOW CREATE MODEL M1").collect().next()
+    assertEquals(expectedDDL, row.getField(0))
+  }
+
+  @Test
+  def testShowCreateNonExistModel(): Unit = {
+    assertThatThrownBy(() => tableEnv.executeSql("SHOW CREATE MODEL M1"))
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessage(
+        "Could not execute SHOW CREATE MODEL. Model with identifier `default_catalog`.`default_database`.`M1` does not exist.")
+  }
+
+  @Test
+  def testShowCreateModelNoInputOutput(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  COMMENT 'this is a model'
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+
+    tableEnv.executeSql(sourceDDL)
+
+    val expectedDDL =
+      """|CREATE MODEL `default_catalog`.`default_database`.`M1`
+         |COMMENT 'this is a model'
+         |WITH (
+         |  'openai.endpoint' = 'some-endpoint',
+         |  'provider' = 'openai',
+         |  'task' = 'clustering'
+         |)
+         |""".stripMargin
+    val row = tableEnv.executeSql("SHOW CREATE MODEL M1").collect().next()
+    assertEquals(expectedDDL, row.getField(0))
+  }
+
+  @Test
+  def testShowCreateModelNoComment(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  INPUT(f0 char(10), f1 varchar(10))
+        |  OUTPUT(f2 string)
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+
+    tableEnv.executeSql(sourceDDL)
+
+    val expectedDDL =
+      """|CREATE MODEL `default_catalog`.`default_database`.`M1`
+         |INPUT (`f0` CHAR(10), `f1` VARCHAR(10))
+         |OUTPUT (`f2` VARCHAR(2147483647))
+         |WITH (
+         |  'openai.endpoint' = 'some-endpoint',
+         |  'provider' = 'openai',
+         |  'task' = 'clustering'
+         |)
+         |""".stripMargin
+    val row = tableEnv.executeSql("SHOW CREATE MODEL M1").collect().next()
+    assertEquals(expectedDDL, row.getField(0))
+  }
+
+  @Test
   def testDropModel(): Unit = {
     val sourceDDL =
       """
