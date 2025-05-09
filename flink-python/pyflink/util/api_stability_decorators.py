@@ -23,7 +23,7 @@ import warnings
 from typing_extensions import override
 from textwrap import dedent, indent
 
-__all__ = ["Deprecated", "Experimental", "Internal", "PublicEvolving"]
+__all__ = ["Deprecated", "Experimental", "Internal", "PublicEvolving", "Public"]
 
 # TypeVar for anything callable (function or class)
 T = TypeVar("T", bound=Union[Callable[..., Any], Type[Any]])
@@ -223,4 +223,30 @@ class PublicEvolving(BaseAPIStabilityDecorator):
 .. note:: This *{self._get_element_type_name(func_or_cls)}* is marked as **evolving**. It is
           intended for public use and has stable behaviour. However, its interface/signature is
           not considered to be stable and might be changed across versions.
+        """
+
+class Public(BaseAPIStabilityDecorator):
+    """
+    Decorator to mark classes and functions for as public, stable interfaces.
+
+    Classes and functions with this decorator are stable across minor releases (2.0, 2.1, 2.2, etc).
+    Only major releases (1.0, 2.0, 3.0, etc) can break interfaces with this annotation.
+
+    Example:
+
+    .. code-block:: python
+
+        @Public()
+        class MyClass:
+
+            @Public()
+            def func(self):
+                pass
+
+    """
+
+    def get_directive(self, func_or_cls: T) -> str:
+        return f"""
+.. note:: This *{self._get_element_type_name(func_or_cls)}* is marked as **public**. It is
+          intended for public use is stable across minor version releases.
         """

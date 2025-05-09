@@ -37,7 +37,7 @@ from pyflink.datastream.stream_execution_environment import StreamExecutionEnvir
 from pyflink.find_flink_home import _find_flink_home, _find_flink_source_root
 from pyflink.java_gateway import get_gateway
 from pyflink.table.table_environment import StreamTableEnvironment
-from pyflink.util.api_stability_decorators import PublicEvolving, Experimental, Internal
+from pyflink.util.api_stability_decorators import PublicEvolving, Experimental, Internal, Public
 from pyflink.util.java_utils import add_jars_to_context_class_loader, to_jarray
 
 if os.getenv("VERBOSE"):
@@ -259,6 +259,7 @@ class PythonAPICompletenessTestCase(object):
     @classmethod
     def check_stability_decorators(cls):
         stability_decorator_mapping = [
+            ("@org.apache.flink.annotation.Public()", Public),
             ("@org.apache.flink.annotation.PublicEvolving()", PublicEvolving),
             ("@org.apache.flink.annotation.Experimental()", Experimental),
             ("@org.apache.flink.annotation.Internal()", Internal),
