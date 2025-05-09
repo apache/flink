@@ -33,8 +33,12 @@ public class SavepointConnectorOptions {
     public static final String FIELDS = "fields";
     public static final String STATE_NAME = "state-name";
     public static final String STATE_TYPE = "state-type";
-    public static final String MAP_KEY_FORMAT = "map-key-format";
-    public static final String VALUE_FORMAT = "value-format";
+    public static final String DEPRECATED_MAP_KEY_FORMAT = "map-key-format";
+    public static final String KEY_CLASS = "key-class";
+    public static final String DEPRECATED_VALUE_FORMAT = "value-format";
+    public static final String VALUE_CLASS = "value-class";
+    public static final String KEY_TYPE_FACTORY = "key-type-factory";
+    public static final String VALUE_TYPE_FACTORY = "value-type-factory";
 
     /** Value state types. */
     public enum StateType {
@@ -118,22 +122,57 @@ public class SavepointConnectorOptions {
                                     .build());
 
     /** Placeholder {@link ConfigOption}. Not used for retrieving values. */
-    public static final ConfigOption<String> MAP_KEY_FORMAT_PLACEHOLDER =
-            ConfigOptions.key(String.format("%s.#.%s", FIELDS, MAP_KEY_FORMAT))
+    public static final ConfigOption<String> KEY_CLASS_PLACEHOLDER =
+            ConfigOptions.key(String.format("%s.#.%s", FIELDS, KEY_CLASS))
                     .stringType()
                     .noDefaultValue()
+                    .withDeprecatedKeys(String.format("%s.#.%s", FIELDS, DEPRECATED_MAP_KEY_FORMAT))
                     .withDescription(
-                            "Defines the format class scheme for decoding map value key data. "
+                            "Defines the format class scheme for decoding map key data. "
                                     + "When it's not provided then it tries to be inferred from the SQL type (only primitive types supported).");
 
     /** Placeholder {@link ConfigOption}. Not used for retrieving values. */
-    public static final ConfigOption<String> VALUE_FORMAT_PLACEHOLDER =
-            ConfigOptions.key(String.format("%s.#.%s", FIELDS, VALUE_FORMAT))
+    public static final ConfigOption<String> KEY_TYPE_INFO_FACTORY_PLACEHOLDER =
+            ConfigOptions.key(String.format("%s.#.%s", FIELDS, KEY_TYPE_FACTORY))
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
-                            "Defines the format class scheme for decoding value data. "
-                                    + "When it's not provided then it tries to be inferred from the SQL type (only primitive types supported).");
+                            Description.builder()
+                                    .text(
+                                            "Defines the type information factory for decoding map key data. "
+                                                    + "Either %s or %s can be specified. "
+                                                    + "When none of them are provided then the format class scheme tries to be inferred from the SQL type (only primitive types supported).",
+                                            code(KEY_CLASS), code(KEY_TYPE_FACTORY))
+                                    .build());
+
+    /** Placeholder {@link ConfigOption}. Not used for retrieving values. */
+    public static final ConfigOption<String> VALUE_CLASS_PLACEHOLDER =
+            ConfigOptions.key(String.format("%s.#.%s", FIELDS, VALUE_CLASS))
+                    .stringType()
+                    .noDefaultValue()
+                    .withDeprecatedKeys(String.format("%s.#.%s", FIELDS, DEPRECATED_VALUE_FORMAT))
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Defines the format class scheme for decoding value data. "
+                                                    + "Either %s or %s can be specified. "
+                                                    + "When none of them are provided then format class scheme tries to be inferred from the SQL type (only primitive types supported).",
+                                            code(VALUE_CLASS), code(VALUE_TYPE_FACTORY))
+                                    .build());
+
+    /** Placeholder {@link ConfigOption}. Not used for retrieving values. */
+    public static final ConfigOption<String> VALUE_TYPE_INFO_FACTORY_PLACEHOLDER =
+            ConfigOptions.key(String.format("%s.#.%s", FIELDS, VALUE_TYPE_FACTORY))
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Defines the type information factory for decoding value data. "
+                                                    + "Either %s or %s can be specified. "
+                                                    + "When none of them are provided then the format class scheme tries to be inferred from the SQL type (only primitive types supported).",
+                                            code(VALUE_CLASS), code(VALUE_TYPE_FACTORY))
+                                    .build());
 
     private SavepointConnectorOptions() {}
 }
