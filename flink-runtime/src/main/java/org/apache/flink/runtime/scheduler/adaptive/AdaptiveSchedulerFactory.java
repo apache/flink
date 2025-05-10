@@ -20,6 +20,7 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.failure.FailureEnricher;
@@ -47,6 +48,8 @@ import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllo
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 
 import org.slf4j.Logger;
+
+import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.concurrent.Executor;
@@ -106,7 +109,10 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
         final SlotSharingSlotAllocator slotAllocator =
                 createSlotSharingSlotAllocator(
                         declarativeSlotPool,
-                        jobMasterConfiguration.get(StateRecoveryOptions.LOCAL_RECOVERY));
+                        jobMasterConfiguration.get(StateRecoveryOptions.LOCAL_RECOVERY),
+                        jobMasterConfiguration.get(DeploymentOptions.TARGET),
+                        jobMasterConfiguration.get(
+                                JobManagerOptions.SCHEDULER_PREFER_MINIMAL_TASKMANAGERS_ENABLED));
 
         final ExecutionGraphFactory executionGraphFactory =
                 new DefaultExecutionGraphFactory(
@@ -148,11 +154,16 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
     }
 
     public static SlotSharingSlotAllocator createSlotSharingSlotAllocator(
-            DeclarativeSlotPool declarativeSlotPool, boolean localRecoveryEnabled) {
+            DeclarativeSlotPool declarativeSlotPool,
+            boolean localRecoveryEnabled,
+            @Nullable String executionTarget,
+            boolean minimalTaskManagerPreferred) {
         return SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                 declarativeSlotPool::reserveFreeSlot,
                 declarativeSlotPool::freeReservedSlot,
                 declarativeSlotPool::containsFreeSlot,
-                localRecoveryEnabled);
+                localRecoveryEnabled,
+                executionTarget,
+                minimalTaskManagerPreferred);
     }
 }
