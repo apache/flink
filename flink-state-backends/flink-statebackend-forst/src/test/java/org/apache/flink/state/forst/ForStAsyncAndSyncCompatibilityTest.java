@@ -19,8 +19,12 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.api.common.state.v2.ListState;
+import org.apache.flink.api.common.state.v2.ListStateDescriptor;
 import org.apache.flink.api.common.state.v2.MapState;
 import org.apache.flink.api.common.state.v2.MapStateDescriptor;
+import org.apache.flink.api.common.state.v2.ValueState;
+import org.apache.flink.api.common.state.v2.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
@@ -47,6 +51,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.RunnableFuture;
@@ -55,7 +60,6 @@ import static org.apache.flink.state.forst.ForStStateTestBase.getMockEnvironment
 import static org.apache.flink.state.forst.ForStTestUtils.createKeyedStateBackend;
 import static org.apache.flink.state.forst.ForStTestUtils.createSyncKeyedStateBackend;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
 
 /** Compatibility test for {@link ForStKeyedStateBackend} and {@link ForStSyncKeyedStateBackend}. */
 class ForStAsyncAndSyncCompatibilityTest {
@@ -85,17 +89,29 @@ class ForStAsyncAndSyncCompatibilityTest {
     void testForStTransFromAsyncToSync() throws Exception {
         ForStKeyedStateBackend<String> keyedBackend =
                 setUpAsyncKeyedStateBackend(Collections.emptyList());
-        MapStateDescriptor<Integer, String> descriptor =
+        MapStateDescriptor<Integer, String> mapDescriptor =
                 new MapStateDescriptor<>(
                         "testState", IntSerializer.INSTANCE, StringSerializer.INSTANCE);
-
         MapState<Integer, String> asyncMapState =
-                keyedBackend.createState(1, IntSerializer.INSTANCE, descriptor);
+                keyedBackend.createState(1, IntSerializer.INSTANCE, mapDescriptor);
+
+        ValueStateDescriptor<Integer> valueDescriptor =
+                new ValueStateDescriptor<>("valueState", IntSerializer.INSTANCE);
+        ValueState<Integer> asyncValueState =
+                keyedBackend.createState(1, IntSerializer.INSTANCE, valueDescriptor);
+
+        ListStateDescriptor<Integer> listDescriptor =
+                new ListStateDescriptor<>("listState", IntSerializer.INSTANCE);
+        ListState<Integer> asyncListState =
+                keyedBackend.createState(1, IntSerializer.INSTANCE, listDescriptor);
 
         context = aec.buildContext("testRecord", "testKey");
         context.retain();
         aec.setCurrentContext(context);
         asyncMapState.asyncPut(1, "1");
+        asyncValueState.asyncUpdate(1);
+        asyncListState.asyncUpdate(Arrays.asList(40, 50));
+
         context.release();
         aec.drainInflightRecords(0);
 
@@ -125,20 +141,25 @@ class ForStAsyncAndSyncCompatibilityTest {
             org.apache.flink.api.common.state.MapState<Integer, String> syncMapState =
                     syncKeyedStateBackend.getOrCreateKeyedState(
                             IntSerializer.INSTANCE,
-                            StateDescriptorUtils.transformFromV2ToV1(descriptor));
-            fail();
+                            StateDescriptorUtils.transformFromV2ToV1(mapDescriptor));
+
+            org.apache.flink.api.common.state.ValueState<Integer> syncValueState =
+                    syncKeyedStateBackend.getOrCreateKeyedState(
+                            IntSerializer.INSTANCE,
+                            StateDescriptorUtils.transformFromV2ToV1(valueDescriptor));
+
+            org.apache.flink.api.common.state.ListState<Integer> syncListState =
+                    syncKeyedStateBackend.getOrCreateKeyedState(
+                            IntSerializer.INSTANCE,
+                            StateDescriptorUtils.transformFromV2ToV1(listDescriptor));
 
             syncKeyedStateBackend.setCurrentKey("testKey");
-            ((InternalKvState) syncKeyedStateBackend).setCurrentNamespace(1);
+            ((InternalKvState) syncMapState).setCurrentNamespace(1);
             assertThat(syncMapState.get(1)).isEqualTo("1");
-        } catch (Exception e) {
-            // Currently, ForStStateBackend does not support switching from Async to Sync, so this
-            // exception will be caught here
-            assertThat(e).isInstanceOf(ClassCastException.class);
-            assertThat(e.getMessage())
-                    .contains(
-                            "org.apache.flink.runtime.state.v2.RegisteredKeyAndUserKeyValueStateBackendMetaInfo cannot be cast to class org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo");
-
+            ((InternalKvState) syncValueState).setCurrentNamespace(1);
+            assertThat(syncValueState.value()).isEqualTo(1);
+            ((InternalKvState) syncListState).setCurrentNamespace(1);
+            assertThat(syncListState.get()).isEqualTo(Arrays.asList(40, 50));
         } finally {
             IOUtils.closeQuietly(syncKeyedStateBackend);
         }
@@ -151,12 +172,29 @@ class ForStAsyncAndSyncCompatibilityTest {
                         forStStateBackend, env, StringSerializer.INSTANCE, Collections.emptyList());
         org.apache.flink.api.common.state.MapStateDescriptor<Integer, String> descriptor =
                 new org.apache.flink.api.common.state.MapStateDescriptor<>(
-                        "testState", IntSerializer.INSTANCE, StringSerializer.INSTANCE);
+                        "mapState", IntSerializer.INSTANCE, StringSerializer.INSTANCE);
         org.apache.flink.api.common.state.MapState<Integer, String> mapState =
                 keyedBackend.getOrCreateKeyedState(IntSerializer.INSTANCE, descriptor);
+
+        org.apache.flink.api.common.state.ValueStateDescriptor<Integer> valueDescriptor =
+                new org.apache.flink.api.common.state.ValueStateDescriptor<>(
+                        "valueState", IntSerializer.INSTANCE);
+        org.apache.flink.api.common.state.ValueState<Integer> valueState =
+                keyedBackend.getOrCreateKeyedState(IntSerializer.INSTANCE, valueDescriptor);
+
+        org.apache.flink.api.common.state.ListStateDescriptor<Integer> listStateDescriptor =
+                new org.apache.flink.api.common.state.ListStateDescriptor<>(
+                        "listState", IntSerializer.INSTANCE);
+        org.apache.flink.api.common.state.ListState<Integer> listState =
+                keyedBackend.getOrCreateKeyedState(IntSerializer.INSTANCE, listStateDescriptor);
+
         keyedBackend.setCurrentKey("testKey");
         ((InternalKvState) mapState).setCurrentNamespace(1);
         mapState.put(1, "1");
+        ((InternalKvState) valueState).setCurrentNamespace(1);
+        valueState.update(1);
+        ((InternalKvState) listState).setCurrentNamespace(1);
+        listState.update(Arrays.asList(1, 2));
 
         RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot =
                 keyedBackend.snapshot(
@@ -177,33 +215,41 @@ class ForStAsyncAndSyncCompatibilityTest {
         ForStKeyedStateBackend<String> asyncKeyedStateBackend =
                 setUpAsyncKeyedStateBackend(Collections.singletonList(stateHandle));
 
-        MapStateDescriptor<Integer, String> newStateDescriptor =
+        MapStateDescriptor<Integer, String> newMapDescriptor =
                 new MapStateDescriptor<>(
-                        "testState", IntSerializer.INSTANCE, StringSerializer.INSTANCE);
+                        "mapState", IntSerializer.INSTANCE, StringSerializer.INSTANCE);
+        ValueStateDescriptor<Integer> newValueDescriptor =
+                new ValueStateDescriptor<>("valueState", IntSerializer.INSTANCE);
+        ListStateDescriptor<Integer> newListDescriptor =
+                new ListStateDescriptor<>("listState", IntSerializer.INSTANCE);
+
         try {
             MapState<Integer, String> asyncMapState =
+                    asyncKeyedStateBackend.createState(1, IntSerializer.INSTANCE, newMapDescriptor);
+            ValueState<Integer> asyncValueState =
                     asyncKeyedStateBackend.createState(
-                            1, IntSerializer.INSTANCE, newStateDescriptor);
-            fail();
+                            1, IntSerializer.INSTANCE, newValueDescriptor);
+            ListState<Integer> asyncListState =
+                    asyncKeyedStateBackend.createState(
+                            1, IntSerializer.INSTANCE, newListDescriptor);
 
             context = aec.buildContext("testRecord", "testKey");
             context.retain();
             aec.setCurrentContext(context);
             asyncMapState
                     .asyncGet(1)
+                    .thenCompose(
+                            mapValue -> {
+                                assertThat(mapValue).isEqualTo("1");
+                                return asyncValueState.asyncValue();
+                            })
                     .thenAccept(
                             value -> {
-                                assertThat(value).isEqualTo("1");
+                                assertThat(value).isEqualTo(1);
                             });
+            assertThat(listState.get()).isEqualTo(Arrays.asList(1, 2));
             context.release();
             aec.drainInflightRecords(0);
-        } catch (Exception e) {
-            // Currently, ForStStateBackend does not support switching from Sync to Async, so this
-            // exception will be caught here
-            assertThat(e).isInstanceOf(ClassCastException.class);
-            assertThat(e.getMessage())
-                    .contains(
-                            "org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo cannot be cast to class org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo");
         } finally {
             IOUtils.closeQuietly(asyncKeyedStateBackend);
         }
