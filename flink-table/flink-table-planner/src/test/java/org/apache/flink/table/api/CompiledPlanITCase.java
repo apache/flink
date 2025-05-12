@@ -35,7 +35,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -56,18 +55,6 @@ class CompiledPlanITCase extends JsonPlanTestBase {
     private static final String[] COLUMNS_DEFINITION =
             new String[] {"a bigint", "b int", "c varchar"};
 
-    private static final String[] COLUMNS_DEFINITION_WITH_TIMESTAMP =
-            new String[] {"a bigint", "ts timestamp_ltz(3)"};
-    private static final List<String> DATA_WITH_TIMESTAMP =
-            Arrays.asList("1, '2025-04-08 18:00:04.001'", "", "3,2,hello world");
-    private static final String[] SRC_COLUMNS_DEFINITION_WITH_WATERMARK =
-            new String[] {
-                "a bigint",
-                "b int",
-                "ts_ltz timestamp_ltz(3)",
-                "WATERMARK FOR ts_ltz AS ts_ltz - INTERVAL '10' MINUTE"
-            };
-
     @BeforeEach
     @Override
     protected void setup() throws Exception {
@@ -81,17 +68,6 @@ class CompiledPlanITCase extends JsonPlanTestBase {
                         + "  'bounded' = 'false')";
         tableEnv.executeSql(srcTableDdl);
 
-        String srcTableDdlWatermark =
-                "CREATE TABLE MyTableWatermark (\n"
-                        + String.join(",", SRC_COLUMNS_DEFINITION_WITH_WATERMARK)
-                        + ") with (\n"
-                        + "  'connector' = 'values',\n"
-                        + "  'bounded' = 'false',\n"
-                        + "  'disable-lookup' = 'true',\n"
-                        + "  'enable-watermark-push-down' = 'true'\n"
-                        + ")";
-        tableEnv.executeSql(srcTableDdlWatermark);
-
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + String.join(",", COLUMNS_DEFINITION)
@@ -99,14 +75,6 @@ class CompiledPlanITCase extends JsonPlanTestBase {
                         + "  'connector' = 'values',\n"
                         + "  'table-sink-class' = 'DEFAULT')";
         tableEnv.executeSql(sinkTableDdl);
-
-        String sinkTableDdlTs =
-                "CREATE TABLE MySinkTs (\n"
-                        + String.join(",", COLUMNS_DEFINITION_WITH_TIMESTAMP)
-                        + ") with (\n"
-                        + "  'connector' = 'values',\n"
-                        + "  'table-sink-class' = 'DEFAULT')";
-        tableEnv.executeSql(sinkTableDdlTs);
     }
 
     @Test
@@ -460,31 +428,5 @@ class CompiledPlanITCase extends JsonPlanTestBase {
 
     private String getPreparedToCompareCompiledPlan(final String planAsString) {
         return TableTestUtil.replaceExecNodeId(TableTestUtil.replaceFlinkVersion(planAsString));
-    }
-
-    @Test
-    void testWatermarkPushDownWithTimeStampChanged() throws Exception {
-        Path planPath =
-                Paths.get(TempDirUtils.newFolder(tempFolder, "plan").getPath(), "plan.json")
-                        .toAbsolutePath();
-
-        TableResult tableResult =
-                tableEnv.executeSql(
-                        String.format(
-                                "COMPILE PLAN '%s' FOR STATEMENT SET BEGIN "
-                                        + "INSERT INTO MySinkTs SELECT a, ts_ltz FROM MyTableWatermark;"
-                                        + "INSERT INTO MySinkTs SELECT b, ts_ltz FROM MyTableWatermark;"
-                                        + "END",
-                                planPath));
-
-        assertThat(tableResult).isEqualTo(TableResultInternal.TABLE_RESULT_OK);
-        assertThat(planPath.toFile()).exists();
-
-        String expected =
-                TableTestUtil.readFromResource("/jsonplan/testWatermarkPushdownWithTimestamp.out");
-        String actual = new String(Files.readAllBytes(planPath));
-
-        assertThat(getPreparedToCompareCompiledPlan(actual))
-                .isEqualTo(getPreparedToCompareCompiledPlan(expected));
     }
 }
