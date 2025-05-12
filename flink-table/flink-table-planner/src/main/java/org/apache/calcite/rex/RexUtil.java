@@ -76,7 +76,7 @@ import static java.util.Objects.requireNonNull;
  * because of current Calcite way of inferring constants from IS NOT DISTINCT FROM clashes with
  * filter push down.
  *
- * <p>Lines 397 ~ 399, Use Calcite 1.32.0 behavior for {@link RexUtil#gatherConstraints(Class,
+ * <p>Lines 399 ~ 401, Use Calcite 1.32.0 behavior for {@link RexUtil#gatherConstraints(Class,
  * RexNode, Map, Set, RexBuilder)}.
  */
 public class RexUtil {
@@ -870,8 +870,7 @@ public class RexUtil {
     }
 
     /**
-     * Returns whether a given tree contains any input references (both {@link RexInputRef} or
-     * {@link RexTableArgCall}).
+     * Returns whether a given tree contains any {link RexInputRef} nodes.
      *
      * @param node a RexNode tree
      */
@@ -3000,7 +2999,8 @@ public class RexUtil {
             if (simplifiedNode.getType().equals(call.getType())) {
                 return simplifiedNode;
             }
-            return simplify.rexBuilder.makeCast(call.getType(), simplifiedNode, matchNullability);
+            return simplify.rexBuilder.makeCast(
+                    call.getType(), simplifiedNode, matchNullability, false);
         }
     }
 
