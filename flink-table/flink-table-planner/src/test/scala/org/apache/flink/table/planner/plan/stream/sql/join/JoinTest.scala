@@ -579,9 +579,9 @@ class JoinTest extends TableTestBase {
     // TODO the error message should be improved after we support extracting alias from table func
     util.addTemporarySystemFunction("TableFunc1", new TableFunc1)
     util.verifyExpectdException(
-      "SELECT /*+ LOOKUP('table'='D') */ T.a FROM t AS T CROSS JOIN LATERAL TABLE(TableFunc1(c)) AS D(c1)",
+      "SELECT /*+ LOOKUP('table'='DD') */ T.a FROM t AS T CROSS JOIN LATERAL TABLE(TableFunc1(c)) AS D(c1)",
       "The options of following hints cannot match the name of input tables or views: \n" +
-        "`D` in `LOOKUP`"
+        "`DD` in `LOOKUP`"
     )
   }
 
