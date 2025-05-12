@@ -55,16 +55,25 @@ public class ShowCreateUtil {
             ResolvedCatalogModel model, ObjectIdentifier modelIdentifier, boolean isTemporary) {
         StringBuilder sb =
                 new StringBuilder()
-                        .append(buildCreateModelFormattedPrefix(modelIdentifier, isTemporary));
+                        .append(buildCreateFormattedPrefix("MODEL", isTemporary, modelIdentifier));
         extractFormattedColumns(model.getResolvedInputSchema())
                 .ifPresent(
                         c -> sb.append(String.format("INPUT (%s)%s", c, System.lineSeparator())));
         extractFormattedColumns(model.getResolvedOutputSchema())
                 .ifPresent(
                         c -> sb.append(String.format("OUTPUT (%s)%s", c, System.lineSeparator())));
-        extractComment(model).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
+        extractComment(model)
+                .ifPresent(c -> sb.append(formatComment(c)).append(System.lineSeparator()));
         extractFormattedOptions(model.getOptions(), PRINT_INDENT)
-                .ifPresent(v -> sb.append("WITH (\n").append(v).append("\n)\n"));
+                .ifPresent(
+                        v ->
+                                sb.append(String.format("WITH (%s", System.lineSeparator()))
+                                        .append(v)
+                                        .append(
+                                                String.format(
+                                                        "%s)%s",
+                                                        System.lineSeparator(),
+                                                        System.lineSeparator())));
         return sb.toString();
     }
 
@@ -141,21 +150,14 @@ public class ShowCreateUtil {
     }
 
     static String buildCreateFormattedPrefix(
-            String tableType, boolean isTemporary, ObjectIdentifier identifier) {
+            String type, boolean isTemporary, ObjectIdentifier identifier) {
+        String postName = "model".equalsIgnoreCase(type) ? "" : " (";
         return String.format(
-                "CREATE %s%s %s (%s",
+                "CREATE %s%s %s%s%s",
                 isTemporary ? "TEMPORARY " : "",
-                tableType,
+                type,
                 identifier.asSerializableString(),
-                System.lineSeparator());
-    }
-
-    static String buildCreateModelFormattedPrefix(
-            ObjectIdentifier modelIdentifier, boolean isTemporary) {
-        return String.format(
-                "CREATE %sMODEL %s%s",
-                isTemporary ? "TEMPORARY " : "",
-                modelIdentifier.asSerializableString(),
+                postName,
                 System.lineSeparator());
     }
 
