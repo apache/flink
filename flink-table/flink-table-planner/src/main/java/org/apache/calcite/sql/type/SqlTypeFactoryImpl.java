@@ -39,8 +39,8 @@ import static java.util.Objects.requireNonNull;
  *
  * <ol>
  *   <li>Should be removed after fixing CALCITE-6342: Lines 100-102
- *   <li>Should be removed after fixing CALCITE-6342: Lines 482-494
- *   <li>Should be removed after fix of FLINK-31350: Lines 561-573.
+ *   <li>Should be removed after fixing CALCITE-6342: Lines 484-496
+ *   <li>Should be removed after fix of FLINK-31350: Lines 563-575.
  * </ol>
  */
 public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
