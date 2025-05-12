@@ -110,8 +110,7 @@ LogicalProject(EXPR$0=[1])
 LogicalProject(a2=[$0], b2=[$1], c2=[$2], d2=[$3])
 +- LogicalFilter(condition=[EXISTS({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
-  LogicalProject($f0=[0])
-    LogicalTableScan(table=[[default_catalog, default_database, T1]])
+  LogicalTableScan(table=[[default_catalog, default_database, T1]])
 })])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
@@ -131,9 +130,8 @@ LogicalTableScan(table=[[default_catalog, default_database, T2]])
 LogicalProject(a2=[$0], b2=[$1], c2=[$2], d2=[$3])
 +- LogicalFilter(condition=[EXISTS({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
-  LogicalProject($f0=[0])
-    LogicalFilter(condition=[=(1, 2)])
-      LogicalTableScan(table=[[default_catalog, default_database, T1]])
+  LogicalFilter(condition=[=(1, 2)])
+    LogicalTableScan(table=[[default_catalog, default_database, T1]])
 })])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
