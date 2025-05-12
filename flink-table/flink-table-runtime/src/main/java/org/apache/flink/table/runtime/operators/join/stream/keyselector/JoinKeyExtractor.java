@@ -1,3 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.table.runtime.operators.join.stream.keyselector;
 
 import org.apache.flink.table.data.RowData;
@@ -27,7 +45,7 @@ public interface JoinKeyExtractor extends Serializable {
      * @return A {@link RowData} representing the state storage key. Can be null if no key can be
      *     derived (e.g., missing configuration).
      */
-    RowData getKeyForStateStorage(RowData row, int inputId);
+    RowData getKeyForInput(RowData row, int inputId);
 
     /**
      * Extracts the key used for looking up matching records in the state of a specific input depth,
@@ -45,15 +63,15 @@ public interface JoinKeyExtractor extends Serializable {
      * @return A {@link RowData} representing the state lookup key. Can be null if no key can be
      *     derived (e.g., missing configuration, or a required row in `currentRows` is null).
      */
-    RowData getKeyForStateLookup(int depth, RowData[] currentRows);
+    RowData getKeyForDepthFromCurrentRows(int depth, RowData[] currentRows);
 
     /**
      * Determines the type information for the key associated with a specific input's state.
      *
      * <p>This is needed to correctly initialize the state backend (e.g., {@link
      * MultiJoinStateView}). The returned type should match the structure of the keys produced by
-     * {@link #getKeyForStateStorage(RowData, int)} and potentially {@link
-     * #getKeyForStateLookup(int, RowData[])} (depending on the implementation logic).
+     * {@link #getKeyForInput(RowData, int)} and potentially {@link
+     * #getKeyForDepthFromCurrentRows(int, RowData[])} (depending on the implementation logic).
      *
      * @param inputId The ID (0-based index) of the input stream.
      * @return The {@link InternalTypeInfo} for the key type used by the state for this input. Can

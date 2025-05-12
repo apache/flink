@@ -1,3 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.table.runtime.operators.join.stream.keyselector;
 
 import org.apache.flink.table.data.GenericRowData;
@@ -10,10 +28,10 @@ import org.apache.flink.table.types.logical.VarCharType;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 /**
@@ -46,6 +64,9 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
             joinAttributeMap; // Transient as it's configuration
     private final List<InternalTypeInfo<RowData>> inputTypes;
 
+    // Cache for pre-computed key extraction structures
+    private final Map<Integer, List<KeyExtractor>> extractorCache;
+
     /**
      * Creates an AttributeBasedJoinKeyExtractor.
      *
@@ -59,10 +80,11 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
             final List<InternalTypeInfo<RowData>> inputTypes) {
         this.joinAttributeMap = joinAttributeMap;
         this.inputTypes = inputTypes;
+        this.extractorCache = new HashMap<>();
     }
 
     @Override
-    public RowData getKeyForStateStorage(RowData row, int inputId) {
+    public RowData getKeyForInput(RowData row, int inputId) {
         if (inputId == 0) {
             // Input 0 uses the fixed default key as it's the start of the join chain.
             return DEFAULT_KEY;
@@ -88,32 +110,27 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
     }
 
     @Override
-    public RowData getKeyForStateLookup(int depth, RowData[] currentRows) {
+    public RowData getKeyForDepthFromCurrentRows(int depth, RowData[] currentRows) {
         if (depth == 0) {
-            // Input 0 lookup always uses the fixed default key.
             return DEFAULT_KEY;
         }
+        List<KeyExtractor> keyExtractors =
+                extractorCache.computeIfAbsent(depth, this::createExtractorsForDepth);
+        if (keyExtractors.isEmpty()) {
+            return DEFAULT_KEY;
+        }
+        return buildKeyRow(keyExtractors, currentRows);
+    }
 
-        // For depths > 0, lookup key derived from *previous* rows (indices < depth)
-        // using the *left* side of equi-join conditions for the *current* depth.
-        final Map<AttributeRef, AttributeRef> attributeMapping = joinAttributeMap.get(depth);
+    private List<KeyExtractor> createExtractorsForDepth(int depth) {
+        Map<AttributeRef, AttributeRef> attributeMapping = joinAttributeMap.get(depth);
         if (attributeMapping == null || attributeMapping.isEmpty()) {
-            // No equi-join conditions link previous inputs to this depth (e.g. cross join).
-            // Use default key.
-            return DEFAULT_KEY;
+            return Collections.emptyList();
         }
-
-        // TreeMap ensures deterministic key structure: left inputId -> left fieldIndex
-        final Map<Integer, Map<Integer, Object>> sortedKeyComponents = new TreeMap<>();
-
-        // Iterate through join attributes for the current depth.
-        // Key (leftAttrRef) points to previous input (< depth).
-        // Value (rightAttrRef) points to current input (== depth).
+        List<KeyExtractor> keyExtractors = new ArrayList<>();
         for (Map.Entry<AttributeRef, AttributeRef> entry : attributeMapping.entrySet()) {
-            final AttributeRef leftAttrRef = entry.getKey();
-
+            AttributeRef leftAttrRef = entry.getKey();
             if (leftAttrRef.inputId >= depth) {
-                // Configuration error: Left side must reference an input index < depth.
                 throw new IllegalStateException(
                         "Invalid joinAttributeMap configuration for depth "
                                 + depth
@@ -123,35 +140,28 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
                                 + depth
                                 + ").");
             }
-
-            final RowData leftRow = currentRows[leftAttrRef.inputId];
-            // Extract value. Handles null rows/fields internally (returns null value).
-            final Object value = extractFieldValue(leftRow, leftAttrRef);
-
-            // Store value, ensuring deterministic order by inputId, then fieldIndex.
-            sortedKeyComponents
-                    .computeIfAbsent(leftAttrRef.inputId, k -> new TreeMap<>())
-                    .put(leftAttrRef.fieldIndex, value);
+            InternalTypeInfo<RowData> typeInfo = inputTypes.get(leftAttrRef.inputId);
+            RowType rowType = typeInfo.toRowType();
+            int fieldIndex = leftAttrRef.fieldIndex;
+            validateFieldIndex(leftAttrRef.inputId, fieldIndex, rowType);
+            LogicalType fieldType = rowType.getTypeAt(fieldIndex);
+            keyExtractors.add(new KeyExtractor(leftAttrRef.inputId, fieldIndex, fieldType));
         }
+        // Sort extractors by inputId then fieldIndex for deterministic and fast key row building
+        keyExtractors.sort(
+                java.util.Comparator.comparingInt(KeyExtractor::getInputIdToAccess)
+                        .thenComparingInt(KeyExtractor::getFieldIndexInSourceRow));
+        return keyExtractors;
+    }
 
-        if (sortedKeyComponents.isEmpty()) {
-            // Should not happen if attributeMapping was valid, but handle defensively.
-            // Implies no valid attributes found linking previous inputs. Use default key.
+    private RowData buildKeyRow(List<KeyExtractor> keyExtractors, RowData[] currentRows) {
+        if (keyExtractors.isEmpty()) {
             return DEFAULT_KEY;
         }
-
-        // Assemble final key row from sorted components.
-        final List<Object> keyValues = new ArrayList<>();
-        for (Map.Entry<Integer, Map<Integer, Object>> inputEntry : sortedKeyComponents.entrySet()) {
-            // Add values ordered by fieldIndex within each inputId
-            keyValues.addAll(inputEntry.getValue().values());
+        GenericRowData keyRow = new GenericRowData(keyExtractors.size());
+        for (int i = 0; i < keyExtractors.size(); i++) {
+            keyRow.setField(i, keyExtractors.get(i).getValue(currentRows));
         }
-
-        final GenericRowData keyRow = new GenericRowData(keyValues.size());
-        for (int i = 0; i < keyValues.size(); i++) {
-            keyRow.setField(i, keyValues.get(i));
-        }
-
         return keyRow;
     }
 
@@ -227,24 +237,6 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
         return keyRow;
     }
 
-    /** Extracts a field value using an AttributeRef. Returns null if row or field is null. */
-    private Object extractFieldValue(RowData row, AttributeRef attrRef) {
-        // Handles null row input gracefully by returning null.
-        if (row == null) {
-            return null;
-        }
-        final InternalTypeInfo<RowData> typeInfo = inputTypes.get(attrRef.inputId);
-        final RowType rowType = typeInfo.toRowType();
-        final int fieldIndex = attrRef.fieldIndex;
-
-        validateFieldIndex(attrRef.inputId, fieldIndex, rowType); // Validate before access
-
-        final LogicalType fieldType = rowType.getTypeAt(fieldIndex);
-        final RowData.FieldGetter fieldGetter = RowData.createFieldGetter(fieldType, fieldIndex);
-        // getFieldOrNull handles null fields within the row.
-        return fieldGetter.getFieldOrNull(row);
-    }
-
     /** Performs bounds checking for field access. */
     private void validateFieldIndex(int inputId, int fieldIndex, RowType rowType) {
         if (fieldIndex >= rowType.getFieldCount() || fieldIndex < 0) {
@@ -255,6 +247,61 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
                             + inputId
                             + " with type "
                             + rowType);
+        }
+    }
+
+    /**
+     * Helper class to store pre-computed information for extracting a key part. This avoids
+     * repeated lookups and object creations in {@code getKeyForStateLookup}.
+     */
+    private static final class KeyExtractor implements Serializable {
+        private static final long serialVersionUID = 1L;
+
+        private final int inputIdToAccess; // Which RowData from currentRows to access
+        private final int fieldIndexInSourceRow; // Field index within that RowData
+        private final LogicalType fieldType; // Stored to recreate FieldGetter if needed
+
+        private transient RowData.FieldGetter fieldGetter;
+
+        public KeyExtractor(int inputIdToAccess, int fieldIndexInSourceRow, LogicalType fieldType) {
+            this.inputIdToAccess = inputIdToAccess;
+            this.fieldIndexInSourceRow = fieldIndexInSourceRow;
+            this.fieldType = fieldType;
+            // Initialize FieldGetter; will be re-initialized after deserialization or if null
+            this.fieldGetter =
+                    RowData.createFieldGetter(this.fieldType, this.fieldIndexInSourceRow);
+        }
+
+        public Object getValue(RowData[] currentRows) {
+            RowData sourceRow = currentRows[inputIdToAccess];
+            if (sourceRow == null) {
+                return null;
+            }
+            // Re-initialize if transient and null (e.g., after deserialization or first use)
+            if (this.fieldGetter == null) {
+                this.fieldGetter =
+                        RowData.createFieldGetter(this.fieldType, this.fieldIndexInSourceRow);
+            }
+            return this.fieldGetter.getFieldOrNull(sourceRow);
+        }
+
+        public int getInputIdToAccess() {
+            return inputIdToAccess;
+        }
+
+        public int getFieldIndexInSourceRow() {
+            return fieldIndexInSourceRow;
+        }
+
+        private void readObject(java.io.ObjectInputStream in)
+                throws java.io.IOException, ClassNotFoundException {
+            in.defaultReadObject();
+            // fieldGetter is transient, re-initialize it.
+            // fieldType and fieldIndexInSourceRow are serialized.
+            if (this.fieldType != null) {
+                this.fieldGetter =
+                        RowData.createFieldGetter(this.fieldType, this.fieldIndexInSourceRow);
+            }
         }
     }
 
