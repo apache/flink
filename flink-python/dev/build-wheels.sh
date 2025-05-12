@@ -24,7 +24,7 @@ py_env=("3.9" "3.10" "3.11" "3.12")
 for ((i=0;i<${#py_env[@]};i++)) do
     source `pwd`/dev/.uv/envs/${py_env[i]}/bin/activate
     echo "Installing dependencies for environment: ${py_env[i]}"
-    uv pip install -r dev/dev-requirements.txt
+    uv pip install --group dev
     deactivate
 done
 

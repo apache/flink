@@ -67,6 +67,6 @@ Then you can activate your environment and run tests, for example:
 
 ```shell
 source pyflink_39/bin/activate
-uv pip install -r ./dev/dev-requirements.txt
+uv pip install --group dev
 ./dev/lint-python.sh
 ```
