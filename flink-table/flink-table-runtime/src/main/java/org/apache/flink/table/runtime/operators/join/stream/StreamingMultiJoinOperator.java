@@ -484,7 +484,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         }
 
         // --- Calculate mapKey for reading state at this depth using left side ---
-        RowData mapKey = keyExtractor.getKeyForStateLookup(depth, currentRows);
+        RowData mapKey = keyExtractor.getKeyForDepthFromCurrentRows(depth, currentRows);
         // --- Use calculated mapKey to get records ---
         Iterable<RowData> records = stateHandlers.get(depth).getRecords(mapKey);
 
@@ -636,7 +636,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
     }
 
     private void addRecordToState(RowData input, int inputId) throws Exception {
-        RowData mapKeyForState = keyExtractor.getKeyForStateStorage(input, inputId);
+        RowData mapKeyForState = keyExtractor.getKeyForInput(input, inputId);
 
         if (isRetraction(input)) {
             stateHandlers.get(inputId).retractRecord(mapKeyForState, input);
