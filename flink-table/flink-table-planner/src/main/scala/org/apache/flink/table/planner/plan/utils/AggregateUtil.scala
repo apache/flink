@@ -56,6 +56,7 @@ import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.RelCollations
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.core.Aggregate.AggCallBinding
+import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.{SqlTypeName, SqlTypeUtil}
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind, SqlRankFunction}
 import org.apache.calcite.sql.fun._
@@ -782,6 +783,7 @@ object AggregateUtil extends Enumeration {
         false,
         false,
         false,
+        new util.ArrayList[RexNode](),
         new util.ArrayList[Integer](),
         -1,
         null,
@@ -860,12 +862,14 @@ object AggregateUtil extends Enumeration {
             false,
             false,
             call.ignoreNulls,
+            call.rexList,
             call.getArgList,
             -1, // remove filterArg
             null,
             RelCollations.EMPTY,
             call.getType,
-            call.getName)
+            call.getName
+          )
         } else {
           call
         }

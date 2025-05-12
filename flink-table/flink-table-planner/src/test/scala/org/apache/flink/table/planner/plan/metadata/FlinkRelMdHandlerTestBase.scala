@@ -1007,6 +1007,7 @@ class FlinkRelMdHandlerTestBase {
       false,
       false,
       false,
+      Seq().toList,
       Seq(Integer.valueOf(3)).toList,
       -1,
       null,

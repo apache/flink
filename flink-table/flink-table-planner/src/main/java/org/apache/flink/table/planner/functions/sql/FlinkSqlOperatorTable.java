@@ -640,10 +640,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                             ReturnTypes.explicit(SqlTypeName.VARCHAR, 128),
                             SqlTypeTransforms.TO_NULLABLE),
                     null,
-                    OperandTypes.sequence(
-                            "'SHA2(DATA, HASH_LENGTH)'",
-                            OperandTypes.STRING,
-                            OperandTypes.NUMERIC_INTEGER),
+                    OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER),
                     SqlFunctionCategory.STRING);
 
     public static final SqlFunction DATE_FORMAT =
