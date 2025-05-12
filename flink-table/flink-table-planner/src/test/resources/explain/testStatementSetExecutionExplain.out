@@ -9,17 +9,15 @@ LogicalSink(table=[default_catalog.default_database.MySink], fields=[first])
 
 == Optimized Physical Plan ==
 Sink(table=[default_catalog.default_database.MySink], fields=[last])
-+- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: last)]]], fields=[last])
-
-Sink(table=[default_catalog.default_database.MySink], fields=[first])
-+- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: first)]]], fields=[first])
++- Union(all=[true], union=[last])
+   :- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: last)]]], fields=[last])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: first)]]], fields=[first])
 
 == Optimized Execution Plan ==
 Sink(table=[default_catalog.default_database.MySink], fields=[last])
-+- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: last)]]], fields=[last])
-
-Sink(table=[default_catalog.default_database.MySink], fields=[first])
-+- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: first)]]], fields=[first])
++- Union(all=[true], union=[last])
+   :- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: last)]]], fields=[last])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: first)]]], fields=[first])
 
 == Physical Execution Plan ==
 {
@@ -45,17 +43,6 @@ Sink(table=[default_catalog.default_database.MySink], fields=[first])
     "type" : "SourceConversion[]",
     "pact" : "Operator",
     "contents" : "[]:SourceConversion(table=[default_catalog.default_database.MyTable, source: [CsvTableSource(read fields: last)]], fields=[last])",
-    "parallelism" : 1,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "FORWARD",
-      "side" : "second"
-    } ]
-  }, {
-    "id" : ,
-    "type" : "StreamingFileWriter",
-    "pact" : "Operator",
-    "contents" : "StreamingFileWriter",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -100,14 +87,7 @@ Sink(table=[default_catalog.default_database.MySink], fields=[first])
       "id" : ,
       "ship_strategy" : "FORWARD",
       "side" : "second"
-    } ]
-  }, {
-    "id" : ,
-    "type" : "end: Writer",
-    "pact" : "Operator",
-    "contents" : "end: Writer",
-    "parallelism" : 1,
-    "predecessors" : [ {
+    }, {
       "id" : ,
       "ship_strategy" : "FORWARD",
       "side" : "second"
