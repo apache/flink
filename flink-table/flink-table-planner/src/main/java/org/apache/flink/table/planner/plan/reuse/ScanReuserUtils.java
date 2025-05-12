@@ -208,8 +208,15 @@ public class ScanReuserUtils {
                         type =
                                 new LocalZonedTimestampType(
                                         type.isNullable(), TimestampKind.ROWTIME, 3);
-                    } else {
+                    } else if (type instanceof TimestampType) {
                         type = new TimestampType(type.isNullable(), TimestampKind.ROWTIME, 3);
+                    } else {
+                        throw new TableException(
+                                String.format(
+                                        "Watermark only supports LocalZonedTimestampType and TimestampType "
+                                                + "while current type %s is not supported by watermark. "
+                                                + "This should not happen.",
+                                        type.asSummaryString()));
                     }
                 }
                 fields.add(new RowType.RowField(name, type));
