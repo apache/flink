@@ -224,7 +224,6 @@
     "RESUME"
     "TABLES"
     "TIMESTAMP_LTZ"
-    "TRY_CAST"
     "UNLOAD"
     "USE"
     "VIEWS"
@@ -580,7 +579,6 @@
     "OVERWRITING"
     "PARTITIONED"
     "PARTITIONS"
-    "TRY_CAST"
     "VIRTUAL"
     "ANALYZE"
     "COMPUTE"
@@ -668,7 +666,6 @@
   # Return type of method implementation should be "SqlNode".
   # Example: DateFunctionCall().
   builtinFunctionCallMethods: [
-    "TryCastFunctionCall()"
     "ExplicitModel()"
   ]
 
@@ -688,6 +685,12 @@
   # Each must accept arguments "(Span s)".
   dropStatementParserMethods: [
     "SqlDropExtended"
+  ]
+
+  # List of methods for parsing extensions to "TRUNCATE" calls.
+  # Each must accept arguments "(SqlParserPos pos)".
+  # Example: "SqlTruncate".
+  truncateStatementParserMethods: [
   ]
 
   # Binary operators tokens
