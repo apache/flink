@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.join.stream;
+package org.apache.flink.table.runtime.operators.join.stream.multijoin;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -30,6 +30,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedMultiJoinCondition;
 import org.apache.flink.table.runtime.generated.MultiJoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.AttributeRef;

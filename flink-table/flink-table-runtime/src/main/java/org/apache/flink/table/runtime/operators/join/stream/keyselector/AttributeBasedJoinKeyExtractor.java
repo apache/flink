@@ -29,7 +29,7 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
     private static final GenericRowData DEFAULT_KEY = new GenericRowData(1);
 
     static {
-        DEFAULT_KEY.setField(0, "__DEFAULT_MULTI_JOIN_SATE_KEY__");
+        DEFAULT_KEY.setField(0, "__DEFAULT_MULTI_JOIN_STATE_KEY__");
     }
 
     private static final InternalTypeInfo<RowData> DEFAULT_KEY_TYPE =
@@ -111,7 +111,6 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
         // Value (rightAttrRef) points to current input (== depth).
         for (Map.Entry<AttributeRef, AttributeRef> entry : attributeMapping.entrySet()) {
             final AttributeRef leftAttrRef = entry.getKey();
-            // AttributeRef rightAttrRef = entry.getValue(); // Not directly needed for lookup key
 
             if (leftAttrRef.inputId >= depth) {
                 // Configuration error: Left side must reference an input index < depth.
