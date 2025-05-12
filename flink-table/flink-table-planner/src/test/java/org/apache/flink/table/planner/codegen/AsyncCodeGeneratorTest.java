@@ -35,14 +35,17 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.types.RowKind;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -55,11 +58,15 @@ public class AsyncCodeGeneratorTest {
 
     private static final RowType INPUT_TYPE =
             RowType.of(new IntType(), new BigIntType(), new VarCharType());
+    private static final RowType INPUT_TYPE2 =
+            RowType.of(new VarCharType(), new VarCharType(), new VarCharType());
 
     private PlannerMocks plannerMocks;
     private SqlToRexConverter converter;
+    private SqlToRexConverter converter2;
 
     private RelDataType tableRowType;
+    private RelDataType tableRowType2;
 
     @BeforeEach
     public void before() {
@@ -75,16 +82,35 @@ public class AsyncCodeGeneratorTest {
                                                 new IntType(),
                                                 new BigIntType(),
                                                 new VarCharType())));
+        tableRowType2 =
+                plannerMocks
+                        .getPlannerContext()
+                        .getTypeFactory()
+                        .buildRelNodeRowType(
+                                JavaScalaConversionUtil.toScala(Arrays.asList("f1", "f2", "f3")),
+                                JavaScalaConversionUtil.toScala(
+                                        Arrays.asList(
+                                                new VarCharType(),
+                                                new VarCharType(),
+                                                new VarCharType())));
         ShortcutUtils.unwrapContext(plannerMocks.getPlanner().createToRelContext().getCluster());
         converter =
                 ShortcutUtils.unwrapContext(
                                 plannerMocks.getPlanner().createToRelContext().getCluster())
                         .getRexFactory()
                         .createSqlToRexConverter(tableRowType, null);
+        converter2 =
+                ShortcutUtils.unwrapContext(
+                                plannerMocks.getPlanner().createToRelContext().getCluster())
+                        .getRexFactory()
+                        .createSqlToRexConverter(tableRowType2, null);
 
         plannerMocks
                 .getFunctionCatalog()
                 .registerTemporarySystemFunction("myfunc", new AsyncFunc(), false);
+        plannerMocks
+                .getFunctionCatalog()
+                .registerTemporarySystemFunction("myfunc2", new AsyncFuncThreeParams(), false);
         plannerMocks
                 .getFunctionCatalog()
                 .registerTemporarySystemFunction("myfunc_error", new AsyncFuncError(), false);
@@ -112,6 +138,33 @@ public class AsyncCodeGeneratorTest {
     }
 
     @Test
+    public void testTwoReturnTypes_passThroughFirst_stringArgs() throws Exception {
+        List<RowData> rowData =
+                executeMany(
+                        converter2,
+                        INPUT_TYPE2,
+                        Arrays.asList("f1", "myFunc2(f1, f2, f3)"),
+                        RowType.of(new VarCharType(), new VarCharType()),
+                        Arrays.asList(
+                                GenericRowData.of(
+                                        StringData.fromString("a1"),
+                                        StringData.fromString("b1"),
+                                        StringData.fromString("c1")),
+                                GenericRowData.of(
+                                        StringData.fromString("a2"),
+                                        StringData.fromString("b2"),
+                                        StringData.fromString("c2"))));
+        assertThat(rowData.get(0))
+                .isEqualTo(
+                        GenericRowData.of(
+                                StringData.fromString("a1"), StringData.fromString("val a1b1c1")));
+        assertThat(rowData.get(1))
+                .isEqualTo(
+                        GenericRowData.of(
+                                StringData.fromString("a2"), StringData.fromString("val a2b2c2")));
+    }
+
+    @Test
     public void testTwoReturnTypes_passThroughSecond() throws Exception {
         RowData rowData =
                 execute(
@@ -124,13 +177,40 @@ public class AsyncCodeGeneratorTest {
 
     @Test
     public void testError() throws Exception {
-        CompletableFuture<Collection<RowData>> future =
+        List<CompletableFuture<Collection<RowData>>> futures =
                 executeFuture(
+                        converter,
+                        INPUT_TYPE,
                         Arrays.asList("myFunc_error(f1, f2, f3)"),
                         RowType.of(new VarCharType(), new BigIntType()),
-                        GenericRowData.of(2, 3L, StringData.fromString("foo")));
+                        Arrays.asList(GenericRowData.of(2, 3L, StringData.fromString("foo"))));
+        CompletableFuture<Collection<RowData>> future = futures.get(0);
         assertThat(future).isCompletedExceptionally();
         assertThatThrownBy(future::get).cause().hasMessage("Error!");
+    }
+
+    @Test
+    public void testPassThroughChangelogTypes() throws Exception {
+        RowData rowData =
+                execute(
+                        Arrays.asList("myFunc(f1)"),
+                        RowType.of(new IntType()),
+                        GenericRowData.ofKind(RowKind.INSERT, 2, 3L, StringData.fromString("foo")));
+        assertThat(rowData).isEqualTo(GenericRowData.of(12));
+        RowData rowData2 =
+                execute(
+                        Arrays.asList("myFunc(f1)"),
+                        RowType.of(new IntType()),
+                        GenericRowData.ofKind(
+                                RowKind.UPDATE_AFTER, 2, 3L, StringData.fromString("foo")));
+        assertThat(rowData2).isEqualTo(GenericRowData.ofKind(RowKind.UPDATE_AFTER, 12));
+
+        RowData rowData3 =
+                execute(
+                        Arrays.asList("myFunc(f1)"),
+                        RowType.of(new IntType()),
+                        GenericRowData.ofKind(RowKind.DELETE, 2, 3L, StringData.fromString("foo")));
+        assertThat(rowData3).isEqualTo(GenericRowData.ofKind(RowKind.DELETE, 12));
     }
 
     private RowData execute(String sqlExpression, RowType resultType, RowData input)
@@ -140,13 +220,42 @@ public class AsyncCodeGeneratorTest {
 
     private RowData execute(List<String> sqlExpressions, RowType resultType, RowData input)
             throws Exception {
-        Collection<RowData> result = executeFuture(sqlExpressions, resultType, input).get();
+        Collection<RowData> result =
+                executeFuture(
+                                converter,
+                                INPUT_TYPE,
+                                sqlExpressions,
+                                resultType,
+                                Collections.singletonList(input))
+                        .get(0)
+                        .get();
         assertThat(result).hasSize(1);
         return result.iterator().next();
     }
 
-    private CompletableFuture<Collection<RowData>> executeFuture(
-            List<String> sqlExpressions, RowType resultType, RowData input) throws Exception {
+    private List<RowData> executeMany(
+            SqlToRexConverter converter,
+            RowType rowType,
+            List<String> sqlExpressions,
+            RowType resultType,
+            List<RowData> inputs)
+            throws Exception {
+        List<CompletableFuture<Collection<RowData>>> list =
+                executeFuture(converter, rowType, sqlExpressions, resultType, inputs);
+        CompletableFuture.allOf(list.toArray(new CompletableFuture[0])).get();
+        List<Collection<RowData>> results =
+                list.stream().map(CompletableFuture::join).collect(Collectors.toList());
+        assertThat(results).hasSize(inputs.size());
+        return results.stream().flatMap(Collection::stream).collect(Collectors.toList());
+    }
+
+    private List<CompletableFuture<Collection<RowData>>> executeFuture(
+            SqlToRexConverter converter,
+            RowType rowType,
+            List<String> sqlExpressions,
+            RowType resultType,
+            List<RowData> inputs)
+            throws Exception {
         List<RexNode> nodes =
                 sqlExpressions.stream()
                         .map(sql -> converter.convertToRexNode(sql))
@@ -154,7 +263,7 @@ public class AsyncCodeGeneratorTest {
         GeneratedFunction<AsyncFunction<RowData, RowData>> function =
                 AsyncCodeGenerator.generateFunction(
                         "name",
-                        INPUT_TYPE,
+                        rowType,
                         resultType,
                         nodes,
                         true,
@@ -162,9 +271,13 @@ public class AsyncCodeGeneratorTest {
                         Thread.currentThread().getContextClassLoader());
         AsyncFunction<RowData, RowData> asyncFunction =
                 function.newInstance(Thread.currentThread().getContextClassLoader());
-        TestResultFuture resultFuture = new TestResultFuture();
-        asyncFunction.asyncInvoke(input, resultFuture);
-        return resultFuture.getResult();
+        List<CompletableFuture<Collection<RowData>>> results = new ArrayList<>();
+        for (RowData input : inputs) {
+            TestResultFuture resultFuture = new TestResultFuture();
+            asyncFunction.asyncInvoke(input, resultFuture);
+            results.add(resultFuture.getResult());
+        }
+        return results;
     }
 
     /** Test function. */
@@ -172,12 +285,26 @@ public class AsyncCodeGeneratorTest {
         public void eval(CompletableFuture<String> f, Integer i, Long l, String s) {
             f.complete("complete " + s + " " + (i * i) + " " + (2 * l));
         }
+
+        public void eval(CompletableFuture<Integer> f, Integer i) {
+            f.complete(i + 10);
+        }
     }
 
     /** Test function. */
     public static final class AsyncFuncError extends AsyncScalarFunction {
         public void eval(CompletableFuture<String> f, Integer i, Long l, String s) {
             f.completeExceptionally(new RuntimeException("Error!"));
+        }
+    }
+
+    /** Test function. */
+    public static class AsyncFuncThreeParams extends AsyncScalarFunction {
+
+        private static final long serialVersionUID = 1L;
+
+        public void eval(CompletableFuture<String> future, String a, String b, String c) {
+            future.complete("val " + a + b + c);
         }
     }
 
