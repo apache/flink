@@ -27,7 +27,9 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
+import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.expressions.SqlFactory;
@@ -35,6 +37,7 @@ import org.apache.flink.table.utils.EncodingUtils;
 
 import org.apache.commons.lang3.StringUtils;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -47,6 +50,32 @@ public class ShowCreateUtil {
     private static final String PRINT_INDENT = "  ";
 
     private ShowCreateUtil() {}
+
+    public static String buildShowCreateModelRow(
+            ResolvedCatalogModel model, ObjectIdentifier modelIdentifier, boolean isTemporary) {
+        StringBuilder sb =
+                new StringBuilder()
+                        .append(buildCreateFormattedPrefix("MODEL", isTemporary, modelIdentifier));
+        extractFormattedColumns(model.getResolvedInputSchema())
+                .ifPresent(
+                        c -> sb.append(String.format("INPUT (%s)%s", c, System.lineSeparator())));
+        extractFormattedColumns(model.getResolvedOutputSchema())
+                .ifPresent(
+                        c -> sb.append(String.format("OUTPUT (%s)%s", c, System.lineSeparator())));
+        extractComment(model)
+                .ifPresent(c -> sb.append(formatComment(c)).append(System.lineSeparator()));
+        extractFormattedOptions(model.getOptions(), PRINT_INDENT)
+                .ifPresent(
+                        v ->
+                                sb.append(String.format("WITH (%s", System.lineSeparator()))
+                                        .append(v)
+                                        .append(
+                                                String.format(
+                                                        "%s)%s",
+                                                        System.lineSeparator(),
+                                                        System.lineSeparator())));
+        return sb.toString();
+    }
 
     public static String buildShowCreateTableRow(
             ResolvedCatalogBaseTable<?> table,
@@ -121,12 +150,14 @@ public class ShowCreateUtil {
     }
 
     static String buildCreateFormattedPrefix(
-            String tableType, boolean isTemporary, ObjectIdentifier identifier) {
+            String type, boolean isTemporary, ObjectIdentifier identifier) {
+        String postName = "model".equalsIgnoreCase(type) ? "" : " (";
         return String.format(
-                "CREATE %s%s %s (%s",
+                "CREATE %s%s %s%s%s",
                 isTemporary ? "TEMPORARY " : "",
-                tableType,
+                type,
                 identifier.asSerializableString(),
+                postName,
                 System.lineSeparator());
     }
 
@@ -177,6 +208,17 @@ public class ShowCreateUtil {
                 .collect(Collectors.joining(",\n"));
     }
 
+    static Optional<String> extractFormattedColumns(ResolvedSchema schema) {
+        List<Column> columns = schema.getColumns();
+        if (columns.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(
+                columns.stream()
+                        .map(ShowCreateUtil::getColumnString)
+                        .collect(Collectors.joining(", ")));
+    }
+
     static Optional<String> extractFormattedWatermarkSpecs(
             ResolvedCatalogBaseTable<?> table, String printIndent, SqlFactory sqlFactory) {
         if (table.getResolvedSchema().getWatermarkSpecs().isEmpty()) {
@@ -205,6 +247,12 @@ public class ShowCreateUtil {
         return StringUtils.isEmpty(table.getComment())
                 ? Optional.empty()
                 : Optional.of(table.getComment());
+    }
+
+    static Optional<String> extractComment(ResolvedCatalogModel model) {
+        return StringUtils.isEmpty(model.getComment())
+                ? Optional.empty()
+                : Optional.of(model.getComment());
     }
 
     static Optional<String> extractFormattedDistributedInfo(ResolvedCatalogTable catalogTable) {
