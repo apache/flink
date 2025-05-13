@@ -24,6 +24,10 @@ import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
+import java.util.Collection;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
 /** An implementation of {@link PhysicalSlot}for testing. */
 public class TestingSlot implements PhysicalSlot {
 
@@ -80,5 +84,11 @@ public class TestingSlot implements PhysicalSlot {
     @Override
     public boolean tryAssignPayload(Payload payload) {
         throw new UnsupportedOperationException();
+    }
+
+    public static Collection<PhysicalSlot> getSlots(int count) {
+        return IntStream.range(0, count)
+                .mapToObj(v -> new TestingSlot())
+                .collect(Collectors.toList());
     }
 }
