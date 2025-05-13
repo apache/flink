@@ -186,8 +186,7 @@ class StreamingThreeWayJoinOperatorTest extends StreamingMultiJoinOperatorTestBa
 
         // Adding a second set with key "2"
         insertUser("2", "Bob", "User 2 Details");
-        // TODO GUSTAVO bug: why do we have order_1 repeat multiple times and not updated? is that
-        // correct? maybe it is?
+        // TODO GUSTAVO double check if order is being updated
         insertOrder("2", "order_2", "Order 2 Details");
         insertPayment("2", "payment_2", "Payment 2 Details");
         emits(

@@ -42,12 +42,13 @@ import java.util.List;
 
 /**
  * Streaming multi-way join operator which supports inner join and left outer join, right joins are
- * transformed into right joins by the optimizer. It only supports a combination of joins that joins
+ * transformed into left joins by the optimizer. It only supports a combination of joins that joins
  * on at least one common column due to partitioning. It eliminates the intermediate state necessary
  * for a chain of multiple binary joins. In other words, it reduces the total amount of state
- * necessary for chained joins. As of time complexity, it performs better in the worst cases where
- * the number of records in the intermediate state is large but worst than reordered binary joins
- * when the number of records in the intermediate state is small.
+ * necessary for chained joins. As of time complexity, it performs better for the worst binary joins
+ * cases, where the number of records in the intermediate state is large. Binary joins perform
+ * better if they are optimally ordered, updates come mostly for the table on the right and the
+ * query uses primary keys (the intermediate state for a specific join key is small).
  *
  * <p>Performs the multi-way join logic recursively. This method drives the join process by
  * traversing through the input streams (represented by `depth`) and their corresponding states. It
@@ -484,7 +485,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         }
 
         // --- Calculate mapKey for reading state at this depth using left side ---
-        RowData mapKey = keyExtractor.getKeyForDepthFromCurrentRows(depth, currentRows);
+        RowData mapKey = keyExtractor.getJoinKeyFromCurrentRows(depth, currentRows);
         // --- Use calculated mapKey to get records ---
         Iterable<RowData> records = stateHandlers.get(depth).getRecords(mapKey);
 
@@ -636,7 +637,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
     }
 
     private void addRecordToState(RowData input, int inputId) throws Exception {
-        RowData mapKeyForState = keyExtractor.getKeyForInput(input, inputId);
+        RowData mapKeyForState = keyExtractor.getJoinKeyFromInput(input, inputId);
 
         if (isRetraction(input)) {
             stateHandlers.get(inputId).retractRecord(mapKeyForState, input);

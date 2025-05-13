@@ -45,7 +45,7 @@ public interface JoinKeyExtractor extends Serializable {
      * @return A {@link RowData} representing the state storage key. Can be null if no key can be
      *     derived (e.g., missing configuration).
      */
-    RowData getKeyForInput(RowData row, int inputId);
+    RowData getJoinKeyFromInput(RowData row, int inputId);
 
     /**
      * Extracts the key used for looking up matching records in the state of a specific input depth,
@@ -63,19 +63,38 @@ public interface JoinKeyExtractor extends Serializable {
      * @return A {@link RowData} representing the state lookup key. Can be null if no key can be
      *     derived (e.g., missing configuration, or a required row in `currentRows` is null).
      */
-    RowData getKeyForDepthFromCurrentRows(int depth, RowData[] currentRows);
+    RowData getJoinKeyFromCurrentRows(int depth, RowData[] currentRows);
 
     /**
      * Determines the type information for the key associated with a specific input's state.
      *
      * <p>This is needed to correctly initialize the state backend (e.g., {@link
      * MultiJoinStateView}). The returned type should match the structure of the keys produced by
-     * {@link #getKeyForInput(RowData, int)} and potentially {@link
-     * #getKeyForDepthFromCurrentRows(int, RowData[])} (depending on the implementation logic).
+     * {@link #getJoinKeyFromInput(RowData, int)} and potentially {@link
+     * #getJoinKeyFromCurrentRows(int, RowData[])} (depending on the implementation logic).
      *
      * @param inputId The ID (0-based index) of the input stream.
      * @return The {@link InternalTypeInfo} for the key type used by the state for this input. Can
      *     be null if no key type can be determined.
      */
     InternalTypeInfo<RowData> getKeyType(int inputId);
+
+    /**
+     * Extracts the common key from an input row. The common key consists of attributes that are
+     * part of all equi-join conditions in the multi-join sequence.
+     *
+     * @param row The input row.
+     * @param inputId The ID of the input stream this row belongs to.
+     * @return A {@link RowData} representing the common key, or a default key if no common
+     *     attributes exist or cannot be determined for this input.
+     */
+    RowData getCommonKey(RowData row, int inputId);
+
+    /**
+     * Gets the type information for the common key for a specific input.
+     *
+     * @param inputId The ID of the input stream.
+     * @return The {@link InternalTypeInfo} for the common key type.
+     */
+    InternalTypeInfo<RowData> getCommonKeyType(int inputId);
 }
