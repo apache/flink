@@ -29,15 +29,15 @@ import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXE
 /** Enforces NOT NULL constraints on the input {@link RowData}. */
 @Internal
 final class NotNullConstraint implements Constraint {
-    private final ExecutionConfigOptions.NotNullEnforcer notNullEnforcer;
+    private final NotNullEnforcementStrategy enforcementStrategy;
     private final int[] notNullFieldIndices;
     private final String[] notNullFieldNames;
 
     NotNullConstraint(
-            ExecutionConfigOptions.NotNullEnforcer notNullEnforcer,
+            NotNullEnforcementStrategy enforcementStrategy,
             int[] notNullFieldIndices,
             String[] notNullFieldNames) {
-        this.notNullEnforcer = notNullEnforcer;
+        this.enforcementStrategy = enforcementStrategy;
         this.notNullFieldIndices = notNullFieldIndices;
         this.notNullFieldNames = notNullFieldNames;
     }
@@ -48,7 +48,7 @@ final class NotNullConstraint implements Constraint {
         for (int i = 0; i < notNullFieldIndices.length; i++) {
             final int index = notNullFieldIndices[i];
             if (input.isNullAt(index)) {
-                switch (notNullEnforcer) {
+                switch (enforcementStrategy) {
                     case ERROR:
                         throw new EnforcerException(
                                 "Column '%s' is NOT NULL, however, a null value is being written into it. "

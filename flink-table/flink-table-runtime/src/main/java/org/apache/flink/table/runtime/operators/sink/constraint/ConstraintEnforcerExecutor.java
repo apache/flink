@@ -19,14 +19,19 @@
 package org.apache.flink.table.runtime.operators.sink.constraint;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.ExecutionConfigOptions.NestedEnforcer;
 import org.apache.flink.table.api.config.ExecutionConfigOptions.NotNullEnforcer;
 import org.apache.flink.table.api.config.ExecutionConfigOptions.TypeLengthEnforcer;
+import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
@@ -50,13 +55,13 @@ import java.util.stream.Stream;
 public class ConstraintEnforcerExecutor implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    private final List<Constraint> constraints;
+    private final Constraint[] constraints;
 
-    private ConstraintEnforcerExecutor(List<Constraint> constraints) {
+    private ConstraintEnforcerExecutor(Constraint[] constraints) {
         this.constraints = constraints;
     }
 
-    public List<Constraint> getConstraints() {
+    public Constraint[] getConstraints() {
         return constraints;
     }
 
@@ -64,19 +69,19 @@ public class ConstraintEnforcerExecutor implements Serializable {
             final RowType physicalType,
             final NotNullEnforcer notNullEnforcer,
             final TypeLengthEnforcer typeLengthEnforcer,
-            final boolean nestedConstraints) {
-        final List<Constraint> topLevelConstraints =
+            final NestedEnforcer nestedConstraints) {
+        final Constraint[] topLevelConstraints =
                 createConstraints(
                         physicalType, notNullEnforcer, typeLengthEnforcer, nestedConstraints);
 
         return create(topLevelConstraints);
     }
 
-    private static List<Constraint> createConstraints(
+    private static Constraint[] createConstraints(
             final RowType physicalType,
             final NotNullEnforcer notNullEnforcer,
             final TypeLengthEnforcer typeLengthEnforcer,
-            final boolean nestedConstraints) {
+            final NestedEnforcer nestedEnforcer) {
         final String[] fieldNames = physicalType.getFieldNames().toArray(new String[0]);
         final List<Constraint> constraints = new ArrayList<>();
 
@@ -89,7 +94,10 @@ public class ConstraintEnforcerExecutor implements Serializable {
                             .toArray(String[]::new);
 
             constraints.add(
-                    new NotNullConstraint(notNullEnforcer, notNullFieldIndices, notNullFieldNames));
+                    new NotNullConstraint(
+                            NotNullEnforcementStrategy.of(notNullEnforcer),
+                            notNullFieldIndices,
+                            notNullFieldNames));
         }
 
         if (typeLengthEnforcer != TypeLengthEnforcer.IGNORE) {
@@ -98,21 +106,27 @@ public class ConstraintEnforcerExecutor implements Serializable {
         }
 
         // Build nested row constraints
-        if (nestedConstraints) {
+        if (nestedEnforcer != NestedEnforcer.IGNORE) {
             addNestedConstraints(
-                    physicalType, notNullEnforcer, typeLengthEnforcer, fieldNames, constraints);
+                    physicalType,
+                    notNullEnforcer,
+                    typeLengthEnforcer,
+                    nestedEnforcer,
+                    fieldNames,
+                    constraints);
         }
 
-        return constraints;
+        return constraints.toArray(Constraint[]::new);
     }
 
     private static void addNestedConstraints(
             final RowType physicalType,
             final NotNullEnforcer notNullEnforcer,
             final TypeLengthEnforcer typeLengthEnforcer,
+            final NestedEnforcer nestedEnforcer,
             final String[] fieldNames,
             final List<Constraint> constraints) {
-        final List<NestedRowInfo> nestedRowInfo = getNestedRowIndices(physicalType);
+        final List<NestedRowInfo> nestedRowInfo = getNestedRowInfos(physicalType);
         if (!nestedRowInfo.isEmpty()) {
             final String[] nestedRowFieldNames =
                     nestedRowInfo.stream()
@@ -125,7 +139,7 @@ public class ConstraintEnforcerExecutor implements Serializable {
             final int[] nestedRowFieldArities =
                     nestedRowInfo.stream().mapToInt(NestedRowInfo::getArity).toArray();
 
-            final List<List<Constraint>> nestedConstraints =
+            final Constraint[][] nestedConstraints =
                     nestedRowInfo.stream()
                             .map(
                                     r ->
@@ -133,15 +147,111 @@ public class ConstraintEnforcerExecutor implements Serializable {
                                                     r.getFieldType(),
                                                     notNullEnforcer,
                                                     typeLengthEnforcer,
-                                                    true))
-                            .collect(Collectors.toList());
+                                                    nestedEnforcer))
+                            .toArray(Constraint[][]::new);
 
             constraints.add(
-                    new NestedConstraint(
+                    new NestedRowConstraint(
                             nestedRowFieldIndices,
                             nestedRowFieldArities,
                             nestedRowFieldNames,
                             nestedConstraints));
+        }
+
+        if (nestedEnforcer == NestedEnforcer.ROWS) {
+            return;
+        }
+
+        if (typeLengthEnforcer == TypeLengthEnforcer.TRIM_PAD) {
+            throw new ValidationException(
+                    "Trimming and/or padding is not supported if constraint checking is enabled on"
+                            + " types nested in collections.");
+        }
+
+        // add nested array constraints
+        final List<NestedArrayInfo> nestedArrayInfos = getNestedArrayInfos(physicalType);
+        if (!nestedArrayInfos.isEmpty()) {
+            final String[] nestedRowFieldNames =
+                    nestedArrayInfos.stream()
+                            .map(r -> fieldNames[r.getFieldIdx()])
+                            .toArray(String[]::new);
+
+            final int[] nestedRowFieldIndices =
+                    nestedArrayInfos.stream().mapToInt(NestedArrayInfo::getFieldIdx).toArray();
+
+            final Constraint[][] elementConstraints =
+                    nestedArrayInfos.stream()
+                            .map(
+                                    r1 ->
+                                            createConstraints(
+                                                    new RowType(
+                                                            List.of(
+                                                                    new RowType.RowField(
+                                                                            "element",
+                                                                            r1.getElementType()))),
+                                                    notNullEnforcer,
+                                                    typeLengthEnforcer,
+                                                    nestedEnforcer))
+                            .toArray(Constraint[][]::new);
+
+            final ArrayData.ElementGetter[] elementGetters =
+                    nestedArrayInfos.stream()
+                            .map(r -> ArrayData.createElementGetter(r.getElementType()))
+                            .toArray(ArrayData.ElementGetter[]::new);
+
+            constraints.add(
+                    new NestedArrayConstraint(
+                            nestedRowFieldIndices,
+                            nestedRowFieldNames,
+                            elementConstraints,
+                            elementGetters));
+        }
+
+        // add nested map constraints
+        final List<NestedMapInfo> nestedMapInfos = getNestedMapInfos(physicalType);
+        if (!nestedMapInfos.isEmpty()) {
+            final String[] nestedRowFieldNames =
+                    nestedMapInfos.stream()
+                            .map(r -> fieldNames[r.getFieldIdx()])
+                            .toArray(String[]::new);
+
+            final int[] nestedRowFieldIndices =
+                    nestedMapInfos.stream().mapToInt(NestedMapInfo::getFieldIdx).toArray();
+
+            final Constraint[][] elementConstraints =
+                    nestedMapInfos.stream()
+                            .map(
+                                    r1 ->
+                                            createConstraints(
+                                                    new RowType(
+                                                            List.of(
+                                                                    new RowType.RowField(
+                                                                            "key", r1.getKeyType()),
+                                                                    new RowType.RowField(
+                                                                            "value",
+                                                                            r1.getValueType()))),
+                                                    notNullEnforcer,
+                                                    typeLengthEnforcer,
+                                                    nestedEnforcer))
+                            .toArray(Constraint[][]::new);
+
+            final ArrayData.ElementGetter[] keyGetters =
+                    nestedMapInfos.stream()
+                            .map(r -> ArrayData.createElementGetter(r.getKeyType()))
+                            .toArray(ArrayData.ElementGetter[]::new);
+
+            final ArrayData.ElementGetter[] valueGetters =
+                    nestedMapInfos.stream()
+                            .map(r -> ArrayData.createElementGetter(r.getValueType()))
+                            .toArray(ArrayData.ElementGetter[]::new);
+
+            constraints.add(
+                    new NestedMapConstraint(
+                            nestedRowFieldIndices,
+                            nestedRowFieldNames,
+                            elementConstraints,
+                            keyGetters,
+                            valueGetters));
         }
     }
 
@@ -151,7 +261,7 @@ public class ConstraintEnforcerExecutor implements Serializable {
             final String[] fieldNames,
             final List<Constraint> constraints) {
         final List<FieldInfo> charFieldInfo =
-                getFieldInfoForLengthEnforcer(physicalType, LengthEnforcerType.CHAR);
+                getFieldInfoForLengthEnforcer(physicalType, LengthEnforcerKind.CHAR);
         if (!charFieldInfo.isEmpty()) {
             final String[] charFieldNames =
                     charFieldInfo.stream()
@@ -166,7 +276,7 @@ public class ConstraintEnforcerExecutor implements Serializable {
 
             constraints.add(
                     new CharLengthConstraint(
-                            typeLengthEnforcer,
+                            TypeLengthEnforcementStrategy.of(typeLengthEnforcer),
                             charFieldIndices,
                             charFieldLengths,
                             charFieldNames,
@@ -175,7 +285,7 @@ public class ConstraintEnforcerExecutor implements Serializable {
 
         // Build BINARY/VARBINARY length enforcer
         final List<FieldInfo> binaryFieldInfo =
-                getFieldInfoForLengthEnforcer(physicalType, LengthEnforcerType.BINARY);
+                getFieldInfoForLengthEnforcer(physicalType, LengthEnforcerKind.BINARY);
         if (!binaryFieldInfo.isEmpty()) {
             final String[] binaryFieldNames =
                     binaryFieldInfo.stream()
@@ -190,7 +300,7 @@ public class ConstraintEnforcerExecutor implements Serializable {
 
             constraints.add(
                     new BinaryLengthConstraint(
-                            typeLengthEnforcer,
+                            TypeLengthEnforcementStrategy.of(typeLengthEnforcer),
                             binaryFieldIndices,
                             binaryFieldLengths,
                             binaryFieldNames,
@@ -198,8 +308,8 @@ public class ConstraintEnforcerExecutor implements Serializable {
         }
     }
 
-    private static Optional<ConstraintEnforcerExecutor> create(final List<Constraint> constraints) {
-        if (constraints.isEmpty()) {
+    private static Optional<ConstraintEnforcerExecutor> create(final Constraint[] constraints) {
+        if (constraints.length == 0) {
             return Optional.empty();
         }
         return Optional.of(new ConstraintEnforcerExecutor(constraints));
@@ -211,7 +321,7 @@ public class ConstraintEnforcerExecutor implements Serializable {
                 .toArray();
     }
 
-    private static List<NestedRowInfo> getNestedRowIndices(final RowType physicalType) {
+    private static List<NestedRowInfo> getNestedRowInfos(final RowType physicalType) {
         return IntStream.range(0, physicalType.getFieldCount())
                 .boxed()
                 .flatMap(
@@ -228,12 +338,49 @@ public class ConstraintEnforcerExecutor implements Serializable {
                 .collect(Collectors.toList());
     }
 
+    private static List<NestedArrayInfo> getNestedArrayInfos(final RowType physicalType) {
+        return IntStream.range(0, physicalType.getFieldCount())
+                .boxed()
+                .flatMap(
+                        pos -> {
+                            final LogicalType nestedType = physicalType.getTypeAt(pos);
+                            if (nestedType.is(LogicalTypeRoot.ARRAY)) {
+                                final ArrayType arrayType = (ArrayType) nestedType;
+                                final LogicalType elementType = arrayType.getElementType();
+
+                                return Stream.of(new NestedArrayInfo(pos, elementType));
+                            } else {
+                                return Stream.empty();
+                            }
+                        })
+                .collect(Collectors.toList());
+    }
+
+    private static List<NestedMapInfo> getNestedMapInfos(final RowType physicalType) {
+        return IntStream.range(0, physicalType.getFieldCount())
+                .boxed()
+                .flatMap(
+                        pos -> {
+                            final LogicalType nestedType = physicalType.getTypeAt(pos);
+                            if (nestedType.is(LogicalTypeRoot.MAP)) {
+                                final MapType mapType = (MapType) nestedType;
+
+                                return Stream.of(
+                                        new NestedMapInfo(
+                                                pos, mapType.getKeyType(), mapType.getValueType()));
+                            } else {
+                                return Stream.empty();
+                            }
+                        })
+                .collect(Collectors.toList());
+    }
+
     /**
      * Returns a List of {@link FieldInfo}, each containing the info needed to determine whether a
      * string or binary value needs trimming and/or padding.
      */
     private static List<FieldInfo> getFieldInfoForLengthEnforcer(
-            final RowType physicalType, final LengthEnforcerType enforcerType) {
+            final RowType physicalType, final LengthEnforcerKind enforcerType) {
         LogicalTypeRoot staticType = null;
         LogicalTypeRoot variableType = null;
         int maxLength = 0;
@@ -308,6 +455,48 @@ public class ConstraintEnforcerExecutor implements Serializable {
         }
     }
 
+    private static class NestedArrayInfo {
+        private final int fieldIdx;
+        private final LogicalType elementType;
+
+        private NestedArrayInfo(final int fieldIdx, final LogicalType elementType) {
+            this.fieldIdx = fieldIdx;
+            this.elementType = elementType;
+        }
+
+        public int getFieldIdx() {
+            return fieldIdx;
+        }
+
+        public LogicalType getElementType() {
+            return elementType;
+        }
+    }
+
+    private static class NestedMapInfo {
+        private final int fieldIdx;
+        private final LogicalType valueType;
+        private final LogicalType keyType;
+
+        private NestedMapInfo(final int fieldIdx, LogicalType keyType, LogicalType valueType) {
+            this.fieldIdx = fieldIdx;
+            this.valueType = valueType;
+            this.keyType = keyType;
+        }
+
+        public int getFieldIdx() {
+            return fieldIdx;
+        }
+
+        public LogicalType getValueType() {
+            return valueType;
+        }
+
+        public LogicalType getKeyType() {
+            return keyType;
+        }
+    }
+
     /**
      * Helper POJO to keep info about CHAR/VARCHAR/BINARY/VARBINARY fields, used to determine if
      * trimming or padding is needed.
@@ -337,7 +526,7 @@ public class ConstraintEnforcerExecutor implements Serializable {
         }
     }
 
-    private enum LengthEnforcerType {
+    enum LengthEnforcerKind {
         CHAR,
         BINARY
     }

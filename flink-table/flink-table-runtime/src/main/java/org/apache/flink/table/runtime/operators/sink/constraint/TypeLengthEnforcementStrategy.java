@@ -19,21 +19,27 @@
 package org.apache.flink.table.runtime.operators.sink.constraint;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.data.RowData;
-
-import javax.annotation.Nullable;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 
 import java.io.Serializable;
 
-/** Interface for constraints to be enforced on the input {@link RowData}. */
+/** Keep in sync with {@link ExecutionConfigOptions.TypeLengthEnforcer}. */
 @Internal
-public interface Constraint extends Serializable {
+enum TypeLengthEnforcementStrategy implements Serializable {
+    TRIM_PAD,
+    THROW;
 
-    /**
-     * If a null value is returned, the input row is considered to be invalid and should be dropped.
-     * This applies to all nested columns. If at any level a null value is returned, the incoming
-     * row is dropped from further processing.
-     */
-    @Nullable
-    RowData enforce(RowData input);
+    public static TypeLengthEnforcementStrategy of(
+            ExecutionConfigOptions.TypeLengthEnforcer option) {
+        switch (option) {
+            case TRIM_PAD:
+                return TRIM_PAD;
+            case ERROR:
+                return THROW;
+            case IGNORE:
+            // We should not create a constraint for this case.
+            default:
+                throw new IllegalArgumentException("Unknown type length enforcer: " + option);
+        }
+    }
 }

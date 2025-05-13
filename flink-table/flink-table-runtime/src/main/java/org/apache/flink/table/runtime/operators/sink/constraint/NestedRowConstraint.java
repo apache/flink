@@ -24,24 +24,24 @@ import org.apache.flink.table.data.UpdatableRowData;
 
 import javax.annotation.Nullable;
 
-import java.util.List;
+import java.util.Arrays;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /** Checks constraints on nested rows. */
 @Internal
-final class NestedConstraint implements Constraint {
+final class NestedRowConstraint implements Constraint {
 
     private final int[] nestedRowFieldIndices;
     private final int[] nestedRowFieldArities;
     private final String[] nestedRowFieldNames;
-    private final List<List<Constraint>> nestedRowConstraints;
+    private final Constraint[][] nestedRowConstraints;
 
-    NestedConstraint(
+    NestedRowConstraint(
             int[] nestedRowFieldIndices,
             int[] nestedRowFieldArities,
             String[] nestedRowFieldNames,
-            List<List<Constraint>> nestedRowConstraints) {
+            Constraint[][] nestedRowConstraints) {
         this.nestedRowFieldIndices = nestedRowFieldIndices;
         this.nestedRowFieldArities = nestedRowFieldArities;
         this.nestedRowFieldNames = nestedRowFieldNames;
@@ -56,7 +56,7 @@ final class NestedConstraint implements Constraint {
             final int index = nestedRowFieldIndices[i];
             if (!input.isNullAt(index)) {
                 RowData nestedRow = input.getRow(index, nestedRowFieldArities[i]);
-                for (Constraint constraint : nestedRowConstraints.get(i)) {
+                for (Constraint constraint : nestedRowConstraints[i]) {
                     RowData enforcedRow = enforce(constraint, nestedRow, i);
                     if (enforcedRow == null) {
                         return null;
@@ -86,14 +86,14 @@ final class NestedConstraint implements Constraint {
     @Override
     public String toString() {
         return String.format(
-                "NestedEnforcer(constraints=[%s])",
+                "NestedRowEnforcer(constraints=[%s])",
                 IntStream.range(0, nestedRowFieldIndices.length)
                         .mapToObj(
                                 idx ->
                                         String.format(
                                                 "{%s=%s}",
                                                 nestedRowFieldNames[idx],
-                                                nestedRowConstraints.get(idx).toString()))
+                                                Arrays.toString(nestedRowConstraints[idx])))
                         .collect(Collectors.joining(", ")));
     }
 }

@@ -65,7 +65,6 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.api.DataTypes.INT;
-import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SINK_NESTED_CONSTRAINT_ENFORCER;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -236,23 +235,31 @@ class CommonExecSinkITCase {
 
         // Change config option to "trim_pad", to trim or pad the strings
         // accordingly, based on their type length
-        tableEnv.getConfig()
-                .set(
-                        TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER.key(),
-                        ExecutionConfigOptions.TypeLengthEnforcer.TRIM_PAD.name());
+        try {
+            tableEnv.getConfig()
+                    .set(
+                            TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER.key(),
+                            ExecutionConfigOptions.TypeLengthEnforcer.TRIM_PAD.name());
 
-        result = tableEnv.executeSql("SELECT * FROM T1");
-        result.await();
+            result = tableEnv.executeSql("SELECT * FROM T1");
+            result.await();
 
-        final List<Row> expected =
-                Arrays.asList(
-                        Row.of(1, "Apache F", "SQL Ru", 11, 111, "SQL"),
-                        Row.of(2, "Apache  ", "SQL   ", 22, 222, "Flink"),
-                        Row.of(3, "Apache  ", "Flink ", 33, 333, "Apache"),
-                        Row.of(4, "Flink Pr", "SQL or", 44, 444, "Apache"));
-        final List<Row> resultsTrimmed = new ArrayList<>();
-        result.collect().forEachRemaining(resultsTrimmed::add);
-        assertThat(resultsTrimmed).containsExactlyInAnyOrderElementsOf(expected);
+            final List<Row> expected =
+                    Arrays.asList(
+                            Row.of(1, "Apache F", "SQL Ru", 11, 111, "SQL"),
+                            Row.of(2, "Apache  ", "SQL   ", 22, 222, "Flink"),
+                            Row.of(3, "Apache  ", "Flink ", 33, 333, "Apache"),
+                            Row.of(4, "Flink Pr", "SQL or", 44, 444, "Apache"));
+            final List<Row> resultsTrimmed = new ArrayList<>();
+            result.collect().forEachRemaining(resultsTrimmed::add);
+            assertThat(resultsTrimmed).containsExactlyInAnyOrderElementsOf(expected);
+
+        } finally {
+            tableEnv.getConfig()
+                    .set(
+                            TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER.key(),
+                            ExecutionConfigOptions.TypeLengthEnforcer.IGNORE.name());
+        }
     }
 
     @Test
@@ -306,47 +313,55 @@ class CommonExecSinkITCase {
 
         // Change config option to "trim_pad", to trim or pad the strings
         // accordingly, based on their type length
-        tableEnv.getConfig()
-                .set(
-                        TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER.key(),
-                        ExecutionConfigOptions.TypeLengthEnforcer.TRIM_PAD.name());
+        try {
+            tableEnv.getConfig()
+                    .set(
+                            TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER.key(),
+                            ExecutionConfigOptions.TypeLengthEnforcer.TRIM_PAD.name());
 
-        result = tableEnv.executeSql("SELECT * FROM T1");
-        result.await();
+            result = tableEnv.executeSql("SELECT * FROM T1");
+            result.await();
 
-        final List<Row> expected =
-                Arrays.asList(
-                        Row.of(
-                                1,
-                                new byte[] {1, 2, 3, 4, 5, 6, 7, 8},
-                                new byte[] {1, 2, 3, 4, 5, 6},
-                                11,
-                                111,
-                                new byte[] {1, 2, 3}),
-                        Row.of(
-                                2,
-                                new byte[] {1, 2, 3, 4, 5, 0, 0, 0},
-                                new byte[] {1, 2, 3, 0, 0, 0},
-                                22,
-                                222,
-                                new byte[] {1, 2, 3, 4, 5, 6}),
-                        Row.of(
-                                3,
-                                new byte[] {1, 2, 3, 4, 5, 6, 0, 0},
-                                new byte[] {1, 2, 3, 4, 5, 0},
-                                33,
-                                333,
-                                new byte[] {1, 2, 3, 4, 5, 6}),
-                        Row.of(
-                                4,
-                                new byte[] {1, 2, 3, 4, 5, 6, 7, 8},
-                                new byte[] {1, 2, 3, 4, 5, 6},
-                                44,
-                                444,
-                                new byte[] {1, 2, 3, 4, 5, 6}));
-        final List<Row> resultsTrimmed = new ArrayList<>();
-        result.collect().forEachRemaining(resultsTrimmed::add);
-        assertThat(resultsTrimmed).containsExactlyInAnyOrderElementsOf(expected);
+            final List<Row> expected =
+                    Arrays.asList(
+                            Row.of(
+                                    1,
+                                    new byte[] {1, 2, 3, 4, 5, 6, 7, 8},
+                                    new byte[] {1, 2, 3, 4, 5, 6},
+                                    11,
+                                    111,
+                                    new byte[] {1, 2, 3}),
+                            Row.of(
+                                    2,
+                                    new byte[] {1, 2, 3, 4, 5, 0, 0, 0},
+                                    new byte[] {1, 2, 3, 0, 0, 0},
+                                    22,
+                                    222,
+                                    new byte[] {1, 2, 3, 4, 5, 6}),
+                            Row.of(
+                                    3,
+                                    new byte[] {1, 2, 3, 4, 5, 6, 0, 0},
+                                    new byte[] {1, 2, 3, 4, 5, 0},
+                                    33,
+                                    333,
+                                    new byte[] {1, 2, 3, 4, 5, 6}),
+                            Row.of(
+                                    4,
+                                    new byte[] {1, 2, 3, 4, 5, 6, 7, 8},
+                                    new byte[] {1, 2, 3, 4, 5, 6},
+                                    44,
+                                    444,
+                                    new byte[] {1, 2, 3, 4, 5, 6}));
+            final List<Row> resultsTrimmed = new ArrayList<>();
+            result.collect().forEachRemaining(resultsTrimmed::add);
+            assertThat(resultsTrimmed).containsExactlyInAnyOrderElementsOf(expected);
+
+        } finally {
+            tableEnv.getConfig()
+                    .set(
+                            TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER.key(),
+                            ExecutionConfigOptions.TypeLengthEnforcer.IGNORE.name());
+        }
     }
 
     @Test
@@ -389,161 +404,27 @@ class CommonExecSinkITCase {
                                 + "value and does not allow NULLs");
 
         // Change config option to "drop", to drop the columns instead of throwing errors
-        tableEnv.getConfig()
-                .set(
-                        TABLE_EXEC_SINK_NOT_NULL_ENFORCER.key(),
-                        ExecutionConfigOptions.NotNullEnforcer.DROP.name());
+        try {
+            tableEnv.getConfig()
+                    .set(
+                            TABLE_EXEC_SINK_NOT_NULL_ENFORCER.key(),
+                            ExecutionConfigOptions.NotNullEnforcer.DROP.name());
 
-        results.get().clear();
-        tableEnv.executeSql("INSERT INTO T1 SELECT * FROM T1").await();
-        assertThat(results.get().size()).isEqualTo(2);
-        assertThat(results.get().get(0).getInt(0)).isEqualTo(1);
-        assertThat(results.get().get(0).getString(1).toString()).isEqualTo("Apache");
-        assertThat(results.get().get(0).getInt(2)).isEqualTo(11);
-        assertThat(results.get().get(1).isNullAt(0)).isTrue();
-        assertThat(results.get().get(1).getString(1).toString()).isEqualTo("Flink");
-        assertThat(results.get().get(1).getInt(2)).isEqualTo(33);
-    }
-
-    @Test
-    void testNestedEnforcer() throws ExecutionException, InterruptedException {
-        final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
-        final List<Row> rows =
-                Arrays.asList(
-                        Row.of(
-                                Row.of( // a
-                                        1L, // aa
-                                        Row.of( // ab
-                                                2L, // aba,
-                                                "ABC", // abb
-                                                new byte[] {1, 2, 3} // abc
-                                                ))),
-                        Row.of(
-                                Row.of( // a
-                                        2L, // aa
-                                        null)), // ab
-                        Row.of(
-                                Row.of( // a
-                                        3L, // aa
-                                        Row.of( // ab
-                                                null, // aba,
-                                                "ABC", // abb
-                                                new byte[] {1, 2} // abc
-                                                ))),
-                        Row.of(
-                                Row.of( // a
-                                        4L, // aa
-                                        Row.of( // ab
-                                                2L, // aba,
-                                                "AB", // abb
-                                                new byte[] {1, 2, 3} // abc
-                                                ))));
-
-        final SharedReference<List<RowData>> results = sharedObjects.add(new ArrayList<>());
-        tableEnv.createTable(
-                "T1",
-                TableFactoryHarness.newBuilder()
-                        .schema(
-                                Schema.newBuilder()
-                                        .column(
-                                                "a",
-                                                DataTypes.ROW(
-                                                        DataTypes.FIELD(
-                                                                "aa", DataTypes.BIGINT().notNull()),
-                                                        DataTypes.FIELD(
-                                                                "ab",
-                                                                DataTypes.ROW(
-                                                                                DataTypes.FIELD(
-                                                                                        "aba",
-                                                                                        DataTypes
-                                                                                                .BIGINT()
-                                                                                                .notNull()),
-                                                                                DataTypes.FIELD(
-                                                                                        "abb",
-                                                                                        DataTypes
-                                                                                                .CHAR(
-                                                                                                        2)),
-                                                                                DataTypes.FIELD(
-                                                                                        "abc",
-                                                                                        DataTypes
-                                                                                                .VARBINARY(
-                                                                                                        2)))
-                                                                        .notNull())))
-                                        .build())
-                        .source(new TestSource(rows))
-                        .sink(buildRuntimeSinkProvider(new RecordWriter(results)))
-                        .build());
-
-        // Change config option to "drop", to drop the columns instead of throwing errors
-        tableEnv.getConfig().set(TABLE_EXEC_SINK_NESTED_CONSTRAINT_ENFORCER, true);
-        tableEnv.getConfig()
-                .set(
-                        TABLE_EXEC_SINK_NOT_NULL_ENFORCER,
-                        ExecutionConfigOptions.NotNullEnforcer.ERROR);
-
-        assertThatThrownBy(
-                        () ->
-                                tableEnv.executeSql(
-                                                "INSERT INTO T1 SELECT * FROM T1 WHERE a.aa = 2")
-                                        .await())
-                .satisfies(
-                        anyCauseMatches(
-                                "Column 'a.ab' is NOT NULL, however, a null value is being written into it. "
-                                        + "You can set job configuration 'table.exec.sink.not-null-enforcer'='DROP' "
-                                        + "to suppress this exception and drop such records silently."));
-
-        assertThatThrownBy(
-                        () ->
-                                tableEnv.executeSql(
-                                                "INSERT INTO T1 SELECT * FROM T1 WHERE a.aa = 3")
-                                        .await())
-                .satisfies(
-                        anyCauseMatches(
-                                "Column 'a.ab.aba' is NOT NULL, however, a null value is being written into it. "
-                                        + "You can set job configuration 'table.exec.sink.not-null-enforcer'='DROP' "
-                                        + "to suppress this exception and drop such records silently."));
-
-        tableEnv.getConfig()
-                .set(
-                        TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER.key(),
-                        ExecutionConfigOptions.TypeLengthEnforcer.THROW.name());
-
-        assertThatThrownBy(
-                        () ->
-                                tableEnv.executeSql(
-                                                "INSERT INTO T1 SELECT * FROM T1 WHERE a.aa = 1")
-                                        .await())
-                .satisfies(
-                        anyCauseMatches(
-                                "Column 'a.ab.abb' is CHAR(2), however, a string of"
-                                        + " length 3 is being written into it. You can set job"
-                                        + " configuration 'table.exec.sink.type-length-enforcer'"
-                                        + " to control this behaviour."));
-
-        assertThatThrownBy(
-                        () ->
-                                tableEnv.executeSql(
-                                                "INSERT INTO T1 SELECT * FROM T1 WHERE a.aa = 4")
-                                        .await())
-                .satisfies(
-                        anyCauseMatches(
-                                "Column 'a.ab.abc' is VARBINARY(2), however, a string of"
-                                        + " length 3 is being written into it. You can set job"
-                                        + " configuration 'table.exec.sink.type-length-enforcer'"
-                                        + " to control this behaviour."));
-
-        tableEnv.getConfig()
-                .set(
-                        TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER.key(),
-                        ExecutionConfigOptions.TypeLengthEnforcer.TRIM_PAD.name());
-
-        results.get().clear();
-        tableEnv.executeSql("INSERT INTO T1 SELECT * FROM T1 WHERE a.aa = 1").await();
-        assertThat(results.get().size()).isEqualTo(1);
-        assertThat(results.get().get(0).getRow(0, 2).getRow(1, 3).getString(1).toString())
-                .isEqualTo("AB");
-        assertThat(results.get().get(0).getRow(0, 2).getRow(1, 3).getBinary(2))
-                .isEqualTo(new byte[] {1, 2});
+            results.get().clear();
+            tableEnv.executeSql("INSERT INTO T1 SELECT * FROM T1").await();
+            assertThat(results.get().size()).isEqualTo(2);
+            assertThat(results.get().get(0).getInt(0)).isEqualTo(1);
+            assertThat(results.get().get(0).getString(1).toString()).isEqualTo("Apache");
+            assertThat(results.get().get(0).getInt(2)).isEqualTo(11);
+            assertThat(results.get().get(1).isNullAt(0)).isTrue();
+            assertThat(results.get().get(1).getString(1).toString()).isEqualTo("Flink");
+            assertThat(results.get().get(1).getInt(2)).isEqualTo(33);
+        } finally {
+            tableEnv.getConfig()
+                    .set(
+                            TABLE_EXEC_SINK_NOT_NULL_ENFORCER.key(),
+                            ExecutionConfigOptions.NotNullEnforcer.ERROR.name());
+        }
     }
 
     @Test

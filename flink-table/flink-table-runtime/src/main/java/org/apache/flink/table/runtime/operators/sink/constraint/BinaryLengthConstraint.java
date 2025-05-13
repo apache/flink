@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.operators.sink.constraint;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.UpdatableRowData;
 
@@ -34,19 +33,19 @@ import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXE
 @Internal
 final class BinaryLengthConstraint implements Constraint {
 
-    private final ExecutionConfigOptions.TypeLengthEnforcer typeLengthEnforcer;
+    private final TypeLengthEnforcementStrategy typeLengthEnforcementStrategy;
     private final int[] fieldIndices;
     private final int[] fieldLengths;
     private final String[] fieldNames;
     private final BitSet fieldCouldPad;
 
     BinaryLengthConstraint(
-            final ExecutionConfigOptions.TypeLengthEnforcer typeLengthEnforcer,
+            final TypeLengthEnforcementStrategy typeLengthEnforcementStrategy,
             final int[] fieldIndices,
             final int[] fieldLengths,
             final String[] fieldNames,
             final BitSet fieldCouldPad) {
-        this.typeLengthEnforcer = typeLengthEnforcer;
+        this.typeLengthEnforcementStrategy = typeLengthEnforcementStrategy;
         this.fieldIndices = fieldIndices;
         this.fieldLengths = fieldLengths;
         this.fieldNames = fieldNames;
@@ -68,10 +67,7 @@ final class BinaryLengthConstraint implements Constraint {
             // Trimming takes places because of the shorter length used in `Arrays.copyOf` and
             // padding because of the longer length, as implicitly the trailing bytes are 0.
             if ((actualLength > expectedLength) || (shouldPad && actualLength < expectedLength)) {
-                switch (typeLengthEnforcer) {
-                    case IGNORE:
-                        throw new IllegalStateException(
-                                "The enforcer should not have been created.");
+                switch (typeLengthEnforcementStrategy) {
                     case TRIM_PAD:
                         updatedRowData =
                                 trimOrPad(

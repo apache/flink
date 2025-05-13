@@ -131,12 +131,13 @@ public class ExecutionConfigOptions {
                                     + "CHAR/VARCHAR/BINARY/VARBINARY column type.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
-    public static final ConfigOption<Boolean> TABLE_EXEC_SINK_NESTED_CONSTRAINT_ENFORCER =
+    public static final ConfigOption<NestedEnforcer> TABLE_EXEC_SINK_NESTED_CONSTRAINT_ENFORCER =
             key("table.exec.sink.nested-constraint-enforcer")
-                    .booleanType()
-                    .defaultValue(false)
+                    .enumType(NestedEnforcer.class)
+                    .defaultValue(NestedEnforcer.IGNORE)
                     .withDescription(
-                            "Determines if constraints should be enforced for nested fields.");
+                            "Determines if constraints should be enforced for nested fields. Beware that "
+                                    + "enforcing constraints for nested fields may cause performance issues.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<UpsertMaterialize> TABLE_EXEC_SINK_UPSERT_MATERIALIZE =
@@ -674,7 +675,7 @@ public class ExecutionConfigOptions {
                 text(
                         "Trim and pad string and binary values to match the length "
                                 + "defined by the CHAR/VARCHAR/BINARY/VARBINARY length.")),
-        THROW(
+        ERROR(
                 text(
                         "Throw a runtime exception when writing data into a "
                                 + "CHAR/VARCHAR/BINARY/VARBINARY column which does not match the length"
@@ -683,6 +684,30 @@ public class ExecutionConfigOptions {
         private final InlineElement description;
 
         TypeLengthEnforcer(InlineElement description) {
+            this.description = description;
+        }
+
+        @Internal
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+    }
+
+    /** The enforcer to check the constraints on nested types. */
+    @PublicEvolving
+    public enum NestedEnforcer implements DescribedEnum {
+        IGNORE(text("Don't perform check on nested types in ROWS/ARRAYS/MAPS")),
+        ROWS(text("Perform checks on nested types in ROWS.")),
+        ROWS_AND_COLLECTIONS(
+                text(
+                        "Perform checks on nested types in ROWS/ARRAYS/MAPS. Be aware that the"
+                                + " more checks the more performance impact. Especially checking"
+                                + " types in ARRAYS/MAPS can be expensive."));
+
+        private final InlineElement description;
+
+        NestedEnforcer(InlineElement description) {
             this.description = description;
         }
 

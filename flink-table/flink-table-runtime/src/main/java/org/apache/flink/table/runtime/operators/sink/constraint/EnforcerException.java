@@ -23,7 +23,7 @@ import org.apache.flink.table.api.TableRuntimeException;
 
 /**
  * Exception thrown when a constraint is violated. Specific exception so that we can construct a
- * nested column path from {@link NestedConstraint}.
+ * nested column path from {@link NestedRowConstraint}.
  */
 @Internal
 public final class EnforcerException extends TableRuntimeException {

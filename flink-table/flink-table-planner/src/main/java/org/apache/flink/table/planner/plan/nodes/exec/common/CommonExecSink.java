@@ -268,7 +268,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                         executor -> {
                             final String operatorName =
                                     "ConstraintEnforcer["
-                                            + executor.getConstraints().stream()
+                                            + Arrays.stream(executor.getConstraints())
                                                     .map(Objects::toString)
                                                     .collect(Collectors.joining(", "))
                                             + "]";

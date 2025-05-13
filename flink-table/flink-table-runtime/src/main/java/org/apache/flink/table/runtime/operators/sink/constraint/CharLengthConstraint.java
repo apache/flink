@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.operators.sink.constraint;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.UpdatableRowData;
@@ -36,19 +35,19 @@ import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXE
 @Internal
 final class CharLengthConstraint implements Constraint {
 
-    private final ExecutionConfigOptions.TypeLengthEnforcer typeLengthEnforcer;
+    private final TypeLengthEnforcementStrategy enforcementStrategy;
     private final int[] fieldIndices;
     private final int[] fieldLengths;
     private final String[] fieldNames;
     private final BitSet fieldCouldPad;
 
     CharLengthConstraint(
-            final ExecutionConfigOptions.TypeLengthEnforcer typeLengthEnforcer,
+            final TypeLengthEnforcementStrategy enforcementStrategy,
             final int[] charFieldIndices,
             final int[] charFieldLengths,
             final String[] charFieldNames,
             final BitSet charFieldCouldPad) {
-        this.typeLengthEnforcer = typeLengthEnforcer;
+        this.enforcementStrategy = enforcementStrategy;
         this.fieldIndices = charFieldIndices;
         this.fieldLengths = charFieldLengths;
         this.fieldNames = charFieldNames;
@@ -67,9 +66,7 @@ final class CharLengthConstraint implements Constraint {
             final int actualLength = stringData.numChars();
             final boolean shouldPad = fieldCouldPad.get(i);
 
-            switch (typeLengthEnforcer) {
-                case IGNORE:
-                    throw new IllegalStateException("The enforcer should not have been created.");
+            switch (enforcementStrategy) {
                 case TRIM_PAD:
                     updatedRowData =
                             trimOrPad(
@@ -121,7 +118,8 @@ final class CharLengthConstraint implements Constraint {
             for (int j = srcSizeInBytes; j < newString.length; j++) {
                 newString[j] = (byte) 32; // space
             }
-            SegmentsUtil.copyToBytes(stringData.getSegments(), 0, newString, 0, srcSizeInBytes);
+            SegmentsUtil.copyToBytes(
+                    stringData.getSegments(), stringData.getOffset(), newString, 0, srcSizeInBytes);
             updatedRowData.setField(fieldIdx, StringData.fromBytes(newString));
         } else if (actualLength > expectedLength) {
             if (updatedRowData == null) {
