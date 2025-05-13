@@ -475,11 +475,7 @@ public class SingleInputGate extends IndexedInputGate {
         return bufferDebloater.getLastEstimatedTimeToConsumeBuffers();
     }
 
-    /**
-     * Returns the type of this input channel's consumed result partition.
-     *
-     * @return consumed result partition type
-     */
+    @Override
     public ResultPartitionType getConsumedPartitionType() {
         return consumedPartitionType;
     }
