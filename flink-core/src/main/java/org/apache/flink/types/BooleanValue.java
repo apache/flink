@@ -88,8 +88,8 @@ public class BooleanValue
 
     @Override
     public boolean equals(Object obj) {
-        if (obj instanceof BooleanValue) {
-            return ((BooleanValue) obj).value == this.value;
+        if (obj instanceof BooleanValue other) {
+            return other.value == this.value;
         }
         return false;
     }

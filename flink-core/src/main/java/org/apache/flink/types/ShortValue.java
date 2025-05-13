@@ -107,11 +107,12 @@ public class ShortValue
 
     @Override
     public boolean equals(final Object obj) {
-        if (obj instanceof ShortValue) {
-            return ((ShortValue) obj).value == this.value;
+        if (obj instanceof ShortValue other) {
+            return other.value == this.value;
         }
         return false;
     }
+
 
     // --------------------------------------------------------------------------------------------
 

@@ -102,8 +102,8 @@ public class IntValue
 
     @Override
     public boolean equals(final Object obj) {
-        if (obj instanceof IntValue) {
-            return ((IntValue) obj).value == this.value;
+        if (obj instanceof IntValue other) {
+            return other.value == this.value;
         }
         return false;
     }
