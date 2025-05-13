@@ -1598,151 +1598,85 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         @Nullable private final Method nodeLabelExpressionMethod;
 
         private ApplicationSubmissionContextReflector(Class<ApplicationSubmissionContext> clazz) {
-            Method applicationTagsMethod;
-            Method attemptFailuresValidityIntervalMethod;
-            Method keepContainersMethod;
-            Method nodeLabelExpressionMethod;
+            // this method is only supported by Hadoop 2.4.0 onwards
+            this.applicationTagsMethod = getMethod(clazz, APPLICATION_TAGS_METHOD_NAME, Set.class);
 
+            // this method is only supported by Hadoop 2.6.0 onwards
+            this.attemptFailuresValidityIntervalMethod =
+                    getMethod(clazz, ATTEMPT_FAILURES_METHOD_NAME, long.class);
+
+            // this method is only supported by Hadoop 2.4.0 onwards
+            this.keepContainersMethod =
+                    getMethod(clazz, KEEP_CONTAINERS_METHOD_NAME, boolean.class);
+
+            this.nodeLabelExpressionMethod =
+                    getMethod(clazz, NODE_LABEL_EXPRESSION_NAME, String.class);
+        }
+
+        private Method getMethod(Class<?> clazz, String methodName, Class<?>... paramTypes) {
             try {
-                // this method is only supported by Hadoop 2.4.0 onwards
-                applicationTagsMethod = clazz.getMethod(APPLICATION_TAGS_METHOD_NAME, Set.class);
-                LOG.debug(
-                        "{} supports method {}.",
-                        clazz.getCanonicalName(),
-                        APPLICATION_TAGS_METHOD_NAME);
+                Method method = clazz.getMethod(methodName, paramTypes);
+                LOG.debug("{} supports method {}.", clazz.getCanonicalName(), methodName);
+                return method;
             } catch (NoSuchMethodException e) {
-                LOG.debug(
-                        "{} does not support method {}.",
-                        clazz.getCanonicalName(),
-                        APPLICATION_TAGS_METHOD_NAME);
+                LOG.debug("{} does not support method {}.", clazz.getCanonicalName(), methodName);
                 // assign null because the Hadoop version apparently does not support this call.
-                applicationTagsMethod = null;
+                return null;
             }
+        }
 
-            this.applicationTagsMethod = applicationTagsMethod;
-
-            try {
-                // this method is only supported by Hadoop 2.6.0 onwards
-                attemptFailuresValidityIntervalMethod =
-                        clazz.getMethod(ATTEMPT_FAILURES_METHOD_NAME, long.class);
+        private void invokeMethod(
+                Method method,
+                String methodName,
+                ApplicationSubmissionContext context,
+                Object... args)
+                throws InvocationTargetException, IllegalAccessException {
+            if (method != null) {
                 LOG.debug(
-                        "{} supports method {}.",
-                        clazz.getCanonicalName(),
-                        ATTEMPT_FAILURES_METHOD_NAME);
-            } catch (NoSuchMethodException e) {
+                        "Calling method {} of {}.",
+                        methodName,
+                        context.getClass().getCanonicalName());
+                method.invoke(context, args);
+            } else {
                 LOG.debug(
-                        "{} does not support method {}.",
-                        clazz.getCanonicalName(),
-                        ATTEMPT_FAILURES_METHOD_NAME);
-                // assign null because the Hadoop version apparently does not support this call.
-                attemptFailuresValidityIntervalMethod = null;
+                        "{} does not support method {}. Doing nothing.",
+                        context.getClass().getCanonicalName(),
+                        methodName);
             }
-
-            this.attemptFailuresValidityIntervalMethod = attemptFailuresValidityIntervalMethod;
-
-            try {
-                // this method is only supported by Hadoop 2.4.0 onwards
-                keepContainersMethod = clazz.getMethod(KEEP_CONTAINERS_METHOD_NAME, boolean.class);
-                LOG.debug(
-                        "{} supports method {}.",
-                        clazz.getCanonicalName(),
-                        KEEP_CONTAINERS_METHOD_NAME);
-            } catch (NoSuchMethodException e) {
-                LOG.debug(
-                        "{} does not support method {}.",
-                        clazz.getCanonicalName(),
-                        KEEP_CONTAINERS_METHOD_NAME);
-                // assign null because the Hadoop version apparently does not support this call.
-                keepContainersMethod = null;
-            }
-
-            this.keepContainersMethod = keepContainersMethod;
-
-            try {
-                nodeLabelExpressionMethod =
-                        clazz.getMethod(NODE_LABEL_EXPRESSION_NAME, String.class);
-                LOG.debug(
-                        "{} supports method {}.",
-                        clazz.getCanonicalName(),
-                        NODE_LABEL_EXPRESSION_NAME);
-            } catch (NoSuchMethodException e) {
-                LOG.debug(
-                        "{} does not support method {}.",
-                        clazz.getCanonicalName(),
-                        NODE_LABEL_EXPRESSION_NAME);
-                nodeLabelExpressionMethod = null;
-            }
-
-            this.nodeLabelExpressionMethod = nodeLabelExpressionMethod;
         }
 
         public void setApplicationTags(
                 ApplicationSubmissionContext appContext, Set<String> applicationTags)
                 throws InvocationTargetException, IllegalAccessException {
-            if (applicationTagsMethod != null) {
-                LOG.debug(
-                        "Calling method {} of {}.",
-                        applicationTagsMethod.getName(),
-                        appContext.getClass().getCanonicalName());
-                applicationTagsMethod.invoke(appContext, applicationTags);
-            } else {
-                LOG.debug(
-                        "{} does not support method {}. Doing nothing.",
-                        appContext.getClass().getCanonicalName(),
-                        APPLICATION_TAGS_METHOD_NAME);
-            }
+            invokeMethod(
+                    applicationTagsMethod,
+                    APPLICATION_TAGS_METHOD_NAME,
+                    appContext,
+                    applicationTags);
         }
 
         public void setApplicationNodeLabel(
                 ApplicationSubmissionContext appContext, String nodeLabel)
                 throws InvocationTargetException, IllegalAccessException {
-            if (nodeLabelExpressionMethod != null) {
-                LOG.debug(
-                        "Calling method {} of {}.",
-                        nodeLabelExpressionMethod.getName(),
-                        appContext.getClass().getCanonicalName());
-                nodeLabelExpressionMethod.invoke(appContext, nodeLabel);
-            } else {
-                LOG.debug(
-                        "{} does not support method {}. Doing nothing.",
-                        appContext.getClass().getCanonicalName(),
-                        NODE_LABEL_EXPRESSION_NAME);
-            }
+            invokeMethod(
+                    nodeLabelExpressionMethod, NODE_LABEL_EXPRESSION_NAME, appContext, nodeLabel);
         }
 
         public void setAttemptFailuresValidityInterval(
                 ApplicationSubmissionContext appContext, long validityInterval)
                 throws InvocationTargetException, IllegalAccessException {
-            if (attemptFailuresValidityIntervalMethod != null) {
-                LOG.debug(
-                        "Calling method {} of {}.",
-                        attemptFailuresValidityIntervalMethod.getName(),
-                        appContext.getClass().getCanonicalName());
-                attemptFailuresValidityIntervalMethod.invoke(appContext, validityInterval);
-            } else {
-                LOG.debug(
-                        "{} does not support method {}. Doing nothing.",
-                        appContext.getClass().getCanonicalName(),
-                        ATTEMPT_FAILURES_METHOD_NAME);
-            }
+            invokeMethod(
+                    attemptFailuresValidityIntervalMethod,
+                    ATTEMPT_FAILURES_METHOD_NAME,
+                    appContext,
+                    validityInterval);
         }
 
         public void setKeepContainersAcrossApplicationAttempts(
                 ApplicationSubmissionContext appContext, boolean keepContainers)
                 throws InvocationTargetException, IllegalAccessException {
-
-            if (keepContainersMethod != null) {
-                LOG.debug(
-                        "Calling method {} of {}.",
-                        keepContainersMethod.getName(),
-                        appContext.getClass().getCanonicalName());
-                keepContainersMethod.invoke(appContext, keepContainers);
-            } else {
-                LOG.debug(
-                        "{} does not support method {}. Doing nothing.",
-                        appContext.getClass().getCanonicalName(),
-                        KEEP_CONTAINERS_METHOD_NAME);
-            }
+            invokeMethod(
+                    keepContainersMethod, KEEP_CONTAINERS_METHOD_NAME, appContext, keepContainers);
         }
     }
 
