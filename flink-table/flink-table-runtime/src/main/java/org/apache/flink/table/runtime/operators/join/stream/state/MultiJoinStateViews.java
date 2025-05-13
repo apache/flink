@@ -28,6 +28,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.IterableIterator;
 
 import java.util.ArrayList;
@@ -278,6 +279,9 @@ public final class MultiJoinStateViews {
         @Override
         public void retractRecord(RowData mapKey, RowData record) throws Exception {
             Map<RowData, Integer> recordToCountMap = recordState.get(mapKey);
+            // TODO Gustavo We have to do this for the other views?
+            var origKind = record.getRowKind();
+            record.setRowKind(RowKind.INSERT);
             if (recordToCountMap != null) {
                 Integer cnt = recordToCountMap.get(record);
                 if (cnt != null) {
@@ -295,9 +299,8 @@ public final class MultiJoinStateViews {
                         recordState.put(mapKey, recordToCountMap);
                     }
                 }
-                // ignore cnt == null
             }
-            // ignore recordToCountMap == null
+            record.setRowKind(origKind);
         }
 
         @Override

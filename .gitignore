@@ -7,6 +7,7 @@ scalastyle-output.xml
 !.idea/vcs.xml
 !.idea/icon.png
 .vscode
+.cursor
 .metadata
 .settings
 .project

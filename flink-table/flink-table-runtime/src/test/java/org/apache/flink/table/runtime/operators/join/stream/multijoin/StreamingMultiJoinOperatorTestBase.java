@@ -25,7 +25,6 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedMultiInputStreamOperatorTestHarness;
-import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedMultiJoinCondition;
 import org.apache.flink.table.runtime.generated.MultiJoinCondition;
@@ -49,6 +48,7 @@ import org.apache.flink.types.RowKind;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -164,58 +164,64 @@ public abstract class StreamingMultiJoinOperatorTestBase {
     // Helper Methods for Test Data
     // ==========================================================================
 
-    protected void insertUser(String userId, String userName, String details) throws Exception {
-        processRecord(0, INSERT, userId, userName, details);
+    protected void insertUser(Object... fields) throws Exception {
+        testHarness.processElement(
+                0, new StreamRecord<>(StreamRecordUtils.rowOfKind(INSERT, fields)));
     }
 
-    protected void insertOrder(String userId, String orderId, String details) throws Exception {
-        processRecord(1, INSERT, userId, orderId, details);
+    protected void insertOrder(Object... fields) throws Exception {
+        testHarness.processElement(
+                1, new StreamRecord<>(StreamRecordUtils.rowOfKind(INSERT, fields)));
     }
 
-    protected void insertPayment(String userId, String paymentId, String details) throws Exception {
-        processRecord(2, INSERT, userId, paymentId, details);
+    protected void insertPayment(Object... fields) throws Exception {
+        testHarness.processElement(
+                2, new StreamRecord<>(StreamRecordUtils.rowOfKind(INSERT, fields)));
     }
 
-    protected void updateBeforeUser(String userId, String userName, String details)
-            throws Exception {
-        processRecord(0, UPDATE_BEFORE, userId, userName, details);
+    protected void updateBeforeUser(Object... fields) throws Exception {
+        testHarness.processElement(
+                0, new StreamRecord<>(StreamRecordUtils.rowOfKind(UPDATE_BEFORE, fields)));
     }
 
-    protected void updateAfterUser(String userId, String userName, String details)
-            throws Exception {
-        processRecord(0, UPDATE_AFTER, userId, userName, details);
+    protected void updateAfterUser(Object... fields) throws Exception {
+        testHarness.processElement(
+                0, new StreamRecord<>(StreamRecordUtils.rowOfKind(UPDATE_AFTER, fields)));
     }
 
-    protected void updateBeforeOrder(String userId, String orderId, String details)
-            throws Exception {
-        processRecord(1, UPDATE_BEFORE, userId, orderId, details);
+    protected void updateBeforeOrder(Object... fields) throws Exception {
+        testHarness.processElement(
+                1, new StreamRecord<>(StreamRecordUtils.rowOfKind(UPDATE_BEFORE, fields)));
     }
 
-    protected void updateAfterOrder(String userId, String orderId, String details)
-            throws Exception {
-        processRecord(1, UPDATE_AFTER, userId, orderId, details);
+    protected void updateAfterOrder(Object... fields) throws Exception {
+        testHarness.processElement(
+                1, new StreamRecord<>(StreamRecordUtils.rowOfKind(UPDATE_AFTER, fields)));
     }
 
-    protected void updateBeforePayment(String userId, String paymentId, String details)
-            throws Exception {
-        processRecord(2, UPDATE_BEFORE, userId, paymentId, details);
+    protected void updateBeforePayment(Object... fields) throws Exception {
+        testHarness.processElement(
+                2, new StreamRecord<>(StreamRecordUtils.rowOfKind(UPDATE_BEFORE, fields)));
     }
 
-    protected void updateAfterPayment(String userId, String paymentId, String details)
-            throws Exception {
-        processRecord(2, UPDATE_AFTER, userId, paymentId, details);
+    protected void updateAfterPayment(Object... fields) throws Exception {
+        testHarness.processElement(
+                2, new StreamRecord<>(StreamRecordUtils.rowOfKind(UPDATE_AFTER, fields)));
     }
 
-    protected void deleteUser(String userId, String userName, String details) throws Exception {
-        processRecord(0, DELETE, userId, userName, details);
+    protected void deleteUser(Object... fields) throws Exception {
+        testHarness.processElement(
+                0, new StreamRecord<>(StreamRecordUtils.rowOfKind(DELETE, fields)));
     }
 
-    protected void deleteOrder(String userId, String orderId, String details) throws Exception {
-        processRecord(1, DELETE, userId, orderId, details);
+    protected void deleteOrder(Object... fields) throws Exception {
+        testHarness.processElement(
+                1, new StreamRecord<>(StreamRecordUtils.rowOfKind(DELETE, fields)));
     }
 
-    protected void deletePayment(String userId, String paymentId, String details) throws Exception {
-        processRecord(2, DELETE, userId, paymentId, details);
+    protected void deletePayment(Object... fields) throws Exception {
+        testHarness.processElement(
+                2, new StreamRecord<>(StreamRecordUtils.rowOfKind(DELETE, fields)));
     }
 
     protected static List<GeneratedMultiJoinCondition> defaultConditions() {
@@ -226,26 +232,26 @@ public abstract class StreamingMultiJoinOperatorTestBase {
     // Assertion Methods
     // ==========================================================================
 
-    protected void emits(RowKind kind, String... fields) throws Exception {
-        assertor.shouldEmit(testHarness, rowOfKind(kind, fields));
+    protected void emits(RowKind kind, Object... fields) throws Exception {
+        assertor.shouldEmitAll(testHarness, rowOfKind(kind, fields));
     }
 
     protected void emitsNothing() {
         assertor.shouldEmitNothing(testHarness);
     }
 
-    protected void emits(RowKind kind1, String[] fields1, RowKind kind2, String[] fields2)
+    protected void emits(RowKind kind1, Object[] fields1, RowKind kind2, Object[] fields2)
             throws Exception {
         assertor.shouldEmitAll(testHarness, rowOfKind(kind1, fields1), rowOfKind(kind2, fields2));
     }
 
     protected void emits(
             RowKind kind1,
-            String[] fields1,
+            Object[] fields1,
             RowKind kind2,
-            String[] fields2,
+            Object[] fields2,
             RowKind kind3,
-            String[] fields3)
+            Object[] fields3)
             throws Exception {
         assertor.shouldEmitAll(
                 testHarness,
@@ -256,13 +262,13 @@ public abstract class StreamingMultiJoinOperatorTestBase {
 
     protected void emits(
             RowKind kind1,
-            String[] fields1,
+            Object[] fields1,
             RowKind kind2,
-            String[] fields2,
+            Object[] fields2,
             RowKind kind3,
-            String[] fields3,
+            Object[] fields3,
             RowKind kind4,
-            String[] fields4)
+            Object[] fields4)
             throws Exception {
         assertor.shouldEmitAll(
                 testHarness,
@@ -335,38 +341,61 @@ public abstract class StreamingMultiJoinOperatorTestBase {
         }
     }
 
-    private void processRecord(int inputIndex, RowKind kind, String... fields) throws Exception {
-        StreamRecord<RowData> record;
-        switch (kind) {
-            case INSERT:
-                record = StreamRecordUtils.insertRecord((Object[]) fields);
-                break;
-            case UPDATE_BEFORE:
-                record = StreamRecordUtils.updateBeforeRecord((Object[]) fields);
-                break;
-            case UPDATE_AFTER:
-                record = StreamRecordUtils.updateAfterRecord((Object[]) fields);
-                break;
-            case DELETE:
-                record = StreamRecordUtils.deleteRecord((Object[]) fields);
-                break;
-            default:
-                throw new IllegalArgumentException("Unsupported RowKind: " + kind);
+    /** A serializable KeySelector that uses a JoinKeyExtractor to extract keys from RowData. */
+    private static class SerializableKeySelector
+            implements KeySelector<RowData, RowData>, Serializable {
+        private static final long serialVersionUID = 1L;
+        private final JoinKeyExtractor keyExtractor;
+        private final int inputIndex;
+
+        public SerializableKeySelector(JoinKeyExtractor keyExtractor, int inputIndex) {
+            this.keyExtractor = keyExtractor;
+            this.inputIndex = inputIndex;
         }
-        testHarness.processElement(inputIndex, record);
+
+        @Override
+        public RowData getKey(RowData value) throws Exception {
+            return keyExtractor.getCommonKey(value, inputIndex);
+        }
     }
 
     private void setupKeySelectorsForTestHarness(
             KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> harness) {
+        // Get the expected partition key type (assuming it's the same for all inputs derived by the
+        // extractor)
+        InternalTypeInfo<RowData> partitionKeyTypeInfo = this.keyExtractor.getKeyType(0);
+        if (partitionKeyTypeInfo == null) {
+            throw new IllegalStateException(
+                    "Could not determine partition key type from keyExtractor for input 0.");
+        }
+        // The harness expects TypeInformation. InternalTypeInfo is a subtype.
+        TypeInformation<RowData> harnessKeyType = partitionKeyTypeInfo;
+
         for (int i = 0; i < this.inputSpecs.size(); i++) {
-            /* Testcase: our join key is always the first key for all tables and that's why 0 */
-            KeySelector<RowData, RowData> keySelector = row -> GenericRowData.of(row.getString(0));
-            harness.setKeySelector(i, keySelector);
+            /* todo gustavo delete */
+            /*KeySelector<RowData, RowData> keySelector = row -> GenericRowData.of(row.getString(0));
+            harness.setKeySelector(i, keySelector);*/
+
+            final int inputIndex = i;
+            // Use the serializable keySelector
+            SerializableKeySelector keySelector =
+                    new SerializableKeySelector(this.keyExtractor, inputIndex);
+            // Provide the derived key type information to the harness
+            harness.setKeySelector(inputIndex, keySelector);
         }
     }
 
     protected KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> createTestHarness()
             throws Exception {
+        // Determine the partition key type using the keyExtractor
+        // Assume the key type derived for the first input is representative of the partition key
+        InternalTypeInfo<RowData> partitionKeyTypeInfo = this.keyExtractor.getKeyType(0);
+        if (partitionKeyTypeInfo == null) {
+            throw new IllegalStateException(
+                    "Could not determine partition key type from keyExtractor for input 0.");
+        }
+        TypeInformation<RowData> harnessKeyType = partitionKeyTypeInfo;
+
         KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> harness =
                 new KeyedMultiInputStreamOperatorTestHarness<>(
                         new MultiStreamingJoinOperatorFactory(
@@ -375,9 +404,9 @@ public abstract class StreamingMultiJoinOperatorTestBase {
                                 joinTypes,
                                 joinConditions,
                                 joinAttributeMap),
-                        TypeInformation.of(RowData.class));
+                        harnessKeyType); // Use the derived key type information
 
-        // Setup key selectors for each input
+        // Setup key selectors for each input (this now uses the extractor)
         setupKeySelectorsForTestHarness(harness);
         return harness;
     }
@@ -394,11 +423,11 @@ public abstract class StreamingMultiJoinOperatorTestBase {
                 typesStream.toArray(LogicalType[]::new), namesStream.toArray(String[]::new));
     }
 
-    protected RowData rowOfKind(RowKind kind, String... fields) {
-        return StreamRecordUtils.rowOfKind(kind, (Object[]) fields);
+    protected RowData rowOfKind(RowKind kind, Object... fields) {
+        return StreamRecordUtils.rowOfKind(kind, fields);
     }
 
-    protected String[] r(String... values) {
+    protected Object[] r(Object... values) {
         return values;
     }
 
@@ -488,7 +517,8 @@ public abstract class StreamingMultiJoinOperatorTestBase {
             // We expect generatedJoinConditions size to match inputSpecs size (or joinTypes size)
             if (generatedJoinConditions.size() != inputSpecs.size()) {
                 throw new IllegalArgumentException(
-                        "The number of generated join conditions must match the number of inputs/joins.");
+                        "The number of generated join conditions must match the number of inputs/joins."
+                                + "This might be due to an incorrect joinAttributeMap or incorrect joinConditions. All parameters derived from join conditions have to match!");
             }
             for (int i = 0; i < inputSpecs.size(); i++) {
                 GeneratedMultiJoinCondition generatedCondition = generatedJoinConditions.get(i);

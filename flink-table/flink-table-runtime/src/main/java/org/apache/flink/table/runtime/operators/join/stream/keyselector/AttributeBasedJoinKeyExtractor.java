@@ -28,10 +28,13 @@ import org.apache.flink.table.types.logical.VarCharType;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -60,12 +63,15 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
                             },
                             new String[] {"default_key"}));
 
-    private final transient Map<Integer, Map<AttributeRef, AttributeRef>>
-            joinAttributeMap; // Transient as it's configuration
+    private final Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap;
     private final List<InternalTypeInfo<RowData>> inputTypes;
 
     // Cache for pre-computed key extraction structures
     private final Map<Integer, List<KeyExtractor>> extractorCache;
+
+    // Fields for common key logic
+    private final Map<Integer, List<KeyExtractor>> commonKeyExtractors;
+    private final Map<Integer, InternalTypeInfo<RowData>> commonKeyTypes;
 
     /**
      * Creates an AttributeBasedJoinKeyExtractor.
@@ -81,10 +87,13 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
         this.joinAttributeMap = joinAttributeMap;
         this.inputTypes = inputTypes;
         this.extractorCache = new HashMap<>();
+        this.commonKeyExtractors = new HashMap<>();
+        this.commonKeyTypes = new HashMap<>();
+        initializeCommonKeyStructures();
     }
 
     @Override
-    public RowData getKeyForInput(RowData row, int inputId) {
+    public RowData getJoinKeyFromInput(RowData row, int inputId) {
         if (inputId == 0) {
             // Input 0 uses the fixed default key as it's the start of the join chain.
             return DEFAULT_KEY;
@@ -110,7 +119,7 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
     }
 
     @Override
-    public RowData getKeyForDepthFromCurrentRows(int depth, RowData[] currentRows) {
+    public RowData getJoinKeyFromCurrentRows(int depth, RowData[] currentRows) {
         if (depth == 0) {
             return DEFAULT_KEY;
         }
@@ -198,6 +207,176 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
 
         final RowType keyRowType = RowType.of(keyTypes, keyNames);
         return InternalTypeInfo.of(keyRowType);
+    }
+
+    // ==================== Common Key Methods ====================
+
+    @Override
+    public RowData getCommonKey(RowData row, int inputId) {
+        List<KeyExtractor> extractors = commonKeyExtractors.get(inputId);
+        // If inputId is not in the map (e.g., inputTypes was empty), or list is empty
+        if (extractors == null || extractors.isEmpty()) {
+            return DEFAULT_KEY;
+        }
+
+        GenericRowData commonKeyRow = new GenericRowData(extractors.size());
+        // The KeyExtractors in commonKeyExtractors are already set up with inputIdToAccess =
+        // inputId
+        RowData[] tempRows = new RowData[inputId + 1]; // Max index needed is inputId
+        tempRows[inputId] = row;
+
+        for (int i = 0; i < extractors.size(); i++) {
+            commonKeyRow.setField(i, extractors.get(i).getValue(tempRows));
+        }
+        return commonKeyRow;
+    }
+
+    @Override
+    public InternalTypeInfo<RowData> getCommonKeyType(int inputId) {
+        return commonKeyTypes.getOrDefault(inputId, DEFAULT_KEY_TYPE);
+    }
+
+    private void initializeCommonKeyStructures() {
+        if (inputTypes.isEmpty() || joinAttributeMap.isEmpty()) {
+            for (int i = 0; i < inputTypes.size(); i++) {
+                this.commonKeyExtractors.put(i, Collections.emptyList());
+                this.commonKeyTypes.put(i, DEFAULT_KEY_TYPE);
+            }
+            return;
+        }
+
+        Map<AttributeRef, AttributeRef> parent = new HashMap<>();
+        Map<AttributeRef, Integer> rank = new HashMap<>();
+        Set<AttributeRef> allAttrRefs = new HashSet<>();
+
+        for (Map<AttributeRef, AttributeRef> mapping : joinAttributeMap.values()) {
+            allAttrRefs.addAll(mapping.keySet());
+            allAttrRefs.addAll(mapping.values());
+        }
+
+        if (allAttrRefs.isEmpty()) {
+            for (int i = 0; i < inputTypes.size(); i++) {
+                this.commonKeyExtractors.put(i, Collections.emptyList());
+                this.commonKeyTypes.put(i, DEFAULT_KEY_TYPE);
+            }
+            return;
+        }
+
+        for (AttributeRef attrRef : allAttrRefs) {
+            parent.put(attrRef, attrRef);
+            rank.put(attrRef, 0);
+        }
+
+        for (Map<AttributeRef, AttributeRef> mapping : joinAttributeMap.values()) {
+            for (Map.Entry<AttributeRef, AttributeRef> condition : mapping.entrySet()) {
+                unionAttributeSets(parent, rank, condition.getKey(), condition.getValue());
+            }
+        }
+
+        Map<AttributeRef, Set<AttributeRef>> equivalenceSets = new HashMap<>();
+        for (AttributeRef attrRef : allAttrRefs) {
+            AttributeRef root = findAttributeSet(parent, attrRef);
+            equivalenceSets.computeIfAbsent(root, k -> new HashSet<>()).add(attrRef);
+        }
+
+        List<Set<AttributeRef>> commonConceptualAttributeSets = new ArrayList<>();
+        for (Set<AttributeRef> eqSet : equivalenceSets.values()) {
+            boolean isCommon = true;
+            if (joinAttributeMap.isEmpty()) { // Should be caught by earlier check
+                isCommon = false;
+            }
+
+            for (Map<AttributeRef, AttributeRef> conditionsForStep : joinAttributeMap.values()) {
+                if (conditionsForStep.isEmpty()) { // A cross-join step
+                    isCommon = false;
+                    break;
+                }
+                boolean foundInThisStep = false;
+                for (Map.Entry<AttributeRef, AttributeRef> condition :
+                        conditionsForStep.entrySet()) {
+                    if (eqSet.contains(condition.getKey())
+                            || eqSet.contains(condition.getValue())) {
+                        foundInThisStep = true;
+                        break;
+                    }
+                }
+                if (!foundInThisStep) {
+                    isCommon = false;
+                    break;
+                }
+            }
+            if (isCommon) {
+                commonConceptualAttributeSets.add(eqSet);
+            }
+        }
+
+        for (int currentInputId = 0; currentInputId < inputTypes.size(); currentInputId++) {
+            List<AttributeRef> commonAttrsForThisInput = new ArrayList<>();
+            for (Set<AttributeRef> eqSet : commonConceptualAttributeSets) {
+                for (AttributeRef attrRef : eqSet) {
+                    if (attrRef.inputId == currentInputId) {
+                        commonAttrsForThisInput.add(attrRef);
+                        break;
+                    }
+                }
+            }
+
+            commonAttrsForThisInput.sort(Comparator.comparingInt(attr -> attr.fieldIndex));
+
+            if (commonAttrsForThisInput.isEmpty()) {
+                this.commonKeyExtractors.put(currentInputId, Collections.emptyList());
+                this.commonKeyTypes.put(currentInputId, DEFAULT_KEY_TYPE);
+            } else {
+                List<KeyExtractor> extractors = new ArrayList<>();
+                LogicalType[] keyFieldTypes = new LogicalType[commonAttrsForThisInput.size()];
+                String[] keyFieldNames = new String[commonAttrsForThisInput.size()];
+                RowType originalRowType = inputTypes.get(currentInputId).toRowType();
+
+                for (int i = 0; i < commonAttrsForThisInput.size(); i++) {
+                    AttributeRef attr = commonAttrsForThisInput.get(i);
+                    validateFieldIndex(currentInputId, attr.fieldIndex, originalRowType);
+                    LogicalType fieldType = originalRowType.getTypeAt(attr.fieldIndex);
+                    extractors.add(new KeyExtractor(currentInputId, attr.fieldIndex, fieldType));
+                    keyFieldTypes[i] = fieldType;
+                    keyFieldNames[i] =
+                            originalRowType.getFieldNames().get(attr.fieldIndex) + "_common";
+                }
+                this.commonKeyExtractors.put(currentInputId, extractors);
+                this.commonKeyTypes.put(
+                        currentInputId,
+                        InternalTypeInfo.of(RowType.of(keyFieldTypes, keyFieldNames)));
+            }
+        }
+    }
+
+    // DSU find operation (Path Compression)
+    private static AttributeRef findAttributeSet(
+            Map<AttributeRef, AttributeRef> parent, AttributeRef item) {
+        if (!parent.get(item).equals(item)) {
+            parent.put(item, findAttributeSet(parent, parent.get(item)));
+        }
+        return parent.get(item);
+    }
+
+    // DSU union operation (Union by Rank/Size)
+    private static void unionAttributeSets(
+            Map<AttributeRef, AttributeRef> parent,
+            Map<AttributeRef, Integer> rank,
+            AttributeRef a,
+            AttributeRef b) {
+        AttributeRef rootA = findAttributeSet(parent, a);
+        AttributeRef rootB = findAttributeSet(parent, b);
+
+        if (!rootA.equals(rootB)) {
+            if (rank.get(rootA) < rank.get(rootB)) {
+                parent.put(rootA, rootB);
+            } else if (rank.get(rootA) > rank.get(rootB)) {
+                parent.put(rootB, rootA);
+            } else {
+                parent.put(rootB, rootA);
+                rank.put(rootA, rank.get(rootA) + 1);
+            }
+        }
     }
 
     // ==================== Helper Methods ====================
