@@ -122,6 +122,10 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
                 continue;
             }
 
+            if (!(schema.schema instanceof FlinkSchema)) {
+                throw new ValidationException("getModel() only supports FlinkSchema.");
+            }
+
             FlinkSchema flinkSchema = (FlinkSchema) schema.schema;
             CatalogSchemaModel model = flinkSchema.getModel(Util.last(names));
             if (model != null) {

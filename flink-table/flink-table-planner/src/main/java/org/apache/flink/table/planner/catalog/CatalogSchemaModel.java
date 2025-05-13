@@ -79,28 +79,25 @@ public class CatalogSchemaModel {
         final FlinkTypeFactory flinkTypeFactory = (FlinkTypeFactory) typeFactory;
         final ResolvedSchema schema =
                 contextResolvedModel.getResolvedModel().getResolvedInputSchema();
-
-        final List<String> fieldNames = schema.getColumnNames();
-        final List<LogicalType> fieldTypes =
-                schema.getColumnDataTypes().stream()
-                        .map(DataType::getLogicalType)
-                        .map(PlannerTypeUtils::removeLegacyTypes)
-                        .collect(Collectors.toList());
-        return flinkTypeFactory.buildRelNodeRowType(fieldNames, fieldTypes);
+        return schemaToRelDataType(flinkTypeFactory, schema);
     }
 
     public RelDataType getOutputRowType(RelDataTypeFactory typeFactory) {
         final FlinkTypeFactory flinkTypeFactory = (FlinkTypeFactory) typeFactory;
         final ResolvedSchema schema =
                 contextResolvedModel.getResolvedModel().getResolvedOutputSchema();
+        return schemaToRelDataType(flinkTypeFactory, schema);
+    }
 
+    private static RelDataType schemaToRelDataType(
+            FlinkTypeFactory typeFactory, ResolvedSchema schema) {
         final List<String> fieldNames = schema.getColumnNames();
         final List<LogicalType> fieldTypes =
                 schema.getColumnDataTypes().stream()
                         .map(DataType::getLogicalType)
                         .map(PlannerTypeUtils::removeLegacyTypes)
                         .collect(Collectors.toList());
-        return flinkTypeFactory.buildRelNodeRowType(fieldNames, fieldTypes);
+        return typeFactory.buildRelNodeRowType(fieldNames, fieldTypes);
     }
 
     public FlinkStatistic getStatistic() {
