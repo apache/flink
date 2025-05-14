@@ -72,15 +72,7 @@ class DatabaseCalciteSchema extends FlinkSchema {
     public CatalogSchemaModel getModel(String modelName) {
         final ObjectIdentifier identifier =
                 ObjectIdentifier.of(catalogName, databaseName, modelName);
-        return catalogManager
-                .getModel(identifier)
-                .map(
-                        contextResolvedModel ->
-                                new CatalogSchemaModel(
-                                        contextResolvedModel,
-                                        FlinkStatistic.UNKNOWN(),
-                                        isStreamingMode))
-                .orElse(null);
+        return catalogManager.getModel(identifier).map(CatalogSchemaModel::new).orElse(null);
     }
 
     @Override

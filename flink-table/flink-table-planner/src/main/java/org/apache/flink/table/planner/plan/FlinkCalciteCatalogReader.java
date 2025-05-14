@@ -61,8 +61,12 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.validate.SqlNameMatchers;
 import org.apache.calcite.util.Util;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -92,7 +96,7 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
     }
 
     @Override
-    public Prepare.PreparingTable getTable(List<String> names) {
+    public @Nullable Prepare.PreparingTable getTable(List<String> names) {
         Prepare.PreparingTable originRelOptTable = super.getTable(names);
         if (originRelOptTable == null) {
             return null;
@@ -111,7 +115,7 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
         }
     }
 
-    public CatalogSchemaModel getModel(List<String> names) {
+    public @Nullable CatalogSchemaModel getModel(List<String> names) {
         for (List<String> schemaPath : getSchemaPaths()) {
             CalciteSchema schema =
                     getSchema(
@@ -127,7 +131,15 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
             }
 
             FlinkSchema flinkSchema = (FlinkSchema) schema.schema;
-            CatalogSchemaModel model = flinkSchema.getModel(Util.last(names));
+            String modelName =
+                    nameMatcher().isCaseSensitive()
+                            ? Util.last(names)
+                            : caseInsensitiveLookup(flinkSchema.getModelNames(), Util.last(names));
+            if (modelName == null) {
+                return null;
+            }
+
+            CatalogSchemaModel model = flinkSchema.getModel(modelName);
             if (model != null) {
                 return model;
             }
@@ -288,5 +300,29 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
                 return false;
             }
         }
+    }
+
+    private static @Nullable String caseInsensitiveLookup(Set<String> candidates, String name) {
+        // Exact string lookup
+        if (candidates.contains(name)) {
+            return name;
+        }
+        // Upper case string lookup
+        final String upperCaseName = name.toUpperCase(Locale.ROOT);
+        if (candidates.contains(upperCaseName)) {
+            return upperCaseName;
+        }
+        // Lower case string lookup
+        final String lowerCaseName = name.toLowerCase(Locale.ROOT);
+        if (candidates.contains(lowerCaseName)) {
+            return lowerCaseName;
+        }
+        // Fall through: Set iteration
+        for (String candidate : candidates) {
+            if (candidate.equalsIgnoreCase(name)) {
+                return candidate;
+            }
+        }
+        return null;
     }
 }

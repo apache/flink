@@ -55,6 +55,8 @@ import org.apache.calcite.schema.Table;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -131,8 +133,9 @@ class FlinkCalciteCatalogReaderTest {
         assertThat(resultTable).isNotInstanceOf(FlinkPreparingTableBase.class);
     }
 
-    @Test
-    void testGetCatalogSchemaModel() {
+    @ParameterizedTest(name = "Case sensitive {0}")
+    @ValueSource(booleans = {true, false})
+    void testGetCatalogSchemaModel(boolean caseSensitive) {
         // Mock CatalogSchemaModel
         final ResolvedCatalogModel resolvedCatalogModel = getModel();
         CatalogSchemaModel mockModel =
@@ -140,21 +143,34 @@ class FlinkCalciteCatalogReaderTest {
                         ContextResolvedModel.permanent(
                                 ObjectIdentifier.of(modelMockName, "", ""),
                                 CatalogManagerMocks.createEmptyCatalog(),
-                                resolvedCatalogModel),
-                        FlinkStatistic.UNKNOWN(),
-                        true);
+                                resolvedCatalogModel));
 
         MockFlinkSchema mockFlinkSchema = new MockFlinkSchema();
         mockFlinkSchema.addModel(modelMockName, mockModel);
+
+        Properties prop = new Properties();
+        prop.setProperty(
+                CalciteConnectionProperty.CASE_SENSITIVE.camelName(),
+                Boolean.toString(caseSensitive));
         catalogReader =
                 new FlinkCalciteCatalogReader(
                         CalciteSchemaBuilder.asRootSchema(mockFlinkSchema),
                         Collections.emptyList(),
                         typeFactory,
-                        new CalciteConnectionConfigImpl(new Properties()));
+                        new CalciteConnectionConfigImpl(prop));
 
         CatalogSchemaModel model = catalogReader.getModel(Collections.singletonList(modelMockName));
         assertThat(model).isInstanceOf(CatalogSchemaModel.class);
+
+        model = catalogReader.getModel(Collections.singletonList(modelMockName.toUpperCase()));
+        if (caseSensitive) {
+            assertThat(model).isNull();
+        } else {
+            assertThat(model).isInstanceOf(CatalogSchemaModel.class);
+        }
+
+        model = catalogReader.getModel(Collections.singletonList("non_exist_model"));
+        assertThat(model).isNull();
     }
 
     @Test
@@ -168,14 +184,10 @@ class FlinkCalciteCatalogReaderTest {
         final CatalogModel catalogModel =
                 CatalogModel.of(
                         org.apache.flink.table.api.Schema.newBuilder()
-                                .column(
-                                        "f1",
-                                        DataTypes.INT().getLogicalType().asSerializableString())
+                                .column("f1", DataTypes.INT())
                                 .build(),
                         org.apache.flink.table.api.Schema.newBuilder()
-                                .column(
-                                        "label",
-                                        DataTypes.STRING().getLogicalType().asSerializableString())
+                                .column("label", DataTypes.STRING())
                                 .build(),
                         null,
                         "some comment");
@@ -218,7 +230,7 @@ class FlinkCalciteCatalogReaderTest {
 
         @Override
         public Set<String> getModelNames() {
-            return Collections.emptySet();
+            return modelMap.keySet();
         }
 
         @Override

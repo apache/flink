@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.catalog;
 import org.apache.flink.table.catalog.ContextResolvedModel;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.runtime.types.PlannerTypeUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -40,8 +39,6 @@ public class CatalogSchemaModel {
     // ~ Instance fields --------------------------------------------------------
 
     private final ContextResolvedModel contextResolvedModel;
-    private final FlinkStatistic statistic;
-    private final boolean isStreamingMode;
 
     // ~ Constructors -----------------------------------------------------------
 
@@ -49,16 +46,9 @@ public class CatalogSchemaModel {
      * Create a CatalogSchemaModel instance.
      *
      * @param contextResolvedModel A result of catalog lookup
-     * @param statistic Model statistics
-     * @param isStreaming If the model is for streaming mode
      */
-    public CatalogSchemaModel(
-            ContextResolvedModel contextResolvedModel,
-            FlinkStatistic statistic,
-            boolean isStreaming) {
+    public CatalogSchemaModel(ContextResolvedModel contextResolvedModel) {
         this.contextResolvedModel = contextResolvedModel;
-        this.statistic = statistic;
-        this.isStreamingMode = isStreaming;
     }
 
     // ~ Methods ----------------------------------------------------------------
@@ -69,10 +59,6 @@ public class CatalogSchemaModel {
 
     public boolean isTemporary() {
         return contextResolvedModel.isTemporary();
-    }
-
-    public boolean isStreamingMode() {
-        return isStreamingMode;
     }
 
     public RelDataType getInputRowType(RelDataTypeFactory typeFactory) {
@@ -98,9 +84,5 @@ public class CatalogSchemaModel {
                         .map(PlannerTypeUtils::removeLegacyTypes)
                         .collect(Collectors.toList());
         return typeFactory.buildRelNodeRowType(fieldNames, fieldTypes);
-    }
-
-    public FlinkStatistic getStatistic() {
-        return statistic;
     }
 }
