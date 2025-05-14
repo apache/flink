@@ -164,7 +164,7 @@ By default no operator is disabled.</td>
             <td><h5>table.exec.sink.nested-constraint-enforcer</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">IGNORE</td>
             <td><p>Enum</p></td>
-            <td>Determines if constraints should be enforced for nested fields. Beware that enforcing constraints for nested fields may cause performance issues.<br /><br />Possible values:<ul><li>"IGNORE": Don't perform check on nested types in ROWS/ARRAYS/MAPS</li><li>"ROWS": Perform checks on nested types in ROWS.</li><li>"ROWS_AND_COLLECTIONS": Perform checks on nested types in ROWS/ARRAYS/MAPS. Be aware that the more checks the more performance impact. Especially checking types in ARRAYS/MAPS can be expensive.</li></ul></td>
+            <td>Determines if constraints should be enforced for nested fields. Beware that enforcing constraints for nested fields adds computational overhead especially when iterating through collections<br /><br />Possible values:<ul><li>"IGNORE": Don't perform check on nested types in ROWS/ARRAYS/MAPS</li><li>"ROWS": Perform checks on nested types in ROWS.</li><li>"ROWS_AND_COLLECTIONS": Perform checks on nested types in ROWS/ARRAYS/MAPS. Be aware that the more checks the more performance impact. Especially checking types in ARRAYS/MAPS can be expensive.</li></ul></td>
         </tr>
         <tr>
             <td><h5>table.exec.sink.not-null-enforcer</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>

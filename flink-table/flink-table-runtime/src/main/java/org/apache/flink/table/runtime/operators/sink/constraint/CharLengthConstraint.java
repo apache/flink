@@ -62,8 +62,8 @@ final class CharLengthConstraint implements Constraint {
         for (int i = 0; i < fieldIndices.length; i++) {
             final int fieldIdx = fieldIndices[i];
             final int expectedLength = fieldLengths[i];
-            final BinaryStringData stringData = (BinaryStringData) rowData.getString(fieldIdx);
-            final int actualLength = stringData.numChars();
+            final StringData stringData = rowData.getString(fieldIdx);
+            final int actualLength = getNumChars(stringData);
             final boolean shouldPad = fieldCouldPad.get(i);
 
             switch (enforcementStrategy) {
@@ -101,31 +101,44 @@ final class CharLengthConstraint implements Constraint {
         return updatedRowData != null ? updatedRowData : rowData;
     }
 
+    private static int getNumChars(StringData stringData) {
+        if (stringData instanceof BinaryStringData) {
+            return ((BinaryStringData) stringData).numChars();
+        } else {
+            return stringData.toString().length();
+        }
+    }
+
     private UpdatableRowData trimOrPad(
             RowData rowData,
             int actualLength,
             int expectedLength,
             UpdatableRowData updatedRowData,
-            BinaryStringData stringData,
+            StringData stringData,
             int fieldIdx,
             boolean canPad) {
+        final BinaryStringData binaryStringData = (BinaryStringData) stringData;
         if (canPad && actualLength < expectedLength) {
             if (updatedRowData == null) {
                 updatedRowData = new UpdatableRowData(rowData, rowData.getArity());
             }
-            final int srcSizeInBytes = stringData.getSizeInBytes();
+            final int srcSizeInBytes = binaryStringData.getSizeInBytes();
             final byte[] newString = new byte[srcSizeInBytes + expectedLength - actualLength];
             for (int j = srcSizeInBytes; j < newString.length; j++) {
                 newString[j] = (byte) 32; // space
             }
             SegmentsUtil.copyToBytes(
-                    stringData.getSegments(), stringData.getOffset(), newString, 0, srcSizeInBytes);
+                    binaryStringData.getSegments(),
+                    binaryStringData.getOffset(),
+                    newString,
+                    0,
+                    srcSizeInBytes);
             updatedRowData.setField(fieldIdx, StringData.fromBytes(newString));
         } else if (actualLength > expectedLength) {
             if (updatedRowData == null) {
                 updatedRowData = new UpdatableRowData(rowData, rowData.getArity());
             }
-            updatedRowData.setField(fieldIdx, stringData.substring(0, expectedLength));
+            updatedRowData.setField(fieldIdx, binaryStringData.substring(0, expectedLength));
         }
         return updatedRowData;
     }

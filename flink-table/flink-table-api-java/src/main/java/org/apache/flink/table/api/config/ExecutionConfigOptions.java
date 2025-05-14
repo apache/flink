@@ -136,8 +136,9 @@ public class ExecutionConfigOptions {
                     .enumType(NestedEnforcer.class)
                     .defaultValue(NestedEnforcer.IGNORE)
                     .withDescription(
-                            "Determines if constraints should be enforced for nested fields. Beware that "
-                                    + "enforcing constraints for nested fields may cause performance issues.");
+                            "Determines if constraints should be enforced for nested fields. Beware that"
+                                    + " enforcing constraints for nested fields adds computational"
+                                    + " overhead especially when iterating through collections");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<UpsertMaterialize> TABLE_EXEC_SINK_UPSERT_MATERIALIZE =
