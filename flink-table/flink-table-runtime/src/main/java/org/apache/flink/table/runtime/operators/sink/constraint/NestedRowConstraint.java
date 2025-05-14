@@ -28,7 +28,7 @@ import java.util.Arrays;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-/** Checks constraints on nested rows. */
+/** Checks constraints on nested rows and structured types. */
 @Internal
 final class NestedRowConstraint implements Constraint {
 

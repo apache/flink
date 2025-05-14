@@ -33,6 +33,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import javax.annotation.Nullable;
@@ -331,6 +332,24 @@ public class ConstraintEnforcerExecutor implements Serializable {
                                 final RowType rowType = (RowType) nestedType;
                                 return Stream.of(
                                         new NestedRowInfo(pos, (rowType).getFieldCount(), rowType));
+                            } else if (nestedType.is(LogicalTypeRoot.STRUCTURED_TYPE)) {
+                                // for constraint extraction, convert the STRUCTURED_TYPE to a ROW
+                                final StructuredType structuredType = (StructuredType) nestedType;
+                                final List<StructuredType.StructuredAttribute> attributes =
+                                        structuredType.getAttributes();
+                                final List<RowType.RowField> fields =
+                                        attributes.stream()
+                                                .map(
+                                                        attr ->
+                                                                new RowType.RowField(
+                                                                        attr.getName(),
+                                                                        attr.getType()))
+                                                .collect(Collectors.toList());
+                                return Stream.of(
+                                        new NestedRowInfo(
+                                                pos,
+                                                attributes.size(),
+                                                new RowType(structuredType.isNullable(), fields)));
                             } else {
                                 return Stream.empty();
                             }
