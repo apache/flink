@@ -158,6 +158,7 @@
     "org.apache.calcite.sql.SqlAlienSystemTypeNameSpec"
     "org.apache.calcite.sql.SqlCreate"
     "org.apache.calcite.sql.SqlDrop"
+    "org.apache.calcite.sql.SqlExplicitModelOperator"
     "org.apache.calcite.sql.SqlIntervalLiteral"
     "java.util.ArrayList"
     "java.util.Collections"
@@ -666,6 +667,7 @@
   # Example: DateFunctionCall().
   builtinFunctionCallMethods: [
     "TryCastFunctionCall()"
+    "ExplicitModel()"
   ]
 
   # List of methods for parsing extensions to "ALTER <scope>" calls.

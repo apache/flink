@@ -3090,6 +3090,22 @@ SqlNode TryCastFunctionCall() :
 }
 
 /**
+ * Parses an explicit Model m reference.
+ */
+SqlNode ExplicitModel() :
+{
+    SqlNode modelRef;
+    final Span s;
+}
+{
+    <MODEL> modelRef = CompoundIdentifier()
+    {
+        s = span();
+        return new SqlExplicitModelOperator(2).createCall(s.pos(), modelRef);
+    }
+}
+
+/**
 * Parses a partition key/value,
 * e.g. p or p = '10'.
 */
