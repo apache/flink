@@ -37,6 +37,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -45,7 +46,13 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 class SubpartitionRemoteCacheManager {
 
+    static final int EMPTY_SEGMENT_ID = -1;
+
     private static final Logger LOG = LoggerFactory.getLogger(SubpartitionRemoteCacheManager.class);
+
+    private static void checkSegmentIdNotEmpty(int segmentId) {
+        checkArgument(segmentId >= 0, "Segment id must be non-negative.");
+    }
 
     private final TieredStoragePartitionId partitionId;
 
@@ -72,7 +79,7 @@ class SubpartitionRemoteCacheManager {
      * thread, so the thread safety should be ensured.
      */
     @GuardedBy("allBuffers")
-    private int segmentId = -1;
+    private int segmentId = EMPTY_SEGMENT_ID;
 
     /**
      * Record the buffer index in the {@link SubpartitionRemoteCacheManager}. Each time a new buffer
@@ -98,8 +105,15 @@ class SubpartitionRemoteCacheManager {
     //  Called by RemoteCacheManager
     // ------------------------------------------------------------------------
 
+    boolean hasAnySegmentStarted() {
+        synchronized (allBuffers) {
+            return segmentId != EMPTY_SEGMENT_ID;
+        }
+    }
+
     void startSegment(int segmentId) {
         synchronized (allBuffers) {
+            checkSegmentIdNotEmpty(segmentId);
             checkState(allBuffers.isEmpty(), "There are un-flushed buffers.");
             this.segmentId = segmentId;
         }
@@ -108,11 +122,13 @@ class SubpartitionRemoteCacheManager {
     void addBuffer(Buffer buffer) {
         Tuple2<Buffer, Integer> toAddBuffer = new Tuple2<>(buffer, bufferIndex++);
         synchronized (allBuffers) {
+            checkArgument(segmentId >= 0, "No segment has been started.");
             allBuffers.add(toAddBuffer);
         }
     }
 
     void finishSegment(int segmentId) {
+        checkSegmentIdNotEmpty(segmentId);
         // Only task thread can modify the segmentId, and the method can only be called by the task
         // thread, so accessing segmentId is not guarded here.
         //noinspection FieldAccessNotGuarded
@@ -166,6 +182,8 @@ class SubpartitionRemoteCacheManager {
             if (allBuffersToFlush.isEmpty()) {
                 return;
             }
+
+            checkSegmentIdNotEmpty(segmentId);
 
             PartitionFileWriter.SubpartitionBufferContext subpartitionBufferContext =
                     new PartitionFileWriter.SubpartitionBufferContext(
