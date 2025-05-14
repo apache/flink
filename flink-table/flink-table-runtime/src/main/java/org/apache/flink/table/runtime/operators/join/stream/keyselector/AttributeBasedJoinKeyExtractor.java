@@ -175,7 +175,7 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
     }
 
     @Override
-    public InternalTypeInfo<RowData> getKeyType(int inputId) {
+    public InternalTypeInfo<RowData> getJoinKeyType(int inputId) {
         if (inputId == 0) {
             // For input 0, we have to go through all the records.
             // We use the fixed default key type, since have no rows to the left to generate
