@@ -363,7 +363,7 @@ public abstract class StreamingMultiJoinOperatorTestBase {
             KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> harness) {
         // Get the expected partition key type (assuming it's the same for all inputs derived by the
         // extractor)
-        InternalTypeInfo<RowData> partitionKeyTypeInfo = this.keyExtractor.getKeyType(0);
+        InternalTypeInfo<RowData> partitionKeyTypeInfo = this.keyExtractor.getJoinKeyType(0);
         if (partitionKeyTypeInfo == null) {
             throw new IllegalStateException(
                     "Could not determine partition key type from keyExtractor for input 0.");
@@ -389,7 +389,7 @@ public abstract class StreamingMultiJoinOperatorTestBase {
             throws Exception {
         // Determine the partition key type using the keyExtractor
         // Assume the key type derived for the first input is representative of the partition key
-        InternalTypeInfo<RowData> partitionKeyTypeInfo = this.keyExtractor.getKeyType(0);
+        InternalTypeInfo<RowData> partitionKeyTypeInfo = this.keyExtractor.getJoinKeyType(0);
         if (partitionKeyTypeInfo == null) {
             throw new IllegalStateException(
                     "Could not determine partition key type from keyExtractor for input 0.");

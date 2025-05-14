@@ -77,7 +77,7 @@ public interface JoinKeyExtractor extends Serializable {
      * @return The {@link InternalTypeInfo} for the key type used by the state for this input. Can
      *     be null if no key type can be determined.
      */
-    InternalTypeInfo<RowData> getKeyType(int inputId);
+    InternalTypeInfo<RowData> getJoinKeyType(int inputId);
 
     /**
      * Extracts the common key from an input row. The common key consists of attributes that are
