@@ -116,6 +116,7 @@ public final class AsyncStateWindowAggOperator<K, W> extends AsyncStateTableStre
         internalTimerService =
                 getInternalTimerService(
                         "window-timers", windowProcessor.createWindowSerializer(), this);
+        internalTimerService.initializeWatermark(currentWatermark);
 
         windowProcessor.open(
                 new WindowProcessorAsyncStateContext<>(
