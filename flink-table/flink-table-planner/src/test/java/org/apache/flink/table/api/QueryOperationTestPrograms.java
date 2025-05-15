@@ -30,6 +30,7 @@ import org.apache.flink.types.Row;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 
 import static org.apache.flink.table.api.Expressions.$;
@@ -65,15 +66,38 @@ public class QueryOperationTestPrograms {
             TableTestProgram.of("values-query-operation", "verifies sql serialization")
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
-                                    .addSchema("a bigint", "b string")
-                                    .consumedValues(Row.of(1L, "abc"), Row.of(2L, "cde"))
+                                    .addSchema("a bigint", "b string", "c time", "d timestamp")
+                                    .consumedValues(
+                                            Row.of(
+                                                    1L,
+                                                    "abc",
+                                                    LocalTime.of(12, 30, 0),
+                                                    LocalDateTime.of(1970, 1, 1, 12, 30, 0)),
+                                            Row.of(
+                                                    2L,
+                                                    "cde",
+                                                    LocalTime.of(18, 0, 0),
+                                                    LocalDateTime.of(1970, 1, 1, 18, 0, 0)))
                                     .build())
-                    .runTableApi(t -> t.fromValues(row(1L, "abc"), row(2L, "cde")), "sink")
+                    .runTableApi(
+                            t ->
+                                    t.fromValues(
+                                            row(
+                                                    1L,
+                                                    "abc",
+                                                    LocalTime.of(12, 30, 0),
+                                                    LocalDateTime.of(1970, 1, 1, 12, 30, 0)),
+                                            row(
+                                                    2L,
+                                                    "cde",
+                                                    LocalTime.of(18, 0, 0),
+                                                    LocalDateTime.of(1970, 1, 1, 18, 0, 0))),
+                            "sink")
                     .runSql(
-                            "SELECT `f0`, `f1` FROM (VALUES \n"
-                                    + "    (CAST(1 AS BIGINT), 'abc'),\n"
-                                    + "    (CAST(2 AS BIGINT), 'cde')\n"
-                                    + ") VAL$0(`f0`, `f1`)")
+                            "SELECT `f0`, `f1`, `f2`, `f3` FROM (VALUES \n"
+                                    + "    (CAST(1 AS BIGINT), 'abc', TIME '12:30:00', TIMESTAMP '1970-01-01 12:30:00'),\n"
+                                    + "    (CAST(2 AS BIGINT), 'cde', TIME '18:00:00', TIMESTAMP '1970-01-01 18:00:00')\n"
+                                    + ") VAL$0(`f0`, `f1`, `f2`, `f3`)")
                     .build();
 
     static final TableTestProgram FILTER_QUERY_OPERATION =
