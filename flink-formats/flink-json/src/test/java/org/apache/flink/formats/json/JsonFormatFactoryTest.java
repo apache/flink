@@ -127,47 +127,9 @@ class JsonFormatFactoryTest {
 
     @Test
     void testDecodeJsonParseEnabled() {
-        // test enabled
-        final Map<String, String> enabledParseTableOptions =
-                getModifyOptions(options -> options.put("json.decode.json-parser.enabled", "true"));
+        testJsonParserConfiguration(true, JsonParserRowDataDeserializationSchema.class);
 
-        DeserializationSchema<RowData> actualEnabledParseDeser =
-                createTableSource(enabledParseTableOptions)
-                        .valueFormat
-                        .createRuntimeDecoder(
-                                ScanRuntimeProviderContext.INSTANCE,
-                                SCHEMA.toPhysicalRowDataType());
-        final JsonParserRowDataDeserializationSchema expectedEnabledParseDeser =
-                new JsonParserRowDataDeserializationSchema(
-                        PHYSICAL_TYPE,
-                        InternalTypeInfo.of(PHYSICAL_TYPE),
-                        false,
-                        true,
-                        TimestampFormat.ISO_8601);
-        assertThat(actualEnabledParseDeser)
-                .isInstanceOf(JsonParserRowDataDeserializationSchema.class);
-        assertThat(actualEnabledParseDeser).isEqualTo(expectedEnabledParseDeser);
-
-        // test disabled
-        final Map<String, String> disabledParseTableOptions =
-                getModifyOptions(
-                        options -> options.put("json.decode.json-parser.enabled", "false"));
-
-        DeserializationSchema<RowData> actualDisabledParseDeser =
-                createTableSource(disabledParseTableOptions)
-                        .valueFormat
-                        .createRuntimeDecoder(
-                                ScanRuntimeProviderContext.INSTANCE,
-                                SCHEMA.toPhysicalRowDataType());
-        final JsonRowDataDeserializationSchema expectedDisabledParseDeser =
-                new JsonRowDataDeserializationSchema(
-                        PHYSICAL_TYPE,
-                        InternalTypeInfo.of(PHYSICAL_TYPE),
-                        false,
-                        true,
-                        TimestampFormat.ISO_8601);
-        assertThat(actualDisabledParseDeser).isInstanceOf(JsonRowDataDeserializationSchema.class);
-        assertThat(actualDisabledParseDeser).isEqualTo(expectedDisabledParseDeser);
+        testJsonParserConfiguration(false, JsonRowDataDeserializationSchema.class);
     }
 
     // ------------------------------------------------------------------------
@@ -276,5 +238,36 @@ class JsonFormatFactoryTest {
         options.put("json.encode.ignore-null-fields", "true");
         options.put("json.decode.json-parser.enabled", "true");
         return options;
+    }
+
+    private void testJsonParserConfiguration(boolean enabled, Class<?> expectedClass) {
+        Map<String, String> options =
+                getModifyOptions(
+                        opt -> opt.put("json.decode.json-parser.enabled", String.valueOf(enabled)));
+
+        DeserializationSchema<RowData> actualDeser =
+                createTableSource(options)
+                        .valueFormat
+                        .createRuntimeDecoder(
+                                ScanRuntimeProviderContext.INSTANCE,
+                                SCHEMA.toPhysicalRowDataType());
+
+        DeserializationSchema<RowData> expectedDeser =
+                enabled
+                        ? new JsonParserRowDataDeserializationSchema(
+                                PHYSICAL_TYPE,
+                                InternalTypeInfo.of(PHYSICAL_TYPE),
+                                false,
+                                true,
+                                TimestampFormat.ISO_8601)
+                        : new JsonRowDataDeserializationSchema(
+                                PHYSICAL_TYPE,
+                                InternalTypeInfo.of(PHYSICAL_TYPE),
+                                false,
+                                true,
+                                TimestampFormat.ISO_8601);
+
+        assertThat(actualDeser).isInstanceOf(expectedClass);
+        assertThat(actualDeser).isEqualTo(expectedDeser);
     }
 }
