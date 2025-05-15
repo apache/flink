@@ -1,0 +1,84 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+	<TestCase name="testCorrelateImmediate">
+		<Resource name="sql">
+			<![CDATA[select * FROM MyTable, LATERAL TABLE(tableFunc(func1(a)))]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], EXPR$0=[$4])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[tableFunc(func1($cor0.a))], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Calc(select=[a, b, c, d, EXPR$0])
++- Correlate(invocation=[tableFunc($4)], correlate=[table(tableFunc(f0))], select=[a,b,c,d,f0,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER ARRAY d, INTEGER f0, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
+   +- AsyncCalc(select=[a, b, c, d, func1(a) AS f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+		</Resource>
+	</TestCase>
+
+	<TestCase name="testCorrelateIndirect">
+		<Resource name="sql">
+			<![CDATA[select * FROM MyTable, LATERAL TABLE(tableFunc(ABS(func1(a))))]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], EXPR$0=[$4])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[tableFunc(ABS(func1($cor0.a)))], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Calc(select=[a, b, c, d, EXPR$0])
++- Correlate(invocation=[tableFunc(ABS($4))], correlate=[table(tableFunc(ABS(f0)))], select=[a,b,c,d,f0,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER ARRAY d, INTEGER f0, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
+   +- AsyncCalc(select=[a, b, c, d, func1(a) AS f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+		</Resource>
+	</TestCase>
+
+	<TestCase name="testCorrelateIndirectOtherWay">
+		<Resource name="sql">
+			<![CDATA[select * FROM MyTable, LATERAL TABLE(tableFunc(func1(ABS(a))))]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], EXPR$0=[$4])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[tableFunc(func1(ABS($cor0.a)))], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Calc(select=[a, b, c, d, EXPR$0])
++- Correlate(invocation=[tableFunc($4)], correlate=[table(tableFunc(f0))], select=[a,b,c,d,f0,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER ARRAY d, INTEGER f0, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
+   +- AsyncCalc(select=[a, b, c, d, func1(ABS(a)) AS f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+		</Resource>
+	</TestCase>
+</Root>
