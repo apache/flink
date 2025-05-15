@@ -440,6 +440,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                             nativeMetricMonitor,
                             manualCompactionManager);
         } catch (Throwable e) {
+            // log ASAP because close can block or fail too
+            logger.warn("Failed to build RocksDB state backend", e);
             // Do clean up
             List<ColumnFamilyOptions> columnFamilyOptions =
                     new ArrayList<>(kvStateInformation.values().size());
