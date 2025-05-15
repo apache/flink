@@ -57,8 +57,11 @@ public class LiteralExpressionsSerializationITCase {
     void testSqlSerialization() {
         final TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
         final LocalTime localTime = LocalTime.of(12, 12, 12).plus(333, ChronoUnit.MILLIS);
+        final LocalTime localTimeWithoutSeconds = LocalTime.of(12, 12);
         final LocalDate localDate = LocalDate.of(2024, 2, 3);
         final LocalDateTime localDateTime = LocalDateTime.of(localDate, localTime);
+        final LocalDateTime localDateTimeWithoutSeconds =
+                LocalDateTime.of(localDate, localTimeWithoutSeconds);
         final Instant instant = Instant.ofEpochMilli(1234567);
         final Duration duration = Duration.ofDays(99).plusSeconds(34).plusMillis(999);
         final Period period = Period.ofMonths(470);
@@ -79,7 +82,9 @@ public class LiteralExpressionsSerializationITCase {
                                 nullOf(DataTypes.STRING()),
                                 lit(localDate, DataTypes.DATE().notNull()),
                                 lit(localTime, DataTypes.TIME().notNull()),
+                                lit(localTimeWithoutSeconds, DataTypes.TIME().notNull()),
                                 lit(localDateTime, DataTypes.TIMESTAMP(3).notNull()),
+                                lit(localDateTimeWithoutSeconds, DataTypes.TIMESTAMP(3).notNull()),
                                 lit(instant, DataTypes.TIMESTAMP_LTZ(3).notNull()),
                                 lit(
                                         duration,
@@ -114,7 +119,9 @@ public class LiteralExpressionsSerializationITCase {
                                 + "CAST(NULL AS VARCHAR(2147483647)),\n"
                                 + "DATE '2024-02-03',\n"
                                 + "TIME '12:12:12.333',\n"
+                                + "TIME '12:12:00',\n"
                                 + "TIMESTAMP '2024-02-03 12:12:12.333',\n"
+                                + "TIMESTAMP '2024-02-03 12:12:00',\n"
                                 + "TO_TIMESTAMP_LTZ(1234567, 3),\n"
                                 + "INTERVAL '99 00:00:34.999' DAY TO SECOND(3),\n"
                                 + "INTERVAL '39-2' YEAR TO MONTH");
@@ -138,7 +145,9 @@ public class LiteralExpressionsSerializationITCase {
                                 null,
                                 localDate,
                                 localTime,
+                                localTimeWithoutSeconds,
                                 localDateTime,
+                                localDateTimeWithoutSeconds,
                                 instant,
                                 duration,
                                 period));
