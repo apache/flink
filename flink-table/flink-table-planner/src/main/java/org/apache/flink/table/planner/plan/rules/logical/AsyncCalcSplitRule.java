@@ -90,6 +90,21 @@ public class AsyncCalcSplitRule {
         public boolean isNonRemoteCall(RexNode node) {
             return AsyncUtil.isNonAsyncCall(node);
         }
+
+        @Override
+        public String getName() {
+            return "Async";
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj != null && this.getClass() == obj.getClass();
+        }
+
+        @Override
+        public int hashCode() {
+            return this.getClass().hashCode();
+        }
     }
 
     private static boolean hasNestedCalls(List<RexNode> projects) {

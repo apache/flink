@@ -21,18 +21,20 @@ package org.apache.flink.table.planner.plan.rules.logical;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCorrelate;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
+import org.apache.flink.table.planner.plan.rules.logical.AsyncCalcSplitRule.AsyncRemoteCalcCallFinder;
 
 import org.apache.calcite.plan.RelOptRule;
 
 /**
- * Rule will split the Python {@link FlinkLogicalTableFunctionScan} with Java calls or the Java
- * {@link FlinkLogicalTableFunctionScan} with Python calls into a {@link FlinkLogicalCalc} which
- * will be the left input of the new {@link FlinkLogicalCorrelate} and a new {@link
+ * Rule will split the Async {@link FlinkLogicalTableFunctionScan} with Java calls or the Java
+ * {@link FlinkLogicalTableFunctionScan} with Async calls into a {@link FlinkLogicalCalc} which will
+ * be the left input of the new {@link FlinkLogicalCorrelate} and a new {@link
  * FlinkLogicalTableFunctionScan}.
  */
-public class PythonCorrelateSplitRule {
+public class AsyncCorrelateSplitRule {
+
+    private static final RemoteCalcCallFinder ASYNC_CALL_FINDER = new AsyncRemoteCalcCallFinder();
 
     public static final RelOptRule INSTANCE =
-            RemoteCorrelateSplitRule.Config.createDefault(new PythonRemoteCalcCallFinder())
-                    .toRule();
+            RemoteCorrelateSplitRule.Config.createDefault(ASYNC_CALL_FINDER).toRule();
 }

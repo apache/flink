@@ -28,6 +28,7 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.functions.AsyncScalarFunction;
 import org.apache.flink.table.functions.FunctionContext;
+import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
@@ -241,6 +242,22 @@ public class AsyncCalcITCase extends StreamingTestBase {
     }
 
     @Test
+    public void testTableFuncWithAsyncCalc() {
+        Table t1 = tEnv.fromValues(1, 2).as("f1");
+        tEnv.createTemporaryView("t1", t1);
+        tEnv.createTemporarySystemFunction("func", new RandomTableFunction());
+        tEnv.createTemporarySystemFunction("addTen", new AsyncFuncAdd10());
+        final List<Row> results = executeSql("select * FROM t1, LATERAL TABLE(func(addTen(f1)))");
+        final List<Row> expectedRows =
+                Arrays.asList(
+                        Row.of(1, "blah 11"),
+                        Row.of(1, "foo 11"),
+                        Row.of(2, "blah 12"),
+                        Row.of(2, "foo 12"));
+        assertThat(results).containsSequence(expectedRows);
+    }
+
+    @Test
     public void testMultiArgumentAsyncWithAdditionalProjection() {
         // This was the cause of a bug previously where the reference to the sync projection was
         // getting garbled by janino. See issue https://issues.apache.org/jira/browse/FLINK-37721
@@ -421,6 +438,15 @@ public class AsyncCalcITCase extends StreamingTestBase {
 
         public void eval(CompletableFuture<Integer> future, Integer param1, Integer param2) {
             executor.schedule(() -> future.complete(param1 + param2), 10, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    /** A table function. */
+    public static class RandomTableFunction extends TableFunction<String> {
+
+        public void eval(Integer i) {
+            collect("blah " + i);
+            collect("foo " + i);
         }
     }
 }
