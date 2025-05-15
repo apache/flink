@@ -28,10 +28,12 @@ from pyflink.table.result_kind import ResultKind
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import _from_java_data_type
 from pyflink.table.utils import pickled_bytes_to_python_converter
+from pyflink.util.api_stability_decorators import PublicEvolving, Deprecated
 
 __all__ = ['TableResult', 'CloseableIterator']
 
 
+@PublicEvolving()
 class TableResult(object):
     """
     A :class:`~pyflink.table.TableResult` is the representation of the statement execution result.
@@ -76,6 +78,14 @@ class TableResult(object):
         else:
             get_method(self._j_table_result, "await")()
 
+    @Deprecated(since="2.1.0", detail="""
+    This function has been deprecated as part of FLIP-164.
+    :class:`~pyflink.table.table_schema.TableSchema` has been replaced by two more
+    dedicated classes :class:`~pyflink.table.Schema` and
+    :class:`~pyflink.table.catalog.ResolvedSchema`. Use :class:`~pyflink.table.Schema` for
+    declaration in APIs. :class:`~pyflink.table.catalog.ResolvedSchema` is offered by the
+    framework after resolution and validation.
+    """)
     def get_table_schema(self) -> TableSchema:
         """
         Returns the schema of the result.
@@ -84,13 +94,6 @@ class TableResult(object):
         :rtype: pyflink.table.TableSchema
 
         .. versionadded:: 1.11.0
-        .. deprecated:: 2.1.0
-           This function has been deprecated as part of FLIP-164.
-           :class:`~pyflink.table.table_schema.TableSchema` has been replaced by two more
-           dedicated classes :class:`~pyflink.table.Schema` and
-           :class:`~pyflink.table.catalog.ResolvedSchema`. Use :class:`~pyflink.table.Schema` for
-           declaration in APIs. :class:`~pyflink.table.catalog.ResolvedSchema` is offered by the
-           framework after resolution and validation.
         """
         return TableSchema(j_table_schema=self._get_java_table_schema())
 

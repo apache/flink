@@ -19,16 +19,23 @@ from typing import List, Optional, Union
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import DataType, RowType, _to_java_data_type, _from_java_data_type
+from pyflink.util.api_stability_decorators import Deprecated
 from pyflink.util.java_utils import to_jarray
 
 __all__ = ['TableSchema']
 
 
+@Deprecated(since="2.1.0", detail="""
+This class has been deprecated as part of FLIP-164. It has been replaced by two more dedicated
+classes :class:`~pyflink.table.Schema` and :class:`~pyflink.table.catalog.ResolvedSchema`.
+Use :class:`~pyflink.table.Schema` for declaration in APIs.
+:class:`~pyflink.table.catalog.ResolvedSchema` is offered by the framework after resolution and
+validation.
+""")
 class TableSchema(object):
     """
     A table schema that represents a table's structure with field names and data types.
     """
-
     def __init__(self, field_names: List[str] = None, data_types: List[DataType] = None,
                  j_table_schema=None):
         if j_table_schema is None:
