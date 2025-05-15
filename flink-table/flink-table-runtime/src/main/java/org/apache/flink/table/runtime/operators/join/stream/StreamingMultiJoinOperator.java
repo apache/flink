@@ -572,9 +572,21 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             int[] associations,
             boolean matched)
             throws Exception {
+        // if the join condition fails, this path yields no results.
+        currentRows[depth] = input;
+        if (!matchesCondition(depth, currentRows)) {
+            return; // No match, nothing more to do on this path
+        }
 
         boolean isLeftJoin = isLeftJoinAtDepth(depth);
-        RowKind inputRowKind = input.getRowKind(); // Preserve original RowKind
+        // When processing the actual input record, if it satisfies the outer join condition
+        // for this level (`depth`), its association with the preceding level (`depth-1`)
+        // must be updated: either increment if upsert or decrement the number of associations, if a
+        // retraction.
+        if (isLeftJoin) {
+            updateAssociationCount(
+                    depth, associations, shouldIncrementAssociation(JoinPhase.EMIT_RESULTS, input));
+        }
 
         // --- Left Join Retraction Handling ---
         // For an incoming INSERT/UPDATE_AFTER on the right side of a LEFT join,
@@ -585,25 +597,10 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             handleRetractBeforeInput(depth, input, inputId, currentRows, associations);
         }
 
-        currentRows[depth] = input;
-
-        // Shortcircuit: if the join condition fails, this path yields no results.
-        if (!matchesCondition(depth, currentRows)) {
-            return; // No match, nothing more to do on this path
-        }
-
-        // When processing the actual input record, if it satisfies the outer join condition
-        // for this level (`depth`), its association with the preceding level (`depth-1`)
-        // must be updated: either increment if upsert or decrement the number of associations, if a
-        // retraction.
-        if (isLeftJoin) {
-            updateAssociationCount(
-                    depth, associations, shouldIncrementAssociation(JoinPhase.EMIT_RESULTS, input));
-        }
-
         // Continue recursion to the next depth. Crucially, the phase is now `EMIT_RESULTS`
         // because we have incorporated the actual input record, and any further matches
         // found should lead to output generation or retractions.
+        currentRows[depth] = input;
         recursiveMultiJoin(
                 depth + 1, input, inputId, currentRows, associations, JoinPhase.EMIT_RESULTS);
 
@@ -685,11 +682,11 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         for (int i = 0; i < inputSpecs.size(); i++) {
             MultiJoinStateView stateView;
             String stateName = "multi-join-input-" + i;
-            InternalTypeInfo<RowData> mapKeyType = keyExtractor.getJoinKeyType(i);
+            InternalTypeInfo<RowData> joinKeyType = keyExtractor.getJoinKeyType(i);
 
-            if (mapKeyType == null) {
+            if (joinKeyType == null) {
                 throw new IllegalStateException(
-                        "Could not determine mapKeyType for input "
+                        "Could not determine joinKeyType for input "
                                 + i
                                 + ". State requires identifiable key attributes derived from join conditions.");
             }
@@ -699,7 +696,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
                             getRuntimeContext(),
                             stateName,
                             inputSpecs.get(i),
-                            mapKeyType,
+                            joinKeyType,
                             inputTypes.get(i),
                             stateRetentionTime[i]);
             stateHandlers.add(stateView);

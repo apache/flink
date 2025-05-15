@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.join.stream.multijoin;
 
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
@@ -44,7 +45,6 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 import org.apache.flink.types.RowKind;
-
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
@@ -179,6 +179,11 @@ public abstract class StreamingMultiJoinOperatorTestBase {
                 2, new StreamRecord<>(StreamRecordUtils.rowOfKind(INSERT, fields)));
     }
 
+    protected void insertShipment(Object... fields) throws Exception {
+        testHarness.processElement(
+                3, new StreamRecord<>(StreamRecordUtils.rowOfKind(INSERT, fields)));
+    }
+
     protected void updateBeforeUser(Object... fields) throws Exception {
         testHarness.processElement(
                 0, new StreamRecord<>(StreamRecordUtils.rowOfKind(UPDATE_BEFORE, fields)));
@@ -209,6 +214,16 @@ public abstract class StreamingMultiJoinOperatorTestBase {
                 2, new StreamRecord<>(StreamRecordUtils.rowOfKind(UPDATE_AFTER, fields)));
     }
 
+    protected void updateBeforeShipment(Object... fields) throws Exception {
+        testHarness.processElement(
+                3, new StreamRecord<>(StreamRecordUtils.rowOfKind(UPDATE_BEFORE, fields)));
+    }
+
+    protected void updateAfterShipment(Object... fields) throws Exception {
+        testHarness.processElement(
+                3, new StreamRecord<>(StreamRecordUtils.rowOfKind(UPDATE_AFTER, fields)));
+    }
+
     protected void deleteUser(Object... fields) throws Exception {
         testHarness.processElement(
                 0, new StreamRecord<>(StreamRecordUtils.rowOfKind(DELETE, fields)));
@@ -222,6 +237,11 @@ public abstract class StreamingMultiJoinOperatorTestBase {
     protected void deletePayment(Object... fields) throws Exception {
         testHarness.processElement(
                 2, new StreamRecord<>(StreamRecordUtils.rowOfKind(DELETE, fields)));
+    }
+
+    protected void deleteShipment(Object... fields) throws Exception {
+        testHarness.processElement(
+                3, new StreamRecord<>(StreamRecordUtils.rowOfKind(DELETE, fields)));
     }
 
     protected static List<GeneratedMultiJoinCondition> defaultConditions() {
@@ -282,6 +302,11 @@ public abstract class StreamingMultiJoinOperatorTestBase {
     // Private Helper Methods
     // ==========================================================================
 
+    /*
+    For the tests, we have a default setup:
+    1. Our first input will also be the one with the unique key as a join key.
+    2. Further tests will have unique keys but not contained in the join key.
+    * */
     private void initializeInputs(int numInputs) {
         if (numInputs < 2) {
             throw new IllegalArgumentException("Number of inputs must be a" + "t least 2");
@@ -443,7 +468,6 @@ public abstract class StreamingMultiJoinOperatorTestBase {
         private final List<InternalTypeInfo<RowData>> inputTypeInfos;
         private final List<JoinType> joinTypes;
         private final List<GeneratedMultiJoinCondition> joinConditions;
-        private final Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap;
         private final JoinKeyExtractor keyExtractor;
 
         public MultiStreamingJoinOperatorFactory(
@@ -456,7 +480,6 @@ public abstract class StreamingMultiJoinOperatorTestBase {
             this.inputTypeInfos = inputTypeInfos;
             this.joinTypes = joinTypes;
             this.joinConditions = joinConditions;
-            this.joinAttributeMap = joinAttributeMap;
             this.keyExtractor =
                     new AttributeBasedJoinKeyExtractor(joinAttributeMap, inputTypeInfos);
         }
@@ -565,13 +588,14 @@ public abstract class StreamingMultiJoinOperatorTestBase {
                             new CharType(false, 20),
                         },
                         new String[] {
-                            String.format("id_%d", inputIndex),
+                            String.format(inputIndex == 0 ? "user_id_%d" : "id_%d", inputIndex),
                         }));
     }
 
     protected RowDataKeySelector createKeySelector(int inputIndex) {
         return HandwrittenSelectorUtil.getRowDataSelector(
-                /* Testcase: primary key is 0 for the first table and 1 for all others */
+                /* Unique key for Input 0 is field 0 (user_id_0).
+                 * Unique key for Inputs 1, 2, 3 is field 1 (id_1, id_2, id_3 respectively). */
                 new int[] {inputIndex == 0 ? 0 : 1},
                 inputTypeInfos
                         .get(inputIndex)
@@ -581,36 +605,13 @@ public abstract class StreamingMultiJoinOperatorTestBase {
     }
 
     protected static GeneratedMultiJoinCondition createMultiJoinCondition(int numInputs) {
-        String funcCode =
-                "public class MultiConditionFunction extends org.apache.flink.api.common.functions.AbstractRichFunction "
-                        + "implements org.apache.flink.table.runtime.generated.MultiJoinCondition {\n"
-                        + "    public MultiConditionFunction(Object[] reference) {}\n"
-                        + "    @Override\n"
-                        + "    public boolean apply(org.apache.flink.table.data.RowData[] inputs) {\n"
-                        + "        if (inputs == null || inputs.length < "
-                        + numInputs
-                        + ") {\n"
-                        + "            return false;\n"
-                        + "        }\n"
-                        + "        for (org.apache.flink.table.data.RowData input : inputs) {\n"
-                        + "            if (input == null || input.isNullAt(0)) {\n"
-                        + "                return false;\n"
-                        + "            }\n"
-                        + "        }\n"
-                        + "        String referenceKey = inputs[0].getString(0).toString();\n"
-                        + "        for (int i = 1; i < inputs.length; i++) {\n"
-                        + "            if (!referenceKey.equals(inputs[i].getString(0).toString())) {\n"
-                        + "                return false;\n"
-                        + "            }\n"
-                        + "        }\n"
-                        + "        return true;\n"
-                        + "    }\n"
-                        + "    @Override\n"
-                        + "    public void close() throws Exception {\n"
-                        + "        super.close();\n"
-                        + "    }\n"
-                        + "}\n";
-        return new GeneratedMultiJoinCondition("MultiConditionFunction", funcCode, new Object[0]);
+        String generatedClassName = "DefaultGlobalEquiKeyCondition_manual";
+        return new GeneratedMultiJoinCondition(generatedClassName, "", new Object[0]) {
+            @Override
+            public MultiJoinCondition newInstance(ClassLoader classLoader) {
+                return new DefaultGlobalEquiKeyCondition(numInputs);
+            }
+        };
     }
 
     /**
@@ -618,58 +619,120 @@ public abstract class StreamingMultiJoinOperatorTestBase {
      * the input at `index` and the input at `indexToCompare`. This is typically used for the ON
      * clause of a specific join step (e.g., A LEFT JOIN B **ON A.key = B.key**).
      *
-     * @param index The index of the current input stream (the right side of the conceptual join
-     *     step).
-     * @param indexToCompare The index of the input stream to compare against (the left side).
-     * @return A GeneratedMultiJoinCondition representing the equality check.
+     * @param rightInputInArray The index of the current input stream (the right side of the conceptual join
+     *     step) in the `inputs` array of `MultiJoinCondition.apply()`.
+     * @param leftInputInArray The index of the input stream to compare against (the left side) in the
+     *     `inputs` array.
+     * @return A GeneratedMultiJoinCondition representing the equality check on field 0.
      */
     protected static GeneratedMultiJoinCondition createJoinCondition(
-            int index, int indexToCompare) {
+            int rightInputInArray, int leftInputInArray) {
         // Ensure indices are valid for comparison
-        if (index <= 0 || indexToCompare < 0 || index == indexToCompare) {
-            throw new IllegalArgumentException("Invalid indices for creating join condition.");
+        if (rightInputInArray <= 0 || leftInputInArray < 0 || rightInputInArray == leftInputInArray) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Invalid indices for creating join condition. rightInputInArray: %d, leftInputInArray: %d",
+                            rightInputInArray, leftInputInArray));
         }
 
-        String funcCode =
-                "public class JoinConditionFunction_"
-                        + index
-                        + "_"
-                        + indexToCompare
-                        + " extends org.apache.flink.api.common.functions.AbstractRichFunction "
-                        + "implements org.apache.flink.table.runtime.generated.MultiJoinCondition {\n"
-                        + "    private final int index = "
-                        + index
-                        + ";\n"
-                        + "    private final int indexToCompare = "
-                        + indexToCompare
-                        + ";\n"
-                        + "    public JoinConditionFunction_"
-                        + index
-                        + "_"
-                        + indexToCompare
-                        + "(Object[] reference) {}\n"
-                        + "    @Override\n"
-                        + "    public boolean apply(org.apache.flink.table.data.RowData[] inputs) {\n"
-                        + "        // Basic null checks for safety\n"
-                        + "        if (inputs == null || inputs.length <= Math.max(index, indexToCompare) || inputs[indexToCompare] == null || inputs[index] == null) {\n"
-                        + "            return false;\n"
-                        + "        }\n"
-                        + "        // Check null keys\n"
-                        + "        if (inputs[indexToCompare].isNullAt(0) || inputs[index].isNullAt(0)) {\n"
-                        + "            return false;\n"
-                        + "        }\n"
-                        + "        // Compare the join keys (field 0 in this test setup)\n"
-                        + "        String keyToCompare = inputs[indexToCompare].getString(0).toString();\n"
-                        + "        String currentKey = inputs[index].getString(0).toString();\n"
-                        + "        return keyToCompare.equals(currentKey);\n"
-                        + "    }\n"
-                        + "    @Override\n"
-                        + "    public void close() throws Exception {\n"
-                        + "        super.close();\n"
-                        + "    }\n"
-                        + "}\n";
-        // Use unique class name to avoid conflicts if multiple conditions are generated
-        return new GeneratedMultiJoinCondition(
-                "JoinConditionFunction_" + index + "_" + indexToCompare, funcCode, new Object[0]);
+        String generatedClassName =
+                String.format(
+                        "SpecificInputsEquiKeyCondition_manual_%d_%d",
+                        rightInputInArray, leftInputInArray);
+        return new GeneratedMultiJoinCondition(generatedClassName, "", new Object[0]) {
+            @Override
+            public MultiJoinCondition newInstance(ClassLoader classLoader) {
+                // Field 0 is assumed for key comparison in this default test condition
+                return new SpecificInputsEquiKeyCondition(leftInputInArray, 0, rightInputInArray, 0);
+            }
+        };
+    }
+
+    // ==========================================================================
+    // Concrete MultiJoinCondition Implementations for TestBase
+    // ==========================================================================
+
+    /**
+     * Checks if all inputs (from `inputs[0]` to `inputs[numInputs-1]`) are non-null,
+     * have a non-null string at field 0, and these strings are all equal to `inputs[0].getString(0)`.
+     * This is used as a global filter condition in some tests.
+     */
+    private static class DefaultGlobalEquiKeyCondition extends AbstractRichFunction implements MultiJoinCondition {
+        private final int numInputs;
+
+        public DefaultGlobalEquiKeyCondition(int numInputs) {
+            this.numInputs = numInputs;
+        }
+
+        @Override
+        public boolean apply(RowData[] inputs) {
+            if (inputs == null || inputs.length < numInputs) {
+                return false; // Not enough inputs provided to the condition
+            }
+
+            if (numInputs <= 1) {
+                if (numInputs == 1 && (inputs[0] == null || inputs[0].isNullAt(0))) {
+                    return false;
+                }
+                return true;
+            }
+
+            if (inputs[0] == null || inputs[0].isNullAt(0)) {
+                return false; // Reference key (inputs[0].getString(0)) would be null
+            }
+
+            // Compare inputs[0] (field 0) with inputs[i] (field 0) for i = 1 to numInputs - 1
+            for (int i = 1; i < numInputs; i++) {
+                // We reuse SpecificInputsEquiKeyCondition for each pair comparison.
+                // leftInputIndex = 0, leftKeyFieldIndex = 0
+                // rightInputIndex = i, rightKeyFieldIndex = 0
+                SpecificInputsEquiKeyCondition pairCondition =
+                        new SpecificInputsEquiKeyCondition(0, 0, i, 0);
+                if (!pairCondition.apply(inputs)) {
+                    return false; // Found a pair that doesn't match on key field 0
+                }
+            }
+            return true;
+        }
+    }
+
+    /**
+     * Checks if `inputs[leftInputIndex].getString(leftKeyFieldIndex)` is equal to
+     * `inputs[rightInputIndex].getString(rightKeyFieldIndex)`.
+     * Used for specific join step conditions.
+     */
+    private static class SpecificInputsEquiKeyCondition extends AbstractRichFunction implements MultiJoinCondition {
+        private final int leftInputIndex;
+        private final int leftKeyFieldIndex;
+        private final int rightInputIndex;
+        private final int rightKeyFieldIndex;
+
+        public SpecificInputsEquiKeyCondition(
+                int leftInputIndex, int leftKeyFieldIndex, int rightInputIndex, int rightKeyFieldIndex) {
+            this.leftInputIndex = leftInputIndex;
+            this.leftKeyFieldIndex = leftKeyFieldIndex;
+            this.rightInputIndex = rightInputIndex;
+            this.rightKeyFieldIndex = rightKeyFieldIndex;
+        }
+
+        @Override
+        public boolean apply(RowData[] inputs) {
+            // Basic null checks for safety
+            if (inputs == null
+                    || inputs.length <= Math.max(leftInputIndex, rightInputIndex)
+                    || inputs[leftInputIndex] == null
+                    || inputs[rightInputIndex] == null) {
+                return false;
+            }
+            // Check null keys
+            if (inputs[leftInputIndex].isNullAt(leftKeyFieldIndex)
+                    || inputs[rightInputIndex].isNullAt(rightKeyFieldIndex)) {
+                return false;
+            }
+            // Compare the join keys
+            String keyLeft = inputs[leftInputIndex].getString(leftKeyFieldIndex).toString();
+            String keyRight = inputs[rightInputIndex].getString(rightKeyFieldIndex).toString();
+            return keyLeft.equals(keyRight);
+        }
     }
 }
