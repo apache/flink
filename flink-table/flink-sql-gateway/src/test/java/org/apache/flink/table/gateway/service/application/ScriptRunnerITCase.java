@@ -27,7 +27,7 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
-import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
+import org.apache.flink.runtime.dispatcher.DefaultDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunnerFactory;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
@@ -243,7 +243,7 @@ class ScriptRunnerITCase {
                     applicationDispatcherLeaderProcessFactoryFactory =
                             ApplicationDispatcherLeaderProcessFactoryFactory.create(
                                     new Configuration(configuration),
-                                    SessionDispatcherFactory.INSTANCE,
+                                    DefaultDispatcherFactory.INSTANCE,
                                     program);
             return new DefaultDispatcherResourceManagerComponentFactory(
                     new DefaultDispatcherRunnerFactory(
