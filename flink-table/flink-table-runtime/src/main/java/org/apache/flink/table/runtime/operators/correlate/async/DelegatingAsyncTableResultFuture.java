@@ -16,11 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.join.lookup;
+package org.apache.flink.table.runtime.operators.correlate.async;
 
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.types.Row;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 
@@ -29,27 +33,46 @@ import java.util.function.BiConsumer;
  * is used as a bridge between {@link org.apache.flink.table.functions.AsyncTableFunction} and
  * {@link org.apache.flink.streaming.api.functions.async.AsyncFunction}.
  */
-public class DelegatingResultFuture<OUT> implements BiConsumer<Collection<OUT>, Throwable> {
+public class DelegatingAsyncTableResultFuture implements BiConsumer<Collection<Object>, Throwable> {
 
-    private final ResultFuture<OUT> delegatedResultFuture;
-    private final CompletableFuture<Collection<OUT>> completableFuture;
+    private final ResultFuture<Object> delegatedResultFuture;
+    private final boolean needsWrapping;
+    private final boolean isInternalResultType;
 
-    public DelegatingResultFuture(ResultFuture<OUT> delegatedResultFuture) {
+    private final CompletableFuture<Collection<Object>> completableFuture;
+
+    public DelegatingAsyncTableResultFuture(
+            ResultFuture<Object> delegatedResultFuture,
+            boolean needsWrapping,
+            boolean isInternalResultType) {
         this.delegatedResultFuture = delegatedResultFuture;
+        this.needsWrapping = needsWrapping;
+        this.isInternalResultType = isInternalResultType;
         this.completableFuture = new CompletableFuture<>();
         this.completableFuture.whenComplete(this);
     }
 
     @Override
-    public void accept(Collection<OUT> outs, Throwable throwable) {
+    public void accept(Collection<Object> outs, Throwable throwable) {
         if (throwable != null) {
             delegatedResultFuture.completeExceptionally(throwable);
         } else {
+            if (needsWrapping) {
+                List<Object> wrapped = new ArrayList<>();
+                for (Object value : outs) {
+                    if (isInternalResultType) {
+                        wrapped.add(GenericRowData.of(value));
+                    } else {
+                        wrapped.add(Row.of(value));
+                    }
+                }
+                outs = wrapped;
+            }
             delegatedResultFuture.complete(outs);
         }
     }
 
-    public CompletableFuture<Collection<OUT>> getCompletableFuture() {
+    public CompletableFuture<Collection<Object>> getCompletableFuture() {
         return completableFuture;
     }
 }

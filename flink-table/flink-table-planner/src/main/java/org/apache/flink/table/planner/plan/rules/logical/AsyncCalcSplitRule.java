@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.planner.plan.utils.AsyncUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -71,24 +72,35 @@ public class AsyncCalcSplitRule {
      * org.apache.flink.table.functions.AsyncScalarFunction}.
      */
     public static class AsyncRemoteCalcCallFinder implements RemoteCalcCallFinder {
+
+        private final FunctionKind functionKind;
+
+        public AsyncRemoteCalcCallFinder() {
+            this(FunctionKind.ASYNC_SCALAR);
+        }
+
+        public AsyncRemoteCalcCallFinder(FunctionKind functionKind) {
+            this.functionKind = functionKind;
+        }
+
         @Override
         public boolean containsRemoteCall(RexNode node) {
-            return AsyncUtil.containsAsyncCall(node);
+            return AsyncUtil.containsAsyncCall(node, functionKind);
         }
 
         @Override
         public boolean containsNonRemoteCall(RexNode node) {
-            return AsyncUtil.containsNonAsyncCall(node);
+            return AsyncUtil.containsNonAsyncCall(node, functionKind);
         }
 
         @Override
         public boolean isRemoteCall(RexNode node) {
-            return AsyncUtil.isAsyncCall(node);
+            return AsyncUtil.isAsyncCall(node, functionKind);
         }
 
         @Override
         public boolean isNonRemoteCall(RexNode node) {
-            return AsyncUtil.isNonAsyncCall(node);
+            return AsyncUtil.isNonAsyncCall(node, functionKind);
         }
 
         @Override
@@ -98,7 +110,9 @@ public class AsyncCalcSplitRule {
 
         @Override
         public boolean equals(Object obj) {
-            return obj != null && this.getClass() == obj.getClass();
+            return obj != null
+                    && this.getClass() == obj.getClass()
+                    && functionKind == ((AsyncRemoteCalcCallFinder) obj).functionKind;
         }
 
         @Override
