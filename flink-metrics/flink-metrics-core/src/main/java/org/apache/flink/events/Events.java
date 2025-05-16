@@ -22,7 +22,8 @@ package org.apache.flink.events;
 public enum Events {
     CheckpointEvent,
     JobStatusChangeEvent,
-    JobFailureEvent;
+    JobFailureEvent,
+    AllSubtasksStatusChangeEvent;
 
     public EventBuilder builder(Class<?> classScope) {
         return Event.builder(classScope, name());
