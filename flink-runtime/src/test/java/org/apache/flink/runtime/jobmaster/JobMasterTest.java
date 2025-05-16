@@ -36,6 +36,9 @@ import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.events.Event;
+import org.apache.flink.events.EventBuilder;
+import org.apache.flink.events.Events;
 import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.blocklist.DefaultBlocklistHandler;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
@@ -79,6 +82,7 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.FreeSlotTracker;
 import org.apache.flink.runtime.jobmaster.slotpool.FreeSlotTrackerTestUtils;
@@ -90,6 +94,8 @@ import org.apache.flink.runtime.jobmaster.slotpool.TestingSlotPoolServiceBuilder
 import org.apache.flink.runtime.jobmaster.utils.JobMasterBuilder;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
@@ -121,6 +127,7 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.FlinkException;
@@ -1688,16 +1695,31 @@ class JobMasterTest {
      */
     @Test
     void testJobFailureWhenGracefulTaskExecutorTermination() throws Exception {
+        final List<Event> jobEvents = new ArrayList<>();
         runJobFailureWhenTaskExecutorTerminatesTest(
                 heartbeatServices,
                 (localTaskManagerLocation, jobMasterGateway) ->
                         jobMasterGateway.disconnectTaskManager(
                                 localTaskManagerLocation.getResourceID(),
-                                new FlinkException("Test disconnectTaskManager exception.")));
+                                new FlinkException("Test disconnectTaskManager exception.")),
+                jobEvents);
+        assertThat(
+                        jobEvents.stream()
+                                .filter(
+                                        event ->
+                                                Events.JobStatusChangeEvent.name()
+                                                        .equals(event.getName()))
+                                .map(Event::getAttributes)
+                                .map(x -> x.get("newJobStatus")))
+                .containsExactly(
+                        JobStatus.RUNNING.toString(),
+                        JobStatus.FAILING.toString(),
+                        JobStatus.FAILED.toString());
     }
 
     @Test
     void testJobFailureWhenTaskExecutorHeartbeatTimeout() throws Exception {
+        final List<Event> jobEvents = new ArrayList<>();
         final TestingHeartbeatServices testingHeartbeatService =
                 new TestingHeartbeatServices(heartbeatInterval, heartbeatTimeout);
 
@@ -1705,7 +1727,20 @@ class JobMasterTest {
                 testingHeartbeatService,
                 (localTaskManagerLocation, jobMasterGateway) ->
                         testingHeartbeatService.triggerHeartbeatTimeout(
-                                jmResourceId, localTaskManagerLocation.getResourceID()));
+                                jmResourceId, localTaskManagerLocation.getResourceID()),
+                jobEvents);
+        assertThat(
+                        jobEvents.stream()
+                                .filter(
+                                        event ->
+                                                Events.JobStatusChangeEvent.name()
+                                                        .equals(event.getName()))
+                                .map(Event::getAttributes)
+                                .map(x -> x.get("newJobStatus")))
+                .containsExactly(
+                        JobStatus.RUNNING.toString(),
+                        JobStatus.FAILING.toString(),
+                        JobStatus.FAILED.toString());
     }
 
     /**
@@ -2497,7 +2532,8 @@ class JobMasterTest {
 
     private void runJobFailureWhenTaskExecutorTerminatesTest(
             HeartbeatServices heartbeatServices,
-            BiConsumer<LocalUnresolvedTaskManagerLocation, JobMasterGateway> jobReachedRunningState)
+            BiConsumer<LocalUnresolvedTaskManagerLocation, JobMasterGateway> jobReachedRunningState,
+            List<Event> jobEventsOut)
             throws Exception {
         final JobGraph jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
         final JobMasterBuilder.TestingOnCompletionActions onCompletionActions =
@@ -2509,6 +2545,21 @@ class JobMasterTest {
                         .withHighAvailabilityServices(haServices)
                         .withHeartbeatServices(heartbeatServices)
                         .withOnCompletionActions(onCompletionActions)
+                        .withMetricsGroupFactory(
+                                new JobManagerJobMetricGroupFactory() {
+                                    @Override
+                                    public JobManagerJobMetricGroup create(
+                                            @Nonnull ExecutionPlan executionPlan) {
+                                        return new UnregisteredMetricGroups
+                                                .UnregisteredJobManagerJobMetricGroup() {
+                                            @Override
+                                            public void addEvent(EventBuilder eventBuilder) {
+                                                jobEventsOut.add(
+                                                        eventBuilder.build(getAllVariables()));
+                                            }
+                                        };
+                                    }
+                                })
                         .createJobMaster()) {
 
             jobMaster.start();
