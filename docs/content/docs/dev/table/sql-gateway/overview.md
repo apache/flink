@@ -41,7 +41,7 @@ Getting Started
 
 This section describes how to setup and run your first Flink SQL program from the command-line.
 
-The SQL Gateway is bundled in the regular Flink distribution and thus runnable out-of-the-box. It requires only a running Flink cluster where table programs can be executed. For more information about setting up a Flink cluster see the [Cluster & Deployment]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}) part. If you simply want to try out the SQL Client, you can also start a local cluster with one worker using the following command:
+The SQL Gateway is bundled in the regular Flink distribution and thus runnable out-of-the-box. It requires only a running Flink cluster where table programs can be executed. For more information about setting up a Flink cluster see the [Cluster & Deployment]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}) part. If you simply want to try out the SQL Gateway, you can also start a local cluster with one worker using the following command:
 
 ```bash
 $ ./bin/start-cluster.sh
@@ -83,6 +83,14 @@ $ curl --request POST http://localhost:8083/v1/sessions/${sessionHandle}/stateme
 ```
 
 The `operationHandle` in the return results is used by the SQL Gateway to uniquely identify the submitted SQL.
+
+The Flink SQL Gateway allows clients to specify which Flink cluster to submit jobs to, enabling remote execution of SQL statements and facilitating easier interaction with Flink clusters through a REST API. Enrich the POST request body with [rest.address](https://nightlies.apache.org/flink/flink-docs-master/docs/deployment/config/#rest-address) and [rest.port](https://nightlies.apache.org/flink/flink-docs-master/docs/deployment/config/#rest-port) inside the `executionConfig` variable to set the Flink cluster address. For example:
+
+```bash
+$ curl --request POST http://localhost:8083/v1/sessions/${sessionHandle}/statements/ --data '{"executionConfig": {"rest.address":"jobmanager-host", "rest.port":8081},"statement": "SELECT 1"}'
+{"operationHandle":"..."}
+```
+
 
 
 **Step 3: Fetch results**
