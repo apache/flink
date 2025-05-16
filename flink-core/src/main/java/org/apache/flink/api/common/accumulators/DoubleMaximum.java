@@ -61,9 +61,7 @@ public class DoubleMaximum implements SimpleAccumulator<Double> {
 
     @Override
     public DoubleMaximum clone() {
-        DoubleMaximum clone = new DoubleMaximum();
-        clone.max = this.max;
-        return clone;
+        return new DoubleMaximum(this.max);
     }
 
     // ------------------------------------------------------------------------
