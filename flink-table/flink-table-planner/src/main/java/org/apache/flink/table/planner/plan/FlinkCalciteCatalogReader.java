@@ -39,7 +39,6 @@ import org.apache.flink.table.legacy.sources.TableSource;
 import org.apache.flink.table.planner.calcite.FlinkSqlNameMatcher;
 import org.apache.flink.table.planner.catalog.CatalogSchemaModel;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
-import org.apache.flink.table.planner.catalog.FlinkSchema;
 import org.apache.flink.table.planner.catalog.QueryOperationCatalogViewTable;
 import org.apache.flink.table.planner.catalog.SqlCatalogViewTable;
 import org.apache.flink.table.planner.plan.schema.CatalogSourceTable;
@@ -53,24 +52,22 @@ import org.apache.flink.shaded.guava33.com.google.common.collect.Iterables;
 
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.calcite.jdbc.SimpleCalciteSchema;
 import org.apache.calcite.plan.RelOptSchema;
 import org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.calcite.prepare.Prepare;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.validate.SqlNameMatchers;
+import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.util.Util;
 
 import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import static org.apache.calcite.sql.validate.SqlValidatorUtil.getSchema;
 
 /**
  * Flink specific {@link CalciteCatalogReader} that changes the RelOptTable which wrapped a {@link
@@ -116,34 +113,27 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
     }
 
     public @Nullable CatalogSchemaModel getModel(List<String> names) {
-        for (List<String> schemaPath : getSchemaPaths()) {
-            CalciteSchema schema =
-                    getSchema(
-                            getRootSchema(),
-                            Iterables.concat(schemaPath, Util.skipLast(names)),
-                            nameMatcher());
-            if (schema == null) {
-                continue;
-            }
+        // ----- COPIED PARTIALLY FROM CalciteCatalogReader#getFunctionsFrom -----
+        for (List<String> schemaNames : getSchemaPaths()) {
+            CalciteSchema calciteSchema =
+                    SqlValidatorUtil.getSchema(
+                            rootSchema,
+                            Iterables.concat(schemaNames, Util.skipLast(names)),
+                            nameMatcher);
 
-            if (!(schema.schema instanceof FlinkSchema)) {
-                throw new ValidationException("getModel() only supports FlinkSchema.");
-            }
-
-            FlinkSchema flinkSchema = (FlinkSchema) schema.schema;
-            String modelName =
-                    nameMatcher().isCaseSensitive()
-                            ? Util.last(names)
-                            : caseInsensitiveLookup(flinkSchema.getModelNames(), Util.last(names));
-            if (modelName == null) {
-                return null;
-            }
-
-            CatalogSchemaModel model = flinkSchema.getModel(modelName);
-            if (model != null) {
-                return model;
+            if (calciteSchema != null) {
+                final String name = Util.last(names);
+                boolean caseSensitive = nameMatcher.isCaseSensitive();
+                // ----- FLINK MODIFICATION START -----
+                SimpleCalciteSchema.ModelEntry modelEntry =
+                        ((SimpleCalciteSchema) calciteSchema).getModel(name, caseSensitive);
+                if (modelEntry != null) {
+                    return modelEntry.getModel();
+                }
+                // ----- FLINK MODIFICATION END -----
             }
         }
+        // ----- COPY END -----
         return null;
     }
 
@@ -300,29 +290,5 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
                 return false;
             }
         }
-    }
-
-    private static @Nullable String caseInsensitiveLookup(Set<String> candidates, String name) {
-        // Exact string lookup
-        if (candidates.contains(name)) {
-            return name;
-        }
-        // Upper case string lookup
-        final String upperCaseName = name.toUpperCase(Locale.ROOT);
-        if (candidates.contains(upperCaseName)) {
-            return upperCaseName;
-        }
-        // Lower case string lookup
-        final String lowerCaseName = name.toLowerCase(Locale.ROOT);
-        if (candidates.contains(lowerCaseName)) {
-            return lowerCaseName;
-        }
-        // Fall through: Set iteration
-        for (String candidate : candidates) {
-            if (candidate.equalsIgnoreCase(name)) {
-                return candidate;
-            }
-        }
-        return null;
     }
 }

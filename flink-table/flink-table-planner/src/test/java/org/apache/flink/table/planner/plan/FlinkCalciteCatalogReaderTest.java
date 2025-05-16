@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogModel;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
@@ -176,8 +175,9 @@ class FlinkCalciteCatalogReaderTest {
     @Test
     void testGetModelFromNonFlinkSchema() {
         assertThatThrownBy(() -> catalogReader.getModel(Collections.singletonList(modelMockName)))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("getModel() only supports FlinkSchema.");
+                .isInstanceOf(ClassCastException.class)
+                .hasMessageContaining(
+                        "class org.apache.calcite.jdbc.CalciteConnectionImpl$RootSchema cannot be cast to class org.apache.flink.table.planner.catalog.FlinkSchema");
     }
 
     private static ResolvedCatalogModel getModel() {
