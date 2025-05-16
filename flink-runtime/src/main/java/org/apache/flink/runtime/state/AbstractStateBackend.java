@@ -32,7 +32,7 @@ import java.io.IOException;
  * users.
  */
 @PublicEvolving
-public abstract class AbstractStateBackend implements StateBackend, java.io.Serializable {
+public abstract class AbstractStateBackend implements StateBackend {
 
     private static final long serialVersionUID = 4620415814639230247L;
 
