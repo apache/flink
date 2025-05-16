@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
+
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rel.RelNode;
@@ -92,8 +94,10 @@ public class RewriteIntersectAllRule
 
         List<Integer> fields = Util.range(intersect.getRowType().getFieldCount());
 
+        final FlinkRelBuilder flinkRelBuilder = FlinkRelBuilder.of(call.rel(0).getCluster(), null);
         // 1. add marker to left rel node
-        RelBuilder leftBuilder = call.builder();
+        RelBuilder leftBuilder =
+                flinkRelBuilder.transform(u -> u.withConvertCorrelateToJoin(false));
         RelDataType boolType = leftBuilder.getTypeFactory().createSqlType(SqlTypeName.BOOLEAN);
         RelNode leftWithMarker =
                 leftBuilder
@@ -114,7 +118,8 @@ public class RewriteIntersectAllRule
                         .build();
 
         // 2. add marker to right rel node
-        RelBuilder rightBuilder = call.builder();
+        RelBuilder rightBuilder =
+                flinkRelBuilder.transform(u -> u.withConvertCorrelateToJoin(false));
         RelNode rightWithMarker =
                 rightBuilder
                         .push(right)
@@ -134,7 +139,7 @@ public class RewriteIntersectAllRule
                         .build();
 
         // 3. union and aggregate
-        RelBuilder builder = call.builder();
+        RelBuilder builder = flinkRelBuilder.transform(u -> u.withConvertCorrelateToJoin(false));
         builder.push(leftWithMarker)
                 .push(rightWithMarker)
                 .union(true)
