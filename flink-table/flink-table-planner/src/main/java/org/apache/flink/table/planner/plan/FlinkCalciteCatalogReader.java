@@ -37,6 +37,7 @@ import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.legacy.sources.LookupableTableSource;
 import org.apache.flink.table.legacy.sources.TableSource;
 import org.apache.flink.table.planner.calcite.FlinkSqlNameMatcher;
+import org.apache.flink.table.planner.catalog.CatalogSchemaModel;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
 import org.apache.flink.table.planner.catalog.QueryOperationCatalogViewTable;
 import org.apache.flink.table.planner.catalog.SqlCatalogViewTable;
@@ -47,14 +48,21 @@ import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.utils.TableSchemaUtils;
 
+import org.apache.flink.shaded.guava33.com.google.common.collect.Iterables;
+
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.calcite.jdbc.SimpleCalciteSchema;
 import org.apache.calcite.plan.RelOptSchema;
 import org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.calcite.prepare.Prepare;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.validate.SqlNameMatchers;
+import org.apache.calcite.sql.validate.SqlValidatorUtil;
+import org.apache.calcite.util.Util;
+
+import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
@@ -85,7 +93,7 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
     }
 
     @Override
-    public Prepare.PreparingTable getTable(List<String> names) {
+    public @Nullable Prepare.PreparingTable getTable(List<String> names) {
         Prepare.PreparingTable originRelOptTable = super.getTable(names);
         if (originRelOptTable == null) {
             return null;
@@ -102,6 +110,31 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
                 return originRelOptTable;
             }
         }
+    }
+
+    public @Nullable CatalogSchemaModel getModel(List<String> names) {
+        // ----- COPIED PARTIALLY FROM CalciteCatalogReader#getFunctionsFrom -----
+        for (List<String> schemaNames : getSchemaPaths()) {
+            CalciteSchema calciteSchema =
+                    SqlValidatorUtil.getSchema(
+                            rootSchema,
+                            Iterables.concat(schemaNames, Util.skipLast(names)),
+                            nameMatcher);
+
+            if (calciteSchema != null) {
+                final String name = Util.last(names);
+                boolean caseSensitive = nameMatcher.isCaseSensitive();
+                // ----- FLINK MODIFICATION START -----
+                SimpleCalciteSchema.ModelEntry modelEntry =
+                        ((SimpleCalciteSchema) calciteSchema).getModel(name, caseSensitive);
+                if (modelEntry != null) {
+                    return modelEntry.getModel();
+                }
+                // ----- FLINK MODIFICATION END -----
+            }
+        }
+        // ----- COPY END -----
+        return null;
     }
 
     /** Translate this {@link CatalogSchemaTable} into Flink source table. */

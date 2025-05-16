@@ -22,12 +22,14 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogModel;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import org.apache.calcite.schema.Table;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_CATALOG;
 import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_DATABASE;
@@ -37,41 +39,59 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DatabaseCalciteSchemaTest {
 
     private static final String TABLE_NAME = "tab";
+    private static final String TEMP_TABLE_NAME = "tab_temp";
+    private static final String MODEL_NAME = "model";
+    private static final String TEMP_MODEL_NAME = "model_temp";
 
-    @Test
-    void testPermanentTableWithPrimaryKey() {
+    @ParameterizedTest(name = "Permanent table {0}")
+    @ValueSource(booleans = {true, false})
+    void testGetTableWithPrimaryKey(boolean isPermanent) {
         final CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
 
         final DatabaseCalciteSchema calciteSchema =
                 new DatabaseCalciteSchema(DEFAULT_CATALOG, DEFAULT_DATABASE, catalogManager, true);
 
-        catalogManager.createTable(
-                createTable(),
-                ObjectIdentifier.of(DEFAULT_CATALOG, DEFAULT_DATABASE, TABLE_NAME),
-                false);
+        if (isPermanent) {
+            catalogManager.createTable(
+                    createTable(),
+                    ObjectIdentifier.of(DEFAULT_CATALOG, DEFAULT_DATABASE, TABLE_NAME),
+                    false);
+        } else {
+            catalogManager.createTemporaryTable(
+                    createTable(),
+                    ObjectIdentifier.of(DEFAULT_CATALOG, DEFAULT_DATABASE, TEMP_TABLE_NAME),
+                    false);
+        }
 
-        final Table table = calciteSchema.getTable(TABLE_NAME);
+        final Table table = calciteSchema.getTable(isPermanent ? TABLE_NAME : TEMP_TABLE_NAME);
         assertThat(table).isInstanceOf(CatalogSchemaTable.class);
         assertThat(((CatalogSchemaTable) table).getStatistic().getUniqueKeys().iterator().next())
                 .containsExactlyInAnyOrder("a", "b");
     }
 
-    @Test
-    void testTemporaryTableWithPrimaryKey() {
+    @ParameterizedTest(name = "Permanent model {0}")
+    @ValueSource(booleans = {true, false})
+    void testGetModel(boolean isPermanent) {
         final CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
 
         final DatabaseCalciteSchema calciteSchema =
-                new DatabaseCalciteSchema("other_catalog", "other_database", catalogManager, true);
+                new DatabaseCalciteSchema(DEFAULT_CATALOG, DEFAULT_DATABASE, catalogManager, true);
 
-        catalogManager.createTemporaryTable(
-                createTable(),
-                ObjectIdentifier.of("other_catalog", "other_database", TABLE_NAME),
-                false);
+        if (isPermanent) {
+            catalogManager.createModel(
+                    createModel(),
+                    ObjectIdentifier.of(DEFAULT_CATALOG, DEFAULT_DATABASE, MODEL_NAME),
+                    false);
+        } else {
+            catalogManager.createTemporaryModel(
+                    createModel(),
+                    ObjectIdentifier.of(DEFAULT_CATALOG, DEFAULT_DATABASE, TEMP_MODEL_NAME),
+                    false);
+        }
 
-        final Table table = calciteSchema.getTable(TABLE_NAME);
-        assertThat(table).isInstanceOf(CatalogSchemaTable.class);
-        assertThat(((CatalogSchemaTable) table).getStatistic().getUniqueKeys().iterator().next())
-                .containsExactlyInAnyOrder("a", "b");
+        final CatalogSchemaModel model =
+                calciteSchema.getModel(isPermanent ? MODEL_NAME : TEMP_MODEL_NAME);
+        assertThat(model).isInstanceOf(CatalogSchemaModel.class);
     }
 
     private CatalogBaseTable createTable() {
@@ -84,5 +104,13 @@ class DatabaseCalciteSchemaTest {
                         .build();
 
         return CatalogTable.newBuilder().schema(schema).build();
+    }
+
+    private CatalogModel createModel() {
+        return CatalogModel.of(
+                Schema.newBuilder().column("f1", DataTypes.INT()).build(),
+                Schema.newBuilder().column("label", DataTypes.STRING()).build(),
+                null,
+                "some comment");
     }
 }
