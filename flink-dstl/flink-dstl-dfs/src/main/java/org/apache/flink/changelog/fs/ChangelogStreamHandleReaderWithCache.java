@@ -128,7 +128,8 @@ class ChangelogStreamHandleReaderWithCache implements ChangelogStreamHandleReade
         File directory = cacheDirectories[next.getAndIncrement() % cacheDirectories.length];
         File file;
         try {
-            file = File.createTempFile(CACHE_FILE_PREFIX, null, directory);
+            file = Files.createTempFile(directory.toPath(), CACHE_FILE_PREFIX, null).toFile();
+            file.deleteOnExit();
         } catch (IOException e) {
             ExceptionUtils.rethrow(e);
             return null;
