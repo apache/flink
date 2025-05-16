@@ -127,7 +127,7 @@ under the License.
 		<source.java.version>11</source.java.version>
 		<target.java.version>17</target.java.version>
 		<slf4j.version>1.7.36</slf4j.version>
-		<log4j.version>2.24.1</log4j.version>
+		<log4j.version>2.24.3</log4j.version>
 		<!-- Overwrite default values from parent pom.
 			 IntelliJ IDEA is (sometimes?) using those values to choose target language level
 			 and thus is changing back to java 1.6 on each maven re-import -->
