@@ -15,20 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.executiongraph;
+package org.apache.flink.runtime.scheduler.metrics;
 
-import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.ExecutionStateUpdateListener;
 
-/** A listener that is called when an execution switched to a new state. */
-public interface ExecutionStateUpdateListener {
-    void onStateUpdate(
-            ExecutionAttemptID execution, ExecutionState previousState, ExecutionState newState);
-
-    static ExecutionStateUpdateListener combine(ExecutionStateUpdateListener... listeners) {
-        return (execution, previousState, newState) -> {
-            for (ExecutionStateUpdateListener listener : listeners) {
-                listener.onStateUpdate(execution, previousState, newState);
-            }
-        };
-    }
-}
+/** Combined interface of {@link ExecutionStateUpdateListener} and {@link MetricsRegistrar}. */
+public interface ExecutionStatusMetricsRegistrar
+        extends ExecutionStateUpdateListener, MetricsRegistrar {}

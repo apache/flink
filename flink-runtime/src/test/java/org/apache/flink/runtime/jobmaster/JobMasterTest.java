@@ -109,6 +109,7 @@ import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
 import org.apache.flink.runtime.scheduler.TestingSchedulerNG;
 import org.apache.flink.runtime.scheduler.TestingSchedulerNGFactory;
+import org.apache.flink.runtime.scheduler.metrics.AllSubTasksRunningOrFinishedStateTimeMetrics;
 import org.apache.flink.runtime.shuffle.DefaultPartitionWithMetrics;
 import org.apache.flink.runtime.shuffle.DefaultShuffleMetrics;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
@@ -185,6 +186,8 @@ import java.util.stream.IntStream;
 import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrategyType.FIXED_DELAY;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
+import static org.apache.flink.runtime.scheduler.metrics.AllSubTasksRunningOrFinishedStateTimeMetrics.Status.ALL_RUNNING_OR_FINISHED;
+import static org.apache.flink.runtime.scheduler.metrics.AllSubTasksRunningOrFinishedStateTimeMetrics.Status.NOT_ALL_RUNNING_OR_FINISHED;
 import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -1715,6 +1718,21 @@ class JobMasterTest {
                         JobStatus.RUNNING.toString(),
                         JobStatus.FAILING.toString(),
                         JobStatus.FAILED.toString());
+
+        assertThat(
+                        jobEvents.stream()
+                                .filter(
+                                        event ->
+                                                Events.AllSubtasksStatusChangeEvent.name()
+                                                        .equals(event.getName()))
+                                .map(Event::getAttributes)
+                                .map(
+                                        x ->
+                                                x.get(
+                                                        AllSubTasksRunningOrFinishedStateTimeMetrics
+                                                                .STATUS_ATTRIBUTE)))
+                .containsExactly(
+                        ALL_RUNNING_OR_FINISHED.toString(), NOT_ALL_RUNNING_OR_FINISHED.toString());
     }
 
     @Test
@@ -1741,6 +1759,21 @@ class JobMasterTest {
                         JobStatus.RUNNING.toString(),
                         JobStatus.FAILING.toString(),
                         JobStatus.FAILED.toString());
+
+        assertThat(
+                        jobEvents.stream()
+                                .filter(
+                                        event ->
+                                                Events.AllSubtasksStatusChangeEvent.name()
+                                                        .equals(event.getName()))
+                                .map(Event::getAttributes)
+                                .map(
+                                        x ->
+                                                x.get(
+                                                        AllSubTasksRunningOrFinishedStateTimeMetrics
+                                                                .STATUS_ATTRIBUTE)))
+                .containsExactly(
+                        ALL_RUNNING_OR_FINISHED.toString(), NOT_ALL_RUNNING_OR_FINISHED.toString());
     }
 
     /**

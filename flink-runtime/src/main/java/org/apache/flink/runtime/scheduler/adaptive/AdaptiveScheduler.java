@@ -59,6 +59,7 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.DefaultVertexAttemptNumberStore;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionStateUpdateListener;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.MutableVertexAttemptNumberStore;
@@ -116,7 +117,9 @@ import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.adaptivebatch.NonAdaptiveExecutionPlanSchedulingContext;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
+import org.apache.flink.runtime.scheduler.metrics.AllSubTasksRunningOrFinishedStateTimeMetrics;
 import org.apache.flink.runtime.scheduler.metrics.DeploymentStateTimeMetrics;
+import org.apache.flink.runtime.scheduler.metrics.ExecutionStatusMetricsRegistrar;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.util.BoundedFIFOQueue;
 import org.apache.flink.runtime.util.ResourceCounter;
@@ -411,6 +414,8 @@ public class AdaptiveScheduler
 
     private BackgroundTask<ExecutionGraph> backgroundTask = BackgroundTask.finishedBackgroundTask();
 
+    private final List<ExecutionStatusMetricsRegistrar> executionStateMetricsRegistrars;
+
     private final DeploymentStateTimeMetrics deploymentTimeMetrics;
 
     private final BoundedFIFOQueue<RootExceptionHistoryEntry> exceptionHistory;
@@ -554,12 +559,19 @@ public class AdaptiveScheduler
         deploymentTimeMetrics =
                 new DeploymentStateTimeMetrics(jobGraph.getJobType(), jobStatusMetricsSettings);
 
+        this.executionStateMetricsRegistrars = new ArrayList<>(2);
+        this.executionStateMetricsRegistrars.add(
+                new DeploymentStateTimeMetrics(jobGraph.getJobType(), jobStatusMetricsSettings));
+        this.executionStateMetricsRegistrars.add(
+                new AllSubTasksRunningOrFinishedStateTimeMetrics(
+                        jobGraph.getJobType(), jobStatusMetricsSettings));
+
         SchedulerBase.registerJobMetrics(
                 jobManagerJobMetricGroup,
                 jobStatusStore,
                 () -> (long) numRestarts,
                 () -> (long) numRescales,
-                deploymentTimeMetrics,
+                this.executionStateMetricsRegistrars,
                 tmpJobStatusListeners::add,
                 initializationTimestamp,
                 jobStatusMetricsSettings);
@@ -1448,6 +1460,17 @@ public class AdaptiveScheduler
     @Nonnull
     private ExecutionGraph createExecutionGraphAndRestoreState(
             VertexParallelismStore adjustedParallelismStore) throws Exception {
+
+        final ExecutionStateUpdateListener combinedExecutionStateUpdateListener;
+        if (executionStateMetricsRegistrars.size() == 1) {
+            combinedExecutionStateUpdateListener = executionStateMetricsRegistrars.get(0);
+        } else {
+            combinedExecutionStateUpdateListener =
+                    ExecutionStateUpdateListener.combine(
+                            executionStateMetricsRegistrars.toArray(
+                                    new ExecutionStateUpdateListener[0]));
+        }
+
         return executionGraphFactory.createAndRestoreExecutionGraph(
                 jobInformation.copyJobGraph(),
                 completedCheckpointStore,
@@ -1458,7 +1481,7 @@ public class AdaptiveScheduler
                 initializationTimestamp,
                 vertexAttemptNumberStore,
                 adjustedParallelismStore,
-                deploymentTimeMetrics,
+                combinedExecutionStateUpdateListener,
                 // adaptive scheduler works in streaming mode, actually it only
                 // supports must be pipelined result partition, mark partition finish is
                 // no need.
