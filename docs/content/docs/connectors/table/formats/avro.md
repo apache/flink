@@ -86,7 +86,7 @@ Format Options
       <td>yes</td>
       <td>binary</td>
       <td>String</td>
-      <td>Serialization encoding to use. The valid enumerations are: <code>binary</code>, <code>json</code>. <a href="https://avro.apache.org/docs/current/specification/#encodings">(reference)</a><br>
+      <td>Serialization encoding to use. The valid enumerations are: <code>binary</code>, <code>json</code>. <a href="https://avro.apache.org/docs/++version++/specification/#encodings">(reference)</a><br>
       Most applications will use the binary encoding, as it results in smaller and more efficient messages, reducing the usage of disk and network resources, and improving performance for high throughput data. <br>
       JSON encoding results in human-readable messages which can be useful during development and debugging, and is useful for compatibility when interacting with systems that cannot process binary encoded data.</td>
     </tr>
@@ -218,4 +218,4 @@ So the following table lists the type mapping from Flink type to Avro type.
 
 In addition to the types listed above, Flink supports reading/writing nullable types. Flink maps nullable types to Avro `union(something, null)`, where `something` is the Avro type converted from Flink type.
 
-You can refer to [Avro Specification](https://avro.apache.org/docs/current/spec.html) for more information about Avro types.
+You can refer to [Avro Specification](https://avro.apache.org/docs/++version++/specification/) for more information about Avro types.
