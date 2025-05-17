@@ -98,6 +98,16 @@ public class SqlMlPredictTableFunction extends SqlMlTableFunction {
         }
 
         @Override
+        public Consistency getConsistency() {
+            return Consistency.NONE;
+        }
+
+        @Override
+        public boolean isOptional(int i) {
+            return i > getOperandCountRange().getMin() && i <= getOperandCountRange().getMax();
+        }
+
+        @Override
         public String getAllowedSignatures(SqlOperator op, String opName) {
             return opName
                     + "(TABLE table_name, MODEL model_name, DESCRIPTOR(input_columns), [MAP[]]";
