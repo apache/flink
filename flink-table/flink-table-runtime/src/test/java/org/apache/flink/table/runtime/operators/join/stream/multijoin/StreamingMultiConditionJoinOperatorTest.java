@@ -133,8 +133,6 @@ class StreamingMultiConditionJoinOperatorTest extends StreamingMultiJoinOperator
         emitsNothing();
 
         updateAfterOrder("1", "oid_c1", "detail_UPDATED"); // key=(1, detail_UPDATED)
-        // TODO Gustavo is update UPDATE_AFTER correct or do we want insert here
-        // No UPDATE_BEFORE emitted as it wasn't joined previously
         emits(
                 UPDATE_AFTER,
                 r(

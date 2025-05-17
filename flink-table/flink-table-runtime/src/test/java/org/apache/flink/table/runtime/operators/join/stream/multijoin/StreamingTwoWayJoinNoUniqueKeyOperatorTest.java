@@ -87,9 +87,6 @@ class StreamingTwoWayJoinNoUniqueKeyOperatorTest extends StreamingMultiJoinOpera
         emits(INSERT, "2", "Bob", "User 2 Details", "2", "order_3", "Order 3 Details");
 
         /* -------- UPDATE/DELETE TESTS ----------- */
-        // TODO Gustavo: is that true? Updates behave like delete + insert when there's no unique
-        // key - but what happens if we get an updateBeforeUser("1", "Gus", "User 1 Details");
-
         // We emit now emit two updates since we have two identical order rows
         deleteUser("1", "Gus", "User 1 Details");
         emits(

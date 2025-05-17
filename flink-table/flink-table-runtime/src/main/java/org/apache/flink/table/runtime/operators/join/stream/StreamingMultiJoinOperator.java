@@ -339,6 +339,12 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
     private final List<JoinInputSideSpec> inputSpecs;
     private final List<JoinType> joinTypes;
     private final List<InternalTypeInfo<RowData>> inputTypes;
+    // The multiJoinCondition is currently not being used, since we check the join conditions
+    // for each while iterating through records to shortcircuit the recursion. However, if we
+    // eventually want to cache join results at some level or do some other optimizations, this
+    // might become useful.
+    // TODO I'm not sure what's the best approach here: provide extra arguments so that we
+    // avoid operator migrations or remove it since we don't need it for now.
     private final MultiJoinCondition multiJoinCondition;
     private final long[] stateRetentionTime;
     private final List<Input<RowData>> typedInputs;
@@ -462,7 +468,6 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
 
     // This can simply emit the resulting join row between all n inputs.
     private void emitJoinedRow(RowData input, RowData[] currentRows) {
-        // TODO Gustavo: check if we don't have to check the multi join condition here
         emitRow(input.getRowKind(), currentRows);
     }
 
@@ -478,13 +483,12 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             throws Exception {
         boolean matched = false; // Tracks if any record at this depth matched the condition
 
-        // This optimization avoids that by skipping state iteration at the input's own level.
-        // For inner joins, the input record itself will be processed at the `inputId`
-        // level in `processInputRecord`. We do not have to process any records in state for
-        // the inputId if it's an inner join, since we do not need to know if we the left
-        // side has associations. We only need to know if the left side has associations if
-        // we are doing a left join and need to know if we need to emit a null padded row.
-        if (isInnerJoin(isLeftJoin) && inputId == depth) {
+        // If an inner join and we reached the input level, we don't have to count the number of
+        // associations that the left side has. This is only necessary for left joins to know
+        // if we have to retract or insert null padded rows for the incoming record.
+        // In other rows, we do not have to process any records in state for the inputId if
+        // it's an inner join, since we do not need to know if we the left side has associations.
+        if (isInnerJoin(isLeftJoin) && isInputLevel(depth, inputId)) {
             return false;
         }
 
@@ -517,7 +521,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
                 // Optimization: further recursion or counting might be skippable under
                 // specific conditions detailed in `canOptimizeAssociationCounting`.
                 if (canOptimizeAssociationCounting(depth, inputId, input, associations)) {
-                    return matched;
+                    return true;
                 }
 
                 // The association count for the *current* depth is reset before recursing.
@@ -532,7 +536,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             // levels (joins to the right) is not needed for this specific count at this stage,
             // as the input record's participation and further joins are handled by
             // `processInputRecord` or subsequent recursive calls in the `EMIT_RESULTS` phase.
-            if (phase == JoinPhase.CALCULATE_MATCHES && inputId == depth) {
+            if (phase == JoinPhase.CALCULATE_MATCHES && isInputLevel(depth, inputId)) {
                 continue;
             }
 
@@ -626,7 +630,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         recursiveMultiJoin(
                 depth + 1, input, inputId, currentRows, associations, JoinPhase.EMIT_RESULTS);
 
-        // Restore the input record's original RowKind to prevent unintended side-effects,
+        // Restore the input record's original RowKind to prevent unintended side effects,
         // as the `input` object itself was temporarily modified.
         input.setRowKind(originalKind);
     }
@@ -644,7 +648,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         recursiveMultiJoin(
                 depth + 1, input, inputId, currentRows, associations, JoinPhase.EMIT_RESULTS);
 
-        // Restore the input record's original RowKind to prevent unintended side-effects,
+        // Restore the input record's original RowKind to prevent unintended side effects,
         // as the `input` object itself was temporarily modified.
         input.setRowKind(originalKind);
     }

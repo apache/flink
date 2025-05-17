@@ -144,7 +144,6 @@ public final class MultiJoinStateViews {
 
         @Override
         public void retractRecord(RowData mapKey, RowData record) throws Exception {
-            // Only one record is kept per mapKey, remove it directly.
             recordState.remove(mapKey);
         }
 
@@ -220,7 +219,6 @@ public final class MultiJoinStateViews {
                     recordState.put(mapKey, uniqueKeyToRecordMap);
                 }
             }
-            // ignore uniqueKeyToRecordMap == null
         }
 
         @Override
@@ -279,7 +277,10 @@ public final class MultiJoinStateViews {
         @Override
         public void retractRecord(RowData mapKey, RowData record) throws Exception {
             Map<RowData, Integer> recordToCountMap = recordState.get(mapKey);
-            // TODO Gustavo We have to do this for the other views?
+
+            // When storing and retrieving records from state, we need to ensure consistent RowKind
+            // handling because records are stored in state with RowKind.INSERT or else we'll not
+            // find them.
             var origKind = record.getRowKind();
             record.setRowKind(RowKind.INSERT);
             if (recordToCountMap != null) {
