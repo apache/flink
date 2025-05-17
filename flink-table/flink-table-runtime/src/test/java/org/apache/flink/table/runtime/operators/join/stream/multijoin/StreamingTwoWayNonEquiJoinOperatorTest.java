@@ -33,6 +33,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 import org.apache.flink.types.RowKind;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -45,7 +46,7 @@ class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorT
 
     // Condition: Users.amount > Orders.amount
     private static final GeneratedMultiJoinCondition EqualIdAndGreaterAmountCondition =
-            createFullJoinCondition(0, 0, 1,1, 0, 1);
+            createFullJoinCondition(0, 0, 1, 1, 0, 1);
 
     public StreamingTwoWayNonEquiJoinOperatorTest() {
         // Inner join, 2 inputs, custom non-equi condition
@@ -53,7 +54,9 @@ class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorT
                 2,
                 List.of(JoinType.INNER, JoinType.INNER),
                 // Maybe make the join conditions more generic
-                Arrays.asList(null, EqualIdAndGreaterAmountCondition), // Use custom condition for the join step
+                Arrays.asList(
+                        null,
+                        EqualIdAndGreaterAmountCondition), // Use custom condition for the join step
                 new HashMap<>(), // Start with empty map, populate based on partitioning below
                 false);
 
@@ -312,7 +315,7 @@ class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorT
         }
     }
 
-    /** Condition for u.user_id = o.user_id */
+    /** Condition for u.user_id = o.user_id. */
     private static class UserIdEqualsConditionImpl extends AbstractRichFunction
             implements MultiJoinCondition {
         private final int usersInputIndex; // e.g., 0 if inputs[0] is User row
@@ -341,7 +344,8 @@ class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorT
             if (inputs[usersInputIndex].isNullAt(usersIdField)
                     || inputs[ordersInputIndex].isNullAt(ordersIdField)) {
                 // SQL null semantics: null != null is true, null = null is false.
-                // For equals, if either is null, it's not equal unless both are null (which we'd typically treat as false for join keys).
+                // For equals, if either is null, it's not equal unless both are null (which we'd
+                // typically treat as false for join keys).
                 return false;
             }
             // Assuming user_id is String. Adjust if it's another type.
@@ -372,9 +376,9 @@ class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorT
     }
 
     /**
-     * Creates a GeneratedMultiJoinCondition that checks Users.amount > Orders.amount.
-     * For StreamingMultiJoinOperator, when input 1 (Orders) joins input 0 (Users),
-     * in MultiJoinCondition.apply(RowData[] inputs): inputs[0] is User data, inputs[1] is Order data.
+     * Creates a GeneratedMultiJoinCondition that checks Users.amount > Orders.amount. For
+     * StreamingMultiJoinOperator, when input 1 (Orders) joins input 0 (Users), in
+     * MultiJoinCondition.apply(RowData[] inputs): inputs[0] is User data, inputs[1] is Order data.
      *
      * @param usersInputInArray Index for Users row in the `inputs` array of `apply` method.
      * @param usersAmountField Field index for amount in Users row.
@@ -386,7 +390,7 @@ class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorT
             int usersAmountField,
             int ordersInputInArray,
             int ordersAmountField) {
-        String generatedClassName ="AmountGreaterThanCondition_manual";
+        String generatedClassName = "AmountGreaterThanCondition_manual";
         return new GeneratedMultiJoinCondition(generatedClassName, "", new Object[0]) {
             @Override
             public MultiJoinCondition newInstance(ClassLoader classLoader) {
@@ -396,7 +400,8 @@ class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorT
         };
     }
 
-    // Example of creating a combined condition (for illustration or if joinAttributeMap is not used for equi-join)
+    // Example of creating a combined condition (for illustration or if joinAttributeMap is not used
+    // for equi-join)
     protected static GeneratedMultiJoinCondition createFullJoinCondition(
             int usersInputInArray,
             int usersIdField,
@@ -408,10 +413,15 @@ class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorT
         return new GeneratedMultiJoinCondition(generatedClassName, "", new Object[0]) {
             @Override
             public MultiJoinCondition newInstance(ClassLoader classLoader) {
-                MultiJoinCondition userIdCond = new UserIdEqualsConditionImpl(
+                MultiJoinCondition userIdCond =
+                        new UserIdEqualsConditionImpl(
                                 usersInputInArray, usersIdField, ordersInputInArray, ordersIdField);
-                MultiJoinCondition amountCond = new AmountGreaterThanConditionImpl(
-                                usersInputInArray, usersAmountField, ordersInputInArray, ordersAmountField);
+                MultiJoinCondition amountCond =
+                        new AmountGreaterThanConditionImpl(
+                                usersInputInArray,
+                                usersAmountField,
+                                ordersInputInArray,
+                                ordersAmountField);
                 return new AndMultiJoinConditionImpl(userIdCond, amountCond);
             }
         };
