@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.operators.join.stream.multijoin;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -89,7 +88,7 @@ public abstract class StreamingMultiJoinOperatorTestBase {
     // Test State
     // ==========================================================================
 
-    protected RowDataHarnessAssertor assertor;
+    protected RowDataHarnessAssertor asserter;
     protected KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> testHarness;
 
     // ==========================================================================
@@ -149,7 +148,7 @@ public abstract class StreamingMultiJoinOperatorTestBase {
         setupKeySelectorsForTestHarness(testHarness);
         testHarness.setup();
         testHarness.open();
-        assertor =
+        asserter =
                 new RowDataHarnessAssertor(
                         getOutputType().getChildren().toArray(new LogicalType[0]));
     }
@@ -215,16 +214,6 @@ public abstract class StreamingMultiJoinOperatorTestBase {
                 2, new StreamRecord<>(StreamRecordUtils.rowOfKind(UPDATE_AFTER, fields)));
     }
 
-    protected void updateBeforeShipment(Object... fields) throws Exception {
-        testHarness.processElement(
-                3, new StreamRecord<>(StreamRecordUtils.rowOfKind(UPDATE_BEFORE, fields)));
-    }
-
-    protected void updateAfterShipment(Object... fields) throws Exception {
-        testHarness.processElement(
-                3, new StreamRecord<>(StreamRecordUtils.rowOfKind(UPDATE_AFTER, fields)));
-    }
-
     protected void deleteUser(Object... fields) throws Exception {
         testHarness.processElement(
                 0, new StreamRecord<>(StreamRecordUtils.rowOfKind(DELETE, fields)));
@@ -254,16 +243,16 @@ public abstract class StreamingMultiJoinOperatorTestBase {
     // ==========================================================================
 
     protected void emits(RowKind kind, Object... fields) throws Exception {
-        assertor.shouldEmitAll(testHarness, rowOfKind(kind, fields));
+        asserter.shouldEmitAll(testHarness, rowOfKind(kind, fields));
     }
 
     protected void emitsNothing() {
-        assertor.shouldEmitNothing(testHarness);
+        asserter.shouldEmitNothing(testHarness);
     }
 
     protected void emits(RowKind kind1, Object[] fields1, RowKind kind2, Object[] fields2)
             throws Exception {
-        assertor.shouldEmitAll(testHarness, rowOfKind(kind1, fields1), rowOfKind(kind2, fields2));
+        asserter.shouldEmitAll(testHarness, rowOfKind(kind1, fields1), rowOfKind(kind2, fields2));
     }
 
     protected void emits(
@@ -274,7 +263,7 @@ public abstract class StreamingMultiJoinOperatorTestBase {
             RowKind kind3,
             Object[] fields3)
             throws Exception {
-        assertor.shouldEmitAll(
+        asserter.shouldEmitAll(
                 testHarness,
                 rowOfKind(kind1, fields1),
                 rowOfKind(kind2, fields2),
@@ -291,7 +280,7 @@ public abstract class StreamingMultiJoinOperatorTestBase {
             RowKind kind4,
             Object[] fields4)
             throws Exception {
-        assertor.shouldEmitAll(
+        asserter.shouldEmitAll(
                 testHarness,
                 rowOfKind(kind1, fields1),
                 rowOfKind(kind2, fields2),
@@ -387,7 +376,7 @@ public abstract class StreamingMultiJoinOperatorTestBase {
         }
 
         @Override
-        public RowData getKey(RowData value) throws Exception {
+        public RowData getKey(RowData value) {
             return keyExtractor.getCommonKey(value, inputIndex);
         }
     }
@@ -401,20 +390,12 @@ public abstract class StreamingMultiJoinOperatorTestBase {
             throw new IllegalStateException(
                     "Could not determine partition key type from keyExtractor for input 0.");
         }
-        // The harness expects TypeInformation. InternalTypeInfo is a subtype.
-        TypeInformation<RowData> harnessKeyType = partitionKeyTypeInfo;
 
         for (int i = 0; i < this.inputSpecs.size(); i++) {
-            /* todo gustavo delete */
-            /*KeySelector<RowData, RowData> keySelector = row -> GenericRowData.of(row.getString(0));
-            harness.setKeySelector(i, keySelector);*/
-
-            final int inputIndex = i;
             // Use the serializable keySelector
-            SerializableKeySelector keySelector =
-                    new SerializableKeySelector(this.keyExtractor, inputIndex);
+            SerializableKeySelector keySelector = new SerializableKeySelector(this.keyExtractor, i);
             // Provide the derived key type information to the harness
-            harness.setKeySelector(inputIndex, keySelector);
+            harness.setKeySelector(i, keySelector);
         }
     }
 
@@ -427,7 +408,6 @@ public abstract class StreamingMultiJoinOperatorTestBase {
             throw new IllegalStateException(
                     "Could not determine partition key type from keyExtractor for input 0.");
         }
-        TypeInformation<RowData> harnessKeyType = partitionKeyTypeInfo;
 
         KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> harness =
                 new KeyedMultiInputStreamOperatorTestHarness<>(
@@ -437,7 +417,7 @@ public abstract class StreamingMultiJoinOperatorTestBase {
                                 joinTypes,
                                 joinConditions,
                                 joinAttributeMap),
-                        harnessKeyType); // Use the derived key type information
+                        partitionKeyTypeInfo); // Use the derived key type information
 
         // Setup key selectors for each input (this now uses the extractor)
         setupKeySelectorsForTestHarness(harness);
@@ -683,10 +663,7 @@ public abstract class StreamingMultiJoinOperatorTestBase {
             }
 
             if (numInputs <= 1) {
-                if (numInputs == 1 && (inputs[0] == null || inputs[0].isNullAt(0))) {
-                    return false;
-                }
-                return true;
+                return numInputs != 1 || (inputs[0] != null && !inputs[0].isNullAt(0));
             }
 
             if (inputs[0] == null || inputs[0].isNullAt(0)) {
