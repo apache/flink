@@ -166,7 +166,8 @@ public class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
      *
      * <p>Checks whenever a new version of a schema (reader) can read values serialized with the old
      * schema (writer). If the schemas are compatible according to {@code Avro} schema resolution
-     * rules (@see <a href="https://avro.apache.org/docs/current/spec.html#Schema+Resolution">Schema
+     * rules (@see <a
+     * href="https://avro.apache.org/docs/++version++/specification/#schema-resolution">Schema
      * Resolution</a>).
      */
     @VisibleForTesting
