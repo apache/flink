@@ -61,41 +61,40 @@ public class SqlMlPredictTableFunction extends SqlMlTableFunction {
 
     @Override
     protected RelDataType inferRowType(SqlOperatorBinding opBinding) {
-        // TODO: output type based on table schema and model output schema
+        // TODO: FLINK-37780 output type based on table schema and model output schema
         // model output schema to be available after integrated with SqlExplicitModelCall
         return opBinding.getOperandType(1);
     }
 
     private static class PredictOperandMetadata implements SqlOperandMetadata {
-        private final List<String> paramNames;
-        private final int mandatoryParamCount;
+        private static final List<String> PARAM_NAMES =
+                List.of(PARAM_DATA, PARAM_MODEL, PARAM_COLUMN, PARAM_CONFIG);
+        private static final List<String> MANDATORY_PARAM_NAMES =
+                List.of(PARAM_DATA, PARAM_MODEL, PARAM_COLUMN);
 
-        PredictOperandMetadata() {
-            paramNames = List.of(PARAM_DATA, PARAM_MODEL, PARAM_COLUMN, PARAM_CONFIG);
-            // Config is optional
-            mandatoryParamCount = 3;
-        }
+        PredictOperandMetadata() {}
 
         @Override
         public List<RelDataType> paramTypes(RelDataTypeFactory typeFactory) {
             return Collections.nCopies(
-                    paramNames.size(), typeFactory.createSqlType(SqlTypeName.ANY));
+                    PARAM_NAMES.size(), typeFactory.createSqlType(SqlTypeName.ANY));
         }
 
         @Override
         public List<String> paramNames() {
-            return paramNames;
+            return PARAM_NAMES;
         }
 
         @Override
         public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
-            // TODO: Check operand types after integrated with SqlExplicitModelCall in validator
+            // TODO: FLINK-37780 Check operand types after integrated with SqlExplicitModelCall in
+            // validator
             return false;
         }
 
         @Override
         public SqlOperandCountRange getOperandCountRange() {
-            return SqlOperandCountRanges.between(mandatoryParamCount, paramNames.size());
+            return SqlOperandCountRanges.between(MANDATORY_PARAM_NAMES.size(), PARAM_NAMES.size());
         }
 
         @Override
