@@ -65,21 +65,23 @@ import java.util.List;
  * Finally, when the maximum depth is reached ({@link #isMaxDepth(int)}), it evaluates the final,
  * overall `multiJoinCondition` on the fully assembled `currentRows`.
  *
- * <p><b>Two-Phase Execution (`JoinPhase`):</b> The recursion operates in two distinct phases,
- * crucial for correctly handling LEFT joins:
+ * <p><b>Two-Mode Execution (controlled by `isInputRecordActive` flag):</b> The recursion operates
+ * in two distinct modes, crucial for correctly handling LEFT joins:
  *
  * <ol>
- *   <li><b>{@link JoinPhase#CALCULATE_MATCHES}:</b> This initial phase traverses the state
- *       <i>without</i> the actual input record (unless {@link #isInputLevel(int, int)} is true,
- *       where it switches phases). Its primary purpose is to calculate the `associations` counts
- *       for LEFT joins. This determines if rows from the "left" side found any matches on their
- *       respective "right" sides based on the {@link #joinConditions}. No results are emitted in
- *       this phase.
- *   <li><b>{@link JoinPhase#EMIT_RESULTS}:</b> This phase is triggered when the recursion reaches
- *       the level of the input record (`depth == inputId`) or continues from there. It incorporates
- *       the actual `input` record and proceeds with the recursion. When the base case (checked via
- *       {@link #isMaxDepth(int)}) is reached, it evaluates the join conditions and emits the
- *       resulting joined row via the {@link #collector}.
+ *   <li><b>Association Calculation Mode (`isInputRecordActive = false`):</b> This initial mode
+ *       traverses the state. Its primary purpose is to iterate through records for each input.
+ *       Also, for left joins, calculate the `associations` counts for the left side. This
+ *       determines if rows from the "left" side found any matches on their respective "right" sides
+ *       based on the {@link #joinConditions}. No results are emitted in this mode if the current
+ *       input record is not yet active in `currentRows`. The recursion primarily stays in this mode
+ *       until `processInputRecord` is invoked when the current depth matches the `inputId`, which
+ *       then transitions to the result emission mode for its recursive calls.
+ *   <li><b>Result Emission Mode (`isInputRecordActive = true`):</b> This mode is activated when
+ *       `processInputRecord` processes the actual `input` record and makes subsequent recursive
+ *       calls. These calls, now in result emission mode, incorporate the `input` record. When the
+ *       recursion reaches the maximum depth (checked via {@link #isMaxDepth(int)}), it evaluates
+ *       the final join conditions and emits the resulting joined row via the {@link #collector}.
  * </ol>
  *
  * <p><b>LEFT Join Specifics:</b> LEFT joins require special handling to ensure rows from the left
@@ -98,24 +100,27 @@ import java.util.List;
  *   <li><b>Association Tracking ({@code associations} array):</b> {@code associations[d-1]} counts
  *       how many records from subsequent inputs (depth `d` onwards) have matched the current row at
  *       {@code currentRows[d-1]} based on the outer join conditions. This count is primarily
- *       updated during the {@code CALCULATE_MATCHES} phase.
+ *       updated when `isInputRecordActive` is `false` (during the Association Calculation Mode).
  *   <li><b>Null Padding:</b> If, after processing all state records for a LEFT join's right side
  *       (depth `d`), no matches were found (`!matched`) AND the corresponding left row also had no
  *       associations ({@link #hasNoAssociations(int, int[])}), it indicates the left row needs to
  *       be padded with nulls for the right side. This triggers {@link #processWithNullPadding(int,
- *       RowData, int, RowData[], int[], JoinPhase)}, which places a null row at `currentRows[d]`
- *       and continues the recursion.
+ *       RowData, int, RowData[], int[], boolean)}, which places a null row at `currentRows[d]` and
+ *       continues the recursion (passing the current `isInputRecordActive` value).
  *   <li><b>Input Record Handling (Upserts/Retractions):</b> When processing the actual `input`
  *       record at its native depth (`inputId`) in a LEFT join scenario:
  *       <ul>
  *         <li>If the input is an INSERT/UPDATE_AFTER and its preceding left-side row had no matches
- *             found during the `CALCULATE_MATCHES` phase (checked via {@link
- *             #hasNoAssociations(int, int[])}), a retraction (`DELETE`) may be emitted first for
- *             any previously padded result ({@link #handleRetractBeforeInput}).
+ *             found when `isInputRecordActive` was `false` (during the association calculation
+ *             pass, checked via {@link #hasNoAssociations(int, int[])}), a retraction (`DELETE`)
+ *             may be emitted first for any previously padded result ({@link
+ *             #handleRetractBeforeInput}). These operations occur in calls that will have
+ *             `isInputRecordActive = true`.
  *         <li>If the input is a DELETE/UPDATE_BEFORE and its preceding left-side row had no
  *             matches, an insertion (`INSERT`) may be emitted for the new padded result (this also
  *             implicitly checks via {@link #hasNoAssociations(int, int[])} in the corresponding
- *             `if` condition in `processInputRecord`), ({@link #handleInsertAfterInput}).
+ *             `if` condition in `processInputRecord`), ({@link #handleInsertAfterInput}). These
+ *             operations occur in calls that will have `isInputRecordActive = true`.
  *       </ul>
  * </ul>
  *
@@ -124,8 +129,10 @@ import java.util.List;
  *
  * <ul>
  *   <li>The final {@code multiJoinCondition} is evaluated on the complete `currentRows` array.
- *   <li>If the conditions pass and the phase is {@code EMIT_RESULTS}, the combined row is
- *       constructed and emitted using {@link #emitRow(RowKind, RowData[])}.
+ *   <li>If the conditions pass and `isInputRecordActive` is `true` (Result Emission Mode), the
+ *       combined row is constructed and emitted using {@link #emitRow(RowKind, RowData[])}. Note:
+ *       if `isInputRecordActive` is `false`, rows might still be emitted if a full combination of
+ *       state records forms a valid join.
  * </ul>
  *
  * <hr>
@@ -160,25 +167,24 @@ import java.util.List;
  * A LEFT JOIN B LEFT JOIN C instead of an inner join, we'd also retract this first -D[a1(1,100), NULL, NULL]).
  *
  * [Depth][currentRows]
- * [Depth 0][_, _, _] Initial Call: recursiveMultiJoin(0, +b1, 1, [_,_,_], [0,0,0], CALCULATE_MATCHES)
- * [Depth 0][_, _, _] Phase: CALCULATE_MATCHES
+ * [Depth 0][_, _, _] Initial Call: recursiveMultiJoin(0, +b1, 1, [_,_,_], [0,0,0], false) // isInputRecordActive = false
+ * [Depth 0][_, _, _] Mode: isInputRecordActive = false (Association Calculation)
  * [Depth 0][_, _, _]  Process StateA: { a1 }
  * [Depth 0][_, _, _]   Record a1:
  * [Depth 0][a1, _, _]     currentRows = [a1, _, _]
  * [Depth 0][a1, _, _]     isLeftJoin(0): false
  * [Depth 0][a1, _, _]     Recurse:
- * [Depth 1][a1, _, _]       Call: recursiveMultiJoin(1, +b1, 1, [a1,_,_], [0,0,0], CALCULATE_MATCHES)
+ * [Depth 1][a1, _, _]       Call: recursiveMultiJoin(1, +b1, 1, [a1,_,_], [0,0,0], false) // isInputRecordActive = false
  *
- * [Depth 1][a1, _, _]       Phase: CALCULATE_MATCHES
+ * [Depth 1][a1, _, _]       Mode: isInputRecordActive = false (Association Calculation)
  * [Depth 1][a1, _, _]       isLeftJoin(1): true (A LEFT B)
  * [Depth 1][a1, _, _]        Process StateB: {} -> Empty. 'matched' = false.
  * [Depth 1][a1, _, _] NULL_PAD? Check Null Padding: isLeftJoin(1) && !matched && hasNoAssociations(1, [0,0,0]) -> true
- * [Depth 1][a1, _, _] DO_NULL_PAD Call processWithNullPadding(1, +b1, 1, [a1,_,_], [0,0,0], CALCULATE_MATCHES)
+ * [Depth 1][a1, _, _] DO_NULL_PAD Call processWithNullPadding(1, +b1, 1, [a1,_,_], [0,0,0], false) // isInputRecordActive = false
  * [Depth 1][a1, nullB, _]     Set currentRows = [a1, nullB, _]
  * [Depth 1][a1, nullB, _]     Recurse to next depth:
- * [Depth 2][a1, nullB, _]       Call: recursiveMultiJoin(2, +b1, 1, [a1,nullB,_], [0,0,0], CALCULATE_MATCHES)
+ * [Depth 2][a1, nullB, _]       Call: recursiveMultiJoin(2, +b1, 1, [a1,nullB,_], [0,0,0], false) // isInputRecordActive = false
  *
- * [Depth 2][a1, nullB, _]       Phase: CALCULATE_MATCHES
  * [Depth 2][a1, nullB, _]       isLeftJoin(2): false
  * [Depth 2][a1, nullB, _]        Process StateC: { c1, c2 }
  * [Depth 2][a1, nullB, c1]        Record c1: currentRows = [a1, nullB, c1]. Check matchesCondition(2, [a1,nullB,c1]) -> fails (nullB.id != c1.id). Continue loop.
@@ -188,15 +194,15 @@ import java.util.List;
  * [Depth 1][a1, _, _]         Return from processWithNullPadding: false. (Restores currentRows[1] to _ implicitly)
  * [Depth 1][a1, _, _]       'matched' from null padding is false.
  * [Depth 1][a1, _, _] INPUT_LVL? isInputLevel(1, 1): true -> Process the input record +b1 itself.
- * [Depth 1][a1, _, _] PROC_INPUT Call processInputRecord(1, +b1, 1, [a1,_,_], [0,0,0], false) -------> *** PHASE SWITCHES TO EMIT_RESULTS ***
+ * [Depth 1][a1, _, _] PROC_INPUT Call processInputRecord(1, +b1, 1, [a1,_,_], [0,0,0], false) -------> *** Mode switches to isInputRecordActive = true for subsequent recursive calls initiated by processInputRecord ***
  * [Depth 1][a1, _, _]           isLeftJoin(1): true
  * [Depth 1][a1, _, _] RETRACT?    Check Retract: isUpsert(+b1) && isLeftJoin(1) && !matched -> true && true && true -> true
  * [Depth 1][a1, _, _] DO_RETRACT  Call handleRetractBeforeInput(1, +b1, 1, [a1,_,_], [0,0,0])
  * [Depth 1][a1, nullB, _]         Set currentRows = [a1, nullB, _]
  * [Depth 1][a1, nullB, _]         input becomes temp -b1_temp
  * [Depth 1][a1, nullB, _]         Recurse:
- * [Depth 2][a1, nullB, _]           Call: recursiveMultiJoin(2, -b1_temp, 1, [a1,nullB,_], [0,0,0], EMIT_RESULTS)
- * [Depth 2][a1, nullB, _]           Phase: EMIT_RESULTS
+ * [Depth 2][a1, nullB, _]           Call: recursiveMultiJoin(2, -b1_temp, 1, [a1,nullB,_], [0,0,0], true) // isInputRecordActive = true
+ * [Depth 2][a1, nullB, _]           Mode: isInputRecordActive = true (Result Emission)
  * [Depth 2][a1, nullB, _]            Process StateC: { c1, c2 }
  * [Depth 2][a1, nullB, c1]            Record c1: currentRows = [a1, nullB, c1]. Check matchesCondition(2, [a1,nullB,c1]) -> fails (nullB). Continue.
  * [Depth 2][a1, nullB, c2]            Record c2: currentRows = [a1, nullB, c2]. Check matchesCondition(2, [a1,nullB,c2]) -> fails (nullB). Continue.
@@ -205,16 +211,16 @@ import java.util.List;
  * [Depth 1][a1, nullB, _]         handleRetractBeforeInput returns nothing. *** EMIT NOTHING, inner join does not match ***
  * [Depth 1][a1, +b1, _]         Restore input to +b1. Set currentRows = [a1, +b1, _].
  * [Depth 1][a1, +b1, _]         Check matchesCondition(1, [a1,+b1]) (a1.id == b1.id -> 1==1) -> true.
- * [Depth 1][a1, +b1, _] ASSOC_UPD   Update Associations: updateAssociationCount(1, associations, EMIT_RESULTS, +b1) -> associations[0]++. associations = [1, 0, 0].
+ * [Depth 1][a1, +b1, _] ASSOC_UPD   Update Associations: (current mode is isInputRecordActive=true, for input record +b1) associations[0]++. associations = [1, 0, 0].
  * [Depth 1][a1, +b1, _]         Recurse:
- * [Depth 2][a1, +b1, _]           Call: recursiveMultiJoin(2, +b1, 1, [a1,+b1,_], [1,0,0], EMIT_RESULTS)
+ * [Depth 2][a1, +b1, _]           Call: recursiveMultiJoin(2, +b1, 1, [a1,+b1,_], [1,0,0], true) // isInputRecordActive = true
  *
- * [Depth 2][a1, +b1, _]           Phase: EMIT_RESULTS
+ * [Depth 2][a1, +b1, _]           Mode: isInputRecordActive = true (Result Emission)
  * [Depth 2][a1, +b1, _]           isLeftJoin(2): false
  * [Depth 2][a1, +b1, _]            Process StateC: { c1, c2 }
  * [Depth 2][a1, +b1, c1]            Record c1: currentRows = [a1, +b1, c1]. Check matchesCondition(2, [a1,+b1,c1]) (b1.id == c1.id -> 50==50) -> true. Recurse:
- * [Depth 3][a1, +b1, c1]              Call: recursiveMultiJoin(3, +b1, 1, [a1,+b1,c1], [1,0,0], EMIT_RESULTS)
- * [Depth 3][a1, +b1, c1]              Phase: EMIT_RESULTS
+ * [Depth 3][a1, +b1, c1]              Call: recursiveMultiJoin(3, +b1, 1, [a1,+b1,c1], [1,0,0], true) // isInputRecordActive = true
+ * [Depth 3][a1, +b1, c1]              Mode: isInputRecordActive = true (Result Emission)
  * [Depth 3][a1, +b1, c1]              isMaxDepth(3): true
  * [Depth 3][a1, +b1, c1]              Evaluate multiJoinCondition([a1,+b1,c1]): (a1.id==b1.id && b1.id==c1.id) -> (1==1 && 50==50) -> true.
  * [Depth 3][a1, +b1, c1] *** EMIT ***  emitRow(INSERT, [a1, b1, c1]) // *** EMIT OUTPUT: +I[a1(1,100), b1(1,50), c1(50,501)] ***
@@ -246,49 +252,49 @@ import java.util.List;
  * No INSERT for null padding emitted due to inner join with C.
  * If the query was A LEFT JOIN B LEFT JOIN C, we'd also emit a null padded row -I[a1(1,100), NULL, NULL].
  *
- * [Depth 0][_, _, _] Initial Call: recursiveMultiJoin(0, -b1, 1, [_,_,_], [0,0,0], CALCULATE_MATCHES)
- * [Depth 0][_, _, _] Phase: CALCULATE_MATCHES
+ * [Depth 0][_, _, _] Initial Call: recursiveMultiJoin(0, -b1, 1, [_,_,_], [0,0,0], false) // isInputRecordActive = false
+ * [Depth 0][_, _, _] Mode: isInputRecordActive = false (Association Calculation)
  * [Depth 0][_, _, _]  Process StateA: { a1 }
  * [Depth 0][_, _, _]   Record a1:
  * [Depth 0][a1, _, _]     currentRows = [a1, _, _]
  * [Depth 0][a1, _, _]     Recurse:
- * [Depth 1][a1, _, _]       Call: recursiveMultiJoin(1, -b1, 1, [a1,_,_], [0,0,0], CALCULATE_MATCHES)
+ * [Depth 1][a1, _, _]       Call: recursiveMultiJoin(1, -b1, 1, [a1,_,_], [0,0,0], false) // isInputRecordActive = false
  *
- * [Depth 1][a1, _, _]       Phase: CALCULATE_MATCHES
+ * [Depth 1][a1, _, _]       Mode: isInputRecordActive = false (Association Calculation)
  * [Depth 1][a1, _, _]       isLeftJoin(1): true
  * [Depth 1][a1, _, _]        Process StateB: { b1 } // State contains b1 from Event 1
  * [Depth 1][a1, b1, _]        Record b1: currentRows = [a1, b1, _]
  * [Depth 1][a1, b1, _]        Check matchesCondition(1, [a1, b1]) -> (a1.id == b1.id -> 1==1) -> true. Match found.
- * [Depth 1][a1, b1, _] ASSOC_UPD     Update Associations: updateAssociationCount(1, associations, CALCULATE_MATCHES, +b1) -> associations[0]++. associations = [1, 0, 0].
+ * [Depth 1][a1, b1, _] ASSOC_UPD     Update Associations: (current mode is isInputRecordActive=false, for state record +b1) associations[0]++. associations = [1, 0, 0].
  * [Depth 1][a1, b1, _]          associations[1] = 0 // Reset for next level
  * [Depth 1][a1, b1, _]          Recurse:
- * [Depth 2][a1, b1, _]            Call: recursiveMultiJoin(2, -b1, 1, [a1, b1, _], [1, 0, 0], CALCULATE_MATCHES)
- * [Depth 2][a1, b1, _]            Phase: CALCULATE_MATCHES
+ * [Depth 2][a1, b1, _]            Call: recursiveMultiJoin(2, -b1, 1, [a1, b1, _], [1, 0, 0], false) // isInputRecordActive = false
+ * [Depth 2][a1, b1, _]            Mode: isInputRecordActive = false (Association Calculation)
  * [Depth 2][a1, b1, _]            isLeftJoin(2): false
  * [Depth 2][a1, b1, _]             Process StateC: { c1, c2 }
  * [Depth 2][a1, b1, c1]              Record c1: currentRows = [a1, b1, c1]. Check matchesCondition(2, [a1,b1,c1]) -> (50==50) -> true. Recurse:
- * [Depth 3][a1, b1, c1]                Call: recursiveMultiJoin(3, -b1, 1, [a1,b1,c1], [1,0,0], CALCULATE_MATCHES)
- * [Depth 3][a1, b1, c1]                Phase: CALCULATE_MATCHES
- * [Depth 3][a1, b1, c1]                isMaxDepth(3): true. Evaluate multiJoinCondition([a1,b1,c1]) -> (1==1 && 50==50) -> true. Return true.
+ * [Depth 3][a1, b1, c1]                Call: recursiveMultiJoin(3, -b1, 1, [a1,b1,c1], [1,0,0], false) // isInputRecordActive = false
+ * [Depth 3][a1, b1, c1]                Mode: isInputRecordActive = false (Association Calculation)
+ * [Depth 3][a1, b1, c1]                isMaxDepth(3): true. Evaluate multiJoinCondition([a1,b1,c1]) -> (1==1 && 50==50) -> true. Return true. // Note: Emission occurs here even if isInputRecordActive=false
  * [Depth 2][a1, b1, c2]              Record c2: currentRows = [a1, b1, c2]. Check matchesCondition(2, [a1,b1,c2]) -> (50==60) -> false. Continue loop.
  * [Depth 2][a1, b1, _]            StateC loop returns true (c1 matched).
  * [Depth 2][a1, b1, _]            Return true.
  * [Depth 1][a1, b1, _]        StateB loop finishes. matched = true.
  * [Depth 1][a1, b1, _] NULL_PAD?    Check Null Padding: isLeftJoin(1) && !matched -> false. Skip null padding.
  * [Depth 1][a1, b1, _] INPUT_LVL?   isInputLevel(1, 1): true -> Process input record -b1.
- * [Depth 1][a1, _, _] PROC_INPUT   Call processInputRecord(1, -b1, 1, [a1,_,_], [1,0,0], true) -- PHASE SWITCHES TO EMIT_RESULTS
+ * [Depth 1][a1, _, _] PROC_INPUT   Call processInputRecord(1, -b1, 1, [a1,_,_], [1,0,0], true) -- Mode switches to isInputRecordActive = true for subsequent recursive calls initiated by processInputRecord
  * [Depth 1][a1, _, _]            isLeftJoin(1): true
  * [Depth 1][a1, _, _] RETRACT?     Check Retract: isUpsert(-b1) is false. Skip handleRetractBeforeInput.
  * [Depth 1][a1, -b1, _]         Set currentRows = [a1, -b1, _].
  * [Depth 1][a1, -b1, _]         Check matchesCondition(1, [a1,-b1]) (a1.id == b1.id -> 1==1) -> true. Match found.
- * [Depth 1][a1, -b1, _] ASSOC_UPD    Update Associations: updateAssociationCount(1, associations, EMIT_RESULTS, -b1) -> associations[0]--. associations = [0, 0, 0].
+ * [Depth 1][a1, -b1, _] ASSOC_UPD    Update Associations: (current mode is isInputRecordActive=true, for input record -b1) associations[0]--. associations = [0, 0, 0].
  * [Depth 1][a1, -b1, _]         Recurse:
- * [Depth 2][a1, -b1, _]           Call: recursiveMultiJoin(2, -b1, 1, [a1, -b1, _], [0, 0, 0], EMIT_RESULTS)
- * [Depth 2][a1, -b1, _]           Phase: EMIT_RESULTS
+ * [Depth 2][a1, -b1, _]           Call: recursiveMultiJoin(2, -b1, 1, [a1, -b1, _], [0, 0, 0], true) // isInputRecordActive = true
+ * [Depth 2][a1, -b1, _]           Mode: isInputRecordActive = true (Result Emission)
  * [Depth 2][a1, -b1, _]            Process StateC: { c1, c2 }
  * [Depth 2][a1, -b1, c1]            Record c1: currentRows = [a1, -b1, c1]. Check matchesCondition(2, [a1,-b1,c1]) -> (b1.id==c1.id -> 50==50) -> true. Recurse:
- * [Depth 3][a1, -b1, c1]              Call: recursiveMultiJoin(3, -b1, 1, [a1, -b1, c1], [0, 0, 0], EMIT_RESULTS)
- * [Depth 3][a1, -b1, c1]              Phase: EMIT_RESULTS
+ * [Depth 3][a1, -b1, c1]              Call: recursiveMultiJoin(3, -b1, 1, [a1, -b1, c1], [0, 0, 0], true) // isInputRecordActive = true
+ * [Depth 3][a1, -b1, c1]              Mode: isInputRecordActive = true (Result Emission)
  * [Depth 3][a1, -b1, c1]              isMaxDepth(3): true. Evaluate multiJoinCondition([a1,-b1,c1]) -> (1==1 && 50==50) -> true.
  * [Depth 3][a1, -b1, c1] *** EMIT *** emitRow(DELETE, [a1, b1, c1]) // *** EMIT OUTPUT: -D[a1(1,100), b1(1,50), c1(50,501)] ***
  * [Depth 3][a1, -b1, c1]              Return true.
@@ -301,8 +307,8 @@ import java.util.List;
  * [Depth 1][a1, nullB, _]           currentRows = [a1, nullB, _]
  * [Depth 1][a1, nullB, _]           input becomes temp +b1_temp (Kind.INSERT)
  * [Depth 1][a1, nullB, _]           Recurse:
- * [Depth 2][a1, nullB, _]             Call: recursiveMultiJoin(2, +b1_temp, 1, [a1, nullB, _], [0, 0, 0], EMIT_RESULTS)
- * [Depth 2][a1, nullB, _]             Phase: EMIT_RESULTS
+ * [Depth 2][a1, nullB, _]             Call: recursiveMultiJoin(2, +b1_temp, 1, [a1, nullB, _], [0, 0, 0], true) // isInputRecordActive = true
+ * [Depth 2][a1, nullB, _]             Mode: isInputRecordActive = true (Result Emission)
  * [Depth 2][a1, nullB, _]             isLeftJoinAtDepth(2) is false (B INNER JOIN C).
  * [Depth 2][a1, nullB, _]              Process StateC: { c1, c2 }
  * [Depth 2][a1, nullB, c1]              Record c1: currentRows = [a1, nullB, c1]. Check matchesCondition(2, [a1,nullB,c1]) fails (nullB). Continue.
@@ -355,14 +361,6 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
     private transient TimestampedCollector<RowData> collector;
     private transient List<RowData> nullRows;
 
-    /** Represents the different phases of the join process. */
-    private enum JoinPhase {
-        /** Phase where we calculate match counts (associations) without emitting results. */
-        CALCULATE_MATCHES,
-        /** Phase where we emit the actual join results. */
-        EMIT_RESULTS
-    }
-
     public StreamingMultiJoinOperator(
             StreamOperatorParameters<RowData> parameters,
             List<InternalTypeInfo<RowData>> inputTypes,
@@ -412,7 +410,12 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         RowData[] currentRows = new RowData[inputSpecs.size()];
 
         recursiveMultiJoin(
-                0, input, inputId, currentRows, associations, JoinPhase.CALCULATE_MATCHES);
+                0,
+                input,
+                inputId,
+                currentRows,
+                associations,
+                false); // isInputRecordActive = false initially
     }
 
     /**
@@ -428,7 +431,10 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
      * @param associations An array used for LEFT joins to track match counts. `associations[d]`
      *     stores the number of successful matches found for `currentRows[d]` against inputs `d+1`
      *     onwards based on outer join conditions.
-     * @param phase The current execution phase (CALCULATE_MATCHES or EMIT_RESULTS).
+     * @param isInputRecordActive True when `currentRows` contains the new added input record at its
+     *     `inputId` (via `processInputRecord`), and we are in the mode to emit matching join row
+     *     combinations. False if we are in the initial state exploration/association calculation
+     *     mode.
      * @throws Exception If state access or condition evaluation fails.
      */
     private void recursiveMultiJoin(
@@ -437,9 +443,10 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             int inputId,
             RowData[] currentRows,
             int[] associations,
-            JoinPhase phase)
+            boolean isInputRecordActive)
             throws Exception {
-        // Base case: If we've processed all inputs, evaluate the final join condition.
+        // Base case: If we've processed all inputs and reached the last level, all join conditions
+        // for each level have matched. We now emit the joined output record.
         if (isMaxDepth(depth)) {
             emitJoinedRow(input, currentRows);
             return;
@@ -451,10 +458,20 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         // We store matched here because we need to know if we need to do emit a null padded output
         // if there were no matching records.
         boolean matched =
-                processRecords(depth, input, inputId, currentRows, associations, phase, isLeftJoin);
+                processRecords(
+                        depth,
+                        input,
+                        inputId,
+                        currentRows,
+                        associations,
+                        isInputRecordActive,
+                        isLeftJoin);
 
         // If the current depth is the one where the triggering input record arrived,
         // now process the input record itself with the current combination of rows we are at.
+        // processInputRecord will handle transitioning to the "emit results" mode
+        // (isInputRecordActive =
+        // true for its recursive calls).
         if (isInputLevel(depth, inputId)) {
             processInputRecord(depth, input, inputId, currentRows, associations, matched);
         } else if (isLeftJoin && !matched) {
@@ -462,11 +479,13 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             // associations, process with null padding for the current depth. In other words,
             // we emit null for this level. This is important so we continue to the join
             // with the output of this join level, which is a null padded row.
-            processWithNullPadding(depth, input, inputId, currentRows, associations, phase);
+            // Continue with the same isInputRecordActive mode.
+            processWithNullPadding(
+                    depth, input, inputId, currentRows, associations, isInputRecordActive);
         }
     }
 
-    // This can simply emit the resulting join row between all n inputs.
+    // This simply emits the resulting join row between all n inputs.
     private void emitJoinedRow(RowData input, RowData[] currentRows) {
         emitRow(input.getRowKind(), currentRows);
     }
@@ -478,7 +497,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             int inputId,
             RowData[] currentRows,
             int[] associations,
-            JoinPhase phase,
+            boolean isInputRecordActive,
             boolean isLeftJoin)
             throws Exception {
         boolean matched = false; // Tracks if any record at this depth matched the condition
@@ -516,7 +535,9 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             // This information is crucial for determining if null padding is needed later.
             if (isLeftJoin) {
                 updateAssociationCount(
-                        depth, associations, shouldIncrementAssociation(phase, input));
+                        depth,
+                        associations,
+                        shouldIncrementAssociation(isInputRecordActive, input));
 
                 // Optimization: further recursion or counting might be skippable under
                 // specific conditions detailed in `canOptimizeAssociationCounting`.
@@ -531,16 +552,20 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
                 associations[depth] = 0;
             }
 
-            // During `CALCULATE_MATCHES` at the `inputId` level, the primary goal is to
-            // determine associations for the input record's level. Recursion to deeper
+            // For the `inputId` level and when !isInputRecordActive (i.e., association calculation
+            // mode),
+            // the primary goal is to determine associations for the input record's level so we know
+            // if we have to handle null padded retractions or insertions. Recursion to deeper
             // levels (joins to the right) is not needed for this specific count at this stage,
             // as the input record's participation and further joins are handled by
-            // `processInputRecord` or subsequent recursive calls in the `EMIT_RESULTS` phase.
-            if (phase == JoinPhase.CALCULATE_MATCHES && isInputLevel(depth, inputId)) {
+            // `processInputRecord` or subsequent recursive calls where isInputRecordActive will be
+            // true.
+            if (!isInputRecordActive && isInputLevel(depth, inputId)) {
                 continue;
             }
 
-            recursiveMultiJoin(depth + 1, input, inputId, currentRows, associations, phase);
+            recursiveMultiJoin(
+                    depth + 1, input, inputId, currentRows, associations, isInputRecordActive);
         }
 
         // Returns whether any record at this level matched the local condition.
@@ -557,7 +582,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             int inputId,
             RowData[] currentRows,
             int[] associations,
-            JoinPhase phase)
+            boolean isInputRecordActive)
             throws Exception {
 
         // Recursion continues with a null row at the current depth. This means the current join
@@ -565,7 +590,8 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         // By continuing the recursion, we allow those deeper conditions to be evaluated and
         // ensures that the null padding correctly propagates to the join chain.
         currentRows[depth] = nullRows.get(depth);
-        recursiveMultiJoin(depth + 1, input, inputId, currentRows, associations, phase);
+        recursiveMultiJoin(
+                depth + 1, input, inputId, currentRows, associations, isInputRecordActive);
     }
 
     private void processInputRecord(
@@ -586,27 +612,37 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         // When processing the actual input record, if it satisfies the outer join condition
         // for this level (`depth`), its association with the preceding level (`depth-1`)
         // must be updated: either increment if upsert or decrement the number of associations, if a
-        // retraction.
+        // retraction. This happens in the "result emission mode" (isInputRecordActive = true
+        // implicitly for this logic path).
         if (isLeftJoin) {
             updateAssociationCount(
-                    depth, associations, shouldIncrementAssociation(JoinPhase.EMIT_RESULTS, input));
+                    depth,
+                    associations,
+                    shouldIncrementAssociation(true, input)); // true for isInputRecordActive
         }
 
         // --- Left Join Retraction Handling ---
         // For an incoming INSERT/UPDATE_AFTER on the right side of a LEFT join,
-        // if the corresponding left-side row previously had no matches (indicated by `!matched`),
+        // if the corresponding left-side row previously had no matches (indicated by `!matched`
+        // during
+        // the association calculation phase where isInputRecordActive was false),
         // it would have resulted in a null-padded output. This new record might form a
         // valid join, so the previous null-padded output must be retracted.
         if (isUpsert(input) && isLeftJoin && !matched) {
             handleRetractBeforeInput(depth, input, inputId, currentRows, associations);
         }
 
-        // Continue recursion to the next depth. Crucially, the phase is now `EMIT_RESULTS`
+        // Continue recursion to the next depth. Crucially, `isInputRecordActive` is now true
         // because we have incorporated the actual input record, and any further matches
         // found should lead to output generation or retractions.
         currentRows[depth] = input;
         recursiveMultiJoin(
-                depth + 1, input, inputId, currentRows, associations, JoinPhase.EMIT_RESULTS);
+                depth + 1,
+                input,
+                inputId,
+                currentRows,
+                associations,
+                true); // true for isInputRecordActive
 
         // --- Left Join Insertion Handling ---
         // If an incoming DELETE/UPDATE_BEFORE on the right side of a LEFT join removes
@@ -627,8 +663,14 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         input.setRowKind(RowKind.DELETE);
 
         // Recurse to emit the potential retraction for the previously null-padded row.
+        // This is part of processing the input record, so isInputRecordActive = true.
         recursiveMultiJoin(
-                depth + 1, input, inputId, currentRows, associations, JoinPhase.EMIT_RESULTS);
+                depth + 1,
+                input,
+                inputId,
+                currentRows,
+                associations,
+                true); // true for isInputRecordActive
 
         // Restore the input record's original RowKind to prevent unintended side effects,
         // as the `input` object itself was temporarily modified.
@@ -645,8 +687,14 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         input.setRowKind(RowKind.INSERT);
 
         // Recurse to emit the potential insertion for the new null-padded row.
+        // This is part of processing the input record, so isInputRecordActive = true.
         recursiveMultiJoin(
-                depth + 1, input, inputId, currentRows, associations, JoinPhase.EMIT_RESULTS);
+                depth + 1,
+                input,
+                inputId,
+                currentRows,
+                associations,
+                true); // true for isInputRecordActive
 
         // Restore the input record's original RowKind to prevent unintended side effects,
         // as the `input` object itself was temporarily modified.
@@ -761,8 +809,12 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         }
     }
 
-    private boolean shouldIncrementAssociation(JoinPhase phase, RowData input) {
-        return phase == JoinPhase.CALCULATE_MATCHES || isUpsert(input);
+    private boolean shouldIncrementAssociation(boolean isInputRecordActive, RowData input) {
+        // If not processing the active input record (i.e., in association calculation mode),
+        // we always effectively "increment" for the purpose of counting potential matches from
+        // state.
+        // If processing the active input record, increment only for upserts.
+        return !isInputRecordActive || isUpsert(input);
     }
 
     private int[] createInitialAssociations() {
@@ -797,11 +849,11 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
     }
 
     /**
-     * Optimization for LEFT joins during the CALCULATE_MATCHES phase at the input level.
+     * Optimization for LEFT joins at the input level.
      *
      * <p>We only need to know if *any* match exists (for upserts) or if *more than one* match
-     * exists (for retractions) to correctly handle null padding logic later in the EMIT_RESULTS
-     * phase. Counting beyond this minimum requirement during CALCULATE_MATCHES is unnecessary.
+     * exists (for retractions) to correctly handle null padding logic. Counting beyond this minimum
+     * requirement is unnecessary when `isInputRecordActive` is false.
      *
      * <p>Note: If further optimizations involving caching exact association counts are added, this
      * optimization might need to be removed.
@@ -817,7 +869,8 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         if (isUpsert(input)) {
             // For an upsert, if at least one match is found (associations > 0),
             // we know a retraction of a prior null-padded row (if any) won't be necessary
-            // before emitting the new joined row. Further counting adds no value here.
+            // before emitting the new joined row. Further counting adds no value here
+            // during the association calculation phase (when isInputRecordActive is false).
             return associations[depth - 1] > 0;
         } else {
             // For a retraction, if more than one match existed (associations > 1),
