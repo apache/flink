@@ -196,14 +196,14 @@ ds = env.from_source(source, WatermarkStrategy.no_watermarks(), "file-source")
 
 Flink supports producing three types of Avro records by reading Parquet files (Only Generic record is supported in PyFlink):
 
-- [Generic record](https://avro.apache.org/docs/1.10.0/api/java/index.html)
-- [Specific record](https://avro.apache.org/docs/1.10.0/api/java/index.html)
-- [Reflect record](https://avro.apache.org/docs/1.10.0/api/java/org/apache/avro/reflect/package-summary.html)
+- [Generic record](https://avro.apache.org/docs/++version++/api/java/org/apache/avro/generic/package-summary.html)
+- [Specific record](https://avro.apache.org/docs/++version++/api/java/org/apache/avro/specific/package-summary.html)
+- [Reflect record](https://avro.apache.org/docs/++version++/api/java/org/apache/avro/reflect/package-summary.html)
 
 ### Generic record
 
-Avro schemas are defined using JSON. You can get more information about Avro schemas and types from the [Avro specification](https://avro.apache.org/docs/1.10.0/spec.html).
-This example uses an Avro schema example similar to the one described in the [official Avro tutorial](https://avro.apache.org/docs/1.10.0/gettingstartedjava.html):
+Avro schemas are defined using JSON. You can get more information about Avro schemas and types from the [Avro specification](https://avro.apache.org/docs/++version++/specification/).
+This example uses an Avro schema example similar to the one described in the [official Avro tutorial](https://avro.apache.org/docs/++version++/getting-started-java/):
 
 ```json lines
 {"namespace": "example.avro",
@@ -217,10 +217,10 @@ This example uses an Avro schema example similar to the one described in the [of
 }
 ```
 
-This schema defines a record representing a user with three fields: name, favoriteNumber, and favoriteColor. You can find more details at [record specification](https://avro.apache.org/docs/1.10.0/spec.html#schema_record) for how to define an Avro schema.
+This schema defines a record representing a user with three fields: name, favoriteNumber, and favoriteColor. You can find more details at [record specification](https://avro.apache.org/docs/++version++/specification/#schema-record) for how to define an Avro schema.
 
 In the following example, you will create a DataStream containing Parquet records as Avro Generic records. 
-It will parse the Avro schema based on the JSON string. There are many other ways to parse a schema, e.g. from java.io.File or java.io.InputStream. Please refer to [Avro Schema](https://avro.apache.org/docs/1.10.0/api/java/org/apache/avro/Schema.html) for details.
+It will parse the Avro schema based on the JSON string. There are many other ways to parse a schema, e.g. from java.io.File or java.io.InputStream. Please refer to [Avro Schema](https://avro.apache.org/docs/++version++/api/java/org/apache/avro/Schema.html) for details.
 After that, you will create an `AvroParquetRecordFormat` via `AvroParquetReaders` for Avro Generic records.
 
 {{< tabs "GenericRecord" >}}
@@ -284,7 +284,7 @@ Based on the previously defined schema, you can generate classes by leveraging A
 Once the classes have been generated, there is no need to use the schema directly in your programs. 
 You can either use `avro-tools.jar` to generate code manually or you could use the Avro Maven plugin to perform 
 code generation on any .avsc files present in the configured source directory. Please refer to 
-[Avro Getting Started](https://avro.apache.org/docs/1.10.0/gettingstartedjava.html) for more information.
+[Avro Getting Started](https://avro.apache.org/docs/++version++/getting-started-java/) for more information.
 
 The following example uses the example schema {{< gh_link file="flink-formats/flink-parquet/src/test/resources/avro/testdata.avsc" name="testdata.avsc" >}}:
 
@@ -334,7 +334,7 @@ final DataStream<GenericRecord> stream =
 Beyond Avro Generic and Specific record that requires a predefined Avro schema, 
 Flink also supports creating a DataStream from Parquet files based on existing Java POJO classes.
 In this case, Avro will use Java reflection to generate schemas and protocols for these POJO classes.
-Java types are mapped to Avro schemas, please refer to the [Avro reflect](https://avro.apache.org/docs/1.10.0/api/java/index.html) documentation for more details.
+Java types are mapped to Avro schemas, please refer to the [Avro reflect](https://avro.apache.org/docs/++version++/api/java/org/apache/avro/reflect/package-summary.html) documentation for more details.
 
 This example uses a simple Java POJO class {{< gh_link file="flink-formats/flink-parquet/src/test/java/org/apache/flink/formats/parquet/avro/Datum.java" name="Datum" >}}:
 
