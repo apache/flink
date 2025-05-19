@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.stream.sql;
 
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
@@ -99,6 +100,16 @@ public class ModelTableFunctionTest extends TableTestBase {
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .hasMessageContaining(
                         "Invalid number of arguments to function 'ML_PREDICT'. Was expecting 3 arguments");
+    }
+
+    @Test
+    public void testMLPredictTVFWithNonExistModel() {
+        String sql =
+                "SELECT *\n"
+                        + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL NonExistModel, DESCRIPTOR(a, b), MAP['key', 'value'], 'arg0'))";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Object 'NonExistModel' not found");
     }
 
     private void assertReachesRelConverter(String sql) {
