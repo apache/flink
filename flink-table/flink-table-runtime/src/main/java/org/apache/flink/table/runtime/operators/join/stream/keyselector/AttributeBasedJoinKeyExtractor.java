@@ -66,8 +66,10 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
     private final Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap;
     private final List<InternalTypeInfo<RowData>> inputTypes;
 
-    // Cache for pre-computed key extraction structures
-    private final Map<Integer, List<KeyExtractor>> extractorCache;
+    // Cache for pre-computed key extraction structures for getJoinKeyFromCurrentRows
+    private final Map<Integer, List<KeyExtractor>> currentRowsFieldIndices;
+    // Cache for pre-computed key field indices for getJoinKeyFromInput
+    private final Map<Integer, List<Integer>> inputKeyFieldIndices;
 
     // Fields for common key logic
     private final Map<Integer, List<KeyExtractor>> commonKeyExtractors;
@@ -86,9 +88,19 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
             final List<InternalTypeInfo<RowData>> inputTypes) {
         this.joinAttributeMap = joinAttributeMap;
         this.inputTypes = inputTypes;
-        this.extractorCache = new HashMap<>();
+        this.currentRowsFieldIndices = new HashMap<>();
+        this.inputKeyFieldIndices = new HashMap<>();
         this.commonKeyExtractors = new HashMap<>();
         this.commonKeyTypes = new HashMap<>();
+
+        // Eagerly initialize the caches for key extraction
+        if (this.inputTypes != null) {
+            for (int i = 0; i < this.inputTypes.size(); i++) {
+                this.currentRowsFieldIndices.put(i, createJoinKeyFieldCurrentRowsExtractors(i));
+                this.inputKeyFieldIndices.put(i, createJoinKeyFieldInputExtractors(i));
+            }
+        }
+
         initializeCommonKeyStructures();
     }
 
@@ -106,12 +118,14 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
             return DEFAULT_KEY;
         }
 
-        // Indices of fields in the *current* input (inputId) used as the *right* side of joins.
-        final List<Integer> keyFieldIndices = determineKeyFieldIndices(inputId);
+        // Retrieve pre-computed key field indices from the cache
+        final List<Integer> keyFieldIndices = inputKeyFieldIndices.get(inputId);
 
-        if (keyFieldIndices.isEmpty()) {
+        if (keyFieldIndices == null || keyFieldIndices.isEmpty()) {
             // Mappings exist, but none point to fields *within* this inputId (config error?), use
             // default key.
+            // This case should ideally be caught by createJoinKeyFieldInputExtractors during init
+            // if config is bad.
             return DEFAULT_KEY;
         }
 
@@ -123,15 +137,24 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
         if (depth == 0) {
             return DEFAULT_KEY;
         }
-        List<KeyExtractor> keyExtractors =
-                extractorCache.computeIfAbsent(depth, this::createExtractorsForDepth);
-        if (keyExtractors.isEmpty()) {
+        // Retrieve pre-computed extractors from the cache
+        List<KeyExtractor> keyExtractors = currentRowsFieldIndices.get(depth);
+
+        // If no extractors are found for this depth (e.g., depth out of bounds, though
+        // createJoinKeyFieldCurrentRowsExtractors should place an empty list for valid depths with
+        // no
+        // conditions),
+        // or if the list is empty (no relevant join attributes for this depth), return default key.
+        if (keyExtractors == null || keyExtractors.isEmpty()) {
             return DEFAULT_KEY;
         }
         return buildKeyRow(keyExtractors, currentRows);
     }
 
-    private List<KeyExtractor> createExtractorsForDepth(int depth) {
+    private List<KeyExtractor> createJoinKeyFieldCurrentRowsExtractors(int depth) {
+        if (depth == 0) {
+            return Collections.emptyList();
+        }
         Map<AttributeRef, AttributeRef> attributeMapping = joinAttributeMap.get(depth);
         if (attributeMapping == null || attributeMapping.isEmpty()) {
             return Collections.emptyList();
@@ -184,7 +207,7 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
         }
 
         // Determine key fields based on the *right* side attributes for this inputId.
-        final List<Integer> keyFieldIndices = determineKeyFieldIndices(inputId);
+        final List<Integer> keyFieldIndices = createJoinKeyFieldInputExtractors(inputId);
 
         if (keyFieldIndices.isEmpty()) {
             // No equi-join fields defined for this input's state key. Use default type.
@@ -207,6 +230,43 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
 
         final RowType keyRowType = RowType.of(keyTypes, keyNames);
         return InternalTypeInfo.of(keyRowType);
+    }
+
+    // ==================== Helper Methods ====================
+
+    /** Determines indices of fields in inputId that are join keys (right side of conditions). */
+    private List<Integer> createJoinKeyFieldInputExtractors(int inputId) {
+        final Map<AttributeRef, AttributeRef> attributeMapping = joinAttributeMap.get(inputId);
+        if (attributeMapping == null) {
+            return Collections.emptyList();
+        }
+        // Need field indices from the *value* (right side) where inputId matches.
+        return attributeMapping.values().stream()
+                .filter(rightAttrRef -> rightAttrRef.inputId == inputId)
+                .map(rightAttrRef -> rightAttrRef.fieldIndex)
+                .distinct() // Ensure uniqueness
+                .sorted() // Ensure consistent order
+                .collect(Collectors.toList());
+    }
+
+    /** Builds a key row from a source row using specified field indices. */
+    private GenericRowData buildKeyRow(
+            RowData sourceRow, int inputId, List<Integer> keyFieldIndices) {
+        final GenericRowData keyRow = new GenericRowData(keyFieldIndices.size());
+        final InternalTypeInfo<RowData> typeInfo = inputTypes.get(inputId);
+        final RowType rowType = typeInfo.toRowType();
+
+        for (int i = 0; i < keyFieldIndices.size(); i++) {
+            final int fieldIndex = keyFieldIndices.get(i);
+            validateFieldIndex(inputId, fieldIndex, rowType); // Validate before access
+
+            final LogicalType fieldType = rowType.getTypeAt(fieldIndex);
+            final RowData.FieldGetter fieldGetter =
+                    RowData.createFieldGetter(fieldType, fieldIndex);
+            final Object value = fieldGetter.getFieldOrNull(sourceRow);
+            keyRow.setField(i, value);
+        }
+        return keyRow;
     }
 
     // ==================== Common Key Methods ====================
@@ -377,43 +437,6 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
                 rank.put(rootA, rank.get(rootA) + 1);
             }
         }
-    }
-
-    // ==================== Helper Methods ====================
-
-    /** Determines indices of fields in inputId that are join keys (right side of conditions). */
-    private List<Integer> determineKeyFieldIndices(int inputId) {
-        final Map<AttributeRef, AttributeRef> attributeMapping = joinAttributeMap.get(inputId);
-        if (attributeMapping == null) {
-            return Collections.emptyList();
-        }
-        // Need field indices from the *value* (right side) where inputId matches.
-        return attributeMapping.values().stream()
-                .filter(rightAttrRef -> rightAttrRef.inputId == inputId)
-                .map(rightAttrRef -> rightAttrRef.fieldIndex)
-                .distinct() // Ensure uniqueness
-                .sorted() // Ensure consistent order
-                .collect(Collectors.toList());
-    }
-
-    /** Builds a key row from a source row using specified field indices. */
-    private GenericRowData buildKeyRow(
-            RowData sourceRow, int inputId, List<Integer> keyFieldIndices) {
-        final GenericRowData keyRow = new GenericRowData(keyFieldIndices.size());
-        final InternalTypeInfo<RowData> typeInfo = inputTypes.get(inputId);
-        final RowType rowType = typeInfo.toRowType();
-
-        for (int i = 0; i < keyFieldIndices.size(); i++) {
-            final int fieldIndex = keyFieldIndices.get(i);
-            validateFieldIndex(inputId, fieldIndex, rowType); // Validate before access
-
-            final LogicalType fieldType = rowType.getTypeAt(fieldIndex);
-            final RowData.FieldGetter fieldGetter =
-                    RowData.createFieldGetter(fieldType, fieldIndex);
-            final Object value = fieldGetter.getFieldOrNull(sourceRow);
-            keyRow.setField(i, value);
-        }
-        return keyRow;
     }
 
     /** Performs bounds checking for field access. */
