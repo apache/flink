@@ -33,11 +33,11 @@ import static org.apache.calcite.util.Static.RESOURCE;
 public class SqlModelCall extends SqlBasicCall {
 
     private @Nullable CatalogSchemaModel model = null;
-    private static final SqlModelOperator modelOperator = new SqlModelOperator();
+    private static final SqlModelOperator MODEL_OPERATOR = new SqlModelOperator();
 
     public SqlModelCall(SqlExplicitModelCall modelCall) {
         super(
-                modelOperator,
+                MODEL_OPERATOR,
                 modelCall.getOperandList(),
                 modelCall.getParserPosition(),
                 modelCall.getFunctionQuantifier());
