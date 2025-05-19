@@ -215,6 +215,10 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: "Install Python header files"
+        if: matrix.module == 'python'
+        run: sudo apt-get update && sudo apt-get -y install python3-dev
+
       - name: "Set coredump pattern"
         working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
         run: sudo sysctl -w kernel.core_pattern=core.%p
