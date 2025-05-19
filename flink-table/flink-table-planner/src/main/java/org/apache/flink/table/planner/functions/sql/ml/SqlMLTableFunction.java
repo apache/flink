@@ -37,14 +37,14 @@ import java.util.List;
  * Base class for a table-valued function that works with models. Examples include {@code
  * ML_PREDICT}.
  */
-public abstract class SqlMlTableFunction extends SqlFunction implements SqlTableFunction {
+public abstract class SqlMLTableFunction extends SqlFunction implements SqlTableFunction {
 
-    protected static final String PARAM_DATA = "data";
-    protected static final String PARAM_MODEL = "input_model";
-    protected static final String PARAM_COLUMN = "input_column";
-    protected static final String PARAM_CONFIG = "config";
+    protected static final String PARAM_INPUT = "INPUT";
+    protected static final String PARAM_MODEL = "INPUT_MODEL";
+    protected static final String PARAM_COLUMN = "INPUT_COLUMN";
+    protected static final String PARAM_CONFIG = "CONFIG";
 
-    public SqlMlTableFunction(String name, SqlOperandMetadata operandMetadata) {
+    public SqlMLTableFunction(String name, SqlOperandMetadata operandMetadata) {
         super(
                 name,
                 SqlKind.OTHER_FUNCTION,

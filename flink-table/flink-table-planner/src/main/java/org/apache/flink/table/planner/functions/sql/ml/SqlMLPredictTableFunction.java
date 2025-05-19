@@ -42,9 +42,9 @@ import java.util.List;
  *   <li>an optional config map
  * </ol>
  */
-public class SqlMlPredictTableFunction extends SqlMlTableFunction {
+public class SqlMLPredictTableFunction extends SqlMLTableFunction {
 
-    public SqlMlPredictTableFunction() {
+    public SqlMLPredictTableFunction() {
         super("ML_PREDICT", new PredictOperandMetadata());
     }
 
@@ -68,9 +68,9 @@ public class SqlMlPredictTableFunction extends SqlMlTableFunction {
 
     private static class PredictOperandMetadata implements SqlOperandMetadata {
         private static final List<String> PARAM_NAMES =
-                List.of(PARAM_DATA, PARAM_MODEL, PARAM_COLUMN, PARAM_CONFIG);
+                List.of(PARAM_INPUT, PARAM_MODEL, PARAM_COLUMN, PARAM_CONFIG);
         private static final List<String> MANDATORY_PARAM_NAMES =
-                List.of(PARAM_DATA, PARAM_MODEL, PARAM_COLUMN);
+                List.of(PARAM_INPUT, PARAM_MODEL, PARAM_COLUMN);
 
         PredictOperandMetadata() {}
 

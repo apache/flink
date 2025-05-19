@@ -66,9 +66,20 @@ public class ModelTableFunctionTest extends TableTestBase {
     public void testMLPredictTVFWithNamedArguments() {
         String sql =
                 "SELECT *\n"
-                        + "FROM TABLE(ML_PREDICT(data => TABLE MyTable, "
-                        + "input_model => MODEL MyModel, "
-                        + "input_column => DESCRIPTOR(a, b)))";
+                        + "FROM TABLE(ML_PREDICT(INPUT => TABLE MyTable, "
+                        + "INPUT_MODEL => MODEL MyModel, "
+                        + "INPUT_COLUMN => DESCRIPTOR(a, b)))";
+        assertReachesRelConverter(sql);
+    }
+
+    @Test
+    public void testMLPredictTVFWithOptionalNamedArguments() {
+        String sql =
+                "SELECT *\n"
+                        + "FROM TABLE(ML_PREDICT(INPUT => TABLE MyTable, "
+                        + "INPUT_MODEL => MODEL MyModel, "
+                        + "INPUT_COLUMN => DESCRIPTOR(a, b),"
+                        + "CONFIG => MAP['key', 'value']))";
         assertReachesRelConverter(sql);
     }
 
@@ -78,6 +89,16 @@ public class ModelTableFunctionTest extends TableTestBase {
                 "SELECT *\n"
                         + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b)))";
         assertReachesRelConverter(sql);
+    }
+
+    @Test
+    public void testMLPredictTVFWithTooManyArguments() {
+        String sql =
+                "SELECT *\n"
+                        + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['key', 'value'], 'arg0'))";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .hasMessageContaining(
+                        "Invalid number of arguments to function 'ML_PREDICT'. Was expecting 3 arguments");
     }
 
     private void assertReachesRelConverter(String sql) {

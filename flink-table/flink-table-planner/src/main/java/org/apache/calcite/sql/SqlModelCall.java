@@ -33,15 +33,11 @@ import static org.apache.calcite.util.Static.RESOURCE;
 public class SqlModelCall extends SqlBasicCall {
 
     private @Nullable CatalogSchemaModel model = null;
+    private static final SqlModelOperator modelOperator = new SqlModelOperator();
 
     public SqlModelCall(SqlExplicitModelCall modelCall) {
         super(
-                SqlModelOperator.create(
-                        modelCall.getOperator().getName(),
-                        modelCall.getOperator().getKind(),
-                        modelCall.getOperator().getLeftPrec(),
-                        modelCall.getOperator().getRightPrec(),
-                        (SqlIdentifier) modelCall.getOperandList().get(0)),
+                modelOperator,
                 modelCall.getOperandList(),
                 modelCall.getParserPosition(),
                 modelCall.getFunctionQuantifier());
@@ -80,37 +76,18 @@ public class SqlModelCall extends SqlBasicCall {
      *
      * <p>It is used to derive the type of the model based on the identifier.
      */
-    private static class SqlModelOperator extends SqlOperator {
+    private static class SqlModelOperator extends SqlPrefixOperator {
 
-        private final SqlIdentifier modelIdentifier;
-
-        private static SqlModelOperator create(
-                String name,
-                SqlKind kind,
-                int leftPrecedence,
-                int rightPrecedence,
-                SqlIdentifier identifier) {
-            return new SqlModelOperator(name, kind, leftPrecedence, rightPrecedence, identifier);
-        }
-
-        private SqlModelOperator(
-                String name,
-                SqlKind kind,
-                int leftPrecedence,
-                int rightPrecedence,
-                SqlIdentifier identifier) {
-            super(name, kind, leftPrecedence, rightPrecedence, null, null, null);
-            this.modelIdentifier = identifier;
-        }
-
-        @Override
-        public SqlSyntax getSyntax() {
-            return SqlSyntax.PREFIX;
+        private SqlModelOperator() {
+            super("MODEL", SqlKind.OTHER_FUNCTION, 2, null, null, null);
         }
 
         @Override
         public RelDataType deriveType(
                 SqlValidator validator, SqlValidatorScope scope, SqlCall call) {
+            SqlModelCall modelCall = (SqlModelCall) call;
+            SqlIdentifier modelIdentifier = (SqlIdentifier) modelCall.getOperandList().get(0);
+
             SqlValidatorCatalogReader catalogReader = validator.getCatalogReader();
             assert catalogReader instanceof FlinkCalciteCatalogReader;
 

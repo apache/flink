@@ -17,7 +17,7 @@
 package org.apache.calcite.sql.validate;
 
 import org.apache.flink.table.planner.calcite.FlinkSqlCallBinding;
-import org.apache.flink.table.planner.functions.sql.ml.SqlMlTableFunction;
+import org.apache.flink.table.planner.functions.sql.ml.SqlMLTableFunction;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -2575,7 +2575,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                 if (operand instanceof SqlBasicCall) {
                     final SqlBasicCall call1 = (SqlBasicCall) operand;
                     final SqlOperator op = call1.getOperator();
-                    if ((op instanceof SqlWindowTableFunction || op instanceof SqlMlTableFunction)
+                    if ((op instanceof SqlWindowTableFunction || op instanceof SqlMLTableFunction)
                             && call1.operand(0).getKind() == SqlKind.SELECT) {
                         scopes.put(node, getSelectScope(call1.operand(0)));
                         return newNode;

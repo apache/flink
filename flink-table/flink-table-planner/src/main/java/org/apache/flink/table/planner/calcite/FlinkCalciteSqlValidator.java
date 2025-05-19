@@ -27,7 +27,7 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
-import org.apache.flink.table.planner.functions.sql.ml.SqlMlTableFunction;
+import org.apache.flink.table.planner.functions.sql.ml.SqlMLTableFunction;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.logical.DecimalType;
@@ -381,7 +381,7 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
             return new SqlModelCall(modelCall);
         }
 
-        if (operator instanceof SqlWindowTableFunction || operator instanceof SqlMlTableFunction) {
+        if (operator instanceof SqlWindowTableFunction || operator instanceof SqlMLTableFunction) {
             if (tableArgs.stream().allMatch(Objects::isNull)) {
                 return rewritten;
             }
