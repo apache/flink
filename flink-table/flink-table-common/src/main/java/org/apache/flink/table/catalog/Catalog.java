@@ -37,12 +37,14 @@ import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.connector.ml.ModelProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
+import org.apache.flink.table.factories.ModelProviderFactory;
 import org.apache.flink.table.procedures.Procedure;
 
 import javax.annotation.Nullable;
@@ -93,6 +95,16 @@ public interface Catalog {
      * @return an optional FunctionDefinitionFactory instance
      */
     default Optional<FunctionDefinitionFactory> getFunctionDefinitionFactory() {
+        return Optional.empty();
+    }
+
+    /**
+     * Get an optional {@link ModelProviderFactory} instance that's responsible for creating {@link
+     * ModelProvider}.
+     *
+     * @return an optional ModelProviderFactory instance
+     */
+    default Optional<ModelProviderFactory> getModelProviderFactory() {
         return Optional.empty();
     }
 
