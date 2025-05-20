@@ -16,15 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.connector.ml;
+package org.apache.flink.table.ml;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.functions.PredictFunction;
+import org.apache.flink.table.functions.AsyncPredictFunction;
 
-/** A provider for creating synchronous predict function. */
+/** A provider for creating asynchronous predict function. */
 @PublicEvolving
-public interface PredictRuntimeProvider extends ModelProvider {
+public interface AsyncPredictRuntimeProvider extends ModelProvider {
 
-    /** Creates an {@link PredictFunction} instance. */
-    PredictFunction createPredictFunction(Context context);
+    /** Creates an {@link AsyncPredictFunction} instance. */
+    AsyncPredictFunction createAsyncPredictFunction(Context context);
 }

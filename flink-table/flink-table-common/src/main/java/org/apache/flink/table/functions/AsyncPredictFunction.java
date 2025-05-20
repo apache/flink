@@ -27,7 +27,7 @@ import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * A wrapper class of {@link AsyncTableFunction} for asynchronously model inference.
+ * A wrapper class of {@link AsyncTableFunction} for asynchronous model inference.
  *
  * <p>The output type of this table function is fixed as {@link RowData}.
  */

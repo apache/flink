@@ -26,7 +26,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import java.util.Collection;
 
 /**
- * A wrapper class of {@link TableFunction} for synchronously model inference.
+ * A wrapper class of {@link TableFunction} for synchronous model inference.
  *
  * <p>The output type of this table function is fixed as {@link RowData}.
  */

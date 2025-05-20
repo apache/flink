@@ -25,7 +25,7 @@ import org.apache.flink.table.catalog.CatalogModel;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.connector.ml.ModelProvider;
+import org.apache.flink.table.ml.ModelProvider;
 
 /**
  * Creates a {@link ModelProvider} instance from a {@link CatalogModel} and additional context

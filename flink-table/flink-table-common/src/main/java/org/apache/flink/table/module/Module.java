@@ -120,7 +120,7 @@ public interface Module {
      *
      * <ul>
      *   <li>1. Factory provided by the corresponding catalog of a persisted model. See {@link
-     *       Catalog#getModelProviderFactory()}
+     *       Catalog#getFactory()}
      *   <li>2. Factory provided by a module.
      *   <li>3. Factory discovered using Java SPI.
      * </ul>

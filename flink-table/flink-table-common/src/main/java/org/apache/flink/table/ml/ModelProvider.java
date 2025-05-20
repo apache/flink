@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.connector.ml;
+package org.apache.flink.table.ml;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ReadableConfig;
@@ -43,6 +43,7 @@ public interface ModelProvider {
     ModelProvider copy();
 
     /** Context for creating runtime providers. */
+    @PublicEvolving
     interface Context {
 
         /** Resolved catalog model. */
