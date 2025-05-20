@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.connector.ml;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.functions.AsyncPredictFunction;
 
 /** A provider for creating asynchronous predict function. */
+@PublicEvolving
 public interface AsyncPredictRuntimeProvider extends ModelProvider {
 
     /** Creates an {@link AsyncPredictFunction} instance. */

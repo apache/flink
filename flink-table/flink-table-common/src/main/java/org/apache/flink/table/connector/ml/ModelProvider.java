@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.connector.ml;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.catalog.ResolvedCatalogModel;
 
@@ -32,6 +33,7 @@ import org.apache.flink.table.catalog.ResolvedCatalogModel;
  *   <li>Flink native. (model trained natively by Flink)
  * </ul>
  */
+@PublicEvolving
 public interface ModelProvider {
 
     /**

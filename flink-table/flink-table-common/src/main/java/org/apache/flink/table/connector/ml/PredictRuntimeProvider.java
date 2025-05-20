@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.connector.ml;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.functions.PredictFunction;
 
 /** A provider for creating synchronous predict function. */
+@PublicEvolving
 public interface PredictRuntimeProvider extends ModelProvider {
 
     /** Creates an {@link PredictFunction} instance. */
