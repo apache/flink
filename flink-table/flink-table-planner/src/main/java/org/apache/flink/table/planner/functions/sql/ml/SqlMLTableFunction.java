@@ -17,6 +17,8 @@
 
 package org.apache.flink.table.planner.functions.sql.ml;
 
+import org.apache.flink.table.api.ValidationException;
+
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlFunction;
@@ -24,6 +26,7 @@ import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperatorBinding;
+import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.SqlTableFunction;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlOperandMetadata;
@@ -39,9 +42,12 @@ import java.util.List;
  */
 public abstract class SqlMLTableFunction extends SqlFunction implements SqlTableFunction {
 
+    private static final String TABLE_INPUT_ERROR =
+            "SqlMLTableFunction must have only one table as first operand.";
+
     protected static final String PARAM_INPUT = "INPUT";
-    protected static final String PARAM_MODEL = "INPUT_MODEL";
-    protected static final String PARAM_COLUMN = "INPUT_COLUMN";
+    protected static final String PARAM_MODEL = "MODEL";
+    protected static final String PARAM_COLUMN = "ARGS";
     protected static final String PARAM_CONFIG = "CONFIG";
 
     public SqlMLTableFunction(String name, SqlOperandMetadata operandMetadata) {
@@ -62,19 +68,37 @@ public abstract class SqlMLTableFunction extends SqlFunction implements SqlTable
             SqlValidatorScope operandScope) {
         assert call.getOperator() == this;
         final List<SqlNode> operandList = call.getOperandList();
-        // Validation for DESCRIPTOR is broken, and we
-        // make assumptions at different locations those are not validated and not properly scoped.
-        // Theoretically, we should scope identifiers of the above to the result of the subquery
-        // from the first argument. Unfortunately this breaks at other locations which do not expect
-        // it. We run additional validations while deriving the return type, therefore we can skip
-        // it here.
 
+        // ML table function should take only one table as input and use descriptor to reference
+        // columns in the table. The scope for descriptor validation should be the input table.
+        // Since the input table will be rewritten as select query. We get the select query's scope
+        // and use it for descriptor validation.
+        SqlValidatorScope selectScope = null;
+        boolean foundSelect = false;
         for (SqlNode operand : operandList) {
             if (operand.getKind().equals(SqlKind.DESCRIPTOR)) {
+                if (selectScope == null) {
+                    throw new ValidationException(TABLE_INPUT_ERROR);
+                }
+                // Set scope to table when validating descriptor columns
+                operand.validate(validator, selectScope);
                 continue;
             }
             if (operand.getKind().equals(SqlKind.SET_SEMANTICS_TABLE)) {
                 operand = ((SqlCall) operand).getOperandList().get(0);
+                if (foundSelect) {
+                    throw new ValidationException(TABLE_INPUT_ERROR);
+                }
+                foundSelect = true;
+                selectScope = validator.getSelectScope((SqlSelect) operand);
+            }
+
+            if (operand.getKind().equals(SqlKind.SELECT)) {
+                if (foundSelect) {
+                    throw new ValidationException(TABLE_INPUT_ERROR);
+                }
+                foundSelect = true;
+                selectScope = validator.getSelectScope((SqlSelect) operand);
             }
             operand.validate(validator, scope);
         }

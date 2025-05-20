@@ -26,8 +26,10 @@ import org.apache.flink.table.api.config.TableConfigOptions.ColumnExpansionStrat
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.planner.catalog.CatalogSchemaModel;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
 import org.apache.flink.table.planner.functions.sql.ml.SqlMLTableFunction;
+import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.logical.DecimalType;
@@ -93,6 +95,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.calcite.sql.type.SqlTypeName.DECIMAL;
+import static org.apache.calcite.util.Static.RESOURCE;
 import static org.apache.flink.table.expressions.resolver.lookups.FieldReferenceLookup.includeExpandedColumn;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -378,9 +381,20 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
             // Convert it so that model can be accessed in planner. SqlExplicitModelCall
             // from parser can't access model.
             SqlExplicitModelCall modelCall = (SqlExplicitModelCall) node;
-            return new SqlModelCall(modelCall);
+            SqlIdentifier modelIdentifier = modelCall.getModelIdentifier();
+            FlinkCalciteCatalogReader catalogReader =
+                    (FlinkCalciteCatalogReader) getCatalogReader();
+            CatalogSchemaModel model = catalogReader.getModel(modelIdentifier.names);
+            if (model != null) {
+                return new SqlModelCall(modelCall, model);
+            } else {
+                throw SqlUtil.newContextException(
+                        modelIdentifier.getParserPosition(),
+                        RESOURCE.objectNotFound(modelIdentifier.toString()));
+            }
         }
 
+        // TODO (FLINK-37819): add test for SqlMLTableFunction
         if (operator instanceof SqlWindowTableFunction || operator instanceof SqlMLTableFunction) {
             if (tableArgs.stream().allMatch(Objects::isNull)) {
                 return rewritten;

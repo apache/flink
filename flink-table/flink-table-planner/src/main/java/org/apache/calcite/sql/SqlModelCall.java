@@ -19,41 +19,30 @@
 package org.apache.calcite.sql;
 
 import org.apache.flink.table.planner.catalog.CatalogSchemaModel;
-import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.validate.SqlValidator;
-import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 import static org.apache.calcite.util.Static.RESOURCE;
 
 /** SqlModelCall to fetch and reference model based on identifier. */
 public class SqlModelCall extends SqlBasicCall {
 
-    private @Nullable CatalogSchemaModel model = null;
-    private static final SqlModelOperator MODEL_OPERATOR = new SqlModelOperator();
+    private final CatalogSchemaModel model;
 
-    public SqlModelCall(SqlExplicitModelCall modelCall) {
+    public SqlModelCall(SqlExplicitModelCall modelCall, CatalogSchemaModel model) {
         super(
-                MODEL_OPERATOR,
+                new SqlModelOperator(model),
                 modelCall.getOperandList(),
                 modelCall.getParserPosition(),
                 modelCall.getFunctionQuantifier());
+        this.model = model;
     }
 
     @Override
     public void validate(SqlValidator validator, SqlValidatorScope scope) {
-        if (model != null) {
-            return;
-        }
-
         SqlIdentifier modelIdentifier = (SqlIdentifier) getOperandList().get(0);
-        SqlValidatorCatalogReader catalogReader = validator.getCatalogReader();
-        assert catalogReader instanceof FlinkCalciteCatalogReader;
-
-        model = ((FlinkCalciteCatalogReader) catalogReader).getModel(modelIdentifier.names);
         if (model == null) {
             throw SqlUtil.newContextException(
                     modelIdentifier.getParserPosition(),
@@ -62,12 +51,10 @@ public class SqlModelCall extends SqlBasicCall {
     }
 
     public RelDataType getInputType(SqlValidator validator) {
-        assert model != null;
         return model.getOutputRowType(validator.getTypeFactory());
     }
 
     public RelDataType getOutputType(SqlValidator validator) {
-        assert model != null;
         return model.getOutputRowType(validator.getTypeFactory());
     }
 
@@ -78,26 +65,16 @@ public class SqlModelCall extends SqlBasicCall {
      */
     private static class SqlModelOperator extends SqlPrefixOperator {
 
-        private SqlModelOperator() {
+        CatalogSchemaModel model;
+
+        private SqlModelOperator(CatalogSchemaModel model) {
             super("MODEL", SqlKind.OTHER_FUNCTION, 2, null, null, null);
+            this.model = model;
         }
 
         @Override
         public RelDataType deriveType(
                 SqlValidator validator, SqlValidatorScope scope, SqlCall call) {
-            SqlModelCall modelCall = (SqlModelCall) call;
-            SqlIdentifier modelIdentifier = (SqlIdentifier) modelCall.getOperandList().get(0);
-
-            SqlValidatorCatalogReader catalogReader = validator.getCatalogReader();
-            assert catalogReader instanceof FlinkCalciteCatalogReader;
-
-            CatalogSchemaModel model =
-                    ((FlinkCalciteCatalogReader) catalogReader).getModel(modelIdentifier.names);
-            if (model == null) {
-                throw SqlUtil.newContextException(
-                        modelIdentifier.getParserPosition(),
-                        RESOURCE.objectNotFound(modelIdentifier.toString()));
-            }
             return model.getOutputRowType(validator.getTypeFactory());
         }
     }

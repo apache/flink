@@ -32,4 +32,8 @@ public class SqlExplicitModelCall extends SqlBasicCall {
             @Nullable SqlLiteral functionQualifier) {
         super(operator, operandList, pos, functionQualifier);
     }
+
+    public SqlIdentifier getModelIdentifier() {
+        return operand(0);
+    }
 }

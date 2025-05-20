@@ -68,8 +68,8 @@ public class ModelTableFunctionTest extends TableTestBase {
         String sql =
                 "SELECT *\n"
                         + "FROM TABLE(ML_PREDICT(INPUT => TABLE MyTable, "
-                        + "INPUT_MODEL => MODEL MyModel, "
-                        + "INPUT_COLUMN => DESCRIPTOR(a, b)))";
+                        + "MODEL => MODEL MyModel, "
+                        + "ARGS  => DESCRIPTOR(a, b)))";
         assertReachesRelConverter(sql);
     }
 
@@ -78,8 +78,8 @@ public class ModelTableFunctionTest extends TableTestBase {
         String sql =
                 "SELECT *\n"
                         + "FROM TABLE(ML_PREDICT(INPUT => TABLE MyTable, "
-                        + "INPUT_MODEL => MODEL MyModel, "
-                        + "INPUT_COLUMN => DESCRIPTOR(a, b),"
+                        + "MODEL  => MODEL MyModel, "
+                        + "ARGS   => DESCRIPTOR(a, b),"
                         + "CONFIG => MAP['key', 'value']))";
         assertReachesRelConverter(sql);
     }
@@ -110,6 +110,16 @@ public class ModelTableFunctionTest extends TableTestBase {
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("Object 'NonExistModel' not found");
+    }
+
+    @Test
+    public void testMLPredictTVFWithNonExistColumn() {
+        String sql =
+                "SELECT *\n"
+                        + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(no_col)))";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Column 'no_col' not found in any table");
     }
 
     private void assertReachesRelConverter(String sql) {
