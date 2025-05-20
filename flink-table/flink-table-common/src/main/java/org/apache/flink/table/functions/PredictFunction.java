@@ -43,15 +43,16 @@ public abstract class PredictFunction extends TableFunction<RowData> {
 
     /** Invoke {@link #predict} and handle exceptions. */
     public final void eval(Object... args) {
+        GenericRowData argsData = GenericRowData.of(args);
         try {
-            GenericRowData argsData = GenericRowData.of(args);
             Collection<RowData> results = predict(argsData);
             if (results == null) {
                 return;
             }
             results.forEach(this::collect);
         } catch (Exception e) {
-            throw new FlinkRuntimeException("Failed to execute prediction.", e);
+            throw new FlinkRuntimeException(
+                    String.format("Failed to execute prediction with input row %s.", argsData), e);
         }
     }
 }

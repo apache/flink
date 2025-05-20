@@ -51,7 +51,9 @@ public abstract class AsyncPredictFunction extends AsyncTableFunction<RowData> {
                             if (exception != null) {
                                 future.completeExceptionally(
                                         new TableException(
-                                                "Failed to execute asynchronously prediction.",
+                                                String.format(
+                                                        "Failed to execute asynchronously prediction with input row %s.",
+                                                        argsData),
                                                 exception));
                                 return;
                             }
