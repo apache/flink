@@ -24,6 +24,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+<a name="alter-statements"></a>
+
 # ALTER 语句
 
 
@@ -37,6 +39,8 @@ Flink SQL 目前支持以下 ALTER 语句：
 - ALTER DATABASE
 - ALTER FUNCTION
 - ALTER CATALOG
+
+<a name="run-an-alter-statement"></a>
 
 ## 执行 ALTER 语句
 

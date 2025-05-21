@@ -24,6 +24,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+<a name="create statements"></a>
+
 # CREATE 语句
 
 
@@ -38,6 +40,8 @@ CREATE 语句用于向当前或指定的 [Catalog]({{< ref "docs/dev/table/catal
 - CREATE DATABASE
 - CREATE VIEW
 - CREATE FUNCTION
+
+<a name="run-a-create-statement"></a>
 
 ## 执行 CREATE 语句
 
@@ -690,6 +694,8 @@ INSERT INTO my_ctas_table (order_time, price, quantity, id)
 * 暂不支持创建分区表。
 
 **注意：** 默认情况下，CTAS 是非原子性的，这意味着如果在向表中插入数据时发生错误，该表不会被自动删除。
+
+<a name="atomicity"></a>
 
 #### 原子性
 
