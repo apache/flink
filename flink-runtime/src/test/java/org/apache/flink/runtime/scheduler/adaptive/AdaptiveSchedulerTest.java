@@ -23,12 +23,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
-import org.apache.flink.configuration.TraceOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.failure.TestingFailureEnricher;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.events.Event;
+import org.apache.flink.events.EventBuilder;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
@@ -114,8 +115,6 @@ import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
-import org.apache.flink.traces.Span;
-import org.apache.flink.traces.SpanBuilder;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.IterableUtils;
@@ -1556,10 +1555,9 @@ public class AdaptiveSchedulerTest {
     @Test
     void testHowToHandleFailureRejectedByStrategy() throws Exception {
         final Configuration configuration = new Configuration();
-        configuration.set(TraceOptions.REPORT_EVENTS_AS_SPANS, Boolean.TRUE);
-        final List<Span> spanCollector = new ArrayList<>(1);
+        final List<Event> eventCollector = new ArrayList<>(1);
         final UnregisteredMetricGroups.UnregisteredJobManagerJobMetricGroup testMetricGroup =
-                createTestMetricGroup(spanCollector);
+                createTestMetricGroup(eventCollector);
 
         final AdaptiveScheduler scheduler =
                 new AdaptiveSchedulerBuilder(
@@ -1578,18 +1576,17 @@ public class AdaptiveSchedulerTest {
                                 .canRestart())
                 .isFalse();
 
-        assertThat(spanCollector).isEmpty();
+        assertThat(eventCollector).isEmpty();
         mainThreadExecutor.trigger();
-        checkMetrics(spanCollector, false);
+        checkMetrics(eventCollector, false);
     }
 
     @Test
     void testHowToHandleFailureAllowedByStrategy() throws Exception {
         final Configuration configuration = new Configuration();
-        configuration.set(TraceOptions.REPORT_EVENTS_AS_SPANS, Boolean.TRUE);
-        final List<Span> spanCollector = new ArrayList<>(1);
+        final List<Event> eventCollector = new ArrayList<>(1);
         final UnregisteredMetricGroups.UnregisteredJobManagerJobMetricGroup testMetricGroup =
-                createTestMetricGroup(spanCollector);
+                createTestMetricGroup(eventCollector);
         final TestRestartBackoffTimeStrategy restartBackoffTimeStrategy =
                 new TestRestartBackoffTimeStrategy(true, 1234);
 
@@ -1610,18 +1607,17 @@ public class AdaptiveSchedulerTest {
         assertThat(failureResult.getBackoffTime().toMillis())
                 .isEqualTo(restartBackoffTimeStrategy.getBackoffTime());
 
-        assertThat(spanCollector).isEmpty();
+        assertThat(eventCollector).isEmpty();
         mainThreadExecutor.trigger();
-        checkMetrics(spanCollector, true);
+        checkMetrics(eventCollector, true);
     }
 
     @Test
     void testHowToHandleFailureUnrecoverableFailure() throws Exception {
         final Configuration configuration = new Configuration();
-        configuration.set(TraceOptions.REPORT_EVENTS_AS_SPANS, Boolean.TRUE);
-        final List<Span> spanCollector = new ArrayList<>(1);
+        final List<Event> eventCollector = new ArrayList<>(1);
         final UnregisteredMetricGroups.UnregisteredJobManagerJobMetricGroup testMetricGroup =
-                createTestMetricGroup(spanCollector);
+                createTestMetricGroup(eventCollector);
 
         final AdaptiveScheduler scheduler =
                 new AdaptiveSchedulerBuilder(
@@ -1640,9 +1636,9 @@ public class AdaptiveSchedulerTest {
                                 .canRestart())
                 .isFalse();
 
-        assertThat(spanCollector).isEmpty();
+        assertThat(eventCollector).isEmpty();
         mainThreadExecutor.trigger();
-        checkMetrics(spanCollector, false);
+        checkMetrics(eventCollector, false);
     }
 
     @Test
@@ -2911,22 +2907,22 @@ public class AdaptiveSchedulerTest {
     }
 
     private static UnregisteredMetricGroups.UnregisteredJobManagerJobMetricGroup
-            createTestMetricGroup(List<Span> output) {
+            createTestMetricGroup(List<Event> output) {
         return new UnregisteredMetricGroups.UnregisteredJobManagerJobMetricGroup() {
             @Override
-            public void addSpan(SpanBuilder spanBuilder) {
-                output.add(spanBuilder.build());
+            public void addEvent(EventBuilder eventBuilder) {
+                output.add(eventBuilder.build());
             }
         };
     }
 
-    private static void checkMetrics(List<Span> results, boolean canRestart) {
+    private static void checkMetrics(List<Event> results, boolean canRestart) {
         assertThat(results).isNotEmpty();
-        for (Span span : results) {
-            assertThat(span.getScope())
+        for (Event event : results) {
+            assertThat(event.getClassScope())
                     .isEqualTo(JobFailureMetricReporter.class.getCanonicalName());
-            assertThat(span.getName()).isEqualTo("JobFailure");
-            Map<String, Object> attributes = span.getAttributes();
+            assertThat(event.getName()).isEqualTo("JobFailureEvent");
+            Map<String, Object> attributes = event.getAttributes();
             assertThat(attributes)
                     .containsEntry("failureLabel.failKey", "failValue")
                     .containsEntry("canRestart", String.valueOf(canRestart));

@@ -21,7 +21,8 @@ package org.apache.flink.events;
 /** Class that defines known events in an enum. */
 public enum Events {
     CheckpointEvent,
-    JobStatusChangeEvent;
+    JobStatusChangeEvent,
+    JobFailureEvent;
 
     public EventBuilder builder(Class<?> classScope) {
         return Event.builder(classScope, name());
