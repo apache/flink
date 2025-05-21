@@ -27,7 +27,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
-import org.apache.flink.configuration.TraceOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
@@ -421,7 +420,6 @@ public class AdaptiveScheduler
     private final JobManagerJobMetricGroup jobManagerJobMetricGroup;
 
     private final JobFailureMetricReporter jobFailureMetricReporter;
-    private final boolean reportEventsAsSpans;
 
     private final Supplier<Temporal> clock = Instant::now;
 
@@ -573,7 +571,6 @@ public class AdaptiveScheduler
         this.jobManagerJobMetricGroup = jobManagerJobMetricGroup;
 
         this.jobFailureMetricReporter = new JobFailureMetricReporter(jobManagerJobMetricGroup);
-        this.reportEventsAsSpans = configuration.get(TraceOptions.REPORT_EVENTS_AS_SPANS);
     }
 
     private static void assertPreconditions(JobGraph jobGraph) throws RuntimeException {
@@ -1497,13 +1494,10 @@ public class AdaptiveScheduler
     public FailureResult howToHandleFailure(
             Throwable failure, CompletableFuture<Map<String, String>> failureLabels) {
         FailureResult failureResult = howToHandleFailure(failure);
-        if (reportEventsAsSpans) {
-            // TODO: replace with reporting as event once events are supported.
-            // Add reporting as callback for when the failure labeling is completed.
-            failureLabels.thenAcceptAsync(
-                    (labels) -> jobFailureMetricReporter.reportJobFailure(failureResult, labels),
-                    componentMainThreadExecutor);
-        }
+        // Add reporting as callback for when the failure labeling is completed.
+        failureLabels.thenAcceptAsync(
+                (labels) -> jobFailureMetricReporter.reportJobFailure(failureResult, labels),
+                componentMainThreadExecutor);
         return failureResult;
     }
 
