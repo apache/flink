@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
+import org.apache.flink.events.EventBuilder;
+import org.apache.flink.events.Events;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.executiongraph.failover.FailureHandlingResult;
-import org.apache.flink.traces.Span;
-import org.apache.flink.traces.SpanBuilder;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Map;
@@ -60,25 +60,32 @@ public class JobFailureMetricReporter {
             Boolean canRestart,
             Boolean isGlobal,
             Map<String, String> failureLabels) {
-        // Add base attributes
-        SpanBuilder spanBuilder =
-                Span.builder(JobFailureMetricReporter.class, "JobFailure")
-                        .setStartTsMillis(timestamp)
-                        .setEndTsMillis(timestamp);
+
+        EventBuilder eventBuilder =
+                Events.JobFailureEvent.builder(JobFailureMetricReporter.class)
+                        .setObservedTsMillis(timestamp)
+                        .setSeverity("INFO");
 
         if (canRestart != null) {
-            spanBuilder.setAttribute("canRestart", String.valueOf(canRestart));
+            eventBuilder.setAttribute("canRestart", String.valueOf(canRestart));
         }
 
         if (isGlobal != null) {
-            spanBuilder.setAttribute("isGlobalFailure", String.valueOf(isGlobal));
+            eventBuilder.setAttribute("isGlobalFailure", String.valueOf(isGlobal));
         }
 
         // Add all failure labels
         for (Map.Entry<String, String> entry : failureLabels.entrySet()) {
-            spanBuilder.setAttribute(
-                    FAILURE_LABEL_ATTRIBUTE_PREFIX + entry.getKey(), entry.getValue());
+            String value = entry.getValue();
+            // Add artificial value instead of null/empty string
+            if (value == null) {
+                value = "<null>";
+            } else if (value.isEmpty()) {
+                value = "<empty>";
+            }
+            eventBuilder.setAttribute(FAILURE_LABEL_ATTRIBUTE_PREFIX + entry.getKey(), value);
         }
-        metricGroup.addSpan(spanBuilder);
+
+        metricGroup.addEvent(eventBuilder);
     }
 }
