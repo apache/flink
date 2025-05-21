@@ -17,9 +17,14 @@
 
 package org.apache.calcite.sql;
 
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.validate.SqlValidator;
+import org.apache.calcite.sql.validate.SqlValidatorScope;
 import org.apache.calcite.util.ImmutableNullableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
+
+import static org.apache.calcite.util.Static.RESOURCE;
 
 /** SqlExplicitModelOperator is a SQL operator that represents an explicit model. */
 public class SqlExplicitModelOperator extends SqlPrefixOperator {
@@ -36,5 +41,21 @@ public class SqlExplicitModelOperator extends SqlPrefixOperator {
         pos = pos.plusAll(operands);
         return new SqlExplicitModelCall(
                 this, ImmutableNullableList.copyOf(operands), pos, functionQualifier);
+    }
+
+    @Override
+    public void validateCall(
+            SqlCall call,
+            SqlValidator validator,
+            SqlValidatorScope scope,
+            SqlValidatorScope operandScope) {
+        throw SqlUtil.newContextException(
+                call.pos, RESOURCE.objectNotFound(call.operand(0).toString()));
+    }
+
+    @Override
+    public RelDataType deriveType(SqlValidator validator, SqlValidatorScope scope, SqlCall call) {
+        throw SqlUtil.newContextException(
+                call.pos, RESOURCE.objectNotFound(call.operand(0).toString()));
     }
 }

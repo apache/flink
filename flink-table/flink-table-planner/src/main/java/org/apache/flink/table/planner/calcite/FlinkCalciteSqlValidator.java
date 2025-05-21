@@ -95,7 +95,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.calcite.sql.type.SqlTypeName.DECIMAL;
-import static org.apache.calcite.util.Static.RESOURCE;
 import static org.apache.flink.table.expressions.resolver.lookups.FieldReferenceLookup.includeExpandedColumn;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -387,10 +386,6 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
             CatalogSchemaModel model = catalogReader.getModel(modelIdentifier.names);
             if (model != null) {
                 return new SqlModelCall(modelCall, model);
-            } else {
-                throw SqlUtil.newContextException(
-                        modelIdentifier.getParserPosition(),
-                        RESOURCE.objectNotFound(modelIdentifier.toString()));
             }
         }
 
