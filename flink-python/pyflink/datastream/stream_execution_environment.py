@@ -802,7 +802,7 @@ class StreamExecutionEnvironment(object):
             # list.
             if type_info is None:
                 j_objs = gateway.jvm.PythonBridgeUtils.readPickledBytes(temp_file.name)
-                out_put_type_info = Types.PICKLED_BYTE_ARRAY()  # type: TypeInformation
+                out_put_type_info: TypeInformation = Types.PICKLED_BYTE_ARRAY()
             else:
                 j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name)
                 out_put_type_info = type_info

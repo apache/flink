@@ -2033,7 +2033,7 @@ def _create_type_verifier(data_type: DataType, name: str = None):
 
     _type = type(data_type)
 
-    assert _type in _acceptable_types or isinstance(data_type, UserDefinedType),\
+    assert _type in _acceptable_types or isinstance(data_type, UserDefinedType), \
         new_msg("unknown datatype: %s" % data_type)
 
     def verify_acceptable_types(obj):

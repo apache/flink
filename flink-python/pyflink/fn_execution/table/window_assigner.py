@@ -141,7 +141,7 @@ class CountTumblingWindowAssigner(WindowAssigner[CountWindow]):
 
     def __init__(self, size: int):
         self._size = size
-        self._count = None  # type: ValueState
+        self._count: ValueState = None
 
     def open(self, ctx: Context[Any, CountWindow]):
         value_state_descriptor = ValueStateDescriptor('tumble-count-assigner', Types.LONG())
@@ -214,7 +214,7 @@ class CountSlidingWindowAssigner(WindowAssigner[CountWindow]):
     def __init__(self, size, slide):
         self._size = size
         self._slide = slide
-        self._count = None  # type: ValueState
+        self._count: ValueState = None
 
     def open(self, ctx: Context[Any, CountWindow]):
         count_descriptor = ValueStateDescriptor('slide-count-assigner', Types.LONG())

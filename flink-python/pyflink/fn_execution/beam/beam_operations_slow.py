@@ -74,9 +74,9 @@ class FunctionOperation(Operation):
     def __init__(self, name, spec, counter_factory, sampler, consumers, operation_cls,
                  operator_state_backend):
         super(FunctionOperation, self).__init__(name, spec, counter_factory, sampler)
-        self._output_processors = self._create_output_processors(
+        self._output_processors: Dict[str, List[OutputProcessor]] = self._create_output_processors(
             consumers
-        )  # type: Dict[str, List[OutputProcessor]]
+        )
         self.operation_cls = operation_cls
         self.operator_state_backend = operator_state_backend
         self.operation = self.generate_operation()
