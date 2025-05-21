@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.codegen.agg
 
 import org.apache.flink.table.data.{GenericRowData, RowData, UpdatableRowData}
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.functions.{FunctionContext, ImperativeAggregateFunction, UserDefinedFunctionHelper}
+import org.apache.flink.table.functions.{BundledAggregateFunction, FunctionContext, ImperativeAggregateFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.functions.TableAggregateFunction.RetractableCollector
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
@@ -226,6 +226,10 @@ class ImperativeAggCodeGen(
            |}
          """.stripMargin
     }
+  }
+
+  override def bundledAccumulateRetract(generator: ExprCodeGenerator): String = {
+    ""
   }
 
   def merge(generator: ExprCodeGenerator): String = {
@@ -456,6 +460,7 @@ class ImperativeAggCodeGen(
       needRetract: Boolean = false,
       needMerge: Boolean = false,
       needReset: Boolean = false,
+      needBundled: Boolean = false,
       needEmitValue: Boolean = false): Unit = {
 
     val functionName = String.valueOf(aggInfo.agg.getAggregation)

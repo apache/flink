@@ -121,7 +121,7 @@ public abstract class AbstractStreamOperator<OUT>
 
     private transient @Nullable MailboxExecutor mailboxExecutor;
 
-    private transient @Nullable MailboxWatermarkProcessor watermarkProcessor;
+    protected transient @Nullable MailboxWatermarkProcessor watermarkProcessor;
 
     // ---------------- key/value state ------------------
 

@@ -22,7 +22,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.FunctionLanguage;
+import org.apache.flink.table.functions.agg.BundledKeySegment;
+import org.apache.flink.table.functions.agg.BundledKeySegmentApplied;
 import org.apache.flink.table.resource.ResourceUri;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 
 import org.junit.jupiter.api.Test;
@@ -32,6 +35,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import javax.annotation.Nullable;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -135,21 +139,38 @@ class UserDefinedFunctionHelperTest {
                                         + PrivateMethodScalarFunction.class.getName()
                                         + "' is not public."),
                 TestSpec.forClass(ValidAsyncScalarFunction.class).expectSuccess(),
+                TestSpec.forClass(ValidAggBundledFunction.class).expectSuccess(),
                 TestSpec.forInstance(new ValidAsyncScalarFunction()).expectSuccess(),
+                TestSpec.forInstance(new ValidAggBundledFunction()).expectSuccess(),
                 TestSpec.forClass(PrivateAsyncScalarFunction.class)
                         .expectErrorMessage(
                                 "Function class '"
                                         + PrivateAsyncScalarFunction.class.getName()
+                                        + "' is not public."),
+                TestSpec.forClass(PrivateAggBundledFunction.class)
+                        .expectErrorMessage(
+                                "Function class '"
+                                        + PrivateAggBundledFunction.class.getName()
                                         + "' is not public."),
                 TestSpec.forClass(MissingImplementationAsyncScalarFunction.class)
                         .expectErrorMessage(
                                 "Function class '"
                                         + MissingImplementationAsyncScalarFunction.class.getName()
                                         + "' does not implement a method named 'eval'."),
+                TestSpec.forClass(MissingImplementationAggBundledFunction.class)
+                        .expectErrorMessage(
+                                "Function class '"
+                                        + MissingImplementationAggBundledFunction.class.getName()
+                                        + "' does not implement a method named 'bundledAccumulateRetract'."),
                 TestSpec.forClass(PrivateMethodAsyncScalarFunction.class)
                         .expectErrorMessage(
                                 "Method 'eval' of function class '"
                                         + PrivateMethodAsyncScalarFunction.class.getName()
+                                        + "' is not public."),
+                TestSpec.forClass(PrivateMethodAggBundledFunction.class)
+                        .expectErrorMessage(
+                                "Method 'bundledAccumulateRetract' of function class '"
+                                        + PrivateMethodAggBundledFunction.class.getName()
                                         + "' is not public."),
                 TestSpec.forClass(NonVoidAsyncScalarFunction.class)
                         .expectErrorMessage(
@@ -161,6 +182,16 @@ class UserDefinedFunctionHelperTest {
                                 "Method 'eval' of function class '"
                                         + NoFutureAsyncScalarFunction.class.getName()
                                         + "' must have a first argument of type java.util.concurrent.CompletableFuture."),
+                TestSpec.forClass(BadSignatureAggBundledFunction.class)
+                        .expectErrorMessage(
+                                "Method 'bundledAccumulateRetract' of function class '"
+                                        + BadSignatureAggBundledFunction.class.getName()
+                                        + "' must have signature void bundledAccumulateRetract(CompletableFuture<BundledKeySegmentApplied> future, BundledKeySegment segment)."),
+                TestSpec.forClass(BadSignatureAggBundledFunction2.class)
+                        .expectErrorMessage(
+                                "Method 'bundledAccumulateRetract' of function class '"
+                                        + BadSignatureAggBundledFunction2.class.getName()
+                                        + "' must have signature void bundledAccumulateRetract(CompletableFuture<BundledKeySegmentApplied> future, BundledKeySegment segment)."),
                 TestSpec.forInstance(new ValidTableAggregateFunction()).expectSuccess(),
                 TestSpec.forInstance(new MissingEmitTableAggregateFunction())
                         .expectErrorMessage(
@@ -295,8 +326,39 @@ class UserDefinedFunctionHelperTest {
         public void eval(CompletableFuture<Integer> future, int i) {}
     }
 
+    public abstract static class AggBundledFunctionBase extends AggregateFunction<Long, Row>
+            implements BundledAggregateFunction {
+
+        @Override
+        public Long getValue(Row accumulator) {
+            return null;
+        }
+
+        @Override
+        public Row createAccumulator() {
+            return null;
+        }
+
+        public boolean canBundle() {
+            return true;
+        }
+    }
+
+    /** Valid aggregate bundled function. */
+    public static class ValidAggBundledFunction extends AggBundledFunctionBase {
+        public void bundledAccumulateRetract(
+                CompletableFuture<BundledKeySegmentApplied> future, BundledKeySegment segment)
+                throws Exception {}
+    }
+
     private static class PrivateAsyncScalarFunction extends AsyncScalarFunction {
         public void eval(CompletableFuture<Integer> future, int i) {}
+    }
+
+    private static class PrivateAggBundledFunction extends AggBundledFunctionBase {
+        public void bundledAccumulateRetract(
+                CompletableFuture<BundledKeySegmentApplied> future, BundledKeySegment segment)
+                throws Exception {}
     }
 
     /** No implementation method. */
@@ -304,9 +366,22 @@ class UserDefinedFunctionHelperTest {
         // nothing to do
     }
 
+    /** No implementation method. */
+    public static class MissingImplementationAggBundledFunction extends AggBundledFunctionBase {
+        // nothing to do
+    }
+
     /** Implementation method is private. */
     public static class PrivateMethodAsyncScalarFunction extends AsyncScalarFunction {
         private void eval(CompletableFuture<Integer> future, int i) {}
+    }
+
+    /** Implementation method is private. */
+    public static class PrivateMethodAggBundledFunction extends AggBundledFunctionBase {
+        private List<BundledKeySegmentApplied> bundledAccumulateRetract(
+                List<BundledKeySegment> batch) throws Exception {
+            return null;
+        }
     }
 
     /** Implementation method isn't void. */
@@ -319,6 +394,20 @@ class UserDefinedFunctionHelperTest {
     /** Implementation method isn't void. */
     public static class NoFutureAsyncScalarFunction extends AsyncScalarFunction {
         public void eval(int i) {}
+    }
+
+    /** Implementation method is private. */
+    public static class BadSignatureAggBundledFunction extends AggBundledFunctionBase {
+        public void bundledAccumulateRetract(
+                Collection<BundledKeySegmentApplied> future, BundledKeySegment segment)
+                throws Exception {}
+    }
+
+    /** Second argument is wrong type. */
+    public static class BadSignatureAggBundledFunction2 extends AggBundledFunctionBase {
+        public void bundledAccumulateRetract(
+                CompletableFuture<BundledKeySegmentApplied> future, Integer segment)
+                throws Exception {}
     }
 
     /** Valid table aggregate function. */
