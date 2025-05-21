@@ -21,14 +21,24 @@ package org.apache.flink.table.planner.functions.utils;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCallBinding;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperatorBinding;
+import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeUtil;
+import org.apache.calcite.sql.validate.SqlNameMatcher;
+import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.util.Pair;
+import org.apache.calcite.util.Util;
 
 import java.util.List;
+import java.util.Optional;
+
+import static org.apache.calcite.util.Static.RESOURCE;
 
 /** Utility methods related to SQL validation. */
 public class SqlValidatorUtils {
@@ -46,6 +56,75 @@ public class SqlValidatorUtils {
         if (opBinding instanceof SqlCallBinding) {
             adjustTypeForMultisetConstructor(
                     componentType.getKey(), componentType.getValue(), (SqlCallBinding) opBinding);
+        }
+    }
+
+    public static boolean throwValidationSignatureErrorOrReturnFalse(
+            SqlCallBinding callBinding, boolean throwOnFailure) {
+        if (throwOnFailure) {
+            throw callBinding.newValidationSignatureError();
+        } else {
+            return false;
+        }
+    }
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    public static boolean throwExceptionOrReturnFalse(
+            Optional<RuntimeException> e, boolean throwOnFailure) {
+        if (e.isPresent()) {
+            if (throwOnFailure) {
+                throw e.get();
+            } else {
+                return false;
+            }
+        } else {
+            return true;
+        }
+    }
+
+    /**
+     * Checks whether the heading operands are in the form {@code (ROW, DESCRIPTOR, DESCRIPTOR ...,
+     * other params)}, returning whether successful, and throwing if any columns are not found.
+     *
+     * @param callBinding The call binding
+     * @param descriptorStartPos The position of the first descriptor operand
+     * @param descriptorCount The number of descriptors following the first operand (e.g. the table)
+     * @return true if validation passes; throws if any columns are not found
+     */
+    public static boolean checkTableAndDescriptorOperands(
+            SqlCallBinding callBinding, int descriptorStartPos, int descriptorCount) {
+        final SqlNode operand0 = callBinding.operand(0);
+        final SqlValidator validator = callBinding.getValidator();
+        final RelDataType type = validator.getValidatedNodeType(operand0);
+        if (type.getSqlTypeName() != SqlTypeName.ROW) {
+            return false;
+        }
+        for (int i = 0; i < descriptorCount; i++) {
+            final SqlNode operand = callBinding.operand(i + descriptorStartPos);
+            if (operand.getKind() != SqlKind.DESCRIPTOR) {
+                return false;
+            }
+            validateColumnNames(
+                    validator, type.getFieldNames(), ((SqlCall) operand).getOperandList());
+        }
+        return true;
+    }
+
+    private static void validateColumnNames(
+            SqlValidator validator, List<String> fieldNames, List<SqlNode> columnNames) {
+        final SqlNameMatcher matcher = validator.getCatalogReader().nameMatcher();
+        for (SqlNode columnName : columnNames) {
+            SqlIdentifier columnIdentifier = (SqlIdentifier) columnName;
+
+            // In case of a qualified identifier, we need to check the last name
+            final String name =
+                    columnIdentifier.isSimple()
+                            ? columnIdentifier.getSimple()
+                            : Util.last(columnIdentifier.names);
+            if (matcher.indexOf(fieldNames, name) < 0) {
+                throw SqlUtil.newContextException(
+                        columnName.getParserPosition(), RESOURCE.unknownIdentifier(name));
+            }
         }
     }
 
