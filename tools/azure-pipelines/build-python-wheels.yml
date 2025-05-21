@@ -20,7 +20,7 @@ jobs:
     steps:
       - task: UsePythonVersion@0
         inputs:
-          versionSpec: '3.11'
+          versionSpec: '3.12'
       - script: |
           cd flink-python
           bash dev/build-wheels.sh
@@ -36,7 +36,7 @@ jobs:
     steps:
       - task: UsePythonVersion@0
         inputs:
-          versionSpec: '3.11'
+          versionSpec: '3.12'
       - script: |
           cd flink-python
           python -m pip install --upgrade pip

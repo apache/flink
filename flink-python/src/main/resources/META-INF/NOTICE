@@ -28,7 +28,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.beam:beam-sdks-java-transform-service-launcher:2.54.0
 - org.apache.beam:beam-vendor-guava-32_1_2-jre:0.1
 - org.apache.beam:beam-vendor-grpc-1_60_1:0.1
-- com.alibaba:pemja:0.4.1
+- com.alibaba:pemja:0.5.1
 
 This project bundles the following dependencies under the BSD license.
 See bundled license files for details

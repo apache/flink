@@ -213,7 +213,7 @@ jobs:
         if: matrix.module == 'python'
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: "Install Python header files"
         if: matrix.module == 'python'
@@ -328,7 +328,7 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: "Install missing packages"
         run: sudo apt-get install -y net-tools docker zip
