@@ -70,8 +70,8 @@ public class RegionPartitionGroupReleaseStrategy
         for (SchedulingPipelinedRegion pipelinedRegion : newRegions) {
             final PipelinedRegionExecutionView regionExecutionView =
                     new PipelinedRegionExecutionView(pipelinedRegion);
-            for (SchedulingExecutionVertex executionVertexId : pipelinedRegion.getVertices()) {
-                regionExecutionViewByVertex.put(executionVertexId.getId(), regionExecutionView);
+            for (SchedulingExecutionVertex executionVertex : pipelinedRegion.getVertices()) {
+                regionExecutionViewByVertex.put(executionVertex.getId(), regionExecutionView);
             }
         }
     }
