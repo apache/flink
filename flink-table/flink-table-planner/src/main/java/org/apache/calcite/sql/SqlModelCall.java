@@ -51,7 +51,7 @@ public class SqlModelCall extends SqlBasicCall {
     }
 
     public RelDataType getInputType(SqlValidator validator) {
-        return model.getOutputRowType(validator.getTypeFactory());
+        return model.getInputRowType(validator.getTypeFactory());
     }
 
     public RelDataType getOutputType(SqlValidator validator) {
