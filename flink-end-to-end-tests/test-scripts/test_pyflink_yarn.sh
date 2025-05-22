@@ -24,7 +24,7 @@ FLINK_PYTHON_DIR=`cd "${CURRENT_DIR}/../../flink-python" && pwd -P`
 FLINK_PYTHON_TEST_DIR=`cd "${CURRENT_DIR}/../flink-python-test" && pwd -P`
 REQUIREMENTS_PATH="${TEST_DATA_DIR}/requirements.txt"
 
-echo "pytest==4.4.1" > "${REQUIREMENTS_PATH}"
+echo "pytest==8.3.5" > "${REQUIREMENTS_PATH}"
 
 # These tests are known to fail on JDK11. See FLINK-13719
 cd "${CURRENT_DIR}/../"

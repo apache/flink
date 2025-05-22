@@ -189,7 +189,7 @@ class SimpleAggsHandleFunctionBase(AggsHandleFunctionBase):
                  distinct_view_descriptors: Dict[int, DistinctViewDescriptor]):
         self._udfs = udfs
         self._input_extractors = input_extractors
-        self._accumulators = None  # type: List
+        self._accumulators: List = None
         self._udf_data_view_specs = udf_data_view_specs
         self._udf_data_views = []
         self._filter_args = filter_args
@@ -350,7 +350,7 @@ class SimpleTableAggsHandleFunction(SimpleAggsHandleFunctionBase, TableAggsHandl
             distinct_view_descriptors)
 
     def emit_value(self, current_key: List, is_retract: bool):
-        udf = self._udfs[0]  # type: TableAggregateFunction
+        udf: TableAggregateFunction = self._udfs[0]
         results = udf.emit_value(self._accumulators[0])
         for x in results:
             result = join_row(current_key, self._convert_to_row(x))
@@ -471,7 +471,7 @@ class GroupAggFunction(GroupAggFunctionBase):
             self.state_backend.clear_cached_iterators()
             accumulator_state = self.state_backend.get_value_state(
                 "accumulators", self.state_value_coder)
-            accumulators = accumulator_state.value()  # type: List
+            accumulators: List = accumulator_state.value()
             start_index = 0
             if accumulators is None:
                 for i in range(len(input_rows)):
@@ -488,7 +488,7 @@ class GroupAggFunction(GroupAggFunctionBase):
             self.aggs_handle.set_accumulators(accumulators)
 
             # get previous aggregate result
-            pre_agg_value = self.aggs_handle.get_value()  # type: List
+            pre_agg_value: List = self.aggs_handle.get_value()
 
             for input_row in input_rows[start_index:]:
                 # update aggregate result and set to the newRow
@@ -500,7 +500,7 @@ class GroupAggFunction(GroupAggFunctionBase):
                     self.aggs_handle.retract(input_row)
 
             # get current aggregate result
-            new_agg_value = self.aggs_handle.get_value()  # type: List
+            new_agg_value: List = self.aggs_handle.get_value()
 
             # get accumulator
             accumulators = self.aggs_handle.get_accumulators()
