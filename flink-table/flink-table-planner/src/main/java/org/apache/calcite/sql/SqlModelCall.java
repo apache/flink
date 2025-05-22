@@ -24,7 +24,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 
-import static org.apache.calcite.util.Static.RESOURCE;
+import static java.util.Objects.requireNonNull;
 
 /** SqlModelCall to fetch and reference model based on identifier. */
 public class SqlModelCall extends SqlBasicCall {
@@ -37,17 +37,12 @@ public class SqlModelCall extends SqlBasicCall {
                 modelCall.getOperandList(),
                 modelCall.getParserPosition(),
                 modelCall.getFunctionQuantifier());
-        this.model = model;
+        this.model = requireNonNull(model);
     }
 
     @Override
     public void validate(SqlValidator validator, SqlValidatorScope scope) {
-        SqlIdentifier modelIdentifier = (SqlIdentifier) getOperandList().get(0);
-        if (model == null) {
-            throw SqlUtil.newContextException(
-                    modelIdentifier.getParserPosition(),
-                    RESOURCE.objectNotFound(modelIdentifier.toString()));
-        }
+        // Do nothing here, override to avoid identifier validation which will be treated as column
     }
 
     public RelDataType getInputType(SqlValidator validator) {
