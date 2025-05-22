@@ -132,7 +132,7 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
         // the input row is copied when object reuse in AsyncWaitOperator
         outResultFuture.reset(input, resultFuture);
 
-        if (preFilterCondition.apply(input)) {
+        if (preFilterCondition.apply(FilterCondition.Context.INVALID_CONTEXT, input)) {
             // fetcher has copied the input field when object reuse is enabled
             fetcher.asyncInvoke(input, outResultFuture);
         } else {

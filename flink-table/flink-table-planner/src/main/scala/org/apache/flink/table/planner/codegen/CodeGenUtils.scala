@@ -123,6 +123,8 @@ object CodeGenUtils {
 
   val RUNTIME_CONTEXT: String = className[RuntimeContext]
 
+  val FILTER_CONTEXT: String = className[FilterCondition.Context]
+
   // ----------------------------------------------------------------------------------------
 
   private val nameCounter = new AtomicLong
