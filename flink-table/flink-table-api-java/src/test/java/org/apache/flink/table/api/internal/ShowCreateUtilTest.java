@@ -22,14 +22,18 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogDescriptor;
+import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedCatalogView;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableDistribution;
+import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.expressions.DefaultSqlFactory;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -61,9 +65,29 @@ public class ShowCreateUtilTest {
                     Column.physical("id", DataTypes.INT()),
                     Column.physical("name", DataTypes.STRING()));
 
+    private static final ResolvedSchema THREE_COLUMNS_PK_SCHEMA =
+            new ResolvedSchema(
+                    Arrays.asList(
+                            Column.physical("id", DataTypes.INT()),
+                            Column.physical("name", DataTypes.STRING()),
+                            Column.physical("birthday", DataTypes.STRING())),
+                    Collections.emptyList(),
+                    UniqueConstraint.primaryKey("pk", Collections.singletonList("id")));
+    ;
+
     @ParameterizedTest(name = "{index}: {1}")
     @MethodSource("argsForShowCreateTable")
     void showCreateTable(ResolvedCatalogTable resolvedCatalogTable, String expected) {
+        final String createTableString =
+                ShowCreateUtil.buildShowCreateTableRow(
+                        resolvedCatalogTable, TABLE_IDENTIFIER, false, DefaultSqlFactory.INSTANCE);
+        assertThat(createTableString).isEqualTo(expected);
+    }
+
+    @ParameterizedTest(name = "{index}: {1}")
+    @MethodSource("argsForShowCreateMaterializedTable")
+    void showCreateMaterializedTable(
+            ResolvedCatalogMaterializedTable resolvedCatalogTable, String expected) {
         final String createTableString =
                 ShowCreateUtil.buildShowCreateTableRow(
                         resolvedCatalogTable, TABLE_IDENTIFIER, false, DefaultSqlFactory.INSTANCE);
@@ -241,6 +265,96 @@ public class ShowCreateUtilTest {
         return argList;
     }
 
+    private static Collection<Arguments> argsForShowCreateMaterializedTable() {
+        Collection<Arguments> argList = new ArrayList<>();
+
+        final Map<String, String> options = new HashMap<>();
+        options.put("option_key_a", "option_value_a");
+        options.put("option_key_b", "option_value_b");
+        options.put("option_key_c", "option_value_c");
+
+        argList.add(
+                Arguments.of(
+                        createResolvedCatalogMaterializedTable(
+                                THREE_COLUMNS_PK_SCHEMA,
+                                options,
+                                List.of("birthday"),
+                                "table comment",
+                                "( SELECT id, birthday, name\n"
+                                        + "  FROM json_source\n"
+                                        + ") AS tmp",
+                                CatalogMaterializedTable.LogicalRefreshMode.CONTINUOUS,
+                                CatalogMaterializedTable.RefreshMode.CONTINUOUS),
+                        "CREATE MATERIALIZED TABLE `catalogName`.`dbName`.`tableName`\n"
+                                + "(  CONSTRAINT `pk` PRIMARY KEY (`id`) NOT ENFORCED)\n"
+                                + "COMMENT 'table comment'\n"
+                                + "PARTITIONED BY (`birthday`)\n"
+                                + "WITH (\n"
+                                + "  'option_key_a' = 'option_value_a',\n"
+                                + "  'option_key_b' = 'option_value_b',\n"
+                                + "  'option_key_c' = 'option_value_c'\n"
+                                + ")\n"
+                                + "FRESHNESS = INTERVAL '5' MINUTE \n"
+                                + "REFRESH_MODE = CONTINUOUS\n"
+                                + "AS ( SELECT id, birthday, name\n"
+                                + "  FROM json_source\n"
+                                + ") AS tmp"));
+
+        argList.add(
+                Arguments.of(
+                        createResolvedCatalogMaterializedTable(
+                                THREE_COLUMNS_PK_SCHEMA,
+                                options,
+                                List.of("birthday"),
+                                "table comment",
+                                "( SELECT id, birthday, name\n"
+                                        + "  FROM json_source\n"
+                                        + ") AS tmp",
+                                CatalogMaterializedTable.LogicalRefreshMode.CONTINUOUS,
+                                CatalogMaterializedTable.RefreshMode.FULL),
+                        "CREATE MATERIALIZED TABLE `catalogName`.`dbName`.`tableName`\n"
+                                + "(  CONSTRAINT `pk` PRIMARY KEY (`id`) NOT ENFORCED)\n"
+                                + "COMMENT 'table comment'\n"
+                                + "PARTITIONED BY (`birthday`)\n"
+                                + "WITH (\n"
+                                + "  'option_key_a' = 'option_value_a',\n"
+                                + "  'option_key_b' = 'option_value_b',\n"
+                                + "  'option_key_c' = 'option_value_c'\n"
+                                + ")\n"
+                                + "FRESHNESS = INTERVAL '5' MINUTE \n"
+                                + "REFRESH_MODE = FULL\n"
+                                + "AS ( SELECT id, birthday, name\n"
+                                + "  FROM json_source\n"
+                                + ") AS tmp"));
+
+        argList.add(
+                Arguments.of(
+                        createResolvedCatalogMaterializedTable(
+                                THREE_COLUMNS_PK_SCHEMA,
+                                options,
+                                List.of("birthday"),
+                                "table comment",
+                                "( SELECT id, birthday, name\n"
+                                        + "  FROM json_source\n"
+                                        + ") AS tmp",
+                                CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC,
+                                CatalogMaterializedTable.RefreshMode.CONTINUOUS),
+                        "CREATE MATERIALIZED TABLE `catalogName`.`dbName`.`tableName`\n"
+                                + "(  CONSTRAINT `pk` PRIMARY KEY (`id`) NOT ENFORCED)\n"
+                                + "COMMENT 'table comment'\n"
+                                + "PARTITIONED BY (`birthday`)\n"
+                                + "WITH (\n"
+                                + "  'option_key_a' = 'option_value_a',\n"
+                                + "  'option_key_b' = 'option_value_b',\n"
+                                + "  'option_key_c' = 'option_value_c'\n"
+                                + ")\n"
+                                + "FRESHNESS = INTERVAL '5' MINUTE \n"
+                                + "AS ( SELECT id, birthday, name\n"
+                                + "  FROM json_source\n"
+                                + ") AS tmp"));
+        return argList;
+    }
+
     private static ResolvedCatalogTable createResolvedTable(
             ResolvedSchema resolvedSchema,
             Map<String, String> options,
@@ -272,5 +386,30 @@ public class ShowCreateUtilTest {
                         expandedQuery,
                         Collections.emptyMap()),
                 resolvedSchema);
+    }
+
+    private static ResolvedCatalogMaterializedTable createResolvedCatalogMaterializedTable(
+            ResolvedSchema resolvedSchema,
+            Map<String, String> options,
+            List<String> partitionKeys,
+            String comment,
+            String query,
+            CatalogMaterializedTable.LogicalRefreshMode logicalRefreshMode,
+            CatalogMaterializedTable.RefreshMode refreshMode) {
+
+        CatalogMaterializedTable.Builder materializedTableBuilder =
+                CatalogMaterializedTable.newBuilder()
+                        .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema).build())
+                        .comment(comment)
+                        .partitionKeys(partitionKeys)
+                        .options(options)
+                        .definitionQuery(query)
+                        .freshness(IntervalFreshness.ofMinute("5"))
+                        .logicalRefreshMode(logicalRefreshMode)
+                        .refreshMode(refreshMode)
+                        .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING);
+
+        return new ResolvedCatalogMaterializedTable(
+                materializedTableBuilder.build(), resolvedSchema);
     }
 }
