@@ -99,7 +99,9 @@ jobs:
       - name: "Setup Python"
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          # pinning to 3.8.x to avoid issues with cibuildwheel for macOS with python 3.8 wheel,
+          # if drop support of 3.8,  change to 3.x
+          python-version: '3.8'
       - name: "Install cibuildwheel"
         run: python -m pip install cibuildwheel==2.16.5
       - name: "Build python wheels for ${{ matrix.os_name }}"
