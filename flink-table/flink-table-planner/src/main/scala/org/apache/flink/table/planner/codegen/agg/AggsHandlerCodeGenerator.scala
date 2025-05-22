@@ -21,7 +21,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.table.api.{DataTypes, TableException}
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.{DeclarativeAggregateFunction, ImperativeAggregateFunction, TableAggregateFunction, UserDefinedFunctionHelper}
+import org.apache.flink.table.functions.{BundledAggregateFunction, DeclarativeAggregateFunction, ImperativeAggregateFunction, TableAggregateFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.functions.TableAggregateFunction.RetractableCollector
 import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.codegen._
@@ -77,6 +77,7 @@ class AggsHandlerCodeGenerator(
   /** Aggregates informations */
   private var accTypeInfo: RowType = _
   private var aggBufferSize: Int = _
+  private var accIndicesMap: Map[Int, (Int, Int)] = _
 
   private var mergedAccExternalTypes: Array[DataType] = _
   private var mergedAccOffset: Int = 0
@@ -86,6 +87,7 @@ class AggsHandlerCodeGenerator(
 
   private var isAccumulateNeeded = false
   private var isRetractNeeded = false
+  private var isBundledNeeded = false
   private var isMergeNeeded = false
   private var isWindowSizeNeeded = false
   private var isIncrementalUpdateNeeded = false
@@ -170,6 +172,18 @@ class AggsHandlerCodeGenerator(
   }
 
   /**
+   * Tells the generator to generate `bundledAccumulateRetract(..)` method for the
+   * [[AggsHandleFunction]] and [[NamespaceAggsHandleFunction]]. Default not generate
+   * `bundledAccumulateRetract(..)` method.
+   *
+   * @return
+   */
+  def needBundled(): AggsHandlerCodeGenerator = {
+    this.isBundledNeeded = true
+    this
+  }
+
+  /**
    * Whether to update acc result incrementally. The value is true only for TableAggregateFunction
    * with emitUpdateWithRetract method implemented.
    */
@@ -227,6 +241,10 @@ class AggsHandlerCodeGenerator(
       mergedAccExternalTypes = aggInfoList.getAccTypes
     }
 
+    if (accIndicesMap == null) {
+      accIndicesMap = createAccumulatorIndicesMap(aggInfoList)
+    }
+
     val aggCodeGens = aggInfoList.aggInfos.map {
       aggInfo =>
         val filterExpr =
@@ -244,6 +262,16 @@ class AggsHandlerCodeGenerator(
               inputFieldTypes,
               constants,
               relBuilder)
+          case _: BundledAggregateFunction =>
+            new BundledImperativeAggCodeGen(
+              ctx,
+              aggInfo,
+              filterExpr,
+              accIndicesMap(aggInfo.aggIndex),
+              inputFieldTypes,
+              constantExprs,
+              relBuilder,
+              copyInputField)
           case _: ImperativeAggregateFunction[_, _] =>
             aggInfo.function match {
               case tableAggFunc: TableAggregateFunction[_, _] =>
@@ -360,6 +388,7 @@ class AggsHandlerCodeGenerator(
     val retractCode = genRetract()
     val mergeCode = genMerge()
     val getValueCode = genGetValue()
+    val bundledCode = genBundledAccumulateRetract(aggInfoList, None)
 
     val functionName = newName(ctx, name)
 
@@ -398,6 +427,13 @@ class AggsHandlerCodeGenerator(
           @Override
           public void retract($ROW_DATA $RETRACT_INPUT_TERM) throws Exception {
             $retractCode
+          }
+
+          @Override
+          public void bundledAccumulateRetract(
+             java.util.concurrent.CompletableFuture<$BUNDLED_KEY_SEGMENT_APPLIED> future,
+             $BUNDLED_KEY_SEGMENT $BATCH_INPUT_TERM) throws Exception {
+            $bundledCode
           }
 
           @Override
@@ -1055,6 +1091,105 @@ class AggsHandlerCodeGenerator(
     }
   }
 
+  private def genBundledAccumulateRetract(
+      aggInfoList: AggregateInfoList,
+      namespace: Option[Class[_]]): String = {
+    if (isBundledNeeded) {
+      // validation check
+      checkNeededMethods(needBundled = true)
+
+      val methodName = "bundledAccumulateRetract"
+      ctx.startNewLocalVariableStatement(methodName)
+
+      // bind input1 as inputRow
+      val exprGenerator = new ExprCodeGenerator(ctx, INPUT_NOT_NULL)
+        .bindInput(inputType, inputTerm = BATCH_ENTRY_TERM)
+
+      val imperativeBlock = aggActionCodeGens
+        .map(_.bundledAccumulateRetract(exprGenerator))
+        .mkString("\n")
+
+      val ns = namespace.map(c => "ns,").getOrElse("")
+
+      val declarativeBlock =
+        s"""
+           | $NON_BUNDLED_SEGMENT_UTIL.NonBundledSegmentResult nonBundledResult =
+           |   $NON_BUNDLED_SEGMENT_UTIL.executeAsBundle(
+           |       this,
+           |       $ns
+           |       $BATCH_INPUT_TERM);
+           |""".stripMargin
+
+      val combinerFactory = new BundledResultCombiner(accTypeInfo, valueType)
+      val combinerFactoryTerm = ctx.addReusableObject(combinerFactory, "combinerFactory")
+
+      val combineAdds = aggInfoList.aggInfos
+        .map(
+          aggInfo => {
+            val isBundled =
+              aggInfo.function.isInstanceOf[BundledAggregateFunction]
+            val bundledResults = if (isBundled) {
+              s"""java.util.Optional.of(future${aggInfo.aggIndex})""".stripMargin
+            } else {
+              "java.util.Optional.empty()"
+            }
+
+            val nonBundledResults = if (isBundled) {
+              "java.util.Optional.empty()"
+            } else {
+              "java.util.Optional.of(nonBundledResult)"
+            }
+
+            val createFuture = if (isBundled) {
+              s"""
+                 |java.util.concurrent.CompletableFuture future${aggInfo.aggIndex} = df.createAsyncFuture();
+                 |""".stripMargin
+            } else {
+              ""
+            }
+
+            val (accIndexStart, accIndexEnd) = accIndicesMap(aggInfo.aggIndex)
+            s"""
+               | $createFuture
+               | combiner.add(
+               |    ${aggInfo.aggIndex},
+               |    $bundledResults,
+               |    $nonBundledResults,
+               |    ${!aggInfoList.countStarInserted || aggInfoList.indexOfCountStar.get != aggInfo.aggIndex},
+               |    $isBundled,
+               |    $accIndexStart, $accIndexEnd
+               |);
+            """.stripMargin
+          })
+        .mkString("\n")
+
+      var totalBundled = 0
+      aggInfoList.aggInfos.foreach {
+        aggInfo =>
+          if (aggInfo.function.isInstanceOf[BundledAggregateFunction]) {
+            totalBundled += 1
+          }
+      }
+
+      s"""
+         | ${ctx.reuseLocalVariableCode(methodName)}
+         | // The combiner takes the results of the declarative block, the async calls, and combines
+         | // them to be returned by the future.
+         | $BUNDLED_RESULT_COMBINER.Combiner combiner = $combinerFactoryTerm.newCombiner();
+         | $MULTI_DELEGATING_FUTURE df = new $MULTI_DELEGATING_FUTURE(future, $totalBundled);
+         | df.setResultSupplier(combiner);
+         |$declarativeBlock
+         |$combineAdds
+         | // This is where the async calls are started, so everything must be set on the combiner
+         | // before this.
+         |$imperativeBlock
+      """.stripMargin
+    } else {
+      genThrowException(
+        "This function does not require batch method, but the batch method is called.")
+    }
+  }
+
   private def genMerge(): String = {
     if (isMergeNeeded) {
       // validation check
@@ -1272,6 +1407,7 @@ class AggsHandlerCodeGenerator(
       needAccumulate: Boolean = false,
       needRetract: Boolean = false,
       needMerge: Boolean = false,
+      needBundled: Boolean = false,
       needReset: Boolean = false,
       needEmitValue: Boolean = false): Unit = {
     // check and validate the needed methods
@@ -1293,6 +1429,9 @@ object AggsHandlerCodeGenerator {
   val MERGED_ACC_TERM = "otherAcc"
   val ACCUMULATE_INPUT_TERM = "accInput"
   val RETRACT_INPUT_TERM = "retractInput"
+  val BATCH_INPUT_TERM = "batchInput"
+  val BATCH_ENTRY_TERM = "batchEntry"
+  val BATCH_RETURN_TERM = "batchReturn"
   val WINDOWS_SIZE = "windowSize"
   val DISTINCT_KEY_TERM = "distinctKey"
 
@@ -1430,5 +1569,21 @@ object AggsHandlerCodeGenerator {
       case None =>
         ctx.addReusableExternalSerializer(dataType())
     }
+  }
+
+  private def createAccumulatorIndicesMap(
+      aggInfoList: AggregateInfoList): scala.collection.immutable.Map[Int, (Int, Int)] = {
+    var accIndex = 0;
+    var accumulatorIndexesMap: scala.collection.mutable.Map[Int, (Int, Int)] =
+      scala.collection.mutable.Map[Int, (Int, Int)]()
+    aggInfoList.aggInfos.foreach {
+      aggInfo =>
+        {
+          accumulatorIndexesMap(aggInfo.aggIndex) =
+            (accIndex, accIndex + aggInfo.externalAccTypes.length)
+          accIndex += aggInfo.externalAccTypes.length
+        }
+    }
+    scala.collection.immutable.Map(accumulatorIndexesMap.toSeq: _*)
   }
 }

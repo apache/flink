@@ -33,6 +33,8 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.SpecializedFunction.ExpressionEvaluator;
 import org.apache.flink.table.functions.SpecializedFunction.ExpressionEvaluatorFactory;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
+import org.apache.flink.table.functions.agg.BundledKeySegment;
+import org.apache.flink.table.functions.agg.BundledKeySegmentApplied;
 import org.apache.flink.table.functions.python.utils.PythonFunctionUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.extraction.ExtractionUtils;
@@ -50,11 +52,14 @@ import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.getAllDeclaredMethods;
+import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.getParameterizedType;
+import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.isGenericOfClass;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -80,6 +85,8 @@ public final class UserDefinedFunctionHelper {
     public static final String AGGREGATE_RETRACT = "retract";
 
     public static final String AGGREGATE_MERGE = "merge";
+
+    public static final String AGGREGATE_BUNDLED = "bundledAccumulateRetract";
 
     public static final String TABLE_AGGREGATE_ACCUMULATE = "accumulate";
 
@@ -483,9 +490,14 @@ public final class UserDefinedFunctionHelper {
         } else if (AsyncTableFunction.class.isAssignableFrom(functionClass)) {
             validateImplementationMethod(functionClass, true, false, ASYNC_TABLE_EVAL);
         } else if (AggregateFunction.class.isAssignableFrom(functionClass)) {
-            validateImplementationMethod(functionClass, true, false, AGGREGATE_ACCUMULATE);
-            validateImplementationMethod(functionClass, true, true, AGGREGATE_RETRACT);
-            validateImplementationMethod(functionClass, true, true, AGGREGATE_MERGE);
+            if (BundledAggregateFunction.class.isAssignableFrom(functionClass)) {
+                validateImplementationMethod(functionClass, true, false, AGGREGATE_BUNDLED);
+                validateBundledImplementationMethod(functionClass, AGGREGATE_BUNDLED);
+            } else {
+                validateImplementationMethod(functionClass, true, false, AGGREGATE_ACCUMULATE);
+                validateImplementationMethod(functionClass, true, true, AGGREGATE_RETRACT);
+                validateImplementationMethod(functionClass, true, true, AGGREGATE_MERGE);
+            }
         } else if (TableAggregateFunction.class.isAssignableFrom(functionClass)) {
             validateImplementationMethod(functionClass, true, false, TABLE_AGGREGATE_ACCUMULATE);
             validateImplementationMethod(functionClass, true, true, TABLE_AGGREGATE_RETRACT);
@@ -537,6 +549,50 @@ public final class UserDefinedFunctionHelper {
                             nameSet.stream()
                                     .map(s -> "'" + s + "'")
                                     .collect(Collectors.joining(" or "))));
+        }
+    }
+
+    private static void validateBundledImplementationMethod(
+            Class<? extends UserDefinedFunction> clazz, String... methodNameOptions) {
+        final Set<String> nameSet = new HashSet<>(Arrays.asList(methodNameOptions));
+        final List<Method> methods = getAllDeclaredMethods(clazz);
+        for (Method method : methods) {
+            if (!nameSet.contains(method.getName())) {
+                continue;
+            }
+
+            if (!method.getReturnType().equals(Void.TYPE)) {
+                throw new ValidationException(
+                        String.format(
+                                "Method '%s' of function class '%s' must be void.",
+                                method.getName(), clazz.getName()));
+            }
+
+            boolean foundSignature = false;
+            if (method.getParameterCount() == 2) {
+                Type firstParam = method.getGenericParameterTypes()[0];
+                Type secondType = method.getGenericParameterTypes()[1];
+                if (isGenericOfClass(CompletableFuture.class, firstParam)
+                        && isGenericOfClass(BundledKeySegment.class, secondType)) {
+                    Optional<ParameterizedType> parameterizedFirst =
+                            getParameterizedType(firstParam);
+                    if (parameterizedFirst.isPresent()
+                            && parameterizedFirst.get().getActualTypeArguments().length > 0) {
+                        firstParam = parameterizedFirst.get().getActualTypeArguments()[0];
+                        if (BundledKeySegmentApplied.class.equals(firstParam)) {
+                            foundSignature = true;
+                        }
+                    }
+                }
+            }
+
+            if (!foundSignature) {
+                throw new ValidationException(
+                        String.format(
+                                "Method '%s' of function class '%s' must have signature "
+                                        + "void bundledAccumulateRetract(CompletableFuture<BundledKeySegmentApplied> future, BundledKeySegment segment).",
+                                method.getName(), clazz.getName()));
+            }
         }
     }
 

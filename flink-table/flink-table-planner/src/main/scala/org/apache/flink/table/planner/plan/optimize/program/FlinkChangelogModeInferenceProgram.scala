@@ -188,7 +188,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         // ignore required trait from context, because sink is the true root
         sink.copy(sinkTrait, children).asInstanceOf[StreamPhysicalRel]
 
-      case agg: StreamPhysicalGroupAggregate =>
+      case agg: StreamPhysicalGroupAggregateBase =>
         // agg support all changes in input
         val children = visitChildren(agg, ModifyKindSetTrait.ALL_CHANGES)
         val inputModifyKindSet = getModifyKindSet(children.head)
@@ -334,7 +334,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         createNewNode(over, children, providedTrait, requiredTrait, requester)
 
       case _: StreamPhysicalTemporalSort | _: StreamPhysicalIntervalJoin |
-          _: StreamPhysicalPythonOverAggregate =>
+          _: StreamPhysicalOverAggregateBase | _: StreamPhysicalPythonOverAggregate =>
         // TemporalSort, IntervalJoin only support consuming insert-only
         // and producing insert-only changes
         val children = visitChildren(rel, ModifyKindSetTrait.INSERT_ONLY)
@@ -592,7 +592,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           }
           visitSink(sink, sinkRequiredTraits)
 
-        case _: StreamPhysicalGroupAggregate | _: StreamPhysicalGroupTableAggregate |
+        case _: StreamPhysicalGroupAggregateBase | _: StreamPhysicalGroupTableAggregate |
             _: StreamPhysicalLimit | _: StreamPhysicalPythonGroupAggregate |
             _: StreamPhysicalPythonGroupTableAggregate | _: StreamPhysicalGroupWindowAggregateBase |
             _: StreamPhysicalWindowAggregate | _: StreamPhysicalOverAggregate =>
@@ -605,7 +605,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
         case _: StreamPhysicalWindowRank | _: StreamPhysicalWindowDeduplicate |
             _: StreamPhysicalTemporalSort | _: StreamPhysicalMatch | _: StreamPhysicalIntervalJoin |
-            _: StreamPhysicalPythonOverAggregate | _: StreamPhysicalWindowJoin =>
+            _: StreamPhysicalOverAggregateBase | _: StreamPhysicalPythonOverAggregate |
+            _: StreamPhysicalWindowJoin =>
           // WindowRank, WindowDeduplicate, Deduplicate, TemporalSort, CEP,
           // and IntervalJoin, WindowJoin require nothing about UpdateKind.
           val children = visitChildren(rel, UpdateKindTrait.NONE)
@@ -1073,7 +1074,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           val fullDelete = fullDeleteOrNone(childModifyKindSet)
           visitSink(sink, Seq(fullDelete))
 
-        case _: StreamPhysicalGroupAggregate | _: StreamPhysicalGroupTableAggregate |
+        case _: StreamPhysicalGroupAggregateBase | _: StreamPhysicalGroupTableAggregate |
             _: StreamPhysicalLimit | _: StreamPhysicalPythonGroupAggregate |
             _: StreamPhysicalPythonGroupTableAggregate | _: StreamPhysicalGroupWindowAggregateBase |
             _: StreamPhysicalWindowAggregate | _: StreamPhysicalSort | _: StreamPhysicalRank |
