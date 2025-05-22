@@ -201,6 +201,50 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
     </tr>
     <tr>
       <td>
+        <strong>create_model(model_path, model_descriptor, ignore_if_exists=False)</strong>
+      </td>
+      <td>
+        Registers a `Model` object as a model similar to SQL Models. 
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.create_model" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>create_temporary_model(model_path, model_descriptor, ignore_if_exists=False)</strong>
+      </td>
+      <td>
+        Registers a `Model` object as a temporary model similar to SQL temporary Models. 
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.create_temporary_model" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>drop_model(model_path, ignore_if_not_exists=True)</strong>
+      </td>
+      <td>
+        Drops a model registered in the given path.
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.drop_model" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>drop_temporary_model(model_path, ignore_if_not_exists=True)</strong>
+      </td>
+      <td>
+        Drops a temporary model registered in the given path.
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.drop_temporary_model" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
         <strong>execute_sql(stmt)</strong>
       </td>
       <td>
@@ -793,6 +837,29 @@ These APIs are used to access catalogs and modules. You can find more detailed i
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.list_temporary_views" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>list_models()</strong>
+      </td>
+      <td>
+        Gets the names of all models in the current database of the current catalog.
+        It returns both temporary and models.
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.list_models" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>list_temporary_models()</strong>
+      </td>
+      <td>
+        Gets the names of all temporary models available in the current namespace (the current database of the current catalog).
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.list_temporary_models" name="link">}}
       </td>
     </tr>
   </tbody>
