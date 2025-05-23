@@ -3376,6 +3376,14 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                 + "FROM TABLE(`FUNC`((TABLE `MY_TABLE`), MODEL `CAT`.`DB`.`MY_MODEL`))");
     }
 
+    @Test
+    void testModelInFunctionNamedArgs() {
+        sql("select * from table(ml_predict(INPUT => TABLE my_table, model => MODEL my_model))")
+                .ok(
+                        "SELECT *\n"
+                                + "FROM TABLE(`ML_PREDICT`(`INPUT` => (TABLE `MY_TABLE`), `MODEL` => (MODEL `MY_MODEL`)))");
+    }
+
     /*
      * This test was backported from Calcite 1.38 (CALCITE-6266).
      * Remove it together with upgrade to Calcite 1.38.
