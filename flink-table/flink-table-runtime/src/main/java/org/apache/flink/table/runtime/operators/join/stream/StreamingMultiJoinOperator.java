@@ -412,16 +412,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
     private void performMultiJoin(RowData input, int inputId) throws Exception {
         RowData[] currentRows = new RowData[inputSpecs.size()];
 
-        // Initial call for depth 0. The associationCountForPrevLevel (0 here) is a dummy
-        // as there's no level before 0. recursiveMultiJoin(depth=0) will manage counts
-        // for currentRows[0] when calling for depth=1.
-        recursiveMultiJoin(
-                0,
-                input,
-                inputId,
-                currentRows,
-                // Dummy association count for the non-existent level before depth 0
-                false); // isInputRecordActive = false initially
+        recursiveMultiJoin(0, input, inputId, currentRows, false);
     }
 
     /**
