@@ -25,15 +25,16 @@ import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.IterableIterator;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -46,8 +47,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Factory class to create different implementations of {@link MultiJoinStateView} based on the
  * characteristics described in {@link JoinInputSideSpec}.
  *
- * <p>Each state view uses a {@link MapState} where the primary key is the `mapKey` derived from the
- * join conditions (via {@link
+ * <p>Each state view uses a {@link MapState} where the primary key is the `joinKey` derived from
+ * the join conditions (via {@link
  * org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor}). The value
  * stored within this map depends on whether the input side has a unique key and how it relates to
  * the join key, optimizing storage and access patterns.
@@ -59,7 +60,7 @@ public final class MultiJoinStateViews {
             RuntimeContext ctx,
             String stateName,
             JoinInputSideSpec inputSideSpec,
-            InternalTypeInfo<RowData> mapKeyType, // Type info for the outer map key
+            InternalTypeInfo<RowData> joinKeyType, // Type info for the outer map key
             InternalTypeInfo<RowData> recordType,
             long retentionTime) {
         StateTtlConfig ttlConfig = createTtlConfig(retentionTime);
@@ -67,19 +68,19 @@ public final class MultiJoinStateViews {
         if (inputSideSpec.hasUniqueKey()) {
             if (inputSideSpec.joinKeyContainsUniqueKey()) {
                 return new JoinKeyContainsUniqueKey(
-                        ctx, stateName, mapKeyType, recordType, ttlConfig);
+                        ctx, stateName, joinKeyType, recordType, ttlConfig);
             } else {
                 return new InputSideHasUniqueKey(
                         ctx,
                         stateName,
-                        mapKeyType,
+                        joinKeyType,
                         recordType,
                         inputSideSpec.getUniqueKeyType(),
                         inputSideSpec.getUniqueKeySelector(),
                         ttlConfig);
             }
         } else {
-            return new InputSideHasNoUniqueKey(ctx, stateName, mapKeyType, recordType, ttlConfig);
+            return new InputSideHasNoUniqueKey(ctx, stateName, joinKeyType, recordType, ttlConfig);
         }
     }
 
@@ -114,43 +115,43 @@ public final class MultiJoinStateViews {
     /**
      * State view for input sides where the unique key is fully contained within the join key.
      *
-     * <p>Stores data as {@code MapState<MapKey, Record>}.
+     * <p>Stores data as {@code MapState<JoinKey, Record>}.
      */
     private static final class JoinKeyContainsUniqueKey implements MultiJoinStateView {
 
-        // stores record in the mapping <MapKey, Record>
+        // stores record in the mapping <JoinKey, Record>
         private final MapState<RowData, RowData> recordState;
         private final List<RowData> reusedList;
 
         private JoinKeyContainsUniqueKey(
                 RuntimeContext ctx,
                 final String stateName,
-                final InternalTypeInfo<RowData> mapKeyType,
+                final InternalTypeInfo<RowData> joinKeyType,
                 final InternalTypeInfo<RowData> recordType,
                 final StateTtlConfig ttlConfig) {
 
             MapStateDescriptor<RowData, RowData> recordStateDesc =
-                    createStateDescriptor(stateName, mapKeyType, recordType, ttlConfig);
+                    createStateDescriptor(stateName, joinKeyType, recordType, ttlConfig);
 
             this.recordState = ctx.getMapState(recordStateDesc);
-            // the result records always not more than 1 per mapKey
+            // the result records always not more than 1 per joinKey
             this.reusedList = new ArrayList<>(1);
         }
 
         @Override
-        public void addRecord(RowData mapKey, RowData record) throws Exception {
-            recordState.put(mapKey, record);
+        public void addRecord(RowData joinKey, RowData record) throws Exception {
+            recordState.put(joinKey, record);
         }
 
         @Override
-        public void retractRecord(RowData mapKey, RowData record) throws Exception {
-            recordState.remove(mapKey);
+        public void retractRecord(RowData joinKey, RowData record) throws Exception {
+            recordState.remove(joinKey);
         }
 
         @Override
-        public Iterable<RowData> getRecords(RowData mapKey) throws Exception {
+        public Iterable<RowData> getRecords(RowData joinKey) throws Exception {
             reusedList.clear();
-            RowData record = recordState.get(mapKey);
+            RowData record = recordState.get(joinKey);
             if (record != null) {
                 reusedList.add(record);
             }
@@ -158,26 +159,28 @@ public final class MultiJoinStateViews {
         }
 
         @Override
-        public void cleanup(RowData mapKey) throws Exception {
-            recordState.remove(mapKey);
+        public void cleanup(RowData joinKey) throws Exception {
+            recordState.remove(joinKey);
         }
     }
 
     /**
      * State view for input sides that have a unique key, but it differs from the join key.
      *
-     * <p>Stores data as {@code MapState<MapKey, Map<UK, Record>>}.
+     * <p>Stores data as {@code MapState<CompositeKey<JoinKey, UK>, Record>}. The composite key is a
+     * RowData with 2 fields: joinKey and uniqueKey.
      */
     private static final class InputSideHasUniqueKey implements MultiJoinStateView {
 
-        // stores map in the mapping <MapKey, Map<UK, Record>>
-        private final MapState<RowData, Map<RowData, RowData>> recordState;
+        // stores record in the mapping <(JoinKey, UK), Record>
+        private final MapState<RowData, RowData> recordState;
         private final KeySelector<RowData, RowData> uniqueKeySelector;
+        private final InternalTypeInfo<RowData> joinKeyType;
 
         private InputSideHasUniqueKey(
                 RuntimeContext ctx,
                 final String stateName,
-                final InternalTypeInfo<RowData> mapKeyType,
+                final InternalTypeInfo<RowData> joinKeyType,
                 final InternalTypeInfo<RowData> recordType,
                 final InternalTypeInfo<RowData> uniqueKeyType,
                 final KeySelector<RowData, RowData> uniqueKeySelector,
@@ -185,163 +188,80 @@ public final class MultiJoinStateViews {
             checkNotNull(uniqueKeyType);
             checkNotNull(uniqueKeySelector);
             this.uniqueKeySelector = uniqueKeySelector;
+            this.joinKeyType = joinKeyType;
 
-            TypeInformation<Map<RowData, RowData>> mapValueTypeInfo =
-                    Types.MAP(uniqueKeyType, recordType); // UK is the key in the inner map
+            // Composite key type: RowData with 2 fields (joinKey, uniqueKey)
+            // The composite key is a RowData with joinKey at index 0 and uniqueKey at index 1.
+            // TODO Gustavo: there is probably a cleaner way of instantiating the type
+            final RowType keyRowType =
+                    RowType.of(joinKeyType.toRowType(), uniqueKeyType.toRowType());
+            InternalTypeInfo<RowData> compositeKeyType = InternalTypeInfo.of(keyRowType);
 
-            MapStateDescriptor<RowData, Map<RowData, RowData>> recordStateDesc =
-                    createStateDescriptor(stateName, mapKeyType, mapValueTypeInfo, ttlConfig);
-
-            this.recordState = ctx.getMapState(recordStateDesc);
-        }
-
-        @Override
-        public void addRecord(RowData mapKey, RowData record) throws Exception {
-            RowData uniqueKey = uniqueKeySelector.getKey(record);
-            Map<RowData, RowData> uniqueKeyToRecordMap = recordState.get(mapKey);
-            if (uniqueKeyToRecordMap == null) {
-                uniqueKeyToRecordMap = new HashMap<>();
-            }
-            uniqueKeyToRecordMap.put(uniqueKey, record);
-            recordState.put(mapKey, uniqueKeyToRecordMap);
-        }
-
-        @Override
-        public void retractRecord(RowData mapKey, RowData record) throws Exception {
-            RowData uniqueKey = uniqueKeySelector.getKey(record);
-            Map<RowData, RowData> uniqueKeyToRecordMap = recordState.get(mapKey);
-            if (uniqueKeyToRecordMap != null) {
-                uniqueKeyToRecordMap.remove(uniqueKey);
-                if (uniqueKeyToRecordMap.isEmpty()) {
-                    // Clean up the entry for mapKey if the inner map becomes empty
-                    recordState.remove(mapKey);
-                } else {
-                    recordState.put(mapKey, uniqueKeyToRecordMap);
-                }
-            }
-        }
-
-        @Override
-        public Iterable<RowData> getRecords(RowData mapKey) throws Exception {
-            Map<RowData, RowData> uniqueKeyToRecordMap = recordState.get(mapKey);
-            if (uniqueKeyToRecordMap == null) {
-                return Collections.emptyList();
-            } else {
-                // Return the values (records) from the inner map
-                return uniqueKeyToRecordMap.values();
-            }
-        }
-
-        @Override
-        public void cleanup(RowData mapKey) throws Exception {
-            recordState.remove(mapKey);
-        }
-    }
-
-    /**
-     * State view for input sides that do not have a unique key (multi-set semantics).
-     *
-     * <p>Stores data as {@code MapState<MapKey, Map<Record, Count>>}.
-     */
-    private static final class InputSideHasNoUniqueKey implements MultiJoinStateView {
-
-        // stores map in the mapping <MapKey, Map<Record, Count>>
-        private final MapState<RowData, Map<RowData, Integer>> recordState;
-
-        private InputSideHasNoUniqueKey(
-                RuntimeContext ctx,
-                final String stateName,
-                final InternalTypeInfo<RowData> mapKeyType,
-                final InternalTypeInfo<RowData> recordType,
-                final StateTtlConfig ttlConfig) {
-
-            TypeInformation<Map<RowData, Integer>> mapValueTypeInfo =
-                    Types.MAP(recordType, Types.INT);
-
-            MapStateDescriptor<RowData, Map<RowData, Integer>> recordStateDesc =
-                    createStateDescriptor(stateName, mapKeyType, mapValueTypeInfo, ttlConfig);
+            MapStateDescriptor<RowData, RowData> recordStateDesc =
+                    createStateDescriptor(stateName, compositeKeyType, recordType, ttlConfig);
 
             this.recordState = ctx.getMapState(recordStateDesc);
         }
 
-        @Override
-        public void addRecord(RowData mapKey, RowData record) throws Exception {
-            Map<RowData, Integer> recordToCountMap = recordState.get(mapKey);
-            if (recordToCountMap == null) {
-                recordToCountMap = new HashMap<>();
-            }
-            recordToCountMap.merge(record, 1, Integer::sum); // Increment count or set to 1
-            recordState.put(mapKey, recordToCountMap);
+        private RowData createCompositeKey(RowData joinKey, RowData uniqueKey) {
+            GenericRowData compositeKey = new GenericRowData(2);
+            compositeKey.setField(0, joinKey);
+            compositeKey.setField(1, uniqueKey);
+            return compositeKey;
         }
 
         @Override
-        public void retractRecord(RowData mapKey, RowData record) throws Exception {
-            Map<RowData, Integer> recordToCountMap = recordState.get(mapKey);
-
-            // When storing and retrieving records from state, we need to ensure consistent RowKind
-            // handling because records are stored in state with RowKind.INSERT or else we'll not
-            // find them.
-            var origKind = record.getRowKind();
-            record.setRowKind(RowKind.INSERT);
-            if (recordToCountMap != null) {
-                Integer cnt = recordToCountMap.get(record);
-                if (cnt != null) {
-                    if (cnt > 1) {
-                        recordToCountMap.put(record, cnt - 1);
-                    } else {
-                        // remove the record entry if count reaches 0
-                        recordToCountMap.remove(record);
-                    }
-
-                    if (recordToCountMap.isEmpty()) {
-                        // Clean up the entry for mapKey if the inner map becomes empty
-                        recordState.remove(mapKey);
-                    } else {
-                        recordState.put(mapKey, recordToCountMap);
-                    }
-                }
-            }
-            record.setRowKind(origKind);
+        public void addRecord(RowData joinKey, RowData record) throws Exception {
+            RowData uniqueKey = uniqueKeySelector.getKey(record);
+            RowData compositeKey = createCompositeKey(joinKey, uniqueKey);
+            recordState.put(compositeKey, record);
         }
 
         @Override
-        public Iterable<RowData> getRecords(RowData mapKey) throws Exception {
-            Map<RowData, Integer> recordToCountMap = recordState.get(mapKey);
-            if (recordToCountMap == null || recordToCountMap.isEmpty()) {
+        public void retractRecord(RowData joinKey, RowData record) throws Exception {
+            RowData uniqueKey = uniqueKeySelector.getKey(record);
+            RowData compositeKey = createCompositeKey(joinKey, uniqueKey);
+            recordState.remove(compositeKey);
+        }
+
+        @Override
+        public Iterable<RowData> getRecords(RowData joinKey) throws Exception {
+            Iterator<Map.Entry<RowData, RowData>> stateIterator = recordState.iterator();
+            if (stateIterator == null) {
                 return Collections.emptyList();
             }
 
-            // Return an Iterable that respects the counts
-            return new IterableIterator<RowData>() {
-                private final Iterator<Map.Entry<RowData, Integer>> backingIterator =
-                        recordToCountMap.entrySet().iterator();
-                private RowData currentRecord;
-                private int remainingTimes = 0;
+            // Consume the record
+            // This iterator is stateful and intended for single use per call to getRecords.
+            //noinspection NullableProblems TODO Gustavo can we not supress?
+            return new IterableIterator<>() {
+                private RowData nextRecord = null;
 
                 @Override
                 public boolean hasNext() {
-                    return remainingTimes > 0 || backingIterator.hasNext();
+                    if (nextRecord != null) {
+                        return true;
+                    }
+                    while (stateIterator.hasNext()) {
+                        Map.Entry<RowData, RowData> entry = stateIterator.next();
+                        RowData compositeKey = entry.getKey();
+                        RowData currentJoinKey = compositeKey.getRow(0, joinKeyType.getArity());
+                        if (joinKey.equals(currentJoinKey)) {
+                            nextRecord = entry.getValue();
+                            return true;
+                        }
+                    }
+                    return false;
                 }
 
                 @Override
                 public RowData next() {
-                    if (remainingTimes > 0) {
-                        checkNotNull(currentRecord);
-                        remainingTimes--;
-                        return currentRecord;
-                    } else {
-                        if (!backingIterator.hasNext()) {
-                            throw new NoSuchElementException("No more elements");
-                        }
-                        Map.Entry<RowData, Integer> entry = backingIterator.next();
-                        currentRecord = entry.getKey();
-                        remainingTimes = entry.getValue() - 1; // We return one now
-                        if (remainingTimes < 0) {
-                            throw new IllegalStateException(
-                                    "Invalid state: count <= 0 for record: " + currentRecord);
-                        }
-                        return currentRecord;
+                    if (hasNext()) {
+                        RowData recordToReturn = nextRecord;
+                        nextRecord = null; // Consume the record
+                        return recordToReturn;
                     }
+                    throw new NoSuchElementException();
                 }
 
                 @Override
@@ -353,8 +273,168 @@ public final class MultiJoinStateViews {
         }
 
         @Override
-        public void cleanup(RowData mapKey) throws Exception {
-            recordState.remove(mapKey);
+        public void cleanup(RowData joinKey) throws Exception {
+            Iterator<Map.Entry<RowData, RowData>> iterator = recordState.iterator();
+            if (iterator == null) {
+                return;
+            }
+            List<RowData> keysToRemove = new ArrayList<>();
+            while (iterator.hasNext()) {
+                Map.Entry<RowData, RowData> entry = iterator.next();
+                RowData compositeKey = entry.getKey();
+                RowData currentJoinKey = compositeKey.getRow(0, joinKeyType.getArity());
+                if (joinKey.equals(currentJoinKey)) {
+                    keysToRemove.add(compositeKey);
+                }
+            }
+            for (RowData keyToRemove : keysToRemove) {
+                recordState.remove(keyToRemove);
+            }
+        }
+    }
+
+    /**
+     * State view for input sides that do not have a unique key (multi-set semantics).
+     *
+     * <p>Stores data as {@code MapState<CompositeKey<JoinKey, Record>, Count>}. The composite key
+     * is a RowData with 2 fields: joinKey and record.
+     */
+    private static final class InputSideHasNoUniqueKey implements MultiJoinStateView {
+
+        // stores count in the mapping <(JoinKey, Record), Count>
+        private final MapState<RowData, Integer> recordState;
+        private final InternalTypeInfo<RowData> joinKeyType;
+        private final InternalTypeInfo<RowData> recordType; // Needed for composite key construction
+
+        private InputSideHasNoUniqueKey(
+                RuntimeContext ctx,
+                final String stateName,
+                final InternalTypeInfo<RowData> joinKeyType,
+                final InternalTypeInfo<RowData> recordType,
+                final StateTtlConfig ttlConfig) {
+            this.joinKeyType = joinKeyType;
+            this.recordType = recordType;
+
+            // Composite key type: RowData with 2 fields (joinKey, record)
+            // TODO Gustavo: there is probably a cleaner way of instantiating the type
+            final RowType keyRowType = RowType.of(joinKeyType.toRowType(), recordType.toRowType());
+            InternalTypeInfo<RowData> compositeKeyType = InternalTypeInfo.ofFields(keyRowType);
+
+            MapStateDescriptor<RowData, Integer> recordStateDesc =
+                    createStateDescriptor(stateName, compositeKeyType, Types.INT, ttlConfig);
+
+            this.recordState = ctx.getMapState(recordStateDesc);
+        }
+
+        private RowData createCompositeKey(RowData joinKey, RowData record) {
+            GenericRowData compositeKey = new GenericRowData(2);
+            compositeKey.setField(0, joinKey);
+            compositeKey.setField(1, record);
+            return compositeKey;
+        }
+
+        @Override
+        public void addRecord(RowData joinKey, RowData record) throws Exception {
+            // Normalize RowKind for consistent state representation
+            RowKind originalKind = record.getRowKind();
+            record.setRowKind(RowKind.INSERT);
+            RowData compositeKey = createCompositeKey(joinKey, record);
+
+            Integer currentCount = recordState.get(compositeKey);
+            if (currentCount == null) {
+                currentCount = 0;
+            }
+            recordState.put(compositeKey, currentCount + 1);
+            record.setRowKind(originalKind); // Restore original RowKind after key creation
+        }
+
+        @Override
+        public void retractRecord(RowData joinKey, RowData record) throws Exception {
+            // Normalize RowKind for consistent state representation and lookup
+            RowKind originalKind = record.getRowKind();
+            record.setRowKind(RowKind.INSERT);
+            RowData compositeKey = createCompositeKey(joinKey, record);
+
+            Integer currentCount = recordState.get(compositeKey);
+            if (currentCount != null) {
+                if (currentCount > 1) {
+                    recordState.put(compositeKey, currentCount - 1);
+                } else {
+                    recordState.remove(compositeKey);
+                }
+            }
+            record.setRowKind(originalKind); // Restore original RowKind
+        }
+
+        @Override
+        public Iterable<RowData> getRecords(RowData joinKey) throws Exception {
+            Iterator<Map.Entry<RowData, Integer>> stateIterator = recordState.iterator();
+            if (stateIterator == null) {
+                return Collections.emptyList();
+            }
+
+            //noinspection NullableProblems // TODO Gustavo can we not supress?
+            return new IterableIterator<>() {
+                private RowData currentRecord = null;
+                private int remainingTimes = 0;
+
+                @Override
+                public boolean hasNext() {
+                    if (remainingTimes > 0) {
+                        return true;
+                    }
+                    while (stateIterator.hasNext()) {
+                        Map.Entry<RowData, Integer> currentEntry = stateIterator.next();
+                        RowData compositeKey = currentEntry.getKey();
+                        RowData currentJoinKey = compositeKey.getRow(0, joinKeyType.getArity());
+                        if (joinKey.equals(currentJoinKey)) {
+                            // The record is the second part of the composite key
+                            currentRecord = compositeKey.getRow(1, recordType.getArity());
+                            remainingTimes = currentEntry.getValue();
+                            if (remainingTimes > 0) {
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                }
+
+                @Override
+                public RowData next() {
+                    if (!hasNext()) {
+                        throw new NoSuchElementException();
+                    }
+                    checkNotNull(currentRecord);
+                    remainingTimes--;
+
+                    return currentRecord;
+                }
+
+                @Override
+                public Iterator<RowData> iterator() {
+                    return this;
+                }
+            };
+        }
+
+        @Override
+        public void cleanup(RowData joinKey) throws Exception {
+            Iterator<Map.Entry<RowData, Integer>> iterator = recordState.iterator();
+            if (iterator == null) {
+                return;
+            }
+            List<RowData> keysToRemove = new ArrayList<>();
+            while (iterator.hasNext()) {
+                Map.Entry<RowData, Integer> entry = iterator.next();
+                RowData compositeKey = entry.getKey();
+                RowData currentJoinKey = compositeKey.getRow(0, joinKeyType.getArity());
+                if (joinKey.equals(currentJoinKey)) {
+                    keysToRemove.add(compositeKey);
+                }
+            }
+            for (RowData keyToRemove : keysToRemove) {
+                recordState.remove(keyToRemove);
+            }
         }
     }
 }
