@@ -33,9 +33,7 @@ jobs:
     steps:
       - task: UsePythonVersion@0
         inputs:
-          # pinning to 3.8.x to avoid issues with cibuildwheel for macOS with python 3.8 wheel,
-          # if drop support of 3.8,  change to 3.x
-          versionSpec: '3.8'
+          versionSpec: '3.11'
       - script: |
           cd flink-python
           python -m pip install --upgrade pip
