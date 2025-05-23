@@ -88,7 +88,7 @@ public interface JoinKeyExtractor extends Serializable {
      * @return A {@link RowData} representing the common key, or a default key if no common
      *     attributes exist or cannot be determined for this input.
      */
-    RowData getCommonKey(RowData row, int inputId);
+    RowData getCommonJoinKey(RowData row, int inputId);
 
     /**
      * Gets the type information for the common key for a specific input.
@@ -96,5 +96,5 @@ public interface JoinKeyExtractor extends Serializable {
      * @param inputId The ID of the input stream.
      * @return The {@link InternalTypeInfo} for the common key type.
      */
-    InternalTypeInfo<RowData> getCommonKeyType(int inputId);
+    InternalTypeInfo<RowData> getCommonJoinKeyType(int inputId);
 }
