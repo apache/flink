@@ -470,6 +470,7 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
 
         switch (functionInstance.getKind()) {
             case SCALAR:
+            case ASYNC_SCALAR:
             case TABLE:
                 return BridgingSqlFunction.of(
                         serdeContext.getFlinkContext(),
