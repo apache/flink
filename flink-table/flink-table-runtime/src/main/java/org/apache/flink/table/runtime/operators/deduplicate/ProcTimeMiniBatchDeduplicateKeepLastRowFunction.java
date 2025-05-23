@@ -112,6 +112,7 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunction
                         equaliser);
             } else if (filterCondition != null) {
                 processLastRowOnChangelogWithFilter(
+                        FilterCondition.Context.INVALID_CONTEXT,
                         currentRow,
                         generateUpdateBefore,
                         state,

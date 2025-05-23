@@ -342,7 +342,7 @@ class LookupJoinHarnessTest {
         }
 
         @Override
-        public boolean apply(RowData in) {
+        public boolean apply(Context ctx, RowData in) {
             // a pre-filter that will not affect the final result
             return !in.isNullAt(1);
         }

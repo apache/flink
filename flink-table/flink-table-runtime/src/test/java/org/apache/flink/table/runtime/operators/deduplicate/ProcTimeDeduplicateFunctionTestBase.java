@@ -77,7 +77,7 @@ abstract class ProcTimeDeduplicateFunctionTestBase {
 
     private static class TestingFilter implements FilterCondition {
         @Override
-        public boolean apply(RowData input) {
+        public boolean apply(Context ctx, RowData input) {
             return input.getInt(2) > 10;
         }
 
