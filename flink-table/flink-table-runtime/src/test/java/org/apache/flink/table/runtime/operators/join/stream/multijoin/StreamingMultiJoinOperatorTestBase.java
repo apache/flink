@@ -377,7 +377,7 @@ public abstract class StreamingMultiJoinOperatorTestBase {
 
         @Override
         public RowData getKey(RowData value) {
-            return keyExtractor.getCommonKey(value, inputIndex);
+            return keyExtractor.getCommonJoinKey(value, inputIndex);
         }
     }
 

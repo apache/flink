@@ -72,8 +72,8 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
     private final Map<Integer, List<Integer>> inputKeyFieldIndices;
 
     // Fields for common key logic
-    private final Map<Integer, List<KeyExtractor>> commonKeyExtractors;
-    private final Map<Integer, InternalTypeInfo<RowData>> commonKeyTypes;
+    private final Map<Integer, List<KeyExtractor>> commonJoinKeyExtractors;
+    private final Map<Integer, InternalTypeInfo<RowData>> commonJoinKeyTypes;
 
     /**
      * Creates an AttributeBasedJoinKeyExtractor.
@@ -90,8 +90,8 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
         this.inputTypes = inputTypes;
         this.currentRowsFieldIndices = new HashMap<>();
         this.inputKeyFieldIndices = new HashMap<>();
-        this.commonKeyExtractors = new HashMap<>();
-        this.commonKeyTypes = new HashMap<>();
+        this.commonJoinKeyExtractors = new HashMap<>();
+        this.commonJoinKeyTypes = new HashMap<>();
 
         // Eagerly initialize the caches for key extraction
         if (this.inputTypes != null) {
@@ -101,7 +101,7 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
             }
         }
 
-        initializeCommonKeyStructures();
+        initializeCommonJoinKeyStructures();
     }
 
     @Override
@@ -272,35 +272,35 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
     // ==================== Common Key Methods ====================
 
     @Override
-    public RowData getCommonKey(RowData row, int inputId) {
-        List<KeyExtractor> extractors = commonKeyExtractors.get(inputId);
+    public RowData getCommonJoinKey(RowData row, int inputId) {
+        List<KeyExtractor> extractors = commonJoinKeyExtractors.get(inputId);
         // If inputId is not in the map (e.g., inputTypes was empty), or list is empty
         if (extractors == null || extractors.isEmpty()) {
             return DEFAULT_KEY;
         }
 
-        GenericRowData commonKeyRow = new GenericRowData(extractors.size());
-        // The KeyExtractors in commonKeyExtractors are already set up with inputIdToAccess =
+        GenericRowData commonJoinKeyRow = new GenericRowData(extractors.size());
+        // The KeyExtractors in commonJoinKeyExtractors are already set up with inputIdToAccess =
         // inputId
         RowData[] tempRows = new RowData[inputId + 1]; // Max index needed is inputId
         tempRows[inputId] = row;
 
         for (int i = 0; i < extractors.size(); i++) {
-            commonKeyRow.setField(i, extractors.get(i).getValue(tempRows));
+            commonJoinKeyRow.setField(i, extractors.get(i).getValue(tempRows));
         }
-        return commonKeyRow;
+        return commonJoinKeyRow;
     }
 
     @Override
-    public InternalTypeInfo<RowData> getCommonKeyType(int inputId) {
-        return commonKeyTypes.getOrDefault(inputId, DEFAULT_KEY_TYPE);
+    public InternalTypeInfo<RowData> getCommonJoinKeyType(int inputId) {
+        return commonJoinKeyTypes.getOrDefault(inputId, DEFAULT_KEY_TYPE);
     }
 
-    private void initializeCommonKeyStructures() {
+    private void initializeCommonJoinKeyStructures() {
         if (inputTypes.isEmpty() || joinAttributeMap.isEmpty()) {
             for (int i = 0; i < inputTypes.size(); i++) {
-                this.commonKeyExtractors.put(i, Collections.emptyList());
-                this.commonKeyTypes.put(i, DEFAULT_KEY_TYPE);
+                this.commonJoinKeyExtractors.put(i, Collections.emptyList());
+                this.commonJoinKeyTypes.put(i, DEFAULT_KEY_TYPE);
             }
             return;
         }
@@ -316,8 +316,8 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
 
         if (allAttrRefs.isEmpty()) {
             for (int i = 0; i < inputTypes.size(); i++) {
-                this.commonKeyExtractors.put(i, Collections.emptyList());
-                this.commonKeyTypes.put(i, DEFAULT_KEY_TYPE);
+                this.commonJoinKeyExtractors.put(i, Collections.emptyList());
+                this.commonJoinKeyTypes.put(i, DEFAULT_KEY_TYPE);
             }
             return;
         }
@@ -384,8 +384,8 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
             commonAttrsForThisInput.sort(Comparator.comparingInt(attr -> attr.fieldIndex));
 
             if (commonAttrsForThisInput.isEmpty()) {
-                this.commonKeyExtractors.put(currentInputId, Collections.emptyList());
-                this.commonKeyTypes.put(currentInputId, DEFAULT_KEY_TYPE);
+                this.commonJoinKeyExtractors.put(currentInputId, Collections.emptyList());
+                this.commonJoinKeyTypes.put(currentInputId, DEFAULT_KEY_TYPE);
             } else {
                 List<KeyExtractor> extractors = new ArrayList<>();
                 LogicalType[] keyFieldTypes = new LogicalType[commonAttrsForThisInput.size()];
@@ -401,8 +401,8 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
                     keyFieldNames[i] =
                             originalRowType.getFieldNames().get(attr.fieldIndex) + "_common";
                 }
-                this.commonKeyExtractors.put(currentInputId, extractors);
-                this.commonKeyTypes.put(
+                this.commonJoinKeyExtractors.put(currentInputId, extractors);
+                this.commonJoinKeyTypes.put(
                         currentInputId,
                         InternalTypeInfo.of(RowType.of(keyFieldTypes, keyFieldNames)));
             }
