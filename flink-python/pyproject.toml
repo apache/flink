@@ -23,7 +23,9 @@ requires = [
     "wheel",
     "apache-beam>=2.43.0,<2.49.0",
     "cython>=0.29.24",
-    "fastavro>=1.1.0,!=1.8.0"
+    "fastavro>=1.1.0,!=1.8.0",
+    "cython>=0.29.24,<3; sys_platform == 'darwin' and python_version == '3.8'",
+    "fastavro==1.7.4; sys_platform == 'darwin' and python_version == '3.8'"
 ]
 
 [tool.cibuildwheel]
