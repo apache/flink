@@ -27,6 +27,7 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
@@ -47,7 +48,14 @@ public class AsyncUtil {
      * @return true if it contains an async function call in the specified node.
      */
     public static boolean containsAsyncCall(RexNode node) {
-        return node.accept(new FunctionFinder(true, true));
+        return node.accept(new FunctionFinder(true, true, null));
+    }
+
+    public static boolean containsAsyncCall(RexNode node, FunctionKind functionKind) {
+        Preconditions.checkArgument(
+                functionKind == FunctionKind.ASYNC_SCALAR
+                        || functionKind == FunctionKind.ASYNC_TABLE);
+        return node.accept(new FunctionFinder(true, true, functionKind));
     }
 
     /**
@@ -57,7 +65,14 @@ public class AsyncUtil {
      * @return true if it contains a non-async function call in the specified node.
      */
     public static boolean containsNonAsyncCall(RexNode node) {
-        return node.accept(new FunctionFinder(false, true));
+        return node.accept(new FunctionFinder(false, true, null));
+    }
+
+    public static boolean containsNonAsyncCall(RexNode node, FunctionKind functionKind) {
+        Preconditions.checkArgument(
+                functionKind == FunctionKind.ASYNC_SCALAR
+                        || functionKind == FunctionKind.ASYNC_TABLE);
+        return node.accept(new FunctionFinder(false, true, functionKind));
     }
 
     /**
@@ -67,7 +82,14 @@ public class AsyncUtil {
      * @return true if the specified node is an async function call.
      */
     public static boolean isAsyncCall(RexNode node) {
-        return node.accept(new FunctionFinder(true, false));
+        return node.accept(new FunctionFinder(true, false, null));
+    }
+
+    public static boolean isAsyncCall(RexNode node, FunctionKind functionKind) {
+        Preconditions.checkArgument(
+                functionKind == FunctionKind.ASYNC_SCALAR
+                        || functionKind == FunctionKind.ASYNC_TABLE);
+        return node.accept(new FunctionFinder(true, false, functionKind));
     }
 
     /**
@@ -77,7 +99,14 @@ public class AsyncUtil {
      * @return true if the specified node is a non-async function call.
      */
     public static boolean isNonAsyncCall(RexNode node) {
-        return node.accept(new FunctionFinder(false, false));
+        return node.accept(new FunctionFinder(false, false, null));
+    }
+
+    public static boolean isNonAsyncCall(RexNode node, FunctionKind functionKind) {
+        Preconditions.checkArgument(
+                functionKind == FunctionKind.ASYNC_SCALAR
+                        || functionKind == FunctionKind.ASYNC_TABLE);
+        return node.accept(new FunctionFinder(false, false, functionKind));
     }
 
     /**
@@ -86,7 +115,7 @@ public class AsyncUtil {
      * @param config The config from which to fetch the options
      * @return Extracted options
      */
-    public static AsyncUtil.Options getAsyncOptions(ExecNodeConfig config) {
+    public static AsyncUtil.Options getAsyncScalarOptions(ExecNodeConfig config) {
         return new AsyncUtil.Options(
                 config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_BUFFER_CAPACITY),
                 config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_TIMEOUT).toMillis(),
@@ -95,6 +124,23 @@ public class AsyncUtil {
                         config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_RETRY_STRATEGY),
                         config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_RETRY_DELAY),
                         config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_MAX_ATTEMPTS)));
+    }
+
+    /**
+     * Gets the options required to run the operator.
+     *
+     * @param config The config from which to fetch the options
+     * @return Extracted options
+     */
+    public static AsyncUtil.Options getAsyncTableOptions(ExecNodeConfig config) {
+        return new AsyncUtil.Options(
+                config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_BUFFER_CAPACITY),
+                config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_TIMEOUT).toMillis(),
+                AsyncDataStream.OutputMode.ORDERED,
+                getResultRetryStrategy(
+                        config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_RETRY_STRATEGY),
+                        config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_RETRY_DELAY),
+                        config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_MAX_ATTEMPTS)));
     }
 
     /** Options for configuring async behavior. */
@@ -161,10 +207,12 @@ public class AsyncUtil {
 
         private final boolean findAsyncCall;
         private final boolean recursive;
+        private final FunctionKind functionKind;
 
-        public FunctionFinder(boolean findAsyncCall, boolean recursive) {
+        public FunctionFinder(boolean findAsyncCall, boolean recursive, FunctionKind functionKind) {
             this.findAsyncCall = findAsyncCall;
             this.recursive = recursive;
+            this.functionKind = functionKind;
         }
 
         @Override
@@ -174,7 +222,11 @@ public class AsyncUtil {
 
         private boolean isImmediateAsyncCall(RexCall call) {
             FunctionDefinition definition = ShortcutUtils.unwrapFunctionDefinition(call);
-            return definition != null && definition.getKind() == FunctionKind.ASYNC_SCALAR;
+            return definition != null
+                    && ((functionKind != null && definition.getKind() == functionKind)
+                            || (functionKind == null
+                                    && (definition.getKind() == FunctionKind.ASYNC_SCALAR
+                                            || definition.getKind() == FunctionKind.ASYNC_TABLE)));
         }
 
         @Override

@@ -43,6 +43,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
+import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.getParameterizedType;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.collectAnnotationsOfClass;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.collectAnnotationsOfMethod;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.extractionError;
@@ -208,7 +209,8 @@ final class FunctionMappingExtractor extends BaseMappingExtractor {
      * Verification that checks a method by parameters (arguments only) with mandatory {@link
      * CompletableFuture}.
      */
-    static MethodVerification createParameterAndCompletableFutureVerification(Class<?> baseClass) {
+    static MethodVerification createParameterAndCompletableFutureVerification(
+            Class<?> baseClass, @Nullable Class<?> nestedArgumentClass) {
         return (method, state, arguments, result) -> {
             checkNoState(state);
             checkScalarArgumentsOnly(arguments);
@@ -220,10 +222,23 @@ final class FunctionMappingExtractor extends BaseMappingExtractor {
             final Class<?> resultClass = result.toClass();
             Type genericType = method.getGenericParameterTypes()[0];
             genericType = resolveVariableWithClassContext(baseClass, genericType);
-            if (!(genericType instanceof ParameterizedType)) {
+            Optional<ParameterizedType> parameterized = getParameterizedType(genericType);
+            if (!parameterized.isPresent()) {
                 throw extractionError(
                         "The method '%s' needs generic parameters for the CompletableFuture at position %d.",
                         method.getName(), 0);
+            }
+            // If nestedArgumentClass is given, it is assumed to be a generic parameters of
+            // argumentClass, also at the position genericPos
+            if (nestedArgumentClass != null) {
+                genericType = parameterized.get().getActualTypeArguments()[0];
+                parameterized = getParameterizedType(genericType);
+                if (!parameterized.isPresent()
+                        || !parameterized.get().getRawType().equals(nestedArgumentClass)) {
+                    throw extractionError(
+                            "The method '%s' expects nested generic type CompletableFuture<%s> for the %d arg.",
+                            method.getName(), nestedArgumentClass.getName(), 0);
+                }
             }
             final Type returnType = ((ParameterizedType) genericType).getActualTypeArguments()[0];
             Class<?> returnTypeClass = getClassFromType(returnType);

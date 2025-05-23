@@ -45,6 +45,7 @@ import org.apache.flink.table.types.inference.TypeStrategy;
 
 import javax.annotation.Nullable;
 
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -106,7 +107,7 @@ public final class TypeInferenceExtractor {
                         null,
                         null,
                         createOutputFromGenericInMethod(0, 0, true),
-                        createParameterAndCompletableFutureVerification(function));
+                        createParameterAndCompletableFutureVerification(function, null));
         return extractTypeInference(mappingExtractor, false);
     }
 
@@ -172,7 +173,8 @@ public final class TypeInferenceExtractor {
                         null,
                         null,
                         createOutputFromGenericInClass(AsyncTableFunction.class, 0, true),
-                        createParameterAndCompletableFutureVerification(function));
+                        createParameterAndCompletableFutureVerification(
+                                function, Collection.class));
         return extractTypeInference(mappingExtractor, false);
     }
 
