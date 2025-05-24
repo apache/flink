@@ -414,23 +414,27 @@ class BinaryRowDataTest {
 
     @Test
     void testDecimal() {
-        // 1.compact
+        // 1. compact
         {
             int precision = 4;
             int scale = 2;
-            BinaryRowData row = new BinaryRowData(2);
+            BinaryRowData row = new BinaryRowData(3);
             BinaryRowWriter writer = new BinaryRowWriter(row);
             writer.writeDecimal(0, DecimalData.fromUnscaledLong(5, precision, scale), precision);
             writer.setNullAt(1);
+            writer.writeDecimal(2, null, precision);
             writer.complete();
 
             assertThat(row.getDecimal(0, precision, scale).toString()).isEqualTo("0.05");
             assertThat(row.isNullAt(1)).isTrue();
+            assertThat(row.isNullAt(2)).isTrue();
             row.setDecimal(0, DecimalData.fromUnscaledLong(6, precision, scale), precision);
             assertThat(row.getDecimal(0, precision, scale).toString()).isEqualTo("0.06");
+            row.setDecimal(1, null, precision);
+            assertThat(row.isNullAt(1)).isTrue();
         }
 
-        // 2.not compact
+        // 2. not compact
         {
             int precision = 25;
             int scale = 5;
@@ -449,6 +453,8 @@ class BinaryRowDataTest {
             assertThat(row.isNullAt(1)).isTrue();
             row.setDecimal(0, decimal2, precision);
             assertThat(row.getDecimal(0, precision, scale).toString()).isEqualTo("6.55000");
+            row.setDecimal(1, null, precision);
+            assertThat(row.isNullAt(1)).isTrue();
         }
     }
 
@@ -1060,16 +1066,20 @@ class BinaryRowDataTest {
         // 1. compact
         {
             final int precision = 3;
-            BinaryRowData row = new BinaryRowData(2);
+            BinaryRowData row = new BinaryRowData(3);
             BinaryRowWriter writer = new BinaryRowWriter(row);
             writer.writeTimestamp(0, TimestampData.fromEpochMillis(123L), precision);
             writer.setNullAt(1);
+            writer.writeTimestamp(2, null, precision);
             writer.complete();
 
             assertThat(row.getTimestamp(0, 3).toString()).isEqualTo("1970-01-01T00:00:00.123");
             assertThat(row.isNullAt(1)).isTrue();
+            assertThat(row.isNullAt(2)).isTrue();
             row.setTimestamp(0, TimestampData.fromEpochMillis(-123L), precision);
             assertThat(row.getTimestamp(0, 3).toString()).isEqualTo("1969-12-31T23:59:59.877");
+            row.setTimestamp(1, null, precision);
+            assertThat(row.isNullAt(2)).isTrue();
         }
 
         // 2. not compact
