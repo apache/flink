@@ -69,12 +69,6 @@ public final class SliceAssigners {
         return new TumblingSliceAssigner(rowtimeIndex, shiftTimeZone, size.toMillis(), 0);
     }
 
-    public static TumblingSliceAssigner tumbling(
-            int rowtimeIndex, ZoneId shiftTimeZone, Duration size, Duration offset) {
-        return new TumblingSliceAssigner(
-                rowtimeIndex, shiftTimeZone, size.toMillis(), offset.toMillis());
-    }
-
     /**
      * Creates a hopping window {@link SliceAssigner} that assigns elements to slices of hopping
      * windows.

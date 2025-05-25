@@ -616,8 +616,8 @@ class SlicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
     @TestTemplate
     public void testEventTimeTumblingWindowsWithOffset() throws Exception {
         final SliceAssigner assigner =
-                SliceAssigners.tumbling(
-                        2, shiftTimeZone, Duration.ofSeconds(3), Duration.ofSeconds(1));
+                SliceAssigners.tumbling(2, shiftTimeZone, Duration.ofSeconds(3))
+                        .withOffset(Duration.ofSeconds(1));
         final SlicingSumAndCountAggsFunction aggsFunction =
                 new SlicingSumAndCountAggsFunction(assigner);
         OneInputStreamOperator<RowData, RowData> operator =
