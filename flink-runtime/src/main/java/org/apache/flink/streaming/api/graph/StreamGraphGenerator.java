@@ -93,6 +93,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -438,16 +439,26 @@ public class StreamGraphGenerator {
     }
 
     private boolean existsUnboundedSource() {
+        final HashSet<Integer> checkedTransformations = new HashSet<>();
         return transformations.stream()
                 .anyMatch(
                         transformation ->
-                                isUnboundedSource(transformation)
+                                isUnboundedSource(transformation, checkedTransformations)
                                         || transformation.getTransitivePredecessors().stream()
-                                                .anyMatch(this::isUnboundedSource));
+                                                .anyMatch(
+                                                        t ->
+                                                                isUnboundedSource(
+                                                                        t,
+                                                                        checkedTransformations)));
     }
 
-    private boolean isUnboundedSource(final Transformation<?> transformation) {
+    private boolean isUnboundedSource(
+            final Transformation<?> transformation, HashSet<Integer> checkedTransformations) {
         checkNotNull(transformation);
+        if (checkedTransformations.contains(transformation.getId())) {
+            return false;
+        }
+        checkedTransformations.add(transformation.getId());
         return transformation instanceof WithBoundedness
                 && ((WithBoundedness) transformation).getBoundedness() != Boundedness.BOUNDED;
     }
