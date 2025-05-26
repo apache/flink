@@ -46,6 +46,8 @@ import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.tryConf
  * {@link LogRecordExporter}.
  */
 public class OpenTelemetryEventReporter extends OpenTelemetryReporterBase implements EventReporter {
+    public static final String NAME_ATTRIBUTE = "name";
+
     private static final Logger LOG = LoggerFactory.getLogger(OpenTelemetryEventReporter.class);
     private LogRecordExporter logRecordExporter;
     private SdkLoggerProvider loggerProvider;
@@ -84,6 +86,7 @@ public class OpenTelemetryEventReporter extends OpenTelemetryReporterBase implem
         io.opentelemetry.api.logs.Logger logger = loggerProvider.get(event.getClassScope());
         LogRecordBuilder logRecordBuilder = logger.logRecordBuilder();
 
+        logRecordBuilder.setAttribute(AttributeKey.stringKey(NAME_ATTRIBUTE), event.getName());
         event.getAttributes().forEach(setAttribute(logRecordBuilder));
 
         logRecordBuilder.setObservedTimestamp(event.getObservedTsMillis(), TimeUnit.MILLISECONDS);
