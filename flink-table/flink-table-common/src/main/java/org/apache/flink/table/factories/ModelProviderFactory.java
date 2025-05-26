@@ -34,7 +34,7 @@ import org.apache.flink.table.ml.ModelProvider;
  * <p>See {@link Factory} for more information about the general design of a factory.
  */
 @PublicEvolving
-public interface ModelProviderFactory {
+public interface ModelProviderFactory extends Factory {
 
     /** Create ModelProvider based on provider. */
     ModelProvider createModelProvider(Context context);
