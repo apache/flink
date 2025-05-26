@@ -38,10 +38,10 @@ This method returns a `MetricGroup` object via which you can report a new single
 ### Reporting single Span
 
 
-A `Span` represents something that happened in Flink at certain point of time, that will be reported to a `TraceReporter`.
+A `Span` represents some process that happened in Flink at certain point of time for a certain duration, that will be reported to a `TraceReporter`.
 To report a `Span` you can use the `MetricGroup#addSpan(SpanBuilder)` method.
 
-Currently we don't support traces with multiple spans. Each `Span` is self-contained and represents things like a checkpoint or recovery.
+Currently, we don't support traces with multiple spans. Each `Span` is self-contained and represents things like a checkpoint or recovery.
 {{< tabs "9612d275-bdda-4322-a01f-ae6da805e917" >}}
 {{< tab "Java" >}}
 ```java
