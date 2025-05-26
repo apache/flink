@@ -26,6 +26,7 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.types.RowKind;
 
 import org.junit.Test;
@@ -39,13 +40,12 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterR
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Test for {@link NonTimeRangeUnboundedPrecedingFunction}. */
-public class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBase {
+/** Test for {@link NonTimeRowsUnboundedPrecedingFunction}. */
+public class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBase {
 
-    private NonTimeRangeUnboundedPrecedingFunction<RowData>
-            getNonTimeRangeUnboundedPrecedingFunction(
-                    long retentionTime, GeneratedRecordComparator generatedSortKeyComparator) {
-        return new NonTimeRangeUnboundedPrecedingFunction<>(
+    private NonTimeRowsUnboundedPrecedingFunction<RowData> getNonTimeRowsUnboundedPrecedingFunction(
+            long retentionTime, GeneratedRecordComparator generatedSortKeyComparator) {
+        return new NonTimeRowsUnboundedPrecedingFunction<RowData>(
                 retentionTime,
                 aggsHandleFunction,
                 GENERATED_ROW_VALUE_EQUALISER,
@@ -55,14 +55,14 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindo
                 inputFieldTypes,
                 SORT_KEY_TYPES,
                 SORT_KEY_SELECTOR,
-                InternalTypeInfo.ofFields(SORT_KEY_TYPES)) {};
+                InternalTypeInfo.ofFields(new BigIntType())) {};
     }
 
     @Test
     public void testInsertOnlyRecordsWithCustomSortKey() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
-                        getNonTimeRangeUnboundedPrecedingFunction(
+                        getNonTimeRowsUnboundedPrecedingFunction(
                                 0L, GENERATED_SORT_KEY_COMPARATOR_ASC));
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
@@ -103,7 +103,7 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindo
     public void testInsertOnlyRecordsWithDuplicateSortKeys() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
-                        getNonTimeRangeUnboundedPrecedingFunction(
+                        getNonTimeRowsUnboundedPrecedingFunction(
                                 0L, GENERATED_SORT_KEY_COMPARATOR_ASC));
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
@@ -130,46 +130,34 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindo
                         outputRecord(RowKind.INSERT, "key1", 1L, 100L, 1L),
                         outputRecord(RowKind.INSERT, "key1", 2L, 200L, 3L),
                         outputRecord(RowKind.INSERT, "key1", 5L, 500L, 8L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 8L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 13L),
                         outputRecord(RowKind.INSERT, "key1", 5L, 502L, 13L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 13L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 18L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 502L, 13L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 502L, 18L),
                         outputRecord(RowKind.INSERT, "key1", 5L, 501L, 18L),
                         outputRecord(RowKind.INSERT, "key1", 6L, 600L, 24L),
                         outputRecord(RowKind.INSERT, "key2", 1L, 100L, 1L),
                         outputRecord(RowKind.INSERT, "key2", 2L, 200L, 3L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 2L, 200L, 3L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 2L, 200L, 5L),
                         outputRecord(RowKind.INSERT, "key1", 2L, 203L, 5L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 18L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 20L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 502L, 18L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 502L, 20L),
+                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 8L),
+                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 10L),
+                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 502L, 13L),
+                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 502L, 15L),
                         outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 501L, 18L),
                         outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 501L, 20L),
                         outputRecord(RowKind.UPDATE_BEFORE, "key1", 6L, 600L, 24L),
                         outputRecord(RowKind.UPDATE_AFTER, "key1", 6L, 600L, 26L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 2L, 200L, 5L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 2L, 200L, 7L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 2L, 203L, 5L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 2L, 203L, 7L),
                         outputRecord(RowKind.INSERT, "key1", 2L, 201L, 7L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 20L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 22L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 502L, 20L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 502L, 22L),
+                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 10L),
+                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 12L),
+                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 502L, 15L),
+                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 502L, 17L),
                         outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 501L, 20L),
                         outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 501L, 22L),
                         outputRecord(RowKind.UPDATE_BEFORE, "key1", 6L, 600L, 26L),
                         outputRecord(RowKind.UPDATE_AFTER, "key1", 6L, 600L, 28L),
                         outputRecord(RowKind.INSERT, "key1", 4L, 400L, 11L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 22L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 26L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 502L, 22L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 502L, 26L),
+                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 12L),
+                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 16L),
+                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 502L, 17L),
+                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 502L, 21L),
                         outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 501L, 22L),
                         outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 501L, 26L),
                         outputRecord(RowKind.UPDATE_BEFORE, "key1", 6L, 600L, 28L),
@@ -183,7 +171,7 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindo
     public void testRetractingRecordsWithCustomSortKey() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
-                        getNonTimeRangeUnboundedPrecedingFunction(
+                        getNonTimeRowsUnboundedPrecedingFunction(
                                 0L, GENERATED_SORT_KEY_COMPARATOR_ASC));
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
@@ -251,7 +239,7 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindo
     public void testRetractWithFirstDuplicateSortKey() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
-                        getNonTimeRangeUnboundedPrecedingFunction(
+                        getNonTimeRowsUnboundedPrecedingFunction(
                                 0L, GENERATED_SORT_KEY_COMPARATOR_ASC));
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
@@ -272,22 +260,14 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindo
                 Arrays.asList(
                         outputRecord(RowKind.INSERT, "key1", 1L, 100L, 1L),
                         outputRecord(RowKind.INSERT, "key1", 2L, 200L, 3L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 2L, 200L, 3L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 2L, 200L, 5L),
                         outputRecord(RowKind.INSERT, "key1", 2L, 201L, 5L),
                         outputRecord(RowKind.INSERT, "key1", 5L, 500L, 10L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 10L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 15L),
                         outputRecord(RowKind.INSERT, "key1", 5L, 502L, 15L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 15L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 20L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 502L, 15L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 502L, 20L),
                         outputRecord(RowKind.INSERT, "key1", 5L, 501L, 20L),
                         outputRecord(RowKind.INSERT, "key1", 6L, 600L, 26L),
-                        outputRecord(RowKind.DELETE, "key1", 5L, 500L, 20L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 502L, 20L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 502L, 15L),
+                        outputRecord(RowKind.DELETE, "key1", 5L, 500L, 10L),
+                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 502L, 15L),
+                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 502L, 10L),
                         outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 501L, 20L),
                         outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 501L, 15L),
                         outputRecord(RowKind.UPDATE_BEFORE, "key1", 6L, 600L, 26L),
@@ -301,7 +281,7 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindo
     public void testRetractWithMiddleDuplicateSortKey() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
-                        getNonTimeRangeUnboundedPrecedingFunction(
+                        getNonTimeRowsUnboundedPrecedingFunction(
                                 0L, GENERATED_SORT_KEY_COMPARATOR_ASC));
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
@@ -322,22 +302,12 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindo
                 Arrays.asList(
                         outputRecord(RowKind.INSERT, "key1", 1L, 100L, 1L),
                         outputRecord(RowKind.INSERT, "key1", 2L, 200L, 3L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 2L, 200L, 3L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 2L, 200L, 5L),
                         outputRecord(RowKind.INSERT, "key1", 2L, 201L, 5L),
                         outputRecord(RowKind.INSERT, "key1", 5L, 500L, 10L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 10L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 15L),
                         outputRecord(RowKind.INSERT, "key1", 5L, 502L, 15L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 15L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 20L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 502L, 15L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 502L, 20L),
                         outputRecord(RowKind.INSERT, "key1", 5L, 501L, 20L),
                         outputRecord(RowKind.INSERT, "key1", 6L, 600L, 26L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 20L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 15L),
-                        outputRecord(RowKind.DELETE, "key1", 5L, 502L, 20L),
+                        outputRecord(RowKind.DELETE, "key1", 5L, 502L, 15L),
                         outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 501L, 20L),
                         outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 501L, 15L),
                         outputRecord(RowKind.UPDATE_BEFORE, "key1", 6L, 600L, 26L),
@@ -351,7 +321,7 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindo
     public void testRetractWithLastDuplicateSortKey() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
-                        getNonTimeRangeUnboundedPrecedingFunction(
+                        getNonTimeRowsUnboundedPrecedingFunction(
                                 0L, GENERATED_SORT_KEY_COMPARATOR_ASC));
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
@@ -372,23 +342,11 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindo
                 Arrays.asList(
                         outputRecord(RowKind.INSERT, "key1", 1L, 100L, 1L),
                         outputRecord(RowKind.INSERT, "key1", 2L, 200L, 3L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 2L, 200L, 3L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 2L, 200L, 5L),
                         outputRecord(RowKind.INSERT, "key1", 2L, 201L, 5L),
                         outputRecord(RowKind.INSERT, "key1", 5L, 500L, 10L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 10L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 15L),
                         outputRecord(RowKind.INSERT, "key1", 5L, 502L, 15L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 15L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 20L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 502L, 15L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 502L, 20L),
                         outputRecord(RowKind.INSERT, "key1", 5L, 501L, 20L),
                         outputRecord(RowKind.INSERT, "key1", 6L, 600L, 26L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 20L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 15L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 502L, 20L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 502L, 15L),
                         outputRecord(RowKind.DELETE, "key1", 5L, 501L, 20L),
                         outputRecord(RowKind.UPDATE_BEFORE, "key1", 6L, 600L, 26L),
                         outputRecord(RowKind.UPDATE_AFTER, "key1", 6L, 600L, 21L));
@@ -401,7 +359,7 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindo
     public void testRetractWithDescendingSort() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
-                        getNonTimeRangeUnboundedPrecedingFunction(
+                        getNonTimeRowsUnboundedPrecedingFunction(
                                 0L, GENERATED_SORT_KEY_COMPARATOR_DESC));
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
@@ -422,14 +380,12 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindo
                         outputRecord(RowKind.INSERT, "key1", 2L, 200L, 2L),
                         outputRecord(RowKind.UPDATE_BEFORE, "key1", 1L, 100L, 1L),
                         outputRecord(RowKind.UPDATE_AFTER, "key1", 1L, 100L, 3L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 2L, 200L, 2L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 2L, 200L, 4L),
                         outputRecord(RowKind.INSERT, "key1", 2L, 201L, 4L),
                         outputRecord(RowKind.UPDATE_BEFORE, "key1", 1L, 100L, 3L),
                         outputRecord(RowKind.UPDATE_AFTER, "key1", 1L, 100L, 5L),
                         outputRecord(RowKind.INSERT, "key1", 5L, 500L, 5L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 2L, 200L, 4L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 2L, 200L, 9L),
+                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 2L, 200L, 2L),
+                        outputRecord(RowKind.UPDATE_AFTER, "key1", 2L, 200L, 7L),
                         outputRecord(RowKind.UPDATE_BEFORE, "key1", 2L, 201L, 4L),
                         outputRecord(RowKind.UPDATE_AFTER, "key1", 2L, 201L, 9L),
                         outputRecord(RowKind.UPDATE_BEFORE, "key1", 1L, 100L, 5L),
@@ -437,13 +393,13 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindo
                         outputRecord(RowKind.INSERT, "key1", 6L, 600L, 6L),
                         outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 5L),
                         outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 11L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 2L, 200L, 9L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 2L, 200L, 15L),
+                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 2L, 200L, 7L),
+                        outputRecord(RowKind.UPDATE_AFTER, "key1", 2L, 200L, 13L),
                         outputRecord(RowKind.UPDATE_BEFORE, "key1", 2L, 201L, 9L),
                         outputRecord(RowKind.UPDATE_AFTER, "key1", 2L, 201L, 15L),
                         outputRecord(RowKind.UPDATE_BEFORE, "key1", 1L, 100L, 10L),
                         outputRecord(RowKind.UPDATE_AFTER, "key1", 1L, 100L, 16L),
-                        outputRecord(RowKind.DELETE, "key1", 2L, 200L, 15L),
+                        outputRecord(RowKind.DELETE, "key1", 2L, 200L, 13L),
                         outputRecord(RowKind.UPDATE_BEFORE, "key1", 2L, 201L, 15L),
                         outputRecord(RowKind.UPDATE_AFTER, "key1", 2L, 201L, 13L),
                         outputRecord(RowKind.UPDATE_BEFORE, "key1", 1L, 100L, 16L),
@@ -457,7 +413,7 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindo
     public void testRetractWithEarlyOut() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
-                        getNonTimeRangeUnboundedPrecedingFunction(
+                        getNonTimeRowsUnboundedPrecedingFunction(
                                 0L, GENERATED_SORT_KEY_COMPARATOR_ASC));
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
@@ -484,17 +440,9 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindo
                         outputRecord(RowKind.INSERT, "key1", 0L, 102L, 0L),
                         outputRecord(RowKind.INSERT, "key1", 1L, 100L, 1L),
                         outputRecord(RowKind.INSERT, "key1", 2L, 200L, 3L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 2L, 200L, 3L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 2L, 200L, 5L),
                         outputRecord(RowKind.INSERT, "key1", 2L, 201L, 5L),
                         outputRecord(RowKind.INSERT, "key1", 5L, 500L, 10L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 10L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 15L),
                         outputRecord(RowKind.INSERT, "key1", 5L, 502L, 15L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 15L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 20L),
-                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 502L, 15L),
-                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 502L, 20L),
                         outputRecord(RowKind.INSERT, "key1", 5L, 501L, 20L),
                         outputRecord(RowKind.INSERT, "key1", 6L, 600L, 26L),
                         outputRecord(RowKind.DELETE, "key1", 0L, 100L, 0L));
@@ -505,8 +453,8 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindo
 
     @Test
     public void testInsertAndRetractAllWithStateValidation() throws Exception {
-        NonTimeRangeUnboundedPrecedingFunction<RowData> function =
-                getNonTimeRangeUnboundedPrecedingFunction(0L, GENERATED_SORT_KEY_COMPARATOR_ASC);
+        NonTimeRowsUnboundedPrecedingFunction<RowData> function =
+                getNonTimeRowsUnboundedPrecedingFunction(0L, GENERATED_SORT_KEY_COMPARATOR_ASC);
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(function);
 
@@ -565,7 +513,7 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindo
         validateState(function, firstRecord, 0, 0, -1, 0, 0, 0, false);
 
         List<RowData> actualRows = testHarness.extractOutputValues();
-        assertThat(actualRows.size()).isEqualTo(40);
+        assertThat(actualRows.size()).isEqualTo(28);
         assertThat(function.getNumOfSortKeysNotFound().getCount()).isEqualTo(0L);
         assertThat(function.getNumOfIdsNotFound().getCount()).isEqualTo(0L);
     }
@@ -573,8 +521,8 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindo
     @Test
     public void testInsertWithStateTTLExpiration() throws Exception {
         Duration stateTtlTime = Duration.ofMillis(10);
-        NonTimeRangeUnboundedPrecedingFunction<RowData> function =
-                getNonTimeRangeUnboundedPrecedingFunction(
+        NonTimeRowsUnboundedPrecedingFunction<RowData> function =
+                getNonTimeRowsUnboundedPrecedingFunction(
                         stateTtlTime.toMillis(), GENERATED_SORT_KEY_COMPARATOR_ASC);
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(function);
@@ -606,7 +554,7 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindo
         validateState(function, fourthRecord, 0, 1, 0, 1, 0, 1, true);
 
         List<RowData> actualRows = testHarness.extractOutputValues();
-        assertThat(actualRows.size()).isEqualTo(6);
+        assertThat(actualRows.size()).isEqualTo(4);
 
         assertThat(function.getNumOfSortKeysNotFound().getCount()).isEqualTo(0L);
         assertThat(function.getNumOfIdsNotFound().getCount()).isEqualTo(0L);
@@ -615,8 +563,8 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindo
     @Test
     public void testInsertAndRetractWithStateTTLExpiration() throws Exception {
         Duration stateTtlTime = Duration.ofMillis(10);
-        NonTimeRangeUnboundedPrecedingFunction<RowData> function =
-                getNonTimeRangeUnboundedPrecedingFunction(
+        NonTimeRowsUnboundedPrecedingFunction<RowData> function =
+                getNonTimeRowsUnboundedPrecedingFunction(
                         stateTtlTime.toMillis(), GENERATED_SORT_KEY_COMPARATOR_ASC);
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(function);
@@ -663,14 +611,14 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindo
         assertThat(idValue).isNull();
 
         List<RowData> actualRows = testHarness.extractOutputValues();
-        assertThat(actualRows.size()).isEqualTo(9);
+        assertThat(actualRows.size()).isEqualTo(5);
 
         assertThat(function.getNumOfSortKeysNotFound().getCount()).isEqualTo(1L);
         assertThat(function.getNumOfIdsNotFound().getCount()).isEqualTo(0L);
     }
 
     void validateNumAccRows(int numAccRows, int expectedNumAccRows, int totalRows) {
-        assertThat(numAccRows).isEqualTo(expectedNumAccRows);
+        assertThat(numAccRows).isEqualTo(totalRows);
     }
 
     void validateEntry(
@@ -679,7 +627,7 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindo
         assertThat(
                         function.getRuntimeContext()
                                 .getMapState(function.accStateDescriptor)
-                                .get(SORT_KEY_SELECTOR.getKey(record)))
+                                .get(GenericRowData.of(Long.MIN_VALUE + idOffset)))
                 .isNotNull();
     }
 }
