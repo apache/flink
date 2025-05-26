@@ -134,6 +134,7 @@ import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlMatchRecognize;
 import org.apache.calcite.sql.SqlMerge;
+import org.apache.calcite.sql.SqlModelCall;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlNumericLiteral;
@@ -5833,6 +5834,11 @@ public class SqlToRelConverter {
                 // when converting to RexNode.
                 validator().setValidatedNodeType(permutedCall, typeIfKnown);
             }
+
+            if (permutedCall instanceof SqlModelCall) {
+                return ((SqlModelCall) permutedCall).getModel().toRex(getCluster(), getValidator());
+            }
+
             return exprConverter.convertCall(this, permutedCall);
             // ----- FLINK MODIFICATION END -----
         }
