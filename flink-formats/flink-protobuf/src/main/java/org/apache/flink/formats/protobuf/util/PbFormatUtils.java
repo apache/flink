@@ -134,4 +134,12 @@ public class PbFormatUtils {
     public static boolean isArrayType(LogicalType type) {
         return type instanceof ArrayType;
     }
+
+    public static boolean isRepeatedType(Descriptors.FieldDescriptor fd) {
+        return fd.isRepeated();
+    }
+
+    public static boolean isArrayType(Descriptors.FieldDescriptor fd) {
+        return fd.isRepeated() && !fd.isMapField();
+    }
 }
