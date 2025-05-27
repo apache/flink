@@ -25,6 +25,7 @@ from typing import Dict, Union
 from pyflink.java_gateway import get_gateway
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import DataType, _to_java_data_type
+from pyflink.util.api_stability_decorators import Deprecated
 
 __all__ = [
     'Rowtime',
@@ -32,6 +33,11 @@ __all__ = [
 ]
 
 
+@Deprecated(since="2.1.0", detail="""
+:class:`~pyflink.table.descriptors.Descriptor` was primarily used for the legacy connector stack
+and has been deprecated. Use :class:`~pyflink.table.table_descriptor.TableDescriptor` for
+creating sources and sinks from the Table API.
+""")
 class Descriptor(object, metaclass=ABCMeta):
     """
     Base class of the descriptors that adds a set of string-based, normalized properties for
