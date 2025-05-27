@@ -180,7 +180,17 @@ public class MLPredictTableFunctionTest extends TableTestBase {
                         + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(no_col)))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("Column 'no_col' not found in any table");
+                .hasMessageContaining("Unknown identifier 'no_col'");
+    }
+
+    @Test
+    public void testNonSimpleColumn() {
+        String sql =
+                "SELECT *\n"
+                        + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(MyTable.a)))";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Table or column alias must be a simple identifier");
     }
 
     @ParameterizedTest

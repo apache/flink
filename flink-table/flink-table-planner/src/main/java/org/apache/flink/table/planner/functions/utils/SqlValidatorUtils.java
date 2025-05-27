@@ -35,7 +35,6 @@ import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.validate.SqlNameMatcher;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.util.Pair;
-import org.apache.calcite.util.Util;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -119,12 +118,12 @@ public class SqlValidatorUtils {
         final SqlNameMatcher matcher = validator.getCatalogReader().nameMatcher();
         for (SqlNode columnName : columnNames) {
             SqlIdentifier columnIdentifier = (SqlIdentifier) columnName;
+            if (!columnIdentifier.isSimple()) {
+                throw SqlUtil.newContextException(
+                        columnName.getParserPosition(), RESOURCE.aliasMustBeSimpleIdentifier());
+            }
 
-            // In case of a qualified identifier, we need to check the last name
-            final String name =
-                    columnIdentifier.isSimple()
-                            ? columnIdentifier.getSimple()
-                            : Util.last(columnIdentifier.names);
+            final String name = ((SqlIdentifier) columnName).getSimple();
             if (matcher.indexOf(fieldNames, name) < 0) {
                 throw SqlUtil.newContextException(
                         columnName.getParserPosition(), RESOURCE.unknownIdentifier(name));
