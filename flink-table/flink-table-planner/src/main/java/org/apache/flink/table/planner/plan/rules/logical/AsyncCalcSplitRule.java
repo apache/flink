@@ -18,8 +18,9 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
-import org.apache.flink.table.planner.plan.utils.AsyncScalarUtil;
+import org.apache.flink.table.planner.plan.utils.AsyncUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 
 import org.apache.calcite.plan.RelOptRule;
@@ -41,7 +42,8 @@ import scala.Option;
  */
 public class AsyncCalcSplitRule {
 
-    private static final RemoteCalcCallFinder ASYNC_CALL_FINDER = new AsyncRemoteCalcCallFinder();
+    private static final RemoteCalcCallFinder ASYNC_CALL_FINDER =
+            new AsyncRemoteCalcCallFinder(FunctionKind.ASYNC_SCALAR);
     public static final RelOptRule SPLIT_CONDITION =
             new RemoteCalcSplitConditionRule(ASYNC_CALL_FINDER);
     public static final RelOptRule SPLIT_PROJECT =
@@ -68,27 +70,35 @@ public class AsyncCalcSplitRule {
 
     /**
      * An Async implementation of {@link RemoteCalcCallFinder} which finds uses of {@link
-     * org.apache.flink.table.functions.AsyncScalarFunction}.
+     * org.apache.flink.table.functions.AsyncScalarFunction} and {@link
+     * org.apache.flink.table.functions.AsyncTableFunction}.
      */
     public static class AsyncRemoteCalcCallFinder implements RemoteCalcCallFinder {
+
+        private final FunctionKind functionKind;
+
+        public AsyncRemoteCalcCallFinder(FunctionKind functionKind) {
+            this.functionKind = functionKind;
+        }
+
         @Override
         public boolean containsRemoteCall(RexNode node) {
-            return AsyncScalarUtil.containsAsyncCall(node);
+            return AsyncUtil.containsAsyncCall(node, functionKind);
         }
 
         @Override
         public boolean containsNonRemoteCall(RexNode node) {
-            return AsyncScalarUtil.containsNonAsyncCall(node);
+            return AsyncUtil.containsNonAsyncCall(node, functionKind);
         }
 
         @Override
         public boolean isRemoteCall(RexNode node) {
-            return AsyncScalarUtil.isAsyncCall(node);
+            return AsyncUtil.isAsyncCall(node, functionKind);
         }
 
         @Override
         public boolean isNonRemoteCall(RexNode node) {
-            return AsyncScalarUtil.isNonAsyncCall(node);
+            return AsyncUtil.isNonAsyncCall(node, functionKind);
         }
 
         @Override
@@ -98,7 +108,9 @@ public class AsyncCalcSplitRule {
 
         @Override
         public boolean equals(Object obj) {
-            return obj != null && this.getClass() == obj.getClass();
+            return obj != null
+                    && this.getClass() == obj.getClass()
+                    && functionKind == ((AsyncRemoteCalcCallFinder) obj).functionKind;
         }
 
         @Override
@@ -109,13 +121,13 @@ public class AsyncCalcSplitRule {
 
     private static boolean hasNestedCalls(List<RexNode> projects) {
         return projects.stream()
-                .filter(AsyncScalarUtil::containsAsyncCall)
+                .filter(AsyncUtil::containsAsyncCall)
                 .filter(expr -> expr instanceof RexCall)
                 .map(expr -> (RexCall) expr)
                 .anyMatch(
                         rexCall ->
                                 rexCall.getOperands().stream()
-                                        .anyMatch(AsyncScalarUtil::containsAsyncCall));
+                                        .anyMatch(AsyncUtil::containsAsyncCall));
     }
 
     /**
@@ -204,7 +216,7 @@ public class AsyncCalcSplitRule {
 
         @Override
         public boolean needConvert(RexProgram program, RexNode node, Option<State> matchState) {
-            if (AsyncScalarUtil.containsAsyncCall(node) && !matchState.get().foundMatch) {
+            if (AsyncUtil.containsAsyncCall(node) && !matchState.get().foundMatch) {
                 matchState.get().foundMatch = true;
                 return true;
             }

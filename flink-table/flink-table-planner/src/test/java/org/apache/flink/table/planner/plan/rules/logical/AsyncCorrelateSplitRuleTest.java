@@ -20,6 +20,8 @@ package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.functions.AsyncTableFunction;
+import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.planner.plan.optimize.program.FlinkChainedProgram;
 import org.apache.flink.table.planner.plan.optimize.program.FlinkHepRuleSetProgramBuilder;
 import org.apache.flink.table.planner.plan.optimize.program.HEP_RULES_EXECUTION_TYPE;
@@ -33,6 +35,10 @@ import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 
 /** Test for {@link AsyncCorrelateSplitRule}. */
 public class AsyncCorrelateSplitRuleTest extends TableTestBase {
@@ -63,6 +69,8 @@ public class AsyncCorrelateSplitRuleTest extends TableTestBase {
 
         util.addTemporarySystemFunction("func1", new Func1());
         util.addTemporarySystemFunction("tableFunc", new RandomTableFunction());
+        util.addTemporarySystemFunction("scalar", new ScalarFunc());
+        util.addTemporarySystemFunction("asyncTableFunc", new AsyncFunc());
     }
 
     @Test
@@ -81,5 +89,39 @@ public class AsyncCorrelateSplitRuleTest extends TableTestBase {
     public void testCorrelateIndirectOtherWay() {
         String sqlQuery = "select * FROM MyTable, LATERAL TABLE(tableFunc(func1(ABS(a))))";
         util.verifyRelPlan(sqlQuery);
+    }
+
+    @Test
+    public void testCorrelateWithSystem() {
+        String sqlQuery = "select * FROM MyTable, LATERAL TABLE(asyncTableFunc(ABS(a)))";
+        util.verifyRelPlan(sqlQuery);
+    }
+
+    @Test
+    public void testCorrelateWithScalar() {
+        String sqlQuery = "select * FROM MyTable, LATERAL TABLE(asyncTableFunc(scalar(a)))";
+        util.verifyRelPlan(sqlQuery);
+    }
+
+    @Test
+    public void testCorrelateWithCast() {
+        String sqlQuery =
+                "select * FROM MyTable, LATERAL TABLE(asyncTableFunc(cast(cast(a as int) as int)))";
+        util.verifyRelPlan(sqlQuery);
+    }
+
+    /** Test function. */
+    public static class AsyncFunc extends AsyncTableFunction<String> {
+
+        public void eval(CompletableFuture<Collection<String>> c, Integer i) {
+            c.complete(Arrays.asList("blah " + i, "foo " + i));
+        }
+    }
+
+    /** Test function. */
+    public static class ScalarFunc extends ScalarFunction {
+        public Integer eval(Integer param) {
+            return param + 10;
+        }
     }
 }
