@@ -27,14 +27,13 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.FunctionCodeGenerator.generateFunction
 import org.apache.flink.table.planner.codegen.JsonGenerateUtils.isJsonFunctionOperand
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable.{JSON_ARRAY, JSON_OBJECT}
-import org.apache.flink.table.planner.plan.utils.{AsyncScalarUtil, ConstantFoldingUtil}
+import org.apache.flink.table.planner.plan.utils.{AsyncUtil, ConstantFoldingUtil}
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.planner.utils.Logging
 import org.apache.flink.table.planner.utils.TimestampStringUtils.fromLocalDateTime
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.RowType
-
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName
@@ -266,7 +265,7 @@ class ExpressionReducer(
         // Skip expressions that contain python or async functions because it's quite expensive to
         // call async UDFs during optimization phase. They will be optimized during the runtime.
         case (_, e)
-            if containsPythonCall(e) || AsyncScalarUtil.containsAsyncCall(e) ||
+            if containsPythonCall(e) || AsyncUtil.containsAsyncCall(e) ||
               !ConstantFoldingUtil.supportsConstantFolding(e) =>
           nonReducibleExprs += e
           None

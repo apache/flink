@@ -49,6 +49,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecUnion;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecValues;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecWindowTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecAsyncCalc;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecAsyncCorrelate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecChangelogNormalize;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCorrelate;
@@ -170,6 +171,7 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecPythonCalc.class);
                     add(StreamExecAsyncCalc.class);
                     add(StreamExecProcessTableFunction.class);
+                    add(StreamExecAsyncCorrelate.class);
                     add(StreamExecPythonCorrelate.class);
                     add(StreamExecPythonGroupAggregate.class);
                     add(StreamExecPythonGroupWindowAggregate.class);
