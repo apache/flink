@@ -28,6 +28,7 @@ import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.functions.AsyncScalarFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.FunctionKind;
@@ -81,6 +82,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
@@ -105,15 +107,25 @@ public class RexNodeJsonSerdeTest {
             new FlinkTypeFactory(
                     RexNodeJsonSerdeTest.class.getClassLoader(), FlinkTypeSystem.INSTANCE);
     private static final String FUNCTION_NAME = "MyFunc";
+    private static final String ASYNC_FUNCTION_NAME = "MyAsyncFunc";
     private static final FunctionIdentifier FUNCTION_SYS_ID = FunctionIdentifier.of(FUNCTION_NAME);
     private static final FunctionIdentifier FUNCTION_CAT_ID =
             FunctionIdentifier.of(
                     ObjectIdentifier.of(DEFAULT_CATALOG, DEFAULT_DATABASE, FUNCTION_NAME));
+    private static final FunctionIdentifier ASYNC_FUNCTION_CAT_ID =
+            FunctionIdentifier.of(
+                    ObjectIdentifier.of(DEFAULT_CATALOG, DEFAULT_DATABASE, ASYNC_FUNCTION_NAME));
     private static final UnresolvedIdentifier UNRESOLVED_FUNCTION_CAT_ID =
             UnresolvedIdentifier.of(FUNCTION_CAT_ID.toList());
+    private static final UnresolvedIdentifier UNRESOLVED_ASYNC_FUNCTION_CAT_ID =
+            UnresolvedIdentifier.of(ASYNC_FUNCTION_CAT_ID.toList());
     private static final SerializableScalarFunction SER_UDF_IMPL = new SerializableScalarFunction();
+    private static final SerializableAsyncScalarFunction SER_ASYNC_UDF_IMPL =
+            new SerializableAsyncScalarFunction();
     private static final Class<SerializableScalarFunction> SER_UDF_CLASS =
             SerializableScalarFunction.class;
+    private static final Class<SerializableAsyncScalarFunction> SER_ASYNC_UDF_CLASS =
+            SerializableAsyncScalarFunction.class;
     private static final OtherSerializableScalarFunction SER_UDF_IMPL_OTHER =
             new OtherSerializableScalarFunction();
     private static final Class<OtherSerializableScalarFunction> SER_UDF_CLASS_OTHER =
@@ -139,6 +151,12 @@ public class RexNodeJsonSerdeTest {
         // Serializable function
         testJsonRoundTrip(
                 createFunctionCall(serdeContext, ContextResolvedFunction.anonymous(SER_UDF_IMPL)),
+                RexNode.class);
+
+        // Serializable async function
+        testJsonRoundTrip(
+                createFunctionCall(
+                        serdeContext, ContextResolvedFunction.anonymous(SER_ASYNC_UDF_IMPL)),
                 RexNode.class);
 
         // Non-serializable function due to fields
@@ -743,6 +761,11 @@ public class RexNodeJsonSerdeTest {
                 .getFlinkContext()
                 .getFunctionCatalog()
                 .registerCatalogFunction(UNRESOLVED_FUNCTION_CAT_ID, SER_UDF_CLASS, false);
+        serdeContext
+                .getFlinkContext()
+                .getFunctionCatalog()
+                .registerCatalogFunction(
+                        UNRESOLVED_ASYNC_FUNCTION_CAT_ID, SER_ASYNC_UDF_CLASS, false);
         return serdeContext;
     }
 
@@ -842,6 +865,15 @@ public class RexNodeJsonSerdeTest {
         @Override
         public boolean equals(Object obj) {
             return obj instanceof OtherSerializableScalarFunction;
+        }
+    }
+
+    /** Serializable async function. */
+    public static class SerializableAsyncScalarFunction extends AsyncScalarFunction {
+
+        @SuppressWarnings("unused")
+        public void eval(CompletableFuture<String> res, Integer i) {
+            throw new UnsupportedOperationException();
         }
     }
 
