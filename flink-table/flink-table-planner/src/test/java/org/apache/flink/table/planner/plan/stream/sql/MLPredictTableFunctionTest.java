@@ -98,6 +98,23 @@ public class MLPredictTableFunctionTest extends TableTestBase {
     }
 
     @Test
+    public void testConfigWithCast() {
+        // 'async' and 'timeout' in the map are both cast to VARCHAR(7)
+        String sql =
+                "SELECT *\n"
+                        + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', 'true', 'timeout', '100s']))";
+        assertReachesRelConverter(sql);
+    }
+
+    @Test
+    public void testTooFewArguments() {
+        String sql = "SELECT *\n" + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel))";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .hasMessageContaining(
+                        "Invalid number of arguments to function 'ML_PREDICT'. Was expecting 3 arguments");
+    }
+
+    @Test
     public void testTooManyArguments() {
         String sql =
                 "SELECT *\n"

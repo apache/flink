@@ -138,7 +138,7 @@ public class SqlMLPredictTableFunction extends SqlMLTableFunction {
         @Override
         public String getAllowedSignatures(SqlOperator op, String opName) {
             return opName
-                    + "(TABLE table_name, MODEL model_name, DESCRIPTOR(input_columns), [MAP[]]";
+                    + "(TABLE table_name, MODEL model_name, DESCRIPTOR(input_columns), [MAP[]])";
         }
 
         private static Optional<RuntimeException> checkModelSignature(SqlCallBinding callBinding) {
