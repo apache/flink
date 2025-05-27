@@ -24,7 +24,6 @@ import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
 
 import java.io.Serializable;
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -106,11 +105,6 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
     @Override
     public int timeColumn() {
         return timeColumn;
-    }
-
-    @Override
-    public List<String> coPartitionArgs() {
-        return List.of();
     }
 
     @Override

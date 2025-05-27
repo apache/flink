@@ -32,8 +32,7 @@ import org.apache.flink.types.RowKind;
  *
  * <p>Note: This interface is intended for advanced use cases and should be implemented with care.
  * Emitting an incorrect changelog from the PTF may lead to undefined behavior in the overall query.
- * Many features such as the `on_time` argument and pass-through columns are not available for
- * updating PTFs.
+ * The `on_time` argument is unsupported for updating PTFs.
  *
  * <p>The resulting changelog mode can be influenced by:
  *

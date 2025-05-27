@@ -1529,7 +1529,6 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val changelogMode = changelogFunction.getChangelogMode(changelogContext)
         if (!changelogMode.containsOnly(RowKind.INSERT)) {
           verifyPtfTableArgsForUpdates(call)
-          verifyPtfRequirementsForUpdates(call, requiredChangelogMode, changelogMode)
         }
         toTraitSet(changelogMode)
       case _ =>
@@ -1550,17 +1549,5 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
                 s"must use set semantics.")
           }
       }
-  }
-
-  private def verifyPtfRequirementsForUpdates(
-      call: RexCall,
-      required: ChangelogMode,
-      returned: ChangelogMode): Unit = {
-    if (!required.keyOnlyDeletes() && returned.keyOnlyDeletes()) {
-      throw new ValidationException(
-        s"Unsupported changelog mode returned from PTF '${call.getOperator.toString}'. " +
-          s"The system requires that deletions include all fields in DELETE messages. " +
-          s"Key-only deletes are not sufficient.")
-    }
   }
 }

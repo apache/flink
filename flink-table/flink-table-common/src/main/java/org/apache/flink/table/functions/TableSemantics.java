@@ -24,7 +24,6 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.types.DataType;
 
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -105,15 +104,6 @@ public interface TableSemantics {
      *     inference phase as the time attribute is still unknown.
      */
     int timeColumn();
-
-    /**
-     * Returns information about which passed tables are co-partitioned with the passed table.
-     * Applies only to table arguments with set semantics.
-     *
-     * @return List of table argument names (not table names!) that are co-partitioned with the
-     *     passed table.
-     */
-    List<String> coPartitionArgs();
 
     /**
      * Actual changelog mode for the passed table. By default, table arguments take only {@link

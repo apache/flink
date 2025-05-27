@@ -25,9 +25,11 @@ import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.AppendProcessTableFunctionBase;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.DescriptorFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidUpdatingSemanticsFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MultiInputFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RequiredTimeFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarArgsFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsRowFunction;
@@ -37,7 +39,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedTableAsRowFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedTableAsSetFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingUpsertFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingUpsertPartialDeletesFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.User;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
@@ -285,9 +286,9 @@ public class ProcessTableFunctionTest extends TableTestBase {
                         "Function signature must not declare system arguments. Reserved argument names are: [on_time, uid]"),
                 ErrorSpec.ofSelect(
                         "multiple table args",
-                        MultiTableFunction.class,
+                        InvalidMultiTableWithRowFunction.class,
                         "SELECT * FROM f(r1 => TABLE t, r2 => TABLE t)",
-                        "Currently, only signatures with at most one table argument are supported."),
+                        "All table arguments must use set semantics if multiple table arguments are declared."),
                 ErrorSpec.ofSelect(
                         "row instead of table",
                         TableAsRowFunction.class,
@@ -375,12 +376,58 @@ public class ProcessTableFunctionTest extends TableTestBase {
                         "SELECT * FROM f(r => TABLE t_watermarked PARTITION BY name, on_time => DESCRIPTOR(ts))",
                         "Time operations using the `on_time` argument are currently not supported for "
                                 + "PTFs that consume or produce updates."),
-                ErrorSpec.ofInsertInto(
-                        "PTF returns partial deletes but full deleted are required",
-                        UpdatingUpsertPartialDeletesFunction.class,
-                        "INSERT INTO t_full_delete_sink SELECT * FROM f(r => TABLE t PARTITION BY name)",
-                        "Unsupported changelog mode returned from PTF 'f'. The system requires that deletions include "
-                                + "all fields in DELETE messages. Key-only deletes are not sufficient."));
+                ErrorSpec.ofSelect(
+                        "no pass-through for multiple table args",
+                        InvalidPassThroughTables.class,
+                        "SELECT * FROM f(r1 => TABLE t, r2 => TABLE t)",
+                        "Pass-through columns are not supported if multiple table arguments are declared."),
+                ErrorSpec.ofSelect(
+                        "on_time must be declared for multiple table args",
+                        MultiInputFunction.class,
+                        "SELECT * FROM f(in1 => TABLE t PARTITION BY name, in2 => TABLE t_watermarked PARTITION BY name, "
+                                + "on_time => DESCRIPTOR(ts))",
+                        "Invalid time attribute declaration. If multiple tables are declared, "
+                                + "the `on_time` argument must reference a time column for each table argument "
+                                + "or none. Missing time attributes for: [in1]"),
+                ErrorSpec.ofSelect(
+                        "different partition keys by data type",
+                        MultiInputFunction.class,
+                        "SELECT * FROM f(in1 => TABLE t PARTITION BY score, in2 => TABLE t PARTITION BY name)",
+                        "Invalid PARTITION BY columns. The number of columns and their data types must match across all "
+                                + "involved table arguments. Given partition key sets: [INT NOT NULL], [VARCHAR(5) NOT NULL]"),
+                ErrorSpec.ofSelect(
+                        "different partition keys by column count",
+                        MultiInputFunction.class,
+                        "SELECT * FROM f(in1 => TABLE t PARTITION BY score, in2 => TABLE t)",
+                        "Invalid PARTITION BY columns. The number of columns and their data types must match across all "
+                                + "involved table arguments. Given partition key sets: [INT NOT NULL], []"),
+                ErrorSpec.ofSelect(
+                        "maximum table arguments reached",
+                        HighMultiInputFunction.class,
+                        "SELECT * FROM f("
+                                + "in1 => TABLE t PARTITION BY score, "
+                                + "in2 => TABLE t PARTITION BY score, "
+                                + "in3 => TABLE t PARTITION BY score, "
+                                + "in4 => TABLE t PARTITION BY score, "
+                                + "in5 => TABLE t PARTITION BY score, "
+                                + "in6 => TABLE t PARTITION BY score, "
+                                + "in7 => TABLE t PARTITION BY score, "
+                                + "in8 => TABLE t PARTITION BY score, "
+                                + "in9 => TABLE t PARTITION BY score, "
+                                + "in10 => TABLE t PARTITION BY score, "
+                                + "in11 => TABLE t PARTITION BY score, "
+                                + "in12 => TABLE t PARTITION BY score, "
+                                + "in13 => TABLE t PARTITION BY score, "
+                                + "in14 => TABLE t PARTITION BY score, "
+                                + "in15 => TABLE t PARTITION BY score, "
+                                + "in16 => TABLE t PARTITION BY score, "
+                                + "in17 => TABLE t PARTITION BY score, "
+                                + "in18 => TABLE t PARTITION BY score, "
+                                + "in19 => TABLE t PARTITION BY score, "
+                                + "in20 => TABLE t PARTITION BY score, "
+                                + "in21 => TABLE t PARTITION BY score"
+                                + ")",
+                        "Unsupported table argument count. Currently, the number of input tables is limited to 20."));
     }
 
     /** Testing function. */
@@ -390,11 +437,11 @@ public class ProcessTableFunctionTest extends TableTestBase {
     }
 
     /** Testing function. */
-    public static class MultiTableFunction extends ProcessTableFunction<String> {
+    public static class InvalidMultiTableWithRowFunction extends ProcessTableFunction<String> {
         @SuppressWarnings("unused")
         public void eval(
                 @ArgumentHint({TABLE_AS_SET, OPTIONAL_PARTITION_BY}) Row r1,
-                @ArgumentHint({TABLE_AS_SET, OPTIONAL_PARTITION_BY}) Row r2) {}
+                @ArgumentHint(TABLE_AS_ROW) Row r2) {}
     }
 
     /** Testing function. */
@@ -434,6 +481,42 @@ public class ProcessTableFunctionTest extends TableTestBase {
     public static class OptionalUntypedTable extends ProcessTableFunction<String> {
         @SuppressWarnings("unused")
         public void eval(@ArgumentHint(value = TABLE_AS_ROW, isOptional = true) Row r) {}
+    }
+
+    /** Testing function. */
+    public static class InvalidPassThroughTables extends ProcessTableFunction<String> {
+        @SuppressWarnings("unused")
+        public void eval(
+                @ArgumentHint({TABLE_AS_SET, PASS_COLUMNS_THROUGH}) Row r1,
+                @ArgumentHint({TABLE_AS_SET, PASS_COLUMNS_THROUGH}) Row r2) {}
+    }
+
+    /** Testing function. */
+    public static class HighMultiInputFunction extends AppendProcessTableFunctionBase {
+        @SuppressWarnings("unused")
+        public void eval(
+                @ArgumentHint(TABLE_AS_SET) Row in1,
+                @ArgumentHint(TABLE_AS_SET) Row in2,
+                @ArgumentHint(TABLE_AS_SET) Row in3,
+                @ArgumentHint(TABLE_AS_SET) Row in4,
+                @ArgumentHint(TABLE_AS_SET) Row in5,
+                @ArgumentHint(TABLE_AS_SET) Row in6,
+                @ArgumentHint(TABLE_AS_SET) Row in7,
+                @ArgumentHint(TABLE_AS_SET) Row in8,
+                @ArgumentHint(TABLE_AS_SET) Row in9,
+                @ArgumentHint(TABLE_AS_SET) Row in10,
+                @ArgumentHint(TABLE_AS_SET) Row in11,
+                @ArgumentHint(TABLE_AS_SET) Row in12,
+                @ArgumentHint(TABLE_AS_SET) Row in13,
+                @ArgumentHint(TABLE_AS_SET) Row in14,
+                @ArgumentHint(TABLE_AS_SET) Row in15,
+                @ArgumentHint(TABLE_AS_SET) Row in16,
+                @ArgumentHint(TABLE_AS_SET) Row in17,
+                @ArgumentHint(TABLE_AS_SET) Row in18,
+                @ArgumentHint(TABLE_AS_SET) Row in19,
+                @ArgumentHint(TABLE_AS_SET) Row in20,
+                @ArgumentHint(TABLE_AS_SET) Row in21)
+                throws Exception {}
     }
 
     private static class ErrorSpec {

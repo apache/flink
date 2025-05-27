@@ -362,6 +362,17 @@ public class OptimizerConfigOptions {
                                     + "it receives incremental accumulators and outputs incremental results). "
                                     + "In this way, we can reduce some state overhead and resources. Default is enabled.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Integer> TABLE_OPTIMIZER_PTF_MAX_TABLES =
+            key("table.optimizer.ptf.max-tables")
+                    .intType()
+                    .defaultValue(20)
+                    .withDescription(
+                            "The maximum number of table arguments for a Process Table Function (PTF). In theory, a PTF "
+                                    + "can accept an arbitrary number of input tables. In practice, however, each input "
+                                    + "requires reserving network buffers, which impacts memory usage. For this reason, "
+                                    + "the number of input tables is limited to 20.");
+
     /** Strategy for handling non-deterministic updates. */
     @PublicEvolving
     public enum NonDeterministicUpdateStrategy {

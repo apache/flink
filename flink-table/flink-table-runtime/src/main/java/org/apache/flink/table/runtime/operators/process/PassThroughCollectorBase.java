@@ -34,25 +34,30 @@ import org.apache.flink.types.RowKind;
 @Internal
 public abstract class PassThroughCollectorBase extends StreamRecordCollector<RowData> {
 
-    private final JoinedRowData withPrefix;
+    private final RepeatedRowData repeatedPrefix;
+    private final JoinedRowData withFunctionOutput;
     private final JoinedRowData withRowtime;
     private final ChangelogMode changelogMode;
 
-    private RowData rowtime;
     protected RowData prefix;
 
+    private RowData rowtime;
+
     public PassThroughCollectorBase(
-            Output<StreamRecord<RowData>> output, ChangelogMode changelogMode) {
+            Output<StreamRecord<RowData>> output,
+            ChangelogMode changelogMode,
+            int prefixRepetition) {
         super(output);
         this.changelogMode = changelogMode;
-        // constructs a flattened row of [[prefix | function output] | rowtime]
-        withPrefix = new JoinedRowData();
+        // constructs a flattened row of [[[prefix]{1,n} | function output] | rowtime]
+        repeatedPrefix = new RepeatedRowData(prefixRepetition);
+        withFunctionOutput = new JoinedRowData();
         withRowtime = new JoinedRowData();
         prefix = GenericRowData.of();
         rowtime = GenericRowData.of();
     }
 
-    public abstract void setPrefix(RowData input);
+    public abstract void setPrefix(int pos, RowData input);
 
     public void setRowtime(Long time) {
         rowtime = GenericRowData.of(TimestampData.fromEpochMillis(time));
@@ -60,8 +65,9 @@ public abstract class PassThroughCollectorBase extends StreamRecordCollector<Row
 
     @Override
     public void collect(RowData functionOutput) {
-        withPrefix.replace(prefix, functionOutput);
-        withRowtime.replace(withPrefix, rowtime);
+        repeatedPrefix.replace(prefix);
+        withFunctionOutput.replace(repeatedPrefix, functionOutput);
+        withRowtime.replace(withFunctionOutput, rowtime);
         // Forward supported change flags.
         final RowKind kind = functionOutput.getRowKind();
         if (!changelogMode.contains(kind)) {

@@ -302,7 +302,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
             final RelDataType outputRelDataType =
                     typeFactory.buildRelNodeRowType((RowType) outputType);
 
-            final List<RelNode> inputs = new ArrayList<>();
+            final List<RelNode> inputStack = new ArrayList<>();
             final List<RexNode> rexNodeArgs =
                     resolvedArgs.stream()
                             .map(
@@ -329,15 +329,18 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                                             final RexTableArgCall tableArgCall =
                                                     new RexTableArgCall(
                                                             rowType,
-                                                            inputs.size(),
+                                                            inputStack.size(),
                                                             partitionKeys,
                                                             new int[0]);
-                                            inputs.add(relBuilder.build());
+                                            inputStack.add(relBuilder.build());
                                             return tableArgCall;
                                         }
                                         return convertExprToRexNode(resolvedArg);
                                     })
                             .collect(Collectors.toList());
+
+            // relBuilder.build() works in LIFO fashion, this restores the original input order
+            Collections.reverse(inputStack);
 
             final BridgingSqlFunction sqlFunction =
                     BridgingSqlFunction.of(relBuilder.getCluster(), contextFunction);
@@ -349,7 +352,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
             final RelNode functionScan =
                     LogicalTableFunctionScan.create(
                             relBuilder.getCluster(),
-                            inputs,
+                            inputStack,
                             call,
                             null,
                             outputRelDataType,
