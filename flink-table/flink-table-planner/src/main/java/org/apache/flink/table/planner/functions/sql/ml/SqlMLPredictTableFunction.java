@@ -68,8 +68,8 @@ public class SqlMLPredictTableFunction extends SqlMLTableFunction {
     /**
      * {@inheritDoc}
      *
-     * <p>Overrides because the first parameter of table-value function windowing is an explicit
-     * TABLE parameter, which is not scalar.
+     * <p>Overrides because the first parameter of ML table-value function is an explicit TABLE
+     * parameter, which is not scalar.
      */
     @Override
     public boolean argumentMustBeScalar(int ordinal) {
@@ -86,7 +86,9 @@ public class SqlMLPredictTableFunction extends SqlMLTableFunction {
                 .builder()
                 .kind(inputRowType.getStructKind())
                 .addAll(inputRowType.getFieldList())
-                .addAll(modelOutputRowType.getFieldList())
+                .addAll(
+                        SqlValidatorUtils.makeOutputUnique(
+                                inputRowType.getFieldList(), modelOutputRowType.getFieldList()))
                 .build();
     }
 
@@ -111,7 +113,7 @@ public class SqlMLPredictTableFunction extends SqlMLTableFunction {
 
         @Override
         public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
-            if (!SqlValidatorUtils.checkTableAndDescriptorOperands(callBinding, 2, 1)) {
+            if (!SqlValidatorUtils.checkTableAndDescriptorOperands(callBinding, 2)) {
                 return SqlValidatorUtils.throwValidationSignatureErrorOrReturnFalse(
                         callBinding, throwOnFailure);
             }

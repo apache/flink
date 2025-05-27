@@ -148,9 +148,7 @@ public class MLPredictTableFunctionTest extends TableTestBase {
         String sql =
                 "SELECT *\n"
                         + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL ConflictModel, DESCRIPTOR(a, b)))";
-        assertThatThrownBy(() -> util.verifyRelPlan(sql))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("Column 'c' is ambiguous");
+        assertReachesRelConverter(sql);
     }
 
     @Test

@@ -53,7 +53,7 @@ public class SqlCumulateTableFunction extends SqlWindowTableFunction {
 
         @Override
         public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
-            if (!SqlValidatorUtils.checkTableAndDescriptorOperands(callBinding, 1, 1)) {
+            if (!SqlValidatorUtils.checkTableAndDescriptorOperands(callBinding, 1)) {
                 return SqlValidatorUtils.throwValidationSignatureErrorOrReturnFalse(
                         callBinding, throwOnFailure);
             }

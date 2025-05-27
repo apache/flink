@@ -51,7 +51,7 @@ public class SqlTumbleTableFunction extends SqlWindowTableFunction {
         public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
             // There should only be three operands, and number of operands are checked before
             // this call.
-            if (!SqlValidatorUtils.checkTableAndDescriptorOperands(callBinding, 1, 1)) {
+            if (!SqlValidatorUtils.checkTableAndDescriptorOperands(callBinding, 1)) {
                 return SqlValidatorUtils.throwValidationSignatureErrorOrReturnFalse(
                         callBinding, throwOnFailure);
             }
