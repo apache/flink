@@ -67,6 +67,11 @@ class InvalidAsyncTableFunctionEvalSignature3 extends AsyncTableFunction[RowData
 }
 
 @SerialVersionUID(1L)
+class InvalidAsyncTableFunctionType extends AsyncTableFunction[String] {
+  def eval(resultFuture: ResultFuture[String], a: Integer, b: StringData, c: JLong): Unit = {}
+}
+
+@SerialVersionUID(1L)
 class AsyncTableFunctionWithRowData extends AsyncTableFunction[RowData] {
   def eval(
       resultFuture: CompletableFuture[JCollection[RowData]],
@@ -84,7 +89,7 @@ class AsyncTableFunctionWithRowDataVarArg extends AsyncTableFunction[RowData] {
 @SerialVersionUID(1L)
 class AsyncTableFunctionWithRow extends AsyncTableFunction[Row] {
   @varargs
-  def eval(obj: AnyRef*): Unit = {}
+  def eval(resultFuture: CompletableFuture[JCollection[Row]], obj: AnyRef*): Unit = {}
 }
 
 @SerialVersionUID(1L)

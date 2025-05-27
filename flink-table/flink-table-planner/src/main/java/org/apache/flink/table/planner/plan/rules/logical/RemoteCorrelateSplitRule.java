@@ -137,7 +137,7 @@ public class RemoteCorrelateSplitRule extends RelRule<RemoteCorrelateSplitRule.C
                                 call.getOperands().stream()
                                         .map(x -> x.accept(this))
                                         .collect(Collectors.toList());
-                        return rexBuilder.makeCall(call.getOperator(), newProjects);
+                        return rexBuilder.makeCall(call.getType(), call.getOperator(), newProjects);
                     }
 
                     @Override

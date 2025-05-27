@@ -32,7 +32,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 
 /**
- * Inspired by {@link org.apache.flink.table.runtime.operators.join.lookup.DelegatingResultFuture}
+ * Inspired by {@link
+ * org.apache.flink.table.runtime.operators.correlate.async.DelegatingAsyncTableResultFuture} but
  * for {@link org.apache.flink.table.functions.AsyncScalarFunction}.
  */
 public class DelegatingAsyncResultFuture implements BiConsumer<Object, Throwable> {

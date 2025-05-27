@@ -23,12 +23,9 @@ import org.apache.flink.streaming.api.functions.async.AsyncRetryStrategy;
 import org.apache.flink.streaming.util.retryable.AsyncRetryStrategies;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
-import org.apache.flink.table.planner.utils.ShortcutUtils;
 
-import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 
 import java.time.Duration;
@@ -38,46 +35,6 @@ import static org.apache.flink.table.runtime.operators.calc.async.RetryPredicate
 
 /** Contains utilities for {@link org.apache.flink.table.functions.AsyncScalarFunction}. */
 public class AsyncScalarUtil extends FunctionCallUtil {
-
-    /**
-     * Checks whether it contains the specified kind of async function call in the specified node.
-     *
-     * @param node the RexNode to check
-     * @return true if it contains an async function call in the specified node.
-     */
-    public static boolean containsAsyncCall(RexNode node) {
-        return node.accept(new FunctionFinder(true, true));
-    }
-
-    /**
-     * Checks whether it contains non-async function call in the specified node.
-     *
-     * @param node the RexNode to check
-     * @return true if it contains a non-async function call in the specified node.
-     */
-    public static boolean containsNonAsyncCall(RexNode node) {
-        return node.accept(new FunctionFinder(false, true));
-    }
-
-    /**
-     * Checks whether the specified node is the specified kind of async function call.
-     *
-     * @param node the RexNode to check
-     * @return true if the specified node is an async function call.
-     */
-    public static boolean isAsyncCall(RexNode node) {
-        return node.accept(new FunctionFinder(true, false));
-    }
-
-    /**
-     * Checks whether the specified node is a non-async function call.
-     *
-     * @param node the RexNode to check
-     * @return true if the specified node is a non-async function call.
-     */
-    public static boolean isNonAsyncCall(RexNode node) {
-        return node.accept(new FunctionFinder(false, false));
-    }
 
     /**
      * Gets the options required to run the operator.
@@ -110,34 +67,5 @@ public class AsyncScalarUtil extends FunctionCallUtil {
                     .build();
         }
         return AsyncRetryStrategies.NO_RETRY_STRATEGY;
-    }
-
-    private static class FunctionFinder extends RexDefaultVisitor<Boolean> {
-
-        private final boolean findAsyncCall;
-        private final boolean recursive;
-
-        public FunctionFinder(boolean findAsyncCall, boolean recursive) {
-            this.findAsyncCall = findAsyncCall;
-            this.recursive = recursive;
-        }
-
-        @Override
-        public Boolean visitNode(RexNode rexNode) {
-            return false;
-        }
-
-        private boolean isImmediateAsyncCall(RexCall call) {
-            FunctionDefinition definition = ShortcutUtils.unwrapFunctionDefinition(call);
-            return definition != null && definition.getKind() == FunctionKind.ASYNC_SCALAR;
-        }
-
-        @Override
-        public Boolean visitCall(RexCall call) {
-            boolean isImmediateAsyncCall = isImmediateAsyncCall(call);
-            return findAsyncCall == isImmediateAsyncCall
-                    || (recursive
-                            && call.getOperands().stream().anyMatch(node -> node.accept(this)));
-        }
     }
 }
