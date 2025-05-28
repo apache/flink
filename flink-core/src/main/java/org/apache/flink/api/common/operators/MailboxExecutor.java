@@ -93,6 +93,8 @@ public interface MailboxExecutor {
             return MailOptionsImpl.DEFAULT;
         }
 
+        boolean isHighPriority();
+
         /**
          * Mark this mail as deferrable.
          *
@@ -103,6 +105,10 @@ public interface MailboxExecutor {
          */
         static MailOptions deferrable() {
             return MailOptionsImpl.DEFERRABLE;
+        }
+
+        static MailOptions highPriority() {
+            return MailOptionsImpl.HIGH_PRIORITY;
         }
     }
 
