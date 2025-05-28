@@ -319,13 +319,15 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
         if (tableCount == 0
                 || tableSemantics.stream().anyMatch(RuntimeTableSemantics::passColumnsThrough)) {
             assert tableCount <= 1;
-            // Collect with all input columns (potentially none)
+            // Collect from table event with all input columns (potentially none)
             evalCollector = new PassAllCollector(output, changelogMode, 1);
         } else {
-            // Collect with partition keys for each table
+            // Collect from table event with partition keys for each table
             evalCollector = new PassPartitionKeysCollector(output, changelogMode, tableSemantics);
         }
-        // Collect with partition keys for each table
+
+        // Collect with partition keys for each table but from timer events which only contains the
+        // key, so passing all columns is the right strategy
         onTimerCollector = new PassAllCollector(output, changelogMode, tableCount);
     }
 
