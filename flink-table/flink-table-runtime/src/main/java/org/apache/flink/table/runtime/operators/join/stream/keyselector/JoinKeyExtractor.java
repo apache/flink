@@ -20,8 +20,7 @@ package org.apache.flink.table.runtime.operators.join.stream.keyselector;
 
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator;
-import org.apache.flink.table.runtime.operators.join.stream.state.MultiJoinStateView;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.logical.RowType;
 
 import java.io.Serializable;
 
@@ -66,18 +65,12 @@ public interface JoinKeyExtractor extends Serializable {
     RowData getJoinKeyFromCurrentRows(int depth, RowData[] currentRows);
 
     /**
-     * Determines the type information for the key associated with a specific input's state.
+     * Returns the type of the join key for a given input.
      *
-     * <p>This is needed to correctly initialize the state backend (e.g., {@link
-     * MultiJoinStateView}). The returned type should match the structure of the keys produced by
-     * {@link #getJoinKeyFromInput(RowData, int)} and potentially {@link
-     * #getJoinKeyFromCurrentRows(int, RowData[])} (depending on the implementation logic).
-     *
-     * @param inputId The ID (0-based index) of the input stream.
-     * @return The {@link InternalTypeInfo} for the key type used by the state for this input. Can
-     *     be null if no key type can be determined.
+     * @param inputId The ID of the input stream.
+     * @return The {@link RowType} of the join key.
      */
-    InternalTypeInfo<RowData> getJoinKeyType(int inputId);
+    RowType getJoinKeyType(int inputId);
 
     /**
      * Extracts the common key from an input row. The common key consists of attributes that are
@@ -89,12 +82,4 @@ public interface JoinKeyExtractor extends Serializable {
      *     attributes exist or cannot be determined for this input.
      */
     RowData getCommonJoinKey(RowData row, int inputId);
-
-    /**
-     * Gets the type information for the common key for a specific input.
-     *
-     * @param inputId The ID of the input stream.
-     * @return The {@link InternalTypeInfo} for the common key type.
-     */
-    InternalTypeInfo<RowData> getCommonJoinKeyType(int inputId);
 }

@@ -64,8 +64,8 @@ public final class MultiJoinStateViews {
             RuntimeContext ctx,
             String stateName,
             JoinInputSideSpec inputSideSpec,
-            InternalTypeInfo<RowData> joinKeyType, // Type info for the outer map key
-            InternalTypeInfo<RowData> recordType,
+            RowType joinKeyType,
+            RowType recordType,
             long retentionTime) {
         StateTtlConfig ttlConfig = createTtlConfig(retentionTime);
 
@@ -130,12 +130,16 @@ public final class MultiJoinStateViews {
         private JoinKeyContainsUniqueKey(
                 RuntimeContext ctx,
                 final String stateName,
-                final InternalTypeInfo<RowData> joinKeyType,
-                final InternalTypeInfo<RowData> recordType,
+                final RowType joinKeyType,
+                final RowType recordType,
                 final StateTtlConfig ttlConfig) {
 
             MapStateDescriptor<RowData, RowData> recordStateDesc =
-                    createStateDescriptor(stateName, joinKeyType, recordType, ttlConfig);
+                    createStateDescriptor(
+                            stateName,
+                            InternalTypeInfo.of(joinKeyType),
+                            InternalTypeInfo.of(recordType),
+                            ttlConfig);
 
             this.recordState = ctx.getMapState(recordStateDesc);
             // the result records always not more than 1 per joinKey
@@ -179,34 +183,34 @@ public final class MultiJoinStateViews {
         // stores record in the mapping <(JoinKey, UK), Record>
         private final MapState<RowData, RowData> recordState;
         private final KeySelector<RowData, RowData> uniqueKeySelector;
-        private final InternalTypeInfo<RowData> joinKeyType;
         private final RowDataSerializer joinKeySerializer;
         private final int joinKeyFieldCount;
 
         private InputSideHasUniqueKey(
                 RuntimeContext ctx,
                 final String stateName,
-                final InternalTypeInfo<RowData> joinKeyType,
-                final InternalTypeInfo<RowData> recordType,
+                final RowType joinKeyType,
+                final RowType recordType,
                 final InternalTypeInfo<RowData> uniqueKeyType,
                 final KeySelector<RowData, RowData> uniqueKeySelector,
                 final StateTtlConfig ttlConfig) {
             checkNotNull(uniqueKeyType);
             checkNotNull(uniqueKeySelector);
             this.uniqueKeySelector = uniqueKeySelector;
-            this.joinKeyType = joinKeyType;
-            this.joinKeySerializer = new RowDataSerializer(joinKeyType.toRowType());
-            this.joinKeyFieldCount = joinKeyType.toRowType().getFieldCount();
+            this.joinKeySerializer = new RowDataSerializer(joinKeyType);
+            this.joinKeyFieldCount = joinKeyType.getFieldCount();
 
             // Composite key type: RowData with 2 fields (joinKey, uniqueKey)
             // The composite key is a RowData with joinKey at index 0 and uniqueKey at index 1.
-            // TODO Gustavo refactor so we only use row type when possible
-            final RowType keyRowType =
-                    RowType.of(joinKeyType.toRowType(), uniqueKeyType.toRowType());
+            final RowType keyRowType = RowType.of(joinKeyType, uniqueKeyType.toRowType());
             InternalTypeInfo<RowData> compositeKeyType = InternalTypeInfo.of(keyRowType);
 
             MapStateDescriptor<RowData, RowData> recordStateDesc =
-                    createStateDescriptor(stateName, compositeKeyType, recordType, ttlConfig);
+                    createStateDescriptor(
+                            stateName,
+                            compositeKeyType,
+                            InternalTypeInfo.of(recordType),
+                            ttlConfig);
 
             this.recordState = ctx.getMapState(recordStateDesc);
         }
@@ -217,9 +221,6 @@ public final class MultiJoinStateViews {
             return binaryJoinKey.equals(binaryCurrJoinKey);
         }
 
-        // TODO Gustavo We want to drop the default key and only store uniquekey when there is no
-        // join key
-        // We will use null in the code
         private RowData createCompositeKey(RowData joinKey, RowData uniqueKey) {
             GenericRowData compositeKey = new GenericRowData(2);
             compositeKey.setField(0, joinKey);
@@ -322,8 +323,6 @@ public final class MultiJoinStateViews {
 
         // stores count in the mapping <(JoinKey, Record), Count>
         private final MapState<RowData, Integer> recordState;
-        private final InternalTypeInfo<RowData> joinKeyType;
-        private final InternalTypeInfo<RowData> recordType; // Needed for composite key construction
         private final RowDataSerializer joinKeySerializer;
         private final int joinKeyFieldCount;
         private final int recordFieldCount;
@@ -331,18 +330,15 @@ public final class MultiJoinStateViews {
         private InputSideHasNoUniqueKey(
                 RuntimeContext ctx,
                 final String stateName,
-                final InternalTypeInfo<RowData> joinKeyType,
-                final InternalTypeInfo<RowData> recordType,
+                final RowType joinKeyType,
+                final RowType recordType,
                 final StateTtlConfig ttlConfig) {
-            this.joinKeyType = joinKeyType;
-            this.recordType = recordType;
-            this.joinKeySerializer = new RowDataSerializer(joinKeyType.toRowType());
-            this.joinKeyFieldCount = joinKeyType.toRowType().getFieldCount();
-            this.recordFieldCount = recordType.toRowType().getFieldCount();
+            this.joinKeySerializer = new RowDataSerializer(joinKeyType);
+            this.joinKeyFieldCount = joinKeyType.getFieldCount();
+            this.recordFieldCount = recordType.getFieldCount();
 
             // Composite key type: RowData with 2 fields (joinKey, record)
-            // TODO Gustavo: there is probably a cleaner way of instantiating the type
-            final RowType keyRowType = RowType.of(joinKeyType.toRowType(), recordType.toRowType());
+            final RowType keyRowType = RowType.of(joinKeyType, recordType);
             InternalTypeInfo<RowData> compositeKeyType = InternalTypeInfo.of(keyRowType);
 
             MapStateDescriptor<RowData, Integer> recordStateDesc =

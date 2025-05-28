@@ -1188,33 +1188,27 @@ class StreamingFourWayMixedOuterJoinOperatorTest extends StreamingMultiJoinOpera
     // We need to a custom input type because we use big int for details in Users and Shipments
     // and our base tests only use strings.
     @Override
-    protected InternalTypeInfo<RowData> createInputTypeInfo(int inputIndex) {
+    protected RowType createInputTypeInfo(int inputIndex) {
         String userIdFieldName = String.format("user_id_%d", inputIndex);
         String pkFieldName = String.format("pk_%d", inputIndex); // Generic PK name
 
         if (inputIndex == 0) { // Users: user_id (VARCHAR), pk (VARCHAR), details (BIGINT)
-            return InternalTypeInfo.of(
-                    RowType.of(
-                            new LogicalType[] {
-                                VarCharType.STRING_TYPE, VarCharType.STRING_TYPE, new BigIntType()
-                            },
-                            new String[] {
-                                userIdFieldName,
-                                pkFieldName,
-                                String.format("details_%d", inputIndex)
-                            }));
+            return RowType.of(
+                    new LogicalType[] {
+                        VarCharType.STRING_TYPE, VarCharType.STRING_TYPE, new BigIntType()
+                    },
+                    new String[] {
+                        userIdFieldName, pkFieldName, String.format("details_%d", inputIndex)
+                    });
         } else if (inputIndex
                 == 3) { // Shipments: user_id (VARCHAR), pk (VARCHAR), details (BIGINT)
-            return InternalTypeInfo.of(
-                    RowType.of(
-                            new LogicalType[] {
-                                VarCharType.STRING_TYPE, VarCharType.STRING_TYPE, new BigIntType()
-                            },
-                            new String[] {
-                                userIdFieldName,
-                                pkFieldName,
-                                String.format("details_%d", inputIndex)
-                            }));
+            return RowType.of(
+                    new LogicalType[] {
+                        VarCharType.STRING_TYPE, VarCharType.STRING_TYPE, new BigIntType()
+                    },
+                    new String[] {
+                        userIdFieldName, pkFieldName, String.format("details_%d", inputIndex)
+                    });
         } else { // Orders (1), Payments (2): user_id (VARCHAR), pk (VARCHAR), details (VARCHAR)
             return super.createInputTypeInfo(inputIndex);
         }

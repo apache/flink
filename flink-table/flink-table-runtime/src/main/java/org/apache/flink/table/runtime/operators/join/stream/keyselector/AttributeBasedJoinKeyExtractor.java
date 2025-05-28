@@ -21,7 +21,6 @@ package org.apache.flink.table.runtime.operators.join.stream.keyselector;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -52,19 +51,18 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
     private static final GenericRowData DEFAULT_KEY =
             GenericRowData.of(StringData.fromString("__DEFAULT_MULTI_JOIN_STATE_KEY__"));
 
-    private static final InternalTypeInfo<RowData> DEFAULT_KEY_TYPE =
-            InternalTypeInfo.of(
-                    RowType.of(
-                            false,
-                            new LogicalType[] {
-                                // Fixed type for the default key. Length matches the static key
-                                // value.
-                                new VarCharType(false, 32),
-                            },
-                            new String[] {"default_key"}));
+    private static final RowType DEFAULT_KEY_TYPE =
+            RowType.of(
+                    false,
+                    new LogicalType[] {
+                        // Fixed type for the default key. Length matches the static key
+                        // value.
+                        new VarCharType(false, 32),
+                    },
+                    new String[] {"default_key"});
 
     private final Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap;
-    private final List<InternalTypeInfo<RowData>> inputTypes;
+    private final List<RowType> inputTypes;
 
     // Cache for pre-computed key extraction structures for getJoinKeyFromCurrentRows
     private final Map<Integer, List<KeyExtractor>> currentRowsFieldIndices;
@@ -73,7 +71,7 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
 
     // Fields for common key logic
     private final Map<Integer, List<KeyExtractor>> commonJoinKeyExtractors;
-    private final Map<Integer, InternalTypeInfo<RowData>> commonJoinKeyTypes;
+    private final Map<Integer, RowType> commonJoinKeyTypes;
 
     /**
      * Creates an AttributeBasedJoinKeyExtractor.
@@ -85,7 +83,7 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
      */
     public AttributeBasedJoinKeyExtractor(
             final Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap,
-            final List<InternalTypeInfo<RowData>> inputTypes) {
+            final List<RowType> inputTypes) {
         this.joinAttributeMap = joinAttributeMap;
         this.inputTypes = inputTypes;
         this.currentRowsFieldIndices = new HashMap<>();
@@ -118,7 +116,6 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
             return DEFAULT_KEY;
         }
 
-        // Retrieve pre-computed key field indices from the cache
         final List<Integer> keyFieldIndices = inputKeyFieldIndices.get(inputId);
 
         if (keyFieldIndices == null || keyFieldIndices.isEmpty()) {
@@ -161,19 +158,8 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
         }
         List<KeyExtractor> keyExtractors = new ArrayList<>();
         for (Map.Entry<AttributeRef, AttributeRef> entry : attributeMapping.entrySet()) {
-            AttributeRef leftAttrRef = entry.getKey();
-            if (leftAttrRef.inputId >= depth) {
-                throw new IllegalStateException(
-                        "Invalid joinAttributeMap configuration for depth "
-                                + depth
-                                + ". Left attribute "
-                                + leftAttrRef
-                                + " does not reference a previous input (< "
-                                + depth
-                                + ").");
-            }
-            InternalTypeInfo<RowData> typeInfo = inputTypes.get(leftAttrRef.inputId);
-            RowType rowType = typeInfo.toRowType();
+            AttributeRef leftAttrRef = getAttributeRef(depth, entry);
+            RowType rowType = inputTypes.get(leftAttrRef.inputId);
             int fieldIndex = leftAttrRef.fieldIndex;
             validateFieldIndex(leftAttrRef.inputId, fieldIndex, rowType);
             LogicalType fieldType = rowType.getTypeAt(fieldIndex);
@@ -184,6 +170,22 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
                 java.util.Comparator.comparingInt(KeyExtractor::getInputIdToAccess)
                         .thenComparingInt(KeyExtractor::getFieldIndexInSourceRow));
         return keyExtractors;
+    }
+
+    private static AttributeRef getAttributeRef(
+            int depth, Map.Entry<AttributeRef, AttributeRef> entry) {
+        AttributeRef leftAttrRef = entry.getKey();
+        if (leftAttrRef.inputId >= depth) {
+            throw new IllegalStateException(
+                    "Invalid joinAttributeMap configuration for depth "
+                            + depth
+                            + ". Left attribute "
+                            + leftAttrRef
+                            + " does not reference a previous input (< "
+                            + depth
+                            + ").");
+        }
+        return leftAttrRef;
     }
 
     // TODO Gustavo add ticket optimization ProjectedRowData
@@ -200,7 +202,7 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
     }
 
     @Override
-    public InternalTypeInfo<RowData> getJoinKeyType(int inputId) {
+    public RowType getJoinKeyType(int inputId) {
         if (inputId == 0) {
             // For input 0, we have to go through all the records.
             // We use the fixed default key type, since have no rows to the left to generate
@@ -217,8 +219,7 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
         }
 
         // Build RowType for the key based on identified field types.
-        final InternalTypeInfo<RowData> originalTypeInfo = inputTypes.get(inputId);
-        final RowType originalRowType = originalTypeInfo.toRowType();
+        final RowType originalRowType = inputTypes.get(inputId);
         final LogicalType[] keyTypes = new LogicalType[keyFieldIndices.size()];
         final String[] keyNames = new String[keyFieldIndices.size()];
 
@@ -230,8 +231,7 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
             keyNames[i] = originalRowType.getFieldNames().get(fieldIndex) + "_key"; // Suffix name
         }
 
-        final RowType keyRowType = RowType.of(keyTypes, keyNames);
-        return InternalTypeInfo.of(keyRowType);
+        return RowType.of(keyTypes, keyNames);
     }
 
     // ==================== Helper Methods ====================
@@ -255,8 +255,7 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
     private GenericRowData buildKeyRow(
             RowData sourceRow, int inputId, List<Integer> keyFieldIndices) {
         final GenericRowData keyRow = new GenericRowData(keyFieldIndices.size());
-        final InternalTypeInfo<RowData> typeInfo = inputTypes.get(inputId);
-        final RowType rowType = typeInfo.toRowType();
+        final RowType rowType = inputTypes.get(inputId);
 
         for (int i = 0; i < keyFieldIndices.size(); i++) {
             final int fieldIndex = keyFieldIndices.get(i);
@@ -291,11 +290,6 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
             commonJoinKeyRow.setField(i, extractors.get(i).getValue(tempRows));
         }
         return commonJoinKeyRow;
-    }
-
-    @Override
-    public InternalTypeInfo<RowData> getCommonJoinKeyType(int inputId) {
-        return commonJoinKeyTypes.getOrDefault(inputId, DEFAULT_KEY_TYPE);
     }
 
     private void initializeCommonJoinKeyStructures() {
@@ -343,10 +337,7 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
 
         List<Set<AttributeRef>> commonConceptualAttributeSets = new ArrayList<>();
         for (Set<AttributeRef> eqSet : equivalenceSets.values()) {
-            boolean isCommon = true;
-            if (joinAttributeMap.isEmpty()) { // Should be caught by earlier check
-                isCommon = false;
-            }
+            boolean isCommon = !joinAttributeMap.isEmpty();
 
             for (Map<AttributeRef, AttributeRef> conditionsForStep : joinAttributeMap.values()) {
                 if (conditionsForStep.isEmpty()) { // A cross-join step
@@ -392,7 +383,7 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
                 List<KeyExtractor> extractors = new ArrayList<>();
                 LogicalType[] keyFieldTypes = new LogicalType[commonAttrsForThisInput.size()];
                 String[] keyFieldNames = new String[commonAttrsForThisInput.size()];
-                RowType originalRowType = inputTypes.get(currentInputId).toRowType();
+                RowType originalRowType = inputTypes.get(currentInputId);
 
                 for (int i = 0; i < commonAttrsForThisInput.size(); i++) {
                     AttributeRef attr = commonAttrsForThisInput.get(i);
@@ -405,8 +396,7 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
                 }
                 this.commonJoinKeyExtractors.put(currentInputId, extractors);
                 this.commonJoinKeyTypes.put(
-                        currentInputId,
-                        InternalTypeInfo.of(RowType.of(keyFieldTypes, keyFieldNames)));
+                        currentInputId, RowType.of(keyFieldTypes, keyFieldNames));
             }
         }
     }

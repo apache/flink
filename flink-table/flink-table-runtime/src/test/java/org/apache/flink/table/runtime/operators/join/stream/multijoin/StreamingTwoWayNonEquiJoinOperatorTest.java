@@ -234,21 +234,19 @@ class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorT
 
     // Override input types to include an amount field
     @Override
-    protected InternalTypeInfo<RowData> createInputTypeInfo(int inputIndex) {
+    protected RowType createInputTypeInfo(int inputIndex) {
         if (inputIndex == 0) { // Users: user_id (VARCHAR), amount (BIGINT), name (VARCHAR)
-            return InternalTypeInfo.of(
-                    RowType.of(
-                            new LogicalType[] {
-                                VarCharType.STRING_TYPE, new BigIntType(), VarCharType.STRING_TYPE
-                            },
-                            new String[] {"user_id_0", "amount_0", "name_0"}));
+            return RowType.of(
+                    new LogicalType[] {
+                        VarCharType.STRING_TYPE, new BigIntType(), VarCharType.STRING_TYPE
+                    },
+                    new String[] {"user_id_0", "amount_0", "name_0"});
         } else { // Orders: order_user_id (VARCHAR), amount (BIGINT), order_id (VARCHAR)
-            return InternalTypeInfo.of(
-                    RowType.of(
-                            new LogicalType[] {
-                                VarCharType.STRING_TYPE, new BigIntType(), VarCharType.STRING_TYPE
-                            },
-                            new String[] {"user_id_1", "amount_1", "order_id_1"}));
+            return RowType.of(
+                    new LogicalType[] {
+                        VarCharType.STRING_TYPE, new BigIntType(), VarCharType.STRING_TYPE
+                    },
+                    new String[] {"user_id_1", "amount_1", "order_id_1"});
         }
     }
 
@@ -273,11 +271,7 @@ class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorT
     protected RowDataKeySelector createKeySelector(int inputIndex) {
         return HandwrittenSelectorUtil.getRowDataSelector(
                 new int[] {inputIndex == 0 ? 0 : 2}, // UK is user_id[0] or order_id[2]
-                inputTypeInfos
-                        .get(inputIndex)
-                        .toRowType()
-                        .getChildren()
-                        .toArray(new LogicalType[0]));
+                inputTypeInfos.get(inputIndex).getChildren().toArray(new LogicalType[0]));
     }
 
     /**

@@ -33,7 +33,7 @@ import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyE
 import org.apache.flink.table.runtime.operators.join.stream.state.MultiJoinStateView;
 import org.apache.flink.table.runtime.operators.join.stream.state.MultiJoinStateViews;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 
 import java.util.ArrayList;
@@ -348,7 +348,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
 
     private final List<JoinInputSideSpec> inputSpecs;
     private final List<JoinType> joinTypes;
-    private final List<InternalTypeInfo<RowData>> inputTypes;
+    private final List<RowType> inputTypes;
     // The multiJoinCondition is currently not being used, since we check the join conditions
     // for each while iterating through records to shortcircuit the recursion. However, if we
     // eventually want to cache join results at some level or do some other optimizations, this
@@ -367,7 +367,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
 
     public StreamingMultiJoinOperator(
             StreamOperatorParameters<RowData> parameters,
-            List<InternalTypeInfo<RowData>> inputTypes,
+            List<RowType> inputTypes,
             List<JoinInputSideSpec> inputSpecs,
             List<JoinType> joinTypes,
             MultiJoinCondition multiJoinCondition,
@@ -788,8 +788,8 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
 
     private void initializeNullRows() {
         this.nullRows = new ArrayList<>(inputTypes.size());
-        for (InternalTypeInfo<RowData> inputType : inputTypes) {
-            this.nullRows.add(new GenericRowData(inputType.toRowType().getFieldCount()));
+        for (RowType inputType : inputTypes) {
+            this.nullRows.add(new GenericRowData(inputType.getFieldCount()));
         }
     }
 
@@ -805,7 +805,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         for (int i = 0; i < inputSpecs.size(); i++) {
             MultiJoinStateView stateView;
             String stateName = "multi-join-input-" + i;
-            InternalTypeInfo<RowData> joinKeyType = keyExtractor.getJoinKeyType(i);
+            RowType joinKeyType = keyExtractor.getJoinKeyType(i);
 
             if (joinKeyType == null) {
                 throw new IllegalStateException(

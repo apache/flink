@@ -75,14 +75,13 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
     // Test Configuration
     // ==========================================================================
 
-    protected final List<InternalTypeInfo<RowData>> inputTypeInfos;
+    protected final List<RowType> inputTypeInfos;
     protected final List<RowDataKeySelector> keySelectors;
     protected final List<JoinInputSideSpec> inputSpecs;
     protected final List<JoinType> joinTypes;
     protected final List<GeneratedMultiJoinCondition> joinConditions;
     protected final boolean isFullOuterJoin;
     protected final Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap;
-    protected final InternalTypeInfo<RowData> joinKeyTypeInfo;
     protected final JoinKeyExtractor keyExtractor;
 
     // ==========================================================================
@@ -114,7 +113,6 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
         initializeInputs(numInputs);
         initializeJoinConditions();
 
-        this.joinKeyTypeInfo = InternalTypeInfo.of(new CharType(false, 20));
         this.keyExtractor =
                 new AttributeBasedJoinKeyExtractor(this.joinAttributeMap, this.inputTypeInfos);
     }
@@ -133,12 +131,11 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
         this.inputSpecs = new ArrayList<>(numInputs);
         this.joinTypes = joinTypes;
         this.isFullOuterJoin = isFullOuterJoin;
-        this.joinConditions = joinConditions; // Use provided conditions
-        this.joinAttributeMap = joinAttributeMap; // Use provided map
+        this.joinConditions = joinConditions;
+        this.joinAttributeMap = joinAttributeMap;
 
         initializeInputs(numInputs);
 
-        this.joinKeyTypeInfo = InternalTypeInfo.of(new CharType(false, 20));
         this.keyExtractor =
                 new AttributeBasedJoinKeyExtractor(this.joinAttributeMap, this.inputTypeInfos);
     }
@@ -319,11 +316,10 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
             inputTypeInfos.add(createInputTypeInfo(i));
             keySelectors.add(createKeySelector(i));
 
-            var uniqueKeyType = createUniqueKeyType(i);
-            if (uniqueKeyType != null) {
+            var uniqueKeyRowType = createUniqueKeyType(i);
+            if (uniqueKeyRowType != null) {
                 inputSpecs.add(
-                        JoinInputSideSpec.withUniqueKey(
-                                createUniqueKeyType(i), keySelectors.get(i)));
+                        JoinInputSideSpec.withUniqueKey(uniqueKeyRowType, keySelectors.get(i)));
             } else {
                 inputSpecs.add(JoinInputSideSpec.withoutUniqueKey());
             }
@@ -341,24 +337,19 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
         if (joinConditions.isEmpty()) {
             // First input doesn't have a left input to join with
             joinConditions.add(null);
-            for (int i = 0; i < inputSpecs.size(); i++) { // Iterate based on number of inputs
+            for (int i = 0; i < inputSpecs.size(); i++) {
                 // Add the join condition comparing current input (i) with previous (i-1)
                 if (i > 0) {
                     GeneratedMultiJoinCondition condition = createJoinCondition(i, i - 1);
                     joinConditions.add(condition);
                 }
 
-                // Populate the attribute map based on the condition's logic (field 0 <-> field 0)
                 Map<AttributeRef, AttributeRef> currentJoinMap = new HashMap<>();
-                // Left side attribute (previous input, field 0)
                 AttributeRef leftAttr = new AttributeRef(i - 1, 0);
-                // Right side attribute (current input, field 0)
                 AttributeRef rightAttr = new AttributeRef(i, 0);
-                // Map: right_input_id -> { left_attr -> right_attr }
                 currentJoinMap.put(leftAttr, rightAttr);
                 joinAttributeMap.put(i, currentJoinMap);
             }
-
         } else if (joinConditions.size() != inputSpecs.size()) {
             throw new IllegalArgumentException(
                     "The number of provided join conditions must match the number of inputs ("
@@ -388,31 +379,16 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
 
     private void setupKeySelectorsForTestHarness(
             KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> harness) {
-        // Get the expected partition key type (assuming it's the same for all inputs derived by the
-        // extractor)
-        InternalTypeInfo<RowData> partitionKeyTypeInfo = this.keyExtractor.getJoinKeyType(0);
-        if (partitionKeyTypeInfo == null) {
-            throw new IllegalStateException(
-                    "Could not determine partition key type from keyExtractor for input 0.");
-        }
-
         for (int i = 0; i < this.inputSpecs.size(); i++) {
-            // Use the serializable keySelector
             SerializableKeySelector keySelector = new SerializableKeySelector(this.keyExtractor, i);
-            // Provide the derived key type information to the harness
             harness.setKeySelector(i, keySelector);
         }
     }
 
     protected KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> createTestHarness()
             throws Exception {
-        // Determine the partition key type using the keyExtractor
-        // Assume the key type derived for the first input is representative of the partition key
-        InternalTypeInfo<RowData> partitionKeyTypeInfo = this.keyExtractor.getJoinKeyType(0);
-        if (partitionKeyTypeInfo == null) {
-            throw new IllegalStateException(
-                    "Could not determine partition key type from keyExtractor for input 0.");
-        }
+        InternalTypeInfo<RowData> partitionKeyTypeInfo =
+                InternalTypeInfo.of(this.keyExtractor.getJoinKeyType(0));
 
         KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> harness =
                 new KeyedMultiInputStreamOperatorTestHarness<>(
@@ -422,9 +398,8 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
                                 joinTypes,
                                 joinConditions,
                                 joinAttributeMap),
-                        partitionKeyTypeInfo); // Use the derived key type information
+                        partitionKeyTypeInfo);
 
-        // Setup key selectors for each input (this now uses the extractor)
         setupKeySelectorsForTestHarness(harness);
 
         harness.setStateBackend(getStateBackend());
@@ -434,11 +409,9 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
 
     protected RowType getOutputType() {
         var typesStream =
-                inputTypeInfos.stream()
-                        .flatMap(typeInfo -> typeInfo.toRowType().getChildren().stream());
+                inputTypeInfos.stream().flatMap(typeInfo -> typeInfo.getChildren().stream());
         var namesStream =
-                inputTypeInfos.stream()
-                        .flatMap(typeInfo -> typeInfo.toRowType().getFieldNames().stream());
+                inputTypeInfos.stream().flatMap(typeInfo -> typeInfo.getFieldNames().stream());
 
         return RowType.of(
                 typesStream.toArray(LogicalType[]::new), namesStream.toArray(String[]::new));
@@ -461,14 +434,14 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
 
         private static final long serialVersionUID = 1L;
         private final List<JoinInputSideSpec> inputSpecs;
-        private final List<InternalTypeInfo<RowData>> inputTypeInfos;
+        private final List<RowType> inputTypeInfos;
         private final List<JoinType> joinTypes;
         private final List<GeneratedMultiJoinCondition> joinConditions;
         private final JoinKeyExtractor keyExtractor;
 
         public MultiStreamingJoinOperatorFactory(
                 List<JoinInputSideSpec> inputSpecs,
-                List<InternalTypeInfo<RowData>> inputTypeInfos,
+                List<RowType> inputTypeInfos,
                 List<JoinType> joinTypes,
                 List<GeneratedMultiJoinCondition> joinConditions,
                 Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap) {
@@ -506,7 +479,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
         private StreamingMultiJoinOperator createJoinOperator(
                 StreamOperatorParameters<RowData> parameters,
                 List<JoinInputSideSpec> inputSpecs,
-                List<InternalTypeInfo<RowData>> inputTypeInfos,
+                List<RowType> inputTypeInfos,
                 List<JoinType> joinTypes,
                 List<GeneratedMultiJoinCondition> joinConditions,
                 JoinKeyExtractor keyExtractor) {
@@ -541,9 +514,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
             }
             for (int i = 0; i < inputSpecs.size(); i++) {
                 GeneratedMultiJoinCondition generatedCondition = generatedJoinConditions.get(i);
-                if (generatedCondition
-                        != null) { // Allow null conditions (e.g., for INNER joins without specific
-                    // cond)
+                if (generatedCondition != null) {
                     try {
                         conditions[i] = generatedCondition.newInstance(getClass().getClassLoader());
                     } catch (Exception e) {
@@ -551,7 +522,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
                                 "Failed to instantiate join condition for input " + i, e);
                     }
                 } else {
-                    conditions[i] = null; // Explicitly set to null if no condition provided
+                    conditions[i] = null;
                 }
             }
             return conditions;
@@ -562,8 +533,8 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
     // Type Creation Methods
     // ==========================================================================
 
-    protected InternalTypeInfo<RowData> createInputTypeInfo(int inputIndex) {
-        return InternalTypeInfo.ofFields(
+    protected RowType createInputTypeInfo(int inputIndex) {
+        return RowType.of(
                 new LogicalType[] {
                     new CharType(false, 20), new CharType(false, 20), VarCharType.STRING_TYPE
                 },
@@ -590,11 +561,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
                 /* Unique key for Input 0 is field 0 (user_id_0).
                  * Unique key for Inputs 1, 2, 3 is field 1 (id_1, id_2, id_3 respectively). */
                 new int[] {inputIndex == 0 ? 0 : 1},
-                inputTypeInfos
-                        .get(inputIndex)
-                        .toRowType()
-                        .getChildren()
-                        .toArray(new LogicalType[0]));
+                inputTypeInfos.get(inputIndex).getChildren().toArray(new LogicalType[0]));
     }
 
     protected static GeneratedMultiJoinCondition createMultiJoinCondition(int numInputs) {
@@ -620,7 +587,6 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
      */
     protected static GeneratedMultiJoinCondition createJoinCondition(
             int rightInputInArray, int leftInputInArray) {
-        // Ensure indices are valid for comparison
         if (rightInputInArray <= 0
                 || leftInputInArray < 0
                 || rightInputInArray == leftInputInArray) {
@@ -664,7 +630,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
         @Override
         public boolean apply(RowData[] inputs) {
             if (inputs == null || inputs.length < numInputs) {
-                return false; // Not enough inputs provided to the condition
+                return false;
             }
 
             if (numInputs <= 1) {
@@ -672,18 +638,14 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
             }
 
             if (inputs[0] == null || inputs[0].isNullAt(0)) {
-                return false; // Reference key (inputs[0].getString(0)) would be null
+                return false;
             }
 
-            // Compare inputs[0] (field 0) with inputs[i] (field 0) for i = 1 to numInputs - 1
             for (int i = 1; i < numInputs; i++) {
-                // We reuse SpecificInputsEquiKeyCondition for each pair comparison.
-                // leftInputIndex = 0, leftKeyFieldIndex = 0
-                // rightInputIndex = i, rightKeyFieldIndex = 0
                 SpecificInputsEquiKeyCondition pairCondition =
                         new SpecificInputsEquiKeyCondition(0, 0, i, 0);
                 if (!pairCondition.apply(inputs)) {
-                    return false; // Found a pair that doesn't match on key field 0
+                    return false;
                 }
             }
             return true;
@@ -715,19 +677,16 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
 
         @Override
         public boolean apply(RowData[] inputs) {
-            // Basic null checks for safety
             if (inputs == null
                     || inputs.length <= Math.max(leftInputIndex, rightInputIndex)
                     || inputs[leftInputIndex] == null
                     || inputs[rightInputIndex] == null) {
                 return false;
             }
-            // Check null keys
             if (inputs[leftInputIndex].isNullAt(leftKeyFieldIndex)
                     || inputs[rightInputIndex].isNullAt(rightKeyFieldIndex)) {
                 return false;
             }
-            // Compare the join keys
             String keyLeft = inputs[leftInputIndex].getString(leftKeyFieldIndex).toString();
             String keyRight = inputs[rightInputIndex].getString(rightKeyFieldIndex).toString();
             return keyLeft.equals(keyRight);
