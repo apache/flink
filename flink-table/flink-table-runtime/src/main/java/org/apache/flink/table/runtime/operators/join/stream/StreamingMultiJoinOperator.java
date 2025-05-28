@@ -29,6 +29,7 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.generated.MultiJoinCondition;
+import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.AttributeRef;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor;
 import org.apache.flink.table.runtime.operators.join.stream.state.MultiJoinStateView;
 import org.apache.flink.table.runtime.operators.join.stream.state.MultiJoinStateViews;
@@ -38,6 +39,7 @@ import org.apache.flink.types.RowKind;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Streaming multi-way join operator which supports inner join and left outer join, right joins are
@@ -373,9 +375,9 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             MultiJoinCondition multiJoinCondition,
             long[] stateRetentionTime,
             MultiJoinCondition[] joinConditions,
-            JoinKeyExtractor keyExtractor
-            // TODO Gustavo add joinAttributeMap in case we need it in the future
-            ) {
+            JoinKeyExtractor keyExtractor,
+            // We currently don't use this, but it might be useful in the future for optimizations
+            Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap) {
         super(parameters, inputSpecs.size());
         this.inputTypes = inputTypes;
         this.inputSpecs = inputSpecs;
@@ -806,13 +808,6 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             MultiJoinStateView stateView;
             String stateName = "multi-join-input-" + i;
             RowType joinKeyType = keyExtractor.getJoinKeyType(i);
-
-            if (joinKeyType == null) {
-                throw new IllegalStateException(
-                        "Could not determine joinKeyType for input "
-                                + i
-                                + ". State requires identifiable key attributes derived from join conditions.");
-            }
 
             stateView =
                     MultiJoinStateViews.create(

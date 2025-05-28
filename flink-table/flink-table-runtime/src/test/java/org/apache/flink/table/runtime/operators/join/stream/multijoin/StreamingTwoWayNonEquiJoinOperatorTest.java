@@ -49,7 +49,17 @@ class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorT
 
     // Condition: Users.amount > Orders.amount
     private static final GeneratedMultiJoinCondition EqualIdAndGreaterAmountCondition =
-            createFullJoinCondition(0, 0, 1, 1, 0, 1);
+            createEqAndGreatJoinCondition(0, 0, 1, 1, 0, 1);
+
+    private static final Map<Integer, Map<AttributeRef, AttributeRef>> customAttributeMap =
+            new HashMap<>();
+
+    static {
+        Map<AttributeRef, AttributeRef> map1 = new HashMap<>();
+        map1.put(new AttributeRef(0, 0), new AttributeRef(1, 0)); // user[0] -> order[0]
+
+        customAttributeMap.put(1, map1);
+    }
 
     public StreamingTwoWayNonEquiJoinOperatorTest(StateBackendMode stateBackendMode) {
         // Inner join, 2 inputs, custom non-equi condition
@@ -61,13 +71,8 @@ class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorT
                 Arrays.asList(
                         null,
                         EqualIdAndGreaterAmountCondition), // Use custom condition for the join step
-                new HashMap<>(), // Start with empty map, populate based on partitioning below
+                customAttributeMap,
                 false);
-
-        // Partitioning is still based on user_id (field 0) = order_user_id (field 0)
-        Map<AttributeRef, AttributeRef> map1 = new HashMap<>();
-        map1.put(new AttributeRef(0, 0), new AttributeRef(1, 0)); // user[0] -> order[0]
-        this.joinAttributeMap.put(1, map1);
     }
 
     /**
@@ -316,39 +321,39 @@ class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorT
     /** Condition for u.user_id = o.user_id. */
     private static class UserIdEqualsConditionImpl extends AbstractRichFunction
             implements MultiJoinCondition {
-        private final int usersInputIndex; // e.g., 0 if inputs[0] is User row
+        private final int usersInputId; // e.g., 0 if inputs[0] is User row
         private final int usersIdField; // e.g., 0 for user_id
-        private final int ordersInputIndex; // e.g., 1 if inputs[1] is Order row
+        private final int ordersInputId; // e.g., 1 if inputs[1] is Order row
         private final int ordersIdField; // e.g., 0 for user_id in Order
 
         public UserIdEqualsConditionImpl(
-                int usersInputIndex, int usersIdField, int ordersInputIndex, int ordersIdField) {
-            this.usersInputIndex = usersInputIndex;
+                int usersInputId, int usersIdField, int ordersInputId, int ordersIdField) {
+            this.usersInputId = usersInputId;
             this.usersIdField = usersIdField;
-            this.ordersInputIndex = ordersInputIndex;
+            this.ordersInputId = ordersInputId;
             this.ordersIdField = ordersIdField;
         }
 
         @Override
         public boolean apply(RowData[] inputs) {
             if (inputs == null
-                    || inputs.length <= Math.max(usersInputIndex, ordersInputIndex)
-                    || inputs[usersInputIndex] == null
-                    || inputs[ordersInputIndex] == null) {
+                    || inputs.length <= Math.max(usersInputId, ordersInputId)
+                    || inputs[usersInputId] == null
+                    || inputs[ordersInputId] == null) {
                 return false;
             }
             // Assuming IDs are strings and not null for this example.
             // Add comprehensive null checks as per your data model.
-            if (inputs[usersInputIndex].isNullAt(usersIdField)
-                    || inputs[ordersInputIndex].isNullAt(ordersIdField)) {
+            if (inputs[usersInputId].isNullAt(usersIdField)
+                    || inputs[ordersInputId].isNullAt(ordersIdField)) {
                 // SQL null semantics: null != null is true, null = null is false.
                 // For equals, if either is null, it's not equal unless both are null (which we'd
                 // typically treat as false for join keys).
                 return false;
             }
             // Assuming user_id is String. Adjust if it's another type.
-            String userId = inputs[usersInputIndex].getString(usersIdField).toString();
-            String orderUserId = inputs[ordersInputIndex].getString(ordersIdField).toString();
+            String userId = inputs[usersInputId].getString(usersIdField).toString();
+            String orderUserId = inputs[ordersInputId].getString(ordersIdField).toString();
             return userId.equals(orderUserId);
         }
     }
@@ -400,11 +405,11 @@ class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorT
 
     // Example of creating a combined condition (for illustration or if joinAttributeMap is not used
     // for equi-join)
-    protected static GeneratedMultiJoinCondition createFullJoinCondition(
-            int usersInputInArray,
+    protected static GeneratedMultiJoinCondition createEqAndGreatJoinCondition(
+            int usersInputId,
             int usersIdField,
             int usersAmountField,
-            int ordersInputInArray,
+            int ordersInputId,
             int ordersIdField,
             int ordersAmountField) {
         String generatedClassName = "FullJoinCondition_manual";
@@ -413,13 +418,10 @@ class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorT
             public MultiJoinCondition newInstance(ClassLoader classLoader) {
                 MultiJoinCondition userIdCond =
                         new UserIdEqualsConditionImpl(
-                                usersInputInArray, usersIdField, ordersInputInArray, ordersIdField);
+                                usersInputId, usersIdField, ordersInputId, ordersIdField);
                 MultiJoinCondition amountCond =
                         new AmountGreaterThanConditionImpl(
-                                usersInputInArray,
-                                usersAmountField,
-                                ordersInputInArray,
-                                ordersAmountField);
+                                usersInputId, usersAmountField, ordersInputId, ordersAmountField);
                 return new AndMultiJoinConditionImpl(userIdCond, amountCond);
             }
         };

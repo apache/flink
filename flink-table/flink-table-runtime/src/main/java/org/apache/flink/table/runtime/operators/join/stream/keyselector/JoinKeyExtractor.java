@@ -22,6 +22,8 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator;
 import org.apache.flink.table.types.logical.RowType;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
 
 /**
@@ -70,6 +72,7 @@ public interface JoinKeyExtractor extends Serializable {
      * @param inputId The ID of the input stream.
      * @return The {@link RowType} of the join key.
      */
+    @Nullable
     RowType getJoinKeyType(int inputId);
 
     /**
@@ -82,4 +85,11 @@ public interface JoinKeyExtractor extends Serializable {
      *     attributes exist or cannot be determined for this input.
      */
     RowData getCommonJoinKey(RowData row, int inputId);
+
+    /**
+     * Gets the type information for the common join key.
+     *
+     * @return The {@link RowType} for the common key join type.
+     */
+    RowType getCommonJoinKeyType();
 }

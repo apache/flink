@@ -387,8 +387,8 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
 
     protected KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> createTestHarness()
             throws Exception {
-        InternalTypeInfo<RowData> partitionKeyTypeInfo =
-                InternalTypeInfo.of(this.keyExtractor.getJoinKeyType(0));
+        var joinKeyType = this.keyExtractor.getCommonJoinKeyType();
+        InternalTypeInfo<RowData> partitionKeyTypeInfo = InternalTypeInfo.of(joinKeyType);
 
         KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> harness =
                 new KeyedMultiInputStreamOperatorTestHarness<>(
@@ -438,6 +438,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
         private final List<JoinType> joinTypes;
         private final List<GeneratedMultiJoinCondition> joinConditions;
         private final JoinKeyExtractor keyExtractor;
+        private final Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap;
 
         public MultiStreamingJoinOperatorFactory(
                 List<JoinInputSideSpec> inputSpecs,
@@ -451,6 +452,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
             this.joinConditions = joinConditions;
             this.keyExtractor =
                     new AttributeBasedJoinKeyExtractor(joinAttributeMap, inputTypeInfos);
+            this.joinAttributeMap = joinAttributeMap;
         }
 
         @Override
@@ -463,7 +465,8 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
                             inputTypeInfos,
                             joinTypes,
                             joinConditions,
-                            keyExtractor);
+                            keyExtractor,
+                            joinAttributeMap);
 
             @SuppressWarnings("unchecked")
             T operator = (T) op;
@@ -482,7 +485,8 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
                 List<RowType> inputTypeInfos,
                 List<JoinType> joinTypes,
                 List<GeneratedMultiJoinCondition> joinConditions,
-                JoinKeyExtractor keyExtractor) {
+                JoinKeyExtractor keyExtractor,
+                Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap) {
 
             long[] retentionTime = new long[inputSpecs.size()];
             Arrays.fill(retentionTime, 9999999L);
@@ -500,7 +504,8 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
                     multiJoinCondition,
                     retentionTime,
                     createdJoinConditions,
-                    keyExtractor);
+                    keyExtractor,
+                    joinAttributeMap);
         }
 
         private MultiJoinCondition[] createJoinConditions(
@@ -579,33 +584,29 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
      * the input at `index` and the input at `indexToCompare`. This is typically used for the ON
      * clause of a specific join step (e.g., A LEFT JOIN B **ON A.key = B.key**).
      *
-     * @param rightInputInArray The index of the current input stream (the right side of the
-     *     conceptual join step) in the `inputs` array of `MultiJoinCondition.apply()`.
-     * @param leftInputInArray The index of the input stream to compare against (the left side) in
-     *     the `inputs` array.
+     * @param rightInputId The index of the current input stream (the right side of the conceptual
+     *     join step) in the `inputs` array of `MultiJoinCondition.apply()`.
+     * @param leftInputId The index of the input stream to compare against (the left side) in the
+     *     `inputs` array.
      * @return A GeneratedMultiJoinCondition representing the equality check on field 0.
      */
     protected static GeneratedMultiJoinCondition createJoinCondition(
-            int rightInputInArray, int leftInputInArray) {
-        if (rightInputInArray <= 0
-                || leftInputInArray < 0
-                || rightInputInArray == leftInputInArray) {
+            int rightInputId, int leftInputId) {
+        if (rightInputId <= 0 || leftInputId < 0 || rightInputId == leftInputId) {
             throw new IllegalArgumentException(
                     String.format(
-                            "Invalid indices for creating join condition. rightInputInArray: %d, leftInputInArray: %d",
-                            rightInputInArray, leftInputInArray));
+                            "Invalid indices for creating join condition. rightInputId: %d, leftInputId: %d",
+                            rightInputId, leftInputId));
         }
 
         String generatedClassName =
                 String.format(
-                        "SpecificInputsEquiKeyCondition_manual_%d_%d",
-                        rightInputInArray, leftInputInArray);
+                        "SpecificInputsEquiKeyCondition_manual_%d_%d", rightInputId, leftInputId);
         return new GeneratedMultiJoinCondition(generatedClassName, "", new Object[0]) {
             @Override
             public MultiJoinCondition newInstance(ClassLoader classLoader) {
                 // Field 0 is assumed for key comparison in this default test condition
-                return new SpecificInputsEquiKeyCondition(
-                        leftInputInArray, 0, rightInputInArray, 0);
+                return new SpecificInputsEquiKeyCondition(leftInputId, 0, rightInputId, 0);
             }
         };
     }
