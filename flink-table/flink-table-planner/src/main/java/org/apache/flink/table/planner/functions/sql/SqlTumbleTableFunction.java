@@ -17,6 +17,8 @@
 
 package org.apache.flink.table.planner.functions.sql;
 
+import org.apache.flink.table.planner.functions.utils.SqlValidatorUtils;
+
 import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableList;
 
 import org.apache.calcite.sql.SqlCallBinding;
@@ -49,14 +51,16 @@ public class SqlTumbleTableFunction extends SqlWindowTableFunction {
         public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
             // There should only be three operands, and number of operands are checked before
             // this call.
-            if (!checkTableAndDescriptorOperands(callBinding, 1)) {
-                return throwValidationSignatureErrorOrReturnFalse(callBinding, throwOnFailure);
+            if (!SqlValidatorUtils.checkTableAndDescriptorOperands(callBinding, 1)) {
+                return SqlValidatorUtils.throwValidationSignatureErrorOrReturnFalse(
+                        callBinding, throwOnFailure);
             }
             if (!checkIntervalOperands(callBinding, 2)) {
-                return throwValidationSignatureErrorOrReturnFalse(callBinding, throwOnFailure);
+                return SqlValidatorUtils.throwValidationSignatureErrorOrReturnFalse(
+                        callBinding, throwOnFailure);
             }
             // check time attribute
-            return throwExceptionOrReturnFalse(
+            return SqlValidatorUtils.throwExceptionOrReturnFalse(
                     checkTimeColumnDescriptorOperand(callBinding, 1), throwOnFailure);
         }
 

@@ -26,7 +26,6 @@ import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperatorBinding;
-import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.SqlTableFunction;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlOperandMetadata;
@@ -70,18 +69,14 @@ public abstract class SqlMLTableFunction extends SqlFunction implements SqlTable
         final List<SqlNode> operandList = call.getOperandList();
 
         // ML table function should take only one table as input and use descriptor to reference
-        // columns in the table. The scope for descriptor validation should be the input table.
-        // Since the input table will be rewritten as select query. We get the select query's scope
-        // and use it for descriptor validation.
-        SqlValidatorScope selectScope = null;
+        // columns in the table. The scope for descriptor validation should be the input table which
+        // is also an operand of the call. We defer the validation of the descriptor since
+        // validation here will quality the descriptor columns to be NOT simple name which
+        // complicates checks in later stages. We validate the descriptor columns appear in table
+        // column in SqlOperandMetadata.
         boolean foundSelect = false;
         for (SqlNode operand : operandList) {
             if (operand.getKind().equals(SqlKind.DESCRIPTOR)) {
-                if (selectScope == null) {
-                    throw new ValidationException(TABLE_INPUT_ERROR);
-                }
-                // Set scope to table when validating descriptor columns
-                operand.validate(validator, selectScope);
                 continue;
             }
             if (operand.getKind().equals(SqlKind.SET_SEMANTICS_TABLE)) {
@@ -90,7 +85,6 @@ public abstract class SqlMLTableFunction extends SqlFunction implements SqlTable
                     throw new ValidationException(TABLE_INPUT_ERROR);
                 }
                 foundSelect = true;
-                selectScope = validator.getSelectScope((SqlSelect) operand);
             }
 
             if (operand.getKind().equals(SqlKind.SELECT)) {
@@ -98,7 +92,6 @@ public abstract class SqlMLTableFunction extends SqlFunction implements SqlTable
                     throw new ValidationException(TABLE_INPUT_ERROR);
                 }
                 foundSelect = true;
-                selectScope = validator.getSelectScope((SqlSelect) operand);
             }
             operand.validate(validator, scope);
         }

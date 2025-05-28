@@ -34,7 +34,6 @@ import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlOperatorBinding;
-import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.type.SqlOperandCountRanges;
 import org.apache.calcite.sql.type.SqlOperandMetadata;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
@@ -48,7 +47,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-import static org.apache.calcite.util.Static.RESOURCE;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.canBeTimeAttributeType;
 
 /**
@@ -194,56 +192,6 @@ public class SqlWindowTableFunction extends org.apache.calcite.sql.SqlWindowTabl
             return i > getOperandCountRange().getMin() && i <= getOperandCountRange().getMax();
         }
 
-        boolean throwValidationSignatureErrorOrReturnFalse(
-                SqlCallBinding callBinding, boolean throwOnFailure) {
-            if (throwOnFailure) {
-                throw callBinding.newValidationSignatureError();
-            } else {
-                return false;
-            }
-        }
-
-        @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-        boolean throwExceptionOrReturnFalse(Optional<RuntimeException> e, boolean throwOnFailure) {
-            if (e.isPresent()) {
-                if (throwOnFailure) {
-                    throw e.get();
-                } else {
-                    return false;
-                }
-            } else {
-                return true;
-            }
-        }
-
-        /**
-         * Checks whether the heading operands are in the form {@code (ROW, DESCRIPTOR, DESCRIPTOR
-         * ..., other params)}, returning whether successful, and throwing if any columns are not
-         * found.
-         *
-         * @param callBinding The call binding
-         * @param descriptorCount The number of descriptors following the first operand (e.g. the
-         *     table)
-         * @return true if validation passes; throws if any columns are not found
-         */
-        boolean checkTableAndDescriptorOperands(SqlCallBinding callBinding, int descriptorCount) {
-            final SqlNode operand0 = callBinding.operand(0);
-            final SqlValidator validator = callBinding.getValidator();
-            final RelDataType type = validator.getValidatedNodeType(operand0);
-            if (type.getSqlTypeName() != SqlTypeName.ROW) {
-                return false;
-            }
-            for (int i = 1; i < descriptorCount + 1; i++) {
-                final SqlNode operand = callBinding.operand(i);
-                if (operand.getKind() != SqlKind.DESCRIPTOR) {
-                    return false;
-                }
-                validateColumnNames(
-                        validator, type.getFieldNames(), ((SqlCall) operand).getOperandList());
-            }
-            return true;
-        }
-
         /**
          * Checks whether the type that the operand of time col descriptor refers to is valid.
          *
@@ -309,18 +257,6 @@ public class SqlWindowTableFunction extends org.apache.calcite.sql.SqlWindowTabl
                 }
             }
             return true;
-        }
-
-        void validateColumnNames(
-                SqlValidator validator, List<String> fieldNames, List<SqlNode> columnNames) {
-            final SqlNameMatcher matcher = validator.getCatalogReader().nameMatcher();
-            for (SqlNode columnName : columnNames) {
-                final String name = ((SqlIdentifier) columnName).getSimple();
-                if (matcher.indexOf(fieldNames, name) < 0) {
-                    throw SqlUtil.newContextException(
-                            columnName.getParserPosition(), RESOURCE.unknownIdentifier(name));
-                }
-            }
         }
     }
 }

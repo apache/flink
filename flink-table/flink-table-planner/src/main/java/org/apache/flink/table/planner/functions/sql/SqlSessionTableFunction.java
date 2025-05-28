@@ -17,6 +17,8 @@
 
 package org.apache.flink.table.planner.functions.sql;
 
+import org.apache.flink.table.planner.functions.utils.SqlValidatorUtils;
+
 import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableList;
 import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableMap;
 
@@ -73,18 +75,20 @@ public class SqlSessionTableFunction extends SqlWindowTableFunction {
 
         @Override
         public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
-            if (!checkTableAndDescriptorOperands(callBinding, 1)) {
-                return throwValidationSignatureErrorOrReturnFalse(callBinding, throwOnFailure);
+            if (!SqlValidatorUtils.checkTableAndDescriptorOperands(callBinding, 1)) {
+                return SqlValidatorUtils.throwValidationSignatureErrorOrReturnFalse(
+                        callBinding, throwOnFailure);
             }
 
             final SqlValidator validator = callBinding.getValidator();
             final SqlNode operand2 = callBinding.operand(2);
             final RelDataType type2 = validator.getValidatedNodeType(operand2);
             if (!SqlTypeUtil.isInterval(type2)) {
-                return throwValidationSignatureErrorOrReturnFalse(callBinding, throwOnFailure);
+                return SqlValidatorUtils.throwValidationSignatureErrorOrReturnFalse(
+                        callBinding, throwOnFailure);
             }
 
-            return throwExceptionOrReturnFalse(
+            return SqlValidatorUtils.throwExceptionOrReturnFalse(
                     checkTimeColumnDescriptorOperand(callBinding, 1), throwOnFailure);
         }
 
