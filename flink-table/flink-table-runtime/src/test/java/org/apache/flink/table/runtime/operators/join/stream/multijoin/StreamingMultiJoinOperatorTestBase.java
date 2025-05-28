@@ -37,6 +37,7 @@ import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyE
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
+import org.apache.flink.table.runtime.util.StateParameterizedHarnessTestBase;
 import org.apache.flink.table.runtime.util.StreamRecordUtils;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -59,7 +60,7 @@ import java.util.Map;
  * Base class for testing the StreamingMultiJoinOperator. Provides common functionality and helper
  * methods for testing multi-way joins.
  */
-public abstract class StreamingMultiJoinOperatorTestBase {
+public abstract class StreamingMultiJoinOperatorTestBase extends StateParameterizedHarnessTestBase {
 
     // ==========================================================================
     // Constants
@@ -96,10 +97,12 @@ public abstract class StreamingMultiJoinOperatorTestBase {
     // ==========================================================================
 
     protected StreamingMultiJoinOperatorTestBase(
+            StateBackendMode stateBackendMode,
             int numInputs,
             List<JoinType> joinTypes,
             List<GeneratedMultiJoinCondition> joinConditions,
             boolean isFullOuterJoin) {
+        super(stateBackendMode);
         this.inputTypeInfos = new ArrayList<>(numInputs);
         this.keySelectors = new ArrayList<>(numInputs);
         this.inputSpecs = new ArrayList<>(numInputs);
@@ -118,11 +121,13 @@ public abstract class StreamingMultiJoinOperatorTestBase {
 
     /** Constructor allowing explicit provision of joinAttributeMap for custom conditions. */
     protected StreamingMultiJoinOperatorTestBase(
+            StateBackendMode stateBackendMode,
             int numInputs,
             List<JoinType> joinTypes,
             List<GeneratedMultiJoinCondition> joinConditions,
             Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap,
             boolean isFullOuterJoin) {
+        super(stateBackendMode);
         this.inputTypeInfos = new ArrayList<>(numInputs);
         this.keySelectors = new ArrayList<>(numInputs);
         this.inputSpecs = new ArrayList<>(numInputs);
@@ -143,7 +148,7 @@ public abstract class StreamingMultiJoinOperatorTestBase {
     // ==========================================================================
 
     @BeforeEach
-    void beforeEach() throws Exception {
+    protected void beforeEach() throws Exception {
         testHarness = createTestHarness();
         setupKeySelectorsForTestHarness(testHarness);
         testHarness.setup();
@@ -154,7 +159,7 @@ public abstract class StreamingMultiJoinOperatorTestBase {
     }
 
     @AfterEach
-    void afterEach() throws Exception {
+    protected void afterEach() throws Exception {
         if (testHarness != null) {
             testHarness.close();
         }
@@ -421,6 +426,9 @@ public abstract class StreamingMultiJoinOperatorTestBase {
 
         // Setup key selectors for each input (this now uses the extractor)
         setupKeySelectorsForTestHarness(harness);
+
+        harness.setStateBackend(getStateBackend());
+        harness.setCheckpointStorage(getCheckpointStorage());
         return harness;
     }
 
@@ -555,18 +563,15 @@ public abstract class StreamingMultiJoinOperatorTestBase {
     // ==========================================================================
 
     protected InternalTypeInfo<RowData> createInputTypeInfo(int inputIndex) {
-        return InternalTypeInfo.of(
-                RowType.of(
-                        new LogicalType[] {
-                            new CharType(false, 20),
-                            new CharType(false, 20),
-                            VarCharType.STRING_TYPE
-                        },
-                        new String[] {
-                            String.format("user_id_%d", inputIndex),
-                            String.format("id_%d", inputIndex),
-                            String.format("details_%d", inputIndex)
-                        }));
+        return InternalTypeInfo.ofFields(
+                new LogicalType[] {
+                    new CharType(false, 20), new CharType(false, 20), VarCharType.STRING_TYPE
+                },
+                new String[] {
+                    String.format("user_id_%d", inputIndex),
+                    String.format("id_%d", inputIndex),
+                    String.format("details_%d", inputIndex)
+                });
     }
 
     protected InternalTypeInfo<RowData> createUniqueKeyType(int inputIndex) {

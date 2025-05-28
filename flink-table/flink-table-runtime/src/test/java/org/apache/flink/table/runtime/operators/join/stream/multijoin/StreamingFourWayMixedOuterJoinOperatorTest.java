@@ -28,8 +28,10 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -54,6 +56,7 @@ import java.util.Map;
  *
  * <p>All inputs join on their respective user_id_X fields with Users.user_id_0.
  */
+@ExtendWith(ParameterizedTestExtension.class)
 class StreamingFourWayMixedOuterJoinOperatorTest extends StreamingMultiJoinOperatorTestBase {
 
     private static final List<GeneratedMultiJoinCondition> customJoinConditions;
@@ -107,8 +110,9 @@ class StreamingFourWayMixedOuterJoinOperatorTest extends StreamingMultiJoinOpera
         customAttributeMap.put(3, map3);
     }
 
-    public StreamingFourWayMixedOuterJoinOperatorTest() {
+    public StreamingFourWayMixedOuterJoinOperatorTest(StateBackendMode stateBackendMode) {
         super(
+                stateBackendMode,
                 4, // numInputs
                 List.of(
                         JoinType.INNER, // Placeholder for Users (Input 0)
@@ -141,7 +145,7 @@ class StreamingFourWayMixedOuterJoinOperatorTest extends StreamingMultiJoinOpera
      * LEFT JOIN Shipments s ON u.user_id_0 = s.user_id_3 AND u.details_0 > s.details_3
      * </pre>
      */
-    @Test
+    @TestTemplate
     void testFourWayMixedJoin() throws Exception {
         // Schemas:
         // User(joinKey:String, pk:String, details:Long)

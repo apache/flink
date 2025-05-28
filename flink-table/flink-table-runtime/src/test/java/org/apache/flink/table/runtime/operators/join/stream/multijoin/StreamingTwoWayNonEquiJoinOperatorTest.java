@@ -32,9 +32,11 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.types.RowKind;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -42,15 +44,17 @@ import java.util.List;
 import java.util.Map;
 
 /** Tests for {@link StreamingMultiJoinOperator} with non-equi join conditions. */
+@ExtendWith(ParameterizedTestExtension.class)
 class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorTestBase {
 
     // Condition: Users.amount > Orders.amount
     private static final GeneratedMultiJoinCondition EqualIdAndGreaterAmountCondition =
             createFullJoinCondition(0, 0, 1, 1, 0, 1);
 
-    public StreamingTwoWayNonEquiJoinOperatorTest() {
+    public StreamingTwoWayNonEquiJoinOperatorTest(StateBackendMode stateBackendMode) {
         // Inner join, 2 inputs, custom non-equi condition
         super(
+                stateBackendMode,
                 2,
                 List.of(JoinType.INNER, JoinType.INNER),
                 // Maybe make the join conditions more generic
@@ -70,7 +74,7 @@ class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorT
      * SELECT u.*, o.* FROM Users u INNER JOIN Orders o ON u.user_id = o.user_id AND u.amount >
      * o.amount.
      */
-    @Test
+    @TestTemplate
     void testInnerJoinWithNonEquiCondition() throws Exception {
         /* -------- Basic Insertions and Matches ----------- */
 
@@ -118,7 +122,7 @@ class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorT
      * <p>Schema: Users(user_id PRIMARY KEY, amount, name) Orders(user_id, order_id PRIMARY KEY,
      * amount)
      */
-    @Test
+    @TestTemplate
     void testInnerJoinWithNonEquiConditionUserUpdates() throws Exception {
         /* -------- Setup Initial User and Order ----------- */
         // User with amount 100
@@ -187,7 +191,7 @@ class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorT
      * <p>Schema: Users(user_id PRIMARY KEY, amount, name) Orders(user_id, order_id PRIMARY KEY,
      * amount)
      */
-    @Test
+    @TestTemplate
     void testInnerJoinWithNonEquiConditionOrderUpdates() throws Exception {
         /* -------- Setup Initial User and Non-Matching Order ----------- */
 

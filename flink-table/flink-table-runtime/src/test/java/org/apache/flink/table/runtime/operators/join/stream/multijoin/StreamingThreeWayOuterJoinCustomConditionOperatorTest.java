@@ -21,14 +21,17 @@ package org.apache.flink.table.runtime.operators.join.stream.multijoin;
 import org.apache.flink.table.runtime.generated.GeneratedMultiJoinCondition;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.AttributeRef;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@ExtendWith(ParameterizedTestExtension.class)
 class StreamingThreeWayOuterJoinCustomConditionOperatorTest
         extends StreamingMultiJoinOperatorTestBase {
 
@@ -53,11 +56,13 @@ class StreamingThreeWayOuterJoinCustomConditionOperatorTest
         customAttributeMap.put(2, map2); // Key is the right-side input index (2)
     }
 
-    public StreamingThreeWayOuterJoinCustomConditionOperatorTest() {
+    public StreamingThreeWayOuterJoinCustomConditionOperatorTest(
+            StateBackendMode stateBackendMode) {
         // Testing left joins with custom conditions for a chain of tables:
         // Users LEFT JOIN Orders ON Users.id = Orders.id
         //       LEFT JOIN Payments ON Users.id = Payments.id (Custom part)
         super(
+                stateBackendMode,
                 3, // numInputs
                 List.of(
                         JoinType.INNER,
@@ -77,7 +82,7 @@ class StreamingThreeWayOuterJoinCustomConditionOperatorTest
      * <p>Schema: Users(user_id PRIMARY KEY, name, details) Orders(user_id, order_id PRIMARY KEY,
      * name) Payments(user_id, payment_id PRIMARY KEY, name)
      */
-    @Test
+    @TestTemplate
     void testThreeWayLeftOuterJoinCustomCondition() throws Exception {
         /* -------- LEFT OUTER JOIN APPEND TESTS ----------- */
 

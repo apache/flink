@@ -27,11 +27,15 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.IterableIterator;
+
+import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -176,6 +180,8 @@ public final class MultiJoinStateViews {
         private final MapState<RowData, RowData> recordState;
         private final KeySelector<RowData, RowData> uniqueKeySelector;
         private final InternalTypeInfo<RowData> joinKeyType;
+        private final RowDataSerializer joinKeySerializer;
+        private final int joinKeyFieldCount;
 
         private InputSideHasUniqueKey(
                 RuntimeContext ctx,
@@ -189,10 +195,12 @@ public final class MultiJoinStateViews {
             checkNotNull(uniqueKeySelector);
             this.uniqueKeySelector = uniqueKeySelector;
             this.joinKeyType = joinKeyType;
+            this.joinKeySerializer = new RowDataSerializer(joinKeyType.toRowType());
+            this.joinKeyFieldCount = joinKeyType.toRowType().getFieldCount();
 
             // Composite key type: RowData with 2 fields (joinKey, uniqueKey)
             // The composite key is a RowData with joinKey at index 0 and uniqueKey at index 1.
-            // TODO Gustavo: there is probably a cleaner way of instantiating the type
+            // TODO Gustavo refactor so we only use row type when possible
             final RowType keyRowType =
                     RowType.of(joinKeyType.toRowType(), uniqueKeyType.toRowType());
             InternalTypeInfo<RowData> compositeKeyType = InternalTypeInfo.of(keyRowType);
@@ -203,6 +211,15 @@ public final class MultiJoinStateViews {
             this.recordState = ctx.getMapState(recordStateDesc);
         }
 
+        private boolean joinKeysEqual(RowData joinKey, RowData currentJoinKey) {
+            BinaryRowData binaryJoinKey = joinKeySerializer.toBinaryRow(joinKey);
+            BinaryRowData binaryCurrJoinKey = joinKeySerializer.toBinaryRow(currentJoinKey);
+            return binaryJoinKey.equals(binaryCurrJoinKey);
+        }
+
+        // TODO Gustavo We want to drop the default key and only store uniquekey when there is no
+        // join key
+        // We will use null in the code
         private RowData createCompositeKey(RowData joinKey, RowData uniqueKey) {
             GenericRowData compositeKey = new GenericRowData(2);
             compositeKey.setField(0, joinKey);
@@ -233,7 +250,7 @@ public final class MultiJoinStateViews {
 
             // Consume the record
             // This iterator is stateful and intended for single use per call to getRecords.
-            //noinspection NullableProblems TODO Gustavo can we not supress?
+
             return new IterableIterator<>() {
                 private RowData nextRecord = null;
 
@@ -245,8 +262,9 @@ public final class MultiJoinStateViews {
                     while (stateIterator.hasNext()) {
                         Map.Entry<RowData, RowData> entry = stateIterator.next();
                         RowData compositeKey = entry.getKey();
-                        RowData currentJoinKey = compositeKey.getRow(0, joinKeyType.getArity());
-                        if (joinKey.equals(currentJoinKey)) {
+                        RowData currentJoinKey = compositeKey.getRow(0, joinKeyFieldCount);
+
+                        if (joinKeysEqual(joinKey, currentJoinKey)) {
                             nextRecord = entry.getValue();
                             return true;
                         }
@@ -265,6 +283,7 @@ public final class MultiJoinStateViews {
                 }
 
                 @Override
+                @Nonnull
                 public Iterator<RowData> iterator() {
                     // This iterator is stateful and intended for single use per call to getRecords.
                     return this;
@@ -282,8 +301,8 @@ public final class MultiJoinStateViews {
             while (iterator.hasNext()) {
                 Map.Entry<RowData, RowData> entry = iterator.next();
                 RowData compositeKey = entry.getKey();
-                RowData currentJoinKey = compositeKey.getRow(0, joinKeyType.getArity());
-                if (joinKey.equals(currentJoinKey)) {
+                RowData currentJoinKey = compositeKey.getRow(0, joinKeyFieldCount);
+                if (joinKeysEqual(joinKey, currentJoinKey)) {
                     keysToRemove.add(compositeKey);
                 }
             }
@@ -305,6 +324,9 @@ public final class MultiJoinStateViews {
         private final MapState<RowData, Integer> recordState;
         private final InternalTypeInfo<RowData> joinKeyType;
         private final InternalTypeInfo<RowData> recordType; // Needed for composite key construction
+        private final RowDataSerializer joinKeySerializer;
+        private final int joinKeyFieldCount;
+        private final int recordFieldCount;
 
         private InputSideHasNoUniqueKey(
                 RuntimeContext ctx,
@@ -314,16 +336,25 @@ public final class MultiJoinStateViews {
                 final StateTtlConfig ttlConfig) {
             this.joinKeyType = joinKeyType;
             this.recordType = recordType;
+            this.joinKeySerializer = new RowDataSerializer(joinKeyType.toRowType());
+            this.joinKeyFieldCount = joinKeyType.toRowType().getFieldCount();
+            this.recordFieldCount = recordType.toRowType().getFieldCount();
 
             // Composite key type: RowData with 2 fields (joinKey, record)
             // TODO Gustavo: there is probably a cleaner way of instantiating the type
             final RowType keyRowType = RowType.of(joinKeyType.toRowType(), recordType.toRowType());
-            InternalTypeInfo<RowData> compositeKeyType = InternalTypeInfo.ofFields(keyRowType);
+            InternalTypeInfo<RowData> compositeKeyType = InternalTypeInfo.of(keyRowType);
 
             MapStateDescriptor<RowData, Integer> recordStateDesc =
                     createStateDescriptor(stateName, compositeKeyType, Types.INT, ttlConfig);
 
             this.recordState = ctx.getMapState(recordStateDesc);
+        }
+
+        private boolean joinKeysEqual(RowData joinKey, RowData currentJoinKey) {
+            BinaryRowData binaryJoinKey = joinKeySerializer.toBinaryRow(joinKey);
+            BinaryRowData binaryCurrJoinKey = joinKeySerializer.toBinaryRow(currentJoinKey);
+            return binaryJoinKey.equals(binaryCurrJoinKey);
         }
 
         private RowData createCompositeKey(RowData joinKey, RowData record) {
@@ -373,7 +404,6 @@ public final class MultiJoinStateViews {
                 return Collections.emptyList();
             }
 
-            //noinspection NullableProblems // TODO Gustavo can we not supress?
             return new IterableIterator<>() {
                 private RowData currentRecord = null;
                 private int remainingTimes = 0;
@@ -386,10 +416,10 @@ public final class MultiJoinStateViews {
                     while (stateIterator.hasNext()) {
                         Map.Entry<RowData, Integer> currentEntry = stateIterator.next();
                         RowData compositeKey = currentEntry.getKey();
-                        RowData currentJoinKey = compositeKey.getRow(0, joinKeyType.getArity());
-                        if (joinKey.equals(currentJoinKey)) {
+                        RowData currentJoinKey = compositeKey.getRow(0, joinKeyFieldCount);
+                        if (joinKeysEqual(joinKey, currentJoinKey)) {
                             // The record is the second part of the composite key
-                            currentRecord = compositeKey.getRow(1, recordType.getArity());
+                            currentRecord = compositeKey.getRow(1, recordFieldCount);
                             remainingTimes = currentEntry.getValue();
                             if (remainingTimes > 0) {
                                 return true;
@@ -411,6 +441,7 @@ public final class MultiJoinStateViews {
                 }
 
                 @Override
+                @Nonnull
                 public Iterator<RowData> iterator() {
                     return this;
                 }
@@ -427,8 +458,8 @@ public final class MultiJoinStateViews {
             while (iterator.hasNext()) {
                 Map.Entry<RowData, Integer> entry = iterator.next();
                 RowData compositeKey = entry.getKey();
-                RowData currentJoinKey = compositeKey.getRow(0, joinKeyType.getArity());
-                if (joinKey.equals(currentJoinKey)) {
+                RowData currentJoinKey = compositeKey.getRow(0, joinKeyFieldCount);
+                if (joinKeysEqual(joinKey, currentJoinKey)) {
                     keysToRemove.add(compositeKey);
                 }
             }

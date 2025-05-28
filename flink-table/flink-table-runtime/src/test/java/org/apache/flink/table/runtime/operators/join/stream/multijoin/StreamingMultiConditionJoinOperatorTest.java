@@ -21,8 +21,10 @@ package org.apache.flink.table.runtime.operators.join.stream.multijoin;
 import org.apache.flink.table.runtime.generated.GeneratedMultiJoinCondition;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.AttributeRef;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -33,6 +35,7 @@ import java.util.Map;
  * Tests for {@link org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator}
  * with multiple join conditions.
  */
+@ExtendWith(ParameterizedTestExtension.class)
 class StreamingMultiConditionJoinOperatorTest extends StreamingMultiJoinOperatorTestBase {
 
     // Condition for A JOIN B ON A.f0 = B.f0 AND A.f2 = B.f2
@@ -55,9 +58,10 @@ class StreamingMultiConditionJoinOperatorTest extends StreamingMultiJoinOperator
         customAttributeMap.put(1, map1); // Key is the right-side input index (1)
     }
 
-    public StreamingMultiConditionJoinOperatorTest() {
+    public StreamingMultiConditionJoinOperatorTest(StateBackendMode stateBackendMode) {
         // Two-way inner join with multiple conditions
         super(
+                stateBackendMode,
                 2, // numInputs
                 List.of(JoinType.INNER, JoinType.INNER), // joinTypes (first is placeholder)
                 customJoinConditions, // Pass custom conditions
@@ -71,7 +75,7 @@ class StreamingMultiConditionJoinOperatorTest extends StreamingMultiJoinOperator
      *
      * <p>Primary key is user_id (index 0) and order_id (index 1)
      */
-    @Test
+    @TestTemplate
     void testTwoWayInnerJoinMultiCondition() throws Exception {
         // Schema: Users(user_id_0, id_0, details_0), Orders(user_id_1, id_1, details_1)
         // Join: ON Users.user_id_0 = Orders.user_id_1 AND Users.details_0 = Orders.details_1

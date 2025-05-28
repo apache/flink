@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.join.stream.keyselector;
 
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -46,20 +47,19 @@ import java.util.stream.Collectors;
 public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
     private static final long serialVersionUID = 1L;
 
+    // TODO Gustavo - refactor default key
     // Default key/type used when no specific join keys are applicable (e.g., input 0, cross joins).
-    private static final GenericRowData DEFAULT_KEY = new GenericRowData(1);
-
-    static {
-        DEFAULT_KEY.setField(0, "__DEFAULT_MULTI_JOIN_STATE_KEY__");
-    }
+    private static final GenericRowData DEFAULT_KEY =
+            GenericRowData.of(StringData.fromString("__DEFAULT_MULTI_JOIN_STATE_KEY__"));
 
     private static final InternalTypeInfo<RowData> DEFAULT_KEY_TYPE =
             InternalTypeInfo.of(
                     RowType.of(
+                            false,
                             new LogicalType[] {
                                 // Fixed type for the default key. Length matches the static key
                                 // value.
-                                new VarCharType(false, 31)
+                                new VarCharType(false, 32),
                             },
                             new String[] {"default_key"}));
 
@@ -186,10 +186,12 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
         return keyExtractors;
     }
 
+    // TODO Gustavo add ticket optimization ProjectedRowData
     private RowData buildKeyRow(List<KeyExtractor> keyExtractors, RowData[] currentRows) {
         if (keyExtractors.isEmpty()) {
             return DEFAULT_KEY;
         }
+
         GenericRowData keyRow = new GenericRowData(keyExtractors.size());
         for (int i = 0; i < keyExtractors.size(); i++) {
             keyRow.setField(i, keyExtractors.get(i).getValue(currentRows));

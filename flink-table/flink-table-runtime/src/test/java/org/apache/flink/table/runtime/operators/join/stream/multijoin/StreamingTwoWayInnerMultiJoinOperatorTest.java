@@ -19,20 +19,28 @@
 package org.apache.flink.table.runtime.operators.join.stream.multijoin;
 
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.List;
 
+@ExtendWith(ParameterizedTestExtension.class)
 class StreamingTwoWayInnerMultiJoinOperatorTest extends StreamingMultiJoinOperatorTestBase {
 
-    public StreamingTwoWayInnerMultiJoinOperatorTest() {
+    public StreamingTwoWayInnerMultiJoinOperatorTest(StateBackendMode stateBackendMode) {
         // For inner join test, set outerJoinFlags to false for all inputs
-        super(2, List.of(JoinType.INNER, JoinType.INNER), defaultConditions(), false);
+        super(
+                stateBackendMode,
+                2,
+                List.of(JoinType.INNER, JoinType.INNER),
+                defaultConditions(),
+                false);
     }
 
     /** SELECT u.*, o.* FROM Users u INNER JOIN Orders o ON u.id = o.user_id. */
-    @Test
+    @TestTemplate
     void testTwoWayInnerJoin() throws Exception {
         /* -------- APPEND TESTS ----------- */
 
@@ -57,7 +65,7 @@ class StreamingTwoWayInnerMultiJoinOperatorTest extends StreamingMultiJoinOperat
      * SELECT u.*, o.* FROM Users u INNER JOIN Orders o ON u.id = o.user_id -- Test updates and
      * deletes on both sides.
      */
-    @Test
+    @TestTemplate
     void testTwoWayInnerJoinUpdating() throws Exception {
         /* -------- SETUP BASE DATA ----------- */
         insertUser("1", "Gus", "User 1 Details");

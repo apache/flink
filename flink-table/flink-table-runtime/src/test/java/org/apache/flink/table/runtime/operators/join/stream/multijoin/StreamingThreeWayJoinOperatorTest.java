@@ -19,16 +19,20 @@
 package org.apache.flink.table.runtime.operators.join.stream.multijoin;
 
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.List;
 
+@ExtendWith(ParameterizedTestExtension.class)
 class StreamingThreeWayJoinOperatorTest extends StreamingMultiJoinOperatorTestBase {
 
-    public StreamingThreeWayJoinOperatorTest() {
+    public StreamingThreeWayJoinOperatorTest(StateBackendMode stateBackendMode) {
         // For inner join test, set joinTypes to INNER for all joins
         super(
+                stateBackendMode,
                 3,
                 List.of(JoinType.INNER, JoinType.INNER, JoinType.INNER),
                 defaultConditions(),
@@ -39,7 +43,7 @@ class StreamingThreeWayJoinOperatorTest extends StreamingMultiJoinOperatorTestBa
      * SELECT u.*, o.*, p.* FROM Users u INNER JOIN Orders o ON u.id = o.user_id INNER JOIN Payments
      * p ON u.id = p.user_id -- Test three-way inner join with append-only data.
      */
-    @Test
+    @TestTemplate
     void testThreeWayInnerJoin() throws Exception {
         /* -------- THREE-WAY JOIN APPEND TESTS ----------- */
 
@@ -88,7 +92,7 @@ class StreamingThreeWayJoinOperatorTest extends StreamingMultiJoinOperatorTestBa
      * SELECT u.*, o.*, p.* FROM Users u INNER JOIN Orders o ON u.id = o.user_id INNER JOIN Payments
      * p ON u.id = p.user_id -- Test updates and deletes across all three tables.
      */
-    @Test
+    @TestTemplate
     void testThreeWayInnerJoinUpdating() throws Exception {
         /* -------- SETUP BASE DATA ----------- */
 

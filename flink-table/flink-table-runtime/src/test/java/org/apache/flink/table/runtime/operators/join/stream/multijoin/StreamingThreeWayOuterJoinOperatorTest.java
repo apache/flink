@@ -19,16 +19,24 @@
 package org.apache.flink.table.runtime.operators.join.stream.multijoin;
 
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.List;
 
+@ExtendWith(ParameterizedTestExtension.class)
 class StreamingThreeWayOuterJoinOperatorTest extends StreamingMultiJoinOperatorTestBase {
 
-    public StreamingThreeWayOuterJoinOperatorTest() {
+    public StreamingThreeWayOuterJoinOperatorTest(StateBackendMode stateBackendMode) {
         // Testing left joins for a chain of tables: Users LEFT JOIN Orders LEFT JOIN Payments
-        super(3, List.of(JoinType.INNER, JoinType.LEFT, JoinType.LEFT), defaultConditions(), false);
+        super(
+                stateBackendMode, // Pass stateBackendMode to super
+                3,
+                List.of(JoinType.INNER, JoinType.LEFT, JoinType.LEFT),
+                defaultConditions(),
+                false);
     }
 
     /**
@@ -40,7 +48,7 @@ class StreamingThreeWayOuterJoinOperatorTest extends StreamingMultiJoinOperatorT
      * <p>Schema: Users(user_id PRIMARY KEY, name, details) Orders(user_id, order_id PRIMARY KEY,
      * name) Payments(user_id, payment_id PRIMARY KEY, name)
      */
-    @Test
+    @TestTemplate
     void testThreeWayLeftOuterJoin() throws Exception {
         /* -------- LEFT OUTER JOIN APPEND TESTS ----------- */
 
@@ -64,44 +72,45 @@ class StreamingThreeWayOuterJoinOperatorTest extends StreamingMultiJoinOperatorT
         // Add matching order - deletes null result, emits partial join (left+middle, right null)
         insertOrder("1", "order_1", "Order 1 Details");
         emits(
-                DELETE, r("1", "Gus", "User 1 Details", null, null, null, null, null, null),
+                DELETE,
+                r("1", "Gus", "User 1 Details", null, null, null, null, null, null),
                 INSERT,
-                        r(
-                                "1",
-                                "Gus",
-                                "User 1 Details",
-                                "1",
-                                "order_1",
-                                "Order 1 Details",
-                                null,
-                                null,
-                                null));
+                r(
+                        "1",
+                        "Gus",
+                        "User 1 Details",
+                        "1",
+                        "order_1",
+                        "Order 1 Details",
+                        null,
+                        null,
+                        null));
 
         // Add matching payment - deletes partial join, emits full join
         insertPayment("1", "payment_1", "Payment 1 Details");
         emits(
                 DELETE,
-                        r(
-                                "1",
-                                "Gus",
-                                "User 1 Details",
-                                "1",
-                                "order_1",
-                                "Order 1 Details",
-                                null,
-                                null,
-                                null),
+                r(
+                        "1",
+                        "Gus",
+                        "User 1 Details",
+                        "1",
+                        "order_1",
+                        "Order 1 Details",
+                        null,
+                        null,
+                        null),
                 INSERT,
-                        r(
-                                "1",
-                                "Gus",
-                                "User 1 Details",
-                                "1",
-                                "order_1",
-                                "Order 1 Details",
-                                "1",
-                                "payment_1",
-                                "Payment 1 Details"));
+                r(
+                        "1",
+                        "Gus",
+                        "User 1 Details",
+                        "1",
+                        "order_1",
+                        "Order 1 Details",
+                        "1",
+                        "payment_1",
+                        "Payment 1 Details"));
 
         /* -------- DELETE TRANSITIONS ----------- */
 
@@ -109,85 +118,87 @@ class StreamingThreeWayOuterJoinOperatorTest extends StreamingMultiJoinOperatorT
         deletePayment("1", "payment_1", "Payment 1 Details");
         emits(
                 DELETE,
-                        r(
-                                "1",
-                                "Gus",
-                                "User 1 Details",
-                                "1",
-                                "order_1",
-                                "Order 1 Details",
-                                "1",
-                                "payment_1",
-                                "Payment 1 Details"),
+                r(
+                        "1",
+                        "Gus",
+                        "User 1 Details",
+                        "1",
+                        "order_1",
+                        "Order 1 Details",
+                        "1",
+                        "payment_1",
+                        "Payment 1 Details"),
                 INSERT,
-                        r(
-                                "1",
-                                "Gus",
-                                "User 1 Details",
-                                "1",
-                                "order_1",
-                                "Order 1 Details",
-                                null,
-                                null,
-                                null));
+                r(
+                        "1",
+                        "Gus",
+                        "User 1 Details",
+                        "1",
+                        "order_1",
+                        "Order 1 Details",
+                        null,
+                        null,
+                        null));
 
         // Delete order - reverts left only join
         deleteOrder("1", "order_1", "Order 1 Details");
         emits(
                 DELETE,
-                        r(
-                                "1",
-                                "Gus",
-                                "User 1 Details",
-                                "1",
-                                "order_1",
-                                "Order 1 Details",
-                                null,
-                                null,
-                                null),
-                INSERT, r("1", "Gus", "User 1 Details", null, null, null, null, null, null));
+                r(
+                        "1",
+                        "Gus",
+                        "User 1 Details",
+                        "1",
+                        "order_1",
+                        "Order 1 Details",
+                        null,
+                        null,
+                        null),
+                INSERT,
+                r("1", "Gus", "User 1 Details", null, null, null, null, null, null));
 
         // Re-add order - transitions back to left+middle join
         insertOrder("1", "order_1", "Order 1 Details");
         emits(
-                DELETE, r("1", "Gus", "User 1 Details", null, null, null, null, null, null),
+                DELETE,
+                r("1", "Gus", "User 1 Details", null, null, null, null, null, null),
                 INSERT,
-                        r(
-                                "1",
-                                "Gus",
-                                "User 1 Details",
-                                "1",
-                                "order_1",
-                                "Order 1 Details",
-                                null,
-                                null,
-                                null));
+                r(
+                        "1",
+                        "Gus",
+                        "User 1 Details",
+                        "1",
+                        "order_1",
+                        "Order 1 Details",
+                        null,
+                        null,
+                        null));
 
         // Re-add payment - transitions to full join
         insertPayment("1", "payment_1", "Payment 1 Details");
         emits(
                 DELETE,
-                        r(
-                                "1",
-                                "Gus",
-                                "User 1 Details",
-                                "1",
-                                "order_1",
-                                "Order 1 Details",
-                                null,
-                                null,
-                                null),
+                r(
+                        "1",
+                        "Gus",
+                        "User 1 Details",
+                        "1",
+                        "order_1",
+                        "Order 1 Details",
+                        null,
+                        null,
+                        null),
                 INSERT,
-                        r(
-                                "1",
-                                "Gus",
-                                "User 1 Details",
-                                "1",
-                                "order_1",
-                                "Order 1 Details",
-                                "1",
-                                "payment_1",
-                                "Payment 1 Details"));
+                r(
+                        "1",
+                        "Gus",
+                        "User 1 Details",
+                        "1",
+                        "order_1",
+                        "Order 1 Details",
+                        "1",
+                        "payment_1",
+                        "Payment 1 Details"));
 
         /* -------- USER DELETE/REINSERT TESTS ----------- */
 
@@ -255,45 +266,37 @@ class StreamingThreeWayOuterJoinOperatorTest extends StreamingMultiJoinOperatorT
         updateBeforeOrder("1", "order_1", "Order 1 Details");
         emits(
                 UPDATE_BEFORE,
-                        r(
-                                "1",
-                                "Gus",
-                                "User 1 Details Updated",
-                                "1",
-                                "order_1",
-                                "Order 1 Details",
-                                "1",
-                                "payment_1",
-                                "Payment 1 Details"),
+                r(
+                        "1",
+                        "Gus",
+                        "User 1 Details Updated",
+                        "1",
+                        "order_1",
+                        "Order 1 Details",
+                        "1",
+                        "payment_1",
+                        "Payment 1 Details"),
                 // and 1 and 3 in the conditions? payments
                 // would still show up?
                 INSERT,
-                        r(
-                                "1",
-                                "Gus",
-                                "User 1 Details Updated",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null,
-                                null));
+                r("1", "Gus", "User 1 Details Updated", null, null, null, null, null, null));
 
         // +U on order removes null result and emits join
         updateAfterOrder("1", "order_1", "Order 1 Details Updated");
         emits(
-                DELETE, r("1", "Gus", "User 1 Details Updated", null, null, null, null, null, null),
+                DELETE,
+                r("1", "Gus", "User 1 Details Updated", null, null, null, null, null, null),
                 UPDATE_AFTER,
-                        r(
-                                "1",
-                                "Gus",
-                                "User 1 Details Updated",
-                                "1",
-                                "order_1",
-                                "Order 1 Details Updated",
-                                "1",
-                                "payment_1",
-                                "Payment 1 Details"));
+                r(
+                        "1",
+                        "Gus",
+                        "User 1 Details Updated",
+                        "1",
+                        "order_1",
+                        "Order 1 Details Updated",
+                        "1",
+                        "payment_1",
+                        "Payment 1 Details"));
 
         /* -------- PAYMENT UPDATE TESTS ----------- */
 
@@ -301,53 +304,53 @@ class StreamingThreeWayOuterJoinOperatorTest extends StreamingMultiJoinOperatorT
         updateBeforePayment("1", "payment_1", "Payment 1 Details");
         emits(
                 UPDATE_BEFORE,
-                        r(
-                                "1",
-                                "Gus",
-                                "User 1 Details Updated",
-                                "1",
-                                "order_1",
-                                "Order 1 Details Updated",
-                                "1",
-                                "payment_1",
-                                "Payment 1 Details"),
+                r(
+                        "1",
+                        "Gus",
+                        "User 1 Details Updated",
+                        "1",
+                        "order_1",
+                        "Order 1 Details Updated",
+                        "1",
+                        "payment_1",
+                        "Payment 1 Details"),
                 INSERT,
-                        r(
-                                "1",
-                                "Gus",
-                                "User 1 Details Updated",
-                                "1",
-                                "order_1",
-                                "Order 1 Details Updated",
-                                null,
-                                null,
-                                null));
+                r(
+                        "1",
+                        "Gus",
+                        "User 1 Details Updated",
+                        "1",
+                        "order_1",
+                        "Order 1 Details Updated",
+                        null,
+                        null,
+                        null));
 
         // +U on payment removes null result and emits join
         updateAfterPayment("1", "payment_1", "Payment 1 Details Updated");
         emits(
                 DELETE,
-                        r(
-                                "1",
-                                "Gus",
-                                "User 1 Details Updated",
-                                "1",
-                                "order_1",
-                                "Order 1 Details Updated",
-                                null,
-                                null,
-                                null),
+                r(
+                        "1",
+                        "Gus",
+                        "User 1 Details Updated",
+                        "1",
+                        "order_1",
+                        "Order 1 Details Updated",
+                        null,
+                        null,
+                        null),
                 UPDATE_AFTER,
-                        r(
-                                "1",
-                                "Gus",
-                                "User 1 Details Updated",
-                                "1",
-                                "order_1",
-                                "Order 1 Details Updated",
-                                "1",
-                                "payment_1",
-                                "Payment 1 Details Updated"));
+                r(
+                        "1",
+                        "Gus",
+                        "User 1 Details Updated",
+                        "1",
+                        "order_1",
+                        "Order 1 Details Updated",
+                        "1",
+                        "payment_1",
+                        "Payment 1 Details Updated"));
 
         /* -------- MULTI-TABLE SCENARIOS ----------- */
 

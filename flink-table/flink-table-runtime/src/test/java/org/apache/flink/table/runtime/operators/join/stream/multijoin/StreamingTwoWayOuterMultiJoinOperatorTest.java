@@ -19,23 +19,31 @@
 package org.apache.flink.table.runtime.operators.join.stream.multijoin;
 
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.List;
 
+@ExtendWith(ParameterizedTestExtension.class)
 class StreamingTwoWayOuterMultiJoinOperatorTest extends StreamingMultiJoinOperatorTestBase {
 
-    public StreamingTwoWayOuterMultiJoinOperatorTest() {
+    public StreamingTwoWayOuterMultiJoinOperatorTest(StateBackendMode stateBackendMode) {
         // For outer join test, set outerJoinFlags to true for all inputs to test full outer join
-        super(2, List.of(JoinType.INNER, JoinType.LEFT), defaultConditions(), false);
+        super(
+                stateBackendMode,
+                2,
+                List.of(JoinType.INNER, JoinType.LEFT),
+                defaultConditions(),
+                false);
     }
 
     /**
      * SELECT u.*, o.* FROM Users u LEFT OUTER JOIN Orders o ON u.id = o.user_id -- Test left outer
      * join behavior with nulls and transitions.
      */
-    @Test
+    @TestTemplate
     void testTwoWayLeftOuterJoin() throws Exception {
         /* -------- LEFT OUTER JOIN APPEND TESTS ----------- */
 

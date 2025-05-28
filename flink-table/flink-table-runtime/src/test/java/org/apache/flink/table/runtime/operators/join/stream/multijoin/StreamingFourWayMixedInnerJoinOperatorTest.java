@@ -22,8 +22,10 @@ import org.apache.flink.table.runtime.generated.GeneratedMultiJoinCondition;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.AttributeRef;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -40,6 +42,7 @@ import java.util.Map;
  * (Payments): PK pay_id_2. Uses JoinInputSideSpec.withUniqueKey. Input 3 (Shipments): No PK. Uses
  * JoinInputSideSpec.withoutUniqueKey. All inputs join on user_id_X fields.
  */
+@ExtendWith(ParameterizedTestExtension.class)
 class StreamingFourWayMixedInnerJoinOperatorTest extends StreamingMultiJoinOperatorTestBase {
 
     // Join Conditions:
@@ -81,8 +84,9 @@ class StreamingFourWayMixedInnerJoinOperatorTest extends StreamingMultiJoinOpera
         customAttributeMap.put(3, map3);
     }
 
-    public StreamingFourWayMixedInnerJoinOperatorTest() {
+    public StreamingFourWayMixedInnerJoinOperatorTest(StateBackendMode stateBackendMode) {
         super(
+                stateBackendMode,
                 4, // numInputs
                 List.of(
                         JoinType.INNER,
@@ -117,7 +121,7 @@ class StreamingFourWayMixedInnerJoinOperatorTest extends StreamingMultiJoinOpera
      * INNER JOIN Shipments s ON u.user_id_0 = s.user_id_3
      * </pre>
      */
-    @Test
+    @TestTemplate
     void testFourWayMixedInnerJoin() throws Exception {
         // Schema:
         // Users(user_id_0, u_id_0, u_details_0)
@@ -239,7 +243,7 @@ class StreamingFourWayMixedInnerJoinOperatorTest extends StreamingMultiJoinOpera
      * INNER JOIN Shipments s ON u.user_id_0 = s.user_id_3
      * </pre>
      */
-    @Test
+    @TestTemplate
     void testFourWayMixedInnerJoinUpdating() throws Exception {
         /* -------- SETUP INITIAL JOIN ----------- */
         insertUser("uid1", "u1", "User 1");

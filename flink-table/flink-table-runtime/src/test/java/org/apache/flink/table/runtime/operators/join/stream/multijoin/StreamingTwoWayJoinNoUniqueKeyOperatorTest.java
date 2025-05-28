@@ -21,17 +21,25 @@ package org.apache.flink.table.runtime.operators.join.stream.multijoin;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.List;
 
 /** Tests for {@link StreamingMultiJoinOperator} where one input does not have a unique key. */
+@ExtendWith(ParameterizedTestExtension.class)
 class StreamingTwoWayJoinNoUniqueKeyOperatorTest extends StreamingMultiJoinOperatorTestBase {
 
-    public StreamingTwoWayJoinNoUniqueKeyOperatorTest() {
+    public StreamingTwoWayJoinNoUniqueKeyOperatorTest(StateBackendMode stateBackendMode) {
         // Inner join, 2 inputs, default conditions
-        super(2, List.of(JoinType.INNER, JoinType.INNER), defaultConditions(), false);
+        super(
+                stateBackendMode,
+                2,
+                List.of(JoinType.INNER, JoinType.INNER),
+                defaultConditions(),
+                false);
 
         // Override the second input spec to NOT have a unique key
         this.inputSpecs.set(0, JoinInputSideSpec.withoutUniqueKey());
@@ -42,7 +50,7 @@ class StreamingTwoWayJoinNoUniqueKeyOperatorTest extends StreamingMultiJoinOpera
      * SELECT u.*, o.* FROM Users u INNER JOIN Orders o ON u.id = o.user_id -- Orders table has NO
      * unique key defined for the operator.
      */
-    @Test
+    @TestTemplate
     void testInnerJoinWithNoUniqueKeyOnRight() throws Exception {
         /* -------- APPEND TESTS ----------- */
         insertUser("1", "Gus", "User 1 Details");

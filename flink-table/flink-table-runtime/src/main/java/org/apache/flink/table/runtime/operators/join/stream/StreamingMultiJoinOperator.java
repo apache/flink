@@ -373,7 +373,9 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             MultiJoinCondition multiJoinCondition,
             long[] stateRetentionTime,
             MultiJoinCondition[] joinConditions,
-            JoinKeyExtractor keyExtractor) {
+            JoinKeyExtractor keyExtractor
+            // TODO Gustavo add joinAttributeMap in case we need it in the future
+            ) {
         super(parameters, inputSpecs.size());
         this.inputTypes = inputTypes;
         this.inputSpecs = inputSpecs;
