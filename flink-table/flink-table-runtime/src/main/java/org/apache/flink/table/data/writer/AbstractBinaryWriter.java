@@ -166,7 +166,7 @@ abstract class AbstractBinaryWriter implements BinaryWriter {
 
         if (DecimalData.isCompact(precision)) {
             if (value == null) {
-                setNullBit(pos);
+                setNullAt(pos);
             } else {
                 writeLong(pos, value.toUnscaledLong());
             }
