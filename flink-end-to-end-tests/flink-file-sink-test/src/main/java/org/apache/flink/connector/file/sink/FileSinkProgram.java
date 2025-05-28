@@ -55,7 +55,6 @@ import java.util.Collections;
  * a complete sequence from 0 (inclusive) to 60000 (exclusive).
  */
 public enum FileSinkProgram {
-    ;
 
     public static void main(final String[] args) throws Exception {
         final ParameterTool params = ParameterTool.fromArgs(args);
