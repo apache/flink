@@ -79,7 +79,7 @@ public class MLPredictTableFunctionTest extends TableTestBase {
                         + "FROM TABLE(ML_PREDICT(INPUT => TABLE MyTable, "
                         + "MODEL => MODEL MyModel, "
                         + "ARGS  => DESCRIPTOR(a, b)))";
-        assertReachesRelConverter(sql);
+        util.verifyRelPlan(sql);
     }
 
     @Test
@@ -90,7 +90,7 @@ public class MLPredictTableFunctionTest extends TableTestBase {
                         + "MODEL  => MODEL MyModel, "
                         + "ARGS   => DESCRIPTOR(a, b),"
                         + "CONFIG => MAP['key', 'value']))";
-        assertReachesRelConverter(sql);
+        util.verifyRelPlan(sql);
     }
 
     @Test
@@ -98,7 +98,7 @@ public class MLPredictTableFunctionTest extends TableTestBase {
         String sql =
                 "SELECT *\n"
                         + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b)))";
-        assertReachesRelConverter(sql);
+        util.verifyRelPlan(sql);
     }
 
     @Test
@@ -107,7 +107,7 @@ public class MLPredictTableFunctionTest extends TableTestBase {
         String sql =
                 "SELECT *\n"
                         + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', 'true', 'timeout', '100s']))";
-        assertReachesRelConverter(sql);
+        util.verifyRelPlan(sql);
     }
 
     @Test
@@ -154,7 +154,7 @@ public class MLPredictTableFunctionTest extends TableTestBase {
         String sql =
                 "SELECT *\n"
                         + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL ConflictModel, DESCRIPTOR(a, b)))";
-        assertReachesRelConverter(sql);
+        util.verifyRelPlan(sql);
     }
 
     @Test
@@ -230,7 +230,7 @@ public class MLPredictTableFunctionTest extends TableTestBase {
         String sql =
                 "SELECT *\n"
                         + "FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))";
-        assertReachesRelConverter(sql);
+        util.verifyRelPlan(sql);
     }
 
     @ParameterizedTest
