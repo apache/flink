@@ -123,7 +123,7 @@ public class SqlValidatorUtils {
                         columnName.getParserPosition(), RESOURCE.aliasMustBeSimpleIdentifier());
             }
 
-            final String name = ((SqlIdentifier) columnName).getSimple();
+            final String name = columnIdentifier.getSimple();
             if (matcher.indexOf(fieldNames, name) < 0) {
                 throw SqlUtil.newContextException(
                         columnName.getParserPosition(), RESOURCE.unknownIdentifier(name));
