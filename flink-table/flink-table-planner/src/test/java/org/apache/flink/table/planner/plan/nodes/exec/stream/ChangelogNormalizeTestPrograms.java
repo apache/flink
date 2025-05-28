@@ -229,44 +229,44 @@ public class ChangelogNormalizeTestPrograms {
                                                     "one",
                                                     2,
                                                     "b",
-                                                    Instant.ofEpochMilli(1L)),
+                                                    Instant.ofEpochMilli(2L)),
                                             Row.ofKind(
                                                     RowKind.UPDATE_AFTER,
                                                     "one",
                                                     12,
                                                     "b",
-                                                    Instant.ofEpochMilli(1L)),
+                                                    Instant.ofEpochMilli(3L)),
                                             Row.ofKind(
                                                     RowKind.UPDATE_AFTER,
                                                     "one",
                                                     13,
                                                     "b",
-                                                    Instant.ofEpochMilli(1L)),
+                                                    Instant.ofEpochMilli(4L)),
                                             Row.ofKind(
                                                     RowKind.UPDATE_AFTER,
                                                     "three",
                                                     3,
                                                     "cc",
-                                                    Instant.ofEpochMilli(1L)))
+                                                    Instant.ofEpochMilli(5L)))
                                     .producedAfterRestore(
                                             Row.ofKind(
                                                     RowKind.UPDATE_AFTER,
                                                     "one",
                                                     15,
                                                     "aa",
-                                                    Instant.ofEpochMilli(1L)),
+                                                    Instant.ofEpochMilli(6L)),
                                             Row.ofKind(
                                                     RowKind.DELETE,
                                                     "one",
                                                     15,
                                                     "c",
-                                                    Instant.ofEpochMilli(1L)),
+                                                    Instant.ofEpochMilli(7L)),
                                             Row.ofKind(
                                                     RowKind.DELETE,
                                                     "three",
                                                     3,
                                                     "cc",
-                                                    Instant.ofEpochMilli(1L)))
+                                                    Instant.ofEpochMilli(8L)))
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
@@ -281,6 +281,7 @@ public class ChangelogNormalizeTestPrograms {
                                     .build())
                     .runSql(
                             "INSERT INTO sink_t SELECT a, b, c FROM source_t WHERE b < 10 AND "
-                                    + "CURRENT_WATERMARK(d) IS NULL")
+                                    + "CURRENT_WATERMARK(d) IS NULL OR "
+                                    + "CURRENT_WATERMARK(d) >= TIMESTAMP '1970-01-01 00:00:00'")
                     .build();
 }
