@@ -33,14 +33,12 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
@@ -73,15 +71,17 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.stream.Collectors;
 
-/** Operator for {@link ProcessTableFunction}. */
-public class ProcessTableOperator extends AbstractStreamOperator<RowData>
-        implements OneInputStreamOperator<RowData, RowData>, Triggerable<RowData, Object> {
+/** Base class for operators for {@link ProcessTableFunction}. */
+@Internal
+public abstract class AbstractProcessTableOperator extends AbstractStreamOperatorV2<RowData>
+        implements Triggerable<RowData, Object> {
 
-    private final @Nullable RuntimeTableSemantics tableSemantics;
+    protected final List<RuntimeTableSemantics> tableSemantics;
+    protected final ProcessTableRunner processTableRunner;
+
     private final List<RuntimeStateInfo> stateInfos;
-    private final ProcessTableRunner processTableRunner;
     private final HashFunction[] stateHashCode;
     private final RecordEqualiser[] stateEquals;
     private final RuntimeChangelogMode producedChangelogMode;
@@ -97,15 +97,16 @@ public class ProcessTableOperator extends AbstractStreamOperator<RowData>
     private transient @Nullable InternalTimerService<StringData> namedTimerService;
     private transient @Nullable InternalTimerService<VoidNamespace> unnamedTimerService;
 
-    public ProcessTableOperator(
+    public AbstractProcessTableOperator(
             StreamOperatorParameters<RowData> parameters,
-            @Nullable RuntimeTableSemantics tableSemantics,
+            List<RuntimeTableSemantics> tableSemantics,
             List<RuntimeStateInfo> stateInfos,
             ProcessTableRunner processTableRunner,
             HashFunction[] stateHashCode,
             RecordEqualiser[] stateEquals,
             RuntimeChangelogMode producedChangelogMode) {
-        super(parameters);
+        // Operator always has at least one input (i.e. empty values)
+        super(parameters, Math.max(tableSemantics.size(), 1));
         this.tableSemantics = tableSemantics;
         this.stateInfos = stateInfos;
         this.processTableRunner = processTableRunner;
@@ -145,15 +146,6 @@ public class ProcessTableOperator extends AbstractStreamOperator<RowData>
     }
 
     @Override
-    public void processElement(StreamRecord<RowData> element) throws Exception {
-        // Set table argument
-        if (tableSemantics != null) {
-            processTableRunner.ingestTableEvent(0, element.getValue(), tableSemantics.timeColumn());
-        }
-        processTableRunner.processEval();
-    }
-
-    @Override
     public void processWatermark(Watermark mark) throws Exception {
         super.processWatermark(mark);
         processTableRunner.ingestWatermarkEvent(mark.getTimestamp());
@@ -185,9 +177,9 @@ public class ProcessTableOperator extends AbstractStreamOperator<RowData>
         }
 
         private Map<String, RuntimeTableSemantics> createTableSemanticsMap() {
-            return Optional.ofNullable(tableSemantics)
-                    .map(s -> Map.of(tableSemantics.getArgName(), tableSemantics))
-                    .orElse(Map.of());
+            return tableSemantics.stream()
+                    .map(inputSemantics -> Map.entry(inputSemantics.getArgName(), inputSemantics))
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         }
 
         private Map<String, Integer> createStateNameToPosMap() {
@@ -289,7 +281,8 @@ public class ProcessTableOperator extends AbstractStreamOperator<RowData>
     @SuppressWarnings({"unchecked", "rawtypes"})
     private void setTimerServices() {
         if (shouldEnableTimers()) {
-            final KeyedStateStore keyedStateStore = getKeyedStateStore();
+            final KeyedStateStore keyedStateStore =
+                    getKeyedStateStore().orElseThrow(IllegalStateException::new);
             final MapStateDescriptor<StringData, Long> namedTimersDescriptor =
                     new MapStateDescriptor<>(
                             "internal-named-timers-map",
@@ -322,14 +315,20 @@ public class ProcessTableOperator extends AbstractStreamOperator<RowData>
     }
 
     private void setCollectors() {
-        if (tableSemantics == null || tableSemantics.passColumnsThrough()) {
-            evalCollector = new PassAllCollector(output, changelogMode);
+        final int tableCount = tableSemantics.size();
+        if (tableCount == 0
+                || tableSemantics.stream().anyMatch(RuntimeTableSemantics::passColumnsThrough)) {
+            assert tableCount <= 1;
+            // Collect from table event with all input columns (potentially none)
+            evalCollector = new PassAllCollector(output, changelogMode, 1);
         } else {
-            evalCollector =
-                    new PassPartitionKeysCollector(
-                            output, changelogMode, tableSemantics.partitionByColumns());
+            // Collect from table event with partition keys for each table
+            evalCollector = new PassPartitionKeysCollector(output, changelogMode, tableSemantics);
         }
-        onTimerCollector = new PassAllCollector(output, changelogMode);
+
+        // Collect with partition keys for each table but from timer events which only contains the
+        // key, so passing all columns is the right strategy
+        onTimerCollector = new PassAllCollector(output, changelogMode, tableCount);
     }
 
     private void setStateDescriptors() {
@@ -374,9 +373,10 @@ public class ProcessTableOperator extends AbstractStreamOperator<RowData>
     }
 
     private void setStateHandles() {
-        final KeyedStateStore keyedStateStore = getKeyedStateStore();
         final State[] stateHandles = new State[stateDescriptors.length];
         for (int i = 0; i < stateDescriptors.length; i++) {
+            final KeyedStateStore keyedStateStore =
+                    getKeyedStateStore().orElseThrow(IllegalStateException::new);
             final StateDescriptor<?, ?> stateDescriptor = stateDescriptors[i];
             final State stateHandle;
             if (stateDescriptor instanceof ValueStateDescriptor) {
@@ -396,12 +396,13 @@ public class ProcessTableOperator extends AbstractStreamOperator<RowData>
     }
 
     private boolean shouldEmitRowtime() {
-        return tableSemantics != null && tableSemantics.timeColumn() != -1;
+        return !tableSemantics.isEmpty()
+                && tableSemantics.stream().allMatch(input -> input.timeColumn() != -1);
     }
 
     private boolean shouldEnableTimers() {
-        return tableSemantics != null
-                && tableSemantics.hasSetSemantics()
-                && !tableSemantics.passColumnsThrough();
+        return !tableSemantics.isEmpty()
+                && tableSemantics.stream()
+                        .allMatch(input -> input.hasSetSemantics() && !input.passColumnsThrough());
     }
 }

@@ -28,11 +28,15 @@ import org.apache.flink.table.data.RowData;
 @Internal
 public class PassAllCollector extends PassThroughCollectorBase {
 
-    public PassAllCollector(Output<StreamRecord<RowData>> output, ChangelogMode changelogMode) {
-        super(output, changelogMode);
+    public PassAllCollector(
+            Output<StreamRecord<RowData>> output,
+            ChangelogMode changelogMode,
+            int prefixRepetition) {
+        super(output, changelogMode, prefixRepetition);
     }
 
-    public void setPrefix(RowData input) {
+    @Override
+    public void setPrefix(int pos, RowData input) {
         prefix = input;
     }
 }

@@ -318,11 +318,6 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
         }
 
         @Override
-        public List<String> coPartitionArgs() {
-            return List.of();
-        }
-
-        @Override
         public Optional<ChangelogMode> changelogMode() {
             return Optional.ofNullable(changelogMode);
         }

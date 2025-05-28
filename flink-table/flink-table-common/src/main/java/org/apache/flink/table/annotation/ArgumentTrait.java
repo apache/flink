@@ -99,10 +99,8 @@ public enum ArgumentTrait {
      * With pass-through columns: | k | v | c1 | c2 |
      * </pre>
      *
-     * <p>In case of multiple table arguments, pass-through columns are added according to the
-     * declaration order in the PTF signature.
-     *
-     * <p>Timers are not available when pass-through columns are enabled.
+     * <p>Pass-through columns are only available for append-only PTFs taking a single table
+     * argument and don't use timers.
      *
      * <p>Note: This trait is valid for {@link #TABLE_AS_ROW} and {@link #TABLE_AS_SET} arguments.
      */

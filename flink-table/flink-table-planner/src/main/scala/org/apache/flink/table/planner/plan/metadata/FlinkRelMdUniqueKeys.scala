@@ -664,8 +664,7 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
         if (isUpsert) {
           // Upsert PTFs use the partition keys as upsert keys,
           // thus the keys are unique
-          val partitionColumns = StreamPhysicalProcessTableFunction.toPartitionColumns(rel.getCall)
-          ImmutableSet.of(partitionColumns)
+          StreamPhysicalProcessTableFunction.toPartitionColumns(rel.getCall)
         } else {
           null
         }

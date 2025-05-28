@@ -34,6 +34,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.LateTimersFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ListStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MapStateFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MultiInputFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MultiStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.NamedTimersFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.OptionalOnTimeFunction;
@@ -55,9 +56,11 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetUpdatingArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TimeConversionsFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TimeToLiveStateFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TimedJoinFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedTableAsRowFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedTableAsSetFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UnnamedTimersFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingJoinFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingRetractFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingUpsertFunction;
 import org.apache.flink.table.test.program.SinkTestStep;
@@ -74,11 +77,15 @@ import static org.apache.flink.table.api.Expressions.descriptor;
 import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.BASE_SINK_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.BASIC_VALUES;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.CITY_VALUES;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.KEYED_BASE_SINK_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.KEYED_TIMED_BASE_SINK_SCHEMA;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MULTI_BASE_SINK_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MULTI_VALUES;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PASS_THROUGH_BASE_SINK_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_BASE_SINK_SCHEMA;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_CITY_SOURCE;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_MULTI_BASE_SINK_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_SOURCE;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_SOURCE_LATE_EVENTS;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UPDATING_VALUES;
@@ -1215,5 +1222,107 @@ public class ProcessTableFunctionTestPrograms {
                                             "+I[Alice, {{Alice=2, nullValue=null, oldAlice=1}, KeyedStateMapViewWithKeysNotNull, +I[Alice, 400]}]")
                                     .build())
                     .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_MULTI_INPUT =
+            TableTestProgram.of("process-multi-input", "takes multiple tables")
+                    .setupTemporarySystemFunction("f", MultiInputFunction.class)
+                    .setupSql(MULTI_VALUES)
+                    .setupSql(CITY_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(MULTI_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, Bob, {+I[Bob, 12], null}]",
+                                            "+I[Bob, Bob, {null, +I[Bob, London]}]",
+                                            "+I[Alice, Alice, {+I[Alice, 42], null}]",
+                                            "+I[Alice, Alice, {null, +I[Alice, Berlin]}]",
+                                            "+I[Bob, Bob, {+I[Bob, 99], null}]",
+                                            "+I[Charly, Charly, {null, +I[Charly, Paris]}]",
+                                            "+I[Bob, Bob, {+I[Bob, 100], null}]",
+                                            "+I[Alice, Alice, {+I[Alice, 400], null}]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f(in1 => TABLE t PARTITION BY name, in2 => TABLE city PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_STATEFUL_MULTI_INPUT_WITH_TIMEOUT =
+            TableTestProgram.of(
+                            "process-stateful-multi-input-with-timeout",
+                            "joins two tables and emits the left side after a timeout if there is no right side")
+                    .setupTemporarySystemFunction("f", TimedJoinFunction.class)
+                    .setupTableSource(TIMED_SOURCE)
+                    .setupTableSource(TIMED_CITY_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(TIMED_MULTI_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, Bob, 1 score in city London, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, Bob, 2 score in city London, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Bob, Bob, 3 score in city London, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Bob, Bob, 4 score in city London, 1970-01-01T00:00:00.004Z]",
+                                            "+I[Bob, Bob, 5 score in city London, 1970-01-01T00:00:00.005Z]",
+                                            "+I[Bob, Bob, 6 score in city London, 1970-01-01T00:00:00.006Z]",
+                                            "+I[Alice, Alice, no city found for score 1, 1970-01-01T00:00:01.001Z]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f("
+                                    + "scoreTable => TABLE t PARTITION BY name, "
+                                    + "cityTable => TABLE city PARTITION BY name, "
+                                    + "on_time => DESCRIPTOR(ts))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_UPDATING_MULTI_INPUT =
+            TableTestProgram.of(
+                            "process-updating-multi-input",
+                            "joins two tables with input and output updates")
+                    .setupTemporarySystemFunction("f", UpdatingJoinFunction.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("scores")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED",
+                                            "score INT NOT NULL")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Bob", 5),
+                                            Row.ofKind(RowKind.INSERT, "Alice", 2),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Bob", 3),
+                                            Row.ofKind(RowKind.DELETE, "Bob", null),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 2),
+                                            Row.ofKind(RowKind.DELETE, "Alice", null))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("city")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED",
+                                            "city STRING NOT NULL")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Bob", "London"),
+                                            Row.ofKind(RowKind.INSERT, "Alice", "Zurich"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Bob", "Berlin"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "`name` STRING PRIMARY KEY NOT ENFORCED",
+                                            "`out` STRING")
+                                    .addOption("sink-changelog-mode-enforced", "I,UA,D")
+                                    .addOption("sink.supports-delete-by-key", "true")
+                                    .consumedValues(
+                                            "+I[Bob, score 5 in city London]",
+                                            "+I[Alice, score 2 in city Zurich]",
+                                            "+U[Bob, score 3 in city London]",
+                                            "+U[Bob, score 3 in city Berlin]",
+                                            "-D[Bob, null]",
+                                            "+I[Bob, score 2 in city Berlin]",
+                                            "-D[Alice, null]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT `name`, `out` FROM f("
+                                    + "scoreTable => TABLE scores PARTITION BY name, "
+                                    + "cityTable => TABLE city PARTITION BY name)")
                     .build();
 }
