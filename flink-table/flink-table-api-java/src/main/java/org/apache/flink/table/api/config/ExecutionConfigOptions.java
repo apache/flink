@@ -375,6 +375,15 @@ public class ExecutionConfigOptions {
     //  Async Lookup Options
     // ------------------------------------------------------------------------
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_EXEC_ASYNC_LOOKUP_KEY_ORDERED =
+            key("table.exec.async-lookup.key-ordered-enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "When true async lookup joins would follow the upsert key order in cdc stream (if no upsert key, "
+                                    + "total record is considered as upsert key). This feature does not works for insert-only. ");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY =
             key("table.exec.async-lookup.buffer-capacity")
                     .intType()

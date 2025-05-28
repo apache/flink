@@ -66,6 +66,8 @@ import org.apache.flink.table.runtime.generated.GeneratedCollector;
 import org.apache.flink.table.runtime.generated.GeneratedFilterCondition;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.generated.GeneratedResultFuture;
+import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.runtime.operators.TableKeyedAsyncWaitOperatorFactory;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.lookup.AsyncLookupJoinRunner;
 import org.apache.flink.table.runtime.operators.join.lookup.AsyncLookupJoinWithCalcRunner;
@@ -144,6 +146,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
     public static final String LOOKUP_JOIN_TRANSFORMATION = "lookup-join";
 
     public static final String LOOKUP_JOIN_MATERIALIZE_TRANSFORMATION = "lookup-join-materialize";
+
+    public static final String LOOKUP_JOIN_KEY_ORDERED_TRANSFORMATION = "lookup-join-key-ordered";
 
     public static final String FIELD_NAME_JOIN_TYPE = "joinType";
     public static final String FIELD_NAME_PRE_FILTER_CONDITION = "preFilterCondition";
@@ -310,6 +314,21 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
         } else {
             StreamOperatorFactory<RowData> operatorFactory;
             if (isAsyncEnabled) {
+                if (asyncLookupOptions.keyOrdered) {
+                    return createKeyOrderedAsyncLookupJoin(
+                            inputTransformation,
+                            temporalTable,
+                            config,
+                            planner.getFlinkContext().getClassLoader(),
+                            lookupKeys,
+                            (AsyncTableFunction<Object>) lookupFunction,
+                            planner.createRelBuilder(),
+                            inputRowType,
+                            tableSourceRowType,
+                            resultRowType,
+                            isLeftOuterJoin,
+                            asyncLookupOptions);
+                }
                 operatorFactory =
                         createAsyncLookupJoin(
                                 temporalTable,
@@ -322,7 +341,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                                 tableSourceRowType,
                                 resultRowType,
                                 isLeftOuterJoin,
-                                asyncLookupOptions);
+                                asyncLookupOptions,
+                                null);
             } else {
                 operatorFactory =
                         createSyncLookupJoin(
@@ -348,6 +368,20 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                     false);
         }
     }
+
+    protected abstract Transformation<RowData> createKeyOrderedAsyncLookupJoin(
+            Transformation<RowData> inputTransformation,
+            RelOptTable temporalTable,
+            ExecNodeConfig config,
+            ClassLoader classLoader,
+            Map<Integer, LookupJoinUtil.LookupKey> allLookupKeys,
+            AsyncTableFunction<Object> asyncLookupFunction,
+            RelBuilder relBuilder,
+            RowType inputRowType,
+            RowType tableSourceRowType,
+            RowType resultRowType,
+            boolean isLeftOuterJoin,
+            LookupJoinUtil.AsyncLookupOptions asyncLookupOptions);
 
     protected abstract Transformation<RowData> createSyncLookupJoinWithState(
             Transformation<RowData> inputTransformation,
@@ -399,7 +433,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
     }
 
     @SuppressWarnings("unchecked")
-    private StreamOperatorFactory<RowData> createAsyncLookupJoin(
+    protected StreamOperatorFactory<RowData> createAsyncLookupJoin(
             RelOptTable temporalTable,
             ExecNodeConfig config,
             ClassLoader classLoader,
@@ -410,7 +444,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
             RowType tableSourceRowType,
             RowType resultRowType,
             boolean isLeftOuterJoin,
-            LookupJoinUtil.AsyncLookupOptions asyncLookupOptions) {
+            LookupJoinUtil.AsyncLookupOptions asyncLookupOptions,
+            @Nullable RowDataKeySelector keySelector) {
 
         DataTypeFactory dataTypeFactory =
                 ShortcutUtils.unwrapContext(relBuilder).getCatalogManager().getDataTypeFactory();
@@ -481,7 +516,14 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                             isLeftOuterJoin,
                             asyncLookupOptions.asyncBufferCapacity);
         }
-
+        if (asyncLookupOptions.keyOrdered) {
+            checkNotNull(keySelector);
+            return new TableKeyedAsyncWaitOperatorFactory<>(
+                    asyncFunc,
+                    keySelector,
+                    asyncLookupOptions.asyncTimeout,
+                    asyncLookupOptions.asyncBufferCapacity);
+        }
         // Why not directly enable retry on 'AsyncWaitOperator'? because of two reasons:
         // 1. AsyncLookupJoinRunner has a 'stateful' resultFutureBuffer bind to each input record
         // (it's non-reenter-able) 2. can not lookup new value if cache empty values enabled when

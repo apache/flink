@@ -34,8 +34,13 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.AsyncOutputMode.ALLOW_UNORDERED;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_KEY_ORDERED;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_OUTPUT_MODE;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.testJsonRoundTrip;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link LookupJoinUtil.AsyncLookupOptions}. */
 class AsyncLookupOptionsTest {
@@ -87,6 +92,7 @@ class AsyncLookupOptionsTest {
                         TableConfig.getDefault(),
                         ChangelogMode.all());
         assertThat(asyncLookupOptions.asyncOutputMode).isSameAs(AsyncDataStream.OutputMode.ORDERED);
+        assertFalse(asyncLookupOptions.keyOrdered);
 
         asyncLookupOptions =
                 LookupJoinUtil.getMergedAsyncOptions(
@@ -105,9 +111,7 @@ class AsyncLookupOptionsTest {
                                 .defaultValue());
 
         TableConfig userConf = TableConfig.getDefault();
-        userConf.set(
-                ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_OUTPUT_MODE,
-                ExecutionConfigOptions.AsyncOutputMode.ALLOW_UNORDERED);
+        userConf.set(TABLE_EXEC_ASYNC_LOOKUP_OUTPUT_MODE, ALLOW_UNORDERED);
         userConf.set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY, 300);
         Map<String, String> kvOptions = new HashMap<>();
         kvOptions.put(LookupJoinHintOptions.ASYNC_LOOKUP.key(), "true");
@@ -136,5 +140,35 @@ class AsyncLookupOptionsTest {
                         userConf,
                         ChangelogMode.all());
         assertThat(asyncLookupOptions.asyncOutputMode).isSameAs(AsyncDataStream.OutputMode.ORDERED);
+        assertFalse(asyncLookupOptions.keyOrdered);
+
+        TableConfig config = TableConfig.getDefault();
+        config.set(TABLE_EXEC_ASYNC_LOOKUP_KEY_ORDERED, true);
+        asyncLookupOptions =
+                LookupJoinUtil.getMergedAsyncOptions(
+                        LookupJoinHintTestUtil.completeLookupHint, config, ChangelogMode.all());
+        assertTrue(asyncLookupOptions.asyncOutputMode == AsyncDataStream.OutputMode.ORDERED);
+        assertTrue(asyncLookupOptions.keyOrdered);
+
+        asyncLookupOptions =
+                LookupJoinUtil.getMergedAsyncOptions(
+                        RelHint.builder(JoinStrategy.LOOKUP.getJoinHintName())
+                                .hintOptions(kvOptions)
+                                .build(),
+                        config,
+                        ChangelogMode.all());
+        assertTrue(asyncLookupOptions.asyncOutputMode == AsyncDataStream.OutputMode.ORDERED);
+        assertFalse(asyncLookupOptions.keyOrdered);
+
+        config.set(TABLE_EXEC_ASYNC_LOOKUP_OUTPUT_MODE, ALLOW_UNORDERED);
+        asyncLookupOptions =
+                LookupJoinUtil.getMergedAsyncOptions(
+                        RelHint.builder(JoinStrategy.LOOKUP.getJoinHintName())
+                                .hintOptions(kvOptions)
+                                .build(),
+                        config,
+                        ChangelogMode.insertOnly());
+        assertTrue(asyncLookupOptions.asyncOutputMode == AsyncDataStream.OutputMode.UNORDERED);
+        assertFalse(asyncLookupOptions.keyOrdered);
     }
 }

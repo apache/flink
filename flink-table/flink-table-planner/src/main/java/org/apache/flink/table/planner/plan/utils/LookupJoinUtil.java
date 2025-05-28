@@ -75,6 +75,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonSubTypes;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -209,12 +210,17 @@ public final class LookupJoinUtil {
         public static final String FIELD_NAME_CAPACITY = "capacity ";
         public static final String FIELD_NAME_TIMEOUT = "timeout";
         public static final String FIELD_NAME_OUTPUT_MODE = "output-mode";
+        public static final String FIELD_NAME_KEY_ORDERED_MODE = "key-ordered-mode";
 
         @JsonProperty(FIELD_NAME_CAPACITY)
         public final int asyncBufferCapacity;
 
         @JsonProperty(FIELD_NAME_TIMEOUT)
         public final long asyncTimeout;
+
+        @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+        @JsonProperty(FIELD_NAME_KEY_ORDERED_MODE)
+        public final boolean keyOrdered;
 
         @JsonProperty(FIELD_NAME_OUTPUT_MODE)
         public final AsyncDataStream.OutputMode asyncOutputMode;
@@ -223,9 +229,11 @@ public final class LookupJoinUtil {
         public AsyncLookupOptions(
                 @JsonProperty(FIELD_NAME_CAPACITY) int asyncBufferCapacity,
                 @JsonProperty(FIELD_NAME_TIMEOUT) long asyncTimeout,
+                @JsonProperty(FIELD_NAME_KEY_ORDERED_MODE) boolean keyOrdered,
                 @JsonProperty(FIELD_NAME_OUTPUT_MODE) AsyncDataStream.OutputMode asyncOutputMode) {
             this.asyncBufferCapacity = asyncBufferCapacity;
             this.asyncTimeout = asyncTimeout;
+            this.keyOrdered = keyOrdered;
             this.asyncOutputMode = asyncOutputMode;
         }
 
@@ -240,17 +248,25 @@ public final class LookupJoinUtil {
             AsyncLookupOptions that = (AsyncLookupOptions) o;
             return asyncBufferCapacity == that.asyncBufferCapacity
                     && asyncTimeout == that.asyncTimeout
+                    && keyOrdered == that.keyOrdered
                     && asyncOutputMode == that.asyncOutputMode;
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(asyncBufferCapacity, asyncTimeout, asyncOutputMode);
+            return Objects.hash(asyncBufferCapacity, asyncTimeout, keyOrdered, asyncOutputMode);
         }
 
         @Override
         public String toString() {
-            return asyncOutputMode + ", " + asyncTimeout + "ms, " + asyncBufferCapacity;
+            return asyncOutputMode
+                    + ", "
+                    + "KEY_ORDERED: "
+                    + keyOrdered
+                    + ", "
+                    + asyncTimeout
+                    + "ms, "
+                    + asyncBufferCapacity;
         }
     }
 
@@ -375,6 +391,17 @@ public final class LookupJoinUtil {
         } else {
             confFromHint = Configuration.fromMap(lookupHint.kvOptions);
         }
+        ExecutionConfigOptions.AsyncOutputMode asyncOutputMode =
+                coalesce(
+                        confFromHint.get(ASYNC_OUTPUT_MODE),
+                        config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_OUTPUT_MODE));
+
+        boolean keyOrdered =
+                isKeyOrdered(
+                        inputChangelogMode,
+                        asyncOutputMode,
+                        config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_KEY_ORDERED));
+
         return new AsyncLookupOptions(
                 coalesce(
                         confFromHint.get(ASYNC_CAPACITY),
@@ -383,13 +410,8 @@ public final class LookupJoinUtil {
                                 confFromHint.get(ASYNC_TIMEOUT),
                                 config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_TIMEOUT))
                         .toMillis(),
-                convert(
-                        inputChangelogMode,
-                        coalesce(
-                                confFromHint.get(ASYNC_OUTPUT_MODE),
-                                config.get(
-                                        ExecutionConfigOptions
-                                                .TABLE_EXEC_ASYNC_LOOKUP_OUTPUT_MODE))));
+                keyOrdered,
+                convert(inputChangelogMode, asyncOutputMode));
     }
 
     /**
@@ -739,5 +761,14 @@ public final class LookupJoinUtil {
             throw new UnsupportedOperationException(
                     "Currently only InputFormatProvider and SourceFunctionProvider are supported as ScanRuntimeProviders for Full caching lookup join.");
         }
+    }
+
+    private static boolean isKeyOrdered(
+            ChangelogMode inputChangelogMode,
+            ExecutionConfigOptions.AsyncOutputMode asyncOutputMode,
+            boolean allowKeyOrdered) {
+        return allowKeyOrdered
+                && !inputChangelogMode.containsOnly(RowKind.INSERT)
+                && asyncOutputMode == ExecutionConfigOptions.AsyncOutputMode.ALLOW_UNORDERED;
     }
 }
