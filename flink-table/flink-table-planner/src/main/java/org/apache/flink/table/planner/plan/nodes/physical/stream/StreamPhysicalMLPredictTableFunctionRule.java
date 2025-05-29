@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream;
 
+import org.apache.flink.table.ml.PredictRuntimeProvider;
+import org.apache.flink.table.planner.calcite.RexModelCall;
 import org.apache.flink.table.planner.functions.sql.ml.SqlMLPredictTableFunction;
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
@@ -53,7 +55,12 @@ public class StreamPhysicalMLPredictTableFunctionRule extends ConverterRule {
     public boolean matches(RelOptRuleCall call) {
         final FlinkLogicalTableFunctionScan scan = call.rel(0);
         final RexCall rexCall = (RexCall) scan.getCall();
-        return rexCall.getOperator() instanceof SqlMLPredictTableFunction;
+        if (!(rexCall.getOperator() instanceof SqlMLPredictTableFunction)) {
+            return false;
+        }
+
+        final RexModelCall modelCall = (RexModelCall) rexCall.getOperands().get(1);
+        return modelCall.getModelProvider() instanceof PredictRuntimeProvider;
     }
 
     @Override

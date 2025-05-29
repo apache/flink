@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.stream.sql;
 
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
@@ -279,8 +280,68 @@ public class MLPredictTableFunctionTest extends TableTestBase {
                         "ML_PREDICT config param can only be a MAP of string literals. The item at position 1 is TRUE.");
     }
 
-    private void assertReachesRelConverter(String sql) {
+    @Test
+    public void testNonExistProvider() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE MODEL ConflictModel\n"
+                                + "INPUT (a INT, b BIGINT)\n"
+                                + "OUTPUT(c STRING, d ARRAY<INT>)\n"
+                                + "with (\n"
+                                + "  'task' = 'text_generation',\n"
+                                + "  'endpoint' = 'someendpoint',\n"
+                                + "  'provider' = 'non-exist-model'"
+                                + ")");
+
+        String sql =
+                "SELECT *\n"
+                        + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL ConflictModel, DESCRIPTOR(a, b)))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Unable to create a model provider for model 'default_catalog.default_database.ConflictModel'.");
+    }
+
+    @Test
+    public void testNonPredictProvider() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE MODEL ConflictModel\n"
+                                + "INPUT (a INT, b BIGINT)\n"
+                                + "OUTPUT(c STRING, d ARRAY<INT>)\n"
+                                + "with (\n"
+                                + "  'task' = 'text_generation',\n"
+                                + "  'endpoint' = 'someendpoint',\n"
+                                + "  'provider' = 'non-exist-model'"
+                                + ")");
+
+        String sql =
+                "SELECT *\n"
+                        + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL ConflictModel, DESCRIPTOR(a, b)))";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Unable to create a model provider for model 'default_catalog.default_database.ConflictModel'.");
+    }
+
+    @Test
+    public void testNotMLPredictRuntimeProvider() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE MODEL ConflictModel\n"
+                                + "INPUT (a INT, b BIGINT)\n"
+                                + "OUTPUT(c STRING, d ARRAY<INT>)\n"
+                                + "with (\n"
+                                + "  'task' = 'text_generation',\n"
+                                + "  'endpoint' = 'someendpoint',\n"
+                                + "  'provider' = 'non-predict-model'"
+                                + ")");
+
+        String sql =
+                "SELECT *\n"
+                        + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL ConflictModel, DESCRIPTOR(a, b)))";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .isInstanceOf(TableException.class)
                 .hasMessageContaining(
                         "This exception indicates that the query uses an unsupported SQL feature.");
     }

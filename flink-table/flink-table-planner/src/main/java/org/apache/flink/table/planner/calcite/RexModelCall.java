@@ -47,6 +47,10 @@ public class RexModelCall extends RexCall {
         this.modelProvider = modelProvider;
     }
 
+    public ModelProvider getModelProvider() {
+        return modelProvider;
+    }
+
     @Override
     protected String computeDigest(boolean withType) {
         final StringBuilder sb = new StringBuilder(op.getName());
