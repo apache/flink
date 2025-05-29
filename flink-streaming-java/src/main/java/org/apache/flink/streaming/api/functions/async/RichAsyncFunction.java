@@ -187,6 +187,44 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
         }
 
         @Override
+        public <T> org.apache.flink.api.common.state.v2.ValueState<T> getState(
+                org.apache.flink.api.common.state.v2.ValueStateDescriptor<T> stateProperties) {
+            throw new UnsupportedOperationException(
+                    "State is not supported in rich async functions.");
+        }
+
+        @Override
+        public <T> org.apache.flink.api.common.state.v2.ListState<T> getListState(
+                org.apache.flink.api.common.state.v2.ListStateDescriptor<T> stateProperties) {
+            throw new UnsupportedOperationException(
+                    "State is not supported in rich async functions.");
+        }
+
+        @Override
+        public <T> org.apache.flink.api.common.state.v2.ReducingState<T> getReducingState(
+                org.apache.flink.api.common.state.v2.ReducingStateDescriptor<T> stateProperties) {
+            throw new UnsupportedOperationException(
+                    "State is not supported in rich async functions.");
+        }
+
+        @Override
+        public <IN, ACC, OUT>
+                org.apache.flink.api.common.state.v2.AggregatingState<IN, OUT> getAggregatingState(
+                        org.apache.flink.api.common.state.v2.AggregatingStateDescriptor<
+                                        IN, ACC, OUT>
+                                stateProperties) {
+            throw new UnsupportedOperationException(
+                    "State is not supported in rich async functions.");
+        }
+
+        @Override
+        public <UK, UV> org.apache.flink.api.common.state.v2.MapState<UK, UV> getMapState(
+                org.apache.flink.api.common.state.v2.MapStateDescriptor<UK, UV> stateProperties) {
+            throw new UnsupportedOperationException(
+                    "State is not supported in rich async functions.");
+        }
+
+        @Override
         public <V, A extends Serializable> void addAccumulator(
                 String name, Accumulator<V, A> accumulator) {
             throw new UnsupportedOperationException(

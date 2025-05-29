@@ -46,6 +46,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -64,7 +65,6 @@ import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.collect.ClientAndIterator;
 import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
-import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
 import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -91,6 +91,7 @@ import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.Utils;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -1021,20 +1022,28 @@ public class DataStream<T> {
         String accumulatorName = "dataStreamCollect_" + UUID.randomUUID().toString();
 
         StreamExecutionEnvironment env = getExecutionEnvironment();
+        MemorySize maxBatchSize =
+                env.getConfiguration().get(CollectSinkOperatorFactory.MAX_BATCH_SIZE);
+        Duration socketTimeout =
+                env.getConfiguration().get(CollectSinkOperatorFactory.SOCKET_TIMEOUT);
         CollectSinkOperatorFactory<T> factory =
-                new CollectSinkOperatorFactory<>(serializer, accumulatorName);
-        CollectSinkOperator<T> operator = (CollectSinkOperator<T>) factory.getOperator();
+                new CollectSinkOperatorFactory<>(
+                        serializer, accumulatorName, maxBatchSize, socketTimeout);
+        CollectStreamSink<T> sink = new CollectStreamSink<>(this, factory);
+        sink.name("Data stream collect sink");
+
+        String operatorUid = "dataStreamCollect_" + sink.getTransformation().getId();
+        sink.uid(operatorUid);
+
         long resultFetchTimeout =
                 env.getConfiguration().get(RpcOptions.ASK_TIMEOUT_DURATION).toMillis();
         CollectResultIterator<T> iterator =
                 new CollectResultIterator<>(
-                        operator.getOperatorIdFuture(),
+                        operatorUid,
                         serializer,
                         accumulatorName,
                         env.getCheckpointConfig(),
                         resultFetchTimeout);
-        CollectStreamSink<T> sink = new CollectStreamSink<>(this, factory);
-        sink.name("Data stream collect sink");
         env.addOperator(sink.getTransformation());
 
         env.registerCollectIterator(iterator);

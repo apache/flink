@@ -20,13 +20,13 @@ limitations under the License.
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[TestFunc($0, $1)])
-+- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c, TestFunc(a, b) AS d])
-+- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -34,13 +34,13 @@ Calc(select=[a, b, c, TestFunc(a, b) AS d])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(_c0=[CONCAT($2, $3)])
-+- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int, long, string1, string2)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[CONCAT(string1, string2) AS _c0])
-+- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int, long, string1, string2)]]], fields=[int, long, string1, string2])
++- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[int, long, string1, string2])
 ]]>
     </Resource>
   </TestCase>
@@ -48,13 +48,13 @@ Calc(select=[CONCAT(string1, string2) AS _c0])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1], c=[$2], a=[$0], e=[$4], f=[$5], d=[$3])
-+- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e, f)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, c, a, e, f, d])
-+- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e, f)]]], fields=[a, b, c, d, e, f])
++- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c, d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -62,13 +62,13 @@ Calc(select=[b, c, a, e, f, d])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], f=[$5])
-+- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e, f)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c, f])
-+- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e, f)]]], fields=[a, b, c, d, e, f])
++- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c, d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -76,13 +76,13 @@ Calc(select=[a, b, c, f])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$2])
-+- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c])
-+- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -90,13 +90,13 @@ Calc(select=[c])
     <Resource name="ast">
       <![CDATA[
 LogicalFilter(condition=[=(CONCAT($2, $3), _UTF-16LE'a')])
-+- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int, long, string1, string2)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[int, long, string1, string2], where=[(CONCAT(string1, string2) = 'a')])
-+- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int, long, string1, string2)]]], fields=[int, long, string1, string2])
++- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[int, long, string1, string2])
 ]]>
     </Resource>
   </TestCase>
@@ -105,14 +105,14 @@ Calc(select=[int, long, string1, string2], where=[(CONCAT(string1, string2) = 'a
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e, f)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(c) AS EXPR$0])
 +- Exchange(distribution=[hash[a, b]])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e, f)]]], fields=[a, b, c, d, e, f])
+   +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c, d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -120,13 +120,13 @@ GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(c) AS EXPR$0])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(e=[$4], f=[$5])
-+- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e, f)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[e, f])
-+- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e, f)]]], fields=[a, b, c, d, e, f])
++- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c, d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -134,17 +134,17 @@ Calc(select=[e, f])
     <Resource name="ast">
       <![CDATA[
 LogicalJoin(condition=[=($0, $3)], joinType=[inner])
-:- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int1, long1, string1)]]])
-+- LogicalTableScan(table=[[default_catalog, default_database, Table2, source: [TestTableSource(int2, long2, string2)]]])
+:- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
++- LogicalTableScan(table=[[default_catalog, default_database, Table2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[InnerJoin], where=[(int1 = int2)], select=[int1, long1, string1, int2, long2, string2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[int1]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int1, long1, string1)]]], fields=[int1, long1, string1])
+:  +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[int1, long1, string1])
 +- Exchange(distribution=[hash[int2]])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table2, source: [TestTableSource(int2, long2, string2)]]], fields=[int2, long2, string2])
+   +- TableSourceScan(table=[[default_catalog, default_database, Table2]], fields=[int2, long2, string2])
 ]]>
     </Resource>
   </TestCase>
@@ -152,14 +152,14 @@ Join(joinType=[InnerJoin], where=[(int1 = int2)], select=[int1, long1, string1, 
     <Resource name="ast">
       <![CDATA[
 LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
-:- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int, long, string)]]])
+:- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 +- LogicalTableFunctionScan(invocation=[*org.apache.flink.table.planner.utils.TableFunc0*($2)], rowType=[RecordType(VARCHAR(2147483647) name, INTEGER age)])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Correlate(invocation=[*org.apache.flink.table.planner.utils.TableFunc0*($2)], correlate=[table(*org.apache.flink.table.planner.utils.TableFunc0*(string))], select=[int,long,string,name,age], rowType=[RecordType(DOUBLE int, BIGINT long, VARCHAR(2147483647) string, VARCHAR(2147483647) name, INTEGER age)], joinType=[INNER])
-+- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int, long, string)]]], fields=[int, long, string])
++- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[int, long, string])
 ]]>
     </Resource>
   </TestCase>
@@ -184,13 +184,13 @@ Calc(select=[c, w0$o0 AS mycount, w0$o1 AS wAvg, w0$o2 AS countDist])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(d=[$0], b=[$1])
-+- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a AS d, b])
-+- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -198,13 +198,13 @@ Calc(select=[a AS d, b])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(_c0=[TestFunc($0, $1)])
-+- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(double, long)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[TestFunc(double, long) AS _c0])
-+- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(double, long)]]], fields=[double, long])
++- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[double, long])
 ]]>
     </Resource>
   </TestCase>

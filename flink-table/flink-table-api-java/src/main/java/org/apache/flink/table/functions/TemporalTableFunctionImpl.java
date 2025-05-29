@@ -19,15 +19,18 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.legacy.api.TableSchema;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
+import org.apache.flink.table.types.utils.DataTypeUtils;
+import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.types.Row;
 
 import java.sql.Timestamp;
 
@@ -45,13 +48,13 @@ public final class TemporalTableFunctionImpl extends TemporalTableFunction {
     private final transient QueryOperation underlyingHistoryTable;
     private final transient Expression timeAttribute;
     private final transient Expression primaryKey;
-    private final RowTypeInfo resultType;
+    private final TypeInformation<Row> resultType;
 
     private TemporalTableFunctionImpl(
             QueryOperation underlyingHistoryTable,
             Expression timeAttribute,
             Expression primaryKey,
-            RowTypeInfo resultType) {
+            TypeInformation<Row> resultType) {
         this.underlyingHistoryTable = underlyingHistoryTable;
         this.timeAttribute = timeAttribute;
         this.primaryKey = primaryKey;
@@ -72,8 +75,7 @@ public final class TemporalTableFunctionImpl extends TemporalTableFunction {
 
     @Override
     public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-        final TableSchema tableSchema =
-                TableSchema.fromResolvedSchema(underlyingHistoryTable.getResolvedSchema());
+        final ResolvedSchema resolvedSchema = underlyingHistoryTable.getResolvedSchema();
         return TypeInference.newBuilder()
                 .inputTypeStrategy(
                         InputTypeStrategies.or(
@@ -81,12 +83,15 @@ public final class TemporalTableFunctionImpl extends TemporalTableFunction {
                                         InputTypeStrategies.explicit(DataTypes.TIMESTAMP(3))),
                                 InputTypeStrategies.sequence(
                                         InputTypeStrategies.explicit(DataTypes.TIMESTAMP_LTZ(3)))))
-                .outputTypeStrategy(TypeStrategies.explicit(tableSchema.toRowDataType()))
+                .outputTypeStrategy(
+                        TypeStrategies.explicit(
+                                DataTypeUtils.fromResolvedSchemaPreservingTimeAttributes(
+                                        resolvedSchema)))
                 .build();
     }
 
     @Override
-    public RowTypeInfo getResultType() {
+    public TypeInformation<Row> getResultType() {
         return resultType;
     }
 
@@ -97,14 +102,16 @@ public final class TemporalTableFunctionImpl extends TemporalTableFunction {
         return underlyingHistoryTable;
     }
 
+    @SuppressWarnings("unchecked")
     public static TemporalTableFunction create(
             QueryOperation operationTree, Expression timeAttribute, Expression primaryKey) {
-        final TableSchema tableSchema =
-                TableSchema.fromResolvedSchema(operationTree.getResolvedSchema());
         return new TemporalTableFunctionImpl(
                 operationTree,
                 timeAttribute,
                 primaryKey,
-                new RowTypeInfo(tableSchema.getFieldTypes(), tableSchema.getFieldNames()));
+                (TypeInformation<Row>)
+                        TypeConversions.fromDataTypeToLegacyInfo(
+                                DataTypeUtils.fromResolvedSchemaPreservingTimeAttributes(
+                                        operationTree.getResolvedSchema())));
     }
 }

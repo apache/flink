@@ -38,6 +38,7 @@ import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.factories.TestUpdateDeleteTableFactory;
 import org.apache.flink.table.planner.parse.CalciteParser;
 import org.apache.flink.table.planner.utils.PlannerMocks;
+import org.apache.flink.table.planner.utils.TestSimpleDynamicTableSourceFactory;
 import org.apache.flink.table.planner.utils.TimestampStringUtils;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
@@ -98,7 +99,7 @@ public class DeletePushDownUtilsTest {
                         tableId, catalog, catalogManager.resolveCatalogTable(catalogTable));
         LogicalTableModify tableModify = getTableModifyFromSql("DELETE FROM t");
         Optional<DynamicTableSink> optionalDynamicTableSink =
-                DeletePushDownUtils.getDynamicTableSink(resolvedTable, tableModify, catalogManager);
+                DeletePushDownUtils.getDynamicTableSink(resolvedTable, tableModify);
         // verify we can get the dynamic table sink
         assertThat(optionalDynamicTableSink).isPresent();
         assertThat(optionalDynamicTableSink.get())
@@ -114,7 +115,7 @@ public class DeletePushDownUtilsTest {
                         tableId, catalog, catalogManager.resolveCatalogTable(catalogTable));
         tableModify = getTableModifyFromSql("DELETE FROM t1");
         optionalDynamicTableSink =
-                DeletePushDownUtils.getDynamicTableSink(resolvedTable, tableModify, catalogManager);
+                DeletePushDownUtils.getDynamicTableSink(resolvedTable, tableModify);
         // verify it should be empty since it's not an instance of DynamicTableSink but is legacy
         // TableSink
         assertThat(optionalDynamicTableSink).isEmpty();
@@ -123,16 +124,22 @@ public class DeletePushDownUtilsTest {
     @Test
     public void testGetResolveFilterExpressions() {
         CatalogTable catalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder()
-                                .column("f0", DataTypes.INT().notNull())
-                                .column("f1", DataTypes.STRING().nullable())
-                                .column("f2", DataTypes.BIGINT().nullable())
-                                .column("f3", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE().nullable())
-                                .build(),
-                        null,
-                        Collections.emptyList(),
-                        Collections.emptyMap());
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.STRING().nullable())
+                                        .column("f2", DataTypes.BIGINT().nullable())
+                                        .column(
+                                                "f3",
+                                                DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE()
+                                                        .nullable())
+                                        .build())
+                        .options(
+                                Map.of(
+                                        "connector",
+                                        TestSimpleDynamicTableSourceFactory.IDENTIFIER()))
+                        .build();
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "t"), false);
 
@@ -174,15 +181,15 @@ public class DeletePushDownUtilsTest {
     }
 
     private CatalogTable createTestCatalogTable(Map<String, String> options) {
-        return CatalogTable.of(
-                Schema.newBuilder()
-                        .column("f0", DataTypes.INT().notNull())
-                        .column("f1", DataTypes.STRING().nullable())
-                        .column("f2", DataTypes.BIGINT().nullable())
-                        .build(),
-                null,
-                Collections.emptyList(),
-                options);
+        return CatalogTable.newBuilder()
+                .schema(
+                        Schema.newBuilder()
+                                .column("f0", DataTypes.INT().notNull())
+                                .column("f1", DataTypes.STRING().nullable())
+                                .column("f2", DataTypes.BIGINT().nullable())
+                                .build())
+                .options(options)
+                .build();
     }
 
     private LogicalTableModify getTableModifyFromSql(String sql) {

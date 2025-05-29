@@ -48,7 +48,6 @@ import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
-import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
 import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
@@ -283,7 +282,9 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
             savepointPath =
                     jobClient
                             .stopWithSavepoint(
-                                    true, testEnv.getCheckpointUri(), SavepointFormatType.CANONICAL)
+                                    false,
+                                    testEnv.getCheckpointUri(),
+                                    SavepointFormatType.CANONICAL)
                             .get(30, TimeUnit.SECONDS);
             waitForJobStatus(jobClient, Collections.singletonList(JobStatus.FINISHED));
         } catch (Exception e) {
@@ -613,12 +614,14 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
         String accumulatorName = "dataStreamCollect_" + UUID.randomUUID();
         CollectSinkOperatorFactory<T> factory =
                 new CollectSinkOperatorFactory<>(serializer, accumulatorName);
-        CollectSinkOperator<T> operator = (CollectSinkOperator<T>) factory.getOperator();
+
         CollectStreamSink<T> sink = new CollectStreamSink<>(stream, factory);
+        String operatorUid = "dataStreamCollect";
         sink.name("Data stream collect sink");
+        sink.uid(operatorUid);
         stream.getExecutionEnvironment().addOperator(sink.getTransformation());
         return new CollectResultIterator<>(
-                operator.getOperatorIdFuture(),
+                operatorUid,
                 serializer,
                 accumulatorName,
                 stream.getExecutionEnvironment().getCheckpointConfig(),

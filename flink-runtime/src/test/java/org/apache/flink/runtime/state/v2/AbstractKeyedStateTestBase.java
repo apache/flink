@@ -19,22 +19,31 @@
 package org.apache.flink.runtime.state.v2;
 
 import org.apache.flink.api.common.state.v2.State;
+import org.apache.flink.api.common.state.v2.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestContainer;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
+import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
+import org.apache.flink.runtime.state.Keyed;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
+import org.apache.flink.runtime.state.v2.internal.InternalKeyedState;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -72,10 +81,12 @@ public class AbstractKeyedStateTestBase {
                             exception.set(b);
                         },
                         testStateExecutor,
+                        new DeclarationManager(),
                         1,
                         1,
                         1000,
                         1,
+                        null,
                         null);
         exception = new AtomicReference<>(null);
     }
@@ -130,6 +141,18 @@ public class AbstractKeyedStateTestBase {
             return new AsyncKeyedStateBackend<K>() {
                 @Nonnull
                 @Override
+                public <
+                                T extends
+                                        HeapPriorityQueueElement & PriorityComparable<? super T>
+                                                & Keyed<?>>
+                        KeyGroupedInternalPriorityQueue<T> create(
+                                @Nonnull String stateName,
+                                @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
+                    throw new UnsupportedOperationException("Not support for test yet.");
+                }
+
+                @Nonnull
+                @Override
                 public RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot(
                         long checkpointId,
                         long timestamp,
@@ -155,9 +178,18 @@ public class AbstractKeyedStateTestBase {
                 @Override
                 public void setup(@Nonnull StateRequestHandler stateRequestHandler) {}
 
+                @Override
+                public <N, S extends State, SV> S getOrCreateKeyedState(
+                        N defaultNamespace,
+                        TypeSerializer<N> namespaceSerializer,
+                        StateDescriptor<SV> stateDesc)
+                        throws Exception {
+                    return null;
+                }
+
                 @Nonnull
                 @Override
-                public <N, S extends State, SV> S createState(
+                public <N, S extends InternalKeyedState, SV> S createStateInternal(
                         @Nonnull N defaultNamespace,
                         @Nonnull TypeSerializer<N> namespaceSerializer,
                         @Nonnull StateDescriptor<SV> stateDesc)
@@ -168,6 +200,11 @@ public class AbstractKeyedStateTestBase {
                 @Override
                 public StateExecutor createStateExecutor() {
                     return new TestStateExecutor();
+                }
+
+                @Override
+                public KeyGroupRange getKeyGroupRange() {
+                    return new KeyGroupRange(0, 127);
                 }
 
                 @Override
@@ -201,14 +238,9 @@ public class AbstractKeyedStateTestBase {
         @Override
         public CompletableFuture<Void> executeBatchRequests(
                 StateRequestContainer stateRequestContainer) {
-            receivedRequest.addAll(((TestStateRequestContainer) stateRequestContainer).requests);
-            for (StateRequest request : receivedRequest) {
-                if (request.getRequestType() == StateRequestType.MAP_CONTAINS
-                        || request.getRequestType() == StateRequestType.MAP_IS_EMPTY) {
-                    request.getFuture().complete(true);
-                } else {
-                    request.getFuture().complete(null);
-                }
+            for (StateRequest request :
+                    ((TestStateRequestContainer) stateRequestContainer).requests) {
+                executeRequestSync(request);
             }
             CompletableFuture<Void> future = new CompletableFuture<>();
             future.complete(null);
@@ -218,6 +250,17 @@ public class AbstractKeyedStateTestBase {
         @Override
         public StateRequestContainer createStateRequestContainer() {
             return new TestStateRequestContainer();
+        }
+
+        @Override
+        public void executeRequestSync(StateRequest<?, ?, ?, ?> request) {
+            receivedRequest.add(request);
+            if (request.getRequestType() == StateRequestType.MAP_CONTAINS
+                    || request.getRequestType() == StateRequestType.MAP_IS_EMPTY) {
+                ((InternalStateFuture<Boolean>) request.getFuture()).complete(true);
+            } else {
+                request.getFuture().complete(null);
+            }
         }
 
         @Override

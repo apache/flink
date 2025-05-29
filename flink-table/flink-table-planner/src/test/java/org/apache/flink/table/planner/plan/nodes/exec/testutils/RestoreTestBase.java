@@ -363,7 +363,10 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         program.getSetupFunctionTestSteps().forEach(s -> s.apply(tEnv));
         program.getSetupTemporalFunctionTestSteps().forEach(s -> s.apply(tEnv));
 
-        final CompiledPlan compiledPlan = tEnv.loadPlan(PlanReference.fromFile(planPath));
+        final byte[] compiledPlanAsSmileBytes =
+                tEnv.loadPlan(PlanReference.fromFile(planPath)).asSmileBytes();
+        final CompiledPlan compiledPlan =
+                tEnv.loadPlan(PlanReference.fromSmileBytes(compiledPlanAsSmileBytes));
 
         if (afterRestoreSource == AfterRestoreSource.INFINITE) {
             final TableResult tableResult = compiledPlan.execute();
@@ -376,9 +379,11 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                 assertThat(expectedResults)
                         .containsExactlyInAnyOrder(
                                 Stream.concat(
-                                                sinkTestStep.getExpectedBeforeRestoreAsStrings()
+                                                sinkTestStep
+                                                        .getExpectedBeforeRestoreAsStrings()
                                                         .stream(),
-                                                sinkTestStep.getExpectedAfterRestoreAsStrings()
+                                                sinkTestStep
+                                                        .getExpectedAfterRestoreAsStrings()
                                                         .stream())
                                         .toArray(String[]::new));
             }

@@ -24,7 +24,7 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.JobResultStore;
-import org.apache.flink.runtime.jobmanager.JobGraphWriter;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanWriter;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -38,7 +38,7 @@ import java.util.concurrent.Executor;
 public class PartialDispatcherServicesWithJobPersistenceComponents
         extends PartialDispatcherServices {
 
-    private final JobGraphWriter jobGraphWriter;
+    private final ExecutionPlanWriter executionPlanWriter;
     private final JobResultStore jobResultStore;
 
     private PartialDispatcherServicesWithJobPersistenceComponents(
@@ -55,7 +55,7 @@ public class PartialDispatcherServicesWithJobPersistenceComponents
             Executor ioExecutor,
             DispatcherOperationCaches operationCaches,
             Collection<FailureEnricher> failureEnrichers,
-            JobGraphWriter jobGraphWriter,
+            ExecutionPlanWriter executionPlanWriter,
             JobResultStore jobResultStore) {
         super(
                 configuration,
@@ -71,12 +71,12 @@ public class PartialDispatcherServicesWithJobPersistenceComponents
                 ioExecutor,
                 operationCaches,
                 failureEnrichers);
-        this.jobGraphWriter = jobGraphWriter;
+        this.executionPlanWriter = executionPlanWriter;
         this.jobResultStore = jobResultStore;
     }
 
-    public JobGraphWriter getJobGraphWriter() {
-        return jobGraphWriter;
+    public ExecutionPlanWriter getExecutionPlanWriter() {
+        return executionPlanWriter;
     }
 
     public JobResultStore getJobResultStore() {
@@ -85,7 +85,7 @@ public class PartialDispatcherServicesWithJobPersistenceComponents
 
     public static PartialDispatcherServicesWithJobPersistenceComponents from(
             PartialDispatcherServices partialDispatcherServices,
-            JobGraphWriter jobGraphWriter,
+            ExecutionPlanWriter executionPlanWriter,
             JobResultStore jobResultStore) {
         return new PartialDispatcherServicesWithJobPersistenceComponents(
                 partialDispatcherServices.getConfiguration(),
@@ -101,7 +101,7 @@ public class PartialDispatcherServicesWithJobPersistenceComponents
                 partialDispatcherServices.getIoExecutor(),
                 partialDispatcherServices.getOperationCaches(),
                 partialDispatcherServices.getFailureEnrichers(),
-                jobGraphWriter,
+                executionPlanWriter,
                 jobResultStore);
     }
 }

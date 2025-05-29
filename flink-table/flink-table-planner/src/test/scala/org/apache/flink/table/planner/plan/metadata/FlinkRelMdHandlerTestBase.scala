@@ -24,7 +24,7 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis
 import org.apache.flink.table.functions.{FunctionIdentifier, UserDefinedFunctionHelper}
 import org.apache.flink.table.operations.TableSourceQueryOperation
-import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkTypeFactory}
+import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkTypeFactory, RexTableArgCall}
 import org.apache.flink.table.planner.delegation.PlannerContext
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
@@ -921,12 +921,7 @@ class FlinkRelMdHandlerTestBase {
       streamTableScan,
       hash1)
     val table = streamTableScan.getTable.asInstanceOf[TableSourceTable]
-    new StreamPhysicalChangelogNormalize(
-      cluster,
-      streamPhysicalTraits,
-      streamExchange,
-      key,
-      table.contextResolvedTable)
+    new StreamPhysicalChangelogNormalize(cluster, streamPhysicalTraits, streamExchange, key)
   }
 
   protected lazy val streamDropUpdateBefore = {
@@ -3281,7 +3276,8 @@ class FlinkRelMdHandlerTestBase {
         ImmutableList.of(calcOnStudentScan),
         relBuilder.call(
           FlinkSqlOperatorTable.TUMBLE,
-          relBuilder.call(FlinkSqlOperatorTable.DESCRIPTOR, relBuilder.field(2)),
+          new RexTableArgCall(outputRowType, 0, Array(), Array()),
+          relBuilder.call(FlinkSqlOperatorTable.DESCRIPTOR, relBuilder.literal("ptime")),
           rexBuilder.makeIntervalLiteral(
             bd(600000L),
             new SqlIntervalQualifier(TimeUnit.MILLISECOND, null, SqlParserPos.ZERO))

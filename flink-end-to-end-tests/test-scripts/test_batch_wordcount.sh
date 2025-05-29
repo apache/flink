@@ -36,7 +36,7 @@ case $INPUT_TYPE in
         ARGS="--execution-mode BATCH --input ${S3_TEST_DATA_WORDS_URI} --output s3://$IT_CASE_S3_BUCKET/$S3_PREFIX"
         OUTPUT_PATH="$TEST_DATA_DIR/$S3_PREFIX"
         on_exit "s3_delete_by_full_path_prefix '$S3_PREFIX'"
-        fetch_complete_result=(s3_get_by_full_path_and_filename_prefix "$OUTPUT_PATH" "${S3_PREFIX}" "" false)
+        fetch_complete_result=(s3_get_by_full_path_and_filename_prefix "$OUTPUT_PATH" "${S3_PREFIX}" true)
     ;;
     (hadoop_minio)
         source "$(dirname "$0")"/common_s3_minio.sh
@@ -50,7 +50,7 @@ case $INPUT_TYPE in
         ARGS="--execution-mode BATCH --input ${S3_TEST_DATA_WORDS_URI} --output s3://$IT_CASE_S3_BUCKET/$S3_PREFIX"
         OUTPUT_PATH="$TEST_DATA_DIR/$S3_PREFIX"
         on_exit "s3_delete_by_full_path_prefix '$S3_PREFIX'"
-        fetch_complete_result=(s3_get_by_full_path_and_filename_prefix "$OUTPUT_PATH" "${S3_PREFIX}" "" false)
+        fetch_complete_result=(s3_get_by_full_path_and_filename_prefix "$OUTPUT_PATH" "${S3_PREFIX}" true)
     ;;
     (presto)
         source "$(dirname "$0")"/common_s3.sh
@@ -58,7 +58,7 @@ case $INPUT_TYPE in
         ARGS="--execution-mode BATCH --input ${S3_TEST_DATA_WORDS_URI} --output s3://$IT_CASE_S3_BUCKET/$S3_PREFIX"
         OUTPUT_PATH="$TEST_DATA_DIR/$S3_PREFIX"
         on_exit "s3_delete_by_full_path_prefix '$S3_PREFIX'"
-        fetch_complete_result=(s3_get_by_full_path_and_filename_prefix "$OUTPUT_PATH" "${S3_PREFIX}" "" false)
+        fetch_complete_result=(s3_get_by_full_path_and_filename_prefix "$OUTPUT_PATH" "${S3_PREFIX}" true)
     ;;
     (presto_minio)
         source "$(dirname "$0")"/common_s3_minio.sh

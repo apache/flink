@@ -355,7 +355,69 @@ class DataStructureConvertersTest {
                 TestSpec.forDataType(
                                 DataTypes.STRUCTURED(GenericPojo.class, FIELD("value", DATE())))
                         .convertedTo(
-                                GenericPojo.class, new GenericPojo<>(LocalDate.ofEpochDay(123))));
+                                GenericPojo.class, new GenericPojo<>(LocalDate.ofEpochDay(123))),
+
+                // partial delete messages
+                TestSpec.forDataType(
+                                DataTypes.ROW(
+                                        DataTypes.FIELD("f0", DataTypes.TINYINT().notNull()),
+                                        DataTypes.FIELD("f1", DataTypes.SMALLINT().notNull()),
+                                        DataTypes.FIELD("f2", DataTypes.INT().notNull()),
+                                        DataTypes.FIELD("f3", DataTypes.BIGINT().notNull()),
+                                        DataTypes.FIELD("f4", DataTypes.DOUBLE().notNull()),
+                                        DataTypes.FIELD("f5", DataTypes.FLOAT().notNull()),
+                                        DataTypes.FIELD("f6", DataTypes.DATE().notNull()),
+                                        DataTypes.FIELD("f7", DataTypes.BINARY(12).notNull()),
+                                        DataTypes.FIELD("f8", DataTypes.VARBINARY(12).notNull()),
+                                        DataTypes.FIELD("f9", DataTypes.CHAR(12).notNull()),
+                                        DataTypes.FIELD("f10", DataTypes.VARCHAR(12).notNull()),
+                                        DataTypes.FIELD("f11", DataTypes.BOOLEAN().notNull()),
+                                        DataTypes.FIELD("f12", DataTypes.TIME().notNull()),
+                                        DataTypes.FIELD("f13", DataTypes.TIMESTAMP().notNull()),
+                                        DataTypes.FIELD("f14", DataTypes.TIMESTAMP_LTZ().notNull()),
+                                        DataTypes.FIELD("f15", DataTypes.DECIMAL(10, 2).notNull()),
+                                        DataTypes.FIELD(
+                                                "f16",
+                                                DataTypes.MAP(
+                                                                DataTypes.INT().notNull(),
+                                                                DataTypes.STRING().notNull())
+                                                        .notNull()),
+                                        DataTypes.FIELD(
+                                                "f17",
+                                                DataTypes.ARRAY(DataTypes.INT().notNull())
+                                                        .notNull()),
+                                        DataTypes.FIELD(
+                                                "f18",
+                                                DataTypes.ARRAY(DataTypes.INT().notNull())
+                                                        .notNull()),
+                                        DataTypes.FIELD(
+                                                "f19",
+                                                DataTypes.MULTISET(DataTypes.INT().notNull())
+                                                        .notNull())))
+                        .convertedTo(
+                                Row.class,
+                                Row.ofKind(
+                                        RowKind.DELETE,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        new Integer[] {null, null},
+                                        null)));
     }
 
     @ParameterizedTest(name = "{index}: {0}")

@@ -24,7 +24,7 @@ limitations under the License.
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT($0)], EXPR$2=[SUM($1)], EXPR$3=[SUM(DISTINCT $1)])
 +- LogicalProject(a=[$0], b=[$1])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -39,7 +39,7 @@ Calc(select=[a, CAST(EXPR$1 AS BIGINT) AS EXPR$1, EXPR$2, EXPR$3])
                   +- LocalHashAggregate(groupBy=[a, b, $e], select=[a, b, $e, Partial_COUNT(a) AS count$0, Partial_SUM(b_0) AS sum$1])
                      +- Expand(projects=[{a, b, 0 AS $e, b AS b_0}, {a, null AS b, 1 AS $e, b AS b_0}])
                         +- Calc(select=[a, b])
-                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -52,7 +52,7 @@ COUNT(DISTINCT d) FILTER (WHERE b > 1) FROM MyTable2 GROUP BY a]]>
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1) FILTER $2], EXPR$2=[COUNT(DISTINCT $3) FILTER $2])
 +- LogicalProject(a=[$0], c=[$2], $f2=[IS TRUE(>($1, 1))], d=[$3])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -67,7 +67,7 @@ Calc(select=[a, CAST(EXPR$1 AS BIGINT) AS EXPR$1, EXPR$2])
                   +- LocalHashAggregate(groupBy=[a, $f2, d, $e], select=[a, $f2, d, $e, Partial_COUNT(c) FILTER $f2_0 AS count$0])
                      +- Expand(projects=[{a, c, $f2, d, 0 AS $e, $f2 AS $f2_0}, {a, c, null AS $f2, null AS d, 3 AS $e, $f2 AS $f2_0}])
                         +- Calc(select=[a, c, (b > 1) IS TRUE AS $f2, d])
-                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -80,7 +80,7 @@ Calc(select=[a, CAST(EXPR$1 AS BIGINT) AS EXPR$1, EXPR$2])
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM(DISTINCT $1)], EXPR$1=[COUNT(DISTINCT $2)])
    +- LogicalProject(b=[$1], a=[$0], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -94,7 +94,7 @@ Calc(select=[EXPR$0, EXPR$1])
                +- Exchange(distribution=[hash[a, b, c, $e]])
                   +- LocalHashAggregate(groupBy=[a, b, c, $e], select=[a, b, c, $e])
                      +- Expand(projects=[{a, b, null AS c, 1 AS $e}, {null AS a, b, c, 4 AS $e}])
-                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -106,7 +106,7 @@ Calc(select=[EXPR$0, EXPR$1])
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[SUM(DISTINCT $1)], EXPR$2=[MAX($0)], EXPR$3=[MIN($0)])
 +- LogicalProject(a=[$0], b=[$1])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -120,7 +120,7 @@ HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_SUM(
                +- LocalHashAggregate(groupBy=[a, b, $e], select=[a, b, $e, Partial_MAX(a_0) AS max$0, Partial_MIN(a_0) AS min$1])
                   +- Expand(projects=[{a, null AS b, 1 AS $e, a AS a_0}, {null AS a, b, 2 AS $e, a AS a_0}, {null AS a, null AS b, 3 AS $e, a AS a_0}])
                      +- Calc(select=[a, b])
-                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -133,7 +133,7 @@ HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_SUM(
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT(DISTINCT $1)], EXPR$1=[SUM(DISTINCT $2)], EXPR$2=[MAX($1)], EXPR$3=[MIN($1)])
    +- LogicalProject(c=[$2], a=[$0], b=[$1])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -147,7 +147,7 @@ Calc(select=[EXPR$0, EXPR$1, EXPR$2, EXPR$3])
                +- Exchange(distribution=[hash[a, b, c, $e]])
                   +- LocalHashAggregate(groupBy=[a, b, c, $e], select=[a, b, c, $e, Partial_MAX(a_0) AS max$0, Partial_MIN(a_0) AS min$1])
                      +- Expand(projects=[{a, null AS b, c, 2 AS $e, a AS a_0}, {null AS a, b, c, 4 AS $e, a AS a_0}, {null AS a, null AS b, c, 6 AS $e, a AS a_0}])
-                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -160,7 +160,7 @@ COUNT(DISTINCT c) FILTER (WHERE a > 5) FROM MyTable]]>
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[SUM(DISTINCT $1)], EXPR$2=[COUNT(DISTINCT $2) FILTER $3])
 +- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[IS TRUE(>($0, 5))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -174,7 +174,7 @@ HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_SUM(
                +- LocalHashAggregate(groupBy=[a, b, c, $f3, $e], select=[a, b, c, $f3, $e])
                   +- Expand(projects=[{a, null AS b, null AS c, null AS $f3, 7 AS $e}, {null AS a, b, null AS c, null AS $f3, 11 AS $e}, {null AS a, null AS b, c, $f3, 12 AS $e}])
                      +- Calc(select=[a, b, c, (a > 5) IS TRUE AS $f3])
-                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -187,7 +187,7 @@ HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_SUM(
 LogicalProject(EXPR$0=[$2], EXPR$1=[$3])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}]], EXPR$0=[COUNT(DISTINCT $2)], EXPR$1=[SUM(DISTINCT $3)])
    +- LogicalProject(c=[$2], d=[$3], a=[$0], b=[$1])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -203,7 +203,7 @@ Calc(select=[EXPR$0, EXPR$1])
                      +- Expand(projects=[{c, d, a, null AS b, $e, 2 AS $e_0}, {c, d, null AS a, b, $e, 4 AS $e_0}])
                         +- Expand(projects=[{c, null AS d, a, b, 1 AS $e}, {null AS c, d, a, b, 2 AS $e}])
                            +- Calc(select=[c, d, a, b])
-                              +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                              +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -216,7 +216,7 @@ MAX(DISTINCT a) FROM MyTable]]>
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[SUM(DISTINCT $0) FILTER $1], EXPR$2=[MAX($0)])
 +- LogicalProject(a=[$0], $f1=[IS TRUE(>($1, 0))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -230,7 +230,7 @@ HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_SUM(
                +- LocalHashAggregate(groupBy=[a, $f1, $e], select=[a, $f1, $e, Partial_MAX(a_0) AS max$0])
                   +- Expand(projects=[{a, $f1, 0 AS $e, a AS a_0}, {a, null AS $f1, 1 AS $e, a AS a_0}, {null AS a, null AS $f1, 3 AS $e, a AS a_0}])
                      +- Calc(select=[a, (b > 0) IS TRUE AS $f1])
-                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -243,7 +243,7 @@ HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_SUM(
 LogicalProject(EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$4])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}]], EXPR$0=[COUNT(DISTINCT $2)], EXPR$1=[SUM(DISTINCT $2)], EXPR$2=[MAX($2)])
    +- LogicalProject(b=[$1], c=[$2], a=[$0])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -257,7 +257,7 @@ Calc(select=[EXPR$0, EXPR$1, EXPR$2])
                +- LocalHashAggregate(groupBy=[b, c, a, $e], select=[b, c, a, $e])
                   +- Expand(projects=[{b, null AS c, a, 1 AS $e}, {null AS b, c, a, 2 AS $e}])
                      +- Calc(select=[b, c, a])
-                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -270,7 +270,7 @@ SUM(DISTINCT b), COUNT(c) FROM MyTable]]>
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0) FILTER $1], EXPR$1=[SUM(DISTINCT $2)], EXPR$2=[COUNT($3)])
 +- LogicalProject(a=[$0], $f1=[IS TRUE(>($2, 0))], b=[$1], c=[$2])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -285,7 +285,7 @@ Calc(select=[EXPR$0, EXPR$1, CASE(EXPR$2 IS NOT NULL, EXPR$2, 0) AS EXPR$2])
                   +- LocalHashAggregate(groupBy=[a, $f1, b, $e], select=[a, $f1, b, $e, Partial_COUNT(c) AS count$0])
                      +- Expand(projects=[{a, $f1, null AS b, c, 1 AS $e}, {null AS a, null AS $f1, b, c, 6 AS $e}, {null AS a, null AS $f1, null AS b, c, 7 AS $e}])
                         +- Calc(select=[a, (c > 0) IS TRUE AS $f1, b, c])
-                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -298,7 +298,7 @@ Calc(select=[EXPR$0, EXPR$1, CASE(EXPR$2 IS NOT NULL, EXPR$2, 0) AS EXPR$2])
 LogicalProject(EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$4])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}]], EXPR$0=[COUNT(DISTINCT $2)], EXPR$1=[SUM(DISTINCT $3)], EXPR$2=[COUNT($4)])
    +- LogicalProject(d=[$3], e=[$4], a=[$0], b=[$1], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -313,7 +313,7 @@ Calc(select=[EXPR$0, EXPR$1, CAST(EXPR$2 AS BIGINT) AS EXPR$2])
                   +- LocalHashAggregate(groupBy=[a, b, d, e, $e, $e_0], select=[a, b, d, e, $e, $e_0, Partial_COUNT(c) AS count$0])
                      +- Expand(projects=[{a, null AS b, c, d, e, $e, 8 AS $e_0}, {null AS a, b, c, d, e, $e, 16 AS $e_0}, {null AS a, null AS b, c, d, e, $e, 24 AS $e_0}])
                         +- Expand(projects=[{a, b, c, d, null AS e, 1 AS $e}, {a, b, c, null AS d, e, 2 AS $e}])
-                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -327,7 +327,7 @@ FROM MyTable2 GROUP BY d]]>
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)], EXPR$2=[MAX($1) FILTER $2], EXPR$3=[COUNT(DISTINCT $3)], EXPR$4=[COUNT(DISTINCT $3) FILTER $4], EXPR$5=[COUNT(DISTINCT $5) FILTER $6])
 +- LogicalProject(d=[$3], e=[$4], $f2=[IS TRUE(<($0, 10))], c=[$2], $f4=[IS TRUE(>($0, 5))], b=[$1], $f6=[IS TRUE(>($1, 3))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -345,7 +345,7 @@ SortAggregate(isMerge=[true], groupBy=[d], select=[d, Final_MIN(min$0) AS EXPR$1
                            +- Exchange(distribution=[hash[d, c, $f4, b, $f6, $e]])
                               +- Expand(projects=[{d, e, $f2, c, $f4, null AS b, null AS $f6, 3 AS $e}, {d, e, $f2, c, null AS $f4, null AS b, null AS $f6, 7 AS $e}, {d, e, $f2, null AS c, null AS $f4, b, $f6, 12 AS $e}, {d, e, $f2, null AS c, null AS $f4, null AS b, null AS $f6, 15 AS $e}])
                                  +- Calc(select=[d, e, (a < 10) IS TRUE AS $f2, c, (a > 5) IS TRUE AS $f4, b, (b > 3) IS TRUE AS $f6])
-                                    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -358,7 +358,7 @@ COUNT(DISTINCT b) FILTER (WHERE b > 1) FROM MyTable2 GROUP BY d]]>
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[COUNT(DISTINCT $1) FILTER $2], EXPR$3=[COUNT(DISTINCT $3) FILTER $4])
 +- LogicalProject(d=[$3], c=[$2], $f2=[IS TRUE(>($0, 0))], b=[$1], $f4=[IS TRUE(>($1, 1))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -372,7 +372,7 @@ HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS EX
                +- LocalHashAggregate(groupBy=[d, c, $f2, b, $f4, $e], select=[d, c, $f2, b, $f4, $e])
                   +- Expand(projects=[{d, c, $f2, null AS b, null AS $f4, 3 AS $e}, {d, c, null AS $f2, null AS b, null AS $f4, 7 AS $e}, {d, null AS c, null AS $f2, b, $f4, 12 AS $e}])
                      +- Calc(select=[d, c, (a > 0) IS TRUE AS $f2, b, (b > 1) IS TRUE AS $f4])
-                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -385,7 +385,7 @@ COUNT(DISTINCT c) FILTER (WHERE a < 10) FROM MyTable2 GROUP BY d]]>
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[COUNT(DISTINCT $1) FILTER $2], EXPR$3=[COUNT(DISTINCT $1) FILTER $3])
 +- LogicalProject(d=[$3], c=[$2], $f2=[IS TRUE(>($0, 10))], $f3=[IS TRUE(<($0, 10))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -399,7 +399,7 @@ HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS EX
                +- LocalHashAggregate(groupBy=[d, c, $f2, $f3, $e], select=[d, c, $f2, $f3, $e])
                   +- Expand(projects=[{d, c, $f2, null AS $f3, 1 AS $e}, {d, c, null AS $f2, $f3, 2 AS $e}, {d, c, null AS $f2, null AS $f3, 3 AS $e}])
                      +- Calc(select=[d, c, (a > 10) IS TRUE AS $f2, (a < 10) IS TRUE AS $f3])
-                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -412,7 +412,7 @@ MAX(e), MIN(e) FROM MyTable2 GROUP BY d]]>
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[COUNT(DISTINCT $1) FILTER $2], EXPR$3=[MAX($3)], EXPR$4=[MIN($3)])
 +- LogicalProject(d=[$3], c=[$2], $f2=[IS TRUE(>($0, 0))], e=[$4])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -430,7 +430,7 @@ SortAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS EX
                            +- Exchange(distribution=[hash[d, c, $f2, $e]])
                               +- Expand(projects=[{d, c, $f2, e, 0 AS $e}, {d, c, null AS $f2, e, 1 AS $e}, {d, null AS c, null AS $f2, e, 3 AS $e}])
                                  +- Calc(select=[d, c, (a > 0) IS TRUE AS $f2, e])
-                                    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -442,7 +442,7 @@ SortAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS EX
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)])
 +- LogicalProject(a=[$0])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -454,7 +454,7 @@ HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0])
          +- Exchange(distribution=[hash[a]])
             +- LocalHashAggregate(groupBy=[a], select=[a])
                +- Calc(select=[a])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -466,7 +466,7 @@ HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0])
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0) FILTER $1], EXPR$1=[SUM($2)])
 +- LogicalProject(a=[$0], $f1=[IS TRUE(>($0, 0))], b=[$1])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -480,7 +480,7 @@ HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_MIN(
                +- LocalHashAggregate(groupBy=[a, $f1, $e], select=[a, $f1, $e, Partial_SUM(b) AS sum$0])
                   +- Expand(projects=[{a, $f1, b, 0 AS $e}, {null AS a, null AS $f1, b, 3 AS $e}])
                      +- Calc(select=[a, (a > 0) IS TRUE AS $f1, b])
-                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -492,7 +492,7 @@ HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_MIN(
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT($0) FILTER $1], EXPR$1=[SUM(DISTINCT $2)])
 +- LogicalProject(a=[$0], $f1=[IS TRUE(>($0, 0))], b=[$1])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -507,7 +507,7 @@ Calc(select=[CASE(EXPR$0 IS NOT NULL, EXPR$0, 0) AS EXPR$0, EXPR$1])
                   +- LocalHashAggregate(groupBy=[b, $e], select=[b, $e, Partial_COUNT(a) FILTER $f1 AS count$0])
                      +- Expand(projects=[{a, $f1, b, 0 AS $e}, {a, $f1, null AS b, 1 AS $e}])
                         +- Calc(select=[a, (a > 0) IS TRUE AS $f1, b])
-                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -520,7 +520,7 @@ Calc(select=[CASE(EXPR$0 IS NOT NULL, EXPR$0, 0) AS EXPR$0, EXPR$1])
 LogicalProject(EXPR$0=[$2], EXPR$1=[$3])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}]], EXPR$0=[COUNT(DISTINCT $2)], EXPR$1=[SUM($0)])
    +- LogicalProject(b=[$1], c=[$2], a=[$0])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -536,7 +536,7 @@ Calc(select=[EXPR$0, EXPR$1])
                      +- Expand(projects=[{b, c, a, $e, b_0, 0 AS $e_0}, {b, c, null AS a, $e, b_0, 2 AS $e_0}])
                         +- Expand(projects=[{b, null AS c, a, 1 AS $e, b AS b_0}, {null AS b, c, a, 2 AS $e, b AS b_0}])
                            +- Calc(select=[b, c, a])
-                              +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                              +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -549,7 +549,7 @@ Calc(select=[EXPR$0, EXPR$1])
 LogicalProject(EXPR$0=[$2], EXPR$1=[$3])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}]], EXPR$0=[COUNT($2)], EXPR$1=[SUM(DISTINCT $3)])
    +- LogicalProject(c=[$2], d=[$3], a=[$0], b=[$1])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -565,7 +565,7 @@ Calc(select=[CAST(EXPR$0 AS BIGINT) AS EXPR$0, EXPR$1])
                      +- Expand(projects=[{c, d, a, b, $e, 0 AS $e_0}, {c, d, a, null AS b, $e, 2 AS $e_0}])
                         +- Expand(projects=[{c, null AS d, a, b, 1 AS $e}, {null AS c, d, a, b, 2 AS $e}])
                            +- Calc(select=[c, d, a, b])
-                              +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                              +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -577,7 +577,7 @@ Calc(select=[CAST(EXPR$0 AS BIGINT) AS EXPR$0, EXPR$1])
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT()], EXPR$2=[SUM(DISTINCT $1)], EXPR$3=[COUNT(DISTINCT $1)])
 +- LogicalProject(a=[$0], b=[$1])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -592,7 +592,7 @@ Calc(select=[a, CAST(EXPR$1 AS BIGINT) AS EXPR$1, EXPR$2, EXPR$3])
                   +- LocalHashAggregate(groupBy=[a, b, $e], select=[a, b, $e, Partial_COUNT(*) AS count1$0])
                      +- Expand(projects=[{a, b, 0 AS $e}, {a, null AS b, 1 AS $e}])
                         +- Calc(select=[a, b])
-                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -604,7 +604,7 @@ Calc(select=[a, CAST(EXPR$1 AS BIGINT) AS EXPR$1, EXPR$2, EXPR$3])
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT($0)], EXPR$2=[SUM(DISTINCT $1)])
 +- LogicalProject(a=[$0], b=[$1])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -619,7 +619,7 @@ Calc(select=[a, CAST(EXPR$1 AS BIGINT) AS EXPR$1, EXPR$2])
                   +- LocalHashAggregate(groupBy=[a, b, $e], select=[a, b, $e, Partial_COUNT(a) AS count$0])
                      +- Expand(projects=[{a, b, 0 AS $e}, {a, null AS b, 1 AS $e}])
                         +- Calc(select=[a, b])
-                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -631,7 +631,7 @@ Calc(select=[a, CAST(EXPR$1 AS BIGINT) AS EXPR$1, EXPR$2])
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT()], EXPR$2=[SUM(DISTINCT $1)])
 +- LogicalProject(a=[$0], b=[$1])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -646,7 +646,7 @@ Calc(select=[a, CAST(EXPR$1 AS BIGINT) AS EXPR$1, EXPR$2])
                   +- LocalHashAggregate(groupBy=[a, b, $e], select=[a, b, $e, Partial_COUNT(*) AS count1$0])
                      +- Expand(projects=[{a, b, 0 AS $e}, {a, null AS b, 1 AS $e}])
                         +- Calc(select=[a, b])
-                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -658,7 +658,7 @@ Calc(select=[a, CAST(EXPR$1 AS BIGINT) AS EXPR$1, EXPR$2])
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1) FILTER $2])
 +- LogicalProject(d=[$3], c=[$2], $f2=[IS TRUE(>($0, 0))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -670,7 +670,7 @@ HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS EX
          +- Exchange(distribution=[hash[d, $f2, i$c]])
             +- LocalHashAggregate(groupBy=[d, $f2, i$c], select=[d, $f2, i$c])
                +- Calc(select=[d, (a > 0) IS TRUE AS $f2, CASE((a > 0) IS TRUE, c, null:VARCHAR(2147483647)) AS i$c])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -681,7 +681,7 @@ HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS EX
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT()], EXPR$2=[SUM(DISTINCT $1)], EXPR$3=[COUNT(DISTINCT $2)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -695,7 +695,7 @@ Calc(select=[a, CAST(EXPR$1 AS BIGINT) AS EXPR$1, EXPR$2, EXPR$3])
                +- Exchange(distribution=[hash[a, b, c, $e]])
                   +- LocalHashAggregate(groupBy=[a, b, c, $e], select=[a, b, c, $e, Partial_COUNT(*) AS count1$0])
                      +- Expand(projects=[{a, b, null AS c, 1 AS $e}, {a, null AS b, c, 2 AS $e}, {a, null AS b, null AS c, 3 AS $e}])
-                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

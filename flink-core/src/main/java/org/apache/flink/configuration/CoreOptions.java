@@ -26,7 +26,7 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.util.ArrayUtils;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Iterables;
 
 import java.util.List;
 
@@ -224,6 +224,17 @@ public class CoreOptions {
     // ------------------------------------------------------------------------
     //  process parameters
     // ------------------------------------------------------------------------
+
+    public static final ConfigOption<String> FLINK_JAVA_HOME =
+            ConfigOptions.key("env.java.home")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Location where Java is installed. If not specified,"
+                                                    + " Flink will use your default Java installation.")
+                                    .build());
 
     public static final ConfigOption<String> FLINK_JVM_OPTIONS =
             ConfigOptions.key("env.java.opts.all")

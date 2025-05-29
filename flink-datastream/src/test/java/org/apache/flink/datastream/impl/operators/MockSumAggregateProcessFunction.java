@@ -19,10 +19,10 @@
 package org.apache.flink.datastream.impl.operators;
 
 import org.apache.flink.api.common.functions.AggregateFunction;
-import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDeclaration;
 import org.apache.flink.api.common.state.StateDeclaration;
 import org.apache.flink.api.common.state.StateDeclarations;
+import org.apache.flink.api.common.state.v2.AggregatingState;
 import org.apache.flink.api.common.typeinfo.TypeDescriptors;
 import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.PartitionedContext;
@@ -69,10 +69,11 @@ public class MockSumAggregateProcessFunction
     }
 
     @Override
-    public void processRecord(Integer record, Collector<Integer> output, PartitionedContext ctx)
+    public void processRecord(
+            Integer record, Collector<Integer> output, PartitionedContext<Integer> ctx)
             throws Exception {
         Optional<AggregatingState<Integer, Integer>> stateOptional =
-                ctx.getStateManager().getState(aggregatingStateDeclaration);
+                ctx.getStateManager().getStateOptional(aggregatingStateDeclaration);
         if (!stateOptional.isPresent()) {
             throw new RuntimeException("State is not available");
         }

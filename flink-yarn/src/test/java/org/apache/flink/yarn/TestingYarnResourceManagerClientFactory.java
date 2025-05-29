@@ -27,14 +27,14 @@ import java.util.function.BiFunction;
 public class TestingYarnResourceManagerClientFactory implements YarnResourceManagerClientFactory {
     private final BiFunction<
                     Integer,
-                    AMRMClientAsync.CallbackHandler,
+                    AMRMClientAsync.AbstractCallbackHandler,
                     AMRMClientAsync<AMRMClient.ContainerRequest>>
             createResourceManagerClientFunction;
 
     TestingYarnResourceManagerClientFactory(
             BiFunction<
                             Integer,
-                            AMRMClientAsync.CallbackHandler,
+                            AMRMClientAsync.AbstractCallbackHandler,
                             AMRMClientAsync<AMRMClient.ContainerRequest>>
                     createResourceManagerClientFunction) {
         this.createResourceManagerClientFunction = createResourceManagerClientFunction;
@@ -42,7 +42,8 @@ public class TestingYarnResourceManagerClientFactory implements YarnResourceMana
 
     @Override
     public AMRMClientAsync<AMRMClient.ContainerRequest> createResourceManagerClient(
-            int yarnHeartbeatIntervalMillis, AMRMClientAsync.CallbackHandler callbackHandler) {
+            int yarnHeartbeatIntervalMillis,
+            AMRMClientAsync.AbstractCallbackHandler callbackHandler) {
         return createResourceManagerClientFunction.apply(
                 yarnHeartbeatIntervalMillis, callbackHandler);
     }

@@ -44,7 +44,7 @@ import static org.apache.flink.state.forst.ForStDBIterRequest.startWithKeyPrefix
 public class ForStDBBunchPutRequest<K, N, UK, UV> extends ForStDBPutRequest<K, N, Map<UK, UV>> {
 
     /** Serializer for the user values. */
-    final TypeSerializer<UV> userValueSerializer;
+    final ThreadLocal<TypeSerializer<UV>> userValueSerializer;
 
     /** The data outputStream used for value serializer, which should be thread-safe. */
     final ThreadLocal<DataOutputSerializer> valueSerializerView;
@@ -100,7 +100,7 @@ public class ForStDBBunchPutRequest<K, N, UK, UV> extends ForStDBPutRequest<K, N
     public byte[] buildSerializedValue(UV singleValue) throws IOException {
         DataOutputSerializer outputView = valueSerializerView.get();
         outputView.clear();
-        userValueSerializer.serialize(singleValue, outputView);
+        userValueSerializer.get().serialize(singleValue, outputView);
         return outputView.getCopyOfBuffer();
     }
 

@@ -133,6 +133,7 @@ public class StringValue
         }
         this.len = len;
     }
+
     /**
      * Returns this StringValue's internal character data. The array might be larger than the string
      * which is currently stored in the StringValue.

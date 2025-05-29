@@ -20,15 +20,15 @@ package org.apache.flink.table.runtime.operators.join.stream.asyncprocessing.sta
 
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.v2.MapState;
+import org.apache.flink.api.common.state.v2.MapStateDescriptor;
 import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.state.v2.ValueState;
+import org.apache.flink.api.common.state.v2.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.core.state.StateFutureUtils;
-import org.apache.flink.runtime.state.v2.MapStateDescriptor;
-import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;

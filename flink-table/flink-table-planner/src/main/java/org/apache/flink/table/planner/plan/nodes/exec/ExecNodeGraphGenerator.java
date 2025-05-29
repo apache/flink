@@ -19,15 +19,19 @@
 package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.planner.plan.nodes.common.CommonIntermediateTableScan;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecProcessTableFunction;
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel;
 
 import org.apache.calcite.rel.RelNode;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A generator that generates a {@link ExecNode} graph from a graph of {@link FlinkPhysicalRel}s.
@@ -43,9 +47,11 @@ import java.util.Map;
 public class ExecNodeGraphGenerator {
 
     private final Map<FlinkPhysicalRel, ExecNode<?>> visitedRels;
+    private final Set<String> visitedProcessTableFunctionUids;
 
     public ExecNodeGraphGenerator() {
         this.visitedRels = new IdentityHashMap<>();
+        this.visitedProcessTableFunctionUids = new HashSet<>();
     }
 
     public ExecNodeGraph generate(List<FlinkPhysicalRel> relNodes, boolean isCompiled) {
@@ -78,8 +84,28 @@ public class ExecNodeGraphGenerator {
             inputEdges.add(ExecEdge.builder().source(inputNode).target(execNode).build());
         }
         execNode.setInputEdges(inputEdges);
-
+        checkUidForProcessTableFunction(execNode);
         visitedRels.put(rel, execNode);
         return execNode;
+    }
+
+    private void checkUidForProcessTableFunction(ExecNode<?> execNode) {
+        if (!(execNode instanceof StreamExecProcessTableFunction)) {
+            return;
+        }
+        final String uid = ((StreamExecProcessTableFunction) execNode).getUid();
+        if (uid == null) {
+            return;
+        }
+        if (visitedProcessTableFunctionUids.contains(uid)) {
+            throw new ValidationException(
+                    String.format(
+                            "Duplicate unique identifier '%s' detected among process table functions. "
+                                    + "Make sure that all PTF calls have an identifier defined that is globally unique. "
+                                    + "Please provide a custom identifier using the implicit `uid` argument. "
+                                    + "For example: myFunction(..., uid => 'my-id')",
+                            uid));
+        }
+        visitedProcessTableFunctionUids.add(uid);
     }
 }

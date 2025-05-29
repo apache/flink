@@ -25,7 +25,7 @@ import org.apache.parquet.io.PositionOutputStream;
 
 import java.io.IOException;
 
-import static org.apache.parquet.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** An adapter to turn Flink's {@link FSDataOutputStream} into a {@link PositionOutputStream}. */
 @Internal

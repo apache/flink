@@ -69,11 +69,13 @@ public class SharedObjects extends ExternalResource {
     private static final Map<Integer, SharedObjects> INSTANCES = new ConcurrentHashMap<>();
 
     private static final AtomicInteger LAST_ID = new AtomicInteger();
+
     /**
      * Identifier of the SharedObjects used to retrieve the original instance during
      * deserialization.
      */
     private final int id;
+
     /** All registered objects for the current test case. The objects are purged upon completion. */
     private final transient Map<SharedReference<?>, Object> objects = new ConcurrentHashMap<>();
 

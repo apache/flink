@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Disposable;
 
+import java.util.List;
 import java.util.stream.Stream;
 
 /**
@@ -41,13 +42,17 @@ public interface KeyedStateBackend<K>
      */
     void setCurrentKey(K newKey);
 
-    /** @return Current key. */
+    /**
+     * @return Current key.
+     */
     K getCurrentKey();
 
     /** Act as a fast path for {@link #setCurrentKey} when the key group is known. */
     void setCurrentKeyAndKeyGroup(K newKey, int newKeyGroupIndex);
 
-    /** @return Serializer of the key. */
+    /**
+     * @return Serializer of the key.
+     */
     TypeSerializer<K> getKeySerializer();
 
     /**
@@ -71,11 +76,19 @@ public interface KeyedStateBackend<K>
 
     /**
      * @return A stream of all keys for the given state and namespace. Modifications to the state
-     *     during iterating over it keys are not supported.
+     *     during iterating over its keys are not supported.
      * @param state State variable for which existing keys will be returned.
      * @param namespace Namespace for which existing keys will be returned.
      */
     <N> Stream<K> getKeys(String state, N namespace);
+
+    /**
+     * @return A stream of all keys for the multiple states and a given namespace. Modifications to
+     *     the states during iterating over its keys are not supported.
+     * @param states State variables for which existing keys will be returned.
+     * @param namespace Namespace for which existing keys will be returned.
+     */
+    <N> Stream<K> getKeys(List<String> states, N namespace);
 
     /**
      * @return A stream of all keys for the given state and namespace. Modifications to the state

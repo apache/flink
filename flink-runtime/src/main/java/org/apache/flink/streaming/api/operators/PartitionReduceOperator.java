@@ -50,7 +50,9 @@ public class PartitionReduceOperator<IN> extends AbstractUdfStreamOperator<IN, R
 
     @Override
     public void endInput() throws Exception {
-        output.collect(new StreamRecord<>(currentRecord));
+        if (currentRecord != null) {
+            output.collect(new StreamRecord<>(currentRecord));
+        }
     }
 
     @Override

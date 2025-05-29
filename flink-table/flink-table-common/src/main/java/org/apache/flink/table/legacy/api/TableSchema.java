@@ -26,6 +26,8 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
+import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.legacy.api.TableColumn.ComputedColumn;
 import org.apache.flink.table.legacy.api.TableColumn.MetadataColumn;
 import org.apache.flink.table.legacy.api.TableColumn.PhysicalColumn;
@@ -91,7 +93,9 @@ public class TableSchema {
         this.primaryKey = primaryKey;
     }
 
-    /** @deprecated Use the {@link Builder} instead. */
+    /**
+     * @deprecated Use the {@link Builder} instead.
+     */
     @Deprecated
     public TableSchema(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
         DataType[] fieldDataTypes = fromLegacyInfoToDataType(fieldTypes);
@@ -292,7 +296,9 @@ public class TableSchema {
         return ROW(fields).notNull();
     }
 
-    /** @deprecated Use {@link #toRowDataType()} instead. */
+    /**
+     * @deprecated Use {@link #toRowDataType()} instead.
+     */
     @Deprecated
     @SuppressWarnings("unchecked")
     public TypeInformation<Row> toRowType() {
@@ -431,6 +437,11 @@ public class TableSchema {
 
     /** Helps to migrate to the new {@link ResolvedSchema} to old API methods. */
     public static TableSchema fromResolvedSchema(ResolvedSchema resolvedSchema) {
+        return fromResolvedSchema(resolvedSchema, DefaultSqlFactory.INSTANCE);
+    }
+
+    public static TableSchema fromResolvedSchema(
+            ResolvedSchema resolvedSchema, SqlFactory sqlFactory) {
         final TableSchema.Builder builder = TableSchema.builder();
 
         resolvedSchema.getColumns().stream()
@@ -451,7 +462,7 @@ public class TableSchema {
                                 return TableColumn.computed(
                                         c.getName(),
                                         c.getDataType(),
-                                        c.getExpression().asSerializableString());
+                                        c.getExpression().asSerializableString(sqlFactory));
                             }
                             throw new IllegalArgumentException(
                                     "Unsupported column type: " + column);
@@ -464,7 +475,8 @@ public class TableSchema {
                         spec ->
                                 builder.watermark(
                                         spec.getRowtimeAttribute(),
-                                        spec.getWatermarkExpression().asSerializableString(),
+                                        spec.getWatermarkExpression()
+                                                .asSerializableString(sqlFactory),
                                         spec.getWatermarkExpression().getOutputDataType()));
 
         resolvedSchema

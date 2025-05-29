@@ -33,35 +33,40 @@ import java.util.Set;
 @Internal
 public class DefaultLineageGraph implements LineageGraph {
     @JsonProperty private final List<LineageEdge> lineageEdges;
-    @JsonProperty private final List<SourceLineageVertex> sources;
-    @JsonProperty private final List<LineageVertex> sinks;
+    @JsonProperty private final Set<SourceLineageVertex> sources;
+    @JsonProperty private final Set<LineageVertex> sinks;
 
     private DefaultLineageGraph(List<LineageEdge> lineageEdges) {
         this.lineageEdges = lineageEdges;
-
-        Set<SourceLineageVertex> deduplicatedSources = new HashSet<>();
-        Set<LineageVertex> deduplicatedSinks = new HashSet<>();
+        this.sources = new HashSet<>();
+        this.sinks = new HashSet<>();
         for (LineageEdge lineageEdge : lineageEdges) {
-            deduplicatedSources.add(lineageEdge.source());
-            deduplicatedSinks.add(lineageEdge.sink());
+            sources.add(lineageEdge.source());
+            sinks.add(lineageEdge.sink());
         }
-        this.sources = new ArrayList<>(deduplicatedSources);
-        this.sinks = new ArrayList<>(deduplicatedSinks);
     }
 
     @Override
     public List<SourceLineageVertex> sources() {
-        return Collections.unmodifiableList(sources);
+        return List.copyOf(sources);
     }
 
     @Override
     public List<LineageVertex> sinks() {
-        return Collections.unmodifiableList(sinks);
+        return List.copyOf(sinks);
     }
 
     @Override
     public List<LineageEdge> relations() {
         return Collections.unmodifiableList(lineageEdges);
+    }
+
+    void addSources(List<SourceLineageVertex> partialSources) {
+        this.sources.addAll(partialSources);
+    }
+
+    void addSinks(List<LineageVertex> partialSinks) {
+        this.sinks.addAll(partialSinks);
     }
 
     public static LineageGraphBuilder builder() {
@@ -72,9 +77,13 @@ public class DefaultLineageGraph implements LineageGraph {
     @Internal
     public static class LineageGraphBuilder {
         private final List<LineageEdge> lineageEdges;
+        private final List<SourceLineageVertex> sources;
+        private final List<LineageVertex> sinks;
 
         private LineageGraphBuilder() {
             this.lineageEdges = new ArrayList<>();
+            this.sources = new ArrayList<>();
+            this.sinks = new ArrayList<>();
         }
 
         public LineageGraphBuilder addLineageEdge(LineageEdge lineageEdge) {
@@ -87,8 +96,31 @@ public class DefaultLineageGraph implements LineageGraph {
             return this;
         }
 
+        public LineageGraphBuilder addSourceVertex(SourceLineageVertex sourceVertex) {
+            this.sources.add(sourceVertex);
+            return this;
+        }
+
+        public LineageGraphBuilder addSourceVertexes(SourceLineageVertex... sourceVertexes) {
+            this.sources.addAll(Arrays.asList(sourceVertexes));
+            return this;
+        }
+
+        public LineageGraphBuilder addSinkVertex(LineageVertex sinkVertex) {
+            this.sinks.add(sinkVertex);
+            return this;
+        }
+
+        public LineageGraphBuilder addSinkVertexes(List<LineageVertex> sinkVertex) {
+            this.sinks.addAll(sinkVertex);
+            return this;
+        }
+
         public LineageGraph build() {
-            return new DefaultLineageGraph(lineageEdges);
+            DefaultLineageGraph lineageGraph = new DefaultLineageGraph(lineageEdges);
+            lineageGraph.addSinks(sinks);
+            lineageGraph.addSources(sources);
+            return lineageGraph;
         }
     }
 }

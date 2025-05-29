@@ -25,17 +25,18 @@ import java.util.function.Function;
 /** A {@link YarnNodeManagerClientFactory} implementation for testing. */
 public class TestingYarnNodeManagerClientFactory implements YarnNodeManagerClientFactory {
 
-    private final Function<NMClientAsync.CallbackHandler, NMClientAsync>
+    private final Function<NMClientAsync.AbstractCallbackHandler, NMClientAsync>
             createNodeManagerClientFunction;
 
     TestingYarnNodeManagerClientFactory(
-            Function<NMClientAsync.CallbackHandler, NMClientAsync>
+            Function<NMClientAsync.AbstractCallbackHandler, NMClientAsync>
                     createNodeManagerClientFunction) {
         this.createNodeManagerClientFunction = createNodeManagerClientFunction;
     }
 
     @Override
-    public NMClientAsync createNodeManagerClient(NMClientAsync.CallbackHandler callbackHandler) {
+    public NMClientAsync createNodeManagerClient(
+            NMClientAsync.AbstractCallbackHandler callbackHandler) {
         return createNodeManagerClientFunction.apply(callbackHandler);
     }
 }

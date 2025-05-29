@@ -22,7 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ApiExpression;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.internal.TableImpl;
 import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
@@ -174,7 +176,9 @@ public final class ApiExpressionUtils {
     }
 
     private static Optional<Expression> convertScalaMap(Object obj)
-            throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException,
+            throws ClassNotFoundException,
+                    NoSuchMethodException,
+                    IllegalAccessException,
                     InvocationTargetException {
         Class<?> mapClass = Class.forName("scala.collection.Map");
         if (mapClass.isAssignableFrom(obj.getClass())) {
@@ -202,7 +206,9 @@ public final class ApiExpressionUtils {
     }
 
     private static Optional<Expression> convertScalaSeq(Object obj)
-            throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException,
+            throws ClassNotFoundException,
+                    NoSuchMethodException,
+                    IllegalAccessException,
                     InvocationTargetException {
         Class<?> seqClass = Class.forName("scala.collection.Seq");
         if (seqClass.isAssignableFrom(obj.getClass())) {
@@ -220,7 +226,9 @@ public final class ApiExpressionUtils {
     }
 
     private static Optional<Expression> convertScalaBigDecimal(Object obj)
-            throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException,
+            throws ClassNotFoundException,
+                    NoSuchMethodException,
+                    IllegalAccessException,
                     InvocationTargetException {
         Class<?> decimalClass = Class.forName("scala.math.BigDecimal");
         if (decimalClass.equals(obj.getClass())) {
@@ -284,11 +292,13 @@ public final class ApiExpressionUtils {
     }
 
     public static TableReferenceExpression tableRef(String name, Table table) {
-        return tableRef(name, table.getQueryOperation());
+        return new TableReferenceExpression(
+                name, table.getQueryOperation(), ((TableImpl) table).getTableEnvironment());
     }
 
-    public static TableReferenceExpression tableRef(String name, QueryOperation queryOperation) {
-        return new TableReferenceExpression(name, queryOperation);
+    public static TableReferenceExpression tableRef(
+            String name, QueryOperation queryOperation, TableEnvironment env) {
+        return new TableReferenceExpression(name, queryOperation, env);
     }
 
     public static LookupCallExpression lookupCall(String name, Expression... args) {

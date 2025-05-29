@@ -38,6 +38,7 @@ import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -47,6 +48,7 @@ import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILE
 import static org.apache.flink.kubernetes.kubeclient.decorators.FlinkConfMountDecorator.getFlinkConfConfigMapName;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
+import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_NAME_LIST;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** General tests for the {@link FlinkConfMountDecorator}. */
@@ -220,6 +222,38 @@ class FlinkConfMountDecoratorTest extends KubernetesJobManagerTestBase {
                                 .withKey(FLINK_CONF_FILENAME)
                                 .withPath(FLINK_CONF_FILENAME)
                                 .build());
+        final List<Volume> expectedVolumes =
+                Collections.singletonList(
+                        new VolumeBuilder()
+                                .withName(Constants.FLINK_CONF_VOLUME)
+                                .withNewConfigMap()
+                                .withName(getFlinkConfConfigMapName(CLUSTER_ID))
+                                .withItems(expectedKeyToPaths)
+                                .endConfigMap()
+                                .build());
+        assertThat(resultFlinkPod.getPodWithoutMainContainer().getSpec().getVolumes())
+                .isEqualTo(expectedVolumes);
+    }
+
+    @Test
+    void testDecoratedFlinkPodWithAllLog4jAndLogback() throws IOException {
+        for (String fileName : CONFIG_FILE_NAME_LIST) {
+            KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, fileName);
+        }
+
+        final FlinkPod resultFlinkPod = flinkConfMountDecorator.decorateFlinkPod(baseFlinkPod);
+
+        final List<KeyToPath> expectedKeyToPaths = new ArrayList<>();
+        for (String fileName : CONFIG_FILE_NAME_LIST) {
+            expectedKeyToPaths.add(
+                    new KeyToPathBuilder().withKey(fileName).withPath(fileName).build());
+        }
+        expectedKeyToPaths.add(
+                new KeyToPathBuilder()
+                        .withKey(FLINK_CONF_FILENAME)
+                        .withPath(FLINK_CONF_FILENAME)
+                        .build());
+
         final List<Volume> expectedVolumes =
                 Collections.singletonList(
                         new VolumeBuilder()

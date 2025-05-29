@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.failure.FailureEnricher;
@@ -44,8 +45,13 @@ import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.util.FlinkException;
 
 import org.slf4j.Logger;
+
+import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.Collection;
@@ -60,7 +66,7 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
     @Override
     public SchedulerNG createInstance(
             Logger log,
-            JobGraph jobGraph,
+            ExecutionPlan executionPlan,
             Executor ioExecutor,
             Configuration jobMasterConfiguration,
             SlotPoolService slotPoolService,
@@ -81,6 +87,17 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
             Collection<FailureEnricher> failureEnrichers,
             BlocklistOperations blocklistOperations)
             throws Exception {
+        JobGraph jobGraph;
+
+        if (executionPlan instanceof JobGraph) {
+            jobGraph = (JobGraph) executionPlan;
+        } else if (executionPlan instanceof StreamGraph) {
+            jobGraph = ((StreamGraph) executionPlan).getJobGraph(userCodeLoader);
+        } else {
+            throw new FlinkException(
+                    "Unsupported execution plan " + executionPlan.getClass().getCanonicalName());
+        }
+
         final DeclarativeSlotPool declarativeSlotPool =
                 slotPoolService
                         .castInto(DeclarativeSlotPool.class)
@@ -103,7 +120,10 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
         final SlotSharingSlotAllocator slotAllocator =
                 createSlotSharingSlotAllocator(
                         declarativeSlotPool,
-                        jobMasterConfiguration.get(StateRecoveryOptions.LOCAL_RECOVERY));
+                        jobMasterConfiguration.get(StateRecoveryOptions.LOCAL_RECOVERY),
+                        jobMasterConfiguration.get(DeploymentOptions.TARGET),
+                        jobMasterConfiguration.get(
+                                JobManagerOptions.SCHEDULER_PREFER_MINIMAL_TASKMANAGERS_ENABLED));
 
         final ExecutionGraphFactory executionGraphFactory =
                 new DefaultExecutionGraphFactory(
@@ -122,7 +142,7 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
                 AdaptiveScheduler.Settings.of(
                         jobMasterConfiguration, jobGraph.getCheckpointingSettings()),
                 jobGraph,
-                JobResourceRequirements.readFromJobGraph(jobGraph).orElse(null),
+                JobResourceRequirements.readFromExecutionPlan(jobGraph).orElse(null),
                 jobMasterConfiguration,
                 declarativeSlotPool,
                 slotAllocator,
@@ -146,11 +166,16 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
     }
 
     public static SlotSharingSlotAllocator createSlotSharingSlotAllocator(
-            DeclarativeSlotPool declarativeSlotPool, boolean localRecoveryEnabled) {
+            DeclarativeSlotPool declarativeSlotPool,
+            boolean localRecoveryEnabled,
+            @Nullable String executionTarget,
+            boolean minimalTaskManagerPreferred) {
         return SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                 declarativeSlotPool::reserveFreeSlot,
                 declarativeSlotPool::freeReservedSlot,
                 declarativeSlotPool::containsFreeSlot,
-                localRecoveryEnabled);
+                localRecoveryEnabled,
+                executionTarget,
+                minimalTaskManagerPreferred);
     }
 }

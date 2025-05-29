@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.junit.jupiter.api.Test;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -36,7 +36,7 @@ import static org.apache.flink.streaming.runtime.operators.windowing.WindowOpera
 import static org.apache.flink.streaming.runtime.operators.windowing.WindowOperatorContractTest.anyTimeWindow;
 import static org.apache.flink.streaming.runtime.operators.windowing.WindowOperatorContractTest.anyTriggerContext;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
@@ -69,25 +69,25 @@ class PurgingTriggerTest {
                         PurgingTrigger.of(mockTrigger), new TimeWindow.Serializer());
 
         when(mockTrigger.onElement(
-                        Matchers.anyObject(), anyLong(), anyTimeWindow(), anyTriggerContext()))
+                        ArgumentMatchers.any(), anyLong(), anyTimeWindow(), anyTriggerContext()))
                 .thenReturn(TriggerResult.CONTINUE);
         assertThat(testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)))
                 .isEqualTo(TriggerResult.CONTINUE);
 
         when(mockTrigger.onElement(
-                        Matchers.anyObject(), anyLong(), anyTimeWindow(), anyTriggerContext()))
+                        ArgumentMatchers.any(), anyLong(), anyTimeWindow(), anyTriggerContext()))
                 .thenReturn(TriggerResult.FIRE);
         assertThat(testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)))
                 .isEqualTo(TriggerResult.FIRE_AND_PURGE);
 
         when(mockTrigger.onElement(
-                        Matchers.anyObject(), anyLong(), anyTimeWindow(), anyTriggerContext()))
+                        ArgumentMatchers.any(), anyLong(), anyTimeWindow(), anyTriggerContext()))
                 .thenReturn(TriggerResult.FIRE_AND_PURGE);
         assertThat(testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)))
                 .isEqualTo(TriggerResult.FIRE_AND_PURGE);
 
         when(mockTrigger.onElement(
-                        Matchers.anyObject(), anyLong(), anyTimeWindow(), anyTriggerContext()))
+                        ArgumentMatchers.any(), anyLong(), anyTimeWindow(), anyTriggerContext()))
                 .thenReturn(TriggerResult.PURGE);
         assertThat(testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)))
                 .isEqualTo(TriggerResult.PURGE);
@@ -111,11 +111,7 @@ class PurgingTriggerTest {
                             }
                         })
                 .when(mockTrigger)
-                .onElement(
-                        Matchers.<Integer>anyObject(),
-                        anyLong(),
-                        anyTimeWindow(),
-                        anyTriggerContext());
+                .onElement(ArgumentMatchers.any(), anyLong(), anyTimeWindow(), anyTriggerContext());
 
         // set up our timers
         testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2));
@@ -161,11 +157,7 @@ class PurgingTriggerTest {
                             }
                         })
                 .when(mockTrigger)
-                .onElement(
-                        Matchers.<Integer>anyObject(),
-                        anyLong(),
-                        anyTimeWindow(),
-                        anyTriggerContext());
+                .onElement(ArgumentMatchers.any(), anyLong(), anyTimeWindow(), anyTriggerContext());
 
         // set up our timers
         testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2));

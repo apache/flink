@@ -1,0 +1,384 @@
+{
+  "flinkVersion" : "2.1",
+  "nodes" : [ {
+    "id" : 19,
+    "type" : "stream-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`source_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "name" : "b",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "c",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "d",
+              "dataType" : {
+                "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+                "precision" : 3,
+                "kind" : "ROWTIME"
+              }
+            } ],
+            "watermarkSpecs" : [ {
+              "rowtimeAttribute" : "d",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "INPUT_REF",
+                  "inputIndex" : 3,
+                  "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
+                },
+                "serializableString" : "`d`"
+              }
+            } ],
+            "primaryKey" : {
+              "name" : "PK_a",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "a" ]
+            }
+          },
+          "partitionKeys" : [ ]
+        }
+      }
+    },
+    "outputType" : "ROW<`a` VARCHAR(2147483647) NOT NULL, `b` INT NOT NULL, `c` VARCHAR(2147483647), `d` TIMESTAMP(3) WITH LOCAL TIME ZONE>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t]], fields=[a, b, c, d])",
+    "inputProperties" : [ ]
+  }, {
+    "id" : 20,
+    "type" : "stream-exec-watermark-assigner_1",
+    "watermarkExpr" : {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
+    },
+    "rowtimeFieldIndex" : 3,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "a",
+        "fieldType" : "VARCHAR(2147483647) NOT NULL"
+      }, {
+        "name" : "b",
+        "fieldType" : "INT NOT NULL"
+      }, {
+        "name" : "c",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "d",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "WatermarkAssigner(rowtime=[d], watermark=[d])"
+  }, {
+    "id" : 21,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "a",
+        "fieldType" : "VARCHAR(2147483647) NOT NULL"
+      }, {
+        "name" : "b",
+        "fieldType" : "INT NOT NULL"
+      }, {
+        "name" : "c",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "d",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "Exchange(distribution=[hash[a]])"
+  }, {
+    "id" : 22,
+    "type" : "stream-exec-changelog-normalize_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "false",
+      "table.exec.mini-batch.size" : "-1"
+    },
+    "uniqueKeys" : [ 0 ],
+    "generateUpdateBefore" : true,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "changelogNormalizeState"
+    } ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "a",
+        "fieldType" : "VARCHAR(2147483647) NOT NULL"
+      }, {
+        "name" : "b",
+        "fieldType" : "INT NOT NULL"
+      }, {
+        "name" : "c",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "d",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "ChangelogNormalize(key=[a], condition=[(((b < 10) OR (CURRENT_WATERMARK(CAST(d AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))) >= 1970-01-01 00:00:00)) AND (CURRENT_WATERMARK(CAST(d AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))) IS NULL OR (CURRENT_WATERMARK(CAST(d AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))) >= 1970-01-01 00:00:00)))])",
+    "filterCondition" : {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$AND$1",
+      "operands" : [ {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$OR$1",
+        "operands" : [ {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$<$1",
+          "operands" : [ {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 1,
+            "type" : "INT NOT NULL"
+          }, {
+            "kind" : "LITERAL",
+            "value" : 10,
+            "type" : "INT NOT NULL"
+          } ],
+          "type" : "BOOLEAN NOT NULL"
+        }, {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$>=$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "internalName" : "$CURRENT_WATERMARK$1",
+            "operands" : [ {
+              "kind" : "CALL",
+              "syntax" : "SPECIAL",
+              "internalName" : "$CAST$1",
+              "operands" : [ {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 3,
+                "type" : {
+                  "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+                  "precision" : 3,
+                  "kind" : "ROWTIME"
+                }
+              } ],
+              "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
+            } ],
+            "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
+          }, {
+            "kind" : "LITERAL",
+            "value" : "1970-01-01 00:00:00",
+            "type" : "TIMESTAMP(0) NOT NULL"
+          } ],
+          "type" : "BOOLEAN"
+        } ],
+        "type" : "BOOLEAN"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$OR$1",
+        "operands" : [ {
+          "kind" : "CALL",
+          "syntax" : "POSTFIX",
+          "internalName" : "$IS NULL$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "internalName" : "$CURRENT_WATERMARK$1",
+            "operands" : [ {
+              "kind" : "CALL",
+              "syntax" : "SPECIAL",
+              "internalName" : "$CAST$1",
+              "operands" : [ {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 3,
+                "type" : {
+                  "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+                  "precision" : 3,
+                  "kind" : "ROWTIME"
+                }
+              } ],
+              "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
+            } ],
+            "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
+          } ],
+          "type" : "BOOLEAN NOT NULL"
+        }, {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$>=$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "internalName" : "$CURRENT_WATERMARK$1",
+            "operands" : [ {
+              "kind" : "CALL",
+              "syntax" : "SPECIAL",
+              "internalName" : "$CAST$1",
+              "operands" : [ {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 3,
+                "type" : {
+                  "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+                  "precision" : 3,
+                  "kind" : "ROWTIME"
+                }
+              } ],
+              "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
+            } ],
+            "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
+          }, {
+            "kind" : "LITERAL",
+            "value" : "1970-01-01 00:00:00",
+            "type" : "TIMESTAMP(0) NOT NULL"
+          } ],
+          "type" : "BOOLEAN"
+        } ],
+        "type" : "BOOLEAN"
+      } ],
+      "type" : "BOOLEAN"
+    }
+  }, {
+    "id" : 23,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "VARCHAR(2147483647) NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "VARCHAR(2147483647)"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a` VARCHAR(2147483647) NOT NULL, `b` INT NOT NULL, `c` VARCHAR(2147483647)>",
+    "description" : "Calc(select=[a, b, c])"
+  }, {
+    "id" : 24,
+    "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "b",
+              "dataType" : "INT"
+            }, {
+              "name" : "c",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ]
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER", "DELETE" ],
+    "inputUpsertKey" : [ 0 ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a` VARCHAR(2147483647) NOT NULL, `b` INT NOT NULL, `c` VARCHAR(2147483647)>",
+    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[a, b, c])"
+  } ],
+  "edges" : [ {
+    "source" : 19,
+    "target" : 20,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 20,
+    "target" : 21,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 21,
+    "target" : 22,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 22,
+    "target" : 23,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 23,
+    "target" : 24,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

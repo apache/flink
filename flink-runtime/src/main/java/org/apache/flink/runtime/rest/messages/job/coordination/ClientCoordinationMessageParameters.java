@@ -23,7 +23,7 @@ import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
-import org.apache.flink.runtime.rest.messages.OperatorIDPathParameter;
+import org.apache.flink.runtime.rest.messages.OperatorUidPathParameter;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -33,11 +33,11 @@ import java.util.Collections;
 public class ClientCoordinationMessageParameters extends MessageParameters {
 
     public final JobIDPathParameter jobPathParameter = new JobIDPathParameter();
-    public final OperatorIDPathParameter operatorPathParameter = new OperatorIDPathParameter();
+    public final OperatorUidPathParameter operatorUidPathParameter = new OperatorUidPathParameter();
 
     @Override
     public Collection<MessagePathParameter<?>> getPathParameters() {
-        return Arrays.asList(jobPathParameter, operatorPathParameter);
+        return Arrays.asList(jobPathParameter, operatorUidPathParameter);
     }
 
     @Override

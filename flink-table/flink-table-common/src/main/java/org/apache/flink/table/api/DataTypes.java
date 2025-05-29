@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.CollectionDataType;
@@ -40,6 +41,7 @@ import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.DescriptorType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
@@ -744,7 +746,9 @@ public final class DataTypes {
         return new FieldsDataType(new RowType(logicalFields), fieldDataTypes);
     }
 
-    /** @see #ROW(Field...) */
+    /**
+     * @see #ROW(Field...)
+     */
     public static DataType ROW(List<Field> fields) {
         return ROW(fields.toArray(new Field[0]));
     }
@@ -845,6 +849,22 @@ public final class DataTypes {
      */
     public static DataType NULL() {
         return new AtomicDataType(new NullType());
+    }
+
+    /**
+     * Data type for describing an arbitrary, unvalidated list of columns.
+     *
+     * <p>This type is the return type of calls to {@code DESCRIPTOR(`c0`, `c1`)}. The type is
+     * intended to be used in arguments of {@link ProcessTableFunction}s.
+     *
+     * <p>Note: The runtime does not support this type. It is a pure helper type during translation
+     * and planning. Table columns cannot be declared with this type. Functions cannot declare
+     * return types of this type.
+     *
+     * @see DescriptorType
+     */
+    public static DataType DESCRIPTOR() {
+        return new AtomicDataType(new DescriptorType());
     }
 
     /**

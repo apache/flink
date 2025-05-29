@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
@@ -26,14 +27,15 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 /**
  * An implementation of {@link InternalTimerService} that is used by {@link
- * org.apache.flink.streaming.runtime.operators.asyncprocessing.AbstractAsyncStateStreamOperator}.
- * The timer service will set {@link RecordContext} for the timers before invoking action to
- * preserve the execution order between timer firing and records processing.
+ * org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateStreamOperator}. The timer
+ * service will set {@link RecordContext} for the timers before invoking action to preserve the
+ * execution order between timer firing and records processing.
  *
  * @see <a
  *     href=https://cwiki.apache.org/confluence/display/FLINK/FLIP-425%3A+Asynchronous+Execution+Model#FLIP425:AsynchronousExecutionModel-Timers>FLIP-425
@@ -53,8 +55,7 @@ public class InternalTimerServiceAsyncImpl<K, N> extends InternalTimerServiceImp
             ProcessingTimeService processingTimeService,
             KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> processingTimeTimersQueue,
             KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> eventTimeTimersQueue,
-            StreamTaskCancellationContext cancellationContext,
-            AsyncExecutionController<K> asyncExecutionController) {
+            StreamTaskCancellationContext cancellationContext) {
         super(
                 taskIOMetricGroup,
                 localKeyGroupRange,
@@ -63,11 +64,17 @@ public class InternalTimerServiceAsyncImpl<K, N> extends InternalTimerServiceImp
                 processingTimeTimersQueue,
                 eventTimeTimersQueue,
                 cancellationContext);
-        this.asyncExecutionController = asyncExecutionController;
+    }
+
+    public void setup(AsyncExecutionController<K> asyncExecutionController) {
+        if (asyncExecutionController != null) {
+            this.asyncExecutionController = asyncExecutionController;
+        }
     }
 
     @Override
     void onProcessingTime(long time) throws Exception {
+        Preconditions.checkNotNull(asyncExecutionController);
         // null out the timer in case the Triggerable calls registerProcessingTimeTimer()
         // inside the callback.
         nextTimer = null;
@@ -98,10 +105,9 @@ public class InternalTimerServiceAsyncImpl<K, N> extends InternalTimerServiceImp
      */
     @Override
     public void advanceWatermark(long time) throws Exception {
+        Preconditions.checkNotNull(asyncExecutionController);
         currentWatermark = time;
-
         InternalTimer<K, N> timer;
-
         while ((timer = eventTimeTimersQueue.peek()) != null
                 && timer.getTimestamp() <= time
                 && !cancellationContext.isCancelled()) {
@@ -125,13 +131,15 @@ public class InternalTimerServiceAsyncImpl<K, N> extends InternalTimerServiceImp
                 "Batch operation is not supported when using async state.");
     }
 
-    private void maintainContextAndProcess(
+    private StateFuture<Void> maintainContextAndProcess(
             InternalTimer<K, N> timer, ThrowingRunnable<Exception> runnable) {
-        RecordContext<K> recordCtx = asyncExecutionController.buildContext(null, timer.getKey());
+        RecordContext<K> recordCtx = asyncExecutionController.buildContext(timer, timer.getKey());
         recordCtx.retain();
         asyncExecutionController.setCurrentContext(recordCtx);
         keyContext.setCurrentKey(timer.getKey());
-        asyncExecutionController.syncPointRequestWithCallback(runnable);
+        StateFuture<Void> future =
+                asyncExecutionController.syncPointRequestWithCallback(runnable, true);
         recordCtx.release();
+        return future;
     }
 }

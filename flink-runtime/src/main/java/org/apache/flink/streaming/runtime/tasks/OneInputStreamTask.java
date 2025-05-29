@@ -23,6 +23,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.metrics.MetricNames;
@@ -44,6 +45,7 @@ import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.watermark.AbstractInternalWatermarkDeclaration;
 import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -56,6 +58,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.apache.flink.streaming.api.graph.StreamConfig.requiresSorting;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -195,6 +198,9 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
         TypeSerializer<IN> inSerializer =
                 configuration.getTypeSerializerIn1(getUserCodeClassLoader());
 
+        Set<AbstractInternalWatermarkDeclaration<?>> watermarkDeclarationSet =
+                configuration.getWatermarkDeclarations(getUserCodeClassLoader());
+
         return StreamTaskNetworkInputFactory.create(
                 inputGate,
                 inSerializer,
@@ -208,7 +214,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
                                 .get(gateIndex)
                                 .getPartitioner(),
                 getEnvironment().getTaskInfo(),
-                getCanEmitBatchOfRecords());
+                getCanEmitBatchOfRecords(),
+                watermarkDeclarationSet);
     }
 
     /**
@@ -257,6 +264,11 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
         @Override
         public void emitRecordAttributes(RecordAttributes recordAttributes) throws Exception {
             operator.processRecordAttributes(recordAttributes);
+        }
+
+        @Override
+        public void emitWatermark(WatermarkEvent watermark) throws Exception {
+            operator.processWatermark(watermark);
         }
     }
 }

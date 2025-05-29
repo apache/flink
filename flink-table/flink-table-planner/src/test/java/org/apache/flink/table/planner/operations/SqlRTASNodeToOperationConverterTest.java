@@ -121,13 +121,14 @@ public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConve
         String sql =
                 "CREATE OR REPLACE TABLE "
                         + tableName
-                        + "(c0 int, c1 double metadata, c2 as c0 * a) "
+                        + "(c0 int, c1 double metadata, c2 as c0 * a, c3 int metadata virtual) "
                         + " WITH ('k1' = 'v1', 'k2' = 'v2') as SELECT * FROM t1";
         Schema tableSchema =
                 Schema.newBuilder()
                         .column("c0", DataTypes.INT())
                         .columnByMetadata("c1", DataTypes.DOUBLE())
                         .columnByExpression("c2", "`c0` * `a`")
+                        .columnByMetadata("c3", DataTypes.INT(), true)
                         .fromSchema(getDefaultTableSchema())
                         .build();
 
@@ -140,15 +141,16 @@ public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConve
         String sql =
                 "CREATE OR REPLACE TABLE "
                         + tableName
-                        + "(c0 int, a double, c int) "
-                        + " WITH ('k1' = 'v1', 'k2' = 'v2') as SELECT * FROM t1";
+                        + "(c0 int, a double, bb string, c int metadata, dd string metadata) "
+                        + " WITH ('k1' = 'v1', 'k2' = 'v2') "
+                        + "as SELECT a, b as `bb`, c, d as `dd` FROM t1";
         Schema tableSchema =
                 Schema.newBuilder()
                         .column("c0", DataTypes.INT())
                         .column("a", DataTypes.DOUBLE())
-                        .column("b", DataTypes.STRING())
-                        .column("c", DataTypes.INT())
-                        .column("d", DataTypes.STRING())
+                        .column("bb", DataTypes.STRING())
+                        .columnByMetadata("c", DataTypes.INT())
+                        .columnByMetadata("dd", DataTypes.STRING())
                         .build();
 
         testCommonReplaceTableAs(sql, tableName, null, tableSchema, null, Collections.emptyList());
@@ -166,6 +168,39 @@ public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConve
         assertThatThrownBy(() -> parseAndConvert(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("Column 'c0' has no default value and does not allow NULLs.");
+    }
+
+    @Test
+    public void testCreateOrReplaceTableAsWithOverriddenVirtualMetadataColumnsNotAllowed() {
+        String tableName = "create_or_replace_table";
+        String sql =
+                "CREATE OR REPLACE TABLE "
+                        + tableName
+                        + "(c int metadata virtual) "
+                        + " WITH ('k1' = 'v1', 'k2' = 'v2') as SELECT * FROM t1";
+
+        assertThatThrownBy(() -> parseAndConvert(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "A column named 'c' already exists in the source schema. "
+                                + "Virtual metadata columns cannot overwrite columns from "
+                                + "source.");
+    }
+
+    @Test
+    public void testCreateOrReplaceTableAsWithOverriddenComputedColumnsNotAllowed() {
+        String tableName = "create_or_replace_table";
+        String sql =
+                "CREATE OR REPLACE TABLE "
+                        + tableName
+                        + "(c as 'f0 * 2') "
+                        + " WITH ('k1' = 'v1', 'k2' = 'v2') as SELECT * FROM t1";
+
+        assertThatThrownBy(() -> parseAndConvert(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "A column named 'c' already exists in the source schema. "
+                                + "Computed columns cannot overwrite columns from source.");
     }
 
     @Test

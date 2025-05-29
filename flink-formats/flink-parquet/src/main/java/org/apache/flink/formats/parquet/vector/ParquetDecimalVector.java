@@ -32,7 +32,7 @@ import org.apache.flink.table.data.columnar.vector.writable.WritableColumnVector
 import org.apache.flink.table.data.columnar.vector.writable.WritableIntVector;
 import org.apache.flink.table.data.columnar.vector.writable.WritableLongVector;
 
-import org.apache.parquet.Preconditions;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Parquet write decimal as int32 and int64 and binary, this class wrap the real vector to provide
@@ -58,7 +58,7 @@ public class ParquetDecimalVector
             return DecimalData.fromUnscaledLong(
                     ((LongColumnVector) vector).getLong(i), precision, scale);
         } else {
-            Preconditions.checkArgument(
+            checkArgument(
                     vector instanceof BytesColumnVector,
                     "Reading decimal type occur unsupported vector type: %s",
                     vector.getClass());

@@ -97,6 +97,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
     private final BiFunctionWithException<
                     ChannelStateWriter, Long, CompletableFuture<Void>, CheckpointException>
             prepareInputSnapshot;
+
     /** The IDs of the checkpoint for which we are notified aborted. */
     private final Set<Long> abortedCheckpointIds;
 

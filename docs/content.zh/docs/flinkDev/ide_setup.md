@@ -28,7 +28,7 @@ under the License.
 
 # 导入 Flink 到 IDE 中
 
-以下章节描述了如何将 Flink 项目导入到 IDE 中以进行 Flink 本身的源码开发。有关 Flink 程序编写的信息，请参阅 [Java API]({{< ref "docs/dev/configuration/overview" >}}) 和 [Scala API]({{< ref "docs/dev/configuration/overview" >}}) 快速入门指南。
+以下章节描述了如何将 Flink 项目导入到 IDE 中以进行 Flink 本身的源码开发。有关 Flink 程序编写的信息，请参阅 [Java API]({{< ref "docs/dev/configuration/overview" >}}) 快速入门指南。
 
 {{< hint info >}}
 每当你的 IDE 无法正常工作时，请优先尝试使用 Maven 命令行（`mvn clean package -DskipTests`），因为它可能是由于你的 IDE 中存在错误或未正确设置。
@@ -87,7 +87,7 @@ IntelliJ 提供了插件设置来安装 Scala 插件。如果尚未安装，请�
                                                                                                                                                                                                                                               
 你可以通过以下步骤来将 IDE 配置为在保存时自动应用格式设置：
 
-1. 下载 [google-java-format plugin v1.7.0.6](https://plugins.jetbrains.com/plugin/8527-google-java-format/versions/stable/115957)
+1. 下载 [google-java-format v1.24.0.0](https://plugins.jetbrains.com/plugin/8527-google-java-format/versions/stable/614263)
 2. 打开 Settings → Plugins，点击齿轮图标并选择 "Install Plugin from Disk"。导航到下载的 zip 文件并选择它。
 3. 在插件设置中，启用插件并将代码样式更改为 "AOSP"（4 个空格的缩进）。
 4. 请记住不要将此插件更新为更高版本！
@@ -103,7 +103,7 @@ IntelliJ 使用 Checkstyle-IDEA 插件在 IDE 中支持 checkstyle。
 1. 从 IntelliJ 插件存储库中安装 "Checkstyle-IDEA" 插件。
 2. 通过 Settings → Tools → Checkstyle 配置插件。
 3. 将 "Scan Scope" 设置为仅 Java 源（包括测试）。
-4. 在 "Checkstyle Version" 下拉菜单中选择 _9.3_ 版本，然后单击 "apply"。**此步骤很重要，请勿跳过！**
+4. 在 "Checkstyle Version" 下拉菜单中选择 _10.18.2_ 版本，然后单击 "apply"。**此步骤很重要，请勿跳过！**
 5. 在 "Configuration File" 窗格中，点击 "+" 图标添加新配置：
     1. 将 "Description" 设置为 Flink。
     2. 选择 "Use a local Checkstyle file" ，然后将其指向你存储库中 `"tools/maven/checkstyle.xml"` 文件。

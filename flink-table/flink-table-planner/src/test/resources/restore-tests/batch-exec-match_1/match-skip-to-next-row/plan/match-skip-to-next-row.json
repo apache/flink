@@ -1,0 +1,386 @@
+{
+  "flinkVersion" : "2.0",
+  "nodes" : [ {
+    "id" : 22,
+    "type" : "batch-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MyTable`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "vehicle_id",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "engine_temperature",
+              "dataType" : "INT"
+            }, {
+              "name" : "proctime",
+              "kind" : "COMPUTED",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "CALL",
+                  "internalName" : "$PROCTIME$1",
+                  "operands" : [ ],
+                  "type" : {
+                    "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+                    "nullable" : false,
+                    "precision" : 3,
+                    "kind" : "PROCTIME"
+                  }
+                },
+                "serializableString" : "PROCTIME()"
+              }
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ]
+        }
+      }
+    },
+    "outputType" : "ROW<`vehicle_id` BIGINT, `engine_temperature` INT>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[vehicle_id, engine_temperature])",
+    "dynamicFilteringDataListenerID" : "ff3306fc-01e6-47cd-bd64-b664c6197685",
+    "inputProperties" : [ ]
+  }, {
+    "id" : 23,
+    "type" : "batch-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`vehicle_id` BIGINT, `engine_temperature` INT>",
+    "description" : "Exchange(distribution=[hash[vehicle_id]])",
+    "requiredExchangeMode" : "UNDEFINED"
+  }, {
+    "id" : 24,
+    "type" : "batch-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "INT"
+    }, {
+      "kind" : "CALL",
+      "internalName" : "$PROCTIME$1",
+      "operands" : [ ],
+      "type" : {
+        "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+        "nullable" : false,
+        "precision" : 3,
+        "kind" : "PROCTIME"
+      }
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "vehicle_id",
+        "fieldType" : "BIGINT"
+      }, {
+        "name" : "engine_temperature",
+        "fieldType" : "INT"
+      }, {
+        "name" : "proctime",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "PROCTIME"
+        }
+      } ]
+    },
+    "description" : "Calc(select=[vehicle_id, engine_temperature, PROCTIME() AS proctime])"
+  }, {
+    "id" : 25,
+    "type" : "batch-exec-match_1",
+    "matchSpec" : {
+      "pattern" : {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "sqlKind" : "PATTERN_CONCAT",
+        "operands" : [ {
+          "kind" : "CALL",
+          "syntax" : "SPECIAL",
+          "internalName" : "$PATTERN_QUANTIFIER$1",
+          "operands" : [ {
+            "kind" : "LITERAL",
+            "value" : "A",
+            "type" : "CHAR(1) NOT NULL"
+          }, {
+            "kind" : "LITERAL",
+            "value" : 1,
+            "type" : "INT NOT NULL"
+          }, {
+            "kind" : "LITERAL",
+            "value" : -1,
+            "type" : "INT NOT NULL"
+          }, {
+            "kind" : "LITERAL",
+            "value" : false,
+            "type" : "BOOLEAN NOT NULL"
+          } ],
+          "type" : "NULL"
+        }, {
+          "kind" : "LITERAL",
+          "value" : "B",
+          "type" : "CHAR(1) NOT NULL"
+        } ],
+        "type" : "NULL"
+      },
+      "patternDefinitions" : {
+        "A" : {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$OR$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "syntax" : "POSTFIX",
+            "internalName" : "$IS NULL$1",
+            "operands" : [ {
+              "kind" : "CALL",
+              "internalName" : "$LAST$1",
+              "operands" : [ {
+                "kind" : "PATTERN_INPUT_REF",
+                "alpha" : "A",
+                "inputIndex" : 1,
+                "type" : "INT"
+              }, {
+                "kind" : "LITERAL",
+                "value" : 1,
+                "type" : "INT NOT NULL"
+              } ],
+              "type" : "INT"
+            } ],
+            "type" : "BOOLEAN NOT NULL"
+          }, {
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$>$1",
+            "operands" : [ {
+              "kind" : "CALL",
+              "internalName" : "$PREV$1",
+              "operands" : [ {
+                "kind" : "PATTERN_INPUT_REF",
+                "alpha" : "A",
+                "inputIndex" : 1,
+                "type" : "INT"
+              }, {
+                "kind" : "LITERAL",
+                "value" : 0,
+                "type" : "INT NOT NULL"
+              } ],
+              "type" : "INT"
+            }, {
+              "kind" : "CALL",
+              "internalName" : "$LAST$1",
+              "operands" : [ {
+                "kind" : "PATTERN_INPUT_REF",
+                "alpha" : "A",
+                "inputIndex" : 1,
+                "type" : "INT"
+              }, {
+                "kind" : "LITERAL",
+                "value" : 1,
+                "type" : "INT NOT NULL"
+              } ],
+              "type" : "INT"
+            } ],
+            "type" : "BOOLEAN"
+          } ],
+          "type" : "BOOLEAN"
+        },
+        "B" : {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$<$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "internalName" : "$PREV$1",
+            "operands" : [ {
+              "kind" : "PATTERN_INPUT_REF",
+              "alpha" : "B",
+              "inputIndex" : 1,
+              "type" : "INT"
+            }, {
+              "kind" : "LITERAL",
+              "value" : 0,
+              "type" : "INT NOT NULL"
+            } ],
+            "type" : "INT"
+          }, {
+            "kind" : "CALL",
+            "internalName" : "$LAST$1",
+            "operands" : [ {
+              "kind" : "PATTERN_INPUT_REF",
+              "alpha" : "A",
+              "inputIndex" : 1,
+              "type" : "INT"
+            }, {
+              "kind" : "LITERAL",
+              "value" : 0,
+              "type" : "INT NOT NULL"
+            } ],
+            "type" : "INT"
+          } ],
+          "type" : "BOOLEAN"
+        }
+      },
+      "measures" : {
+        "Final_Temp" : {
+          "kind" : "CALL",
+          "syntax" : "PREFIX",
+          "internalName" : "$FINAL$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "internalName" : "$LAST$1",
+            "operands" : [ {
+              "kind" : "PATTERN_INPUT_REF",
+              "alpha" : "A",
+              "inputIndex" : 1,
+              "type" : "INT"
+            }, {
+              "kind" : "LITERAL",
+              "value" : 0,
+              "type" : "INT NOT NULL"
+            } ],
+            "type" : "INT"
+          } ],
+          "type" : "INT"
+        },
+        "Initial_Temp" : {
+          "kind" : "CALL",
+          "syntax" : "PREFIX",
+          "internalName" : "$FINAL$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "internalName" : "$FIRST$1",
+            "operands" : [ {
+              "kind" : "PATTERN_INPUT_REF",
+              "alpha" : "A",
+              "inputIndex" : 1,
+              "type" : "INT"
+            }, {
+              "kind" : "LITERAL",
+              "value" : 0,
+              "type" : "INT NOT NULL"
+            } ],
+            "type" : "INT"
+          } ],
+          "type" : "INT"
+        }
+      },
+      "after" : {
+        "kind" : "LITERAL",
+        "symbol" : "MATCH_RECOGNIZE_AFTER_OPTION",
+        "value" : "SKIP_TO_NEXT_ROW",
+        "type" : {
+          "type" : "SYMBOL",
+          "nullable" : false
+        }
+      },
+      "subsets" : { },
+      "allRows" : false,
+      "partition" : {
+        "fields" : [ 0 ]
+      },
+      "orderBy" : {
+        "fields" : [ {
+          "index" : 2,
+          "isAscending" : true,
+          "nullIsLast" : false
+        } ]
+      },
+      "interval" : null
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`vehicle_id` BIGINT, `Initial_Temp` INT, `Final_Temp` INT>",
+    "description" : "Match(partitionBy=[vehicle_id], orderBy=[proctime ASC], measures=[FINAL(FIRST(A.engine_temperature, 0)) AS Initial_Temp, FINAL(LAST(A.engine_temperature, 0)) AS Final_Temp], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[(PATTERN_QUANTIFIER(_UTF-16LE'A', 1, -1, false), _UTF-16LE'B')], define=[{A=OR(IS NULL(LAST(A.$1, 1)), >(PREV(A.$1, 0), LAST(A.$1, 1))), B=<(PREV(B.$1, 0), LAST(A.$1, 0))}])"
+  }, {
+    "id" : 26,
+    "type" : "batch-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "vehicle_id",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "Initial_Temp",
+              "dataType" : "INT"
+            }, {
+              "name" : "Final_Temp",
+              "dataType" : "INT"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ]
+        }
+      }
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`vehicle_id` BIGINT, `Initial_Temp` INT, `Final_Temp` INT>",
+    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[vehicle_id, Initial_Temp, Final_Temp])"
+  } ],
+  "edges" : [ {
+    "source" : 22,
+    "target" : 23,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 23,
+    "target" : 24,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 24,
+    "target" : 25,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 25,
+    "target" : 26,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

@@ -233,8 +233,12 @@ class DefaultSlotStatusSyncerTest {
                                 assertThat(taskManagerInfo.getAvailableResource())
                                         .isEqualTo(ResourceProfile.fromResources(2, 8)));
         final AllocationID allocationId3 =
-                taskManagerTracker.getRegisteredTaskManager(taskExecutorConnection.getInstanceID())
-                        .get().getAllocatedSlots().keySet().stream()
+                taskManagerTracker
+                        .getRegisteredTaskManager(taskExecutorConnection.getInstanceID())
+                        .get()
+                        .getAllocatedSlots()
+                        .keySet()
+                        .stream()
                         .filter(
                                 allocationId ->
                                         !allocationId.equals(allocationId1)

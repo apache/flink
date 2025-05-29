@@ -44,6 +44,7 @@ Currently, Flink distinguishes between the following kinds of functions:
 - *Aggregate functions* map scalar values of multiple rows to a new scalar value.
 - *Table aggregate functions* map scalar values of multiple rows to new rows.
 - *Async table functions* are special functions for table sources that perform a lookup.
+- *Process table functions* map tables to new rows. Enabling user-defined operators with state and timers.
 
 The following example shows how to create a simple scalar function and how to call the function in both Table API and SQL.
 
@@ -240,7 +241,7 @@ env.from("MyTable").select(call(classOf[MyConcatFunction], $"a", $"b", $"c"));
 It is recommended to use `functionClass` over `functionInstance` as far as user-defined functions provide no args constructor, 
 because Flink as the framework underneath can add more logic to control the process of creating new instance.
 Current built-in standard logic in `TableEnvironmentImpl` will validate the class and methods in the class 
-based on different subclass types of `UserDefinedFunction`, e.g. `ScalaFunction`, `TableFunction`. 
+based on different subclass types of `UserDefinedFunction`, e.g. `ScalarFunction`, `TableFunction`.
 More logic or optimization could be added in the framework in the future with no need to change any users' existing code. 
 {{< /hint >}}
 
@@ -415,19 +416,19 @@ class OverloadedFunction extends ScalarFunction {
 
   // define the precision and scale of a decimal
   @DataTypeHint("DECIMAL(12, 3)")
-  def eval(double a, double b): BigDecimal = {
-    java.lang.BigDecimal.valueOf(a + b)
+  def eval(a: Double, b: Double): BigDecimal = {
+    BigDecimal(a + b)
   }
 
   // define a nested data type
   @DataTypeHint("ROW<s STRING, t TIMESTAMP_LTZ(3)>")
-  def eval(Int i): Row = {
-    Row.of(java.lang.String.valueOf(i), java.time.Instant.ofEpochSecond(i))
+  def eval(i: Int): Row = {
+    Row.of(i.toString, java.time.Instant.ofEpochSecond(i))
   }
 
   // allow wildcard input and customly serialized output
   @DataTypeHint(value = "RAW", bridgedTo = classOf[java.nio.ByteBuffer])
-  def eval(@DataTypeHint(inputGroup = InputGroup.ANY) Object o): java.nio.ByteBuffer = {
+  def eval(@DataTypeHint(inputGroup = InputGroup.ANY) o: Any): java.nio.ByteBuffer = {
     MyUtils.serializeToByteBuffer(o)
   }
 }
@@ -645,13 +646,14 @@ public static class NamedParameterClass extends ScalarFunction {
 {{< tab "Scala" >}}
 ```scala
 import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.functions.ScalarFunction;
 
 class NamedParameterClass extends ScalarFunction {
 
   // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
-  def eval(@ArgumentHint(name = "param1", isOptional = false, `type` = @DataTypeHint("STRING")) s1: String,
-          @ArgumentHint(name = "param2", isOptional = true, `type` = @DataTypeHint("INTEGER")) s2: Integer) = {
+  def eval(@ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")) s1: String,
+           @ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER")) s2: Integer) = {
     s1 + ", " + s2
   }
 }
@@ -671,8 +673,10 @@ public static class NamedParameterClass extends ScalarFunction {
     
   // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
   @FunctionHint(
-          argument = {@ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")),
-                  @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INTEGER"))}
+    arguments = {
+      @ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")),
+      @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INTEGER"))
+    }
   )
   public String eval(String s1, Integer s2) {
     return s1 + ", " + s2;
@@ -683,14 +687,18 @@ public static class NamedParameterClass extends ScalarFunction {
 {{< tab "Scala" >}}
 ```scala
 import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.functions.ScalarFunction;
 
 class NamedParameterClass extends ScalarFunction {
 
   // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
   @FunctionHint(
-    argument = Array(new ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")),
-                  new ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER")))
+    arguments = Array(
+      new ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")),
+      new ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER"))
+    )
   )
   def eval(s1: String, s2: Int): String = {
     s1 + ", " + s2
@@ -706,12 +714,16 @@ class NamedParameterClass extends ScalarFunction {
 {{< tab "Java" >}}
 ```java
 import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.functions.ScalarFunction;
 
 // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
 @FunctionHint(
-        argument = {@ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")),
-                @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INTEGER"))}
+  arguments = {
+    @ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")),
+    @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INTEGER"))
+  }
 )
 public static class NamedParameterClass extends ScalarFunction {
     
@@ -724,12 +736,16 @@ public static class NamedParameterClass extends ScalarFunction {
 {{< tab "Scala" >}}
 ```scala
 import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.functions.ScalarFunction;
 
 // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
 @FunctionHint(
-  argument = Array(new ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")),
-    new ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER")))
+  arguments = Array(
+    new ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")),
+    new ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER"))
+  )
 )
 class NamedParameterClass extends ScalarFunction {
 
@@ -2054,5 +2070,27 @@ class Top2WithRetract
 ```
 {{< /tab >}}
 {{< /tabs >}}
+
+{{< top >}}
+
+Process Table Functions
+-----------------------
+
+Process Table Functions (PTFs) are the most powerful function kind for Flink SQL and Table API. They enable implementing
+user-defined operators that can be as feature-rich as built-in operations. PTFs can take (partitioned) tables to produce
+a new table. They have access to Flink's managed state, event-time and timer services, and underlying table changelogs.
+
+Conceptually, a PTF is a superset of all other user-defined functions. It maps zero, one, or multiple tables to zero, one,
+or multiple rows (or structured types). Scalar arguments are supported. Due to its stateful nature, implementing aggregating
+behavior is possible as well.
+
+A PTF enables the following tasks:
+- Apply transformations on each row of a table.
+- Logically partition the table into distinct sets and apply transformations per set.
+- Store seen events for repeated access.
+- Continue the processing at a later point in time enabling waiting, synchronization, or timeouts.
+- Buffer and aggregate events using complex state machines or rule-based conditional logic.
+
+See the [dedicated page for PTFs]({{< ref "docs/dev/table/functions/ptfs" >}}) for more details.
 
 {{< top >}}

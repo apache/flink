@@ -253,6 +253,7 @@ public class TestingFileSystem extends FileSystem {
     public boolean isDistributedFS() {
         return false;
     }
+
     // ------------------------------------------------------------------------
 
     /** Test implementation of a {@link FileStatus}. */

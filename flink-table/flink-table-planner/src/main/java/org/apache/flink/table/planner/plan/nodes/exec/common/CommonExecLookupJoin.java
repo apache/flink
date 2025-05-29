@@ -44,6 +44,7 @@ import org.apache.flink.table.legacy.sources.LookupableTableSource;
 import org.apache.flink.table.legacy.sources.TableSource;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.FilterCodeGenerator;
 import org.apache.flink.table.planner.codegen.LookupJoinCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
@@ -157,6 +158,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
 
     public static final String FIELD_NAME_ASYNC_OPTIONS = "asyncOptions";
     public static final String FIELD_NAME_RETRY_OPTIONS = "retryOptions";
+    public static final String FIELD_NAME_PREFER_CUSTOM_SHUFFLE = "preferCustomShuffle";
+    public static final String CUSTOM_SHUFFLE_TRANSFORMATION = "custom-shuffle";
 
     @JsonProperty(FIELD_NAME_JOIN_TYPE)
     private final FlinkJoinType joinType;
@@ -197,6 +200,9 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private final @Nullable LookupJoinUtil.RetryLookupOptions retryOptions;
 
+    @JsonProperty(FIELD_NAME_PREFER_CUSTOM_SHUFFLE)
+    private final boolean preferCustomShuffle;
+
     protected CommonExecLookupJoin(
             int id,
             ExecNodeContext context,
@@ -214,7 +220,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
             ChangelogMode inputChangelogMode,
             List<InputProperty> inputProperties,
             RowType outputType,
-            String description) {
+            String description,
+            boolean preferCustomShuffle) {
         super(id, context, persistedConfig, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.joinType = checkNotNull(joinType);
@@ -227,6 +234,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
         this.inputChangelogMode = inputChangelogMode;
         this.asyncLookupOptions = asyncLookupOptions;
         this.retryOptions = retryOptions;
+        this.preferCustomShuffle = preferCustomShuffle;
     }
 
     public TemporalTableSourceSpec getTemporalTableSourceSpec() {
@@ -252,22 +260,35 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
         ResultRetryStrategy retryStrategy =
                 retryOptions != null ? retryOptions.toRetryStrategy() : null;
 
+        boolean tryApplyCustomShuffle = preferCustomShuffle && !upsertMaterialize;
         UserDefinedFunction lookupFunction =
                 LookupJoinUtil.getLookupFunction(
                         temporalTable,
                         lookupKeys.keySet(),
                         planner.getFlinkContext().getClassLoader(),
                         isAsyncEnabled,
-                        retryStrategy);
+                        retryStrategy,
+                        tryApplyCustomShuffle);
+        Transformation<RowData> inputTransformation =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
+        if (tryApplyCustomShuffle) {
+            inputTransformation =
+                    LookupJoinUtil.tryApplyCustomShufflePartitioner(
+                            planner,
+                            temporalTable,
+                            inputRowType,
+                            lookupKeys,
+                            inputTransformation,
+                            inputChangelogMode,
+                            createTransformationMeta(CUSTOM_SHUFFLE_TRANSFORMATION, config));
+        }
+
         UserDefinedFunctionHelper.prepareInstance(config, lookupFunction);
 
         boolean isLeftOuterJoin = joinType == FlinkJoinType.LEFT;
         if (isAsyncEnabled) {
             assert lookupFunction instanceof AsyncTableFunction;
         }
-
-        Transformation<RowData> inputTransformation =
-                (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
         if (upsertMaterialize) {
             // upsertMaterialize only works on sync lookup mode, async lookup is unsupported.
@@ -422,7 +443,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                         JavaScalaConversionUtil.toScala(
                                 Optional.ofNullable(remainingJoinCondition)));
         GeneratedFilterCondition generatedPreFilterCondition =
-                LookupJoinCodeGenerator.generatePreFilterCondition(
+                FilterCodeGenerator.generateFilterCondition(
                         config, classLoader, preFilterCondition, inputRowType);
 
         DataStructureConverter<?, ?> fetcherConverter =
@@ -561,7 +582,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                         true);
 
         GeneratedFilterCondition generatedPreFilterCondition =
-                LookupJoinCodeGenerator.generatePreFilterCondition(
+                FilterCodeGenerator.generateFilterCondition(
                         config, classLoader, preFilterCondition, inputRowType);
         ProcessFunction<RowData, RowData> processFunc;
         if (projectionOnTemporalTable != null) {

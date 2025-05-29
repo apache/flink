@@ -19,7 +19,7 @@
 package org.apache.flink.traces.reporter;
 
 import org.apache.flink.annotation.Experimental;
-import org.apache.flink.metrics.MetricConfig;
+import org.apache.flink.metrics.Reporter;
 import org.apache.flink.traces.Span;
 
 /**
@@ -28,27 +28,7 @@ import org.apache.flink.traces.Span;
  * <p>Reporters are instantiated via a {@link TraceReporterFactory}.
  */
 @Experimental
-public interface TraceReporter {
-
-    // ------------------------------------------------------------------------
-    //  life cycle
-    // ------------------------------------------------------------------------
-
-    /**
-     * Configures this reporter.
-     *
-     * <p>If the reporter was instantiated generically and hence parameter-less, this method is the
-     * place where the reporter sets it's basic fields based on configuration values. Otherwise,
-     * this method will typically be a no-op since resources can be acquired in the constructor.
-     *
-     * <p>This method is always called first on a newly instantiated reporter.
-     *
-     * @param config A properties object that contains all parameters set for this reporter.
-     */
-    void open(MetricConfig config);
-
-    /** Closes this reporter. Should be used to close channels, streams and release resources. */
-    void close();
+public interface TraceReporter extends Reporter {
 
     void notifyOfAddedSpan(Span span);
 }

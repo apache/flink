@@ -17,11 +17,10 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.NonPojo
 import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.table.types.AbstractDataType
 
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.junit.jupiter.api.{BeforeEach, Test}
@@ -125,10 +124,11 @@ class SetOperatorsTest extends TableTestBase {
     val util = batchTestUtil()
     util.addTableSource(
       "A",
-      Array[TypeInformation[_]](
-        new GenericTypeInfo(classOf[NonPojo]),
-        new GenericTypeInfo(classOf[NonPojo])),
-      Array("a", "b"))
+      Array[AbstractDataType[_]](
+        DataTypes.STRUCTURED(classOf[NonPojo]),
+        DataTypes.STRUCTURED(classOf[NonPojo])),
+      Array("a", "b")
+    )
     util.verifyExecPlan("SELECT a FROM A UNION ALL SELECT b FROM A")
   }
 

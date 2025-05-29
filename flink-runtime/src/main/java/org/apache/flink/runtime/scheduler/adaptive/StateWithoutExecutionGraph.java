@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 
@@ -54,6 +55,11 @@ abstract class StateWithoutExecutionGraph implements State {
     }
 
     @Override
+    public JobID getJobId() {
+        return context.getJobId();
+    }
+
+    @Override
     public ArchivedExecutionGraph getJob() {
         return context.getArchivedExecutionGraph(getJobStatus(), null);
     }
@@ -71,6 +77,13 @@ abstract class StateWithoutExecutionGraph implements State {
 
     /** Context of the {@link StateWithoutExecutionGraph} state. */
     interface Context extends StateTransitions.ToFinished {
+
+        /**
+         * Gets the {@link JobID} of the job.
+         *
+         * @return the {@link JobID} of the job
+         */
+        JobID getJobId();
 
         /**
          * Creates the {@link ArchivedExecutionGraph} for the given job status and cause. Cause can

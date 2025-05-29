@@ -2,9 +2,11 @@
 .cache
 scalastyle-output.xml
 .classpath
+.java-version
 .idea/*
 !.idea/vcs.xml
 !.idea/icon.png
+.vscode
 .metadata
 .settings
 .project

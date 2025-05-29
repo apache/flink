@@ -469,6 +469,40 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         expected.sort()
         self.assertEqual(expected, result)
 
+    def test_add_jars_basic(self):
+        jvm = get_gateway().jvm
+        jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
+        env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
+            .getEnvironmentConfig(self.env._j_stream_execution_environment)
+
+        old_jars = env_config.getString(jars_key, None)
+        self.assertIsNone(old_jars)
+
+        self.env.add_jars('file://1.jar')
+        new_jars = env_config.getString(jars_key, None)
+        self.assertEqual(new_jars, '[\'file://1.jar\']')
+
+        self.env.add_jars('file://2.jar', 'file://3.jar')
+        new_jars = env_config.getString(jars_key, None)
+        self.assertEqual(new_jars, '[\'file://1.jar\', \'file://2.jar\', \'file://3.jar\']')
+
+    def test_add_classpaths_basic(self):
+        jvm = get_gateway().jvm
+        classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
+        env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
+            .getEnvironmentConfig(self.env._j_stream_execution_environment)
+
+        old_classpaths = env_config.getString(classpaths_key, None)
+        self.assertIsNone(old_classpaths)
+
+        self.env.add_classpaths('file://1.jar')
+        new_classpaths = env_config.getString(classpaths_key, None)
+        self.assertEqual(new_classpaths, '[\'file://1.jar\']')
+
+        self.env.add_classpaths('file://2.jar', 'file://3.jar')
+        new_classpaths = env_config.getString(classpaths_key, None)
+        self.assertEqual(new_classpaths, '[\'file://1.jar\', \'file://2.jar\', \'file://3.jar\']')
+
     @unittest.skip("Disable due to Kafka connector need to release a new version 2.0")
     def test_add_jars(self):
         # find kafka connector jars

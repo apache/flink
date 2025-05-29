@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.operators;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -109,6 +110,7 @@ public class TypeHintITCase extends AbstractTestBaseJUnit4 {
     @Test
     public void testJoinWithTypeInformationTypeHint() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
         DataStreamSource<Tuple3<Integer, Long, String>> ds1 =
                 CollectionDataStreams.getSmall3TupleDataSet(env);
@@ -134,6 +136,7 @@ public class TypeHintITCase extends AbstractTestBaseJUnit4 {
     @Test
     public void testFlatJoinWithTypeInformationTypeHint() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
         DataStreamSource<Tuple3<Integer, Long, String>> ds1 =
                 CollectionDataStreams.getSmall3TupleDataSet(env);
@@ -159,6 +162,7 @@ public class TypeHintITCase extends AbstractTestBaseJUnit4 {
     @Test
     public void testCoGroupWithTypeInformationTypeHint() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
         DataStreamSource<Tuple3<Integer, Long, String>> ds1 =
                 CollectionDataStreams.getSmall3TupleDataSet(env);

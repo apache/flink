@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.planner.functions;
 
+import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
 
@@ -28,6 +30,8 @@ import java.util.stream.Stream;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.callSql;
+import static org.apache.flink.table.api.Expressions.lit;
+import static org.apache.flink.table.api.Expressions.nullOf;
 
 /** Tests for miscellaneous {@link BuiltInFunctionDefinitions}. */
 class MiscFunctionsITCase extends BuiltInFunctionTestBase {
@@ -108,7 +112,100 @@ class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                                 "ELLO WORLDhello worl",
                                 DataTypes.STRING().notNull())
                         .testTableApiValidationError(
-                                callSql("UPPER(f1)"), "Invalid SQL expression: UPPER(f1)"));
+                                callSql("UPPER(f1)"), "Invalid SQL expression: UPPER(f1)"),
+                TestSetSpec.forExpression("assignment with argument reordering")
+                        .onFieldsWithData(null, 12, "Hello World")
+                        .andDataTypes(
+                                DataTypes.INT().nullable(),
+                                DataTypes.INT().notNull(),
+                                DataTypes.STRING().notNull())
+                        .testTableApiResult(
+                                call(
+                                        OptionalArgInMiddleFunction.class,
+                                        nullOf(DataTypes.BOOLEAN()).asArgument("b"),
+                                        $("f2").asArgument("s"),
+                                        lit("value").asArgument("optional"),
+                                        lit(42L).asArgument("l"),
+                                        $("f1").asArgument("i")),
+                                "i=12,optional=value,l=42,b=null,s=Hello World",
+                                DataTypes.STRING()),
+                TestSetSpec.forExpression("assignment with optional arguments")
+                        .onFieldsWithData(null, 12, "Hello World")
+                        .andDataTypes(
+                                DataTypes.INT().nullable(),
+                                DataTypes.INT().notNull(),
+                                DataTypes.STRING().notNull())
+                        .testTableApiResult(
+                                call(
+                                        OptionalArgInMiddleFunction.class,
+                                        nullOf(DataTypes.BOOLEAN()).asArgument("b"),
+                                        $("f2").asArgument("s"),
+                                        lit(42L).asArgument("l"),
+                                        $("f1").asArgument("i")),
+                                "i=12,optional=null,l=42,b=null,s=Hello World",
+                                DataTypes.STRING()),
+                TestSetSpec.forExpression("missing assignment")
+                        .onFieldsWithData(null, 12, "Hello World")
+                        .andDataTypes(
+                                DataTypes.INT().nullable(),
+                                DataTypes.INT().notNull(),
+                                DataTypes.STRING().notNull())
+                        .testTableApiValidationError(
+                                call(
+                                        OptionalArgInMiddleFunction.class,
+                                        nullOf(DataTypes.BOOLEAN()).asArgument("b"),
+                                        $("f2").asArgument("s")),
+                                "If the call uses named arguments, a valid name has to be provided for all passed arguments. "
+                                        + "Missing required arguments: [i => INT NOT NULL, l => BIGINT]"),
+                TestSetSpec.forExpression("assignment with invalid arguments")
+                        .onFieldsWithData(null, 12, "Hello World")
+                        .andDataTypes(
+                                DataTypes.INT().nullable(),
+                                DataTypes.INT().notNull(),
+                                DataTypes.STRING().notNull())
+                        .testTableApiValidationError(
+                                call(
+                                        OptionalArgInMiddleFunction.class,
+                                        $("f1").asArgument("INVALID"),
+                                        lit(42L).asArgument("l"),
+                                        nullOf(DataTypes.BOOLEAN()).asArgument("b"),
+                                        $("f2").asArgument("s")),
+                                "If the call uses named arguments, a valid name has to be provided for all passed arguments. "
+                                        + "Unknown argument names: [INVALID]"),
+                TestSetSpec.forExpression("invalid assignment")
+                        .onFieldsWithData("Hello World")
+                        .testTableApiValidationError(
+                                $("f0").asArgument("other"),
+                                "Named arguments via asArgument() can only be used within function calls."),
+                TestSetSpec.forExpression("invalid function for assignment")
+                        .onFieldsWithData("Hello World")
+                        .testTableApiValidationError(
+                                Expressions.coalesce(
+                                        $("f0").asArgument("col1"), $("f0").asArgument("col2")),
+                                "The function does not support named arguments. "
+                                        + "Please pass the arguments based on positions (i.e. without asArgument())."),
+                TestSetSpec.forExpression("assignment with duplicate arguments")
+                        .onFieldsWithData(null, 12, "Hello World")
+                        .andDataTypes(
+                                DataTypes.INT().nullable(),
+                                DataTypes.INT().notNull(),
+                                DataTypes.STRING().notNull())
+                        .testTableApiValidationError(
+                                call(
+                                        OptionalArgInMiddleFunction.class,
+                                        $("f1").asArgument("i"),
+                                        lit(42L).asArgument("l"),
+                                        nullOf(DataTypes.BOOLEAN()).asArgument("b"),
+                                        $("f2").asArgument("s"),
+                                        $("f2").asArgument("s")),
+                                "Duplicate named argument found: s"),
+                TestSetSpec.forExpression("position-based optional argument")
+                        .onFieldsWithData(12)
+                        .andDataTypes(DataTypes.INT().notNull())
+                        .testTableApiResult(
+                                call(OptionalArgAtEndFunction.class, $("f0")),
+                                "i=12,optional=null",
+                                DataTypes.STRING()));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -117,6 +214,25 @@ class MiscFunctionsITCase extends BuiltInFunctionTestBase {
     public static class TakesNotNull extends ScalarFunction {
         public int eval(int i) {
             return i;
+        }
+    }
+
+    /** Function that uses a static signature. */
+    public static class OptionalArgInMiddleFunction extends ScalarFunction {
+        public String eval(
+                int i,
+                @ArgumentHint(isOptional = true) String optional,
+                Long l,
+                Boolean b,
+                String s) {
+            return String.format("i=%s,optional=%s,l=%s,b=%s,s=%s", i, optional, l, b, s);
+        }
+    }
+
+    /** Function that uses a static signature with optionals at the end. */
+    public static class OptionalArgAtEndFunction extends ScalarFunction {
+        public String eval(int i, @ArgumentHint(isOptional = true) String optional) {
+            return String.format("i=%s,optional=%s", i, optional);
         }
     }
 }

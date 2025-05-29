@@ -43,7 +43,7 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCou
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass
 import org.apache.flink.table.types.utils.DataTypeUtils.isInternal
 import org.apache.flink.table.utils.EncodingUtils
-import org.apache.flink.types.{Row, RowKind}
+import org.apache.flink.types.{ColumnList, Row, RowKind}
 
 import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Object => JObject, Short => JShort}
 import java.lang.reflect.Method
@@ -122,6 +122,8 @@ object CodeGenUtils {
   val TIMESTAMP_DATA: String = className[TimestampData]
 
   val RUNTIME_CONTEXT: String = className[RuntimeContext]
+
+  val FILTER_CONTEXT: String = className[FilterCondition.Context]
 
   // ----------------------------------------------------------------------------------------
 
@@ -270,6 +272,7 @@ object CodeGenUtils {
     case DISTINCT_TYPE => boxedTypeTermForType(t.asInstanceOf[DistinctType].getSourceType)
     case NULL => className[JObject] // special case for untyped null literals
     case RAW => className[BinaryRawValueData[_]]
+    case DESCRIPTOR => className[ColumnList]
     case SYMBOL | UNRESOLVED =>
       throw new IllegalArgumentException("Illegal type: " + t)
   }

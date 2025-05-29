@@ -47,6 +47,8 @@ import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
+import org.apache.hadoop.yarn.api.records.LogAggregationContext;
+import org.apache.hadoop.yarn.api.records.impl.pb.ApplicationSubmissionContextPBImpl;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.Records;
@@ -887,7 +889,7 @@ class YarnClusterDescriptorTest {
         try (final YarnClusterDescriptor yarnClusterDescriptor =
                 createYarnClusterDescriptor(flinkConfig)) {
             assertThrows(
-                    "Should only have one jar",
+                    "Should only have at most one jar",
                     IllegalArgumentException.class,
                     () ->
                             yarnClusterDescriptor.deployApplicationCluster(
@@ -921,11 +923,14 @@ class YarnClusterDescriptorTest {
         final String fakeLocalFlinkJar = "./lib/flink_dist.jar";
         final String fakeClassPath = fakeLocalFlinkJar + ":./usrlib/user.jar";
         final ApplicationId appId = ApplicationId.newInstance(0, 0);
+        final Configuration flinkConfig = new Configuration();
+        flinkConfig.set(CoreOptions.FLINK_JAVA_HOME, "/opt/jdk");
         final Map<String, String> masterEnv =
                 getTestMasterEnv(
-                        new Configuration(), flinkHomeDir, fakeClassPath, fakeLocalFlinkJar, appId);
+                        flinkConfig, flinkHomeDir, fakeClassPath, fakeLocalFlinkJar, appId);
 
         assertThat(masterEnv)
+                .containsEntry(ConfigConstants.ENV_JAVA_HOME, "/opt/jdk")
                 .containsEntry(ConfigConstants.ENV_FLINK_LIB_DIR, "./lib")
                 .containsEntry(YarnConfigKeys.ENV_APP_ID, appId.toString())
                 .containsEntry(
@@ -938,6 +943,20 @@ class YarnClusterDescriptorTest {
         assertThat(masterEnv)
                 .containsEntry(YarnConfigKeys.FLINK_DIST_JAR, fakeLocalFlinkJar)
                 .containsEntry(YarnConfigKeys.ENV_CLIENT_HOME_DIR, flinkHomeDir.getPath());
+    }
+
+    @Test
+    public void testContainerEnvJavaHomeNotOverriddenByDefault(@TempDir File flinkHomeDir)
+            throws IOException {
+        final Configuration flinkConfig = new Configuration();
+        final Map<String, String> masterEnv =
+                getTestMasterEnv(
+                        flinkConfig,
+                        flinkHomeDir,
+                        "",
+                        "./lib/flink_dist.jar",
+                        ApplicationId.newInstance(0, 0));
+        assertThat(masterEnv).doesNotContainKey(ConfigConstants.ENV_JAVA_HOME);
     }
 
     @Test
@@ -1003,6 +1022,81 @@ class YarnClusterDescriptorTest {
                     .contains(TestYarnAMDelegationTokenProvider.TEST_YARN_AM_TOKEN);
         } catch (Exception e) {
             fail("Should not throw exception when setting tokens for AM container.");
+        }
+    }
+
+    @Test
+    void testSetRolledLogConfigs() {
+        final String includePattern = "(jobmanager|taskmanager).*";
+        final String excludePattern = "(jobmanager|taskmanager)\\.(out|err)";
+
+        // Both include and exclude patterns are given.
+        Configuration flinkConfig = new Configuration();
+        flinkConfig.set(YarnConfigOptions.ROLLED_LOGS_INCLUDE_PATTERN, includePattern);
+        flinkConfig.set(YarnConfigOptions.ROLLED_LOGS_EXCLUDE_PATTERN, excludePattern);
+
+        try (final YarnClusterDescriptor yarnClusterDescriptor =
+                createYarnClusterDescriptor(flinkConfig)) {
+
+            final TestApplicationSubmissionContext testAppCtx =
+                    new TestApplicationSubmissionContext();
+            yarnClusterDescriptor.setRolledLogConfigs(testAppCtx);
+            assertThat(testAppCtx.logAggregationContext.getRolledLogsIncludePattern())
+                    .isEqualTo(includePattern);
+            assertThat(testAppCtx.logAggregationContext.getRolledLogsExcludePattern())
+                    .isEqualTo(excludePattern);
+        }
+
+        // Only include pattern is given.
+        flinkConfig = new Configuration();
+        flinkConfig.set(YarnConfigOptions.ROLLED_LOGS_INCLUDE_PATTERN, includePattern);
+        try (final YarnClusterDescriptor yarnClusterDescriptor =
+                createYarnClusterDescriptor(flinkConfig)) {
+
+            final TestApplicationSubmissionContext testAppCtx =
+                    new TestApplicationSubmissionContext();
+            yarnClusterDescriptor.setRolledLogConfigs(testAppCtx);
+            assertThat(testAppCtx.logAggregationContext.getRolledLogsIncludePattern())
+                    .isEqualTo(includePattern);
+            assertThat(testAppCtx.logAggregationContext.getRolledLogsExcludePattern()).isNull();
+        }
+
+        // Only exclude pattern is given.
+        flinkConfig = new Configuration();
+        flinkConfig.set(YarnConfigOptions.ROLLED_LOGS_EXCLUDE_PATTERN, excludePattern);
+        try (final YarnClusterDescriptor yarnClusterDescriptor =
+                createYarnClusterDescriptor(flinkConfig)) {
+
+            final TestApplicationSubmissionContext testAppCtx =
+                    new TestApplicationSubmissionContext();
+            yarnClusterDescriptor.setRolledLogConfigs(testAppCtx);
+            assertThat(testAppCtx.logAggregationContext.getRolledLogsIncludePattern()).isNull();
+            assertThat(testAppCtx.logAggregationContext.getRolledLogsExcludePattern())
+                    .isEqualTo(excludePattern);
+        }
+
+        // Blank values are ignored.
+        flinkConfig = new Configuration();
+        flinkConfig.set(YarnConfigOptions.ROLLED_LOGS_INCLUDE_PATTERN, "   ");
+        flinkConfig.set(YarnConfigOptions.ROLLED_LOGS_EXCLUDE_PATTERN, "   ");
+        try (final YarnClusterDescriptor yarnClusterDescriptor =
+                createYarnClusterDescriptor(flinkConfig)) {
+
+            final TestApplicationSubmissionContext testAppCtx =
+                    new TestApplicationSubmissionContext();
+            yarnClusterDescriptor.setRolledLogConfigs(testAppCtx);
+            assertThat(testAppCtx.logAggregationContext).isNull();
+        }
+    }
+
+    private static class TestApplicationSubmissionContext
+            extends ApplicationSubmissionContextPBImpl {
+
+        private LogAggregationContext logAggregationContext = null;
+
+        @Override
+        public void setLogAggregationContext(LogAggregationContext logAggregationContext) {
+            this.logAggregationContext = logAggregationContext;
         }
     }
 }

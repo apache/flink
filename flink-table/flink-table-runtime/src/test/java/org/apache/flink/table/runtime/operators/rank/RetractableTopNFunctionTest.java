@@ -28,7 +28,7 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,7 +46,8 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
             RankType rankType,
             RankRange rankRange,
             boolean generateUpdateBefore,
-            boolean outputRankNumber) {
+            boolean outputRankNumber,
+            boolean enableAsyncState) {
         return new RetractableTopNFunction(
                 ttlConfig,
                 inputRowType,
@@ -59,7 +60,12 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 outputRankNumber);
     }
 
-    @Test
+    @Override
+    boolean supportedAsyncState() {
+        return false;
+    }
+
+    @TestTemplate
     void testProcessRetractMessageWithNotGenerateUpdateBefore() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false, true);
@@ -98,7 +104,7 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
+    @TestTemplate
     void testProcessRetractMessageWithGenerateUpdateBefore() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true, true);
@@ -142,7 +148,7 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
+    @TestTemplate
     void testConstantRankRangeWithoutOffsetWithRowNumber() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true, true);
@@ -198,7 +204,7 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
         testHarness.close();
     }
 
-    @Test
+    @TestTemplate
     void testConstantRankRangeWithoutOffsetWithoutRowNumber() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true, false);
@@ -242,7 +248,7 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
         testHarness.close();
     }
 
-    @Test
+    @TestTemplate
     void testVariableRankRangeWithRowNumber() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new VariableRankRange(1), true, true);
@@ -279,7 +285,7 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
+    @TestTemplate
     void testVariableRankRangeWithoutRowNumber() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new VariableRankRange(1), true, false);
@@ -305,7 +311,7 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
+    @TestTemplate
     void testDisableGenerateUpdateBeforeWithRowNumber() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false, true);
@@ -338,7 +344,7 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
+    @TestTemplate
     void testDisableGenerateUpdateBeforeWithoutRowNumber() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false, false);
@@ -365,7 +371,7 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
+    @TestTemplate
     void testCleanIdleState() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true, true);
@@ -408,7 +414,7 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
+    @TestTemplate
     void testConstantRankRangeWithoutRowNumber() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 3), false, false);
@@ -433,7 +439,7 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
+    @TestTemplate
     void testConstantRankRangeWithRowNumber() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 3), false, true);
@@ -458,7 +464,7 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
+    @TestTemplate
     void testRetractRecordOutOfRankRangeWithoutRowNumber() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false, false);
@@ -487,7 +493,7 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
+    @TestTemplate
     void testRetractRecordOutOfRankRangeWithRowNumber() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false, true);
@@ -516,7 +522,7 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
+    @TestTemplate
     void testRetractAndThenDeleteRecordWithoutRowNumber() throws Exception {
         AbstractTopNFunction func =
                 new RetractableTopNFunction(
@@ -557,7 +563,7 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
+    @TestTemplate
     void testRetractAnStaledRecordWithRowNumber() throws Exception {
         StateTtlConfig ttlConfig = StateConfigUtil.createTtlConfig(1_000);
         AbstractTopNFunction func =

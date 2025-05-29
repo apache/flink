@@ -187,32 +187,28 @@ public class CliFrontend {
         final CustomCommandLine activeCommandLine =
                 validateAndGetActiveCommandLine(checkNotNull(commandLine));
 
-        if (isDeploymentTargetApplication(activeCommandLine, commandLine)) {
+        final Configuration effectiveConfiguration =
+                getEffectiveConfiguration(activeCommandLine, commandLine);
+
+        if (isDeploymentTargetApplication(effectiveConfiguration)) {
             final ApplicationDeployer deployer =
                     new ApplicationClusterDeployer(clusterClientServiceLoader);
 
             final ProgramOptions programOptions;
-            final Configuration effectiveConfiguration;
 
             // No need to set a jarFile path for PyFlink job.
             if (ProgramOptionsUtils.isPythonEntryPoint(commandLine)) {
                 programOptions = ProgramOptionsUtils.createPythonProgramOptions(commandLine);
-                effectiveConfiguration =
-                        getEffectiveConfiguration(
-                                activeCommandLine,
-                                commandLine,
-                                programOptions,
-                                Collections.emptyList());
+                updateEffectiveConfiguration(
+                        effectiveConfiguration, programOptions, Collections.emptyList());
             } else {
                 programOptions = new ProgramOptions(commandLine);
                 programOptions.validate();
                 final URI uri = PackagedProgramUtils.resolveURI(programOptions.getJarFilePath());
-                effectiveConfiguration =
-                        getEffectiveConfiguration(
-                                activeCommandLine,
-                                commandLine,
-                                programOptions,
-                                Collections.singletonList(uri.toString()));
+                updateEffectiveConfiguration(
+                        effectiveConfiguration,
+                        programOptions,
+                        Collections.singletonList(uri.toString()));
             }
 
             final ApplicationConfiguration applicationConfiguration =
@@ -225,9 +221,7 @@ public class CliFrontend {
 
             final List<URL> jobJars = getJobJarAndDependencies(programOptions);
 
-            final Configuration effectiveConfiguration =
-                    getEffectiveConfiguration(
-                            activeCommandLine, commandLine, programOptions, jobJars);
+            updateEffectiveConfiguration(effectiveConfiguration, programOptions, jobJars);
 
             LOG.debug("Effective executor configuration: {}", effectiveConfiguration);
 
@@ -238,12 +232,7 @@ public class CliFrontend {
         }
     }
 
-    protected boolean isDeploymentTargetApplication(
-            final CustomCommandLine activeCustomCommandLine, final CommandLine commandLine)
-            throws FlinkException {
-        final Configuration effectiveConfiguration =
-                getEffectiveConfiguration(activeCustomCommandLine, commandLine);
-
+    protected boolean isDeploymentTargetApplication(final Configuration effectiveConfiguration) {
         final String executionTarget =
                 effectiveConfiguration
                         .getOptional(DeploymentOptions.TARGET)
@@ -300,26 +289,19 @@ public class CliFrontend {
         return effectiveConfiguration;
     }
 
-    private <T> Configuration getEffectiveConfiguration(
-            final CustomCommandLine activeCustomCommandLine,
-            final CommandLine commandLine,
+    private <T> void updateEffectiveConfiguration(
+            final Configuration effectiveConfiguration,
             final ProgramOptions programOptions,
-            final List<T> jobJars)
-            throws FlinkException {
-
-        final Configuration effectiveConfiguration =
-                getEffectiveConfiguration(activeCustomCommandLine, commandLine);
+            final List<T> jobJars) {
 
         final ExecutionConfigAccessor executionParameters =
-                ExecutionConfigAccessor.fromProgramOptions(
-                        checkNotNull(programOptions), checkNotNull(jobJars));
+                ExecutionConfigAccessor.fromProgramOptions(programOptions, jobJars);
 
         executionParameters.applyToConfiguration(effectiveConfiguration);
 
         LOG.debug(
                 "Effective configuration after Flink conf, custom commandline, and program options: {}",
                 effectiveConfiguration);
-        return effectiveConfiguration;
     }
 
     /**
@@ -355,11 +337,12 @@ public class CliFrontend {
                     validateAndGetActiveCommandLine(checkNotNull(commandLine));
 
             final Configuration effectiveConfiguration =
-                    getEffectiveConfiguration(
-                            activeCommandLine,
-                            commandLine,
-                            programOptions,
-                            getJobJarAndDependencies(programOptions));
+                    getEffectiveConfiguration(activeCommandLine, commandLine);
+
+            updateEffectiveConfiguration(
+                    effectiveConfiguration,
+                    programOptions,
+                    getJobJarAndDependencies(programOptions));
 
             program = buildProgram(programOptions, effectiveConfiguration);
 

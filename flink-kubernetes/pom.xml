@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>2.0-SNAPSHOT</version>
+		<version>2.1-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-kubernetes</artifactId>
@@ -31,7 +31,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<kubernetes.client.version>6.9.2</kubernetes.client.version>
+		<kubernetes.client.version>6.13.4</kubernetes.client.version>
 		<surefire.module.config><!--
 			CommonTestUtils#setEnv
 			-->--add-opens=java.base/java.util=ALL-UNNAMED

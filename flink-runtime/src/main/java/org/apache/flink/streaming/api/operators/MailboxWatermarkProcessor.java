@@ -44,6 +44,7 @@ public class MailboxWatermarkProcessor<OUT> {
     private final Output<StreamRecord<OUT>> output;
     private final MailboxExecutor mailboxExecutor;
     private final InternalTimeServiceManager<?> internalTimeServiceManager;
+
     /**
      * Flag to indicate whether a progress watermark is scheduled in the mailbox. This is used to
      * avoid duplicate scheduling in case we have multiple watermarks to process.

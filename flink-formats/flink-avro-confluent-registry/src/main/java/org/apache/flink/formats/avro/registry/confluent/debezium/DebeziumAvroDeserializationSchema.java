@@ -62,10 +62,13 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
 
     /** snapshot read. */
     private static final String OP_READ = "r";
+
     /** insert operation. */
     private static final String OP_CREATE = "c";
+
     /** update operation. */
     private static final String OP_UPDATE = "u";
+
     /** delete operation. */
     private static final String OP_DELETE = "d";
 

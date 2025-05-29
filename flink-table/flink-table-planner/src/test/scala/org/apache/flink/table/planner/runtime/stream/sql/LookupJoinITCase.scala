@@ -24,9 +24,10 @@ import org.apache.flink.table.connector.source.lookup.LookupOptions
 import org.apache.flink.table.connector.source.lookup.LookupOptions.{LookupCacheType, ReloadStrategy}
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.data.binary.BinaryStringData
-import org.apache.flink.table.legacy.api.{TableSchema, Types}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.runtime.utils.{InMemoryLookupableTableSource, StreamingTestBase, TestingAppendSink, TestingRetractSink}
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
+import org.apache.flink.table.planner.plan.utils.SingleSubTaskBoundTableFunction
+import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendSink, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.TestAddWithOpen
 import org.apache.flink.table.runtime.functions.table.fullcache.inputformat.FullCacheTestInputFormat
 import org.apache.flink.table.runtime.functions.table.lookup.LookupCacheManager
@@ -34,19 +35,18 @@ import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedT
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assumptions.assumeThat
 import org.assertj.core.api.IterableAssert.assertThatIterable
 import org.junit.jupiter.api.{AfterEach, BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
-import java.lang.{Boolean => JBoolean}
 import java.time.LocalDateTime
 import java.util.{Collection => JCollection}
 
 import scala.collection.JavaConversions._
 
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
-class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
-  extends StreamingTestBase {
+class LookupJoinITCase(cacheType: LookupCacheType) extends StreamingTestBase {
 
   val data = List(
     rowOf(1L, 12, "Julian"),
@@ -77,15 +77,27 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
   @BeforeEach
   override def before(): Unit = {
     super.before()
-    if (legacyTableSource) {
-      InMemoryLookupableTableSource.RESOURCE_COUNTER.set(0)
-    } else {
-      TestValuesTableFactory.RESOURCE_COUNTER.set(0)
-      FullCacheTestInputFormat.OPEN_CLOSED_COUNTER.set(0)
-    }
+    TestValuesTableFactory.RESOURCE_COUNTER.set(0)
+    FullCacheTestInputFormat.OPEN_CLOSED_COUNTER.set(0)
     createScanTable("src", data)
     createScanTable("nullable_src", dataWithNull)
     createLookupTable("user_table", userData)
+    createLookupTable("user_table_custom_shuffle", userData, enableCustomShuffle = true)
+    createLookupTable(
+      "user_table_custom_shuffle_non_deterministic",
+      userData,
+      enableCustomShuffle = true,
+      customShuffleDeterministic = false)
+    createLookupTable(
+      "user_table_custom_shuffle_empty_partitioner",
+      userData,
+      enableCustomShuffle = true,
+      customShuffleEmptyPartitioner = true)
+    createLookupTable(
+      "user_table_custom_shuffle_without_udf",
+      userData,
+      enableCustomShuffle = true,
+      customShuffleWithUDF = false)
     createLookupTable("nullable_user_table", userDataWithNull)
     // lookup will start from the 2nd time, first lookup will always get null result
     createLookupTable("user_table_with_lookup_threshold2", userData, 2)
@@ -96,51 +108,25 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
 
   @AfterEach
   override def after(): Unit = {
-    if (legacyTableSource) {
-      assertThat(InMemoryLookupableTableSource.RESOURCE_COUNTER.get()).isZero
-    } else {
-      assertThat(TestValuesTableFactory.RESOURCE_COUNTER.get()).isZero
-      assertThat(FullCacheTestInputFormat.OPEN_CLOSED_COUNTER.get()).isZero
-    }
+    assertThat(TestValuesTableFactory.RESOURCE_COUNTER.get()).isZero
+    assertThat(FullCacheTestInputFormat.OPEN_CLOSED_COUNTER.get()).isZero
   }
 
-  /** The lookupThreshold only works for new table source (not legacyTableSource). */
   private def createLookupTable(
       tableName: String,
       data: List[Row],
-      lookupThreshold: Int = -1): Unit = {
-    if (legacyTableSource) {
-      val userSchema = TableSchema
-        .builder()
-        .field("age", Types.INT)
-        .field("id", Types.LONG)
-        .field("name", Types.STRING)
-        .build()
-      InMemoryLookupableTableSource.createTemporaryTable(
-        tEnv,
-        isAsync = false,
-        data,
-        userSchema,
-        tableName)
-    } else {
-      val dataId = TestValuesTableFactory.registerData(data)
-      val cacheOptions =
-        if (cacheType == LookupCacheType.PARTIAL)
-          s"""
-             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupCacheType.PARTIAL}',
-             |  '${LookupOptions.PARTIAL_CACHE_MAX_ROWS.key()}' = '${Long.MaxValue}',
-             |""".stripMargin
-        else if (cacheType == LookupCacheType.FULL)
-          s"""
-             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupCacheType.FULL}',
-             |  '${LookupOptions.FULL_CACHE_RELOAD_STRATEGY.key()}' = '${ReloadStrategy.PERIODIC}',
-             |  '${LookupOptions.FULL_CACHE_PERIODIC_RELOAD_INTERVAL.key()}' = '${Long.MaxValue}',
-             |""".stripMargin
-        else ""
-      val lookupThresholdOption = if (lookupThreshold > 0) {
-        s"'start-lookup-threshold'='$lookupThreshold',"
-      } else ""
+      lookupThreshold: Int = -1,
+      enableCustomShuffle: Boolean = false,
+      customShuffleDeterministic: Boolean = true,
+      customShuffleWithUDF: Boolean = true,
+      customShuffleEmptyPartitioner: Boolean = false): Unit = {
+    val dataId = TestValuesTableFactory.registerData(data)
+    val cacheOptions = getCacheOptions()
+    val lookupThresholdOption = if (lookupThreshold > 0) {
+      s"'start-lookup-threshold'='$lookupThreshold',"
+    } else ""
 
+    if (!enableCustomShuffle) {
       tEnv.executeSql(s"""
                          |CREATE TABLE $tableName (
                          |  `age` INT,
@@ -153,38 +139,74 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
                          |  'data-id' = '$dataId'
                          |)
                          |""".stripMargin)
+    } else {
+      if (customShuffleEmptyPartitioner || !customShuffleWithUDF) {
+        tEnv.executeSql(s"""
+                           |CREATE TABLE $tableName (
+                           |  `age` INT,
+                           |  `id` BIGINT,
+                           |  `name` STRING
+                           |) WITH (
+                           |  $cacheOptions
+                           |  $lookupThresholdOption
+                           |  'connector' = 'values',
+                           |  'data-id' = '$dataId',
+                           |  'enable-custom-shuffle' = 'true',
+                           |  'custom-shuffle-empty-partitioner' = '$customShuffleEmptyPartitioner'
+                           |)
+                           |""".stripMargin)
+      } else {
+        tEnv.executeSql(
+          s"""
+             |CREATE TABLE $tableName (
+             |  `age` INT,
+             |  `id` BIGINT,
+             |  `name` STRING
+             |) WITH (
+             |  $cacheOptions
+             |  $lookupThresholdOption
+             |  'connector' = 'values',
+             |  'data-id' = '$dataId',
+             |  'enable-custom-shuffle' = 'true',
+             |  'lookup-function-class' = '${new SingleSubTaskBoundTableFunction().getClass.getName}',
+             |  'custom-shuffle-deterministic' = '$customShuffleDeterministic'
+             |)
+             |""".stripMargin)
+      }
     }
   }
 
   private def createLookupTableWithComputedColumn(tableName: String, data: List[Row]): Unit = {
-    if (!legacyTableSource) {
-      val dataId = TestValuesTableFactory.registerData(data)
-      val cacheOptions =
-        if (cacheType == LookupCacheType.PARTIAL)
-          s"""
-             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupCacheType.PARTIAL}',
-             |  '${LookupOptions.PARTIAL_CACHE_MAX_ROWS.key()}' = '${Long.MaxValue}',
-             |""".stripMargin
-        else if (cacheType == LookupCacheType.FULL)
-          s"""
-             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupCacheType.FULL}',
-             |  '${LookupOptions.FULL_CACHE_RELOAD_STRATEGY.key()}' = '${ReloadStrategy.PERIODIC}',
-             |  '${LookupOptions.FULL_CACHE_PERIODIC_RELOAD_INTERVAL.key()}' = '${Long.MaxValue}',
-             |""".stripMargin
-        else ""
-      tEnv.executeSql(s"""
-                         |CREATE TABLE $tableName (
-                         |  `age` INT,
-                         |  `id` BIGINT,
-                         |  `name` STRING,
-                         |  `nominal_age` as age + 1
-                         |) WITH (
-                         |  $cacheOptions
-                         |  'connector' = 'values',
-                         |  'data-id' = '$dataId'
-                         |)
-                         |""".stripMargin)
-    }
+    val dataId = TestValuesTableFactory.registerData(data)
+    val cacheOptions = getCacheOptions()
+
+    tEnv.executeSql(s"""
+                       |CREATE TABLE $tableName (
+                       |  `age` INT,
+                       |  `id` BIGINT,
+                       |  `name` STRING,
+                       |  `nominal_age` as age + 1
+                       |) WITH (
+                       |  $cacheOptions
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId'
+                       |)
+                       |""".stripMargin)
+  }
+
+  private def getCacheOptions(): String = {
+    if (cacheType == LookupCacheType.PARTIAL) {
+      s"""
+         |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupCacheType.PARTIAL}',
+         |  '${LookupOptions.PARTIAL_CACHE_MAX_ROWS.key()}' = '${Long.MaxValue}',
+         |""".stripMargin
+    } else if (cacheType == LookupCacheType.FULL) {
+      s"""
+         |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupCacheType.FULL}',
+         |  '${LookupOptions.FULL_CACHE_RELOAD_STRATEGY.key()}' = '${ReloadStrategy.PERIODIC}',
+         |  '${LookupOptions.FULL_CACHE_PERIODIC_RELOAD_INTERVAL.key()}' = '${Long.MaxValue}',
+         |""".stripMargin
+    } else { "" }
   }
 
   private def createScanTable(tableName: String, data: List[Row]): Unit = {
@@ -197,6 +219,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
                        |  `proctime` AS PROCTIME()
                        |) WITH (
                        |  'connector' = 'values',
+                       |  'runtime-source' ='NewSource',
                        |  'data-id' = '$dataId'
                        |)
                        |""".stripMargin)
@@ -541,10 +564,6 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
 
   @TestTemplate
   def testJoinTemporalTableWithComputedColumn(): Unit = {
-    if (legacyTableSource) {
-      // Computed column do not support in legacyTableSource.
-      return
-    }
     val sql = s"SELECT T.id, T.len, T.content, D.name, D.age, D.nominal_age " +
       "FROM src AS T JOIN userTableWithComputedColumn " +
       "for system_time as of T.proctime AS D ON T.id = D.id"
@@ -560,10 +579,6 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
 
   @TestTemplate
   def testJoinTemporalTableWithComputedColumnAndPushDown(): Unit = {
-    if (legacyTableSource) {
-      // Computed column do not support in legacyTableSource.
-      return
-    }
     val sql = s"SELECT T.id, T.len, T.content, D.name, D.age, D.nominal_age " +
       "FROM src AS T JOIN userTableWithComputedColumn " +
       "for system_time as of T.proctime AS D ON T.id = D.id and D.nominal_age > 12"
@@ -808,8 +823,8 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
       .addSink(sink)
     env.execute()
 
-    val expected = if (legacyTableSource || cacheType == LookupCacheType.FULL) {
-      // legacy lookup source and full caching lookup do not support retry
+    val expected = if (cacheType == LookupCacheType.FULL) {
+      // full caching lookup do not support retry
       Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
     } else {
       // the user_table_with_lookup_threshold3 will return null result before 3rd lookup
@@ -856,20 +871,123 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     val expected = Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
+
+  @TestTemplate
+  def testJoinTemporalTableWithLookupHintEnableShuffle(): Unit = {
+    val sql = s"SELECT /*+ LOOKUP('table'='D', 'shuffle'='true') */ T.id, D.name FROM src " +
+      s"AS T JOIN user_table_custom_shuffle " +
+      s"for system_time as of T.proctime AS D ON T.id = D.id AND D.name = 'Hello' AND D.age = 33"
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+    env.execute()
+    val expected = Seq("1,Hello", "2,Hello", "3,Hello", "8,Hello", "9,Hello")
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testJoinTemporalTableWithLookupHintEnableShuffleOnNormalSource(): Unit = {
+    val sql = s"SELECT /*+ LOOKUP('table'='D', 'shuffle'='true') */ T.id, D.name FROM src " +
+      s"AS T JOIN user_table " +
+      s"for system_time as of T.proctime AS D ON T.id = D.id"
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+    env.execute()
+    val expected = Seq("1,Julian", "2,Jark", "3,Fabian")
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testJoinTemporalTableWithLookupHintEnableNonDeterministicShuffle(): Unit = {
+    val sql = s"SELECT /*+ LOOKUP('table'='D', 'shuffle'='true') */ T.id, D.name FROM src " +
+      s"AS T JOIN user_table_custom_shuffle_non_deterministic " +
+      s"for system_time as of T.proctime AS D ON T.id = D.id AND D.name = 'Hello' AND D.age = 33"
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+    env.execute()
+    val expected = Seq("1,Hello", "2,Hello", "3,Hello", "8,Hello", "9,Hello")
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testJoinTemporalTableWithLookupHintEnableShuffleOnAllConstantLookupKeys(): Unit = {
+    val sql = s"SELECT /*+ LOOKUP('table'='D', 'shuffle'='true') */ T.id, D.name FROM src " +
+      s"AS T JOIN user_table_custom_shuffle " +
+      s"for system_time as of T.proctime AS D ON D.id = 1 AND D.name = 'Fabian' AND D.age = 33"
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+    env.execute()
+    val expected = Seq("1,Fabian", "2,Fabian", "3,Fabian", "8,Fabian", "9,Fabian")
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testJoinTemporalTableWithLookupHintEnableShuffleEmptyPartitioner(): Unit = {
+    val sql = s"SELECT /*+ LOOKUP('table'='D', 'shuffle'='true') */ T.id, D.name FROM src " +
+      s"AS T JOIN user_table_custom_shuffle_empty_partitioner " +
+      s"for system_time as of T.proctime AS D ON T.id = D.id AND D.name = 'Fabian' AND D.age = 33"
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+    env.execute()
+    val expected = Seq("3,Fabian")
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testJoinTemporalTableWithLookupHintEnableShuffleWithoutUDF(): Unit = {
+    val sql = s"SELECT /*+ LOOKUP('table'='D', 'shuffle'='true') */ T.id, D.name FROM src " +
+      s"AS T JOIN user_table_custom_shuffle_without_udf " +
+      s"for system_time as of T.proctime AS D ON T.id = D.id AND D.name = 'Fabian' AND D.age = 33"
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+    env.execute()
+    val expected = Seq("3,Fabian")
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testJoinTemporalTableWithLatestData(): Unit = {
+    assumeThat(cacheType.equals(LookupCacheType.NONE)).isTrue
+    val dimData = List(
+      changelogRow("+I", Int.box(12), "DimJulia"),
+      changelogRow("+I", Int.box(15), "DimHello"),
+      changelogRow("+U", Int.box(15), "DimFabian"),
+      changelogRow("-D", Int.box(15), "DimFabian"),
+      changelogRow("+I", Int.box(11), "DimHelloWorld1"),
+      changelogRow("+U", Int.box(11), "DimHelloWorld2")
+    )
+
+    tEnv.executeSql(s"""
+                       |CREATE TABLE dim_with_pk (
+                       |  `len` INT PRIMARY KEY NOT ENFORCED,
+                       |  `comment` STRING
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '${TestValuesTableFactory.registerData(dimData)}'
+                       |)
+                       |""".stripMargin)
+    val sql =
+      """
+        |SELECT dim_with_pk.* FROM src JOIN dim_with_pk
+        |FOR SYSTEM_TIME AS OF src.proctime ON src.len = dim_with_pk.len
+        |""".stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+    env.execute()
+    val expected = Seq("12,DimJulia", "11,DimHelloWorld2", "12,DimJulia")
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
 }
 
 object LookupJoinITCase {
 
-  val LEGACY_TABLE_SOURCE: JBoolean = JBoolean.TRUE;
-  val DYNAMIC_TABLE_SOURCE: JBoolean = JBoolean.FALSE;
-
-  @Parameters(name = "LegacyTableSource={0}, cacheType={1}")
+  @Parameters(name = "CacheType={0}")
   def parameters(): JCollection[Array[Object]] = {
     Seq[Array[AnyRef]](
-      Array(LEGACY_TABLE_SOURCE, LookupCacheType.NONE),
-      Array(DYNAMIC_TABLE_SOURCE, LookupCacheType.NONE),
-      Array(DYNAMIC_TABLE_SOURCE, LookupCacheType.PARTIAL),
-      Array(DYNAMIC_TABLE_SOURCE, LookupCacheType.FULL)
+      Array(LookupCacheType.NONE),
+      Array(LookupCacheType.NONE),
+      Array(LookupCacheType.PARTIAL),
+      Array(LookupCacheType.FULL)
     )
   }
 }

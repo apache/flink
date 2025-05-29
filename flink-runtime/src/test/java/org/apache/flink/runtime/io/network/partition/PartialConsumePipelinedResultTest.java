@@ -40,6 +40,8 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.nio.ByteBuffer;
 
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
+
 /** Test for consuming a pipelined result only partially. */
 class PartialConsumePipelinedResultTest {
 
@@ -88,8 +90,8 @@ class PartialConsumePipelinedResultTest {
 
         // The partition needs to be pipelined, otherwise the original issue does not occur, because
         // the sender and receiver are not online at the same time.
-        receiver.connectNewDataSetAsInput(
-                sender, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                receiver, sender, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
         final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(sender, receiver);
 

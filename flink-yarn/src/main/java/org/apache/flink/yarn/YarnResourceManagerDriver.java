@@ -51,6 +51,7 @@ import org.apache.hadoop.yarn.api.records.NodeReport;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
+import org.apache.hadoop.yarn.api.records.UpdatedContainer;
 import org.apache.hadoop.yarn.client.api.AMRMClient;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
 import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
@@ -181,11 +182,10 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
     @Override
     protected void initializeInternal() throws Exception {
         isRunning = true;
-        final YarnContainerEventHandler yarnContainerEventHandler = new YarnContainerEventHandler();
         try {
             resourceManagerClient =
                     yarnResourceManagerClientFactory.createResourceManagerClient(
-                            yarnHeartbeatIntervalMillis, yarnContainerEventHandler);
+                            yarnHeartbeatIntervalMillis, new AMRMCallbackHandler());
             resourceManagerClient.init(yarnConfig);
             resourceManagerClient.start();
 
@@ -203,7 +203,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
         }
 
         nodeManagerClient =
-                yarnNodeManagerClientFactory.createNodeManagerClient(yarnContainerEventHandler);
+                yarnNodeManagerClientFactory.createNodeManagerClient(new NMCallbackHandler());
         nodeManagerClient.init(yarnConfig);
         nodeManagerClient.start();
     }
@@ -508,7 +508,8 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
     private Collection<AMRMClient.ContainerRequest> getPendingRequestsAndCheckConsistency(
             Priority priority, Resource resource, int expectedNum) {
         final List<AMRMClient.ContainerRequest> matchingRequests =
-                resourceManagerClient.getMatchingRequests(priority, ResourceRequest.ANY, resource)
+                resourceManagerClient
+                        .getMatchingRequests(priority, ResourceRequest.ANY, resource)
                         .stream()
                         .flatMap(Collection::stream)
                         .collect(Collectors.toList());
@@ -652,11 +653,24 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
     }
 
     // ------------------------------------------------------------------------
-    //  Event handlers
+    //  Callback handlers
     // ------------------------------------------------------------------------
 
-    class YarnContainerEventHandler
-            implements AMRMClientAsync.CallbackHandler, NMClientAsync.CallbackHandler {
+    private void runAsyncWithFatalHandler(Runnable runnable) {
+        getMainThreadExecutor()
+                .execute(
+                        () -> {
+                            try {
+                                runnable.run();
+                            } catch (Throwable t) {
+                                if (isRunning) {
+                                    getResourceEventHandler().onError(t);
+                                }
+                            }
+                        });
+    }
+
+    class AMRMCallbackHandler extends AMRMClientAsync.AbstractCallbackHandler {
 
         @Override
         public void onContainersCompleted(List<ContainerStatus> statuses) {
@@ -697,16 +711,9 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
                     });
         }
 
-        private void runAsyncWithFatalHandler(Runnable runnable) {
-            getMainThreadExecutor()
-                    .execute(
-                            () -> {
-                                try {
-                                    runnable.run();
-                                } catch (Throwable t) {
-                                    onError(t);
-                                }
-                            });
+        @Override
+        public void onContainersUpdated(List<UpdatedContainer> updatedContainers) {
+            // We are not interested in container updates
         }
 
         @Override
@@ -732,6 +739,9 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
                 getResourceEventHandler().onError(throwable);
             }
         }
+    }
+
+    class NMCallbackHandler extends NMClientAsync.AbstractCallbackHandler {
 
         @Override
         public void onContainerStarted(ContainerId containerId, Map<String, ByteBuffer> map) {
@@ -763,16 +773,55 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
         }
 
         @Override
+        public void onContainerResourceIncreased(ContainerId containerId, Resource resource) {
+            // ResourceManagerDriver does not support this, but it is still possible via
+            // direct YARN interaction, so it makes sense to log it.
+            log.debug(
+                    "Succeeded to call YARN Node Manager to increase resource for container {} to {}.",
+                    containerId,
+                    resource);
+        }
+
+        @Override
+        public void onContainerResourceUpdated(ContainerId containerId, Resource resource) {
+            // ResourceManagerDriver does not support this, but it is still possible via
+            // direct YARN interaction, so it makes sense to log it.
+            log.debug(
+                    "Succeeded to call YARN Node Manager to update resource for container {} to {}.",
+                    containerId,
+                    resource);
+        }
+
+        @Override
         public void onGetContainerStatusError(ContainerId containerId, Throwable throwable) {
-            // We are not interested in getting container status
+            // We are not interested in container status error
+        }
+
+        @Override
+        public void onIncreaseContainerResourceError(ContainerId containerId, Throwable throwable) {
+            log.debug(
+                    String.format(
+                            "Error while calling YARN Node Manager to increase resource for container %s.",
+                            containerId),
+                    throwable);
+        }
+
+        @Override
+        public void onUpdateContainerResourceError(ContainerId containerId, Throwable throwable) {
+            log.debug(
+                    String.format(
+                            "Error while calling YARN Node Manager to update resource for container %s.",
+                            containerId),
+                    throwable);
         }
 
         @Override
         public void onStopContainerError(ContainerId containerId, Throwable throwable) {
             trackerOfReleasedResources.arriveAndDeregister();
             log.warn(
-                    "Error while calling YARN Node Manager to stop container {}.",
-                    containerId,
+                    String.format(
+                            "Error while calling YARN Node Manager to stop container %s.",
+                            containerId),
                     throwable);
         }
     }

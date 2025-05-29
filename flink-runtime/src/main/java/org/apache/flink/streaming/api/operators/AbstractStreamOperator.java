@@ -37,6 +37,7 @@ import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
@@ -113,7 +114,7 @@ public abstract class AbstractStreamOperator<OUT>
 
     protected transient Output<StreamRecord<OUT>> output;
 
-    private transient IndexedCombinedWatermarkStatus combinedWatermark;
+    protected transient IndexedCombinedWatermarkStatus combinedWatermark;
 
     /** The runtime context for UDFs. */
     private transient StreamingRuntimeContext runtimeContext;
@@ -261,8 +262,11 @@ public abstract class AbstractStreamOperator<OUT>
         return metrics;
     }
 
+    /** Initialize necessary state components before initializing state components. */
+    protected void beforeInitializeStateHandler() {}
+
     @Override
-    public void initializeState(StreamTaskStateInitializer streamTaskStateManager)
+    public final void initializeState(StreamTaskStateInitializer streamTaskStateManager)
             throws Exception {
 
         final TypeSerializer<?> keySerializer =
@@ -286,12 +290,17 @@ public abstract class AbstractStreamOperator<OUT>
                                 runtimeContext.getJobConfiguration(),
                                 runtimeContext.getTaskManagerRuntimeInfo().getConfiguration(),
                                 runtimeContext.getUserCodeClassLoader()),
-                        isUsingCustomRawKeyedState());
-
+                        isUsingCustomRawKeyedState(),
+                        isAsyncStateProcessingEnabled());
         stateHandler =
                 new StreamOperatorStateHandler(
                         context, getExecutionConfig(), streamTaskCloseableRegistry);
-        timeServiceManager = context.internalTimerServiceManager();
+        timeServiceManager =
+                isAsyncStateProcessingEnabled()
+                        ? context.asyncInternalTimerServiceManager()
+                        : context.internalTimerServiceManager();
+
+        beforeInitializeStateHandler();
         stateHandler.initializeOperatorState(this);
         runtimeContext.setKeyedStateStore(stateHandler.getKeyedStateStore().orElse(null));
     }
@@ -317,6 +326,14 @@ public abstract class AbstractStreamOperator<OUT>
      */
     @Internal
     protected boolean isUsingCustomRawKeyedState() {
+        return false;
+    }
+
+    /**
+     * Indicates whether this operator is enabling the async state. Can be overridden by subclasses.
+     */
+    @Internal
+    public boolean isAsyncStateProcessingEnabled() {
         return false;
     }
 
@@ -402,7 +419,7 @@ public abstract class AbstractStreamOperator<OUT>
                 checkpointOptions,
                 factory,
                 isUsingCustomRawKeyedState(),
-                false);
+                isAsyncStateProcessingEnabled());
     }
 
     /**
@@ -525,7 +542,7 @@ public abstract class AbstractStreamOperator<OUT>
      * @throws IllegalStateException Thrown, if the key/value state was already initialized.
      * @throws Exception Thrown, if the state backend cannot create the key/value state.
      */
-    protected <S extends State, N> S getPartitionedState(
+    public <S extends State, N> S getPartitionedState(
             N namespace,
             TypeSerializer<N> namespaceSerializer,
             StateDescriptor<S, ?> stateDescriptor)
@@ -650,10 +667,10 @@ public abstract class AbstractStreamOperator<OUT>
         @SuppressWarnings("unchecked")
         InternalTimeServiceManager<K> keyedTimeServiceHandler =
                 (InternalTimeServiceManager<K>) timeServiceManager;
-        KeyedStateBackend<K> keyedStateBackend = getKeyedStateBackend();
-        checkState(keyedStateBackend != null, "Timers can only be used on keyed operators.");
+        TypeSerializer<K> keySerializer = stateHandler.getKeySerializer();
+        checkState(keySerializer != null, "Timers can only be used on keyed operators.");
         return keyedTimeServiceHandler.getInternalTimerService(
-                name, keyedStateBackend.getKeySerializer(), namespaceSerializer, triggerable);
+                name, keySerializer, namespaceSerializer, triggerable);
     }
 
     public void processWatermark(Watermark mark) throws Exception {
@@ -689,7 +706,7 @@ public abstract class AbstractStreamOperator<OUT>
         output.emitWatermarkStatus(watermarkStatus);
     }
 
-    private void processWatermarkStatus(WatermarkStatus watermarkStatus, int index)
+    protected void processWatermarkStatus(WatermarkStatus watermarkStatus, int index)
             throws Exception {
         boolean wasIdle = combinedWatermark.isIdle();
         if (combinedWatermark.updateStatus(index, watermarkStatus.isIdle())) {
@@ -739,5 +756,20 @@ public abstract class AbstractStreamOperator<OUT>
                 new RecordAttributesBuilder(
                                 Arrays.asList(lastRecordAttributes1, lastRecordAttributes2))
                         .build());
+    }
+
+    @Experimental
+    public void processWatermark(WatermarkEvent watermark) throws Exception {
+        output.emitWatermark(watermark);
+    }
+
+    @Experimental
+    public void processWatermark1(WatermarkEvent watermark) throws Exception {
+        output.emitWatermark(watermark);
+    }
+
+    @Experimental
+    public void processWatermark2(WatermarkEvent watermark) throws Exception {
+        output.emitWatermark(watermark);
     }
 }

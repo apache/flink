@@ -343,6 +343,18 @@ object TestData {
 
   lazy val mapRows = map(("Monday", 1), ("Tuesday", 2), ("Wednesday", 3))
 
+  lazy val orderedLoopRows: Seq[Row] = {
+    for {
+      cnt <- 0 until 33
+    } yield {
+      Row.of(
+        s"Record_$cnt",
+        cnt.toLong.asInstanceOf[AnyRef],
+        cnt.asInstanceOf[AnyRef],
+        cnt.toDouble.asInstanceOf[AnyRef])
+    }
+  }
+
   lazy val deepNestedRow: Seq[Row] = {
     Seq(
       Row.of(

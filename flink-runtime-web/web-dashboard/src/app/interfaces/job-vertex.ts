@@ -113,6 +113,7 @@ export interface VertexTaskManagerDetail {
     RUNNING: number;
     SCHEDULED: number;
     INITIALIZING: number;
+    PENDING: number;
   };
   aggregated: JobVertexAggregated;
 }

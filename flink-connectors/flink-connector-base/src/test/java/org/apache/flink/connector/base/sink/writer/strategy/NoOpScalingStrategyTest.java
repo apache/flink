@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test class for {@link NoOpScalingStrategy}. */
-public class NoOpScalingStrategyTest {
+class NoOpScalingStrategyTest {
     @Test
     void testScaleUpNoOp() {
         NoOpScalingStrategy scalingStrategy = new NoOpScalingStrategy();

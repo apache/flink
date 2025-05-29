@@ -548,10 +548,52 @@ Flink SQL> SHOW JARS;
 ## SHOW CATALOGS
 
 ```sql
-SHOW CATALOGS
+SHOW CATALOGS [ [NOT] (LIKE | ILIKE) <sql_like_pattern> ]
 ```
 
-展示所有的 catalog。
+展示所有的 catalog。另外返回的结果能被一个可选的匹配字符串过滤。
+
+**LIKE**
+根据可选的 `LIKE` 语句与 `<sql_like_pattern>` 是否模糊匹配的所有 catalog。
+
+`LIKE` 子句中 SQL 正则式的语法与 `MySQL` 方言中的语法相同。
+* `%` 匹配任意数量的字符, 也包括0数量字符, `\%` 匹配一个 `%` 字符.
+* `_` 只匹配一个字符, `\_` 匹配一个 `_` 字符.
+
+**ILIKE**
+它的行为和 LIKE 相同，只是对于大小写是不敏感的。
+
+### SHOW CATALOGS 示例
+
+假定我们在当前 flink session 中有 `catalog1` 和 `catalog2`。
+
+- 显示所有的 catalog。
+
+```sql
+show catalogs;
++-----------------+
+|    catalog name |
++-----------------+
+|        catalog1 |
+|        catalog2 |
+| default_catalog |
++-----------------+
+3 rows in set
+```
+
+- 显示模糊匹配指定 SQL 正则式的所有catalog。
+
+```sql
+show catalogs like '%log1';
+-- show catalogs ilike '%log1';
+-- show catalogs ilike '%LOG1';
++--------------+
+| catalog name |
++--------------+
+|     catalog1 |
++--------------+
+1 row in set
+```
 
 ## SHOW CURRENT CATALOG
 

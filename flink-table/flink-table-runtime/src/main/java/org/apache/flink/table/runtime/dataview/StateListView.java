@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.dataview;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.runtime.state.internal.InternalListState;
+import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.dataview.ListView;
 
 import java.util.ArrayList;
@@ -44,7 +45,7 @@ public abstract class StateListView<N, EE> extends ListView<EE> implements State
         try {
             get().forEach(list::add);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Unable to collect list.", e);
         }
         return list;
     }
@@ -54,8 +55,10 @@ public abstract class StateListView<N, EE> extends ListView<EE> implements State
         clear();
         try {
             addAll(list);
+        } catch (TableRuntimeException e) {
+            throw e;
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Unable to replace list.", e);
         }
     }
 
@@ -67,16 +70,19 @@ public abstract class StateListView<N, EE> extends ListView<EE> implements State
 
     @Override
     public void add(EE value) throws Exception {
+        checkValue(value);
         getListState().add(value);
     }
 
     @Override
     public void addAll(List<EE> list) throws Exception {
+        checkList(list);
         getListState().addAll(list);
     }
 
     @Override
     public boolean remove(EE value) throws Exception {
+        checkValue(value);
         Iterable<EE> iterable = getListState().get();
         if (iterable == null) {
             // ListState.get() may return null according to the Javadoc.
@@ -150,6 +156,18 @@ public abstract class StateListView<N, EE> extends ListView<EE> implements State
         protected ListState<T> getListState() {
             listState.setCurrentNamespace(namespace);
             return listState;
+        }
+    }
+
+    private static void checkValue(Object value) {
+        if (value == null) {
+            throw new TableRuntimeException("List views don't support null values.");
+        }
+    }
+
+    private static void checkList(List<?> list) {
+        if (list.contains(null)) {
+            throw new TableRuntimeException("List views don't support null values.");
         }
     }
 }

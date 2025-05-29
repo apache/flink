@@ -330,7 +330,7 @@ class AggsHandlerCodeGenerator(
       aggIndex: Int,
       aggName: String): Option[Expression] = {
 
-    if (filterArg > 0) {
+    if (filterArg >= 0) {
       val filterType = inputFieldTypes(filterArg)
       if (!filterType.isInstanceOf[BooleanType]) {
         throw new TableException(

@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>2.0-SNAPSHOT</version>
+		<version>2.1-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-dist_${scala.binary.version}</artifactId>
@@ -190,6 +190,12 @@ under the License.
 			<scope>compile</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-layout-template-json</artifactId>
+			<scope>compile</scope>
+		</dependency>
+
 		<!-- Table dependencies -->
 
 		<dependency>
@@ -326,6 +332,14 @@ under the License.
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-metrics-otel</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
 		<!-- end optional Flink metrics reporters -->
 
 		<!-- start optional Flink libraries -->
@@ -476,7 +490,7 @@ under the License.
 			<dependency>
 				<groupId>org.objenesis</groupId>
 				<artifactId>objenesis</artifactId>
-				<version>2.1</version>
+				<version>3.4</version>
 				<optional>${flink.markBundledAsOptional}</optional>
 			</dependency>
 		</dependencies>

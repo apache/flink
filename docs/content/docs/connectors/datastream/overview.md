@@ -54,6 +54,7 @@ Currently these systems are supported as part of the Apache Flink project:
  * [Apache Pulsar]({{< ref "docs/connectors/datastream/pulsar" >}}) (source)
  * [JDBC]({{< ref "docs/connectors/datastream/jdbc" >}}) (sink)
  * [MongoDB]({{< ref "docs/connectors/datastream/mongodb" >}}) (source/sink)
+ * [Prometheus]({{< ref "docs/connectors/datastream/prometheus" >}}) (sink)
 
 Keep in mind that to use one of these connectors in an application, additional third party
 components are usually required, e.g. servers for the data stores or message queues.

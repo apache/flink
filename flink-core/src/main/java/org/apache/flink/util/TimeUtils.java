@@ -20,6 +20,7 @@ package org.apache.flink.util;
 
 import java.math.BigInteger;
 import java.time.Duration;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collections;
@@ -43,7 +44,8 @@ public class TimeUtils {
     /**
      * Parse the given string to a java {@link Duration}. The string is in format "{length
      * value}{time unit label}", e.g. "123ms", "321 s". If no time unit label is specified, it will
-     * be considered as milliseconds.
+     * be considered as milliseconds. If above rules are not matched, it will fall back to parse
+     * ISO-8601 duration format.
      *
      * <p>Supported time unit labels are:
      *
@@ -77,7 +79,19 @@ public class TimeUtils {
         final String unitLabel = trimmed.substring(pos).trim().toLowerCase(Locale.US);
 
         if (number.isEmpty()) {
-            throw new NumberFormatException("text does not start with a number");
+            try {
+                // Fall back to parse ISO-8601 duration format
+                Duration parsedDuration = Duration.parse(trimmed);
+                if (parsedDuration.isNegative()) {
+                    // Don't support negative duration which is consistent with before format
+                    throw new NumberFormatException("negative duration is not supported");
+                }
+                return parsedDuration;
+            } catch (DateTimeParseException e) {
+                throw new NumberFormatException(
+                        "text does not start with a number, and is not a valid ISO-8601 duration format: "
+                                + trimmed);
+            }
         }
 
         final BigInteger value;

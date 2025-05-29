@@ -20,20 +20,13 @@ package org.apache.flink.formats.hadoop.bulk;
 
 import org.apache.flink.formats.hadoop.bulk.HadoopPathBasedPartFileWriter.HadoopPathBasedPendingFileRecoverable;
 import org.apache.flink.formats.hadoop.bulk.HadoopPathBasedPartFileWriter.HadoopPathBasedPendingFileRecoverableSerializer;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.ClassRule;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Collection;
-import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -41,17 +34,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests for the {@link HadoopPathBasedPendingFileRecoverableSerializer} that verify we can still
  * read the recoverable serialized by the previous versions.
  */
-@RunWith(Parameterized.class)
-public class HadoopPathBasedPendingFileRecoverableSerializerMigrationTest extends TestLogger {
+class HadoopPathBasedPendingFileRecoverableSerializerMigrationTest {
 
     private static final int CURRENT_VERSION = 1;
 
-    @Parameterized.Parameters(name = "Previous Version = {0}")
-    public static Collection<Integer> previousVersions() {
-        return Collections.singletonList(1);
-    }
-
-    @Parameterized.Parameter public Integer previousVersion;
+    public Integer previousVersion = 1;
 
     private static final org.apache.hadoop.fs.Path TARGET_PATH =
             new org.apache.hadoop.fs.Path("file://target");
@@ -62,11 +49,9 @@ public class HadoopPathBasedPendingFileRecoverableSerializerMigrationTest extend
             Paths.get("src/test/resources/")
                     .resolve("pending-file-recoverable-serializer-migration");
 
-    @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
-
     @Test
-    @Ignore
-    public void prepareDeserialization() throws IOException {
+    @Disabled
+    void prepareDeserialization() throws IOException {
         String scenario = "common";
         java.nio.file.Path versionPath = resolveVersionPath(CURRENT_VERSION, scenario);
         HadoopPathBasedPendingFileRecoverableSerializer serializer =
@@ -78,7 +63,7 @@ public class HadoopPathBasedPendingFileRecoverableSerializerMigrationTest extend
     }
 
     @Test
-    public void testSerialization() throws IOException {
+    void testSerialization() throws IOException {
         String scenario = "common";
         java.nio.file.Path versionPath = resolveVersionPath(previousVersion, scenario);
         HadoopPathBasedPendingFileRecoverableSerializer serializer =

@@ -23,12 +23,10 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.util.CloseableIterator;
 
 import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * An iterator which iterates through the results of a query job.
@@ -52,19 +50,19 @@ public class CollectResultIterator<T> implements CloseableIterator<T> {
     private final CollectResultFetcher<T> fetcher;
     private T bufferedResult;
 
-    private CompletableFuture<OperatorID> operatorIdFuture;
+    private String operatorUid;
     private TypeSerializer<T> serializer;
     private String accumulatorName;
     private CheckpointConfig checkpointConfig;
     private long resultFetchTimeout;
 
     public CollectResultIterator(
-            CompletableFuture<OperatorID> operatorIdFuture,
+            String operatorUid,
             TypeSerializer<T> serializer,
             String accumulatorName,
             CheckpointConfig checkpointConfig,
             long resultFetchTimeout) {
-        this.operatorIdFuture = operatorIdFuture;
+        this.operatorUid = operatorUid;
         this.serializer = serializer;
         this.accumulatorName = accumulatorName;
         this.checkpointConfig = checkpointConfig;
@@ -72,20 +70,20 @@ public class CollectResultIterator<T> implements CloseableIterator<T> {
         AbstractCollectResultBuffer<T> buffer = createBuffer(serializer, checkpointConfig);
         this.fetcher =
                 new CollectResultFetcher<>(
-                        buffer, operatorIdFuture, accumulatorName, resultFetchTimeout);
+                        buffer, operatorUid, accumulatorName, resultFetchTimeout);
         this.bufferedResult = null;
     }
 
     @VisibleForTesting
     public CollectResultIterator(
             AbstractCollectResultBuffer<T> buffer,
-            CompletableFuture<OperatorID> operatorIdFuture,
+            String operatorUid,
             String accumulatorName,
             int retryMillis) {
         this.fetcher =
                 new CollectResultFetcher<>(
                         buffer,
-                        operatorIdFuture,
+                        operatorUid,
                         accumulatorName,
                         retryMillis,
                         RpcOptions.ASK_TIMEOUT_DURATION.defaultValue().toMillis());
@@ -146,7 +144,7 @@ public class CollectResultIterator<T> implements CloseableIterator<T> {
 
     public CollectResultIterator<T> copy() {
         return new CollectResultIterator<>(
-                this.operatorIdFuture,
+                this.operatorUid,
                 this.serializer,
                 this.accumulatorName,
                 this.checkpointConfig,

@@ -135,6 +135,7 @@ class StreamOperatorContextBuilder {
                     registry,
                     ctx.getMetricGroup(),
                     1.0,
+                    false,
                     false);
         } catch (Exception e) {
             throw new IOException("Failed to restore state backend", e);

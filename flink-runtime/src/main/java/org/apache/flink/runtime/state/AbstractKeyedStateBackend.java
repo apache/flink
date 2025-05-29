@@ -30,7 +30,8 @@ import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
-import org.apache.flink.runtime.state.metrics.LatencyTrackingStateFactory;
+import org.apache.flink.runtime.state.metrics.MetricsTrackingStateFactory;
+import org.apache.flink.runtime.state.metrics.SizeTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.IOUtils;
@@ -93,6 +94,8 @@ public abstract class AbstractKeyedStateBackend<K>
 
     protected final LatencyTrackingStateConfig latencyTrackingStateConfig;
 
+    protected final SizeTrackingStateConfig sizeTrackingStateConfig;
+
     /** Decorates the input and output streams to write key-groups compressed. */
     protected final StreamCompressionDecorator keyGroupCompressionDecorator;
 
@@ -106,6 +109,7 @@ public abstract class AbstractKeyedStateBackend<K>
             ExecutionConfig executionConfig,
             TtlTimeProvider ttlTimeProvider,
             LatencyTrackingStateConfig latencyTrackingStateConfig,
+            SizeTrackingStateConfig sizeTrackingStateConfig,
             CloseableRegistry cancelStreamRegistry,
             InternalKeyContext<K> keyContext) {
         this(
@@ -115,6 +119,7 @@ public abstract class AbstractKeyedStateBackend<K>
                 executionConfig,
                 ttlTimeProvider,
                 latencyTrackingStateConfig,
+                sizeTrackingStateConfig,
                 cancelStreamRegistry,
                 determineStreamCompression(executionConfig),
                 keyContext);
@@ -127,6 +132,7 @@ public abstract class AbstractKeyedStateBackend<K>
             ExecutionConfig executionConfig,
             TtlTimeProvider ttlTimeProvider,
             LatencyTrackingStateConfig latencyTrackingStateConfig,
+            SizeTrackingStateConfig sizeTrackingStateConfig,
             CloseableRegistry cancelStreamRegistry,
             StreamCompressionDecorator keyGroupCompressionDecorator,
             InternalKeyContext<K> keyContext) {
@@ -137,6 +143,7 @@ public abstract class AbstractKeyedStateBackend<K>
                 executionConfig,
                 ttlTimeProvider,
                 latencyTrackingStateConfig,
+                sizeTrackingStateConfig,
                 cancelStreamRegistry,
                 keyGroupCompressionDecorator,
                 Preconditions.checkNotNull(keyContext),
@@ -157,6 +164,7 @@ public abstract class AbstractKeyedStateBackend<K>
                 abstractKeyedStateBackend.executionConfig,
                 abstractKeyedStateBackend.ttlTimeProvider,
                 abstractKeyedStateBackend.latencyTrackingStateConfig,
+                abstractKeyedStateBackend.sizeTrackingStateConfig,
                 abstractKeyedStateBackend.cancelStreamRegistry,
                 abstractKeyedStateBackend.keyGroupCompressionDecorator,
                 abstractKeyedStateBackend.keyContext,
@@ -176,6 +184,7 @@ public abstract class AbstractKeyedStateBackend<K>
             ExecutionConfig executionConfig,
             TtlTimeProvider ttlTimeProvider,
             LatencyTrackingStateConfig latencyTrackingStateConfig,
+            SizeTrackingStateConfig sizeTrackingStateConfig,
             CloseableRegistry cancelStreamRegistry,
             StreamCompressionDecorator keyGroupCompressionDecorator,
             InternalKeyContext<K> keyContext,
@@ -206,6 +215,7 @@ public abstract class AbstractKeyedStateBackend<K>
         this.keyGroupCompressionDecorator = keyGroupCompressionDecorator;
         this.ttlTimeProvider = Preconditions.checkNotNull(ttlTimeProvider);
         this.latencyTrackingStateConfig = Preconditions.checkNotNull(latencyTrackingStateConfig);
+        this.sizeTrackingStateConfig = Preconditions.checkNotNull(sizeTrackingStateConfig);
         this.keySelectionListeners = keySelectionListeners;
         this.lastState = lastState;
         this.lastName = lastName;
@@ -241,7 +251,9 @@ public abstract class AbstractKeyedStateBackend<K>
         keyValueStatesByName.clear();
     }
 
-    /** @see KeyedStateBackend */
+    /**
+     * @see KeyedStateBackend
+     */
     @Override
     public void setCurrentKey(K newKey) {
         notifyKeySelected(newKey);
@@ -274,35 +286,47 @@ public abstract class AbstractKeyedStateBackend<K>
         return keySelectionListeners.remove(listener);
     }
 
-    /** @see KeyedStateBackend */
+    /**
+     * @see KeyedStateBackend
+     */
     @Override
     public TypeSerializer<K> getKeySerializer() {
         return keySerializer;
     }
 
-    /** @see KeyedStateBackend */
+    /**
+     * @see KeyedStateBackend
+     */
     @Override
     public K getCurrentKey() {
         return this.keyContext.getCurrentKey();
     }
 
-    /** @see KeyedStateBackend */
+    /**
+     * @see KeyedStateBackend
+     */
     public int getCurrentKeyGroupIndex() {
         return this.keyContext.getCurrentKeyGroupIndex();
     }
 
-    /** @see KeyedStateBackend */
+    /**
+     * @see KeyedStateBackend
+     */
     public int getNumberOfKeyGroups() {
         return numberOfKeyGroups;
     }
 
-    /** @see KeyedStateBackend */
+    /**
+     * @see KeyedStateBackend
+     */
     @Override
     public KeyGroupRange getKeyGroupRange() {
         return keyGroupRange;
     }
 
-    /** @see KeyedStateBackend */
+    /**
+     * @see KeyedStateBackend
+     */
     @Override
     public <N, S extends State, T> void applyToAllKeys(
             final N namespace,
@@ -346,7 +370,9 @@ public abstract class AbstractKeyedStateBackend<K>
         }
     }
 
-    /** @see KeyedStateBackend */
+    /**
+     * @see KeyedStateBackend
+     */
     @Override
     @SuppressWarnings("unchecked")
     public <N, S extends State, V> S getOrCreateKeyedState(
@@ -364,11 +390,13 @@ public abstract class AbstractKeyedStateBackend<K>
                 stateDescriptor.initializeSerializerUnlessSet(executionConfig);
             }
             kvState =
-                    LatencyTrackingStateFactory.createStateAndWrapWithLatencyTrackingIfEnabled(
+                    MetricsTrackingStateFactory.createStateAndWrapWithMetricsTrackingIfEnabled(
                             TtlStateFactory.createStateAndWrapWithTtlIfEnabled(
                                     namespaceSerializer, stateDescriptor, this, ttlTimeProvider),
+                            this,
                             stateDescriptor,
-                            latencyTrackingStateConfig);
+                            latencyTrackingStateConfig,
+                            sizeTrackingStateConfig);
             keyValueStatesByName.put(stateDescriptor.getName(), kvState);
             publishQueryableStateIfEnabled(stateDescriptor, kvState);
         }
@@ -433,6 +461,10 @@ public abstract class AbstractKeyedStateBackend<K>
 
     public LatencyTrackingStateConfig getLatencyTrackingStateConfig() {
         return latencyTrackingStateConfig;
+    }
+
+    public SizeTrackingStateConfig getSizeTrackingStateConfig() {
+        return sizeTrackingStateConfig;
     }
 
     @VisibleForTesting

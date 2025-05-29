@@ -58,9 +58,12 @@ import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.match.PatternProcessFunctionRunner;
 import org.apache.flink.table.runtime.operators.match.RowDataEventComparator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.MathUtils;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
@@ -86,7 +89,12 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
 
     public static final String MATCH_TRANSFORMATION = "match";
 
-    private final MatchSpec matchSpec;
+    public static final String FIELD_NAME_MATCH_SPEC = "matchSpec";
+
+    public static final String TIMESTAMP_INSERTER_TRANSFORMATION = "timestamp-inserter";
+
+    @JsonProperty(FIELD_NAME_MATCH_SPEC)
+    protected final MatchSpec matchSpec;
 
     public CommonExecMatch(
             int id,
@@ -115,7 +123,7 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
                 createEventComparator(
                         config, planner.getFlinkContext().getClassLoader(), inputRowType);
         final Transformation<RowData> timestampedInputTransform =
-                translateOrder(inputTransform, inputRowType, config);
+                translateOrder(planner, inputTransform, inputRowType, inputEdge, config);
 
         final Tuple2<Pattern<RowData, RowData>, List<String>> cepPatternAndNames =
                 translatePattern(
@@ -200,7 +208,7 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
         return transform;
     }
 
-    protected void checkOrderKeys(RowType inputRowType) {}
+    protected abstract void checkOrderKeys(RowType inputRowType);
 
     private EventComparator<RowData> createEventComparator(
             ExecNodeConfig config, ClassLoader classLoader, RowType inputRowType) {
@@ -215,10 +223,12 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
         }
     }
 
-    protected Transformation<RowData> translateOrder(
-            Transformation<RowData> inputTransform, RowType inputRowType, ExecNodeConfig config) {
-        return inputTransform;
-    }
+    protected abstract Transformation<RowData> translateOrder(
+            PlannerBase planner,
+            Transformation<RowData> inputTransform,
+            RowType inputRowType,
+            ExecEdge inputEdge,
+            ExecNodeConfig config);
 
     @VisibleForTesting
     public static Tuple2<Pattern<RowData, RowData>, List<String>> translatePattern(
@@ -251,7 +261,12 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
                 "Only constant intervals with millisecond resolution are supported as time constraints of patterns.");
     }
 
-    public abstract boolean isProcTime(RowType inputRowType);
+    public boolean isProcTime(RowType inputRowType) {
+        final SortSpec.SortFieldSpec timeOrderField = matchSpec.getOrderKeys().getFieldSpec(0);
+        final LogicalType timeOrderFieldType =
+                inputRowType.getTypeAt(timeOrderField.getFieldIndex());
+        return TypeCheckUtils.isProcTime(timeOrderFieldType);
+    }
 
     /** The visitor to traverse the pattern RexNode. */
     private static class PatternVisitor extends RexDefaultVisitor<Pattern<RowData, RowData>> {

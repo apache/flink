@@ -54,6 +54,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -316,8 +317,8 @@ class DefaultExecutionDeployerTest {
         final JobVertex sink = new JobVertex("sink");
         sink.setInvokableClass(NoOpInvokable.class);
 
-        sink.connectNewDataSetAsInput(
-                source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                sink, source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
         return JobGraphTestUtils.streamingJobGraph(source, sink);
     }

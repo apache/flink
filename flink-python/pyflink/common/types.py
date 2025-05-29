@@ -108,6 +108,7 @@ class Row(object):
             self._from_dict = True
         else:
             self._values = list(args)
+            self._from_dict = False
         self._row_kind = RowKind.INSERT
 
     def as_dict(self, recursive=False):

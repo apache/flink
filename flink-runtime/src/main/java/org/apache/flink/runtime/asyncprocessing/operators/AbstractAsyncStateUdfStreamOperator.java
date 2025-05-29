@@ -25,6 +25,7 @@ import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.runtime.asyncprocessing.declare.DeclarationContext;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -61,6 +62,8 @@ public abstract class AbstractAsyncStateUdfStreamOperator<OUT, F extends Functio
     /** The user function. */
     protected final F userFunction;
 
+    protected transient DeclarationContext declarationContext;
+
     public AbstractAsyncStateUdfStreamOperator(F userFunction) {
         this.userFunction = requireNonNull(userFunction);
         checkUdfCheckpointingPreconditions();
@@ -93,6 +96,8 @@ public abstract class AbstractAsyncStateUdfStreamOperator<OUT, F extends Functio
         super.snapshotState(context);
         StreamingFunctionUtils.snapshotFunctionState(
                 context, getOperatorStateBackend(), userFunction);
+        // Drain state requests in case the user function modifies the state.
+        drainStateRequests();
     }
 
     @Override
@@ -104,6 +109,7 @@ public abstract class AbstractAsyncStateUdfStreamOperator<OUT, F extends Functio
     @Override
     public void open() throws Exception {
         super.open();
+        declarationContext = new DeclarationContext(getDeclarationManager());
         FunctionUtils.openFunction(userFunction, DefaultOpenContext.INSTANCE);
     }
 

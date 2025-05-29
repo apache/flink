@@ -105,19 +105,15 @@ LogicalSink(table=[default_catalog.default_database.StreamingTable], fields=[EXP
 
 == Optimized Physical Plan ==
 Sink(table=[default_catalog.default_database.StreamingTable], fields=[EXPR$0, EXPR$1])
-+- Values(type=[RecordType(INTEGER EXPR$0, VARCHAR(11) EXPR$1)], tuples=[[{ 1, _UTF-16LE'Hello World' }, { 2, _UTF-16LE'Hi' }, { 2, _UTF-16LE'Hi' }, { 3, _UTF-16LE'Hello' }, { 3, _UTF-16LE'World' }, { 4, _UTF-16LE'ADD' }, { 5, _UTF-16LE'LINE' }]])
-
-Sink(table=[default_catalog.default_database.StreamingTable], fields=[EXPR$0, EXPR$1])
-+- Values(type=[RecordType(INTEGER EXPR$0, VARCHAR(11) EXPR$1)], tuples=[[{ 1, _UTF-16LE'Hello World' }, { 2, _UTF-16LE'Hi' }, { 2, _UTF-16LE'Hi' }, { 3, _UTF-16LE'Hello' }, { 3, _UTF-16LE'World' }, { 4, _UTF-16LE'ADD' }, { 5, _UTF-16LE'LINE' }]])
++- Union(all=[true], union=[EXPR$0, EXPR$1])
+   :- Values(type=[RecordType(INTEGER EXPR$0, VARCHAR(11) EXPR$1)], tuples=[[{ 1, _UTF-16LE'Hello World' }, { 2, _UTF-16LE'Hi' }, { 2, _UTF-16LE'Hi' }, { 3, _UTF-16LE'Hello' }, { 3, _UTF-16LE'World' }, { 4, _UTF-16LE'ADD' }, { 5, _UTF-16LE'LINE' }]])
+   +- Values(type=[RecordType(INTEGER EXPR$0, VARCHAR(11) EXPR$1)], tuples=[[{ 1, _UTF-16LE'Hello World' }, { 2, _UTF-16LE'Hi' }, { 2, _UTF-16LE'Hi' }, { 3, _UTF-16LE'Hello' }, { 3, _UTF-16LE'World' }, { 4, _UTF-16LE'ADD' }, { 5, _UTF-16LE'LINE' }]])
 
 == Optimized Execution Plan ==
-Values(tuples=[[{ 1, _UTF-16LE'Hello World' }, { 2, _UTF-16LE'Hi' }, { 2, _UTF-16LE'Hi' }, { 3, _UTF-16LE'Hello' }, { 3, _UTF-16LE'World' }, { 4, _UTF-16LE'ADD' }, { 5, _UTF-16LE'LINE' }]])(reuse_id=[1])
-
 Sink(table=[default_catalog.default_database.StreamingTable], fields=[EXPR$0, EXPR$1])
-+- Reused(reference_id=[1])
-
-Sink(table=[default_catalog.default_database.StreamingTable], fields=[EXPR$0, EXPR$1])
-+- Reused(reference_id=[1])
++- Union(all=[true], union=[EXPR$0, EXPR$1])
+   :- Values(tuples=[[{ 1, _UTF-16LE'Hello World' }, { 2, _UTF-16LE'Hi' }, { 2, _UTF-16LE'Hi' }, { 3, _UTF-16LE'Hello' }, { 3, _UTF-16LE'World' }, { 4, _UTF-16LE'ADD' }, { 5, _UTF-16LE'LINE' }]])(reuse_id=[1])
+   +- Reused(reference_id=[1])
 !ok
 
 EXECUTE STATEMENT SET BEGIN
@@ -163,7 +159,7 @@ SELECT * FROM StreamingTable2;
 EXPLAIN STATEMENT SET BEGIN
 END;
 !output
-org.apache.flink.sql.parser.impl.ParseException: Encountered "END" at line 2, column 1.
+org.apache.flink.sql.parser.impl.ParseException: Encountered "END" at line 0, column 1.
 Was expecting one of:
     "INSERT" ...
     "UPSERT" ...
@@ -172,7 +168,7 @@ Was expecting one of:
 EXECUTE STATEMENT SET BEGIN
 END;
 !output
-org.apache.flink.sql.parser.impl.ParseException: Encountered "END" at line 2, column 1.
+org.apache.flink.sql.parser.impl.ParseException: Encountered "END" at line 0, column 1.
 Was expecting one of:
     "INSERT" ...
     "UPSERT" ...
@@ -298,7 +294,7 @@ Empty set
 EXPLAIN STATEMENT SET BEGIN
 END;
 !output
-org.apache.flink.sql.parser.impl.ParseException: Encountered "END" at line 2, column 1.
+org.apache.flink.sql.parser.impl.ParseException: Encountered "END" at line 0, column 1.
 Was expecting one of:
     "INSERT" ...
     "UPSERT" ...
@@ -307,7 +303,7 @@ Was expecting one of:
 EXECUTE STATEMENT SET BEGIN
 END;
 !output
-org.apache.flink.sql.parser.impl.ParseException: Encountered "END" at line 2, column 1.
+org.apache.flink.sql.parser.impl.ParseException: Encountered "END" at line 0, column 1.
 Was expecting one of:
     "INSERT" ...
     "UPSERT" ...

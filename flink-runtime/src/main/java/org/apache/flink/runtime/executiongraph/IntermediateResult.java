@@ -29,19 +29,18 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.scheduler.adaptivebatch.ExecutionPlanSchedulingContext;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 public class IntermediateResult {
 
@@ -63,6 +62,9 @@ public class IntermediateResult {
 
     private final int numParallelProducers;
 
+    private final ExecutionPlanSchedulingContext executionPlanSchedulingContext;
+    private final boolean singleSubpartitionContainsAllData;
+
     private int partitionsAssigned;
 
     private final int connectionIndex;
@@ -71,14 +73,12 @@ public class IntermediateResult {
 
     private final Map<ConsumedPartitionGroup, CachedShuffleDescriptors> shuffleDescriptorCache;
 
-    /** All consumer job vertex ids of this dataset. */
-    private final List<JobVertexID> consumerVertices = new ArrayList<>();
-
     public IntermediateResult(
             IntermediateDataSet intermediateDataSet,
             ExecutionJobVertex producer,
             int numParallelProducers,
-            ResultPartitionType resultType) {
+            ResultPartitionType resultType,
+            ExecutionPlanSchedulingContext executionPlanSchedulingContext) {
 
         this.intermediateDataSet = checkNotNull(intermediateDataSet);
         this.id = checkNotNull(intermediateDataSet.getId());
@@ -102,9 +102,13 @@ public class IntermediateResult {
 
         this.shuffleDescriptorCache = new HashMap<>();
 
-        intermediateDataSet
-                .getConsumers()
-                .forEach(jobEdge -> consumerVertices.add(jobEdge.getTarget().getID()));
+        this.executionPlanSchedulingContext = checkNotNull(executionPlanSchedulingContext);
+
+        this.singleSubpartitionContainsAllData = intermediateDataSet.isBroadcast();
+    }
+
+    public boolean areAllConsumerVerticesCreated() {
+        return intermediateDataSet.areAllConsumerVerticesCreated();
     }
 
     public void setPartition(int partitionNumber, IntermediateResultPartition partition) {
@@ -135,7 +139,9 @@ public class IntermediateResult {
     }
 
     public List<JobVertexID> getConsumerVertices() {
-        return consumerVertices;
+        return intermediateDataSet.getConsumers().stream()
+                .map(jobEdge -> jobEdge.getTarget().getID())
+                .collect(Collectors.toList());
     }
 
     /**
@@ -181,55 +187,49 @@ public class IntermediateResult {
      * graph, it should be called before adaptively deciding the downstream consumer parallelism.
      */
     int getConsumersParallelism() {
-        List<JobEdge> consumers = intermediateDataSet.getConsumers();
-        checkState(!consumers.isEmpty());
-
-        InternalExecutionGraphAccessor graph = getProducer().getGraph();
-        int consumersParallelism =
-                graph.getJobVertex(consumers.get(0).getTarget().getID()).getParallelism();
-        if (consumers.size() == 1) {
-            return consumersParallelism;
-        }
-
-        // sanity check, all consumer vertices must have the same parallelism:
-        // 1. for vertices that are not assigned a parallelism initially (for example, dynamic
-        // graph), the parallelisms will all be -1 (parallelism not decided yet)
-        // 2. for vertices that are initially assigned a parallelism, the parallelisms must be the
-        // same, which is guaranteed at compilation phase
-        for (JobVertexID jobVertexID : consumerVertices) {
-            checkState(
-                    consumersParallelism == graph.getJobVertex(jobVertexID).getParallelism(),
-                    "Consumers must have the same parallelism.");
-        }
-        return consumersParallelism;
+        return executionPlanSchedulingContext.getConsumersParallelism(
+                jobVertexId -> producer.getGraph().getJobVertex(jobVertexId).getParallelism(),
+                intermediateDataSet);
     }
 
     int getConsumersMaxParallelism() {
-        List<JobEdge> consumers = intermediateDataSet.getConsumers();
-        checkState(!consumers.isEmpty());
-
-        InternalExecutionGraphAccessor graph = getProducer().getGraph();
-        int consumersMaxParallelism =
-                graph.getJobVertex(consumers.get(0).getTarget().getID()).getMaxParallelism();
-        if (consumers.size() == 1) {
-            return consumersMaxParallelism;
-        }
-
-        // sanity check, all consumer vertices must have the same max parallelism
-        for (JobVertexID jobVertexID : consumerVertices) {
-            checkState(
-                    consumersMaxParallelism == graph.getJobVertex(jobVertexID).getMaxParallelism(),
-                    "Consumers must have the same max parallelism.");
-        }
-        return consumersMaxParallelism;
+        return executionPlanSchedulingContext.getConsumersMaxParallelism(
+                jobVertexId -> producer.getGraph().getJobVertex(jobVertexId).getMaxParallelism(),
+                intermediateDataSet);
     }
 
     public DistributionPattern getConsumingDistributionPattern() {
         return intermediateDataSet.getDistributionPattern();
     }
 
+    /**
+     * Determines whether the associated intermediate data set uses a broadcast distribution
+     * pattern.
+     *
+     * <p>A broadcast distribution pattern indicates that all data produced by this intermediate
+     * data set should be broadcast to every downstream consumer.
+     *
+     * @return true if the intermediate data set is using a broadcast distribution pattern; false
+     *     otherwise.
+     */
     public boolean isBroadcast() {
         return intermediateDataSet.isBroadcast();
+    }
+
+    public boolean isForward() {
+        return intermediateDataSet.isForward();
+    }
+
+    /**
+     * Checks if a single subpartition contains all the produced data. This condition indicate that
+     * the data was intended to be broadcast to all consumers. If the decision to broadcast was made
+     * before the data production, this flag would likely be set accordingly. Conversely, if the
+     * broadcasting decision was made post-production, this flag will be false.
+     *
+     * @return true if a single subpartition contains all the data; false otherwise.
+     */
+    public boolean isSingleSubpartitionContainsAllData() {
+        return singleSubpartitionContainsAllData;
     }
 
     public int getConnectionIndex() {

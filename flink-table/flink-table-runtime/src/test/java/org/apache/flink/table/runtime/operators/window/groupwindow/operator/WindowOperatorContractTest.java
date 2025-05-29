@@ -42,7 +42,7 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
 import org.junit.jupiter.api.Test;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import java.time.ZoneId;
@@ -53,9 +53,9 @@ import java.util.Collections;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -269,10 +269,10 @@ class WindowOperatorContractTest {
         @SuppressWarnings("unchecked")
         Trigger<W> mockTrigger = mock(Trigger.class);
 
-        when(mockTrigger.onElement(Matchers.<RowData>any(), anyLong(), Matchers.any()))
+        when(mockTrigger.onElement(ArgumentMatchers.any(), anyLong(), ArgumentMatchers.any()))
                 .thenReturn(false);
-        when(mockTrigger.onEventTime(anyLong(), Matchers.any())).thenReturn(false);
-        when(mockTrigger.onProcessingTime(anyLong(), Matchers.any())).thenReturn(false);
+        when(mockTrigger.onEventTime(anyLong(), ArgumentMatchers.any())).thenReturn(false);
+        when(mockTrigger.onProcessingTime(anyLong(), ArgumentMatchers.any())).thenReturn(false);
 
         return mockTrigger;
     }
@@ -314,7 +314,7 @@ class WindowOperatorContractTest {
     // ------------------------------------------------------------------------------------
 
     private static <T> void shouldFireOnElement(Trigger<TimeWindow> mockTrigger) throws Exception {
-        when(mockTrigger.onElement(Matchers.<T>anyObject(), anyLong(), anyTimeWindow()))
+        when(mockTrigger.onElement(ArgumentMatchers.any(), anyLong(), anyTimeWindow()))
                 .thenReturn(true);
     }
 }

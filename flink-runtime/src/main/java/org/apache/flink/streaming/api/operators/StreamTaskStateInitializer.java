@@ -63,6 +63,7 @@ public interface StreamTaskStateInitializer {
             @Nonnull CloseableRegistry streamTaskCloseableRegistry,
             @Nonnull MetricGroup metricGroup,
             double managedMemoryFraction,
-            boolean isUsingCustomRawKeyedState)
+            boolean isUsingCustomRawKeyedState,
+            boolean isAsyncState)
             throws Exception;
 }

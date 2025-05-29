@@ -43,7 +43,8 @@ import java.util.stream.Collectors;
 
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
-import static org.apache.flink.runtime.scheduler.adaptive.allocator.DefaultSlotAssigner.createExecutionSlotSharingGroups;
+import static org.apache.flink.runtime.scheduler.adaptive.allocator.AllocatorUtil.checkMinimumRequiredSlots;
+import static org.apache.flink.runtime.scheduler.adaptive.allocator.AllocatorUtil.createExecutionSlotSharingGroups;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** A {@link SlotAssigner} that assigns slots based on the number of local key groups. */
@@ -95,11 +96,7 @@ public class StateLocalitySlotAssigner implements SlotAssigner {
             Collection<? extends SlotInfo> freeSlots,
             VertexParallelism vertexParallelism,
             JobAllocationsInformation previousAllocations) {
-        checkState(
-                freeSlots.size() >= jobInformation.getSlotSharingGroups().size(),
-                "Not enough slots to allocate all the slot sharing groups (have: %s, need: %s)",
-                freeSlots.size(),
-                jobInformation.getSlotSharingGroups().size());
+        checkMinimumRequiredSlots(jobInformation, freeSlots);
 
         final List<ExecutionSlotSharingGroup> allGroups = new ArrayList<>();
         for (SlotSharingGroup slotSharingGroup : jobInformation.getSlotSharingGroups()) {

@@ -42,6 +42,8 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
+
 /** Integration tests for reusing persisted intermediate dataset */
 class JobIntermediateDatasetReuseTest {
 
@@ -197,7 +199,8 @@ class JobIntermediateDatasetReuseTest {
         receiver.setParallelism(parallelism);
         receiver.setInvokableClass(Receiver.class);
 
-        receiver.connectNewDataSetAsInput(
+        connectNewDataSetAsInput(
+                receiver,
                 sender,
                 DistributionPattern.POINTWISE,
                 ResultPartitionType.BLOCKING_PERSISTENT,

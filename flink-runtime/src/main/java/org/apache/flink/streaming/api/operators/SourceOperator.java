@@ -34,9 +34,11 @@ import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalSourceSplitMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
@@ -173,9 +175,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private final List<SplitT> splitsToInitializeOutput = new ArrayList<>();
 
-    private int numSplits;
     private final Map<String, Long> splitCurrentWatermarks = new HashMap<>();
+
     private final Set<String> currentlyPausedSplits = new HashSet<>();
+
+    private final Map<String, InternalSourceSplitMetricGroup> splitMetricGroups = new HashMap<>();
 
     private enum OperatingMode {
         READING,
@@ -189,6 +193,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private InternalSourceReaderMetricGroup sourceMetricGroup;
 
     private long currentMaxDesiredWatermark = Watermark.MAX_WATERMARK.getTimestamp();
+
     /** Can be not completed only in {@link OperatingMode#WAITING_FOR_ALIGNMENT} mode. */
     private CompletableFuture<Void> waitingForAlignmentFuture =
             CompletableFuture.completedFuture(null);
@@ -205,6 +210,9 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
      */
     private transient PausableRelativeClock mainInputActivityClock;
 
+    /** Watermark identifier to whether the watermark are aligned. */
+    private final Map<String, Boolean> watermarkIsAlignedMap;
+
     public SourceOperator(
             StreamOperatorParameters<OUT> parameters,
             FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception>
@@ -216,7 +224,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             Configuration configuration,
             String localHostname,
             boolean emitProgressiveWatermarks,
-            CanEmitBatchOfRecordsChecker canEmitBatchOfRecords) {
+            CanEmitBatchOfRecordsChecker canEmitBatchOfRecords,
+            Map<String, Boolean> watermarkIsAlignedMap) {
         super(parameters);
         this.readerFactory = checkNotNull(readerFactory);
         this.operatorEventGateway = checkNotNull(operatorEventGateway);
@@ -230,6 +239,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         this.watermarkAlignmentParams = watermarkStrategy.getAlignmentParameters();
         this.allowUnalignedSourceSplits = configuration.get(ALLOW_UNALIGNED_SOURCE_SPLITS);
         this.canEmitBatchOfRecords = checkNotNull(canEmitBatchOfRecords);
+        this.watermarkIsAlignedMap = watermarkIsAlignedMap;
     }
 
     @Override
@@ -325,6 +335,16 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                     public int currentParallelism() {
                         return getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
                     }
+
+                    @Override
+                    public void emitWatermark(
+                            org.apache.flink.api.common.watermark.Watermark watermark) {
+                        checkState(watermarkIsAlignedMap.containsKey(watermark.getIdentifier()));
+                        output.emitWatermark(
+                                new WatermarkEvent(
+                                        watermark,
+                                        watermarkIsAlignedMap.get(watermark.getIdentifier())));
+                    }
                 };
 
         sourceReader = readerFactory.apply(context);
@@ -332,6 +352,26 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     public InternalSourceReaderMetricGroup getSourceMetricGroup() {
         return sourceMetricGroup;
+    }
+
+    protected InternalSourceSplitMetricGroup getOrCreateSplitMetricGroup(String splitId) {
+        if (!this.splitMetricGroups.containsKey(splitId)) {
+            InternalSourceSplitMetricGroup splitMetricGroup =
+                    InternalSourceSplitMetricGroup.wrap(
+                            getMetricGroup(),
+                            splitId,
+                            () ->
+                                    splitCurrentWatermarks.getOrDefault(
+                                            splitId, Watermark.UNINITIALIZED.getTimestamp()));
+            splitMetricGroup.markSplitStart();
+            this.splitMetricGroups.put(splitId, splitMetricGroup);
+        }
+        return this.splitMetricGroups.get(splitId);
+    }
+
+    @VisibleForTesting
+    public InternalSourceSplitMetricGroup getSplitMetricGroup(String splitId) {
+        return this.splitMetricGroups.get(splitId);
     }
 
     @Override
@@ -365,6 +405,9 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         final List<SplitT> splits = CollectionUtil.iterableToList(readerState.get());
         if (!splits.isEmpty()) {
             LOG.info("Restoring state for {} split(s) to reader.", splits.size());
+            for (SplitT s : splits) {
+                getOrCreateSplitMetricGroup(s.splitId());
+            }
             splitsToInitializeOutput.addAll(splits);
             sourceReader.addSplits(splits);
         }
@@ -621,7 +664,6 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private void handleAddSplitsEvent(AddSplitEvent<SplitT> event) {
         try {
             List<SplitT> newSplits = event.splits(splitSerializer);
-            numSplits += newSplits.size();
             if (operatingMode == OperatingMode.OUTPUT_NOT_INITIALIZED) {
                 // For splits arrived before the main output is initialized, store them into the
                 // pending list. Outputs of these splits will be created once the main output is
@@ -632,6 +674,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                 createOutputForSplits(newSplits);
             }
             sourceReader.addSplits(newSplits);
+            createMetricGroupForSplits(newSplits);
         } catch (IOException e) {
             throw new FlinkRuntimeException("Failed to deserialize the splits.", e);
         }
@@ -640,6 +683,12 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private void createOutputForSplits(List<SplitT> newSplits) {
         for (SplitT split : newSplits) {
             currentMainOutput.createOutputForSplit(split.splitId());
+        }
+    }
+
+    private void createMetricGroupForSplits(List<SplitT> newSplits) {
+        for (SplitT split : newSplits) {
+            getOrCreateSplitMetricGroup(split.splitId());
         }
     }
 
@@ -662,17 +711,26 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     @Override
     public void updateCurrentSplitWatermark(String splitId, long watermark) {
         splitCurrentWatermarks.put(splitId, watermark);
-        if (numSplits > 1
-                && watermark > currentMaxDesiredWatermark
-                && !currentlyPausedSplits.contains(splitId)) {
+        if (watermark > currentMaxDesiredWatermark && !currentlyPausedSplits.contains(splitId)) {
             pauseOrResumeSplits(Collections.singletonList(splitId), Collections.emptyList());
             currentlyPausedSplits.add(splitId);
         }
     }
 
     @Override
+    public void updateCurrentSplitIdle(String splitId, boolean idle) {
+        if (idle) {
+            this.getOrCreateSplitMetricGroup(splitId).markIdle();
+        } else {
+            this.getOrCreateSplitMetricGroup(splitId).markNotIdle();
+        }
+    }
+
+    @Override
     public void splitFinished(String splitId) {
         splitCurrentWatermarks.remove(splitId);
+        getOrCreateSplitMetricGroup(splitId).onSplitFinished();
+        this.splitMetricGroups.remove(splitId);
     }
 
     /**
@@ -682,11 +740,6 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
      * <p>Note: This takes effect only if there are multiple splits, otherwise it does nothing.
      */
     private void checkSplitWatermarkAlignment() {
-        if (numSplits <= 1) {
-            // A single split can't overtake any other splits assigned to this operator instance.
-            // It is sufficient for the source to stop processing.
-            return;
-        }
         Collection<String> splitsToPause = new ArrayList<>();
         Collection<String> splitsToResume = new ArrayList<>();
         splitCurrentWatermarks.forEach(
@@ -710,10 +763,21 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         try {
             sourceReader.pauseOrResumeSplits(splitsToPause, splitsToResume);
             eventTimeLogic.pauseOrResumeSplits(splitsToPause, splitsToResume);
+            reportPausedOrResumed(splitsToPause, splitsToResume);
         } catch (UnsupportedOperationException e) {
             if (!allowUnalignedSourceSplits) {
                 throw e;
             }
+        }
+    }
+
+    private void reportPausedOrResumed(
+            Collection<String> splitsToPause, Collection<String> splitsToResume) {
+        for (String splitId : splitsToResume) {
+            getOrCreateSplitMetricGroup(splitId).markNotPaused();
+        }
+        for (String splitId : splitsToPause) {
+            getOrCreateSplitMetricGroup(splitId).markPaused();
         }
     }
 
@@ -723,12 +787,14 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             if (shouldWaitForAlignment()) {
                 operatingMode = OperatingMode.WAITING_FOR_ALIGNMENT;
                 waitingForAlignmentFuture = new CompletableFuture<>();
+                mainInputActivityClock.pause();
             }
         } else if (operatingMode == OperatingMode.WAITING_FOR_ALIGNMENT) {
             checkState(!waitingForAlignmentFuture.isDone());
             if (!shouldWaitForAlignment()) {
                 operatingMode = OperatingMode.READING;
                 waitingForAlignmentFuture.complete(null);
+                mainInputActivityClock.unPause();
             }
         }
     }

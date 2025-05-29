@@ -29,7 +29,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
@@ -269,8 +268,13 @@ public interface RestfulGateway extends RpcGateway {
     /**
      * Deliver a coordination request to a specified coordinator and return the response.
      *
+     * <p>On the client side, a unique operatorUid must be defined to identify an operator.
+     * Otherwise, the query cannot be executed correctly. Note that we use operatorUid instead of
+     * operatorID because the latter is an internal runtime concept that cannot be recognized by the
+     * client.
+     *
      * @param jobId identifying the job which the coordinator belongs to
-     * @param operatorId identifying the coordinator to receive the request
+     * @param operatorUid identifying the coordinator to receive the request
      * @param serializedRequest serialized request to deliver
      * @param timeout RPC timeout
      * @return A future containing the response. The response will fail with a {@link
@@ -280,7 +284,7 @@ public interface RestfulGateway extends RpcGateway {
      */
     default CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
             JobID jobId,
-            OperatorID operatorId,
+            String operatorUid,
             SerializedValue<CoordinationRequest> serializedRequest,
             @RpcTimeout Duration timeout) {
         throw new UnsupportedOperationException();

@@ -52,7 +52,9 @@ public class MultipleFuturesAvailabilityHelper {
         futuresToCombine = new CompletableFuture[size];
     }
 
-    /** @return combined future using anyOf logic */
+    /**
+     * @return combined future using anyOf logic
+     */
     public CompletableFuture<?> getAvailableFuture() {
         return availableFuture;
     }

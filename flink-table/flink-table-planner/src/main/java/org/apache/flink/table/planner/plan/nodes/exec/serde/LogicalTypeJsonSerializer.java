@@ -246,7 +246,7 @@ final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
                             (RawType<?>) logicalType, jsonGenerator, serializerProvider);
                     break;
                 }
-                // fall through
+            // fall through
             default:
                 throw new ValidationException(
                         String.format(
@@ -514,7 +514,7 @@ final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
                     if (serializer.equals(NullSerializer.INSTANCE)) {
                         return false;
                     }
-                    // fall through
+                // fall through
                 case BOOLEAN:
                 case DECIMAL:
                 case TINYINT:

@@ -148,6 +148,7 @@ class FlinkPlannerImpl(
         || sqlNode.isInstanceOf[SqlShowProcedures]
         || sqlNode.isInstanceOf[SqlShowJobs]
         || sqlNode.isInstanceOf[SqlDescribeJob]
+        || sqlNode.isInstanceOf[SqlRichDescribeFunction]
         || sqlNode.isInstanceOf[SqlRichDescribeModel]
         || sqlNode.isInstanceOf[SqlRichDescribeTable]
         || sqlNode.isInstanceOf[SqlUnloadModule]

@@ -22,7 +22,9 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.operators.BatchGroupedReduceOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamGroupedReduceAsyncStateOperator;
 import org.apache.flink.streaming.api.operators.StreamGroupedReduceOperator;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.transformations.ReduceTransformation;
 
 import java.util.Collection;
@@ -66,15 +68,24 @@ public class ReduceTransformationTranslator<IN, KEY>
     @Override
     public Collection<Integer> translateForStreamingInternal(
             final ReduceTransformation<IN, KEY> transformation, final Context context) {
-        StreamGroupedReduceOperator<IN> groupedReduce =
-                new StreamGroupedReduceOperator<>(
-                        transformation.getReducer(),
-                        transformation
-                                .getInputType()
-                                .createSerializer(
-                                        context.getStreamGraph()
-                                                .getExecutionConfig()
-                                                .getSerializerConfig()));
+        StreamOperator<IN> groupedReduce =
+                transformation.isEnableAsyncState()
+                        ? new StreamGroupedReduceAsyncStateOperator<>(
+                                transformation.getReducer(),
+                                transformation
+                                        .getInputType()
+                                        .createSerializer(
+                                                context.getStreamGraph()
+                                                        .getExecutionConfig()
+                                                        .getSerializerConfig()))
+                        : new StreamGroupedReduceOperator<>(
+                                transformation.getReducer(),
+                                transformation
+                                        .getInputType()
+                                        .createSerializer(
+                                                context.getStreamGraph()
+                                                        .getExecutionConfig()
+                                                        .getSerializerConfig()));
 
         SimpleOperatorFactory<IN> operatorFactory = SimpleOperatorFactory.of(groupedReduce);
         operatorFactory.setChainingStrategy(transformation.getChainingStrategy());

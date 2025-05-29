@@ -190,15 +190,19 @@ public class SsgNetworkMemoryCalculationUtils {
 
                 IntermediateResultPartition resultPartition =
                         ejv.getGraph().getResultPartitionOrThrow((partitionGroup.getFirst()));
-                IndexRange subpartitionIndexRange =
+                Map<IndexRange, IndexRange> consumedSubpartitionGroups =
                         vertex.getExecutionVertexInputInfo(
                                         resultPartition.getIntermediateResult().getId())
-                                .getSubpartitionIndexRange();
+                                .getConsumedSubpartitionGroups();
+
+                int inputChannelNums = 0;
+                for (Map.Entry<IndexRange, IndexRange> entry :
+                        consumedSubpartitionGroups.entrySet()) {
+                    inputChannelNums += entry.getKey().size() * entry.getValue().size();
+                }
 
                 maxInputChannelNums.merge(
-                        partitionGroup.getIntermediateDataSetID(),
-                        subpartitionIndexRange.size() * partitionGroup.size(),
-                        Integer::max);
+                        partitionGroup.getIntermediateDataSetID(), inputChannelNums, Integer::max);
                 inputPartitionTypes.putIfAbsent(
                         partitionGroup.getIntermediateDataSetID(),
                         partitionGroup.getResultPartitionType());

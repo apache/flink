@@ -134,6 +134,7 @@
     "isBroadcast" : false,
     "leftIsBuild" : true,
     "tryDistinctBuildRow" : false,
+    "withJobStrategyHint": false,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",

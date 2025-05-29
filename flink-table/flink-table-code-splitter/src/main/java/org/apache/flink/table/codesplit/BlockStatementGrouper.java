@@ -309,13 +309,19 @@ public class BlockStatementGrouper {
      */
     private interface LocalGroupElement {
 
-        /** @return start {@link Token} for this group element. */
+        /**
+         * @return start {@link Token} for this group element.
+         */
         Token getStart();
 
-        /** @return stop {@link Token} for this group element. */
+        /**
+         * @return stop {@link Token} for this group element.
+         */
         Token getStop();
 
-        /** @return String representation of this group element. */
+        /**
+         * @return String representation of this group element.
+         */
         String getBody(TokenStreamRewriter rewriter);
 
         ParserRuleContext getContext();

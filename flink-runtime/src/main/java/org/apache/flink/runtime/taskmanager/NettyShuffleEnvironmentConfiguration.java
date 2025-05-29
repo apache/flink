@@ -60,6 +60,8 @@ public class NettyShuffleEnvironmentConfiguration {
 
     private final int networkBufferSize;
 
+    private final int startingBufferSize;
+
     private final int partitionRequestInitialBackoff;
 
     private final int partitionRequestMaxBackoff;
@@ -114,6 +116,7 @@ public class NettyShuffleEnvironmentConfiguration {
     public NettyShuffleEnvironmentConfiguration(
             int numNetworkBuffers,
             int networkBufferSize,
+            int startingBufferSize,
             int partitionRequestInitialBackoff,
             int partitionRequestMaxBackoff,
             int partitionRequestListenerTimeout,
@@ -138,6 +141,7 @@ public class NettyShuffleEnvironmentConfiguration {
 
         this.numNetworkBuffers = numNetworkBuffers;
         this.networkBufferSize = networkBufferSize;
+        this.startingBufferSize = startingBufferSize;
         this.partitionRequestInitialBackoff = partitionRequestInitialBackoff;
         this.partitionRequestMaxBackoff = partitionRequestMaxBackoff;
         this.partitionRequestListenerTimeout = partitionRequestListenerTimeout;
@@ -169,6 +173,10 @@ public class NettyShuffleEnvironmentConfiguration {
 
     public int networkBufferSize() {
         return networkBufferSize;
+    }
+
+    public int startingBufferSize() {
+        return startingBufferSize;
     }
 
     public int partitionRequestInitialBackoff() {
@@ -282,12 +290,22 @@ public class NettyShuffleEnvironmentConfiguration {
 
         final int pageSize = ConfigurationParserUtils.getPageSize(configuration);
 
+        int startingBufferSize = Integer.MAX_VALUE;
+        if (configuration.get(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED)) {
+            startingBufferSize =
+                    (int)
+                            configuration
+                                    .get(TaskManagerOptions.STARTING_MEMORY_SEGMENT_SIZE)
+                                    .getBytes();
+        }
+
         final NettyConfig nettyConfig =
                 createNettyConfig(
                         configuration,
                         localTaskManagerCommunication,
                         taskManagerAddress,
-                        dataBindPortRange);
+                        dataBindPortRange,
+                        pageSize);
 
         final int numberOfNetworkBuffers =
                 calculateNumberOfNetworkBuffers(networkMemorySize, pageSize);
@@ -360,6 +378,7 @@ public class NettyShuffleEnvironmentConfiguration {
         return new NettyShuffleEnvironmentConfiguration(
                 numberOfNetworkBuffers,
                 pageSize,
+                startingBufferSize,
                 initialRequestBackoff,
                 maxRequestBackoff,
                 listenerTimeout,
@@ -436,6 +455,8 @@ public class NettyShuffleEnvironmentConfiguration {
      * @param taskManagerAddress identifying the IP address under which the TaskManager will be
      *     accessible
      * @param dataPortRange data port range for communication and data exchange
+     * @param memorySegmentSize size of memory buffers used by the network stack and the memory
+     *     manager
      * @return the netty configuration or {@code null} if communication is in the same task manager
      */
     @Nullable
@@ -443,7 +464,8 @@ public class NettyShuffleEnvironmentConfiguration {
             Configuration configuration,
             boolean localTaskManagerCommunication,
             InetAddress taskManagerAddress,
-            PortRange dataPortRange) {
+            PortRange dataPortRange,
+            int memorySegmentSize) {
 
         final NettyConfig nettyConfig;
         if (!localTaskManagerCommunication) {
@@ -454,7 +476,7 @@ public class NettyShuffleEnvironmentConfiguration {
                     new NettyConfig(
                             taskManagerInetSocketAddress.getAddress(),
                             dataPortRange,
-                            ConfigurationParserUtils.getPageSize(configuration),
+                            memorySegmentSize,
                             ConfigurationParserUtils.getSlot(configuration),
                             configuration);
         } else {

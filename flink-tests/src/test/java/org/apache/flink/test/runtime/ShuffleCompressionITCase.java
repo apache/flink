@@ -46,6 +46,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Arrays;
 
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.junit.Assert.assertEquals;
 
 /** Tests network shuffle when data compression is enabled. */
@@ -106,7 +107,7 @@ public class ShuffleCompressionITCase {
         sink.setParallelism(PARALLELISM);
         sink.setSlotSharingGroup(slotSharingGroup);
 
-        sink.connectNewDataSetAsInput(source, DistributionPattern.ALL_TO_ALL, resultPartitionType);
+        connectNewDataSetAsInput(sink, source, DistributionPattern.ALL_TO_ALL, resultPartitionType);
 
         ExecutionConfig executionConfig = new ExecutionConfig();
 

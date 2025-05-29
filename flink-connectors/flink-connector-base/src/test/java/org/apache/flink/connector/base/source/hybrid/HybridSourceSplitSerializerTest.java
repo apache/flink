@@ -21,7 +21,7 @@ package org.apache.flink.connector.base.source.hybrid;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -31,10 +31,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link HybridSourceSplitSerializer}. */
-public class HybridSourceSplitSerializerTest {
+class HybridSourceSplitSerializerTest {
 
     @Test
-    public void testSerialization() throws Exception {
+    void testSerialization() throws Exception {
         Map<Integer, Source> switchedSources = new HashMap<>();
         switchedSources.put(0, new MockSource(null, 0));
         byte[] splitBytes = {1, 2, 3};

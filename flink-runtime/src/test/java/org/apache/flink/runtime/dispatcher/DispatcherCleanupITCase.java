@@ -21,7 +21,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.CleanupOptions;
 import org.apache.flink.core.execution.RecoveryClaimMode;
-import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.EmbeddedCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
@@ -37,7 +36,7 @@ import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -49,14 +48,11 @@ import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.runtime.testutils.TestingJobGraphStore;
+import org.apache.flink.runtime.testutils.TestingExecutionPlanStore;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.hamcrest.CoreMatchers;
-import org.hamcrest.collection.IsEmptyCollection;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -65,16 +61,14 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** An integration test for various fail-over scenarios of the {@link Dispatcher} component. */
 public class DispatcherCleanupITCase extends AbstractDispatcherTest {
@@ -95,8 +89,8 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                                 // First job cleanup still succeeded for the
                                 // CompletedCheckpointStore because the JobGraph cleanup happens
                                 // after the JobManagerRunner closing
-                                assertTrue(previous.getShutdownStatus().isPresent());
-                                assertTrue(previous.getAllCheckpoints().isEmpty());
+                                assertThat(previous.getShutdownStatus()).isPresent();
+                                assertThat(previous.getAllCheckpoints()).isEmpty();
                                 return new EmbeddedCompletedCheckpointStore(
                                         maxCheckpoints,
                                         previous.getAllCheckpoints(),
@@ -132,15 +126,15 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         final JobGraph jobGraph = createJobGraph();
         final JobID jobId = jobGraph.getJobID();
 
-        // JobGraphStore
+        // ExecutionPlanStore
         final AtomicInteger actualGlobalCleanupCallCount = new AtomicInteger();
         final OneShotLatch successfulCleanupLatch = new OneShotLatch();
         final int numberOfErrors = 5;
         final RuntimeException temporaryError =
                 new RuntimeException("Expected RuntimeException: Unable to remove job graph.");
         final AtomicInteger failureCount = new AtomicInteger(numberOfErrors);
-        final JobGraphStore jobGraphStore =
-                TestingJobGraphStore.newBuilder()
+        final ExecutionPlanStore executionPlanStore =
+                TestingExecutionPlanStore.newBuilder()
                         .setGlobalCleanupFunction(
                                 (ignoredJobId, ignoredExecutor) -> {
                                     actualGlobalCleanupCallCount.incrementAndGet();
@@ -154,8 +148,8 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                                 })
                         .build();
 
-        jobGraphStore.start(NoOpJobGraphListener.INSTANCE);
-        haServices.setJobGraphStore(jobGraphStore);
+        executionPlanStore.start(NoOpExecutionPlanListener.INSTANCE);
+        haServices.setExecutionPlanStore(executionPlanStore);
 
         // Construct leader election.
         final TestingLeaderElection leaderElection = new TestingLeaderElection();
@@ -172,7 +166,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                                         TestingRetryStrategies.createWithNumberOfRetries(
                                                 numberOfErrors),
                                         jobManagerRunnerRegistry,
-                                        haServices.getJobGraphStore(),
+                                        haServices.getExecutionPlanStore(),
                                         blobServer,
                                         haServices,
                                         UnregisteredMetricGroups
@@ -191,12 +185,11 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
 
         successfulCleanupLatch.await();
 
-        assertThat(actualGlobalCleanupCallCount.get(), equalTo(numberOfErrors + 1));
+        assertThat(actualGlobalCleanupCallCount.get()).isEqualTo(numberOfErrors + 1);
 
-        assertThat(
-                "The JobGraph should be removed from JobGraphStore.",
-                haServices.getJobGraphStore().getJobIds(),
-                IsEmptyCollection.empty());
+        assertThat(haServices.getExecutionPlanStore().getJobIds())
+                .as("The JobGraph should be removed from ExecutionPlanStore.")
+                .isEmpty();
 
         CommonTestUtils.waitUntilCondition(
                 () -> haServices.getJobResultStore().hasJobResultEntryAsync(jobId).get());
@@ -233,20 +226,15 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
 
         CommonTestUtils.waitUntilCondition(() -> jobManagerRunnerEntry.get() != null);
 
-        assertThat(
-                "The JobResultStore should have this job still marked as dirty.",
-                haServices.getJobResultStore().hasDirtyJobResultEntryAsync(jobId).get(),
-                CoreMatchers.is(true));
+        assertThat(haServices.getJobResultStore().hasDirtyJobResultEntryAsync(jobId).get())
+                .as("The JobResultStore should have this job still marked as dirty.")
+                .isTrue();
 
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
 
-        try {
-            dispatcherGateway.cancelJob(jobId, TIMEOUT).get();
-            Assert.fail("Should fail because cancelling the cleanup is not allowed.");
-        } catch (ExecutionException e) {
-            assertThat(e, FlinkMatchers.containsCause(JobCancellationFailedException.class));
-        }
+        assertThatThrownBy(() -> dispatcherGateway.cancelJob(jobId, TIMEOUT).get())
+                .hasCauseInstanceOf(JobCancellationFailedException.class);
         jobManagerRunnerCleanupFuture.complete(null);
 
         CommonTestUtils.waitUntilCondition(
@@ -258,12 +246,12 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         final JobGraph jobGraph = createJobGraph();
         final JobID jobId = jobGraph.getJobID();
 
-        // Construct job graph store.
+        // Construct execution plan store.
         final AtomicInteger actualGlobalCleanupCallCount = new AtomicInteger();
         final OneShotLatch firstCleanupTriggered = new OneShotLatch();
         final CompletableFuture<JobID> successfulJobGraphCleanup = new CompletableFuture<>();
-        final JobGraphStore jobGraphStore =
-                TestingJobGraphStore.newBuilder()
+        final ExecutionPlanStore executionPlanStore =
+                TestingExecutionPlanStore.newBuilder()
                         .setGlobalCleanupFunction(
                                 (actualJobId, ignoredExecutor) -> {
                                     final int callCount =
@@ -281,8 +269,8 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                                 })
                         .build();
 
-        jobGraphStore.start(NoOpJobGraphListener.INSTANCE);
-        haServices.setJobGraphStore(jobGraphStore);
+        executionPlanStore.start(NoOpExecutionPlanListener.INSTANCE);
+        haServices.setExecutionPlanStore(executionPlanStore);
 
         // Construct leader election.
         final TestingLeaderElection leaderElection = new TestingLeaderElection();
@@ -305,25 +293,22 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         waitForJobToFinish(confirmedLeaderInformation, dispatcherGateway, jobId);
         firstCleanupTriggered.await();
 
-        assertThat(
-                "The cleanup should have been triggered only once.",
-                actualGlobalCleanupCallCount.get(),
-                equalTo(1));
-        assertThat(
-                "The cleanup should not have reached the successful cleanup code path.",
-                successfulJobGraphCleanup.isDone(),
-                equalTo(false));
+        assertThat(actualGlobalCleanupCallCount.get())
+                .as("The cleanup should have been triggered only once.")
+                .isOne();
+        assertThat(successfulJobGraphCleanup.isDone())
+                .as("The cleanup should not have reached the successful cleanup code path.")
+                .isFalse();
 
+        assertThat(haServices.getExecutionPlanStore().getJobIds())
+                .as("The JobGraph is still stored in the ExecutionPlanStore.")
+                .containsExactly(jobId);
         assertThat(
-                "The JobGraph is still stored in the JobGraphStore.",
-                haServices.getJobGraphStore().getJobIds(),
-                equalTo(Collections.singleton(jobId)));
-        assertThat(
-                "The JobResultStore should have this job marked as dirty.",
-                haServices.getJobResultStore().getDirtyResults().stream()
-                        .map(JobResult::getJobId)
-                        .collect(Collectors.toSet()),
-                equalTo(Collections.singleton(jobId)));
+                        haServices.getJobResultStore().getDirtyResults().stream()
+                                .map(JobResult::getJobId)
+                                .collect(Collectors.toSet()))
+                .as("The JobResultStore should have this job marked as dirty.")
+                .containsExactly(jobId);
 
         // Run a second dispatcher, that restores our finished job.
         final Dispatcher secondDispatcher =
@@ -338,17 +323,16 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         CommonTestUtils.waitUntilCondition(
                 () -> haServices.getJobResultStore().getDirtyResults().isEmpty());
 
-        assertThat(
-                "The JobGraph is not stored in the JobGraphStore.",
-                haServices.getJobGraphStore().getJobIds(),
-                IsEmptyCollection.empty());
-        assertTrue(
-                "The JobResultStore has the job listed as clean.",
-                haServices.getJobResultStore().hasJobResultEntryAsync(jobId).get());
+        assertThat(haServices.getExecutionPlanStore().getJobIds())
+                .as("The JobGraph is not stored in the ExecutionPlanStore.")
+                .isEmpty();
+        assertThat(haServices.getJobResultStore().hasJobResultEntryAsync(jobId).get())
+                .as("The JobResultStore has the job listed as clean.")
+                .isTrue();
 
-        assertThat(successfulJobGraphCleanup.get(), equalTo(jobId));
+        assertThat(successfulJobGraphCleanup.get()).isEqualTo(jobId);
 
-        assertThat(actualGlobalCleanupCallCount.get(), equalTo(2));
+        assertThat(actualGlobalCleanupCallCount.get()).isEqualTo(2);
     }
 
     private void waitForJobToFinish(

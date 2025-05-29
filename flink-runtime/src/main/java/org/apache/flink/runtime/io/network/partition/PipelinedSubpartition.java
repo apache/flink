@@ -30,7 +30,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumerWithPartialRecordLength;
 import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Iterators;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,7 +107,7 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
     /** Writes in-flight data. */
     private ChannelStateWriter channelStateWriter;
 
-    private int bufferSize = Integer.MAX_VALUE;
+    private int bufferSize;
 
     /** The channelState Future of unaligned checkpoint. */
     @GuardedBy("buffers")
@@ -132,13 +132,17 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
     // ------------------------------------------------------------------------
 
     PipelinedSubpartition(
-            int index, int receiverExclusiveBuffersPerChannel, ResultPartition parent) {
+            int index,
+            int receiverExclusiveBuffersPerChannel,
+            int startingBufferSize,
+            ResultPartition parent) {
         super(index, parent);
 
         checkArgument(
                 receiverExclusiveBuffersPerChannel >= 0,
                 "Buffers per channel must be non-negative.");
         this.receiverExclusiveBuffersPerChannel = receiverExclusiveBuffersPerChannel;
+        this.bufferSize = startingBufferSize;
     }
 
     @Override

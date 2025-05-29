@@ -27,9 +27,9 @@ import javax.annotation.Nullable;
 
 import java.util.Map;
 
-import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.checkInsertOnly;
-import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.isDuplicate;
-import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.updateDeduplicateResult;
+import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.checkInsertOnly;
+import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.shouldKeepCurrentRow;
+import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.updateDeduplicateResult;
 
 /**
  * This function is used to get the first or last row for every key partition in miniBatch mode. But
@@ -64,7 +64,7 @@ public class RowTimeMiniBatchLatestChangeDeduplicateFunction
 
     @Override
     public RowData addInput(@Nullable RowData value, RowData input) throws Exception {
-        if (isDuplicate(value, input, rowtimeIndex, keepLastRow)) {
+        if (shouldKeepCurrentRow(value, input, rowtimeIndex, keepLastRow)) {
             return serializer.copy(input);
         }
         return value;
@@ -79,7 +79,7 @@ public class RowTimeMiniBatchLatestChangeDeduplicateFunction
             ctx.setCurrentKey(currentKey);
             RowData preRow = state.value();
             checkInsertOnly(bufferedRow);
-            if (isDuplicate(preRow, bufferedRow, rowtimeIndex, keepLastRow)) {
+            if (shouldKeepCurrentRow(preRow, bufferedRow, rowtimeIndex, keepLastRow)) {
                 updateDeduplicateResult(
                         generateUpdateBefore, generateInsert, preRow, bufferedRow, out);
                 state.update(bufferedRow);

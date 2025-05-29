@@ -73,7 +73,6 @@ public class NettyShuffleMetricFactory {
         checkNotNull(metricGroup);
         checkNotNull(networkBufferPool);
 
-        //noinspection deprecation
         internalRegisterShuffleMetrics(metricGroup, networkBufferPool);
     }
 

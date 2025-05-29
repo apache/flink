@@ -27,6 +27,7 @@ public class PbConstant {
     public static final String PB_MAP_KEY_NAME = "key";
     public static final String PB_MAP_VALUE_NAME = "value";
     public static final String PB_OUTER_CLASS_SUFFIX = "OuterClass";
+
     /**
      * JIT optimizer threshold is 8K, unicode encode one char use 1byte, so use 4K as
      * codegen_spilt_threshold，A conservative threshold is selected to prevent multiple element code

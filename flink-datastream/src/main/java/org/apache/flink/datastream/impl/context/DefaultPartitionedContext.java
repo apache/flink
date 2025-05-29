@@ -19,61 +19,50 @@
 package org.apache.flink.datastream.impl.context;
 
 import org.apache.flink.api.common.state.OperatorStateStore;
-import org.apache.flink.datastream.api.context.JobInfo;
+import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.context.ProcessingTimeManager;
 import org.apache.flink.datastream.api.context.RuntimeContext;
-import org.apache.flink.datastream.api.context.TaskInfo;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 /** The default implementation of {@link PartitionedContext}. */
-public class DefaultPartitionedContext implements PartitionedContext {
-    private final RuntimeContext context;
+public class DefaultPartitionedContext<OUT> extends AbstractPartitionedContext
+        implements PartitionedContext<OUT> {
 
-    private final DefaultStateManager stateManager;
-
-    private final ProcessingTimeManager processingTimeManager;
+    /**
+     * The {@link DefaultNonPartitionedContext} and {@link DefaultPartitionedContext} create a
+     * circular reference, so the {@code nonPartitionedContext} field of {@link
+     * DefaultPartitionedContext} should be set in a separate method, {@link
+     * DefaultPartitionedContext#setNonPartitionedContext(NonPartitionedContext)}, rather than in
+     * the constructor.
+     */
+    private NonPartitionedContext<OUT> nonPartitionedContext;
 
     public DefaultPartitionedContext(
             RuntimeContext context,
             Supplier<Object> currentKeySupplier,
-            Consumer<Object> currentKeySetter,
+            BiConsumer<Runnable, Object> processorWithKey,
             ProcessingTimeManager processingTimeManager,
             StreamingRuntimeContext operatorContext,
             OperatorStateStore operatorStateStore) {
-        this.context = context;
-        this.stateManager =
-                new DefaultStateManager(
-                        currentKeySupplier, currentKeySetter, operatorContext, operatorStateStore);
-        this.processingTimeManager = processingTimeManager;
+        super(
+                context,
+                currentKeySupplier,
+                processorWithKey,
+                processingTimeManager,
+                operatorContext,
+                operatorStateStore);
+    }
+
+    public void setNonPartitionedContext(NonPartitionedContext<OUT> nonPartitionedContext) {
+        this.nonPartitionedContext = nonPartitionedContext;
     }
 
     @Override
-    public JobInfo getJobInfo() {
-        return context.getJobInfo();
-    }
-
-    @Override
-    public TaskInfo getTaskInfo() {
-        return context.getTaskInfo();
-    }
-
-    @Override
-    public DefaultStateManager getStateManager() {
-        return stateManager;
-    }
-
-    @Override
-    public ProcessingTimeManager getProcessingTimeManager() {
-        return processingTimeManager;
-    }
-
-    @Override
-    public MetricGroup getMetricGroup() {
-        return context.getMetricGroup();
+    public NonPartitionedContext<OUT> getNonPartitionedContext() {
+        return nonPartitionedContext;
     }
 }

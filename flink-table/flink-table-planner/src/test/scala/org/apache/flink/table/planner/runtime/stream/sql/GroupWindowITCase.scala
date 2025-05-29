@@ -17,11 +17,9 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.legacy.api.Types
+import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.{changelogRow, registerData}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{ConcatDistinctAggFunction, WeightedAvg}
@@ -29,7 +27,7 @@ import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
-import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
+import org.apache.flink.table.types.DataType
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 
@@ -39,7 +37,6 @@ import org.junit.jupiter.api.extension.ExtendWith
 
 import java.lang.{Long => JLong}
 import java.time.{Duration, LocalDateTime, ZoneId, ZoneOffset}
-import java.time.Duration
 import java.util
 
 import scala.collection.JavaConversions._
@@ -363,30 +360,41 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
 
     val result = tEnv.sqlQuery(sql)
 
-    val fieldTypes: Array[TypeInformation[_]] = Array(
-      Types.STRING,
-      Types.LOCAL_DATE_TIME,
-      Types.LOCAL_DATE_TIME,
-      Types.LONG,
-      Types.LONG,
-      Types.INT,
-      Types.LONG,
-      Types.INT,
-      Types.INT,
-      Types.INT)
-    val fieldNames = fieldTypes.indices.map("f" + _).toArray
+    val fieldTypes: List[DataType] = List(
+      DataTypes.STRING,
+      DataTypes.TIMESTAMP(3).bridgedTo(classOf[LocalDateTime]),
+      DataTypes.TIMESTAMP(3).bridgedTo(classOf[LocalDateTime]),
+      DataTypes.BIGINT,
+      DataTypes.BIGINT,
+      DataTypes.INT,
+      DataTypes.BIGINT,
+      DataTypes.INT,
+      DataTypes.INT,
+      DataTypes.INT
+    )
+    val fieldNames = fieldTypes.indices.map("f" + _).toList
 
-    val sink = new TestingUpsertTableSink(Array(0, 1)).configure(fieldNames, fieldTypes)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink",
+      fieldNames,
+      fieldTypes,
+      ChangelogMode.upsert(),
+      fieldNames.take(2)
+    )
     result.executeInsert("MySink").await()
 
     val expected = Seq(
-      "Hi,1970-01-01T00:00,1970-01-01T00:00:00.005,1,1,1,1,1,1,1",
-      "Hello,1970-01-01T00:00,1970-01-01T00:00:00.005,2,3,2,3,2,3,7",
-      "Hello world,1970-01-01T00:00:00.015,1970-01-01T00:00:00.020,1,1,3,16,3,3,3",
-      "Hello world,1970-01-01T00:00:00.005,1970-01-01T00:00:00.010,2,2,3,8,3,4,7"
+      "+I[Hi, 1970-01-01T00:00, 1970-01-01T00:00:00.005, 1, 1, 1, 1, 1, 1, 1]",
+      "+I[Hello, 1970-01-01T00:00, 1970-01-01T00:00:00.005, 2, 3, 2, 3, 2, 3, 7]",
+      "+I[Hello world, 1970-01-01T00:00:00.015, 1970-01-01T00:00:00.020, 1, 1, 3, 16, 3, 3, 3]",
+      "+I[Hello world, 1970-01-01T00:00:00.005, 1970-01-01T00:00:00.010, 2, 2, 3, 8, 3, 4, 7]"
     )
-    assertThat(sink.getUpsertResults.sorted.mkString("\n"))
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted
+        .mkString("\n"))
       .isEqualTo(expected.sorted.mkString("\n"))
   }
 
@@ -465,18 +473,24 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
         |""".stripMargin
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
-    val sink = new TestingRetractTableSink().configure(
-      schema.getFieldNames,
-      schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink1", sink)
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink1",
+      util.Arrays.asList(schema.getFieldNames: _*).toList,
+      schema.getFieldDataTypes.map(_.nullable()).toList,
+      ChangelogMode.all()
+    )
     table.executeInsert("MySink1").await()
 
     val expected = Seq(
-      "US Dollar,1,104,1970-01-01T00:00,1970-01-01T00:00:05",
-      "Yen,1,1,1970-01-01T00:00,1970-01-01T00:00:05",
-      "Euro,1,118,1970-01-01T00:00:15,1970-01-01T00:00:20"
+      "+I[US Dollar, 1, 104, 1970-01-01T00:00, 1970-01-01T00:00:05]",
+      "+I[Yen, 1, 1, 1970-01-01T00:00, 1970-01-01T00:00:05]",
+      "+I[Euro, 1, 118, 1970-01-01T00:00:15, 1970-01-01T00:00:20]"
     )
-    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink1")
+        .sorted).isEqualTo(expected.sorted)
   }
 
   @TestTemplate

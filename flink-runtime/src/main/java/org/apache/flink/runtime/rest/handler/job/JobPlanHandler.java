@@ -75,6 +75,6 @@ public class JobPlanHandler
     }
 
     private static JobPlanInfo createJobPlanInfo(AccessExecutionGraph executionGraph) {
-        return new JobPlanInfo(executionGraph.getJsonPlan());
+        return new JobPlanInfo(executionGraph.getPlan());
     }
 }

@@ -66,6 +66,7 @@ abstract class AggTestBase(isBatchMode: Boolean) {
   val aggInfo1: AggregateInfo = {
     val aggInfo = mock(classOf[AggregateInfo])
     val call = mock(classOf[AggregateCall])
+    updateFilter(call, -1)
     when(aggInfo.agg).thenReturn(call)
     when(call.getName).thenReturn("avg1")
     when(call.hasFilter).thenReturn(false)
@@ -81,6 +82,7 @@ abstract class AggTestBase(isBatchMode: Boolean) {
   val aggInfo2: AggregateInfo = {
     val aggInfo = mock(classOf[AggregateInfo])
     val call = mock(classOf[AggregateCall])
+    updateFilter(call, -1)
     when(aggInfo.agg).thenReturn(call)
     when(call.getName).thenReturn("avg2")
     when(call.hasFilter).thenReturn(false)
@@ -97,6 +99,7 @@ abstract class AggTestBase(isBatchMode: Boolean) {
   val aggInfo3: AggregateInfo = {
     val aggInfo = mock(classOf[AggregateInfo])
     val call = mock(classOf[AggregateCall])
+    updateFilter(call, -1)
     when(aggInfo.agg).thenReturn(call)
     when(call.getName).thenReturn("avg3")
     when(call.hasFilter).thenReturn(false)
@@ -117,4 +120,10 @@ abstract class AggTestBase(isBatchMode: Boolean) {
   val classLoader: ClassLoader = Thread.currentThread().getContextClassLoader
   val context: ExecutionContext = mock(classOf[ExecutionContext])
   when(context.getRuntimeContext).thenReturn(mock(classOf[RuntimeContext]))
+
+  private def updateFilter(call: AggregateCall, v: Int): Unit = {
+    val field = call.getClass.getField("filterArg")
+    field.setAccessible(true)
+    field.set(call, v)
+  }
 }

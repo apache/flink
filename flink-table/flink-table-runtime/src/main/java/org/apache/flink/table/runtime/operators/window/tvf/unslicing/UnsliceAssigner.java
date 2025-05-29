@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.operators.window.tvf.unslicing;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.operators.aggregate.window.processors.UnsliceWindowAggProcessor;
+import org.apache.flink.table.runtime.operators.aggregate.window.processors.UnsliceSyncStateWindowAggProcessor;
 import org.apache.flink.table.runtime.operators.window.Window;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.MergingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.groupwindow.internal.MergingWindowProcessFunction;
@@ -41,7 +41,7 @@ import java.util.Optional;
  * boundaries are determined based on the messages timestamps and their correlations, some windows
  * may be merged into one.
  *
- * @see UnsliceWindowAggProcessor for more definition of unslice window.
+ * @see UnsliceSyncStateWindowAggProcessor for more definition of unslice window.
  */
 @Internal
 public interface UnsliceAssigner<W extends Window> extends WindowAssigner {

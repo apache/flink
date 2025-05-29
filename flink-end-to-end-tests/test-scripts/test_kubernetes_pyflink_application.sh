@@ -42,13 +42,13 @@ fi
 
 FLINK_PYTHON_DIR=`cd "${CURRENT_DIR}/../../flink-python" && pwd -P`
 
-CONDA_HOME="${FLINK_PYTHON_DIR}/dev/.conda"
+UV_HOME="${FLINK_PYTHON_DIR}/dev/.uv"
 
-"${FLINK_PYTHON_DIR}/dev/lint-python.sh" -s miniconda
+"${FLINK_PYTHON_DIR}/dev/lint-python.sh" -s uv
 
-PYTHON_EXEC="${CONDA_HOME}/bin/python"
+PYTHON_EXEC="${UV_HOME}/bin/python"
 
-source "${CONDA_HOME}/bin/activate"
+source "${UV_HOME}/bin/activate"
 
 cd "${FLINK_PYTHON_DIR}"
 
@@ -64,12 +64,10 @@ python setup.py sdist
 
 cd dev
 
-rm -rf .conda/pkgs
-
 deactivate
 
-PYFLINK_PACKAGE_FILE=$(basename "${FLINK_PYTHON_DIR}"/dist/apache-flink-*.tar.gz)
-PYFLINK_LIBRARIES_PACKAGE_FILE=$(basename "${FLINK_PYTHON_DIR}"/apache-flink-libraries/dist/apache-flink-libraries-*.tar.gz)
+PYFLINK_PACKAGE_FILE=$(basename "${FLINK_PYTHON_DIR}"/dist/apache_flink-*.tar.gz)
+PYFLINK_LIBRARIES_PACKAGE_FILE=$(basename "${FLINK_PYTHON_DIR}"/apache-flink-libraries/dist/apache_flink_libraries-*.tar.gz)
 echo ${PYFLINK_PACKAGE_FILE}
 echo ${PYFLINK_LIBRARIES_PACKAGE_FILE}
 # Create a new docker image that has python and PyFlink installed.
@@ -88,12 +86,12 @@ echo "COPY dev-requirements.txt /tmp/dev-requirements.txt" >> Dockerfile
 echo "RUN bash /tmp/lint-python.sh -s basic" >> Dockerfile
 echo "COPY ${PYFLINK_PACKAGE_FILE} ${PYFLINK_PACKAGE_FILE}" >> Dockerfile
 echo "COPY ${PYFLINK_LIBRARIES_PACKAGE_FILE} ${PYFLINK_LIBRARIES_PACKAGE_FILE}" >> Dockerfile
-echo "RUN /tmp/.conda/bin/python -m pip install -r /tmp/dev-requirements.txt"  >> Dockerfile
-echo "RUN /tmp/.conda/bin/python -m pip install ${PYFLINK_LIBRARIES_PACKAGE_FILE}" >> Dockerfile
-echo "RUN /tmp/.conda/bin/python -m pip install ${PYFLINK_PACKAGE_FILE}" >> Dockerfile
+echo "RUN /tmp/.uv/bin/python -m pip install -r /tmp/dev-requirements.txt"  >> Dockerfile
+echo "RUN /tmp/.uv/bin/python -m pip install ${PYFLINK_LIBRARIES_PACKAGE_FILE}" >> Dockerfile
+echo "RUN /tmp/.uv/bin/python -m pip install ${PYFLINK_PACKAGE_FILE}" >> Dockerfile
 echo "RUN rm ${PYFLINK_LIBRARIES_PACKAGE_FILE}" >> Dockerfile
 echo "RUN rm ${PYFLINK_PACKAGE_FILE}" >> Dockerfile
-echo "ENV PATH /tmp/.conda/bin:\$PATH" >> Dockerfile
+echo "ENV PATH /tmp/.uv/bin:\$PATH" >> Dockerfile
 docker build --no-cache --network="host" -t ${PYFLINK_IMAGE_NAME} .
 
 kubectl create clusterrolebinding ${CLUSTER_ROLE_BINDING} --clusterrole=edit --serviceaccount=default:default --namespace=default

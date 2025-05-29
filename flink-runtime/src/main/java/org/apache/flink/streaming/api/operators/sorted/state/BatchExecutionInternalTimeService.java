@@ -40,25 +40,23 @@ public class BatchExecutionInternalTimeService<K, N> implements InternalTimerSer
     private static final Logger LOG =
             LoggerFactory.getLogger(BatchExecutionInternalTimeService.class);
 
-    private final ProcessingTimeService processingTimeService;
+    final ProcessingTimeService processingTimeService;
 
     /** Processing time timers that are currently in-flight. */
-    private final KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>>
-            processingTimeTimersQueue;
+    final KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> processingTimeTimersQueue;
 
     /** Event time timers that are currently in-flight. */
-    private final KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>>
-            eventTimeTimersQueue;
+    final KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> eventTimeTimersQueue;
 
     /**
      * The local event time, as denoted by the last received {@link
      * org.apache.flink.streaming.api.watermark.Watermark Watermark}.
      */
-    private long currentWatermark = Long.MIN_VALUE;
+    long currentWatermark = Long.MIN_VALUE;
 
-    private final Triggerable<K, N> triggerTarget;
+    final Triggerable<K, N> triggerTarget;
 
-    private K currentKey;
+    K currentKey;
 
     BatchExecutionInternalTimeService(
             ProcessingTimeService processingTimeService, Triggerable<K, N> triggerTarget) {

@@ -24,6 +24,8 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.legacy.sinks.TableSink;
 
@@ -65,7 +67,8 @@ public interface TableSinkFactory<T> extends TableFactory {
      */
     @Deprecated
     default TableSink<T> createTableSink(ObjectPath tablePath, CatalogTable table) {
-        return createTableSink(table.toProperties());
+        return createTableSink(
+                ((ResolvedCatalogTable) table).toProperties(DefaultSqlFactory.INSTANCE));
     }
 
     /**
@@ -82,10 +85,14 @@ public interface TableSinkFactory<T> extends TableFactory {
     @Internal
     interface Context {
 
-        /** @return full identifier of the given {@link CatalogTable}. */
+        /**
+         * @return full identifier of the given {@link CatalogTable}.
+         */
         ObjectIdentifier getObjectIdentifier();
 
-        /** @return table {@link CatalogTable} instance. */
+        /**
+         * @return table {@link CatalogTable} instance.
+         */
         CatalogTable getTable();
 
         /**

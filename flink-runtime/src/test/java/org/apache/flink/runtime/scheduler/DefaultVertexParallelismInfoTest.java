@@ -86,7 +86,7 @@ class DefaultVertexParallelismInfoTest {
     void setAutoMax() {
         DefaultVertexParallelismInfo info =
                 new DefaultVertexParallelismInfo(
-                        1, ExecutionConfig.PARALLELISM_AUTO_MAX, ALWAYS_VALID);
+                        1, DefaultVertexParallelismInfo.PARALLELISM_AUTO_MAX, ALWAYS_VALID);
 
         assertThat(info.getMaxParallelism())
                 .isEqualTo(KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM);
@@ -105,7 +105,8 @@ class DefaultVertexParallelismInfoTest {
     void canRescaleMaxAuto() {
         DefaultVertexParallelismInfo info = new DefaultVertexParallelismInfo(1, 1, ALWAYS_VALID);
 
-        assertThat(info.canRescaleMaxParallelism(ExecutionConfig.PARALLELISM_AUTO_MAX)).isTrue();
+        assertThat(info.canRescaleMaxParallelism(DefaultVertexParallelismInfo.PARALLELISM_AUTO_MAX))
+                .isTrue();
     }
 
     @Test

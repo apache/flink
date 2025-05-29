@@ -31,7 +31,7 @@ org.apache.flink.table.catalog.exceptions.CatalogException: A catalog with name 
 
 create catalog invalid.cat with ('type'='generic_in_memory');
 !output
-org.apache.flink.sql.parser.impl.ParseException: Encountered "." at line 1, column 23.
+org.apache.flink.sql.parser.impl.ParseException: Encountered "." at line 0, column 23.
 Was expecting one of:
     <EOF> 
     "WITH" ...
@@ -67,6 +67,46 @@ show catalogs;
 | default_catalog |
 +-----------------+
 2 rows in set
+!ok
+
+show catalogs like '%c1';
+!output
++--------------+
+| catalog name |
++--------------+
+|           c1 |
++--------------+
+1 row in set
+!ok
+
+show catalogs not like 'default%';
+!output
++--------------+
+| catalog name |
++--------------+
+|           c1 |
++--------------+
+1 row in set
+!ok
+
+show catalogs ilike '%c1';
+!output
++--------------+
+| catalog name |
++--------------+
+|           c1 |
++--------------+
+1 row in set
+!ok
+
+show catalogs not ilike 'default%';
+!output
++--------------+
+| catalog name |
++--------------+
+|           c1 |
++--------------+
+1 row in set
 !ok
 
 show current catalog;

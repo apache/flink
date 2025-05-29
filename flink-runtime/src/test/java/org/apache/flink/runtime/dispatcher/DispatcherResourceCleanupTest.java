@@ -50,6 +50,7 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -83,9 +84,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
-import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.apache.flink.runtime.dispatcher.AbstractDispatcherTest.awaitStatus;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
@@ -271,12 +271,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         startDispatcher(new FailingJobManagerRunnerFactory(new FlinkException("Test exception")));
         final CompletableFuture<Acknowledge> submissionFuture = submitJob();
 
-        try {
-            submissionFuture.get();
-            fail("Job submission was expected to fail.");
-        } catch (ExecutionException ee) {
-            assertThat(ee, containsCause(JobSubmissionException.class));
-        }
+        assertThatThrownBy(submissionFuture::get).hasCauseInstanceOf(JobSubmissionException.class);
 
         assertGlobalCleanupTriggered(jobId);
     }
@@ -646,15 +641,12 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
         // submit and fail during job master runner construction
         queue.offer(Optional.of(testException));
-        try {
-            dispatcherGateway.submitJob(jobGraph, Duration.ofMinutes(1)).get();
-            fail("A FlinkException is expected");
-        } catch (Throwable expectedException) {
-            assertThat(expectedException, containsCause(FlinkException.class));
-            assertThat(expectedException, containsMessage(testException.getMessage()));
-            // make sure we've cleaned up in correct order (including HA)
-            assertGlobalCleanupTriggered(jobId);
-        }
+        assertThatThrownBy(() -> dispatcherGateway.submitJob(jobGraph, Duration.ofMinutes(1)).get())
+                .hasCauseInstanceOf(FlinkException.class)
+                .hasRootCauseMessage(testException.getMessage());
+
+        // make sure we've cleaned up in correct order (including HA)
+        assertGlobalCleanupTriggered(jobId);
 
         // don't fail this time
         queue.offer(Optional.empty());
@@ -730,7 +722,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
         @Override
         public TestingJobManagerRunner createJobManagerRunner(
-                JobGraph jobGraph,
+                ExecutionPlan executionPlan,
                 Configuration configuration,
                 RpcService rpcService,
                 HighAvailabilityServices highAvailabilityServices,
@@ -745,7 +737,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
             this.testingRunner =
                     super.createJobManagerRunner(
-                            jobGraph,
+                            executionPlan,
                             configuration,
                             rpcService,
                             highAvailabilityServices,
@@ -764,8 +756,9 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                                                     new ExecutionGraphInfo(
                                                             ArchivedExecutionGraph
                                                                     .createSparseArchivedExecutionGraph(
-                                                                            jobGraph.getJobID(),
-                                                                            jobGraph.getName(),
+                                                                            executionPlan
+                                                                                    .getJobID(),
+                                                                            executionPlan.getName(),
                                                                             JobStatus.RUNNING,
                                                                             null,
                                                                             null,
@@ -793,7 +786,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
         @Override
         public JobManagerRunner createJobManagerRunner(
-                JobGraph jobGraph,
+                ExecutionPlan executionPlan,
                 Configuration configuration,
                 RpcService rpcService,
                 HighAvailabilityServices highAvailabilityServices,
@@ -820,7 +813,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
         @Override
         public JobManagerRunner createJobManagerRunner(
-                JobGraph jobGraph,
+                ExecutionPlan executionPlan,
                 Configuration configuration,
                 RpcService rpcService,
                 HighAvailabilityServices highAvailabilityServices,

@@ -45,6 +45,11 @@ import static org.junit.Assert.fail;
 @SuppressWarnings("serial")
 public abstract class SimpleRecoveryITCaseBase extends TestLogger {
 
+    private static final int PARALLELISM = 4;
+    private static final int DATA_FROM = 1;
+    private static final int DATA_TO = PARALLELISM * PARALLELISM;
+    private static final int EXPECTED_SUM = (DATA_FROM + DATA_TO) * (DATA_TO - DATA_FROM + 1) / 2;
+
     @ClassRule
     public static final MiniClusterWithClientResource MINI_CLUSTER_WITH_CLIENT_RESOURCE =
             new MiniClusterWithClientResource(
@@ -63,14 +68,14 @@ public abstract class SimpleRecoveryITCaseBase extends TestLogger {
                         StreamExecutionEnvironment.getExecutionEnvironment();
                 env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
-                env.setParallelism(4);
+                env.setParallelism(PARALLELISM);
                 Configuration configuration = new Configuration();
                 configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
                 env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
                 try {
                     CloseableIterator<Long> iterator =
-                            env.fromSequence(1, 10)
+                            env.fromSequence(DATA_FROM, DATA_TO)
                                     .rebalance()
                                     .map(new FailingMapper1<>())
                                     .fullWindowPartition()
@@ -89,14 +94,14 @@ public abstract class SimpleRecoveryITCaseBase extends TestLogger {
                         StreamExecutionEnvironment.getExecutionEnvironment();
                 env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
-                env.setParallelism(4);
+                env.setParallelism(PARALLELISM);
                 Configuration configuration = new Configuration();
                 configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
                 env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
                 List<Long> resultCollection =
                         CollectionUtil.iteratorToList(
-                                env.fromSequence(1, 10)
+                                env.fromSequence(DATA_FROM, DATA_TO)
                                         .rebalance()
                                         .map(new FailingMapper1<>())
                                         .fullWindowPartition()
@@ -107,7 +112,7 @@ public abstract class SimpleRecoveryITCaseBase extends TestLogger {
                 for (long l : resultCollection) {
                     sum += l;
                 }
-                assertEquals(55, sum);
+                assertEquals(EXPECTED_SUM, sum);
             }
 
         } finally {
@@ -121,12 +126,12 @@ public abstract class SimpleRecoveryITCaseBase extends TestLogger {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
-            env.setParallelism(4);
+            env.setParallelism(PARALLELISM);
             // the default restart strategy should be taken
 
             List<Long> resultCollection =
                     CollectionUtil.iteratorToList(
-                            env.fromSequence(1, 10)
+                            env.fromSequence(DATA_FROM, DATA_TO)
                                     .rebalance()
                                     .map(new FailingMapper2<>())
                                     .fullWindowPartition()
@@ -137,7 +142,7 @@ public abstract class SimpleRecoveryITCaseBase extends TestLogger {
             for (long l : resultCollection) {
                 sum += l;
             }
-            assertEquals(55, sum);
+            assertEquals(EXPECTED_SUM, sum);
         } finally {
             FailingMapper2.failuresBeforeSuccess = 1;
         }
@@ -149,11 +154,11 @@ public abstract class SimpleRecoveryITCaseBase extends TestLogger {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
-            env.setParallelism(4);
+            env.setParallelism(PARALLELISM);
 
             List<Long> resultCollection =
                     CollectionUtil.iteratorToList(
-                            env.fromSequence(1, 10)
+                            env.fromSequence(DATA_FROM, DATA_TO)
                                     .rebalance()
                                     .map(new FailingMapper3<>())
                                     .fullWindowPartition()
@@ -164,7 +169,7 @@ public abstract class SimpleRecoveryITCaseBase extends TestLogger {
             for (long l : resultCollection) {
                 sum += l;
             }
-            assertEquals(55, sum);
+            assertEquals(EXPECTED_SUM, sum);
         } finally {
             FailingMapper3.failuresBeforeSuccess = 3;
         }

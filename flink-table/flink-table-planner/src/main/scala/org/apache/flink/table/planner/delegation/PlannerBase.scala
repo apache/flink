@@ -24,10 +24,9 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectRea
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.PlanReference.{ContentPlanReference, FilePlanReference, ResourcePlanReference}
+import org.apache.flink.table.api.PlanReference.{BytesContentPlanReference, FilePlanReference, JsonContentPlanReference, ResourcePlanReference}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.catalog._
-import org.apache.flink.table.catalog.ManagedTableListener.isManagedTable
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.delegation._
 import org.apache.flink.table.factories.{DynamicTableSinkFactory, FactoryUtil, TableFactoryUtil}
@@ -47,7 +46,7 @@ import org.apache.flink.table.planner.plan.ExecNodeGraphInternalPlan
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNodeGraph, ExecNodeGraphGenerator}
 import org.apache.flink.table.planner.plan.nodes.exec.processor.{ExecNodeGraphProcessor, ProcessorContext}
-import org.apache.flink.table.planner.plan.nodes.exec.serde.{JsonSerdeUtil, SerdeContext}
+import org.apache.flink.table.planner.plan.nodes.exec.serde.{CompiledPlanSerdeUtil, SerdeContext}
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.Optimizer
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
@@ -190,12 +189,16 @@ abstract class PlannerBase(
 
   override def loadPlan(planReference: PlanReference): InternalPlan = {
     val ctx = createSerdeContext
-    val objectReader: ObjectReader = JsonSerdeUtil.createObjectReader(ctx)
+    val objectReader: ObjectReader = CompiledPlanSerdeUtil.createJsonObjectReader(ctx)
     val execNodeGraph = planReference match {
       case filePlanReference: FilePlanReference =>
         objectReader.readValue(filePlanReference.getFile, classOf[ExecNodeGraph])
-      case contentPlanReference: ContentPlanReference =>
+      case contentPlanReference: JsonContentPlanReference =>
         objectReader.readValue(contentPlanReference.getContent, classOf[ExecNodeGraph])
+      case byteContentPlanReference: BytesContentPlanReference =>
+        CompiledPlanSerdeUtil
+          .createSmileObjectReader(ctx)
+          .readValue(byteContentPlanReference.getContent, classOf[ExecNodeGraph])
       case resourcePlanReference: ResourcePlanReference =>
         val url = resourcePlanReference.getClassLoader
           .getResource(resourcePlanReference.getResourcePath)
@@ -232,10 +235,11 @@ abstract class PlannerBase(
       execNodeGraph: ExecNodeGraph) = {
     new ExecNodeGraphInternalPlan(
       () =>
-        JsonSerdeUtil
-          .createObjectWriter(ctx)
+        CompiledPlanSerdeUtil
+          .createJsonObjectWriter(ctx)
           .withDefaultPrettyPrinter()
           .writeValueAsString(execNodeGraph),
+      () => CompiledPlanSerdeUtil.createSmileObjectWriter(ctx).writeValueAsBytes(execNodeGraph),
       execNodeGraph)
   }
 
@@ -389,7 +393,7 @@ abstract class PlannerBase(
   @VisibleForTesting
   private[flink] def optimize(relNodes: Seq[RelNode]): Seq[RelNode] = {
     val optimizedRelNodes = getOptimizer.optimize(relNodes)
-    require(optimizedRelNodes.size == relNodes.size)
+    require(optimizedRelNodes.size <= relNodes.size)
     optimizedRelNodes
   }
 
@@ -469,19 +473,8 @@ abstract class PlannerBase(
         val isTemporary = contextResolvedTable.isTemporary
 
         if (
-          isStreamingMode && isManagedTable(catalog.orNull, resolvedTable) &&
-          !executor.isCheckpointingEnabled
-        ) {
-          throw new TableException(
-            s"You should enable the checkpointing for sinking to managed table " +
-              s"'$contextResolvedTable', managed table relies on checkpoint to commit and " +
-              s"the data is visible only after commit.")
-        }
-
-        if (
           !contextResolvedTable.isAnonymous &&
           TableFactoryUtil.isLegacyConnectorOptions(
-            catalogManager.getCatalog(objectIdentifier.getCatalogName).orElse(null),
             tableConfig,
             isStreamingMode,
             objectIdentifier,
@@ -490,7 +483,6 @@ abstract class PlannerBase(
           )
         ) {
           val tableSink = TableFactoryUtil.findAndCreateTableSink(
-            catalog.orNull,
             objectIdentifier,
             tableToFind,
             getTableConfig,
@@ -541,7 +533,7 @@ abstract class PlannerBase(
       staticPartitions: JMap[String, String],
       isOverwrite: Boolean): RelNode = {
     val input = createRelBuilder.queryOperation(queryOperation).build()
-    val table = catalogManager.resolveCatalogTable(createTableOperation.getCatalogTable)
+    val table = createTableOperation.getCatalogTable
 
     val identifier = createTableOperation.getTableIdentifier
     val catalog = toScala(catalogManager.getCatalog(identifier.getCatalogName))
@@ -625,7 +617,7 @@ abstract class PlannerBase(
               contextResolvedTable,
               new PlannerQueryOperation(
                 modify.getInput,
-                () => queryOperation.asSerializableString())
+                () => queryOperation.asSerializableString(catalogManager.getSqlFactory))
             )
             translateToRel(modifyOperation)
           case _ =>

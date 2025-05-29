@@ -32,6 +32,7 @@ export type ColorKey =
   | 'SCHEDULED'
   | 'COMPLETED'
   | 'RESTARTING'
+  | 'PENDING'
   | 'INITIALIZING';
 
 @Injectable({
@@ -54,7 +55,8 @@ export class ConfigService {
     SCHEDULED: '#722ed1',
     COMPLETED: '#1890ff',
     RESTARTING: '#13c2c2',
-    INITIALIZING: '#738df8'
+    INITIALIZING: '#738df8',
+    PENDING: '#95a5a6'
   };
 
   LONG_MIN_VALUE = -9223372036854776000;

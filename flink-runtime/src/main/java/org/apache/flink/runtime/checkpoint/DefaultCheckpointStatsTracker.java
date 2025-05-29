@@ -256,7 +256,13 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
                             .setAttribute("checkpointId", checkpointStats.getCheckpointId())
                             .setAttribute("fullSize", checkpointStats.getStateSize())
                             .setAttribute("checkpointedSize", checkpointStats.getCheckpointedSize())
-                            .setAttribute("checkpointStatus", checkpointStats.getStatus().name()));
+                            .setAttribute("checkpointStatus", checkpointStats.getStatus().name())
+                            .setAttribute(
+                                    "isUnaligned",
+                                    Boolean.toString(checkpointStats.isUnalignedCheckpoint()))
+                            .setAttribute(
+                                    "checkpointType",
+                                    checkpointStats.getProperties().getCheckpointType().getName()));
             if (LOG.isDebugEnabled()) {
                 StringWriter sw = new StringWriter();
                 MAPPER.writeValue(

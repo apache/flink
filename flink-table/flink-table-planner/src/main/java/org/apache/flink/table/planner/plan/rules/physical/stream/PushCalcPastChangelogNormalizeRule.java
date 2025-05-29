@@ -67,7 +67,9 @@ import static org.apache.flink.table.planner.plan.utils.RexNodeExtractor.extract
  * size of its state.
  *
  * <p>Note that pushing primary key filters is safe to do, but pushing any other filters can lead to
- * incorrect results.
+ * incorrect results. Other filter conditions are pushed into the ChangelogNormalize operator. That
+ * way we can reduce the state of the operator if records don't match the filter. It's especially
+ * useful in case of highly selective filters.
  */
 @Internal
 @Value.Enclosing
@@ -103,22 +105,28 @@ public class PushCalcPastChangelogNormalizeRule
                     primaryKeyPredicates,
                     otherPredicates);
         }
+        if (changelogNormalize.filterCondition() != null) {
+            otherPredicates.add(changelogNormalize.filterCondition());
+        }
 
         // used input field indices
-        int[] usedInputFields = extractUsedInputFields(calc, primaryKeyIndices);
+        int[] usedInputFields = extractUsedInputFields(calc, changelogNormalize, primaryKeyIndices);
 
         // Construct a new ChangelogNormalize which has used fields project
         // and primary key filters pushed into it
         final StreamPhysicalChangelogNormalize newChangelogNormalize =
-                pushCalcThroughChangelogNormalize(call, primaryKeyPredicates, usedInputFields);
+                pushCalcThroughChangelogNormalize(
+                        call, primaryKeyPredicates, otherPredicates, usedInputFields);
 
         // Retain only filters which haven't been pushed
-        transformWithRemainingPredicates(
-                call, newChangelogNormalize, otherPredicates, usedInputFields);
+        transformWithRemainingPredicates(call, newChangelogNormalize, usedInputFields);
     }
 
     /** Extracts input fields which are used in the Calc node and the ChangelogNormalize node. */
-    private int[] extractUsedInputFields(StreamPhysicalCalc calc, Set<Integer> primaryKeyIndices) {
+    private int[] extractUsedInputFields(
+            StreamPhysicalCalc calc,
+            StreamPhysicalChangelogNormalize changelogNormalize,
+            Set<Integer> primaryKeyIndices) {
         RexProgram program = calc.getProgram();
         List<RexNode> projectsAndCondition =
                 program.getProjectList().stream()
@@ -126,6 +134,9 @@ public class PushCalcPastChangelogNormalizeRule
                         .collect(Collectors.toList());
         if (program.getCondition() != null) {
             projectsAndCondition.add(program.expandLocalRef(program.getCondition()));
+        }
+        if (changelogNormalize.filterCondition() != null) {
+            projectsAndCondition.add(changelogNormalize.filterCondition());
         }
         Set<Integer> projectedFields =
                 Arrays.stream(extractRefInputFields(projectsAndCondition))
@@ -160,7 +171,10 @@ public class PushCalcPastChangelogNormalizeRule
      * StreamPhysicalChangelogNormalize}.
      */
     private StreamPhysicalChangelogNormalize pushCalcThroughChangelogNormalize(
-            RelOptRuleCall call, List<RexNode> primaryKeyPredicates, int[] usedInputFields) {
+            RelOptRuleCall call,
+            List<RexNode> primaryKeyPredicates,
+            List<RexNode> otherPredicates,
+            int[] usedInputFields) {
         final StreamPhysicalChangelogNormalize changelogNormalize = call.rel(1);
         final StreamPhysicalExchange exchange = call.rel(2);
         final Set<Integer> primaryKeyIndices =
@@ -168,9 +182,18 @@ public class PushCalcPastChangelogNormalizeRule
 
         if (primaryKeyPredicates.isEmpty()
                 && usedInputFields.length == changelogNormalize.getRowType().getFieldCount()) {
-            // There are no filters and no project which can be pushed, so just return the existing
-            // node.
-            return changelogNormalize;
+            // Check if there is a condition that can be pushed into the ChangelogNormalize
+            if (otherPredicates.isEmpty()) {
+                return changelogNormalize;
+            } else {
+                final RexNode condition = call.builder().and(otherPredicates);
+                return (StreamPhysicalChangelogNormalize)
+                        changelogNormalize.copy(
+                                changelogNormalize.getTraitSet(),
+                                exchange,
+                                changelogNormalize.uniqueKeys(),
+                                condition.isAlwaysTrue() ? null : condition);
+            }
         }
 
         final StreamPhysicalCalc pushedCalc =
@@ -182,6 +205,13 @@ public class PushCalcPastChangelogNormalizeRule
         final List<Integer> newPrimaryKeyIndices =
                 primaryKeyIndices.stream().map(inputRefMapping::get).collect(Collectors.toList());
 
+        // add conditions
+        final List<RexNode> shiftedPredicates =
+                otherPredicates.stream()
+                        .map(p -> adjustInputRef(p, inputRefMapping))
+                        .collect(Collectors.toList());
+        final RexNode condition = call.builder().and(shiftedPredicates);
+
         final FlinkRelDistribution newDistribution =
                 FlinkRelDistribution.hash(newPrimaryKeyIndices, true);
         final RelTraitSet newTraitSet = exchange.getTraitSet().replace(newDistribution);
@@ -192,7 +222,8 @@ public class PushCalcPastChangelogNormalizeRule
                 changelogNormalize.copy(
                         changelogNormalize.getTraitSet(),
                         newExchange,
-                        newPrimaryKeyIndices.stream().mapToInt(Integer::intValue).toArray());
+                        newPrimaryKeyIndices.stream().mapToInt(Integer::intValue).toArray(),
+                        condition.isAlwaysTrue() ? null : condition);
     }
 
     /**
@@ -234,7 +265,6 @@ public class PushCalcPastChangelogNormalizeRule
     private void transformWithRemainingPredicates(
             RelOptRuleCall call,
             StreamPhysicalChangelogNormalize changelogNormalize,
-            List<RexNode> predicates,
             int[] usedInputFields) {
         final StreamPhysicalCalc calc = call.rel(0);
         final RelBuilder relBuilder = call.builder();
@@ -248,16 +278,6 @@ public class PushCalcPastChangelogNormalizeRule
             RexNode shiftedProject =
                     adjustInputRef(calc.getProgram().expandLocalRef(ref.left), inputRefMapping);
             programBuilder.addProject(shiftedProject, ref.right);
-        }
-
-        // add conditions
-        final List<RexNode> shiftedPredicates =
-                predicates.stream()
-                        .map(p -> adjustInputRef(p, inputRefMapping))
-                        .collect(Collectors.toList());
-        final RexNode condition = relBuilder.and(shiftedPredicates);
-        if (!condition.isAlwaysTrue()) {
-            programBuilder.addCondition(condition);
         }
 
         final RexProgram newProgram = programBuilder.getProgram();

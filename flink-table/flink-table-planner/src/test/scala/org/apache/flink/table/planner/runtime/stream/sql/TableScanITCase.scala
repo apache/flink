@@ -18,16 +18,14 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.legacy.api.{TableSchema, Types}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendSink}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.planner.utils.{TestPreserveWMTableSource, WithoutTimeAttributesTableSource}
+import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeSourceFunction
+import org.apache.flink.table.planner.utils.TestTableSourceSinks.createWithoutTimeAttributesTableSource
 import org.apache.flink.table.utils.DateTimeUtils.toLocalDateTime
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
@@ -35,14 +33,12 @@ import org.apache.flink.util.Collector
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
-import java.lang.{Integer => JInt, Long => JLong}
-
 class TableScanITCase extends StreamingTestBase {
 
   @Test
   def testTableSourceWithoutTimeAttribute(): Unit = {
     val tableName = "MyTable"
-    WithoutTimeAttributesTableSource.createTemporaryTable(tEnv, tableName)
+    createWithoutTimeAttributesTableSource(tEnv, tableName)
     val sqlQuery = s"SELECT * from $tableName"
     val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
@@ -132,23 +128,23 @@ class TableScanITCase extends StreamingTestBase {
     // rows with timestamps and watermarks
     val data = Seq(
       Right(1L),
-      Left(5L, Row.of(new JInt(1), new JLong(5), "A")),
-      Left(2L, Row.of(new JInt(2), new JLong(1), "B")),
+      Left(5L, (1, 5L, "A")),
+      Left(2L, (2, 1L, "B")),
       Right(10L),
-      Left(8L, Row.of(new JInt(6), new JLong(8), "C")),
+      Left(8L, (6, 8L, "C")),
       Right(20L),
-      Left(21L, Row.of(new JInt(6), new JLong(21), "D")),
+      Left(21L, (6, 21L, "D")),
       Right(30L)
     )
 
-    val fieldNames = Array("id", "rtime", "name")
-    val schema = new TableSchema(fieldNames, Array(Types.INT, Types.LOCAL_DATE_TIME, Types.STRING))
-    val rowType = new RowTypeInfo(
-      Array(Types.INT, Types.LONG, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
-      fieldNames)
+    val t = env
+      .addSource(new EventTimeSourceFunction[(Int, Long, String)](data))
+      .returns(implicitly[TypeInformation[(Int, Long, String)]])
+      .setMaxParallelism(1)
+      .setMaxParallelism(1)
+      .toTable(tEnv, 'id, 'rtime.rowtime, 'name)
+    tEnv.createTemporaryView(tableName, t)
 
-    val tableSource = new TestPreserveWMTableSource(schema, rowType, data, "rtime")
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, tableSource)
     val sqlQuery = s"SELECT id, name FROM $tableName"
     val sink = new TestingAppendSink
 

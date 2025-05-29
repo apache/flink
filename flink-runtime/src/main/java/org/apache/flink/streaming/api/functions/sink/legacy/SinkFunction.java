@@ -35,7 +35,9 @@ import java.io.Serializable;
 @Deprecated
 public interface SinkFunction<IN> extends Function, Serializable {
 
-    /** @deprecated Use {@link #invoke(Object, Context)}. */
+    /**
+     * @deprecated Use {@link #invoke(Object, Context)}.
+     */
     default void invoke(IN value) throws Exception {}
 
     /**

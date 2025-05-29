@@ -39,23 +39,12 @@ jobs:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
       s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
       s3_secret_key: ${{ secrets.IT_CASE_S3_SECRET_KEY }}
-  java17:
-    name: "Java 17"
-    uses: ./.github/workflows/template.flink-ci.yml
-    with:
-      workflow-caller-id: java17
-      environment: 'PROFILE="-Dinclude_hadoop_aws -Djdk11 -Djdk17 -Pjava17-target"'
-      jdk_version: 17
-    secrets:
-      s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
-      s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
-      s3_secret_key: ${{ secrets.IT_CASE_S3_SECRET_KEY }}
   java21:
     name: "Java 21"
     uses: ./.github/workflows/template.flink-ci.yml
     with:
       workflow-caller-id: java21
-      environment: 'PROFILE="-Dinclude_hadoop_aws -Djdk11 -Djdk17 -Djdk21 -Pjava21-target"'
+      environment: 'PROFILE="-Dinclude_hadoop_aws -Djdk21 -Pjava21-target"'
       jdk_version: 21
     secrets:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
@@ -66,8 +55,8 @@ jobs:
     uses: ./.github/workflows/template.flink-ci.yml
     with:
       workflow-caller-id: hadoop313
-      environment: 'PROFILE="-Dflink.hadoop.version=3.2.3 -Phadoop3-tests,hive3"'
-      jdk_version: 11
+      environment: 'PROFILE="-Dflink.hadoop.version=3.2.3 -Phadoop3-tests,hive3 -Djdk17 -Pjava17-target"'
+      jdk_version: 17
     secrets:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
       s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
@@ -77,8 +66,8 @@ jobs:
     uses: ./.github/workflows/template.flink-ci.yml
     with:
       workflow-caller-id: adaptive-scheduler
-      environment: 'PROFILE="-Penable-adaptive-scheduler"'
-      jdk_version: 11
+      environment: 'PROFILE="-Penable-adaptive-scheduler -Djdk17 -Pjava17-target"'
+      jdk_version: 17
     secrets:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
       s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}

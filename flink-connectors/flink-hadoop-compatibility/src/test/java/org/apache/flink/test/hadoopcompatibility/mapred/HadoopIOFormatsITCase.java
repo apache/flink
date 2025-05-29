@@ -44,6 +44,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.SequenceFileInputFormat;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -57,6 +58,11 @@ import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Integration tests for Hadoop IO formats. */
 @ExtendWith(ParameterizedTestExtension.class)
+// This test case has been updated from dataset to a datastream.
+// It is essentially a batch job, but the HadoopInputFormat is an unbounded source.
+// As a result, the test case cannot be set to batch runtime mode and should not run with the
+// adaptive scheduler.
+@Tag("org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler")
 public class HadoopIOFormatsITCase extends JavaProgramTestBase {
 
     private static final int NUM_PROGRAMS = 2;

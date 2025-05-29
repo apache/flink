@@ -19,8 +19,6 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.cache.DistributedCache;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterRetrieveException;
@@ -89,6 +87,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
+import org.apache.hadoop.yarn.api.records.LogAggregationContext;
 import org.apache.hadoop.yarn.api.records.NodeReport;
 import org.apache.hadoop.yarn.api.records.NodeState;
 import org.apache.hadoop.yarn.api.records.Priority;
@@ -136,6 +135,7 @@ import static org.apache.flink.client.deployment.application.ApplicationConfigur
 import static org.apache.flink.configuration.ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR;
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_LIB_DIR;
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_OPT_DIR;
+import static org.apache.flink.configuration.ConfigConstants.ENV_JAVA_HOME;
 import static org.apache.flink.configuration.ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX;
 import static org.apache.flink.configuration.ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX;
 import static org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever.JOB_GRAPH_FILE_PATH;
@@ -181,8 +181,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
     private final String yarnQueue;
 
-    private Path flinkJarPath;
-
     private final Configuration flinkConfiguration;
 
     private final String customName;
@@ -190,6 +188,12 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
     private final String nodeLabel;
 
     private final String applicationType;
+
+    private final String rolledLogIncludePattern;
+
+    private final String rolledLogExcludePattern;
+
+    private Path flinkJarPath;
 
     private YarnConfigOptions.UserJarInclusion userJarInclusion;
 
@@ -222,6 +226,10 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         this.customName = flinkConfiguration.get(YarnConfigOptions.APPLICATION_NAME);
         this.applicationType = flinkConfiguration.get(YarnConfigOptions.APPLICATION_TYPE);
         this.nodeLabel = flinkConfiguration.get(YarnConfigOptions.NODE_LABEL);
+        this.rolledLogIncludePattern =
+                flinkConfiguration.get(YarnConfigOptions.ROLLED_LOGS_INCLUDE_PATTERN);
+        this.rolledLogExcludePattern =
+                flinkConfiguration.get(YarnConfigOptions.ROLLED_LOGS_EXCLUDE_PATTERN);
     }
 
     /** Adapt flink env setting. */
@@ -525,7 +533,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                     flinkConfiguration
                             .getOptional(PipelineOptions.JARS)
                             .orElse(Collections.emptyList());
-            Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
+            Preconditions.checkArgument(
+                    pipelineJars.size() <= 1, "Should only have at most one jar.");
         }
 
         try {
@@ -914,23 +923,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             userJarFiles.addAll(jarUrls.stream().map(Path::new).collect(Collectors.toSet()));
         }
 
-        // only for per job mode
-        if (jobGraph != null) {
-            for (Map.Entry<String, DistributedCache.DistributedCacheEntry> entry :
-                    jobGraph.getUserArtifacts().entrySet()) {
-                // only upload local files
-                if (!Utils.isRemotePath(entry.getValue().filePath)) {
-                    Path localPath = new Path(entry.getValue().filePath);
-                    Tuple2<Path, Long> remoteFileInfo =
-                            fileUploader.uploadLocalFileToRemote(localPath, entry.getKey());
-                    jobGraph.setUserArtifactRemotePath(
-                            entry.getKey(), remoteFileInfo.f0.toString());
-                }
-            }
-
-            jobGraph.writeUserArtifactEntriesToConfiguration();
-        }
-
         if (providedLibDirs == null || providedLibDirs.isEmpty()) {
             addLibFoldersToShipFiles(systemShipFiles);
         }
@@ -958,14 +950,23 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         }
 
         // only for application mode
-        // Python jar file only needs to be shipped and should not be added to classpath.
-        if (YarnApplicationClusterEntryPoint.class.getName().equals(yarnClusterEntrypoint)
-                && PackagedProgramUtils.isPython(configuration.get(APPLICATION_MAIN_CLASS))) {
-            fileUploader.registerMultipleLocalResources(
-                    Collections.singletonList(
-                            new Path(PackagedProgramUtils.getPythonJar().toURI())),
-                    ConfigConstants.DEFAULT_FLINK_OPT_DIR,
-                    LocalResourceType.FILE);
+        if (YarnApplicationClusterEntryPoint.class.getName().equals(yarnClusterEntrypoint)) {
+            // Python jar/Sql Gateway jar only need to be shipped and should not be added to
+            // classpath.
+            if (PackagedProgramUtils.isPython(configuration.get(APPLICATION_MAIN_CLASS))) {
+                fileUploader.registerMultipleLocalResources(
+                        Collections.singletonList(
+                                new Path(PackagedProgramUtils.getPythonJar().toURI())),
+                        ConfigConstants.DEFAULT_FLINK_OPT_DIR,
+                        LocalResourceType.FILE);
+            } else if (PackagedProgramUtils.isSqlApplication(
+                    configuration.get(APPLICATION_MAIN_CLASS))) {
+                fileUploader.registerMultipleLocalResources(
+                        Collections.singletonList(
+                                new Path(PackagedProgramUtils.getSqlGatewayJar().toURI())),
+                        ConfigConstants.DEFAULT_FLINK_OPT_DIR,
+                        LocalResourceType.FILE);
+            }
         }
 
         // Upload and register user jars
@@ -1075,7 +1076,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
             fileUploader.registerSingleLocalResource(
                     flinkConfigFileName,
-                    new Path(tmpConfigurationFile.getAbsolutePath()),
+                    new Path(tmpConfigurationFile.toURI()),
                     "",
                     LocalResourceType.FILE,
                     true,
@@ -1245,6 +1246,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
         setApplicationTags(appContext);
 
+        setRolledLogConfigs(appContext);
+
         // add a hook to clean up in case deployment fails
         Thread deploymentFailureHook =
                 new DeploymentFailureHook(yarnApplication, fileUploader.getApplicationDir());
@@ -1279,7 +1282,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                                     + "If log aggregation is enabled on your cluster, use this command to further investigate the issue:\n"
                                     + "yarn logs -applicationId "
                                     + appId);
-                    // break ..
+                // break ..
                 case RUNNING:
                     LOG.info("YARN application has been deployed successfully.");
                     break loop;
@@ -1541,6 +1544,25 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         }
     }
 
+    @VisibleForTesting
+    void setRolledLogConfigs(final ApplicationSubmissionContext appContext) {
+        LogAggregationContext ctx = null;
+
+        if (!StringUtils.isNullOrWhitespaceOnly(rolledLogIncludePattern)) {
+            ctx = Records.newRecord(LogAggregationContext.class);
+            ctx.setRolledLogsIncludePattern(rolledLogIncludePattern);
+        }
+
+        if (!StringUtils.isNullOrWhitespaceOnly(rolledLogExcludePattern)) {
+            ctx = ctx == null ? Records.newRecord(LogAggregationContext.class) : ctx;
+            ctx.setRolledLogsExcludePattern(rolledLogExcludePattern);
+        }
+
+        if (ctx != null) {
+            appContext.setLogAggregationContext(ctx);
+        }
+    }
+
     /**
      * Singleton object which uses reflection to determine whether the {@link
      * ApplicationSubmissionContext} supports various methods which, depending on the Hadoop
@@ -1576,151 +1598,85 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         @Nullable private final Method nodeLabelExpressionMethod;
 
         private ApplicationSubmissionContextReflector(Class<ApplicationSubmissionContext> clazz) {
-            Method applicationTagsMethod;
-            Method attemptFailuresValidityIntervalMethod;
-            Method keepContainersMethod;
-            Method nodeLabelExpressionMethod;
+            // this method is only supported by Hadoop 2.4.0 onwards
+            this.applicationTagsMethod = getMethod(clazz, APPLICATION_TAGS_METHOD_NAME, Set.class);
 
+            // this method is only supported by Hadoop 2.6.0 onwards
+            this.attemptFailuresValidityIntervalMethod =
+                    getMethod(clazz, ATTEMPT_FAILURES_METHOD_NAME, long.class);
+
+            // this method is only supported by Hadoop 2.4.0 onwards
+            this.keepContainersMethod =
+                    getMethod(clazz, KEEP_CONTAINERS_METHOD_NAME, boolean.class);
+
+            this.nodeLabelExpressionMethod =
+                    getMethod(clazz, NODE_LABEL_EXPRESSION_NAME, String.class);
+        }
+
+        private Method getMethod(Class<?> clazz, String methodName, Class<?>... paramTypes) {
             try {
-                // this method is only supported by Hadoop 2.4.0 onwards
-                applicationTagsMethod = clazz.getMethod(APPLICATION_TAGS_METHOD_NAME, Set.class);
-                LOG.debug(
-                        "{} supports method {}.",
-                        clazz.getCanonicalName(),
-                        APPLICATION_TAGS_METHOD_NAME);
+                Method method = clazz.getMethod(methodName, paramTypes);
+                LOG.debug("{} supports method {}.", clazz.getCanonicalName(), methodName);
+                return method;
             } catch (NoSuchMethodException e) {
-                LOG.debug(
-                        "{} does not support method {}.",
-                        clazz.getCanonicalName(),
-                        APPLICATION_TAGS_METHOD_NAME);
+                LOG.debug("{} does not support method {}.", clazz.getCanonicalName(), methodName);
                 // assign null because the Hadoop version apparently does not support this call.
-                applicationTagsMethod = null;
+                return null;
             }
+        }
 
-            this.applicationTagsMethod = applicationTagsMethod;
-
-            try {
-                // this method is only supported by Hadoop 2.6.0 onwards
-                attemptFailuresValidityIntervalMethod =
-                        clazz.getMethod(ATTEMPT_FAILURES_METHOD_NAME, long.class);
+        private void invokeMethod(
+                Method method,
+                String methodName,
+                ApplicationSubmissionContext context,
+                Object... args)
+                throws InvocationTargetException, IllegalAccessException {
+            if (method != null) {
                 LOG.debug(
-                        "{} supports method {}.",
-                        clazz.getCanonicalName(),
-                        ATTEMPT_FAILURES_METHOD_NAME);
-            } catch (NoSuchMethodException e) {
+                        "Calling method {} of {}.",
+                        methodName,
+                        context.getClass().getCanonicalName());
+                method.invoke(context, args);
+            } else {
                 LOG.debug(
-                        "{} does not support method {}.",
-                        clazz.getCanonicalName(),
-                        ATTEMPT_FAILURES_METHOD_NAME);
-                // assign null because the Hadoop version apparently does not support this call.
-                attemptFailuresValidityIntervalMethod = null;
+                        "{} does not support method {}. Doing nothing.",
+                        context.getClass().getCanonicalName(),
+                        methodName);
             }
-
-            this.attemptFailuresValidityIntervalMethod = attemptFailuresValidityIntervalMethod;
-
-            try {
-                // this method is only supported by Hadoop 2.4.0 onwards
-                keepContainersMethod = clazz.getMethod(KEEP_CONTAINERS_METHOD_NAME, boolean.class);
-                LOG.debug(
-                        "{} supports method {}.",
-                        clazz.getCanonicalName(),
-                        KEEP_CONTAINERS_METHOD_NAME);
-            } catch (NoSuchMethodException e) {
-                LOG.debug(
-                        "{} does not support method {}.",
-                        clazz.getCanonicalName(),
-                        KEEP_CONTAINERS_METHOD_NAME);
-                // assign null because the Hadoop version apparently does not support this call.
-                keepContainersMethod = null;
-            }
-
-            this.keepContainersMethod = keepContainersMethod;
-
-            try {
-                nodeLabelExpressionMethod =
-                        clazz.getMethod(NODE_LABEL_EXPRESSION_NAME, String.class);
-                LOG.debug(
-                        "{} supports method {}.",
-                        clazz.getCanonicalName(),
-                        NODE_LABEL_EXPRESSION_NAME);
-            } catch (NoSuchMethodException e) {
-                LOG.debug(
-                        "{} does not support method {}.",
-                        clazz.getCanonicalName(),
-                        NODE_LABEL_EXPRESSION_NAME);
-                nodeLabelExpressionMethod = null;
-            }
-
-            this.nodeLabelExpressionMethod = nodeLabelExpressionMethod;
         }
 
         public void setApplicationTags(
                 ApplicationSubmissionContext appContext, Set<String> applicationTags)
                 throws InvocationTargetException, IllegalAccessException {
-            if (applicationTagsMethod != null) {
-                LOG.debug(
-                        "Calling method {} of {}.",
-                        applicationTagsMethod.getName(),
-                        appContext.getClass().getCanonicalName());
-                applicationTagsMethod.invoke(appContext, applicationTags);
-            } else {
-                LOG.debug(
-                        "{} does not support method {}. Doing nothing.",
-                        appContext.getClass().getCanonicalName(),
-                        APPLICATION_TAGS_METHOD_NAME);
-            }
+            invokeMethod(
+                    applicationTagsMethod,
+                    APPLICATION_TAGS_METHOD_NAME,
+                    appContext,
+                    applicationTags);
         }
 
         public void setApplicationNodeLabel(
                 ApplicationSubmissionContext appContext, String nodeLabel)
                 throws InvocationTargetException, IllegalAccessException {
-            if (nodeLabelExpressionMethod != null) {
-                LOG.debug(
-                        "Calling method {} of {}.",
-                        nodeLabelExpressionMethod.getName(),
-                        appContext.getClass().getCanonicalName());
-                nodeLabelExpressionMethod.invoke(appContext, nodeLabel);
-            } else {
-                LOG.debug(
-                        "{} does not support method {}. Doing nothing.",
-                        appContext.getClass().getCanonicalName(),
-                        NODE_LABEL_EXPRESSION_NAME);
-            }
+            invokeMethod(
+                    nodeLabelExpressionMethod, NODE_LABEL_EXPRESSION_NAME, appContext, nodeLabel);
         }
 
         public void setAttemptFailuresValidityInterval(
                 ApplicationSubmissionContext appContext, long validityInterval)
                 throws InvocationTargetException, IllegalAccessException {
-            if (attemptFailuresValidityIntervalMethod != null) {
-                LOG.debug(
-                        "Calling method {} of {}.",
-                        attemptFailuresValidityIntervalMethod.getName(),
-                        appContext.getClass().getCanonicalName());
-                attemptFailuresValidityIntervalMethod.invoke(appContext, validityInterval);
-            } else {
-                LOG.debug(
-                        "{} does not support method {}. Doing nothing.",
-                        appContext.getClass().getCanonicalName(),
-                        ATTEMPT_FAILURES_METHOD_NAME);
-            }
+            invokeMethod(
+                    attemptFailuresValidityIntervalMethod,
+                    ATTEMPT_FAILURES_METHOD_NAME,
+                    appContext,
+                    validityInterval);
         }
 
         public void setKeepContainersAcrossApplicationAttempts(
                 ApplicationSubmissionContext appContext, boolean keepContainers)
                 throws InvocationTargetException, IllegalAccessException {
-
-            if (keepContainersMethod != null) {
-                LOG.debug(
-                        "Calling method {} of {}.",
-                        keepContainersMethod.getName(),
-                        appContext.getClass().getCanonicalName());
-                keepContainersMethod.invoke(appContext, keepContainers);
-            } else {
-                LOG.debug(
-                        "{} does not support method {}. Doing nothing.",
-                        appContext.getClass().getCanonicalName(),
-                        KEEP_CONTAINERS_METHOD_NAME);
-            }
+            invokeMethod(
+                    keepContainersMethod, KEEP_CONTAINERS_METHOD_NAME, appContext, keepContainers);
         }
     }
 
@@ -1940,6 +1896,10 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                 ConfigurationUtils.getPrefixedKeyValuePairs(
                         ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX,
                         this.flinkConfiguration));
+        // set JAVA_HOME
+        this.flinkConfiguration
+                .getOptional(CoreOptions.FLINK_JAVA_HOME)
+                .ifPresent(javaHome -> env.put(ENV_JAVA_HOME, javaHome));
         // set Flink app class path
         env.put(ENV_FLINK_CLASSPATH, classPathStr);
         // Set FLINK_LIB_DIR to `lib` folder under working dir in container

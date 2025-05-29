@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.streaming.api.operators.legacy.YieldingOperatorFactory;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeServiceAware;
 

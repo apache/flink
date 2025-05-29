@@ -83,12 +83,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     private static final long serialVersionUID = 1L;
 
     /**
-     * The constant to use for the parallelism, if the system should use the number of currently
-     * available slots.
-     */
-    @Deprecated public static final int PARALLELISM_AUTO_MAX = Integer.MAX_VALUE;
-
-    /**
      * The flag value indicating use of the default parallelism. This value can be used to reset the
      * parallelism back to the default state.
      */
@@ -487,35 +481,35 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     // --------------------------------------------------------------------------------------------
 
     @Experimental
-    public int getAsyncInflightRecordsLimit() {
-        return configuration.get(ExecutionOptions.ASYNC_INFLIGHT_RECORDS_LIMIT);
+    public int getAsyncStateTotalBufferSize() {
+        return configuration.get(ExecutionOptions.ASYNC_STATE_TOTAL_BUFFER_SIZE);
     }
 
     @Experimental
-    public ExecutionConfig setAsyncInflightRecordsLimit(int limit) {
-        configuration.set(ExecutionOptions.ASYNC_INFLIGHT_RECORDS_LIMIT, limit);
+    public ExecutionConfig setAsyncStateTotalBufferSize(int limit) {
+        configuration.set(ExecutionOptions.ASYNC_STATE_TOTAL_BUFFER_SIZE, limit);
         return this;
     }
 
     @Experimental
-    public int getAsyncStateBufferSize() {
-        return configuration.get(ExecutionOptions.ASYNC_STATE_BUFFER_SIZE);
+    public int getAsyncStateActiveBufferSize() {
+        return configuration.get(ExecutionOptions.ASYNC_STATE_ACTIVE_BUFFER_SIZE);
     }
 
     @Experimental
-    public ExecutionConfig setAsyncStateBufferSize(int bufferSize) {
-        configuration.set(ExecutionOptions.ASYNC_STATE_BUFFER_SIZE, bufferSize);
+    public ExecutionConfig setAsyncStateActiveBufferSize(int bufferSize) {
+        configuration.set(ExecutionOptions.ASYNC_STATE_ACTIVE_BUFFER_SIZE, bufferSize);
         return this;
     }
 
     @Experimental
-    public long getAsyncStateBufferTimeout() {
-        return configuration.get(ExecutionOptions.ASYNC_STATE_BUFFER_TIMEOUT);
+    public long getAsyncStateActiveBufferTimeout() {
+        return configuration.get(ExecutionOptions.ASYNC_STATE_ACTIVE_BUFFER_TIMEOUT);
     }
 
     @Experimental
-    public ExecutionConfig setAsyncStateBufferTimeout(long timeout) {
-        configuration.set(ExecutionOptions.ASYNC_STATE_BUFFER_TIMEOUT, timeout);
+    public ExecutionConfig setAsyncStateActiveBufferTimeout(long timeout) {
+        configuration.set(ExecutionOptions.ASYNC_STATE_ACTIVE_BUFFER_TIMEOUT, timeout);
         return this;
     }
 

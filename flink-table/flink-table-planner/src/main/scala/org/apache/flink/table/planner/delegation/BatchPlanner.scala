@@ -20,20 +20,22 @@ package org.apache.flink.table.planner.delegation
 import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
+import org.apache.flink.runtime.scheduler.adaptivebatch.{BatchExecutionOptionsInternal, StreamGraphOptimizationStrategy}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.delegation.{Executor, InternalPlan}
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.operations.{ModifyOperation, Operation}
+import org.apache.flink.table.operations.Operation
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode
-import org.apache.flink.table.planner.plan.nodes.exec.processor.{DeadlockBreakupProcessor, DynamicFilteringDependencyProcessor, ExecNodeGraphProcessor, ForwardHashExchangeProcessor, MultipleInputNodeCreationProcessor}
+import org.apache.flink.table.planner.plan.nodes.exec.processor.{AdaptiveJoinProcessor, DeadlockBreakupProcessor, DynamicFilteringDependencyProcessor, ExecNodeGraphProcessor, ForwardHashExchangeProcessor, MultipleInputNodeCreationProcessor}
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 import org.apache.flink.table.planner.plan.optimize.{BatchCommonSubGraphBasedOptimizer, Optimizer}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.utils.DummyStreamExecutionEnvironment
+import org.apache.flink.table.runtime.strategy.{AdaptiveBroadcastJoinOptimizationStrategy, AdaptiveSkewedJoinOptimizationStrategy, PostProcessAdaptiveJoinStrategy}
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelCollationTraitDef
@@ -81,6 +83,7 @@ class BatchPlanner(
       processors.add(new MultipleInputNodeCreationProcessor(false))
     }
     processors.add(new ForwardHashExchangeProcessor)
+    processors.add(new AdaptiveJoinProcessor)
     processors
   }
 
@@ -97,6 +100,38 @@ class BatchPlanner(
     }
     afterTranslation()
     transformations ++ planner.extraTransformations
+  }
+
+  override def afterTranslation(): Unit = {
+    super.afterTranslation()
+    val configuration = getTableConfig
+    val optimizationStrategies = new util.ArrayList[String]()
+    val isAdaptiveBroadcastJoinEnabled = configuration.get(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_ADAPTIVE_BROADCAST_JOIN_STRATEGY) != OptimizerConfigOptions.AdaptiveBroadcastJoinStrategy.NONE
+    val isAdaptiveSkewedJoinEnabled = configuration.get(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_ADAPTIVE_SKEWED_JOIN_OPTIMIZATION_STRATEGY) != OptimizerConfigOptions.AdaptiveSkewedJoinOptimizationStrategy.NONE
+    if (isAdaptiveBroadcastJoinEnabled) {
+      optimizationStrategies.add(classOf[AdaptiveBroadcastJoinOptimizationStrategy].getName)
+    }
+    if (isAdaptiveSkewedJoinEnabled) {
+      optimizationStrategies.add(classOf[AdaptiveSkewedJoinOptimizationStrategy].getName)
+      configuration.set(
+        BatchExecutionOptionsInternal.ADAPTIVE_SKEWED_OPTIMIZATION_SKEWED_FACTOR,
+        configuration.get(
+          OptimizerConfigOptions.TABLE_OPTIMIZER_ADAPTIVE_SKEWED_JOIN_OPTIMIZATION_SKEWED_FACTOR)
+      )
+      configuration.set(
+        BatchExecutionOptionsInternal.ADAPTIVE_SKEWED_OPTIMIZATION_SKEWED_THRESHOLD,
+        configuration.get(
+          OptimizerConfigOptions.TABLE_OPTIMIZER_ADAPTIVE_SKEWED_JOIN_OPTIMIZATION_SKEWED_THRESHOLD)
+      )
+    }
+    if (isAdaptiveBroadcastJoinEnabled || isAdaptiveSkewedJoinEnabled) {
+      optimizationStrategies.add(classOf[PostProcessAdaptiveJoinStrategy].getName)
+    }
+    configuration.set(
+      StreamGraphOptimizationStrategy.STREAM_GRAPH_OPTIMIZATION_STRATEGY,
+      optimizationStrategies)
   }
 
   override def explain(

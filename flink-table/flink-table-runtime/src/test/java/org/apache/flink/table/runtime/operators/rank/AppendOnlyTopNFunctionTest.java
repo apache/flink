@@ -20,8 +20,9 @@ package org.apache.flink.table.runtime.operators.rank;
 
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.operators.rank.async.AsyncStateAppendOnlyTopNFunction;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,7 +30,7 @@ import java.util.List;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 
-/** Tests for {@link AppendOnlyTopNFunction}. */
+/** Tests for {@link AppendOnlyTopNFunction} and {@link AsyncStateAppendOnlyTopNFunction}. */
 class AppendOnlyTopNFunctionTest extends TopNFunctionTestBase {
 
     @Override
@@ -37,20 +38,39 @@ class AppendOnlyTopNFunctionTest extends TopNFunctionTestBase {
             RankType rankType,
             RankRange rankRange,
             boolean generateUpdateBefore,
-            boolean outputRankNumber) {
-        return new AppendOnlyTopNFunction(
-                ttlConfig,
-                inputRowType,
-                generatedSortKeyComparator,
-                sortKeySelector,
-                rankType,
-                rankRange,
-                generateUpdateBefore,
-                outputRankNumber,
-                cacheSize);
+            boolean outputRankNumber,
+            boolean enableAsyncState) {
+        if (enableAsyncState) {
+            return new AsyncStateAppendOnlyTopNFunction(
+                    ttlConfig,
+                    inputRowType,
+                    generatedSortKeyComparator,
+                    sortKeySelector,
+                    rankType,
+                    rankRange,
+                    generateUpdateBefore,
+                    outputRankNumber,
+                    cacheSize);
+        } else {
+            return new AppendOnlyTopNFunction(
+                    ttlConfig,
+                    inputRowType,
+                    generatedSortKeyComparator,
+                    sortKeySelector,
+                    rankType,
+                    rankRange,
+                    generateUpdateBefore,
+                    outputRankNumber,
+                    cacheSize);
+        }
     }
 
-    @Test
+    @Override
+    boolean supportedAsyncState() {
+        return true;
+    }
+
+    @TestTemplate
     void testVariableRankRange() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new VariableRankRange(1), true, false);

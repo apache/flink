@@ -36,7 +36,7 @@ LogicalProject(category=[$0], max_price=[$2], rank_num=[$3])
 +- LogicalFilter(condition=[<=($3, 3)])
    +- LogicalProject(category=[$0], shopId=[$1], max_price=[$2], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST)])
       +- LogicalAggregate(group=[{0, 1}], max_price=[MAX($2)])
-         +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(category, shopId, price)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -44,7 +44,7 @@ LogicalProject(category=[$0], max_price=[$2], rank_num=[$3])
 FlinkLogicalCalc(select=[category, max_price, w0$o0])
 +- FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[category], orderBy=[max_price ASC], select=[category, shopId, max_price, w0$o0])
    +- FlinkLogicalAggregate(group=[{0, 1}], max_price=[MAX($2)])
-      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(category, shopId, price)]]], fields=[category, shopId, price])
+      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, T]], fields=[category, shopId, price])
 ]]>
     </Resource>
   </TestCase>
@@ -202,7 +202,7 @@ LogicalProject(category=[$0], max_price=[$2], rank_num=[$4])
 +- LogicalFilter(condition=[<=($4, 3)])
    +- LogicalProject(category=[$0], shopId=[$1], max_price=[$2], min_price=[$3], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST)])
       +- LogicalAggregate(group=[{0, 1}], max_price=[MAX($2)], min_price=[MIN($2)])
-         +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(category, shopId, price)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -211,7 +211,7 @@ FlinkLogicalCalc(select=[category, max_price, w0$o0])
 +- FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[category], orderBy=[max_price ASC], select=[category, shopId, max_price, w0$o0])
    +- FlinkLogicalCalc(select=[category, shopId, max_price])
       +- FlinkLogicalAggregate(group=[{0, 1}], max_price=[MAX($2)], min_price=[MIN($2)])
-         +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(category, shopId, price)]]], fields=[category, shopId, price])
+         +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, T]], fields=[category, shopId, price])
 ]]>
     </Resource>
   </TestCase>
@@ -236,7 +236,7 @@ LogicalProject(category=[$0], shopId=[$1], max_price=[$2], rank_num=[$3])
 +- LogicalFilter(condition=[<=($3, 3)])
    +- LogicalProject(category=[$0], shopId=[$1], max_price=[$2], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST)])
       +- LogicalAggregate(group=[{0, 1}], max_price=[MAX($2)], min_price=[MIN($2)])
-         +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(category, shopId, price)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -244,7 +244,7 @@ LogicalProject(category=[$0], shopId=[$1], max_price=[$2], rank_num=[$3])
 FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[category], orderBy=[max_price ASC], select=[category, shopId, max_price, w0$o0])
 +- FlinkLogicalCalc(select=[category, shopId, max_price])
    +- FlinkLogicalAggregate(group=[{0, 1}], max_price=[MAX($2)], min_price=[MIN($2)])
-      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(category, shopId, price)]]], fields=[category, shopId, price])
+      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, T]], fields=[category, shopId, price])
 ]]>
     </Resource>
   </TestCase>

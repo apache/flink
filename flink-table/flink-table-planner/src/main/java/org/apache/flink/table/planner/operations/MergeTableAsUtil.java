@@ -26,6 +26,7 @@ import org.apache.flink.sql.parser.ddl.SqlWatermark;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Schema.UnresolvedColumn;
+import org.apache.flink.table.api.Schema.UnresolvedMetadataColumn;
 import org.apache.flink.table.api.Schema.UnresolvedPhysicalColumn;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
@@ -386,19 +387,31 @@ public class MergeTableAsUtil {
                 int columnPos,
                 UnresolvedColumn sourceColumn,
                 UnresolvedColumn sinkColumn) {
-            if (!(sinkColumn instanceof UnresolvedPhysicalColumn)) {
+            LogicalType sinkColumnType;
+
+            if (sinkColumn instanceof UnresolvedPhysicalColumn) {
+                sinkColumnType = getLogicalType(((UnresolvedPhysicalColumn) sinkColumn));
+            } else if ((sinkColumn instanceof UnresolvedMetadataColumn)) {
+                if (((UnresolvedMetadataColumn) sinkColumn).isVirtual()) {
+                    throw new ValidationException(
+                            String.format(
+                                    "A column named '%s' already exists in the source schema. "
+                                            + "Virtual metadata columns cannot overwrite "
+                                            + "columns from source.",
+                                    columnName));
+                }
+
+                sinkColumnType = getLogicalType(((UnresolvedMetadataColumn) sinkColumn));
+            } else {
                 throw new ValidationException(
                         String.format(
                                 "A column named '%s' already exists in the source schema. "
-                                        + "Computed and metadata columns cannot overwrite "
-                                        + "regular columns.",
+                                        + "Computed columns cannot overwrite columns from source.",
                                 columnName));
             }
 
             LogicalType sourceColumnType =
                     getLogicalType(((UnresolvedPhysicalColumn) sourceColumn));
-            LogicalType sinkColumnType = getLogicalType(((UnresolvedPhysicalColumn) sinkColumn));
-
             if (!supportsImplicitCast(sourceColumnType, sinkColumnType)) {
                 throw new ValidationException(
                         String.format(

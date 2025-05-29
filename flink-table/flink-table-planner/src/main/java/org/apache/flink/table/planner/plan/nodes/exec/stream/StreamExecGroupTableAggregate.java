@@ -65,10 +65,13 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
 
     private final int[] grouping;
     private final AggregateCall[] aggCalls;
+
     /** Each element indicates whether the corresponding agg call needs `retract` method. */
     private final boolean[] aggCallNeedRetractions;
+
     /** Whether this node will generate UPDATE_BEFORE messages. */
     private final boolean generateUpdateBefore;
+
     /** Whether this node consumes retraction messages. */
     private final boolean needRetraction;
 

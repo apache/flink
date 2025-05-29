@@ -1,5 +1,5 @@
 {
-  "flinkVersion" : "1.20",
+  "flinkVersion" : "2.0",
   "nodes" : [ {
     "id" : 9,
     "type" : "stream-exec-table-source-scan_1",
@@ -217,8 +217,7 @@
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
-        "type" : "HASH",
-        "keys" : [ 3 ]
+        "type" : "SINGLETON"
       },
       "damBehavior" : "PIPELINED",
       "priority" : 0
@@ -249,13 +248,13 @@
         "fieldType" : "BIGINT NOT NULL"
       } ]
     },
-    "description" : "Exchange(distribution=[hash[c]])"
+    "description" : "Exchange(distribution=[single])"
   }, {
     "id" : 14,
     "type" : "stream-exec-over-aggregate_1",
     "overSpec" : {
       "partition" : {
-        "fields" : [ 3 ]
+        "fields" : [ ]
       },
       "groups" : [ {
         "orderBy" : {
@@ -357,7 +356,7 @@
         "fieldType" : "BIGINT NOT NULL"
       } ]
     },
-    "description" : "OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANG BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[ts, a, b, c, rowtime, $5, LTCNT(a, $5) AS w0$o0, COUNT(a) AS w0$o1, $SUM0(a) AS w0$o2])"
+    "description" : "OverAggregate(orderBy=[rowtime ASC], window=[ RANG BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[ts, a, b, c, rowtime, $5, LTCNT(a, $5) AS w0$o0, COUNT(a) AS w0$o1, $SUM0(a) AS w0$o2])"
   }, {
     "id" : 15,
     "type" : "stream-exec-calc_1",

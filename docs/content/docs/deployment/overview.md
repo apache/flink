@@ -171,9 +171,9 @@ covered by [FLINK-26606](https://issues.apache.org/jira/browse/FLINK-26606).
 
 ## Deployment Modes
 
-Flink can execute applications in one of three ways:
-- in Application Mode,
-- in Session Mode,
+Flink can execute applications in two modes:
+- Application Mode,
+- Session Mode.
 
  The above modes differ in:
  - the cluster lifecycle and resource isolation guarantees

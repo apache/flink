@@ -61,7 +61,6 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
-import org.apache.flink.runtime.state.v2.DefaultKeyedStateStoreV2;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -70,7 +69,7 @@ import org.apache.flink.streaming.util.CollectorOutput;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 
 import org.junit.jupiter.api.Test;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -258,13 +257,14 @@ class StreamingRuntimeContextTest {
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
         StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config, true);
-        org.apache.flink.runtime.state.v2.ValueStateDescriptor<TaskInfo> descr =
-                new org.apache.flink.runtime.state.v2.ValueStateDescriptor<>(
-                        "name", TypeInformation.of(TaskInfo.class), serializerConfig);
+        org.apache.flink.api.common.state.v2.ValueStateDescriptor<TaskInfo> descr =
+                new org.apache.flink.api.common.state.v2.ValueStateDescriptor<>(
+                        "name", TypeInformation.of(TaskInfo.class));
         context.getValueState(descr);
 
-        org.apache.flink.runtime.state.v2.ValueStateDescriptor<?> descrIntercepted =
-                (org.apache.flink.runtime.state.v2.ValueStateDescriptor<?>) descriptorCapture.get();
+        org.apache.flink.api.common.state.v2.ValueStateDescriptor<?> descrIntercepted =
+                (org.apache.flink.api.common.state.v2.ValueStateDescriptor<?>)
+                        descriptorCapture.get();
         TypeSerializer<?> serializer = descrIntercepted.getSerializer();
 
         // check that the Path class is really registered, i.e., the execution config was applied
@@ -282,13 +282,14 @@ class StreamingRuntimeContextTest {
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
         StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config, true);
-        org.apache.flink.runtime.state.v2.ListStateDescriptor<TaskInfo> descr =
-                new org.apache.flink.runtime.state.v2.ListStateDescriptor<>(
-                        "name", TypeInformation.of(TaskInfo.class), serializerConfig);
+        org.apache.flink.api.common.state.v2.ListStateDescriptor<TaskInfo> descr =
+                new org.apache.flink.api.common.state.v2.ListStateDescriptor<>(
+                        "name", TypeInformation.of(TaskInfo.class));
         context.getListState(descr);
 
-        org.apache.flink.runtime.state.v2.ListStateDescriptor<?> descrIntercepted =
-                (org.apache.flink.runtime.state.v2.ListStateDescriptor<?>) descriptorCapture.get();
+        org.apache.flink.api.common.state.v2.ListStateDescriptor<?> descrIntercepted =
+                (org.apache.flink.api.common.state.v2.ListStateDescriptor<?>)
+                        descriptorCapture.get();
         TypeSerializer<?> serializer = descrIntercepted.getSerializer();
 
         // check that the Path class is really registered, i.e., the execution config was applied
@@ -306,16 +307,15 @@ class StreamingRuntimeContextTest {
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
         StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config, true);
-        org.apache.flink.runtime.state.v2.MapStateDescriptor<String, TaskInfo> descr =
-                new org.apache.flink.runtime.state.v2.MapStateDescriptor<>(
+        org.apache.flink.api.common.state.v2.MapStateDescriptor<String, TaskInfo> descr =
+                new org.apache.flink.api.common.state.v2.MapStateDescriptor<>(
                         "name",
                         TypeInformation.of(String.class),
-                        TypeInformation.of(TaskInfo.class),
-                        serializerConfig);
+                        TypeInformation.of(TaskInfo.class));
         context.getMapState(descr);
 
-        org.apache.flink.runtime.state.v2.MapStateDescriptor<?, ?> descrIntercepted =
-                (org.apache.flink.runtime.state.v2.MapStateDescriptor<?, ?>)
+        org.apache.flink.api.common.state.v2.MapStateDescriptor<?, ?> descrIntercepted =
+                (org.apache.flink.api.common.state.v2.MapStateDescriptor<?, ?>)
                         descriptorCapture.get();
         TypeSerializer<?> serializer = descrIntercepted.getSerializer();
 
@@ -338,14 +338,14 @@ class StreamingRuntimeContextTest {
         @SuppressWarnings("unchecked")
         ReduceFunction<TaskInfo> reducer = (ReduceFunction<TaskInfo>) mock(ReduceFunction.class);
 
-        org.apache.flink.runtime.state.v2.ReducingStateDescriptor<TaskInfo> descr =
-                new org.apache.flink.runtime.state.v2.ReducingStateDescriptor<>(
-                        "name", reducer, TypeInformation.of(TaskInfo.class), serializerConfig);
+        org.apache.flink.api.common.state.v2.ReducingStateDescriptor<TaskInfo> descr =
+                new org.apache.flink.api.common.state.v2.ReducingStateDescriptor<>(
+                        "name", reducer, TypeInformation.of(TaskInfo.class));
 
         context.getReducingState(descr);
 
-        org.apache.flink.runtime.state.v2.ReducingStateDescriptor<?> descrIntercepted =
-                (org.apache.flink.runtime.state.v2.ReducingStateDescriptor<?>)
+        org.apache.flink.api.common.state.v2.ReducingStateDescriptor<?> descrIntercepted =
+                (org.apache.flink.api.common.state.v2.ReducingStateDescriptor<?>)
                         descriptorCapture.get();
         TypeSerializer<?> serializer = descrIntercepted.getSerializer();
 
@@ -369,18 +369,15 @@ class StreamingRuntimeContextTest {
         AggregateFunction<String, TaskInfo, String> aggregate =
                 (AggregateFunction<String, TaskInfo, String>) mock(AggregateFunction.class);
 
-        org.apache.flink.runtime.state.v2.AggregatingStateDescriptor<String, TaskInfo, String>
+        org.apache.flink.api.common.state.v2.AggregatingStateDescriptor<String, TaskInfo, String>
                 descr =
-                        new org.apache.flink.runtime.state.v2.AggregatingStateDescriptor<>(
-                                "name",
-                                aggregate,
-                                TypeInformation.of(TaskInfo.class),
-                                serializerConfig);
+                        new org.apache.flink.api.common.state.v2.AggregatingStateDescriptor<>(
+                                "name", aggregate, TypeInformation.of(TaskInfo.class));
 
         context.getAggregatingState(descr);
 
-        org.apache.flink.runtime.state.v2.AggregatingStateDescriptor<?, ?, ?> descrIntercepted =
-                (org.apache.flink.runtime.state.v2.AggregatingStateDescriptor<?, ?, ?>)
+        org.apache.flink.api.common.state.v2.AggregatingStateDescriptor<?, ?, ?> descrIntercepted =
+                (org.apache.flink.api.common.state.v2.AggregatingStateDescriptor<?, ?, ?>)
                         descriptorCapture.get();
         TypeSerializer<?> serializer = descrIntercepted.getSerializer();
 
@@ -466,6 +463,7 @@ class StreamingRuntimeContextTest {
         DefaultKeyedStateStore keyedStateStore =
                 new DefaultKeyedStateStore(
                         keyedStateBackend,
+                        asyncKeyedStateBackend,
                         new SerializerFactory() {
                             @Override
                             public <T> TypeSerializer<T> createSerializer(
@@ -483,7 +481,9 @@ class StreamingRuntimeContextTest {
                                 })
                 .when(keyedStateBackend)
                 .getPartitionedState(
-                        Matchers.any(), any(TypeSerializer.class), any(StateDescriptor.class));
+                        ArgumentMatchers.any(),
+                        any(TypeSerializer.class),
+                        any(StateDescriptor.class));
 
         doAnswer(
                         (Answer<Object>)
@@ -492,18 +492,16 @@ class StreamingRuntimeContextTest {
                                     return null;
                                 })
                 .when(asyncKeyedStateBackend)
-                .createState(
+                .getOrCreateKeyedState(
                         any(),
                         any(TypeSerializer.class),
-                        any(org.apache.flink.runtime.state.v2.StateDescriptor.class));
+                        any(org.apache.flink.api.common.state.v2.StateDescriptor.class));
 
         operator.initializeState(streamTaskStateManager);
-        if (!stateV2) {
-            operator.getRuntimeContext().setKeyedStateStore(keyedStateStore);
-        } else {
-            operator.getRuntimeContext()
-                    .setKeyedStateStoreV2(new DefaultKeyedStateStoreV2(asyncKeyedStateBackend));
+        if (stateV2) {
+            keyedStateStore.setSupportKeyedStateApiSetV2();
         }
+        operator.getRuntimeContext().setKeyedStateStore(keyedStateStore);
 
         return operator;
     }
@@ -572,7 +570,9 @@ class StreamingRuntimeContextTest {
                         })
                 .when(keyedStateBackend)
                 .getPartitionedState(
-                        Matchers.any(), any(TypeSerializer.class), any(ListStateDescriptor.class));
+                        ArgumentMatchers.any(),
+                        any(TypeSerializer.class),
+                        any(ListStateDescriptor.class));
 
         when(operatorMock.getKeyedStateStore()).thenReturn(keyedStateStore);
         when(operatorMock.getOperatorID()).thenReturn(new OperatorID());
@@ -643,7 +643,9 @@ class StreamingRuntimeContextTest {
                         })
                 .when(keyedStateBackend)
                 .getPartitionedState(
-                        Matchers.any(), any(TypeSerializer.class), any(MapStateDescriptor.class));
+                        ArgumentMatchers.any(),
+                        any(TypeSerializer.class),
+                        any(MapStateDescriptor.class));
 
         when(operatorMock.getKeyedStateStore()).thenReturn(keyedStateStore);
         when(operatorMock.getOperatorID()).thenReturn(new OperatorID());

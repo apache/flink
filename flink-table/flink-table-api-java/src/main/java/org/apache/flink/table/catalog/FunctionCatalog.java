@@ -629,7 +629,8 @@ public final class FunctionCatalog {
             return Optional.of(
                     ContextResolvedFunction.temporary(
                             FunctionIdentifier.of(oi),
-                            getFunctionDefinition(oi.getObjectName(), potentialResult)));
+                            getFunctionDefinition(oi.getObjectName(), potentialResult),
+                            potentialResult));
         }
 
         Optional<Catalog> catalogOptional = catalogManager.getCatalog(oi.getCatalogName());
@@ -658,7 +659,8 @@ public final class FunctionCatalog {
                 }
 
                 return Optional.of(
-                        ContextResolvedFunction.permanent(FunctionIdentifier.of(oi), fd));
+                        ContextResolvedFunction.permanent(
+                                FunctionIdentifier.of(oi), fd, catalogFunction));
             } catch (FunctionNotExistException e) {
                 // Ignore
             }
@@ -871,12 +873,6 @@ public final class FunctionCatalog {
         @Override
         public Optional<String> getDetailedDescription() {
             return Optional.empty();
-        }
-
-        @Override
-        public boolean isGeneric() {
-            throw new UnsupportedOperationException(
-                    "This CatalogFunction is a InlineCatalogFunction. This method should not be called.");
         }
 
         @Override

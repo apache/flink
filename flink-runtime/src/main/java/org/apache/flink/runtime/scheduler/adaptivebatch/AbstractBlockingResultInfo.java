@@ -19,9 +19,11 @@
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -44,11 +46,14 @@ abstract class AbstractBlockingResultInfo implements BlockingResultInfo {
     protected final Map<Integer, long[]> subpartitionBytesByPartitionIndex;
 
     AbstractBlockingResultInfo(
-            IntermediateDataSetID resultId, int numOfPartitions, int numOfSubpartitions) {
+            IntermediateDataSetID resultId,
+            int numOfPartitions,
+            int numOfSubpartitions,
+            Map<Integer, long[]> subpartitionBytesByPartitionIndex) {
         this.resultId = checkNotNull(resultId);
         this.numOfPartitions = numOfPartitions;
         this.numOfSubpartitions = numOfSubpartitions;
-        this.subpartitionBytesByPartitionIndex = new HashMap<>();
+        this.subpartitionBytesByPartitionIndex = new HashMap<>(subpartitionBytesByPartitionIndex);
     }
 
     @Override
@@ -71,5 +76,36 @@ abstract class AbstractBlockingResultInfo implements BlockingResultInfo {
     @VisibleForTesting
     int getNumOfRecordedPartitions() {
         return subpartitionBytesByPartitionIndex.size();
+    }
+
+    @Override
+    public Map<Integer, long[]> getSubpartitionBytesByPartitionIndex() {
+        return Collections.unmodifiableMap(subpartitionBytesByPartitionIndex);
+    }
+
+    @Override
+    public long getNumBytesProduced(
+            IndexRange partitionIndexRange, IndexRange subpartitionIndexRange) {
+        long inputBytes = 0;
+        for (int i = partitionIndexRange.getStartIndex();
+                i <= partitionIndexRange.getEndIndex();
+                ++i) {
+            checkState(
+                    subpartitionBytesByPartitionIndex.get(i) != null,
+                    "Partition index %s is not ready.",
+                    i);
+            checkState(
+                    subpartitionIndexRange.getEndIndex()
+                            < subpartitionBytesByPartitionIndex.get(i).length,
+                    "Subpartition end index %s is out of range of partition %s.",
+                    subpartitionIndexRange.getEndIndex(),
+                    i);
+            for (int j = subpartitionIndexRange.getStartIndex();
+                    j <= subpartitionIndexRange.getEndIndex();
+                    ++j) {
+                inputBytes += subpartitionBytesByPartitionIndex.get(i)[j];
+            }
+        }
+        return inputBytes;
     }
 }

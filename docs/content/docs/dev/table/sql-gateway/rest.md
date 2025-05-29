@@ -96,11 +96,12 @@ REST API
 
 The available OpenAPI specification is as follows. The default version is v3.
 
-| Version                       | Description |
-| ----------- | ------- |
+| Version                                                                             | Description                                                  |
+|-------------------------------------------------------------------------------------|--------------------------------------------------------------|
 | [Open API v1 specification]({{< ref_static "generated/rest_v1_sql_gateway.yml" >}}) | Allow users to submit statements to the gateway and execute. |
-| [Open API v2 specification]({{< ref_static "generated/rest_v2_sql_gateway.yml" >}}) | Supports SQL Client to connect to the gateway. |
-| [Open API v3 specification]({{< ref_static "generated/rest_v3_sql_gateway.yml" >}}) | Supports Materialized Table refresh operation. |
+| [Open API v2 specification]({{< ref_static "generated/rest_v2_sql_gateway.yml" >}}) | Supports SQL Client to connect to the gateway.               |
+| [Open API v3 specification]({{< ref_static "generated/rest_v3_sql_gateway.yml" >}}) | Supports Materialized Table refresh operation.               |
+| [Open API v4 specification]({{< ref_static "generated/rest_v4_sql_gateway.yml" >}}) | Supports to deploy script in application mode.               |
 
 {{< hint warning >}}
 The OpenAPI specification is still experimental.
@@ -109,6 +110,11 @@ The OpenAPI specification is still experimental.
 #### API reference
 
 {{< tabs "f00ed142-b05f-44f0-bafc-799080c1d40d" >}}
+{{< tab "v4" >}}
+
+{{< generated/rest_v4_sql_gateway >}}
+
+{{< /tab >}}
 {{< tab "v3" >}}
 
 {{< generated/rest_v3_sql_gateway >}}

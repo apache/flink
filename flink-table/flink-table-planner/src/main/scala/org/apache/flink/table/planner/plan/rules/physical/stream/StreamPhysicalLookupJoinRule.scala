@@ -18,7 +18,6 @@
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.legacy.sources.LookupableTableSource
-import org.apache.flink.table.planner.hint.JoinStrategy
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
@@ -26,7 +25,6 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalL
 import org.apache.flink.table.planner.plan.rules.physical.common.{BaseSnapshotOnCalcTableScanRule, BaseSnapshotOnTableScanRule}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptTable}
-import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rex.RexProgram
 
 /**
@@ -50,7 +48,12 @@ object StreamPhysicalLookupJoinRule {
         input: FlinkLogicalRel,
         temporalTable: RelOptTable,
         calcProgram: Option[RexProgram]): CommonPhysicalLookupJoin = {
-      doTransform(join, input, temporalTable, calcProgram)
+      transformToLookupJoin(
+        join,
+        input,
+        temporalTable,
+        calcProgram,
+        FlinkConventions.STREAM_PHYSICAL)
     }
   }
 
@@ -62,45 +65,12 @@ object StreamPhysicalLookupJoinRule {
         input: FlinkLogicalRel,
         temporalTable: RelOptTable,
         calcProgram: Option[RexProgram]): CommonPhysicalLookupJoin = {
-      doTransform(join, input, temporalTable, calcProgram)
+      transformToLookupJoin(
+        join,
+        input,
+        temporalTable,
+        calcProgram,
+        FlinkConventions.STREAM_PHYSICAL)
     }
-  }
-
-  private def doTransform(
-      join: FlinkLogicalJoin,
-      input: FlinkLogicalRel,
-      temporalTable: RelOptTable,
-      calcProgram: Option[RexProgram]): StreamPhysicalLookupJoin = {
-
-    val joinInfo = join.analyzeCondition
-
-    val cluster = join.getCluster
-
-    val providedTrait = join.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-    val requiredTrait = input.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-
-    val convInput = RelOptRule.convert(input, requiredTrait)
-
-    val lookupRelHint = join.getHints
-      .stream()
-      .filter(hint => JoinStrategy.isLookupHint(hint.hintName))
-      .findFirst()
-
-    val lookupHint = if (lookupRelHint.isPresent) {
-      Option.apply(lookupRelHint.get())
-    } else {
-      Option.empty[RelHint]
-    }
-
-    new StreamPhysicalLookupJoin(
-      cluster,
-      providedTrait,
-      convInput,
-      temporalTable,
-      calcProgram,
-      joinInfo,
-      join.getJoinType,
-      lookupHint,
-      false)
   }
 }

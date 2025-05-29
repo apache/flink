@@ -55,13 +55,17 @@ public class WriterProperties {
         return supportsResume;
     }
 
-    /** @return the serializer for the {@link InProgressFileWriter.PendingFileRecoverable}. */
+    /**
+     * @return the serializer for the {@link InProgressFileWriter.PendingFileRecoverable}.
+     */
     public SimpleVersionedSerializer<InProgressFileWriter.PendingFileRecoverable>
             getPendingFileRecoverableSerializer() {
         return pendingFileRecoverableSerializer;
     }
 
-    /** @return the serializer for the {@link InProgressFileWriter.InProgressFileRecoverable}. */
+    /**
+     * @return the serializer for the {@link InProgressFileWriter.InProgressFileRecoverable}.
+     */
     public SimpleVersionedSerializer<InProgressFileWriter.InProgressFileRecoverable>
             getInProgressFileRecoverableSerializer() {
         return inProgressFileRecoverableSerializer;

@@ -227,6 +227,10 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
         return inputGate.hasReceivedEndOfData();
     }
 
+    public void resumeGateConsumption() throws IOException {
+        inputGate.resumeGateConsumption();
+    }
+
     /**
      * Cleans up all internally held resources.
      *
@@ -271,7 +275,9 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
         return barrierHandler.getCheckpointStartDelayNanos();
     }
 
-    /** @return number of underlying input channels. */
+    /**
+     * @return number of underlying input channels.
+     */
     public int getNumberOfInputChannels() {
         return inputGate.getNumberOfInputChannels();
     }

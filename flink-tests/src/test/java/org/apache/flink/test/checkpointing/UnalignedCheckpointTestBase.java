@@ -69,7 +69,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Iterables;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -99,7 +99,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.shaded.guava32.com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.flink.shaded.guava33.com.google.common.collect.Iterables.getOnlyElement;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -120,6 +120,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
     protected static final String NUM_FAILURES = "failures";
     protected static final String NUM_DUPLICATES = "duplicates";
     protected static final String NUM_LOST = "lost";
+
     /** For multi-gate tests. */
     protected static final int NUM_SOURCES = 3;
 

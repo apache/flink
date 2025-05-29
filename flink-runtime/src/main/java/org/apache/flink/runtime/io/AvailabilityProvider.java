@@ -33,7 +33,9 @@ public interface AvailabilityProvider {
      */
     CompletableFuture<?> AVAILABLE = CompletableFuture.completedFuture(null);
 
-    /** @return a future that is completed if the respective provider is available. */
+    /**
+     * @return a future that is completed if the respective provider is available.
+     */
     CompletableFuture<?> getAvailableFuture();
 
     /**
@@ -142,7 +144,9 @@ public interface AvailabilityProvider {
             return toNotify;
         }
 
-        /** @return a future that is completed if the respective provider is available. */
+        /**
+         * @return a future that is completed if the respective provider is available.
+         */
         @Override
         public CompletableFuture<?> getAvailableFuture() {
             return availableFuture;

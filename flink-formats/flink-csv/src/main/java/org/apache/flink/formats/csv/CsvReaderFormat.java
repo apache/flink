@@ -36,8 +36,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.Csv
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.util.function.Function;
-import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -110,25 +108,6 @@ public class CsvReaderFormat<T> extends SimpleStreamFormat<T> {
     public static <T> CsvReaderFormat<T> forSchema(
             CsvSchema schema, TypeInformation<T> typeInformation) {
         return forSchema(JacksonMapperFactory::createCsvMapper, ignored -> schema, typeInformation);
-    }
-
-    /**
-     * @deprecated This method is limited to serializable {@link CsvMapper CsvMappers}, preventing
-     *     the usage of certain Jackson modules (like the {@link
-     *     org.apache.flink.shaded.jackson2.com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
-     *     Java 8 Date/Time Serializers}). Use {@link #forSchema(Supplier, Function,
-     *     TypeInformation)} instead.
-     */
-    @Deprecated
-    public static <T> CsvReaderFormat<T> forSchema(
-            CsvMapper mapper, CsvSchema schema, TypeInformation<T> typeInformation) {
-        return new CsvReaderFormat<>(
-                () -> mapper,
-                ignored -> schema,
-                typeInformation.getTypeClass(),
-                (value, context) -> value,
-                typeInformation,
-                false);
     }
 
     /**

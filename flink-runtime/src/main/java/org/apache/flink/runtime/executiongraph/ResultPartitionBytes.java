@@ -19,7 +19,9 @@
 package org.apache.flink.runtime.executiongraph;
 
 import java.io.Serializable;
+import java.util.List;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** This class represents a snapshot of the result partition bytes metrics. */
@@ -33,5 +35,24 @@ public class ResultPartitionBytes implements Serializable {
 
     public long[] getSubpartitionBytes() {
         return subpartitionBytes;
+    }
+
+    /** Merge all {@link ResultPartitionBytes} by sum up them per-subpartition. */
+    public static ResultPartitionBytes mergeAll(List<ResultPartitionBytes> partitions) {
+        checkArgument(!partitions.isEmpty());
+        int expectedLength = partitions.get(0).getSubpartitionBytes().length;
+        for (ResultPartitionBytes resultPartitionByte : partitions) {
+            if (resultPartitionByte.getSubpartitionBytes().length != expectedLength) {
+                throw new IllegalArgumentException(
+                        "only all ResultPartitionBytes with the same length can be merged");
+            }
+        }
+        long[] mergedSubpartitionBytes = new long[expectedLength];
+        for (int i = 0; i < expectedLength; i++) {
+            for (ResultPartitionBytes resultPartitionByte : partitions) {
+                mergedSubpartitionBytes[i] += resultPartitionByte.getSubpartitionBytes()[i];
+            }
+        }
+        return new ResultPartitionBytes(mergedSubpartitionBytes);
     }
 }

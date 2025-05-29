@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.plan.rules
 
 import org.apache.flink.table.planner.plan.nodes.logical._
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalProcessTableFunctionRule
 import org.apache.flink.table.planner.plan.rules.logical._
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule
 import org.apache.flink.table.planner.plan.rules.physical.stream._
@@ -36,7 +37,7 @@ object FlinkStreamRuleSets {
     FlinkRewriteSubQueryRule.FILTER,
     FlinkSubQueryRemoveRule.FILTER,
     JoinConditionTypeCoerceRule.INSTANCE,
-    FlinkJoinPushExpressionsRule.INSTANCE
+    CoreRules.JOIN_PUSH_EXPRESSIONS
   )
 
   /** Convert sub-queries before query decorrelation. */
@@ -121,7 +122,7 @@ object FlinkStreamRuleSets {
           new CoerceInputsRule(classOf[LogicalMinus], false),
           ConvertToNotInOrInRule.INSTANCE,
           // optimize limit 0
-          FlinkLimit0RemoveRule.INSTANCE,
+          PruneEmptyRules.SORT_FETCH_ZERO_INSTANCE,
           // fix: FLINK-28986 nested filter pattern causes unnest rule mismatch
           CoreRules.FILTER_MERGE,
           // unnest rule
@@ -183,7 +184,7 @@ object FlinkStreamRuleSets {
     PruneEmptyRules.AGGREGATE_INSTANCE,
     PruneEmptyRules.FILTER_INSTANCE,
     PruneEmptyRules.JOIN_LEFT_INSTANCE,
-    FlinkPruneEmptyRules.JOIN_RIGHT_INSTANCE,
+    PruneEmptyRules.JOIN_RIGHT_INSTANCE,
     PruneEmptyRules.PROJECT_INSTANCE,
     PruneEmptyRules.SORT_INSTANCE,
     PruneEmptyRules.UNION_INSTANCE
@@ -249,7 +250,7 @@ object FlinkStreamRuleSets {
     CoreRules.SORT_REMOVE,
 
     // join rules
-    FlinkJoinPushExpressionsRule.INSTANCE,
+    CoreRules.JOIN_PUSH_EXPRESSIONS,
     SimplifyJoinConditionRule.INSTANCE,
 
     // remove union with only a single child
@@ -416,7 +417,9 @@ object FlinkStreamRuleSets {
     // Avoid async calls which call async calls.
     AsyncCalcSplitRule.NESTED_SPLIT,
     // Avoid having async calls in multiple projections in a single calc.
-    AsyncCalcSplitRule.ONE_PER_CALC_SPLIT
+    AsyncCalcSplitRule.ONE_PER_CALC_SPLIT,
+    // Split async calls from correlates
+    AsyncCorrelateSplitRule.INSTANCE
   )
 
   /** RuleSet to do physical optimize for stream */
@@ -465,6 +468,8 @@ object FlinkStreamRuleSets {
     ExpandWindowTableFunctionTransposeRule.INSTANCE,
     StreamPhysicalWindowRankRule.INSTANCE,
     StreamPhysicalWindowDeduplicateRule.INSTANCE,
+    // process table function
+    StreamPhysicalProcessTableFunctionRule.INSTANCE,
     // join
     StreamPhysicalJoinRule.INSTANCE,
     StreamPhysicalIntervalJoinRule.INSTANCE,
@@ -483,10 +488,16 @@ object FlinkStreamRuleSets {
     StreamPhysicalLegacySinkRule.INSTANCE
   )
 
-  /** RuleSet related to transpose watermark to be close to source */
-  val WATERMARK_TRANSPOSE_RULES: RuleSet = RuleSets.ofList(
+  /**
+   * RuleSet related to optimizing ChangelogNormalize:
+   *   1. transpose watermark to be close to source 2. transpose projections 3. push filter either
+   *      inside of a changelog normalize or past it
+   */
+  val CHANGELOG_NORMALIZE_TRANSPOSE_RULES: RuleSet = RuleSets.ofList(
     WatermarkAssignerChangelogNormalizeTransposeRule.WITH_CALC,
-    WatermarkAssignerChangelogNormalizeTransposeRule.WITHOUT_CALC
+    WatermarkAssignerChangelogNormalizeTransposeRule.WITHOUT_CALC,
+    // reduce state size in ChangelogNormalize
+    PushCalcPastChangelogNormalizeRule.INSTANCE
   )
 
   /** RuleSet related to mini-batch. */
@@ -502,9 +513,7 @@ object FlinkStreamRuleSets {
     // incremental agg rule
     IncrementalAggregateRule.INSTANCE,
     // optimize window agg rule
-    TwoStageOptimizedWindowAggregateRule.INSTANCE,
-    // optimize ChangelogNormalize
-    PushCalcPastChangelogNormalizeRule.INSTANCE
+    TwoStageOptimizedWindowAggregateRule.INSTANCE
   )
 
 }

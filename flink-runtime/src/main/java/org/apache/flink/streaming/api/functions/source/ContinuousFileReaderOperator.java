@@ -184,6 +184,7 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
         };
 
         private static final Set<ReaderState> ACCEPT_SPLITS = EnumSet.of(IDLE, OPENING, READING);
+
         /** Possible transition FROM each state. */
         private static final Map<ReaderState, Set<ReaderState>> VALID_TRANSITIONS;
 
@@ -229,6 +230,7 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
     private transient OUT reusedRecord;
     private transient SourceFunction.SourceContext<OUT> sourceContext;
     private transient ListState<T> checkpointedState;
+
     /** MUST only be changed via {@link #switchState(ReaderState) switchState}. */
     private transient ReaderState state = ReaderState.IDLE;
 
