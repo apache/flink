@@ -1261,8 +1261,9 @@ env.sqlQuery("SELECT * FROM MyTable, LATERAL TABLE(BackgroundFunction(myField))"
 {{< tab "Scala" >}}
 ```scala
 import org.apache.flink.table.api._
-import org.apache.flink.table.functions.{AsyncScalarFunction, FunctionContext}
+import org.apache.flink.table.functions.{AsyncTableFunction, FunctionContext}
 
+import java.util
 import java.util.Random
 import java.util.concurrent.{CompletableFuture, Executor, Executors}
 
@@ -1274,9 +1275,9 @@ class BackgroundFunc extends AsyncTableFunction[java.lang.Long] {
     executor = Executors.newFixedThreadPool(10)
   }
 
-  def eval(future: CompletableFuture[java.util.Collection[java.lang.Long], waitMax: Integer): Unit = {
+  def eval(future: CompletableFuture[java.util.Collection[java.lang.Long]], waitMax: Integer): Unit = {
     executor.execute(() => {
-      ArrayList<Long> result = new ArrayList<>();
+      val result = new util.ArrayList[java.lang.Long]()
       val sleepTime = new Random().nextInt(waitMax)
       try Thread.sleep(sleepTime)
       catch {
