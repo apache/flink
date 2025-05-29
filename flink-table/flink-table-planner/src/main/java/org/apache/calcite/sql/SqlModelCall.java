@@ -53,6 +53,10 @@ public class SqlModelCall extends SqlBasicCall {
         return model.getOutputRowType(validator.getTypeFactory());
     }
 
+    public CatalogSchemaModel getModel() {
+        return model;
+    }
+
     /**
      * A custom SqlOperator to handle model identifier.
      *

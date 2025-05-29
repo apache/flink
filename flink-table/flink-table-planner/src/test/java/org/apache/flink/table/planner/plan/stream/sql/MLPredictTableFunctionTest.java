@@ -64,7 +64,11 @@ public class MLPredictTableFunctionTest extends TableTestBase {
                                 + "INPUT (a INT, b BIGINT)\n"
                                 + "OUTPUT(e STRING, f ARRAY<INT>)\n"
                                 + "with (\n"
-                                + "  'provider' = 'openai'\n"
+                                + "  'provider' = 'test-model',\n" // test model provider defined in
+                                // TestModelProviderFactory in
+                                // flink-table-common
+                                + "  'endpoint' = 'someendpoint',\n"
+                                + "  'task' = 'text_generation'\n"
                                 + ")");
     }
 
@@ -142,7 +146,9 @@ public class MLPredictTableFunctionTest extends TableTestBase {
                                 + "INPUT (a INT, b BIGINT)\n"
                                 + "OUTPUT(c STRING, d ARRAY<INT>)\n"
                                 + "with (\n"
-                                + "  'provider' = 'openai'\n"
+                                + "  'task' = 'text_generation',\n"
+                                + "  'endpoint' = 'someendpoint',\n"
+                                + "  'provider' = 'test-model'"
                                 + ")");
 
         String sql =
@@ -215,7 +221,9 @@ public class MLPredictTableFunctionTest extends TableTestBase {
                                         + "INPUT (x %s)\n"
                                         + "OUTPUT (res STRING)\n"
                                         + "with (\n"
-                                        + "  'provider' = 'openai'\n"
+                                        + "  'task' = 'text_generation',\n"
+                                        + "  'endpoint' = 'someendpoint',\n"
+                                        + "  'provider' = 'test-model'"
                                         + ")",
                                 modelType));
 
@@ -273,7 +281,8 @@ public class MLPredictTableFunctionTest extends TableTestBase {
 
     private void assertReachesRelConverter(String sql) {
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
-                .hasMessageContaining("while converting MODEL");
+                .hasMessageContaining(
+                        "This exception indicates that the query uses an unsupported SQL feature.");
     }
 
     private static Stream<Arguments> compatibleTypeProvider() {

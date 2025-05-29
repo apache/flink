@@ -17,33 +17,32 @@
  */
 package org.apache.flink.table.planner.plan.optimize.program
 
-import org.apache.flink.legacy.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, StreamTableSink, UpsertStreamTableSink}
-import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.config.ExecutionConfigOptions.UpsertMaterialize
-import org.apache.flink.table.connector.ChangelogMode
-import org.apache.flink.table.functions.ChangelogFunction
-import org.apache.flink.table.functions.ChangelogFunction.ChangelogContext
-import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexTableArgCall}
-import org.apache.flink.table.planner.plan.`trait`._
-import org.apache.flink.table.planner.plan.`trait`.DeleteKindTrait.{deleteOnKeyOrNone, fullDeleteOrNone, DELETE_BY_KEY}
-import org.apache.flink.table.planner.plan.`trait`.UpdateKindTrait.{beforeAfterOrNone, onlyAfterOrNone, BEFORE_AND_AFTER, ONLY_UPDATE_AFTER}
-import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
-import org.apache.flink.table.planner.plan.nodes.physical.stream._
-import org.apache.flink.table.planner.plan.optimize.ChangelogNormalizeRequirementResolver
-import org.apache.flink.table.planner.plan.utils._
-import org.apache.flink.table.planner.plan.utils.RankProcessStrategy.{AppendFastStrategy, RetractStrategy, UpdateFastStrategy}
-import org.apache.flink.table.planner.sinks.DataStreamTableSink
-import org.apache.flink.table.planner.utils.{JavaScalaConversionUtil, ShortcutUtils}
-import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
-import org.apache.flink.table.runtime.operators.join.FlinkJoinType
-import org.apache.flink.table.types.inference.{StaticArgument, StaticArgumentTrait}
-import org.apache.flink.types.RowKind
-
 import org.apache.calcite.linq4j.Ord
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.RexCall
 import org.apache.calcite.util.ImmutableBitSet
+import org.apache.flink.legacy.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, StreamTableSink, UpsertStreamTableSink}
+import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.config.ExecutionConfigOptions.UpsertMaterialize
+import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.connector.ChangelogMode
+import org.apache.flink.table.functions.ChangelogFunction
+import org.apache.flink.table.functions.ChangelogFunction.ChangelogContext
+import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexTableArgCall}
+import org.apache.flink.table.planner.plan.`trait`.DeleteKindTrait.{DELETE_BY_KEY, deleteOnKeyOrNone, fullDeleteOrNone}
+import org.apache.flink.table.planner.plan.`trait`.UpdateKindTrait.{BEFORE_AND_AFTER, ONLY_UPDATE_AFTER, beforeAfterOrNone, onlyAfterOrNone}
+import org.apache.flink.table.planner.plan.`trait`._
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.planner.plan.nodes.physical.stream._
+import org.apache.flink.table.planner.plan.optimize.ChangelogNormalizeRequirementResolver
+import org.apache.flink.table.planner.plan.utils.RankProcessStrategy.{AppendFastStrategy, RetractStrategy, UpdateFastStrategy}
+import org.apache.flink.table.planner.plan.utils._
+import org.apache.flink.table.planner.sinks.DataStreamTableSink
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
+import org.apache.flink.table.planner.utils.{JavaScalaConversionUtil, ShortcutUtils}
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType
+import org.apache.flink.table.types.inference.{StaticArgument, StaticArgumentTrait}
+import org.apache.flink.types.RowKind
 
 import scala.collection.JavaConversions._
 
@@ -376,7 +375,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       case _: StreamPhysicalCalcBase | _: StreamPhysicalCorrelateBase |
           _: StreamPhysicalLookupJoin | _: StreamPhysicalExchange | _: StreamPhysicalExpand |
           _: StreamPhysicalMiniBatchAssigner | _: StreamPhysicalWatermarkAssigner |
-          _: StreamPhysicalWindowTableFunction =>
+          _: StreamPhysicalWindowTableFunction | _: StreamPhysicalModelTableFunction =>
         // transparent forward requiredTrait to children
         val children = visitChildren(rel, requiredTrait, requester)
         val childrenTrait = children.head.getTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
@@ -716,7 +715,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         case _: StreamPhysicalCorrelateBase | _: StreamPhysicalLookupJoin |
             _: StreamPhysicalExchange | _: StreamPhysicalExpand |
             _: StreamPhysicalMiniBatchAssigner | _: StreamPhysicalWatermarkAssigner |
-            _: StreamPhysicalWindowTableFunction =>
+            _: StreamPhysicalWindowTableFunction | _: StreamPhysicalModelTableFunction =>
           // transparent forward requiredTrait to children
           visitChildren(rel, requiredUpdateTrait) match {
             case None => None
@@ -1083,7 +1082,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             _: StreamPhysicalWindowRank | _: StreamPhysicalWindowDeduplicate |
             _: StreamPhysicalTemporalSort | _: StreamPhysicalMatch |
             _: StreamPhysicalOverAggregate | _: StreamPhysicalIntervalJoin |
-            _: StreamPhysicalPythonOverAggregate | _: StreamPhysicalWindowJoin =>
+            _: StreamPhysicalPythonOverAggregate | _: StreamPhysicalWindowJoin |
+            _: StreamPhysicalModelTableFunction =>
           // if not explicitly supported, all operators require full deletes if there are updates
           val children = rel.getInputs.map {
             case child: StreamPhysicalRel =>
