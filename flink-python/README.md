@@ -60,13 +60,13 @@ export FLINK_UV_HOME=$(dirname $(dirname $(which uv)))
 
 Create a virtual environment:
 ```shell
-uv venv pyflink_38 --python=3.8
+uv venv pyflink_39 --python=3.9
 ```
 
 Then you can activate your environment and run tests, for example:
 
 ```shell
-source pyflink_38/bin/activate
+source pyflink_39/bin/activate
 uv pip install -r ./dev/dev-requirements.txt
 ./dev/lint-python.sh
 ```
