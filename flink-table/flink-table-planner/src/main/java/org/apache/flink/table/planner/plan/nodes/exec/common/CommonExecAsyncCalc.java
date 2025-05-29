@@ -152,7 +152,7 @@ public abstract class CommonExecAsyncCalc extends ExecNodeBase<RowData>
                         config,
                         classLoader);
         AsyncFunctionRunner func = new AsyncFunctionRunner(generatedFunction);
-        AsyncUtil.Options options = AsyncUtil.getAsyncOptions(config);
+        AsyncUtil.Options options = AsyncUtil.getAsyncScalarOptions(config);
         return new AsyncWaitOperatorFactory<>(
                 func,
                 options.asyncTimeout,
