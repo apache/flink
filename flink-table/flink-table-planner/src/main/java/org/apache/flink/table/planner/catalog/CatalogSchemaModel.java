@@ -25,10 +25,10 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.ModelProviderFactory;
 import org.apache.flink.table.ml.ModelProvider;
 import org.apache.flink.table.module.Module;
+import org.apache.flink.table.planner.calcite.FlinkCalciteSqlValidator;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexModelCall;
-import org.apache.flink.table.planner.plan.schema.ModelProviderModel;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.types.PlannerTypeUtils;
 import org.apache.flink.table.types.DataType;
@@ -38,7 +38,7 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.validate.SqlValidator;
+import org.apache.calcite.sql2rel.SqlRexContext;
 
 import java.util.List;
 import java.util.Optional;
@@ -90,13 +90,13 @@ public class CatalogSchemaModel {
         return schemaToRelDataType(flinkTypeFactory, schema);
     }
 
-    public RexNode toRex(RelOptCluster cluster, SqlValidator validator) {
+    public RexNode toRex(SqlRexContext rexContext) {
+        FlinkCalciteSqlValidator validator = (FlinkCalciteSqlValidator) rexContext.getValidator();
+        RelOptCluster cluster = validator.getRelOptCluster();
         FlinkContext context = ShortcutUtils.unwrapContext(cluster);
         ModelProvider modelProvider = createModelProvider(context, contextResolvedModel);
         return new RexModelCall(
-                new ModelProviderModel(modelProvider, contextResolvedModel),
-                getInputRowType(validator.getTypeFactory()),
-                getOutputRowType(validator.getTypeFactory()));
+                getInputRowType(validator.getTypeFactory()), contextResolvedModel, modelProvider);
     }
 
     private static RelDataType schemaToRelDataType(

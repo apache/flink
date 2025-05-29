@@ -16,20 +16,21 @@
  */
 package org.apache.calcite.sql2rel;
 
-import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.data.TimestampData;
-import org.apache.flink.table.planner.calcite.FlinkSqlCallBinding;
-import org.apache.flink.table.planner.calcite.TimestampSchemaVersion;
-import org.apache.flink.table.planner.hint.ClearQueryHintsWithInvalidPropagationShuttle;
-import org.apache.flink.table.planner.hint.FlinkHints;
-import org.apache.flink.table.planner.plan.FlinkCalciteCatalogSnapshotReader;
-import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
-import org.apache.flink.table.planner.utils.ShortcutUtils;
+import static com.google.common.base.Preconditions.checkArgument;
+
+import static org.apache.calcite.linq4j.Nullness.castNonNull;
+import static org.apache.calcite.runtime.FlatLists.append;
+import static org.apache.calcite.sql.SqlUtil.stripAs;
+import static org.apache.calcite.util.Static.RESOURCE;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
+import static java.util.Objects.requireNonNull;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+
 import org.apache.calcite.avatica.util.Spaces;
 import org.apache.calcite.config.NullCollation;
 import org.apache.calcite.jdbc.CalciteSchema;
@@ -134,7 +135,6 @@ import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlMatchRecognize;
 import org.apache.calcite.sql.SqlMerge;
-import org.apache.calcite.sql.SqlModelCall;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlNumericLiteral;
@@ -197,6 +197,15 @@ import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.TimestampString;
 import org.apache.calcite.util.Util;
 import org.apache.calcite.util.trace.CalciteTrace;
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.planner.calcite.FlinkSqlCallBinding;
+import org.apache.flink.table.planner.calcite.TimestampSchemaVersion;
+import org.apache.flink.table.planner.hint.ClearQueryHintsWithInvalidPropagationShuttle;
+import org.apache.flink.table.planner.hint.FlinkHints;
+import org.apache.flink.table.planner.plan.FlinkCalciteCatalogSnapshotReader;
+import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.immutables.value.Value;
 import org.slf4j.Logger;
@@ -224,14 +233,6 @@ import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static java.util.Objects.requireNonNull;
-import static org.apache.calcite.linq4j.Nullness.castNonNull;
-import static org.apache.calcite.runtime.FlatLists.append;
-import static org.apache.calcite.sql.SqlUtil.stripAs;
-import static org.apache.calcite.util.Static.RESOURCE;
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * Converts a SQL parse tree (consisting of {@link org.apache.calcite.sql.SqlNode} objects) into a
  * relational algebra expression (consisting of {@link org.apache.calcite.rel.RelNode} objects).
@@ -252,8 +253,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *   <li>Added in FLINK-32474: Lines 2526 ~ 2528
  *   <li>Added in FLINK-32474: Lines 2934 ~ 2945
  *   <li>Added in FLINK-32474: Lines 3046 ~ 3080
- *   <li>Added in FLINK-34312, FLINK-37791: Lines 5827 ~ 5843
- *   <li>Added in FLINK-34057, FLINK-34058, FLINK-34312: Lines 6293 ~ 6311
+ *   <li>Added in FLINK-34312: Lines 5827 ~ 5838
+ *   <li>Added in FLINK-34057, FLINK-34058, FLINK-34312: Lines 6285 ~ 6303
  * </ol>
  *
  * <p>In official extension point (i.e. {@link #convertExtendedExpression(SqlNode, Blackboard)}):
@@ -5833,10 +5834,6 @@ public class SqlToRelConverter {
                 // reset it if it was known. Otherwise, the type inference would be called twice
                 // when converting to RexNode.
                 validator().setValidatedNodeType(permutedCall, typeIfKnown);
-            }
-
-            if (permutedCall instanceof SqlModelCall) {
-                return ((SqlModelCall) permutedCall).getModel().toRex(getCluster(), getValidator());
             }
 
             return exprConverter.convertCall(this, permutedCall);

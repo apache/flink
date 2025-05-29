@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.planner.calcite;
 
-import org.apache.flink.table.planner.plan.schema.ModelProviderModel;
+import org.apache.flink.table.catalog.ContextResolvedModel;
+import org.apache.flink.table.ml.ModelProvider;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexCall;
@@ -34,14 +35,16 @@ import java.util.List;
  */
 public class RexModelCall extends RexCall {
 
-    private ModelProviderModel modelProviderModel;
-    private RelDataType inputType;
+    private final ModelProvider modelProvider;
+    private final ContextResolvedModel contextResolvedModel;
 
     public RexModelCall(
-            ModelProviderModel modelProviderModel, RelDataType inputType, RelDataType outputType) {
+            RelDataType outputType,
+            ContextResolvedModel contextResolvedModel,
+            ModelProvider modelProvider) {
         super(outputType, new SqlSpecialOperator("Model", SqlKind.OTHER), List.of());
-        this.modelProviderModel = modelProviderModel;
-        this.inputType = inputType;
+        this.contextResolvedModel = contextResolvedModel;
+        this.modelProvider = modelProvider;
     }
 
     @Override
@@ -49,11 +52,7 @@ public class RexModelCall extends RexCall {
         final StringBuilder sb = new StringBuilder(op.getName());
         sb.append("(");
         sb.append("MODEL ")
-                .append(
-                        modelProviderModel
-                                .getContextResolvedModel()
-                                .getIdentifier()
-                                .asSummaryString())
+                .append(contextResolvedModel.getIdentifier().asSummaryString())
                 .append(")");
         if (withType) {
             sb.append(":");
