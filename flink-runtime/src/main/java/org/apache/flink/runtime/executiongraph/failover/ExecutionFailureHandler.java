@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.executiongraph.failover;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.TraceOptions;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.failure.FailureEnricher.Context;
 import org.apache.flink.metrics.MetricGroup;
@@ -69,7 +68,6 @@ public class ExecutionFailureHandler {
     private final Collection<FailureEnricher> failureEnrichers;
     private final ComponentMainThreadExecutor mainThreadExecutor;
     private final MetricGroup metricGroup;
-    private final boolean reportEventsAsSpans;
     private final JobFailureMetricReporter jobFailureMetricReporter;
 
     /**
@@ -103,7 +101,6 @@ public class ExecutionFailureHandler {
         this.taskFailureCtx = taskFailureCtx;
         this.globalFailureCtx = globalFailureCtx;
         this.metricGroup = metricGroup;
-        this.reportEventsAsSpans = jobMasterConfig.get(TraceOptions.REPORT_EVENTS_AS_SPANS);
         this.jobFailureMetricReporter = new JobFailureMetricReporter(metricGroup);
     }
 
@@ -165,17 +162,14 @@ public class ExecutionFailureHandler {
         FailureHandlingResult failureHandlingResult =
                 handleFailure(failedExecution, cause, timestamp, verticesToRestart, globalFailure);
 
-        if (reportEventsAsSpans) {
-            // TODO: replace with reporting as event once events are supported.
-            // Add reporting as callback for when the failure labeling is completed.
-            failureHandlingResult
-                    .getFailureLabels()
-                    .thenAcceptAsync(
-                            labels ->
-                                    jobFailureMetricReporter.reportJobFailure(
-                                            failureHandlingResult, labels),
-                            mainThreadExecutor);
-        }
+        // Add reporting as callback for when the failure labeling is completed.
+        failureHandlingResult
+                .getFailureLabels()
+                .thenAcceptAsync(
+                        labels ->
+                                jobFailureMetricReporter.reportJobFailure(
+                                        failureHandlingResult, labels),
+                        mainThreadExecutor);
 
         return failureHandlingResult;
     }
