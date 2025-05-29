@@ -125,6 +125,19 @@ public abstract class LiteralAggFunction extends DeclarativeAggregateFunction {
         }
     }
 
+    /** Built-in Integer Literal aggregate function. */
+    public static class IntLiteralAggFunction extends LiteralAggFunction {
+
+        public IntLiteralAggFunction(RexLiteral rexLiteral) {
+            super(rexLiteral);
+        }
+
+        @Override
+        public DataType getResultType() {
+            return DataTypes.INT();
+        }
+    }
+
     /** Built-in Long Literal aggregate function. */
     public static class LongLiteralAggFunction extends LiteralAggFunction {
 

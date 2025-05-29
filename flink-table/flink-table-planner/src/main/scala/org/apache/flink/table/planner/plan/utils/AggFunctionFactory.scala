@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.{BuiltInFunctionDefinitions, DeclarativeAggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.functions.aggfunctions._
-import org.apache.flink.table.planner.functions.aggfunctions.LiteralAggFunction.{BooleanLiteralAggFunction, ByteLiteralAggFunction, DoubleLiteralAggFunction, FloatLiteralAggFunction, ShortLiteralAggFunction}
+import org.apache.flink.table.planner.functions.aggfunctions.LiteralAggFunction.{BooleanLiteralAggFunction, ByteLiteralAggFunction, DoubleLiteralAggFunction, FloatLiteralAggFunction, IntLiteralAggFunction, LongLiteralAggFunction, ShortLiteralAggFunction}
 import org.apache.flink.table.planner.functions.aggfunctions.SingleValueAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.SumWithRetractAggFunction._
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
@@ -295,6 +295,10 @@ class AggFunctionFactory(
         new ByteLiteralAggFunction(rexNode.asInstanceOf[RexLiteral])
       case SqlTypeName.SMALLINT =>
         new ShortLiteralAggFunction(rexNode.asInstanceOf[RexLiteral])
+      case SqlTypeName.INTEGER =>
+        new IntLiteralAggFunction(rexNode.asInstanceOf[RexLiteral])
+      case SqlTypeName.BIGINT =>
+        new LongLiteralAggFunction(rexNode.asInstanceOf[RexLiteral])
       case SqlTypeName.FLOAT =>
         new FloatLiteralAggFunction(rexNode.asInstanceOf[RexLiteral])
       case SqlTypeName.DOUBLE =>
