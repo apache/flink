@@ -37,7 +37,7 @@ import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.SqlWriter;
-import org.apache.calcite.sql.type.FlinkCalciteTableMappingRule;
+import org.apache.calcite.sql.type.FlinkSqlTypeMappingRule;
 import org.apache.calcite.sql.type.InferTypes;
 import org.apache.calcite.sql.type.SqlOperandCountRanges;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
@@ -276,7 +276,7 @@ public class SqlCastFunction extends SqlFunction {
                         FlinkTypeFactory.toLogicalType(toType));
             default:
                 return SqlTypeUtil.canCastFrom(
-                        toType, fromType, FlinkCalciteTableMappingRule.instance());
+                        toType, fromType, FlinkSqlTypeMappingRule.instance());
         }
     }
 

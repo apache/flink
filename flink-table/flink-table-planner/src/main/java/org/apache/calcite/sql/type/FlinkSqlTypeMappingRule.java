@@ -28,22 +28,22 @@ import java.util.Objects;
 import java.util.Set;
 
 /** Rules that determine whether a type is castable from another type. */
-public class FlinkCalciteTableMappingRule implements SqlTypeMappingRule {
-    private static final FlinkCalciteTableMappingRule INSTANCE;
+public class FlinkSqlTypeMappingRule implements SqlTypeMappingRule {
+    private static final FlinkSqlTypeMappingRule INSTANCE;
 
     private final Map<SqlTypeName, ImmutableSet<SqlTypeName>> map;
 
-    private FlinkCalciteTableMappingRule(Map<SqlTypeName, ImmutableSet<SqlTypeName>> map) {
+    private FlinkSqlTypeMappingRule(Map<SqlTypeName, ImmutableSet<SqlTypeName>> map) {
         this.map = ImmutableMap.copyOf(map);
     }
 
-    public static FlinkCalciteTableMappingRule instance() {
+    public static FlinkSqlTypeMappingRule instance() {
         return Objects.requireNonNull(FLINK_THREAD_PROVIDERS.get(), "flinkThreadProviders");
     }
 
-    public static FlinkCalciteTableMappingRule instance(
+    public static FlinkSqlTypeMappingRule instance(
             Map<SqlTypeName, ImmutableSet<SqlTypeName>> map) {
-        return new FlinkCalciteTableMappingRule(map);
+        return new FlinkSqlTypeMappingRule(map);
     }
 
     public Map<SqlTypeName, ImmutableSet<SqlTypeName>> getTypeMapping() {
@@ -72,9 +72,9 @@ public class FlinkCalciteTableMappingRule implements SqlTypeMappingRule {
         coerceRules.add(SqlTypeName.FLOAT, rule);
         coerceRules.add(SqlTypeName.DOUBLE, rule);
         coerceRules.add(SqlTypeName.DECIMAL, rule);
-        INSTANCE = new FlinkCalciteTableMappingRule(coerceRules.map);
+        INSTANCE = new FlinkSqlTypeMappingRule(coerceRules.map);
     }
 
-    public static final ThreadLocal<@Nullable FlinkCalciteTableMappingRule> FLINK_THREAD_PROVIDERS =
+    public static final ThreadLocal<@Nullable FlinkSqlTypeMappingRule> FLINK_THREAD_PROVIDERS =
             ThreadLocal.withInitial(() -> INSTANCE);
 }
