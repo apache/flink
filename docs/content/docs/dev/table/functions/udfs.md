@@ -1172,6 +1172,152 @@ If you intend to implement or call functions in Python, please refer to the [Pyt
 
 {{< top >}}
 
+Asynchronous Table Functions
+----------------
+
+Similar to `AsyncScalarFunction`, there also exists a `AsyncTableFunction` for returning multiple row results rather than a single scalar value. Similarly, this is most useful when interacting with external systems (for example when enriching stream events with data stored in a database).
+
+Asynchronous interaction with an external system means that a single function instance can handle many requests concurrently and receive the responses concurrently. That way, the waiting time can be overlaid with sending other requests and receiving responses. At the very least, the waiting time is amortized over multiple requests. This leads in most cased to much higher streaming throughput.
+
+#### Defining an AsyncTableFunction
+
+A user-defined asynchronous table function maps zero, one, or multiple scalar values to zero, one, or multiple Rows, but does it asynchronously. Any data type listed in the [data types section]({{< ref "docs/dev/table/types" >}}) can be used as a parameter or return type of an evaluation method.
+
+In order to define an asynchronous table function, one has to extend the base class `AsyncTableFunction` in `org.apache.flink.table.functions` and implement one or more evaluation methods named `eval(...)`.  The first argument must be a `CompletableFuture<...>` which is used to return the result, with subsequent arguments being the parameters passed to the function.
+
+The number of outstanding calls to `eval` may be configured by `table.exec.async-scalar.buffer-capacity`.
+
+#### Asynchronous Semantics
+While calls to an `AsyncTableFunction` may be completed out of the original input order, to maintain correct semantics, the outputs of the function are guaranteed to maintain that input order to downstream components of the query. The data itself could reveal completion order (e.g. by containing fetch timestamps), so the user should consider whether this is acceptable for the use-case.
+
+#### Error Handling
+The primary way for a user to indicate an error is to call `completableFuture.completeExceptionally(throwable)`. Similarly, if an exception is encountered by the system when invoking `eval`, that will also result in an error. When an error occurs, the system will consider the retry strategy, configured by `table.exec.async-table.retry-strategy`. If this is `NO_RETRY`, it will fail the job immediately. If it is set to `FIXED_DELAY`, a period of `table.exec.async-table.retry-delay` will be waited, and the function call will be retried and given another attempt to succeed. If the number of retries exceeds `table.exec.async-table.max-attempts` or if the timeout `table.exec.async-table.timeout` expires (including all retry attempts), the job will fail.
+
+The following example shows how to do work on a thread pool in the background, though any libraries exposing an async interface may be directly used to complete the `CompletableFuture` from a callback. See the [Implementation Guide](#implementation-guide) for more details.
+
+{{< tabs "a385387e-d64b-44b3-9b65-fd42f0820e99" >}}
+{{< tab "Java" >}}
+
+```java
+import org.apache.flink.table.api.*;
+import org.apache.flink.table.functions.AsyncTableFunction;
+
+import java.util.Random;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+
+import static org.apache.flink.table.api.Expressions.*;
+
+public static class BackgroundFunction extends AsyncTableFunction<Long> {
+    private Executor executor;
+
+    @Override
+    public void open(FunctionContext context) {
+        executor = Executors.newFixedThreadPool(10);
+    }
+
+    public void eval(CompletableFuture<Collection<Long>> future, Integer waitMax) {
+        executor.execute(() -> {
+            ArrayList<Long> result = new ArrayList<>();
+            long sleepTime = new Random().nextInt(waitMax);
+            try {
+                Thread.sleep(sleepTime);
+            } catch (InterruptedException e) {}
+            if (sleepTime < 1000) {
+                result.add(1L);
+                result.add(2L);
+            } else {
+                result.add(3L);
+            }
+            future.complete(result);
+        });
+    }
+}
+
+TableEnvironment env = TableEnvironment.create(...);
+env.getConfig().set("table.exec.async-table.buffer-capacity", "5");
+env.getConfig().set("table.exec.async-table.timeout", "1m");
+
+// call function "inline" without registration in Table API
+env.from("MyTable")
+        .joinLateral(call(BackgroundFunction.class, $("myField")))
+        .select($("*"))
+
+// register function
+env.createTemporarySystemFunction("BackgroundFunction", BackgroundFunction.class);
+
+// call registered function in Table API
+env.from("MyTable")
+        .joinLateral(call("BackgroundFunction", $("myField")))
+        .select($("*"))
+
+// call registered function in SQL
+env.sqlQuery("SELECT * FROM MyTable, LATERAL TABLE(BackgroundFunction(myField))");
+
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.table.api._
+import org.apache.flink.table.functions.{AsyncScalarFunction, FunctionContext}
+
+import java.util.Random
+import java.util.concurrent.{CompletableFuture, Executor, Executors}
+
+class BackgroundFunc extends AsyncTableFunction[java.lang.Long] {
+
+  private var executor: Executor = null
+
+  override def open(context: FunctionContext): Unit = {
+    executor = Executors.newFixedThreadPool(10)
+  }
+
+  def eval(future: CompletableFuture[java.util.Collection[java.lang.Long], waitMax: Integer): Unit = {
+    executor.execute(() => {
+      ArrayList<Long> result = new ArrayList<>();
+      val sleepTime = new Random().nextInt(waitMax)
+      try Thread.sleep(sleepTime)
+      catch {
+        case e: InterruptedException =>
+      }
+      if (sleepTime < 1000) {
+        result.add(1L)
+        result.add(2L)
+      } else {
+        result.add(3L)
+      }
+      future.complete(result)
+    })
+  }
+}
+
+val env = TableEnvironment.create(...)
+env.getConfig.set("table.exec.async-table.buffer-capacity", "5")
+env.getConfig.set("table.exec.async-table.timeout", "1m")
+
+// call function "inline" without registration in Table API
+env.from("MyTable")
+  .joinLateral(call(classOf[BackgroundFunc], $"myField")))
+  .select($"*"))
+
+// register function
+env.createTemporarySystemFunction("BackgroundFunc", classOf[BackgroundFunc])
+
+// call registered function in Table API
+env.from("MyTable")
+  .joinLateral(call("BackgroundFunc", $"myField")))
+.select($"*"))
+
+// call registered function in SQL
+env.sqlQuery("SELECT * FROM MyTable, LATERAL TABLE(BackgroundFunction(myField))")
+
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+{{< top >}}
+
 Aggregate Functions
 -------------------
 
