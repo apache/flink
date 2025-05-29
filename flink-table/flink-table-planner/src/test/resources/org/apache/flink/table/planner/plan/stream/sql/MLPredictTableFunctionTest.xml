@@ -31,7 +31,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(VARCHAR(2147483647) col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(VARCHAR(2147483647) col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -51,7 +51,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(BINARY(10) col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(BINARY(10) col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -71,7 +71,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(VARBINARY(10) col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(VARBINARY(10) col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -91,7 +91,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(DATE col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(DATE col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -111,7 +111,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(TIME(0) col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TIME(0) col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -131,7 +131,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(TIMESTAMP(3) col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TIMESTAMP(3) col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -151,7 +151,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -171,7 +171,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(TINYINT col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TINYINT col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -191,7 +191,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(SMALLINT col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(SMALLINT col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -211,7 +211,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(INTEGER col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -231,7 +231,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(VARCHAR(2147483647) col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(VARCHAR(2147483647) col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -251,7 +251,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(FLOAT col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(FLOAT col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -271,7 +271,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(DECIMAL(5, 2) col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(DECIMAL(5, 2) col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -291,7 +291,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(DECIMAL(10, 2) col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(DECIMAL(10, 2) col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -311,7 +311,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(CHAR(10) col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(CHAR(10) col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -331,7 +331,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(VARCHAR(20) col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(VARCHAR(20) col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -351,7 +351,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(TIMESTAMP(3) col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TIMESTAMP(3) col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -371,7 +371,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(DATE col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(DATE col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -391,7 +391,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(TIME(0) col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TIME(0) col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -411,7 +411,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(INTEGER ARRAY col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER ARRAY col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -431,7 +431,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(TINYINT ARRAY col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TINYINT ARRAY col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -451,7 +451,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(BOOLEAN col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(BOOLEAN col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -471,7 +471,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(DECIMAL(5, 2) ARRAY col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(DECIMAL(5, 2) ARRAY col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -491,7 +491,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(VARCHAR(20) ARRAY col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(VARCHAR(20) ARRAY col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -511,7 +511,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType((VARCHAR(2147483647), INTEGER) MAP col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType((VARCHAR(2147483647), INTEGER) MAP col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -531,7 +531,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType((VARCHAR(2147483647), DECIMAL(5, 2)) MAP col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType((VARCHAR(2147483647), DECIMAL(5, 2)) MAP col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -551,7 +551,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType((VARCHAR(20), INTEGER ARRAY) MAP col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType((VARCHAR(20), INTEGER ARRAY) MAP col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -571,7 +571,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(RecordType:peek_no_expand(INTEGER a, VARCHAR(2147483647) b) col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(RecordType:peek_no_expand(INTEGER a, VARCHAR(2147483647) b) col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -591,7 +591,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(RecordType:peek_no_expand(INTEGER a, VARCHAR(2147483647) b) col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(RecordType:peek_no_expand(INTEGER a, VARCHAR(2147483647) b) col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -611,7 +611,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(RecordType:peek_no_expand(DECIMAL(5, 2) a, INTEGER ARRAY b) col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(RecordType:peek_no_expand(DECIMAL(5, 2) a, INTEGER ARRAY b) col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -631,7 +631,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(RecordType:peek_no_expand(VARCHAR(20) a, (VARCHAR(2147483647), INTEGER) MAP b) col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(RecordType:peek_no_expand(VARCHAR(20) a, (VARCHAR(2147483647), INTEGER) MAP b) col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -651,7 +651,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(RecordType:peek_no_expand(INTEGER ARRAY a, (VARCHAR(2147483647), DECIMAL(5, 2) ARRAY) MAP b) col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(RecordType:peek_no_expand(INTEGER ARRAY a, (VARCHAR(2147483647), DECIMAL(5, 2) ARRAY) MAP b) col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -671,7 +671,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(TINYINT col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TINYINT col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -691,7 +691,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType((VARCHAR(2147483647), RecordType:peek_no_expand(INTEGER a, VARCHAR(20) ARRAY b)) MAP col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType((VARCHAR(2147483647), RecordType:peek_no_expand(INTEGER a, VARCHAR(20) ARRAY b)) MAP col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -711,7 +711,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(SMALLINT col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(SMALLINT col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -731,7 +731,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(INTEGER col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -751,7 +751,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(BIGINT col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(BIGINT col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -771,7 +771,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(FLOAT col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(FLOAT col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -791,7 +791,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(DOUBLE col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(DOUBLE col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -811,7 +811,7 @@ LogicalProject(col=[$0], res=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], select=[col,res], rowType=[RecordType(DECIMAL(10, 2) col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(DECIMAL(10, 2) col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -834,7 +834,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], e=[$
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, e, f])
-+- ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'))], select=[a,b,c,d,rowtime,proctime,e,f], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) e, INTEGER ARRAY f)])
++- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) e, INTEGER ARRAY f)])
    +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
       +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
@@ -859,7 +859,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], e=[$
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, e, f])
-+- ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'), MAP(_UTF-16LE'async':VARCHAR(7) CHARACTER SET "UTF-16LE", _UTF-16LE'true', _UTF-16LE'timeout':VARCHAR(7) CHARACTER SET "UTF-16LE", _UTF-16LE'100s'))], select=[a,b,c,d,rowtime,proctime,e,f], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) e, INTEGER ARRAY f)])
++- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'), MAP(_UTF-16LE'async':VARCHAR(7) CHARACTER SET "UTF-16LE", _UTF-16LE'true', _UTF-16LE'timeout':VARCHAR(7) CHARACTER SET "UTF-16LE", _UTF-16LE'100s'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) e, INTEGER ARRAY f)])
    +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
       +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
@@ -884,7 +884,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], e=[$
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, e, f])
-+- ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'), MAP(_UTF-16LE'key', _UTF-16LE'value'))], select=[a,b,c,d,rowtime,proctime,e,f], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) e, INTEGER ARRAY f)])
++- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'), MAP(_UTF-16LE'key', _UTF-16LE'value'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) e, INTEGER ARRAY f)])
    +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
       +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
@@ -909,7 +909,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], c0=[
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, c0, d0])
-+- ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.ConflictModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'))], select=[a,b,c,d,rowtime,proctime,c0,d0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) c0, INTEGER ARRAY d0)])
++- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.ConflictModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) c0, INTEGER ARRAY d0)])
    +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
       +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
@@ -934,7 +934,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], e=[$
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, e, f])
-+- ModelTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'))], select=[a,b,c,d,rowtime,proctime,e,f], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) e, INTEGER ARRAY f)])
++- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) e, INTEGER ARRAY f)])
    +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
       +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream;
 
-import org.apache.flink.table.planner.functions.sql.ml.SqlMLTableFunction;
+import org.apache.flink.table.planner.functions.sql.ml.SqlMLPredictTableFunction;
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
@@ -32,20 +32,20 @@ import org.apache.calcite.rex.RexCall;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Rule to convert a {@link FlinkLogicalTableFunctionScan} with model call into a {@link
- * StreamPhysicalModelTableFunction}.
+ * Rule to convert a {@link FlinkLogicalTableFunctionScan} with ml_predict call into a {@link
+ * StreamPhysicalMLPredictTableFunction}.
  */
-public class StreamPhysicalModelTableFunctionRule extends ConverterRule {
+public class StreamPhysicalMLPredictTableFunctionRule extends ConverterRule {
 
-    public static final StreamPhysicalModelTableFunctionRule INSTANCE =
-            new StreamPhysicalModelTableFunctionRule(
+    public static final StreamPhysicalMLPredictTableFunctionRule INSTANCE =
+            new StreamPhysicalMLPredictTableFunctionRule(
                     Config.INSTANCE.withConversion(
                             FlinkLogicalTableFunctionScan.class,
                             FlinkConventions.LOGICAL(),
                             FlinkConventions.STREAM_PHYSICAL(),
                             "StreamPhysicalModelTableFunctionRule"));
 
-    private StreamPhysicalModelTableFunctionRule(Config config) {
+    private StreamPhysicalMLPredictTableFunctionRule(Config config) {
         super(config);
     }
 
@@ -53,7 +53,7 @@ public class StreamPhysicalModelTableFunctionRule extends ConverterRule {
     public boolean matches(RelOptRuleCall call) {
         final FlinkLogicalTableFunctionScan scan = call.rel(0);
         final RexCall rexCall = (RexCall) scan.getCall();
-        return rexCall.getOperator() instanceof SqlMLTableFunction;
+        return rexCall.getOperator() instanceof SqlMLPredictTableFunction;
     }
 
     @Override
@@ -69,7 +69,7 @@ public class StreamPhysicalModelTableFunctionRule extends ConverterRule {
         // Get table input from descriptor
         // Get config from map
         // Create ModelProviderSpec similar to DynamicTableSourceSpec and TemporalTableSourceSpec
-        return new StreamPhysicalModelTableFunction(
+        return new StreamPhysicalMLPredictTableFunction(
                 scan.getCluster(), providedTraitSet, newInput, scan, scan.getRowType());
     }
 

@@ -16,21 +16,20 @@
  */
 package org.apache.calcite.sql2rel;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
-import static org.apache.calcite.linq4j.Nullness.castNonNull;
-import static org.apache.calcite.runtime.FlatLists.append;
-import static org.apache.calcite.sql.SqlUtil.stripAs;
-import static org.apache.calcite.util.Static.RESOURCE;
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
-import static java.util.Objects.requireNonNull;
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.planner.calcite.FlinkSqlCallBinding;
+import org.apache.flink.table.planner.calcite.TimestampSchemaVersion;
+import org.apache.flink.table.planner.hint.ClearQueryHintsWithInvalidPropagationShuttle;
+import org.apache.flink.table.planner.hint.FlinkHints;
+import org.apache.flink.table.planner.plan.FlinkCalciteCatalogSnapshotReader;
+import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-
 import org.apache.calcite.avatica.util.Spaces;
 import org.apache.calcite.config.NullCollation;
 import org.apache.calcite.jdbc.CalciteSchema;
@@ -197,15 +196,6 @@ import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.TimestampString;
 import org.apache.calcite.util.Util;
 import org.apache.calcite.util.trace.CalciteTrace;
-import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.data.TimestampData;
-import org.apache.flink.table.planner.calcite.FlinkSqlCallBinding;
-import org.apache.flink.table.planner.calcite.TimestampSchemaVersion;
-import org.apache.flink.table.planner.hint.ClearQueryHintsWithInvalidPropagationShuttle;
-import org.apache.flink.table.planner.hint.FlinkHints;
-import org.apache.flink.table.planner.plan.FlinkCalciteCatalogSnapshotReader;
-import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
-import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.immutables.value.Value;
 import org.slf4j.Logger;
@@ -232,6 +222,14 @@ import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Objects.requireNonNull;
+import static org.apache.calcite.linq4j.Nullness.castNonNull;
+import static org.apache.calcite.runtime.FlatLists.append;
+import static org.apache.calcite.sql.SqlUtil.stripAs;
+import static org.apache.calcite.util.Static.RESOURCE;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Converts a SQL parse tree (consisting of {@link org.apache.calcite.sql.SqlNode} objects) into a

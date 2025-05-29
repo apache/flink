@@ -30,13 +30,13 @@ import org.apache.calcite.rel.type.RelDataType;
 
 import java.util.List;
 
-/** Stream physical RelNode for model table function. */
-public class StreamPhysicalModelTableFunction extends SingleRel implements StreamPhysicalRel {
+/** Stream physical RelNode for ml predict table function. */
+public class StreamPhysicalMLPredictTableFunction extends SingleRel implements StreamPhysicalRel {
 
     private final RelDataType outputRowType;
     private final FlinkLogicalTableFunctionScan scan;
 
-    public StreamPhysicalModelTableFunction(
+    public StreamPhysicalMLPredictTableFunction(
             RelOptCluster cluster,
             RelTraitSet traits,
             RelNode inputRel,
@@ -49,7 +49,7 @@ public class StreamPhysicalModelTableFunction extends SingleRel implements Strea
 
     @Override
     public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-        return new StreamPhysicalModelTableFunction(
+        return new StreamPhysicalMLPredictTableFunction(
                 getCluster(), traitSet, inputs.get(0), scan, getRowType());
     }
 
@@ -71,9 +71,6 @@ public class StreamPhysicalModelTableFunction extends SingleRel implements Strea
     @Override
     public RelWriter explainTerms(RelWriter pw) {
         super.explainTerms(pw);
-        return pw.item("invocation", scan.getCall())
-                .item("input", getInput())
-                .item("select", String.join(",", getRowType().getFieldNames()))
-                .item("rowType", getRowType());
+        return pw.item("invocation", scan.getCall()).item("rowType", getRowType());
     }
 }
