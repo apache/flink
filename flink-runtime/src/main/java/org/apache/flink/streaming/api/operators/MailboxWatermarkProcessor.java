@@ -63,17 +63,22 @@ public class MailboxWatermarkProcessor<OUT> {
     }
 
     public void emitWatermarkInsideMailbox(Watermark mark) throws Exception {
-        maxInputWatermark =
-                new Watermark(Math.max(maxInputWatermark.getTimestamp(), mark.getTimestamp()));
-        emitWatermarkInsideMailbox();
+        emitWatermarkInsideMailbox(mark, output::emitWatermark);
     }
 
-    private void emitWatermarkInsideMailbox() throws Exception {
+    public void emitWatermarkInsideMailbox(Watermark mark, WatermarkEmitter watermarkEmitter)
+            throws Exception {
+        maxInputWatermark =
+                new Watermark(Math.max(maxInputWatermark.getTimestamp(), mark.getTimestamp()));
+        emitWatermarkInsideMailbox(watermarkEmitter);
+    }
+
+    private void emitWatermarkInsideMailbox(WatermarkEmitter watermarkEmitter) throws Exception {
         // Try to progress min watermark as far as we can.
         if (internalTimeServiceManager.tryAdvanceWatermark(
                 maxInputWatermark, mailboxExecutor::shouldInterrupt)) {
             // In case output watermark has fully progressed emit it downstream.
-            output.emitWatermark(maxInputWatermark);
+            watermarkEmitter.emitWatermark(maxInputWatermark);
         } else if (!progressWatermarkScheduled) {
             progressWatermarkScheduled = true;
             // We still have work to do, but we need to let other mails to be processed first.
@@ -81,7 +86,7 @@ public class MailboxWatermarkProcessor<OUT> {
                     MailboxExecutor.MailOptions.deferrable(),
                     () -> {
                         progressWatermarkScheduled = false;
-                        emitWatermarkInsideMailbox();
+                        emitWatermarkInsideMailbox(watermarkEmitter);
                     },
                     "emitWatermarkInsideMailbox");
         } else {
@@ -90,5 +95,13 @@ public class MailboxWatermarkProcessor<OUT> {
             // previous watermark is fully processed.
             LOG.debug("emitWatermarkInsideMailbox is already scheduled, skipping.");
         }
+    }
+
+    /** Interface to emit a watermark after all the timers have been fired. */
+    @Internal
+    public interface WatermarkEmitter {
+
+        /** Emit a watermark. */
+        void emitWatermark(Watermark watermark) throws Exception;
     }
 }

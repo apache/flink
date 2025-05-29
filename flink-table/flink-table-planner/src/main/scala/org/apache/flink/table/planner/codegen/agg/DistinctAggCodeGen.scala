@@ -366,6 +366,7 @@ class DistinctAggCodeGen(
       needRetract: Boolean,
       needMerge: Boolean,
       needReset: Boolean,
+      needBundled: Boolean = false,
       needEmitValue: Boolean): Unit = {
     if (needMerge) {
       // see merge method for more information
@@ -959,5 +960,9 @@ class DistinctAggCodeGen(
   override def setWindowSize(generator: ExprCodeGenerator): String = {
     throw new TableException(
       "Distinct shouldn't set window size, this is a bug, please file a issue.")
+  }
+
+  override def bundledAccumulateRetract(generator: ExprCodeGenerator): String = {
+    throw new TableException("Distinct shouldn't call batch, this is a bug, please file a issue.")
   }
 }

@@ -444,6 +444,25 @@ public class ExecutionConfigOptions {
                                     + "execution is failed.");
 
     // ------------------------------------------------------------------------
+    //  Bundled Aggregate Options
+    // ------------------------------------------------------------------------
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_AGG_BUFFER_CAPACITY =
+            key("table.exec.async-agg.buffer-capacity")
+                    .intType()
+                    .defaultValue(10)
+                    .withDescription(
+                            "The max number of async i/o operations that the async table function can trigger.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Duration> TABLE_EXEC_ASYNC_AGG_TIMEOUT =
+            key("table.exec.async-agg.timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(3))
+                    .withDescription(
+                            "The async timeout for the asynchronous operation to complete.");
+
+    // ------------------------------------------------------------------------
     //  MiniBatch Options
     // ------------------------------------------------------------------------
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
