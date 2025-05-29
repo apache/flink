@@ -5833,7 +5833,6 @@ public class SqlToRelConverter {
                 // when converting to RexNode.
                 validator().setValidatedNodeType(permutedCall, typeIfKnown);
             }
-
             return exprConverter.convertCall(this, permutedCall);
             // ----- FLINK MODIFICATION END -----
         }
