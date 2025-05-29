@@ -252,8 +252,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *   <li>Added in FLINK-32474: Lines 2526 ~ 2528
  *   <li>Added in FLINK-32474: Lines 2934 ~ 2945
  *   <li>Added in FLINK-32474: Lines 3046 ~ 3080
- *   <li>Added in FLINK-34312: Lines 5827 ~ 5838
- *   <li>Added in FLINK-34057, FLINK-34058, FLINK-34312: Lines 6285 ~ 6303
+ *   <li>Added in FLINK-34312, FLINK-37791: Lines 5827 ~ 5843
+ *   <li>Added in FLINK-34057, FLINK-34058, FLINK-34312: Lines 6293 ~ 6311
  * </ol>
  *
  * <p>In official extension point (i.e. {@link #convertExtendedExpression(SqlNode, Blackboard)}):
