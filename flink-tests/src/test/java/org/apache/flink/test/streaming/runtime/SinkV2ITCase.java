@@ -28,6 +28,7 @@ import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.util.ratelimit.GatedRateLimiter;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiter;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
@@ -114,7 +115,9 @@ public class SinkV2ITCase extends AbstractTestBase {
         final Source<Integer, ?, ?> source = createStreamingSource();
 
         env.fromSource(source, WatermarkStrategy.noWatermarks(), "source")
-                .rebalance()
+                // Introduce the keyBy to assert unaligned checkpoint is enabled on the source ->
+                // sink writer edge
+                .keyBy((KeySelector<Integer, Integer>) value -> value)
                 .sinkTo(
                         TestSinkV2.<Integer>newBuilder()
                                 .setCommitter(
@@ -134,7 +137,9 @@ public class SinkV2ITCase extends AbstractTestBase {
         final Source<Integer, ?, ?> source = createStreamingSource();
 
         env.fromSource(source, WatermarkStrategy.noWatermarks(), "source")
-                .rebalance()
+                // Introduce the keyBy to assert unaligned checkpoint is enabled on the source ->
+                // sink writer edge
+                .keyBy((KeySelector<Integer, Integer>) value -> value)
                 .sinkTo(
                         TestSinkV2.<Integer>newBuilder()
                                 .setCommitter(
@@ -210,6 +215,8 @@ public class SinkV2ITCase extends AbstractTestBase {
                         IntegerTypeInfo.INT_TYPE_INFO);
 
         env.fromSource(source, WatermarkStrategy.noWatermarks(), "source")
+                // Introduce the rebalance to assert unaligned checkpoint is enabled on the source
+                // -> sink writer edge
                 .rebalance()
                 .sinkTo(
                         TestSinkV2.<Integer>newBuilder()
@@ -235,6 +242,8 @@ public class SinkV2ITCase extends AbstractTestBase {
                         IntegerTypeInfo.INT_TYPE_INFO);
 
         env.fromSource(source, WatermarkStrategy.noWatermarks(), "source")
+                // Introduce the rebalance to assert unaligned checkpoint is enabled on the source
+                // -> sink writer edge
                 .rebalance()
                 .sinkTo(
                         TestSinkV2.<Integer>newBuilder()
