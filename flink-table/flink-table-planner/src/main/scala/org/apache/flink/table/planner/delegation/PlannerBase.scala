@@ -426,6 +426,10 @@ abstract class PlannerBase(
     val execGraph =
       generator.generate(optimizedRelNodes.map(_.asInstanceOf[FlinkPhysicalRel]), isCompiled)
 
+    applyProcessors(execGraph)
+  }
+
+  def applyProcessors(execGraph: ExecNodeGraph): ExecNodeGraph = {
     // process the graph
     val context = new ProcessorContext(this)
     val processors = getExecNodeGraphProcessors
