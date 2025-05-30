@@ -57,8 +57,12 @@ class SinkV2TransformationTranslatorITCase {
     static final String UID = "FileUid";
     static final int PARALLELISM = 2;
 
-    protected static void assertNoUnalignedOutput(StreamNode src) {
+    private static void assertNoUnalignedOutput(StreamNode src) {
         assertThat(src.getOutEdges()).allMatch(e -> !e.supportsUnalignedCheckpoints());
+    }
+
+    private static void assertUnalignedOutput(StreamNode src) {
+        assertThat(src.getOutEdges()).allMatch(StreamEdge::supportsUnalignedCheckpoints);
     }
 
     Sink<Integer> simpleSink() {
@@ -181,6 +185,7 @@ class SinkV2TransformationTranslatorITCase {
 
         assertThat(streamGraph.getStreamNodes()).hasSize(3);
         assertNoUnalignedOutput(writerNode);
+        assertUnalignedOutput(sourceNode);
 
         validateTopology(
                 writerNode,
