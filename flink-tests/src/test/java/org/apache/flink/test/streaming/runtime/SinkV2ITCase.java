@@ -17,37 +17,61 @@
 
 package org.apache.flink.test.streaming.runtime;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.typeinfo.IntegerTypeInfo;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.util.ratelimit.GatedRateLimiter;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiter;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
+import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.ExternalizedCheckpointRetention;
+import org.apache.flink.configuration.RestartStrategyOptions;
+import org.apache.flink.configuration.StateBackendOptions;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
+import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
+import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2;
 import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2.Record;
 import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2.RecordSerializer;
+import org.apache.flink.test.junit5.InjectClusterClient;
+import org.apache.flink.test.junit5.InjectMiniCluster;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.testutils.junit.SharedObjectsExtension;
 import org.apache.flink.testutils.junit.SharedReference;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -125,6 +149,49 @@ public class SinkV2ITCase extends AbstractTestBase {
         return r.withValue(-r.getValue());
     }
 
+    @ParameterizedTest
+    @CsvSource({"1, 2", "2, 1", "1, 1"})
+    public void writerAndCommitterExecuteInStreamingModeWithScaling(
+            int initialParallelism,
+            int scaledParallelism,
+            @TempDir File checkpointDir,
+            @InjectMiniCluster MiniCluster miniCluster,
+            @InjectClusterClient ClusterClient<?> clusterClient)
+            throws Exception {
+        SharedReference<Queue<Committer.CommitRequest<Record<Integer>>>> committed =
+                SHARED_OBJECTS.add(new ConcurrentLinkedQueue<>());
+        final TrackingCommitter trackingCommitter = new TrackingCommitter(committed);
+        final Configuration config = createConfigForScalingTest(checkpointDir, initialParallelism);
+
+        // first run
+        final JobID jobID =
+                runStreamingWithScalingTest(
+                        config,
+                        initialParallelism,
+                        trackingCommitter,
+                        true,
+                        miniCluster,
+                        clusterClient);
+
+        // second run
+        config.set(StateRecoveryOptions.SAVEPOINT_PATH, getCheckpointPath(miniCluster, jobID));
+        config.set(CoreOptions.DEFAULT_PARALLELISM, scaledParallelism);
+        runStreamingWithScalingTest(
+                config, initialParallelism, trackingCommitter, false, miniCluster, clusterClient);
+
+        assertThat(committed.get())
+                .extracting(Committer.CommitRequest::getCommittable)
+                .containsExactlyInAnyOrderElementsOf(
+                        duplicate(EXPECTED_COMMITTED_DATA_IN_STREAMING_MODE));
+    }
+
+    private static List<Record<Integer>> duplicate(List<Record<Integer>> values) {
+        return IntStream.range(0, 2)
+                .boxed()
+                .flatMap(i -> values.stream())
+                .collect(Collectors.toList());
+    }
+
     @Test
     public void writerAndCommitterExecuteInBatchMode() throws Exception {
         final StreamExecutionEnvironment env = buildBatchEnv();
@@ -182,6 +249,66 @@ public class SinkV2ITCase extends AbstractTestBase {
         env.setRuntimeMode(RuntimeExecutionMode.STREAMING);
         env.enableCheckpointing(100);
         return env;
+    }
+
+    private Configuration createConfigForScalingTest(File checkpointDir, int parallelism) {
+        final Configuration config = new Configuration();
+        config.set(CoreOptions.DEFAULT_PARALLELISM, parallelism);
+        config.set(StateBackendOptions.STATE_BACKEND, "hashmap");
+        config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
+        config.set(
+                CheckpointingOptions.EXTERNALIZED_CHECKPOINT_RETENTION,
+                ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
+        config.set(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, 2000);
+        config.set(RestartStrategyOptions.RESTART_STRATEGY, "disable");
+
+        return config;
+    }
+
+    private StreamExecutionEnvironment buildStreamEnvWithCheckpointDir(Configuration config) {
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(config);
+        env.setRuntimeMode(RuntimeExecutionMode.STREAMING);
+        env.enableCheckpointing(100);
+
+        return env;
+    }
+
+    private JobID runStreamingWithScalingTest(
+            Configuration config,
+            int parallelism,
+            TrackingCommitter trackingCommitter,
+            boolean shouldMapperFail,
+            MiniCluster miniCluster,
+            ClusterClient<?> clusterClient)
+            throws Exception {
+        final StreamExecutionEnvironment env = buildStreamEnvWithCheckpointDir(config);
+        final Source<Integer, ?, ?> source = createStreamingSource();
+
+        env.fromSource(source, WatermarkStrategy.noWatermarks(), "source")
+                .rebalance()
+                .map(
+                        new FailingCheckpointMapper(
+                                SHARED_OBJECTS.add(new AtomicBoolean(!shouldMapperFail))))
+                .sinkTo(
+                        TestSinkV2.<Integer>newBuilder()
+                                .setCommitter(trackingCommitter, RecordSerializer::new)
+                                .setWithPostCommitTopology(true)
+                                .build());
+
+        final JobID jobId = clusterClient.submitJob(env.getStreamGraph().getJobGraph()).get();
+        clusterClient.requestJobResult(jobId).get();
+
+        return jobId;
+    }
+
+    private String getCheckpointPath(MiniCluster miniCluster, JobID secondJobId)
+            throws InterruptedException, ExecutionException, FlinkJobNotFoundException {
+        final Optional<String> completedCheckpoint =
+                CommonTestUtils.getLatestCompletedCheckpointPath(secondJobId, miniCluster);
+
+        assertThat(completedCheckpoint).isPresent();
+        return completedCheckpoint.get();
     }
 
     private StreamExecutionEnvironment buildBatchEnv() {
@@ -244,5 +371,33 @@ public class SinkV2ITCase extends AbstractTestBase {
 
         @Override
         public void close() {}
+    }
+
+    private static class FailingCheckpointMapper
+            implements MapFunction<Integer, Integer>, CheckpointListener {
+
+        private final SharedReference<AtomicBoolean> failed;
+        private long lastCheckpointId = 0;
+        private int emittedBetweenCheckpoint = 0;
+
+        FailingCheckpointMapper(SharedReference<AtomicBoolean> failed) {
+            this.failed = failed;
+        }
+
+        @Override
+        public Integer map(Integer value) {
+            if (lastCheckpointId >= 1 && emittedBetweenCheckpoint > 0 && !failed.get().get()) {
+                failed.get().set(true);
+                throw new RuntimeException("Planned exception.");
+            }
+            emittedBetweenCheckpoint++;
+            return value;
+        }
+
+        @Override
+        public void notifyCheckpointComplete(long checkpointId) {
+            lastCheckpointId = checkpointId;
+            emittedBetweenCheckpoint = 0;
+        }
     }
 }
