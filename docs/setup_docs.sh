@@ -60,7 +60,7 @@ if [ "$SKIP_INTEGRATE_CONNECTOR_DOCS" = false ]; then
   integrate_connector_docs gcp-pubsub v3.0
   integrate_connector_docs mongodb v2.0
   integrate_connector_docs opensearch v1.2
-  integrate_connector_docs kafka v3.3
+  integrate_connector_docs kafka v4.0
   integrate_connector_docs hbase v4.0
   integrate_connector_docs prometheus v1.0
   integrate_connector_docs hive v3.0
