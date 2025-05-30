@@ -57,7 +57,6 @@ import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.table.runtime.generated.CompileUtils
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
 
-import _root_.scala.collection.JavaConversions._
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.{RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelNode
@@ -69,6 +68,7 @@ import java.lang.{Long => JLong}
 import java.util
 import java.util.{Collections, TimeZone}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 /**
@@ -116,7 +116,7 @@ abstract class PlannerBase(
       functionCatalog,
       catalogManager,
       asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
-      getTraitDefs.toList,
+      getTraitDefs.toList.asJava,
       classLoader
     )
 
@@ -176,10 +176,10 @@ abstract class PlannerBase(
       modifyOperations: util.List[ModifyOperation]): util.List[Transformation[_]] = {
     beforeTranslation()
     if (modifyOperations.isEmpty) {
-      return List.empty[Transformation[_]]
+      return List.empty[Transformation[_]].asJava
     }
 
-    val relNodes = modifyOperations.map(translateToRel)
+    val relNodes = modifyOperations.asScala.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
     val execGraph = translateToExecNodeGraph(optimizedRelNodes, isCompiled = false)
     val transformations = translateToPlan(execGraph)
@@ -215,7 +215,7 @@ abstract class PlannerBase(
 
   override def compilePlan(modifyOperations: util.List[ModifyOperation]): InternalPlan = {
     beforeTranslation()
-    val relNodes = modifyOperations.map(translateToRel)
+    val relNodes = modifyOperations.asScala.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
     val execGraph = translateToExecNodeGraph(optimizedRelNodes, isCompiled = true)
     afterTranslation()
@@ -322,7 +322,7 @@ abstract class PlannerBase(
             // validate logical schema and physical schema are compatible
             validateLogicalPhysicalTypesCompatible(table, sink, queryLogicalType)
             // validate TableSink
-            validateTableSink(catalogSink, identifier, sink, table.getPartitionKeys)
+            validateTableSink(catalogSink, identifier, sink, table.getPartitionKeys.asScala)
             // validate query schema and sink schema, and apply cast if possible
             val query = validateSchemaAndApplyImplicitCast(
               input,
@@ -340,7 +340,7 @@ abstract class PlannerBase(
               sink,
               identifier.toString,
               table,
-              catalogSink.getStaticPartitions.toMap)
+              catalogSink.getStaticPartitions.asScala.toMap)
 
           case (table, sink: DynamicTableSink) =>
             DynamicSinkUtils.convertSinkToRel(createRelBuilder, input, catalogSink, sink)
@@ -424,7 +424,7 @@ abstract class PlannerBase(
     // convert FlinkPhysicalRel DAG to ExecNodeGraph
     val generator = new ExecNodeGraphGenerator()
     val execGraph =
-      generator.generate(optimizedRelNodes.map(_.asInstanceOf[FlinkPhysicalRel]), isCompiled)
+      generator.generate(optimizedRelNodes.map(_.asInstanceOf[FlinkPhysicalRel]).asJava, isCompiled)
 
     applyProcessors(execGraph)
   }
@@ -467,7 +467,7 @@ abstract class PlannerBase(
 
       case regularTable: CatalogTable =>
         val resolvedTable = contextResolvedTable.getResolvedTable[ResolvedCatalogTable]
-        val tableToFind = if (dynamicOptions.nonEmpty) {
+        val tableToFind = if (dynamicOptions.asScala.nonEmpty) {
           resolvedTable.copy(FlinkHints.mergeTableOptions(dynamicOptions, resolvedTable.getOptions))
         } else {
           resolvedTable
@@ -603,9 +603,9 @@ abstract class PlannerBase(
   /** Returns all the graphs required to execute EXPLAIN */
   private[flink] def getExplainGraphs(operations: util.List[Operation])
       : (mutable.Buffer[RelNode], Seq[RelNode], ExecNodeGraph, StreamGraph) = {
-    require(operations.nonEmpty, "operations should not be empty")
+    require(operations.asScala.nonEmpty, "operations should not be empty")
     beforeTranslation()
-    val sinkRelNodes = operations.map {
+    val sinkRelNodes = operations.asScala.map {
       case queryOperation: QueryOperation =>
         val relNode = createRelBuilder.queryOperation(queryOperation).build()
         relNode match {
