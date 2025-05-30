@@ -23,6 +23,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
@@ -167,5 +168,23 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin
             boolean isObjectReuseEnabled,
             boolean lookupKeyContainsPrimaryKey) {
         return inputTransformation;
+    }
+
+    @Override
+    protected Transformation<RowData> createKeyOrderedAsyncLookupJoin(
+            Transformation<RowData> inputTransformation,
+            RelOptTable temporalTable,
+            ExecNodeConfig config,
+            ClassLoader classLoader,
+            Map<Integer, LookupJoinUtil.LookupKey> allLookupKeys,
+            AsyncTableFunction<Object> asyncLookupFunction,
+            RelBuilder relBuilder,
+            RowType inputRowType,
+            RowType tableSourceRowType,
+            RowType resultRowType,
+            boolean isLeftOuterJoin,
+            LookupJoinUtil.AsyncLookupOptions asyncLookupOptions) {
+        throw new UnsupportedOperationException(
+                "Key ordered async lookup join is not supported in batch mode.");
     }
 }

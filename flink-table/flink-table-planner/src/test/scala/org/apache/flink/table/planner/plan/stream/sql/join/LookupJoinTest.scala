@@ -59,6 +59,17 @@ class LookupJoinTest extends TableTestBase with Serializable {
     util.addDataStream[(Int, String, Int)]("nonTemporal", 'id, 'name, 'age)
 
     util.addTable("""
+                    |CREATE TABLE UpsertTable (
+                    |  `id` INT,
+                    |  `name` STRING,
+                    |  `age` INT
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'changelog-mode' = 'I,UA,UB,D'
+                    |)
+                    |""".stripMargin)
+
+    util.addTable("""
                     |CREATE TABLE LookupTable (
                     |  `id` INT,
                     |  `name` STRING,
@@ -846,6 +857,17 @@ class LookupJoinTest extends TableTestBase with Serializable {
         "FROM MyTable AS T JOIN AsyncLookupTable " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
     util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testJoinAsyncTableKeyOrdered(): Unit = {
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_KEY_ORDERED, Boolean.box(true))
+    val sql =
+      "SELECT /*+ LOOKUP('table'='D', 'async'='true', 'output-mode'='allow_unordered') */ * " +
+        "FROM (SELECT *, PROCTIME() AS proctime FROM UpsertTable) AS T JOIN AsyncLookupTable " +
+        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.id = D.id"
+    util.verifyExplain(sql, ExplainDetail.JSON_EXECUTION_PLAN)
   }
 
   @Test
