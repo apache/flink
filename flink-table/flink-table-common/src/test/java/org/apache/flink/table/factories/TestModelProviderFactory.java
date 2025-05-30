@@ -30,7 +30,7 @@ import org.apache.flink.table.ml.PredictRuntimeProvider;
 import java.util.HashSet;
 import java.util.Set;
 
-/** Test implementation for {@link ModelProviderFactory}. */
+/** Test implementation for {@link ModelProviderFactory} which creates PredictRuntimeProvider. */
 public final class TestModelProviderFactory implements ModelProviderFactory {
 
     public static final String IDENTIFIER = "test-model";
