@@ -105,6 +105,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.planner.hint.FlinkHints.mergeTableOptions;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast;
@@ -256,6 +257,14 @@ public final class DynamicSinkUtils {
             int[][] targetColumns,
             boolean isOverwrite,
             DynamicTableSink sink) {
+        if (!dynamicOptions.isEmpty()) {
+            contextResolvedTable =
+                    contextResolvedTable.copy(
+                            mergeTableOptions(
+                                    dynamicOptions,
+                                    contextResolvedTable.getResolvedTable().getOptions()));
+        }
+
         final DataTypeFactory dataTypeFactory =
                 unwrapContext(relBuilder).getCatalogManager().getDataTypeFactory();
         final FlinkTypeFactory typeFactory = unwrapTypeFactory(relBuilder);

@@ -457,11 +457,14 @@ abstract class PlannerBase(
         }
 
       case regularTable: CatalogTable =>
-        val resolvedTable = contextResolvedTable.getResolvedTable[ResolvedCatalogTable]
-        val tableToFind = if (dynamicOptions.nonEmpty) {
-          resolvedTable.copy(FlinkHints.mergeTableOptions(dynamicOptions, resolvedTable.getOptions))
-        } else {
-          resolvedTable
+        val resolvedTable = {
+          val resolvedTable = contextResolvedTable.getResolvedTable[ResolvedCatalogTable]
+          if (dynamicOptions.nonEmpty) {
+            resolvedTable.copy(
+              FlinkHints.mergeTableOptions(dynamicOptions, resolvedTable.getOptions))
+          } else {
+            resolvedTable
+          }
         }
         val catalog = toScala(contextResolvedTable.getCatalog)
         val objectIdentifier = contextResolvedTable.getIdentifier
@@ -479,14 +482,14 @@ abstract class PlannerBase(
         ) {
           val tableSink = TableFactoryUtil.findAndCreateTableSink(
             objectIdentifier,
-            tableToFind,
+            resolvedTable,
             getTableConfig,
             isStreamingMode,
             isTemporary)
           Option(resolvedTable, tableSink)
         } else {
           val tableSink =
-            createDynamicTableSink(objectIdentifier, catalog, tableToFind, isTemporary)
+            createDynamicTableSink(objectIdentifier, catalog, resolvedTable, isTemporary)
           Option(resolvedTable, tableSink)
         }
 
