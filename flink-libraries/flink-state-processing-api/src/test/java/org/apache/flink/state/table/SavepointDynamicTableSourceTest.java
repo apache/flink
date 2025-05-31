@@ -45,6 +45,7 @@ public class SavepointDynamicTableSourceTest {
         Configuration config = new Configuration();
         config.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
+        env.setParallelism(4);
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         final String sql =
@@ -131,6 +132,7 @@ public class SavepointDynamicTableSourceTest {
         Configuration config = new Configuration();
         config.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
+        env.setParallelism(4);
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         final String sql =
@@ -173,6 +175,7 @@ public class SavepointDynamicTableSourceTest {
         Configuration config = new Configuration();
         config.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
+        env.setParallelism(4);
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         final String sql =
