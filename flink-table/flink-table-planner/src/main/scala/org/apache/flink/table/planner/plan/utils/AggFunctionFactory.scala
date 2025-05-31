@@ -163,7 +163,7 @@ class AggFunctionFactory(
         new JsonArrayAggFunction(argTypes, onNull == SqlJsonConstructorNullClause.ABSENT_ON_NULL)
 
       case a: SqlAggFunction if a.getKind == SqlKind.LITERAL_AGG =>
-        createLiteralAggFunction(call.getType, call.rexList.get(0))
+        createLiteralAggFunction(call.getType)
 
       case udagg: AggSqlFunction =>
         // Can not touch the literals, Calcite make them in previous RelNode.
@@ -285,24 +285,22 @@ class AggFunctionFactory(
     }
   }
 
-  private def createLiteralAggFunction(
-      relDataType: RelDataType,
-      rexNode: RexNode): UserDefinedFunction = {
+  private def createLiteralAggFunction(relDataType: RelDataType): UserDefinedFunction = {
     relDataType.getSqlTypeName match {
       case SqlTypeName.BOOLEAN =>
-        new BooleanLiteralAggFunction(rexNode.asInstanceOf[RexLiteral])
+        BooleanLiteralAggFunction.INSTANCE
       case SqlTypeName.TINYINT =>
-        new ByteLiteralAggFunction(rexNode.asInstanceOf[RexLiteral])
+        ByteLiteralAggFunction.INSTANCE
       case SqlTypeName.SMALLINT =>
-        new ShortLiteralAggFunction(rexNode.asInstanceOf[RexLiteral])
+        ShortLiteralAggFunction.INSTANCE
       case SqlTypeName.INTEGER =>
-        new IntLiteralAggFunction(rexNode.asInstanceOf[RexLiteral])
+        IntLiteralAggFunction.INSTANCE
       case SqlTypeName.BIGINT =>
-        new LongLiteralAggFunction(rexNode.asInstanceOf[RexLiteral])
+        LongLiteralAggFunction.INSTANCE
       case SqlTypeName.FLOAT =>
-        new FloatLiteralAggFunction(rexNode.asInstanceOf[RexLiteral])
+        FloatLiteralAggFunction.INSTANCE
       case SqlTypeName.DOUBLE =>
-        new DoubleLiteralAggFunction(rexNode.asInstanceOf[RexLiteral])
+        DoubleLiteralAggFunction.INSTANCE
       case t =>
         throw new TableException(
           s"Literal aggregate function does not support type: ''$t''.\n" +
