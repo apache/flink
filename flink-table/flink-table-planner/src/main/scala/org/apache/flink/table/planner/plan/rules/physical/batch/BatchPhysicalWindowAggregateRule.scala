@@ -21,6 +21,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.functions.{AggregateFunction, DeclarativeAggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.{FlinkRelFactories, FlinkTypeFactory}
+import org.apache.flink.table.planner.functions.aggfunctions.LiteralAggFunction
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -398,6 +399,9 @@ class BatchPhysicalWindowAggregateRule
         aggBufferFieldNames(aggIndex) = udf match {
           case _: AggregateFunction[_, _] =>
             Array(aggNames(aggIndex))
+          case agf: LiteralAggFunction =>
+            index += 1
+            Array(s"${agf.getAttrName}$$$index")
           case agf: DeclarativeAggregateFunction =>
             agf.aggBufferAttributes.map {
               attr =>
