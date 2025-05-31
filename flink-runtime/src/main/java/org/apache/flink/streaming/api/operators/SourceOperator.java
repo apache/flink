@@ -21,11 +21,11 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.RichSourceReaderContext;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
@@ -282,13 +282,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         StreamingRuntimeContext runtimeContext = getRuntimeContext();
         final int subtaskIndex = runtimeContext.getTaskInfo().getIndexOfThisSubtask();
 
-        final SourceReaderContext context =
-                new SourceReaderContext() {
-                    @Override
-                    public RuntimeContext getRuntimeContext() {
-                        return runtimeContext;
-                    }
-
+        final RichSourceReaderContext context =
+                new RichSourceReaderContext() {
                     @Override
                     public SourceReaderMetricGroup metricGroup() {
                         return sourceMetricGroup;
@@ -354,6 +349,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                     }
                 };
 
+        context.setRuntimeContext(runtimeContext);
         sourceReader = readerFactory.apply(context);
     }
 

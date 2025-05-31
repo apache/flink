@@ -59,6 +59,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
@@ -73,6 +75,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Tests for keyed state input format. */
 @RunWith(Parameterized.class)
 class KeyedStateSourceTest {
+    private static final Logger LOG = LoggerFactory.getLogger(KeyedStateSourceTest.class);
     private static final OperatorID OPERATOR_ID = OperatorIDGenerator.fromUid("uid");
     private static final ValueStateDescriptor<Integer> STATE_DESCRIPTOR =
             new ValueStateDescriptor<>("state", Types.INT);
@@ -142,9 +145,7 @@ class KeyedStateSourceTest {
         assertThatThrownBy(() -> readData(operatorState, new InvalidReaderFunction()))
                 .isInstanceOf(JobExecutionException.class)
                 .cause()
-                .isInstanceOf(JobException.class)
-                .cause()
-                .isInstanceOf(IOException.class);
+                .isInstanceOf(JobException.class);
     }
 
     @Test

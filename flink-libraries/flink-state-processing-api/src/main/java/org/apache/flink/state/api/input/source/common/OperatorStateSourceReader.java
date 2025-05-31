@@ -22,8 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.RichSourceReaderContext;
 import org.apache.flink.api.connector.source.SourceReader;
-import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.io.InputStatus;
@@ -55,7 +55,7 @@ public abstract class OperatorStateSourceReader<OUT>
 
     private static final Logger LOG = LoggerFactory.getLogger(OperatorStateSourceReader.class);
 
-    private final SourceReaderContext sourceReaderContext;
+    private final RichSourceReaderContext sourceReaderContext;
 
     private final @Nullable StateBackend stateBackend;
 
@@ -76,7 +76,7 @@ public abstract class OperatorStateSourceReader<OUT>
     private Iterator<OUT> elementsIterator;
 
     public OperatorStateSourceReader(
-            SourceReaderContext sourceReaderContext,
+            RichSourceReaderContext sourceReaderContext,
             @Nullable StateBackend stateBackend,
             OperatorState operatorState,
             Configuration configuration,

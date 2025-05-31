@@ -20,6 +20,7 @@ package org.apache.flink.state.api.input.source.broadcast;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.connector.source.RichSourceReaderContext;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -45,7 +46,6 @@ public class BroadcastStateSource<K, V> extends OperatorStateSource<Tuple2<K, V>
             ExecutionConfig executionConfig,
             MapStateDescriptor<K, V> descriptor) {
         super(stateBackend, operatorState, configuration, executionConfig);
-
         this.descriptor =
                 Preconditions.checkNotNull(descriptor, "The state descriptor must not be null");
     }
@@ -53,8 +53,11 @@ public class BroadcastStateSource<K, V> extends OperatorStateSource<Tuple2<K, V>
     @Override
     public SourceReader<Tuple2<K, V>, OperatorStateSourceSplit> createReader(
             SourceReaderContext readerContext) throws IOException {
+        Preconditions.checkState(
+                readerContext instanceof RichSourceReaderContext,
+                "Source reader context must be an instance of RichSourceReaderContext");
         return new BroadcastStateSourceReader<>(
-                readerContext,
+                (RichSourceReaderContext) readerContext,
                 stateBackend,
                 operatorState,
                 configuration,

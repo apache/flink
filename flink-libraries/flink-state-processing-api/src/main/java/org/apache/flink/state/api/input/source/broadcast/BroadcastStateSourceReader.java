@@ -20,8 +20,8 @@ package org.apache.flink.state.api.input.source.broadcast;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.connector.source.RichSourceReaderContext;
 import org.apache.flink.api.connector.source.SourceReader;
-import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorState;
@@ -42,7 +42,7 @@ public class BroadcastStateSourceReader<K, V> extends OperatorStateSourceReader<
     private final MapStateDescriptor<K, V> descriptor;
 
     public BroadcastStateSourceReader(
-            SourceReaderContext sourceReaderContext,
+            RichSourceReaderContext sourceReaderContext,
             @Nullable StateBackend stateBackend,
             OperatorState operatorState,
             Configuration configuration,

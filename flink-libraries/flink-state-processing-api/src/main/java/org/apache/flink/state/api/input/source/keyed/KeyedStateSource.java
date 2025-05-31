@@ -20,6 +20,7 @@ package org.apache.flink.state.api.input.source.keyed;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.RichSourceReaderContext;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
@@ -78,8 +79,11 @@ public class KeyedStateSource<K, N, OUT>
     @Override
     public SourceReader<OUT, KeyGroupRangeSourceSplit> createReader(
             SourceReaderContext readerContext) throws IOException {
+        Preconditions.checkState(
+                readerContext instanceof RichSourceReaderContext,
+                "Source reader context must be an instance of RichSourceReaderContext");
         return new KeyedStateSourceReader<>(
-                readerContext,
+                (RichSourceReaderContext) readerContext,
                 stateBackend,
                 operatorState,
                 configuration,

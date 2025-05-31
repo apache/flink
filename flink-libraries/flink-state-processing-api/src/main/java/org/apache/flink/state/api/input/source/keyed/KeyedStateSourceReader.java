@@ -21,8 +21,8 @@ package org.apache.flink.state.api.input.source.keyed;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.RichSourceReaderContext;
 import org.apache.flink.api.connector.source.SourceReader;
-import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -60,7 +60,7 @@ public class KeyedStateSourceReader<K, N, OUT>
 
     private static final Logger LOG = LoggerFactory.getLogger(KeyedStateSourceReader.class);
 
-    private final SourceReaderContext sourceReaderContext;
+    private final RichSourceReaderContext sourceReaderContext;
 
     private final @Nullable StateBackend stateBackend;
 
@@ -83,7 +83,7 @@ public class KeyedStateSourceReader<K, N, OUT>
     private final BufferingCollector<OUT> outBufferingCollector;
 
     public KeyedStateSourceReader(
-            SourceReaderContext sourceReaderContext,
+            RichSourceReaderContext sourceReaderContext,
             @Nullable StateBackend stateBackend,
             OperatorState operatorState,
             Configuration configuration,
