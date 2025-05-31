@@ -685,6 +685,7 @@ public class RelMdPredicates implements MetadataHandler<BuiltInMetadata.Predicat
                 case SEMI:
                 case INNER:
                 case LEFT:
+                case ANTI:
                     infer(
                             leftChildPredicates,
                             allExprs,
@@ -762,6 +763,7 @@ public class RelMdPredicates implements MetadataHandler<BuiltInMetadata.Predicat
                             leftInferredPredicates,
                             rightInferredPredicates);
                 case LEFT:
+                case ANTI:
                     return RelOptPredicateList.of(
                             rexBuilder,
                             RelOptUtil.conjunctions(leftChildPredicates),

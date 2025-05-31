@@ -34,6 +34,7 @@ import org.apache.calcite.rel.type.RelDataTypePrecedenceList;
 import org.apache.calcite.runtime.CalciteContextException;
 import org.apache.calcite.runtime.CalciteException;
 import org.apache.calcite.runtime.Resources;
+import org.apache.calcite.sql.fun.SqlInOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlOperandMetadata;
@@ -42,6 +43,7 @@ import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.util.SqlBasicVisitor;
+import org.apache.calcite.sql.util.SqlVisitor;
 import org.apache.calcite.sql.validate.SqlNameMatcher;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.util.BarfingInvocationHandler;
@@ -1195,6 +1197,48 @@ public abstract class SqlUtil {
         SqlNode leftNode = createBalancedCall(op, pos, operands, start, mid);
         SqlNode rightNode = createBalancedCall(op, pos, operands, mid, end);
         return op.createCall(pos, leftNode, rightNode);
+    }
+
+    /**
+     * Returns whether a given node contains a {@link SqlInOperator}.
+     *
+     * @param node AST tree
+     */
+    public static boolean containsIn(SqlNode node) {
+        final Predicate<SqlCall> callPredicate =
+                call -> call.getOperator() instanceof SqlInOperator;
+        return containsCall(node, callPredicate);
+    }
+
+    /**
+     * Returns whether an AST tree contains a call to an aggregate function.
+     *
+     * @param node AST tree
+     */
+    public static boolean containsAgg(SqlNode node) {
+        final Predicate<SqlCall> callPredicate = call -> call.getOperator().isAggregator();
+        return containsCall(node, callPredicate);
+    }
+
+    /** Returns whether an AST tree contains a call that matches a given predicate. */
+    private static boolean containsCall(SqlNode node, Predicate<SqlCall> callPredicate) {
+        try {
+            SqlVisitor<Void> visitor =
+                    new SqlBasicVisitor<Void>() {
+                        @Override
+                        public Void visit(SqlCall call) {
+                            if (callPredicate.test(call)) {
+                                throw new Util.FoundOne(call);
+                            }
+                            return super.visit(call);
+                        }
+                    };
+            node.accept(visitor);
+            return false;
+        } catch (Util.FoundOne e) {
+            Util.swallow(e, null);
+            return true;
+        }
     }
 
     // ~ Inner Classes ----------------------------------------------------------

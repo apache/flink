@@ -451,6 +451,7 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                                         call.isDistinct(),
                                         false,
                                         false,
+                                        call.rexList,
                                         call.getArgList(),
                                         call.filterArg,
                                         null,
