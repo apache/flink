@@ -131,6 +131,10 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
                         .get(TableConfigOptions.TABLE_COLUMN_EXPANSION_STRATEGY);
     }
 
+    public RelOptCluster getRelOptCluster() {
+        return relOptCluster;
+    }
+
     public void setExpectedOutputType(SqlNode sqlNode, RelDataType expectedOutputType) {
         this.sqlNodeForExpectedOutputType = sqlNode;
         this.expectedOutputType = expectedOutputType;
