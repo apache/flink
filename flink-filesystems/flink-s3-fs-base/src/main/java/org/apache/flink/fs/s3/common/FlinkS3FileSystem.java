@@ -81,7 +81,7 @@ public class FlinkS3FileSystem extends HadoopFileSystem
         implements EntropyInjectingFileSystem, PathsCopyingFileSystem {
     private static final Logger LOG = LoggerFactory.getLogger(FlinkS3FileSystem.class);
 
-    private static final long PROCESS_KILL_SLEEP_TIME_MS = 50L;
+    private static final long PROCESS_KILL_SLEEP_TIME_MS = 1000L;
 
     @Nullable private final String entropyInjectionKey;
 
@@ -361,8 +361,9 @@ public class FlinkS3FileSystem extends HadoopFileSystem
                             })) {
                 exitCode = wizard.waitFor();
             } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
                 destroyProcess(wizard);
+                // restore interruption after destroyProcess, to let destroyProcess do some sleeps
+                Thread.currentThread().interrupt();
                 throw new IOException(createSpellErrorMessage(exitCode, outScrolls, artefacts), e);
             } catch (IOException e) {
                 destroyProcess(wizard);
@@ -379,7 +380,6 @@ public class FlinkS3FileSystem extends HadoopFileSystem
     }
 
     private static void destroyProcess(Process processToDestroy) {
-
         LOG.info("Destroying s5cmd copy process.");
         processToDestroy.destroy();
 
@@ -401,7 +401,7 @@ public class FlinkS3FileSystem extends HadoopFileSystem
         sleepForProcessTermination(processToDestroy);
 
         if (processToDestroy.isAlive()) {
-            LOG.warn("Could not destroy s5cmd copy process.");
+            LOG.warn("Could not destroy s5cmd copy process [pid={}].", processToDestroy.pid());
         }
     }
 
