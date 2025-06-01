@@ -70,7 +70,8 @@ public class StreamPhysicalMLPredictTableFunction extends SingleRel implements S
 
     @Override
     public RelWriter explainTerms(RelWriter pw) {
-        super.explainTerms(pw);
-        return pw.item("invocation", scan.getCall()).item("rowType", getRowType());
+        return super.explainTerms(pw)
+                .item("invocation", scan.getCall())
+                .item("rowType", getRowType());
     }
 }

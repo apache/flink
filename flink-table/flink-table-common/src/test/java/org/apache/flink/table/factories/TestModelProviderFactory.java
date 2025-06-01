@@ -22,7 +22,6 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.factories.FactoryUtil.ModelProviderFactoryHelper;
-import org.apache.flink.table.functions.AsyncPredictFunction;
 import org.apache.flink.table.functions.PredictFunction;
 import org.apache.flink.table.ml.ModelProvider;
 import org.apache.flink.table.ml.PredictRuntimeProvider;
@@ -108,11 +107,6 @@ public final class TestModelProviderFactory implements ModelProviderFactory {
 
         @Override
         public PredictFunction createPredictFunction(Context context) {
-            throw new UnsupportedOperationException("To be implemented");
-        }
-
-        @Override
-        public AsyncPredictFunction createAsyncPredictFunction(Context context) {
             throw new UnsupportedOperationException("To be implemented");
         }
     }

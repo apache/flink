@@ -60,7 +60,9 @@ public class StreamPhysicalMLPredictTableFunctionRule extends ConverterRule {
         }
 
         final RexModelCall modelCall = (RexModelCall) rexCall.getOperands().get(1);
-        return modelCall.getModelProvider() instanceof PredictRuntimeProvider;
+        return modelCall.getModelProvider() instanceof PredictRuntimeProvider
+                || modelCall.getModelProvider()
+                        instanceof org.apache.flink.table.ml.AsyncPredictRuntimeProvider;
     }
 
     @Override
