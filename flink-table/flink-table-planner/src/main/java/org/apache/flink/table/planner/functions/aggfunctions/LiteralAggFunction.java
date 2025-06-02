@@ -39,8 +39,6 @@ public abstract class LiteralAggFunction extends DeclarativeAggregateFunction {
 
     private final UnresolvedReferenceExpression literalAgg = unresolvedRef("literalAgg");
     private static final Expression[] EMPTY_EXPRS = new Expression[0];
-    private static final UnresolvedReferenceExpression[] EMPTY_UNRESOLVED_EXPRS =
-            new UnresolvedReferenceExpression[0];
     private static final DataType[] EMPTY_DATATYPES = new DataType[0];
 
     protected LiteralAggFunction() {}
