@@ -61,6 +61,13 @@ public class RowDataHarnessAssertor {
         assertThat(getEmittedRows(harness)).containsExactly(expected);
     }
 
+    /** Assert the test harness should emit all records regardless of the order. */
+    public void shouldEmitAll(
+            AbstractStreamOperatorTestHarness<RowData> harness, RowData... expected) {
+        var emittedRows = getEmittedRows(harness);
+        assertThat(emittedRows).containsExactlyInAnyOrder(expected);
+    }
+
     /**
      * Compare the two queues containing operator/task output by converting them to an array first.
      * Asserts two converted array should be same.
