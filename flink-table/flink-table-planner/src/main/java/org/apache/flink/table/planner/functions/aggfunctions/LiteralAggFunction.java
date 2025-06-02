@@ -24,6 +24,7 @@ import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.functions.DeclarativeAggregateFunction;
 import org.apache.flink.table.types.DataType;
 
+import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.sql.fun.SqlLiteralAggFunction;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
@@ -40,8 +41,11 @@ public abstract class LiteralAggFunction extends DeclarativeAggregateFunction {
     private final UnresolvedReferenceExpression literalAgg = unresolvedRef("literalAgg");
     private static final Expression[] EMPTY_EXPRS = new Expression[0];
     private static final DataType[] EMPTY_DATATYPES = new DataType[0];
+    protected final RexLiteral rexLiteral;
 
-    protected LiteralAggFunction() {}
+    protected LiteralAggFunction(RexLiteral rexLiteral) {
+        this.rexLiteral = rexLiteral;
+    }
 
     @Override
     public int operandCount() {
@@ -80,7 +84,7 @@ public abstract class LiteralAggFunction extends DeclarativeAggregateFunction {
 
     @Override
     public Expression getValueExpression() {
-        return literal(getResultType());
+        return literal(rexLiteral.getValue(), getResultType());
     }
 
     public Expression[] getValueExpressions() {
@@ -94,27 +98,22 @@ public abstract class LiteralAggFunction extends DeclarativeAggregateFunction {
     /** Built-in Boolean Literal aggregate function. */
     public static class BooleanLiteralAggFunction extends LiteralAggFunction {
 
-        public static final BooleanLiteralAggFunction INSTANCE = new BooleanLiteralAggFunction();
-
-        private BooleanLiteralAggFunction() {}
+        public BooleanLiteralAggFunction(RexLiteral rexLiteral) {
+            super(rexLiteral);
+        }
 
         @Override
         public DataType getResultType() {
             return DataTypes.BOOLEAN();
-        }
-
-        @Override
-        public Expression getValueExpression() {
-            return literal(Boolean.TRUE, getResultType());
         }
     }
 
     /** Built-in Byte Literal aggregate function. */
     public static class ByteLiteralAggFunction extends LiteralAggFunction {
 
-        public static final ByteLiteralAggFunction INSTANCE = new ByteLiteralAggFunction();
-
-        private ByteLiteralAggFunction() {}
+        public ByteLiteralAggFunction(RexLiteral rexLiteral) {
+            super(rexLiteral);
+        }
 
         @Override
         public DataType getResultType() {
@@ -125,9 +124,9 @@ public abstract class LiteralAggFunction extends DeclarativeAggregateFunction {
     /** Built-in Short Literal aggregate function. */
     public static class ShortLiteralAggFunction extends LiteralAggFunction {
 
-        public static final ShortLiteralAggFunction INSTANCE = new ShortLiteralAggFunction();
-
-        private ShortLiteralAggFunction() {}
+        public ShortLiteralAggFunction(RexLiteral rexLiteral) {
+            super(rexLiteral);
+        }
 
         @Override
         public DataType getResultType() {
@@ -138,9 +137,9 @@ public abstract class LiteralAggFunction extends DeclarativeAggregateFunction {
     /** Built-in Integer Literal aggregate function. */
     public static class IntLiteralAggFunction extends LiteralAggFunction {
 
-        public static final IntLiteralAggFunction INSTANCE = new IntLiteralAggFunction();
-
-        private IntLiteralAggFunction() {}
+        public IntLiteralAggFunction(RexLiteral rexLiteral) {
+            super(rexLiteral);
+        }
 
         @Override
         public DataType getResultType() {
@@ -151,9 +150,9 @@ public abstract class LiteralAggFunction extends DeclarativeAggregateFunction {
     /** Built-in Long Literal aggregate function. */
     public static class LongLiteralAggFunction extends LiteralAggFunction {
 
-        public static final LongLiteralAggFunction INSTANCE = new LongLiteralAggFunction();
-
-        private LongLiteralAggFunction() {}
+        public LongLiteralAggFunction(RexLiteral rexLiteral) {
+            super(rexLiteral);
+        }
 
         @Override
         public DataType getResultType() {
@@ -164,9 +163,9 @@ public abstract class LiteralAggFunction extends DeclarativeAggregateFunction {
     /** Built-in Float Literal aggregate function. */
     public static class FloatLiteralAggFunction extends LiteralAggFunction {
 
-        public static final FloatLiteralAggFunction INSTANCE = new FloatLiteralAggFunction();
-
-        private FloatLiteralAggFunction() {}
+        public FloatLiteralAggFunction(RexLiteral rexLiteral) {
+            super(rexLiteral);
+        }
 
         @Override
         public DataType getResultType() {
@@ -177,9 +176,9 @@ public abstract class LiteralAggFunction extends DeclarativeAggregateFunction {
     /** Built-in Double Literal aggregate function. */
     public static class DoubleLiteralAggFunction extends LiteralAggFunction {
 
-        public static final DoubleLiteralAggFunction INSTANCE = new DoubleLiteralAggFunction();
-
-        private DoubleLiteralAggFunction() {}
+        public DoubleLiteralAggFunction(RexLiteral rexLiteral) {
+            super(rexLiteral);
+        }
 
         @Override
         public DataType getResultType() {
