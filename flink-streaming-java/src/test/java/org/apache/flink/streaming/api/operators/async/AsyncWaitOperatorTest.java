@@ -180,7 +180,7 @@ public class AsyncWaitOperatorTest {
         }
     }
 
-    private static class MyAsyncFunction extends MyAbstractAsyncFunction<Integer> {
+    public static class MyAsyncFunction extends MyAbstractAsyncFunction<Integer> {
         private static final long serialVersionUID = -1504699677704123889L;
 
         @Override
@@ -219,7 +219,7 @@ public class AsyncWaitOperatorTest {
                         @Override
                         public void run() {
                             try {
-                                latch.await();
+                                waitLatch();
                             } catch (InterruptedException e) {
                                 // do nothing
                             }
@@ -229,7 +229,11 @@ public class AsyncWaitOperatorTest {
                     });
         }
 
-        public static void countDown() {
+        protected void waitLatch() throws InterruptedException {
+            latch.await();
+        }
+
+        public void countDown() {
             latch.countDown();
         }
     }
@@ -255,7 +259,7 @@ public class AsyncWaitOperatorTest {
      * A special {@link LazyAsyncFunction} for timeout handling. Complete the result future with 3
      * times the input when the timeout occurred.
      */
-    private static class IgnoreTimeoutLazyAsyncFunction extends LazyAsyncFunction {
+    public static class IgnoreTimeoutLazyAsyncFunction extends LazyAsyncFunction {
         private static final long serialVersionUID = 1428714561365346128L;
 
         @Override
@@ -616,9 +620,11 @@ public class AsyncWaitOperatorTest {
 
         testHarness.setupOutputForSingletonOperatorChain();
 
+        LazyAsyncFunction lazyAsyncFunction = new LazyAsyncFunction();
+
         AsyncWaitOperatorFactory<Integer, Integer> factory =
                 new AsyncWaitOperatorFactory<>(
-                        new LazyAsyncFunction(), TIMEOUT, 4, AsyncDataStream.OutputMode.ORDERED);
+                        lazyAsyncFunction, TIMEOUT, 4, AsyncDataStream.OutputMode.ORDERED);
 
         final StreamConfig streamConfig = testHarness.getStreamConfig();
         OperatorID operatorID = new OperatorID(42L, 4711L);
@@ -654,7 +660,7 @@ public class AsyncWaitOperatorTest {
 
         assertThat(taskStateManagerMock.getReportedCheckpointId()).isEqualTo(checkpointId);
 
-        LazyAsyncFunction.countDown();
+        lazyAsyncFunction.countDown();
 
         testHarness.endInput();
         testHarness.waitForTaskCompletion();

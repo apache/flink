@@ -141,4 +141,17 @@ public class TestHarnessUtil {
 
         return operatorSubtaskState;
     }
+
+    /**
+     * Compare the two queues containing operator/task output by converting them to an array first
+     * and compare the specified element according to given index.
+     */
+    public static <T> void assertOutputAtIndexEquals(
+            String message, Queue<T> expected, Queue<T> actual, List<Integer> index) {
+        Object[] exp = expected.toArray();
+        Object[] act = actual.toArray();
+        for (int id : index) {
+            assertThat(act[id]).as(message).isEqualTo(exp[id]);
+        }
+    }
 }
