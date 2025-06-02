@@ -48,6 +48,7 @@ public class JoinRestoreTest extends RestoreTestBase {
                 JoinTestPrograms.RIGHT_JOIN,
                 JoinTestPrograms.SEMI_JOIN,
                 JoinTestPrograms.ANTI_JOIN,
-                JoinTestPrograms.JOIN_WITH_STATE_TTL_HINT);
+                JoinTestPrograms.JOIN_WITH_STATE_TTL_HINT,
+                JoinTestPrograms.SEMI_ANTI_JOIN_WITH_LITERAL_AGG);
     }
 }
