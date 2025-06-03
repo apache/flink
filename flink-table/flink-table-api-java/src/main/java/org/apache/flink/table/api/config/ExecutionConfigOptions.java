@@ -380,8 +380,12 @@ public class ExecutionConfigOptions {
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "When true async lookup joins would follow the upsert key order in cdc stream (if no upsert key, "
-                                    + "total record is considered as upsert key). This feature does not works for insert-only. ");
+                            "When true, async lookup joins would follow the upsert key order in cdc streams. "
+                                    + "If there is no defined upsert key, then the total record is considered as the upsert key. "
+                                    + "Setting this for insert-only streams has no effect because record in insert-only streams is "
+                                    + "independent and does not affect the state of previous records. "
+                                    + "Besides, since records in insert-only streams typically do not involve a primary key then "
+                                    + "no upsertKey can be derived. This makes them be unordered processed even if key ordered enabled.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY =

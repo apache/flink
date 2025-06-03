@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 
 /**
- * The factory of Keyed Async Wait Operator .
+ * The factory of Keyed Async Wait Operator.
  *
  * @param <IN> The input type of the operator
  * @param <OUT> The output type of the operator
