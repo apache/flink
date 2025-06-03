@@ -117,6 +117,7 @@ abstract class SinkTransformationTranslatorITCaseBase<SinkT> {
 
         assertThat(streamGraph.getStreamNodes()).hasSize(3);
         assertNoUnalignedOutput(writerNode);
+        assertUnalignedOutput(sourceNode);
 
         validateTopology(
                 writerNode,
@@ -279,6 +280,10 @@ abstract class SinkTransformationTranslatorITCaseBase<SinkT> {
 
     protected static void assertNoUnalignedOutput(StreamNode src) {
         assertThat(src.getOutEdges()).allMatch(e -> !e.supportsUnalignedCheckpoints());
+    }
+
+    protected static void assertUnalignedOutput(StreamNode src) {
+        assertThat(src.getOutEdges()).allMatch(StreamEdge::supportsUnalignedCheckpoints);
     }
 
     StreamGraph buildGraph(SinkT sink, RuntimeExecutionMode runtimeExecutionMode) {
