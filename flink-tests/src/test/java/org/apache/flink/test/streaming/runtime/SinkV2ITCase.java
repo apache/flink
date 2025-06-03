@@ -20,8 +20,12 @@ package org.apache.flink.test.streaming.runtime;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.typeinfo.IntegerTypeInfo;
 import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.graph.StreamEdge;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2;
 import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.test.util.AbstractTestBase;
@@ -88,6 +92,9 @@ public class SinkV2ITCase extends AbstractTestBase {
                 new FiniteTestSource<>(COMMIT_QUEUE_RECEIVE_ALL_DATA, SOURCE_DATA);
 
         env.addSource(source, IntegerTypeInfo.INT_TYPE_INFO)
+                // Introduce the keyBy to assert unaligned checkpoint is enabled on the source ->
+                // sink writer edge
+                .keyBy((KeySelector<Integer, Integer>) value -> value)
                 .sinkTo(
                         TestSinkV2.<Integer>newBuilder()
                                 .setDefaultCommitter(
@@ -95,7 +102,7 @@ public class SinkV2ITCase extends AbstractTestBase {
                                                         & Serializable)
                                                 () -> COMMIT_QUEUE)
                                 .build());
-        env.execute();
+        executeAndVerifyStreamGraph(env);
         assertThat(
                 COMMIT_QUEUE.stream()
                         .map(Committer.CommitRequest::getCommittable)
@@ -110,6 +117,9 @@ public class SinkV2ITCase extends AbstractTestBase {
                 new FiniteTestSource<>(COMMIT_QUEUE_RECEIVE_ALL_DATA, SOURCE_DATA);
 
         env.addSource(source, IntegerTypeInfo.INT_TYPE_INFO)
+                // Introduce the keyBy to assert unaligned checkpoint is enabled on the source ->
+                // sink writer edge
+                .keyBy((KeySelector<Integer, Integer>) value -> value)
                 .sinkTo(
                         TestSinkV2.<Integer>newBuilder()
                                 .setDefaultCommitter(
@@ -118,7 +128,7 @@ public class SinkV2ITCase extends AbstractTestBase {
                                                 () -> COMMIT_QUEUE)
                                 .setWithPreCommitTopology(true)
                                 .build());
-        env.execute();
+        executeAndVerifyStreamGraph(env);
         assertThat(
                 COMMIT_QUEUE.stream()
                         .map(Committer.CommitRequest::getCommittable)
@@ -134,6 +144,9 @@ public class SinkV2ITCase extends AbstractTestBase {
         final StreamExecutionEnvironment env = buildBatchEnv();
 
         env.fromData(SOURCE_DATA)
+                // Introduce the rebalance to assert unaligned checkpoint is enabled on the source
+                // -> sink writer edge
+                .rebalance()
                 .sinkTo(
                         TestSinkV2.<Integer>newBuilder()
                                 .setDefaultCommitter(
@@ -141,7 +154,7 @@ public class SinkV2ITCase extends AbstractTestBase {
                                                         & Serializable)
                                                 () -> COMMIT_QUEUE)
                                 .build());
-        env.execute();
+        executeAndVerifyStreamGraph(env);
         assertThat(
                 COMMIT_QUEUE.stream()
                         .map(Committer.CommitRequest::getCommittable)
@@ -154,6 +167,9 @@ public class SinkV2ITCase extends AbstractTestBase {
         final StreamExecutionEnvironment env = buildBatchEnv();
 
         env.fromData(SOURCE_DATA)
+                // Introduce the rebalance to assert unaligned checkpoint is enabled on the source
+                // -> sink writer edge
+                .rebalance()
                 .sinkTo(
                         TestSinkV2.<Integer>newBuilder()
                                 .setDefaultCommitter(
@@ -162,7 +178,7 @@ public class SinkV2ITCase extends AbstractTestBase {
                                                 () -> COMMIT_QUEUE)
                                 .setWithPreCommitTopology(true)
                                 .build());
-        env.execute();
+        executeAndVerifyStreamGraph(env);
         assertThat(
                 COMMIT_QUEUE.stream()
                         .map(Committer.CommitRequest::getCommittable)
@@ -184,5 +200,31 @@ public class SinkV2ITCase extends AbstractTestBase {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         return env;
+    }
+
+    private void executeAndVerifyStreamGraph(StreamExecutionEnvironment env) throws Exception {
+        StreamGraph streamGraph = env.getStreamGraph();
+        assertNoUnalignedCheckpointInSink(streamGraph);
+        assertUnalignedCheckpointInNonSink(streamGraph);
+        env.execute(streamGraph);
+    }
+
+    private void assertNoUnalignedCheckpointInSink(StreamGraph streamGraph) {
+        // all the out edges between sink nodes should not support unaligned checkpoints
+        org.assertj.core.api.Assertions.assertThat(streamGraph.getStreamNodes())
+                .filteredOn(t -> t.getOperatorName().contains("Sink"))
+                .flatMap(StreamNode::getOutEdges)
+                .allMatch(e -> !e.supportsUnalignedCheckpoints())
+                .isNotEmpty();
+    }
+
+    private void assertUnalignedCheckpointInNonSink(StreamGraph streamGraph) {
+        // All connections are rebalance between source and source, so all the out edges of nodes
+        // upstream of the sink should support unaligned checkpoints
+        org.assertj.core.api.Assertions.assertThat(streamGraph.getStreamNodes())
+                .filteredOn(t -> !t.getOperatorName().contains("Sink"))
+                .flatMap(StreamNode::getOutEdges)
+                .allMatch(StreamEdge::supportsUnalignedCheckpoints)
+                .isNotEmpty();
     }
 }
