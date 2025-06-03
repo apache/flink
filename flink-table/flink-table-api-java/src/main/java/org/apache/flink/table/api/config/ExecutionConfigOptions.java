@@ -27,6 +27,12 @@ import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.InlineElement;
+import org.apache.flink.streaming.api.functions.async.AsyncRetryStrategy;
+import org.apache.flink.streaming.api.functions.async.FixedDelayRetryStrategy;
+import org.apache.flink.streaming.util.retryable.RetryPredicates;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.operators.window.grouping.HeapWindowsGrouping;
 
 import java.time.Duration;
 
@@ -399,6 +405,59 @@ public class ExecutionConfigOptions {
                             "Output mode for asynchronous operations which will convert to {@see AsyncDataStream.OutputMode}, ORDERED by default. "
                                     + "If set to ALLOW_UNORDERED, will attempt to use {@see AsyncDataStream.OutputMode.UNORDERED} when it does not "
                                     + "affect the correctness of the result, otherwise ORDERED will be still used.");
+
+    // ------------------------------------------------------------------------
+    //  Async ML Predict Options
+    // ------------------------------------------------------------------------
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_ML_PREDICT_BUFFER_CAPACITY =
+            key("table.exec.async-ml-predict.buffer-capacity")
+                    .intType()
+                    .defaultValue(10)
+                    .withDescription(
+                            "The max number of async i/o operation that the async ML predict can trigger.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Duration> TABLE_EXEC_ASYNC_ML_PREDICT_TIMEOUT =
+            key("table.exec.async-ml-predict.timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(30))
+                    .withDescription(
+                            "The async timeout for the asynchronous ML predict operation to complete.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<AsyncOutputMode> TABLE_EXEC_ASYNC_ML_PREDICT_OUTPUT_MODE =
+            key("table.exec.async-ml-predict.output-mode")
+                    .enumType(AsyncOutputMode.class)
+                    .defaultValue(AsyncOutputMode.ORDERED)
+                    .withDescription(
+                            "Output mode for asynchronous ML predict operations which will convert to {@see AsyncDataStream.OutputMode}, ORDERED by default. "
+                                    + "If set to ALLOW_UNORDERED, will attempt to use {@see AsyncDataStream.OutputMode.UNORDERED} when it does not "
+                                    + "affect the correctness of the result, otherwise ORDERED will be still used.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<RetryStrategy> TABLE_EXEC_ASYNC_ML_PREDICT_RETRY_STRATEGY =
+            key("table.exec.async-ml-predict.retry-strategy")
+                    .enumType(RetryStrategy.class)
+                    .defaultValue(RetryStrategy.FIXED_DELAY)
+                    .withDescription(
+                            "Restart strategy which will be used for async ML predict, FIXED_DELAY by default.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Duration> TABLE_EXEC_ASYNC_ML_PREDICT_RETRY_DELAY =
+            key("table.exec.async-ml-predict.fixed-delay")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(10))
+                    .withDescription("The delay to wait before retrying async ML predict operation.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_ML_PREDICT_MAX_ATTEMPTS =
+            key("table.exec.async-ml-predict.max-attempts")
+                    .intType()
+                    .defaultValue(3)
+                    .withDescription(
+                            "The max number of async ML predict retry attempts to make before task "
+                                    + "execution is failed.");
 
     // ------------------------------------------------------------------------
     //  Async Scalar Function
@@ -792,6 +851,27 @@ public class ExecutionConfigOptions {
 
         /** A fixed delay before retrying again. */
         FIXED_DELAY
+    }
+
+    /** Helper class to create retry strategies for async operations. */
+    @Internal
+    public static class AsyncRetryStrategies {
+        public static AsyncRetryStrategy<RowData> createRetryStrategy(
+                RetryStrategy retryStrategy,
+                Duration retryDelay,
+                int maxAttempts) {
+            switch (retryStrategy) {
+                case NO_RETRY:
+                    return null;
+                case FIXED_DELAY:
+                    return new FixedDelayRetryStrategy<>(
+                            maxAttempts,
+                            retryDelay.toMillis(),
+                            RetryPredicates.EMPTY_RESULT_PREDICATE);
+                default:
+                    throw new TableException("Unsupported retry strategy: " + retryStrategy);
+            }
+        }
     }
 
     /** Determine if CAST operates using the legacy behaviour or the new one. */

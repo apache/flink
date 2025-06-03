@@ -18,18 +18,29 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 import org.apache.flink.FlinkVersion;
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.streaming.api.datastream.AsyncDataStream;
+import org.apache.flink.streaming.api.datastream.AsyncDataStream.OutputMode;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
-import org.apache.flink.streaming.api.operators.async.AsyncWaitOperator;
-import org.apache.flink.streaming.api.transformations.OneInputTransformation;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.async.AsyncWaitOperatorFactory;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.api.config.ExecutionConfigOptions.AsyncOutputMode;
+import org.apache.flink.table.api.config.ExecutionConfigOptions.AsyncRetryStrategies;
+import org.apache.flink.table.api.config.ExecutionConfigOptions.RetryStrategy;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
@@ -40,23 +51,28 @@ import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
-
-import javax.annotation.Nullable;
-import java.util.Collections;
+import java.time.Duration;
 import java.util.List;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import javax.annotation.Nullable;
 
 /** {@link StreamExecNode} for ML model prediction. */
 @ExecNodeMetadata(
         name = "stream-exec-ml-predict",
         version = 1,
         producedTransformations = StreamExecMlPredict.ML_PREDICT_TRANSFORMATION,
+        consumedOptions = {
+            "table.exec.async-ml-predict.buffer-capacity",
+            "table.exec.async-ml-predict.timeout",
+            "table.exec.async-ml-predict.output-mode",
+            "table.exec.async-ml-predict.retry-strategy",
+            "table.exec.async-ml-predict.retry-delay",
+            "table.exec.async-ml-predict.max-attempts"
+        },
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
-public class StreamExecMlPredict implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+public class StreamExecMlPredict extends ExecNodeBase<RowData>
+        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     public static final String ML_PREDICT_TRANSFORMATION = "ml-predict";
     public static final String FIELD_NAME_INPUT_COLUMNS = "inputColumns";
@@ -74,7 +90,6 @@ public class StreamExecMlPredict implements StreamExecNode<RowData>, SingleTrans
     private final AsyncOptions asyncOptions;
 
     private final RowType inputRowType;
-    private final RowType outputRowType;
 
     @JsonCreator
     public StreamExecMlPredict(
@@ -87,122 +102,138 @@ public class StreamExecMlPredict implements StreamExecNode<RowData>, SingleTrans
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         this.inputColumns = checkNotNull(inputColumns);
         this.modelProviderSpec = checkNotNull(modelProviderSpec);
         this.asyncOptions = asyncOptions;
         this.inputRowType = (RowType) inputProperties.get(0).getType();
-        this.outputRowType = outputType;
+    }
+
+    public StreamExecMlPredict(
+            ReadableConfig tableConfig,
+            ModelProviderSpec modelProviderSpec,
+            List<String> inputColumns,
+            @Nullable AsyncOptions asyncOptions,
+            ChangelogMode inputChangelogMode,
+            List<InputProperty> inputProperties,
+            RowType outputType,
+            String description) {
+        this(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(StreamExecMlPredict.class),
+                ExecNodeContext.newPersistedConfig(StreamExecLookupJoin.class, tableConfig),
+                inputColumns,
+                modelProviderSpec,
+                asyncOptions,
+                inputProperties,
+                outputType,
+                description);
     }
 
     @Override
-    public Transformation<RowData> translateToPlanInternal(PlannerBase planner, ExecNodeConfig config) {
-        final Transformation<RowData> inputTransformation = 
-            getInputEdges().get(0).translateToPlan(planner);
+    public Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
+        final Transformation<RowData> inputTransformation =
+                getInputEdges().get(0).translateToPlan(planner);
         final ClassLoader classLoader = planner.getExecEnv().getUserClassLoader();
 
-        final Transformation<RowData> predictTransformation;
+        final StreamOperatorFactory<RowData> operatorFactory;
         if (asyncOptions != null) {
-            predictTransformation = createAsyncPredictTransformation(
-                inputTransformation, classLoader, config);
+            operatorFactory = createAsyncPredictOperatorFactory(classLoader, config);
         } else {
-            predictTransformation = createSyncPredictTransformation(
-                inputTransformation, classLoader, config);
+            operatorFactory = createSyncPredictOperatorFactory(classLoader, config);
         }
 
-        return predictTransformation;
+        return ExecNodeUtil.createOneInputTransformation(
+                inputTransformation,
+                createTransformationMeta(ML_PREDICT_TRANSFORMATION, config),
+                operatorFactory,
+                InternalTypeInfo.of(getOutputType()),
+                inputTransformation.getParallelism());
     }
 
-    private Transformation<RowData> createSyncPredictTransformation(
-            Transformation<RowData> inputTransformation,
-            ClassLoader classLoader,
-            ExecNodeConfig config) {
-        ProcessFunction<RowData, RowData> processFunction = 
-            createSyncPredictFunction(classLoader, config);
+    private StreamOperatorFactory<RowData> createSyncPredictOperatorFactory(
+            ClassLoader classLoader, ExecNodeConfig config) {
+        ProcessFunction<RowData, RowData> processFunction =
+                createSyncPredictFunction(classLoader, config);
 
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(processFunction);
 
-        return ExecNodeUtil.createOneInputTransformation(
-                inputTransformation,
-                createTransformationMeta(ML_PREDICT_TRANSFORMATION, config),
-                operator,
-                InternalTypeInfo.of(outputRowType),
-                inputTransformation.getParallelism());
+        return SimpleOperatorFactory.of(operator);
     }
 
-    private Transformation<RowData> createAsyncPredictTransformation(
-            Transformation<RowData> inputTransformation,
-            ClassLoader classLoader,
-            ExecNodeConfig config) {
-        AsyncFunction<RowData, RowData> asyncFunction = 
-            createAsyncPredictFunction(classLoader, config);
+    private StreamOperatorFactory<RowData> createAsyncPredictOperatorFactory(
+            ClassLoader classLoader, ExecNodeConfig config, AsyncOptions asyncOptions) {
+        AsyncFunction<RowData, RowData> asyncFunction =
+                createAsyncPredictFunction(classLoader, config);
 
-        TypeSerializer<RowData> inputSerializer =
-                InternalTypeInfo.of(inputRowType)
-                        .createSerializer(new ExecutionConfig());
+        return new AsyncWaitOperatorFactory<>(
+                asyncFunction,
+                asyncOptions.timeout,
+                asyncOptions.capacity,
+                asyncOptions.outputMode);
 
-        AsyncWaitOperator<RowData, RowData> operator =
-                new AsyncWaitOperator<>(
-                        asyncFunction,
-                        asyncOptions.getTimeout(),
-                        asyncOptions.getCapacity(),
-                        asyncOptions.getOutputMode(),
-                        inputSerializer);
-
-        return ExecNodeUtil.createOneInputTransformation(
-                inputTransformation,
-                createTransformationMeta(ML_PREDICT_TRANSFORMATION, config),
-                operator,
-                InternalTypeInfo.of(outputRowType),
-                inputTransformation.getParallelism());
+        return AsyncWaitOperatorFactory.createOperatorFactory(
+                asyncFunction,
+                config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_ML_PREDICT_TIMEOUT).toMillis(),
+                config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_ML_PREDICT_BUFFER_CAPACITY),
+                config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_ML_PREDICT_OUTPUT_MODE),
+                inputSerializer,
+                AsyncRetryStrategies.createRetryStrategy(
+                        config.get(
+                                ExecutionConfigOptions.TABLE_EXEC_ASYNC_ML_PREDICT_RETRY_STRATEGY),
+                        config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_ML_PREDICT_RETRY_DELAY),
+                        config.get(
+                                ExecutionConfigOptions.TABLE_EXEC_ASYNC_ML_PREDICT_MAX_ATTEMPTS)));
     }
 
     private ProcessFunction<RowData, RowData> createSyncPredictFunction(
             ClassLoader classLoader, ExecNodeConfig config) {
-        final PredictRuntimeProvider runtimeProvider = 
-                modelProviderSpec.createPredictRuntimeProvider(
-                        getContextResolvedModel(config),
-                        classLoader);
-        
+        final PredictRuntimeProvider runtimeProvider =
+                modelProviderSpec.getPredictRuntimeProvider(
+                        getContextResolvedModel(config), classLoader);
+
         return runtimeProvider.createPredictFunction(
-                inputColumns,
-                inputRowType,
-                outputRowType,
-                config.getConfiguration());
+                inputColumns, inputRowType, getOutputType(), config.getConfiguration());
     }
 
     private AsyncFunction<RowData, RowData> createAsyncPredictFunction(
             ClassLoader classLoader, ExecNodeConfig config) {
-        final PredictRuntimeProvider runtimeProvider = 
-                modelProviderSpec.createPredictRuntimeProvider(
-                        getContextResolvedModel(config),
-                        classLoader);
-        
+        final PredictRuntimeProvider runtimeProvider =
+                modelProviderSpec.getPredictRuntimeProvider(
+                        getContextResolvedModel(config), classLoader);
+
         return runtimeProvider.createAsyncPredictFunction(
-                inputColumns,
-                inputRowType,
-                outputRowType,
-                config.getConfiguration());
+                inputColumns, inputRowType, getOutputType(), config.getConfiguration());
     }
 
     /** Async options for ML prediction. */
     public static class AsyncOptions {
         private final long timeout;
         private final int capacity;
-        private final String outputMode;
+        private final AsyncDataStream.OutputMode outputMode;
+        private final RetryStrategy retryStrategy;
+        private final Duration retryDelay;
+        private final int maxAttempts;
 
         @JsonCreator
         public AsyncOptions(
                 @JsonProperty("timeout") long timeout,
                 @JsonProperty("capacity") int capacity,
-                @JsonProperty("outputMode") String outputMode) {
+                @JsonProperty("outputMode") OutputMode outputMode,
+                @JsonProperty("retryStrategy") RetryStrategy retryStrategy,
+                @JsonProperty("retryDelay") Duration retryDelay,
+                @JsonProperty("maxAttempts") int maxAttempts) {
             this.timeout = timeout;
             this.capacity = capacity;
             this.outputMode = outputMode;
+            this.retryStrategy = retryStrategy;
+            this.retryDelay = retryDelay;
+            this.maxAttempts = maxAttempts;
         }
 
-        public long getTimeout() {
+        public Duration getTimeout() {
             return timeout;
         }
 
@@ -210,8 +241,20 @@ public class StreamExecMlPredict implements StreamExecNode<RowData>, SingleTrans
             return capacity;
         }
 
-        public String getOutputMode() {
+        public AsyncOutputMode getOutputMode() {
             return outputMode;
         }
+
+        public RetryStrategy getRetryStrategy() {
+            return retryStrategy;
+        }
+
+        public Duration getRetryDelay() {
+            return retryDelay;
+        }
+
+        public int getMaxAttempts() {
+            return maxAttempts;
+        }
     }
-} 
+}
