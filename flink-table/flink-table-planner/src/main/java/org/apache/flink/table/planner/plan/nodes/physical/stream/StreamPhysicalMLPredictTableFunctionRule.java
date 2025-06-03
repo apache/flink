@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream;
 
+import org.apache.flink.table.ml.AsyncPredictRuntimeProvider;
 import org.apache.flink.table.ml.PredictRuntimeProvider;
 import org.apache.flink.table.planner.calcite.RexModelCall;
 import org.apache.flink.table.planner.functions.sql.ml.SqlMLPredictTableFunction;
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
-import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -61,14 +61,14 @@ public class StreamPhysicalMLPredictTableFunctionRule extends ConverterRule {
 
         final RexModelCall modelCall = (RexModelCall) rexCall.getOperands().get(1);
         return modelCall.getModelProvider() instanceof PredictRuntimeProvider
-                || modelCall.getModelProvider()
-                        instanceof org.apache.flink.table.ml.AsyncPredictRuntimeProvider;
+                || modelCall.getModelProvider() instanceof AsyncPredictRuntimeProvider;
     }
 
     @Override
     public @Nullable RelNode convert(RelNode rel) {
         final FlinkLogicalTableFunctionScan scan = (FlinkLogicalTableFunctionScan) rel;
-        final RelNode newInput = applyDistributionOnInput(scan.getInput(0));
+        final RelNode newInput =
+                RelOptRule.convert(scan.getInput(0), FlinkConventions.STREAM_PHYSICAL());
 
         final RelTraitSet providedTraitSet =
                 rel.getTraitSet().replace(FlinkConventions.STREAM_PHYSICAL());
@@ -80,16 +80,5 @@ public class StreamPhysicalMLPredictTableFunctionRule extends ConverterRule {
         // Create ModelProviderSpec similar to DynamicTableSourceSpec and TemporalTableSourceSpec
         return new StreamPhysicalMLPredictTableFunction(
                 scan.getCluster(), providedTraitSet, newInput, scan, scan.getRowType());
-    }
-
-    private static RelNode applyDistributionOnInput(RelNode input) {
-        final FlinkRelDistribution distribution = FlinkRelDistribution.DEFAULT();
-        final RelTraitSet requiredTraitSet =
-                input.getCluster()
-                        .getPlanner()
-                        .emptyTraitSet()
-                        .replace(distribution)
-                        .replace(FlinkConventions.STREAM_PHYSICAL());
-        return RelOptRule.convert(input, requiredTraitSet);
     }
 }
