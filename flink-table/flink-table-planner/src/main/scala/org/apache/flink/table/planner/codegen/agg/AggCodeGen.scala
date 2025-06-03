@@ -39,6 +39,8 @@ trait AggCodeGen {
 
   def retract(generator: ExprCodeGenerator): String
 
+  def bundledAccumulateRetract(generator: ExprCodeGenerator): String
+
   def merge(generator: ExprCodeGenerator): String
 
   def getValue(generator: ExprCodeGenerator): GeneratedExpression
@@ -48,5 +50,6 @@ trait AggCodeGen {
       needRetract: Boolean = false,
       needMerge: Boolean = false,
       needReset: Boolean = false,
+      needBundled: Boolean = false,
       needEmitValue: Boolean = false): Unit
 }

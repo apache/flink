@@ -22,8 +22,8 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalGroupAggregate
+import org.apache.flink.table.planner.plan.utils.{AsyncUtil, BundledAggUtil, WindowUtil}
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
-import org.apache.flink.table.planner.plan.utils.WindowUtil
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
@@ -45,6 +45,10 @@ class StreamPhysicalGroupAggregateRule(config: Config) extends ConverterRule(con
     }
 
     if (agg.getAggCallList.exists(isPythonAggregate(_))) {
+      return false
+    }
+
+    if (agg.getAggCallList.exists(BundledAggUtil.containsBatchAggCall)) {
       return false
     }
 

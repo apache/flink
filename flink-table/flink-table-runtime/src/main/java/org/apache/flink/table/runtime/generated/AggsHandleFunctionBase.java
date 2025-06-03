@@ -22,7 +22,11 @@ import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
+import org.apache.flink.table.functions.agg.BundledKeySegment;
+import org.apache.flink.table.functions.agg.BundledKeySegmentApplied;
 import org.apache.flink.table.runtime.dataview.StateDataViewStore;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
  * The base class for handling aggregate or table aggregate functions.
@@ -51,6 +55,18 @@ public interface AggsHandleFunctionBase extends Function {
      * @param input input values bundled in a row
      */
     void retract(RowData input) throws Exception;
+
+    /**
+     * Batches together both accumulate and retract calls to a single batch for improved
+     * performance.
+     *
+     * @param segment The segment
+     */
+    default void bundledAccumulateRetract(
+            CompletableFuture<BundledKeySegmentApplied> future, BundledKeySegment segment)
+            throws Exception {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Merges the other accumulators into current accumulators.

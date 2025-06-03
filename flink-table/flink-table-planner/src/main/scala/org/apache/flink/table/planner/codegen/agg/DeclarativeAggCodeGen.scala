@@ -180,6 +180,10 @@ class DeclarativeAggCodeGen(
     }
   }
 
+  override def bundledAccumulateRetract(generator: ExprCodeGenerator): String = {
+    ""
+  }
+
   def retract(generator: ExprCodeGenerator): String = {
     val isDistinctMerge = generator.input1Term.startsWith(DISTINCT_KEY_TERM)
     val resolvedExprs = function.retractExpressions
@@ -290,6 +294,7 @@ class DeclarativeAggCodeGen(
       needRetract: Boolean = false,
       needMerge: Boolean = false,
       needReset: Boolean = false,
+      needBundled: Boolean = false,
       needEmitValue: Boolean = false): Unit = {
     // skip the check for DeclarativeAggregateFunction for now
   }
