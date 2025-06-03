@@ -223,7 +223,9 @@ public class SinkTransformationTranslator<Input, Output>
 
             // check all transformation after the writer and recursively disable UC for all inputs
             // up to the writer
-            Set<Integer> seen = new HashSet<>(writer.getId());
+            Set<Integer> seen = new HashSet<>(sinkTransformations.size() * 2);
+            seen.add(writer.getId());
+
             Queue<Transformation<?>> pending =
                     new ArrayDeque<>(
                             sinkTransformations.subList(
