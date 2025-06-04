@@ -596,8 +596,9 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
     private void closeIfNeeded() {
         if (isAsyncStateProcessingEnabled()
                 && !getContainingTask().isFailing()
-                && !getContainingTask().isCanceled()) {
-            asyncExecutionController.drainInflightRecords(0);
+                && !getContainingTask().isCanceled()
+                && asyncExecutionController != null) {
+                asyncExecutionController.drainInflightRecords(0);
         }
     }
 }
