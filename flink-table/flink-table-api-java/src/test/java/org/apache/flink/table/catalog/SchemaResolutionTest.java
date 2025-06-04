@@ -89,6 +89,7 @@ class SchemaResolutionTest {
                     .withComment("the 'origin' timestamp")
                     .watermark("ts", WATERMARK_SQL)
                     .columnByExpression("proctime", PROCTIME_SQL)
+                    .indexNamed("idx", Collections.singletonList("counter"))
                     .build();
 
     // the type of ts_ltz is TIMESTAMP_LTZ
@@ -137,7 +138,10 @@ class SchemaResolutionTest {
                                 Column.computed("proctime", PROCTIME_RESOLVED)),
                         Collections.singletonList(WatermarkSpec.of("ts", WATERMARK_RESOLVED)),
                         UniqueConstraint.primaryKey(
-                                "primary_constraint", Collections.singletonList("id")));
+                                "primary_constraint", Collections.singletonList("id")),
+                        Collections.singletonList(
+                                DefaultIndex.newIndex(
+                                        "idx", Collections.singletonList("counter"))));
 
         final ResolvedSchema actualStreamSchema = resolveSchema(SCHEMA, true);
         {
@@ -304,6 +308,44 @@ class SchemaResolutionTest {
         testError(
                 Schema.newBuilder().column("id", DataTypes.INT()).primaryKey("id", "id").build(),
                 "Invalid primary key 'PK_id_id'. A primary key must not contain duplicate columns. Found: [id]");
+
+        // indexes
+
+        testError(
+                Schema.newBuilder().fromSchema(SCHEMA).index("counter").build(),
+                "Invalid index 'INDEX_counter'. "
+                        + "There is a duplicated index composed of the same columns: [counter]");
+
+        testError(
+                Schema.newBuilder()
+                        .fromSchema(SCHEMA)
+                        .index("counter", "payload")
+                        .index("counter", "payload")
+                        .build(),
+                "Invalid index 'INDEX_counter_payload'. "
+                        + "There is a duplicated index composed of the same columns: [counter, payload]");
+
+        testError(
+                Schema.newBuilder().index("counter").build(),
+                "Invalid index 'INDEX_counter'. Column 'counter' does not exist.");
+
+        testError(
+                Schema.newBuilder()
+                        .column("a", DataTypes.INT())
+                        .indexNamed("idx1", Collections.singletonList("a"))
+                        .indexNamed("idx2", Collections.singletonList("a"))
+                        .build(),
+                "Invalid index 'idx2'. "
+                        + "There is a duplicated index composed of the same columns: [a]");
+
+        testError(
+                Schema.newBuilder()
+                        .column("orig_ts", DataTypes.TIMESTAMP(3))
+                        .columnByExpression("ts", COMPUTED_SQL)
+                        .index("ts")
+                        .build(),
+                "Invalid index 'INDEX_ts'. "
+                        + "Column 'ts' is not a physical column or a metadata column.");
     }
 
     @Test
@@ -319,7 +361,8 @@ class SchemaResolutionTest {
                                 + "  `orig_ts` METADATA FROM 'timestamp' COMMENT 'the ''origin'' timestamp',\n"
                                 + "  `proctime` AS [PROCTIME()],\n"
                                 + "  WATERMARK FOR `ts` AS [ts - INTERVAL '5' SECOND],\n"
-                                + "  CONSTRAINT `primary_constraint` PRIMARY KEY (`id`) NOT ENFORCED\n"
+                                + "  CONSTRAINT `primary_constraint` PRIMARY KEY (`id`) NOT ENFORCED,\n"
+                                + "  INDEX `idx` (`counter`)\n"
                                 + ")");
     }
 
@@ -337,7 +380,8 @@ class SchemaResolutionTest {
                                 + "  `orig_ts` TIMESTAMP(3) METADATA FROM 'timestamp' COMMENT 'the ''origin'' timestamp',\n"
                                 + "  `proctime` TIMESTAMP_LTZ(3) NOT NULL *PROCTIME* AS PROCTIME(),\n"
                                 + "  WATERMARK FOR `ts`: TIMESTAMP(3) AS ts - INTERVAL '5' SECOND,\n"
-                                + "  CONSTRAINT `primary_constraint` PRIMARY KEY (`id`) NOT ENFORCED\n"
+                                + "  CONSTRAINT `primary_constraint` PRIMARY KEY (`id`) NOT ENFORCED,\n"
+                                + "  INDEX `idx` (`counter`)\n"
                                 + ")");
     }
 
@@ -355,6 +399,23 @@ class SchemaResolutionTest {
                                 .orElseThrow(IllegalStateException::new)
                                 .getConstraintName())
                 .isEqualTo("PK_b_a");
+    }
+
+    @Test
+    void testGeneratedIndexName() {
+        final Schema schema =
+                Schema.newBuilder()
+                        .column("a", DataTypes.INT())
+                        .column("b", DataTypes.STRING())
+                        .column("c", DataTypes.STRING())
+                        .index("b", "a")
+                        .build();
+        assertThat(
+                schema.getIndexes().stream()
+                        .findFirst()
+                        .orElseThrow(IllegalStateException::new)
+                        .getIndexName())
+                .isEqualTo("INDEX_b_a");
     }
 
     @Test
