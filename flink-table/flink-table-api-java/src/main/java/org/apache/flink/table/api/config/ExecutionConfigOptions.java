@@ -444,6 +444,37 @@ public class ExecutionConfigOptions {
                                     + "execution is failed.");
 
     // ------------------------------------------------------------------------
+    //  Async ML_PREDICT Options
+    // ------------------------------------------------------------------------
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_ML_PREDICT_BUFFER_CAPACITY =
+            key("table.exec.async-ml-predict.buffer-capacity")
+                    .intType()
+                    .defaultValue(10)
+                    .withDescription(
+                            "The max number of async i/o operation that the async ml predict can trigger.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Duration> TABLE_EXEC_ASYNC_ML_PREDICT_TIMEOUT =
+            key("table.exec.async-ml-predict.timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(3))
+                    .withDescription(
+                            "The async timeout for the asynchronous operation to complete. If the deadline fails, a timeout exception will be thrown to indicate the error.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<AsyncOutputMode> TABLE_EXEC_ASYNC_ML_PREDICT_OUTPUT_MODE =
+            key("table.exec.async-ml-predict.output-mode")
+                    .enumType(AsyncOutputMode.class)
+                    .defaultValue(AsyncOutputMode.ORDERED)
+                    .withDescription(
+                            "Output mode for async ML predict, which describes whether or not the the output should attempt to be ordered or not. The supported options are: "
+                                    + "ALLOW_UNORDERED means the operator emit the result when execution finishes. The planner will attempt use ALLOW_UNORDERED whn it doesn't affect "
+                                    + "the correctness of the results.\n"
+                                    + "ORDERED ensures that the operator emits the result in the same order as the data enters it. This is the default.");
+
+    // ------------------------------------------------------------------------
     //  MiniBatch Options
     // ------------------------------------------------------------------------
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
