@@ -26,8 +26,15 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.operators.join.JoinConditionWithNullFilters;
+import org.apache.flink.table.runtime.operators.join.stream.state.JoinRecordStateView;
+import org.apache.flink.table.runtime.operators.join.stream.state.OuterJoinRecordStateView;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+
+import java.util.Iterator;
+import java.util.function.Function;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Abstract implementation for streaming unbounded Join operator which defines some member fields
@@ -92,6 +99,86 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
         super.close();
         if (joinCondition != null) {
             joinCondition.close();
+        }
+    }
+
+    /** Wrap the passed iterator with filter and mapper. */
+    private static <I, O> Iterator<O> collect(
+            final Iterator<I> delegate, Function<I, Boolean> matcher, Function<I, O> mapper) {
+        return new Iterator<O>() {
+            private I next;
+
+            @Override
+            public boolean hasNext() {
+                advance();
+                return next != null;
+            }
+
+            @Override
+            public O next() {
+                checkState(hasNext());
+                I tmp = next;
+                next = null;
+                return mapper.apply(tmp);
+            }
+
+            private void advance() {
+                while (next == null && delegate.hasNext()) {
+                    I record = delegate.next();
+                    if (matcher.apply(record)) {
+                        next = record;
+                    }
+                }
+            }
+        };
+    }
+
+    /** Creates an {@link Iterator} over the records associated to the input row. */
+    protected static Iterator<OuterRecord> iterator(
+            RowData input,
+            boolean inputIsLeft,
+            JoinRecordStateView otherSideStateView,
+            JoinCondition condition)
+            throws Exception {
+        if (otherSideStateView instanceof OuterJoinRecordStateView) {
+            return collect(
+                    ((OuterJoinRecordStateView) otherSideStateView)
+                            .getRecordsAndNumOfAssociations()
+                            .iterator(),
+                    record ->
+                            inputIsLeft
+                                    ? condition.apply(input, record.f0)
+                                    : condition.apply(record.f0, input),
+                    record -> new OuterRecord(record.f0, record.f1));
+        } else {
+            return collect(
+                    otherSideStateView.getRecords().iterator(),
+                    record ->
+                            inputIsLeft
+                                    ? condition.apply(input, record)
+                                    : condition.apply(record, input),
+                    // use -1 as the default number of associations
+                    record -> new OuterRecord(record, -1));
+        }
+    }
+
+    /**
+     * An {@link OuterRecord} is a composite of record and {@code numOfAssociations}. The {@code
+     * numOfAssociations} represents the number of associated records in the other side. It is used
+     * when the record is from outer side (e.g. left side in LEFT OUTER JOIN). When the {@code
+     * numOfAssociations} is ZERO, we need to send a null padding row. This is useful to avoid
+     * recompute the associated numbers every time.
+     *
+     * <p>When the record is from inner side (e.g. right side in LEFT OUTER JOIN), the {@code
+     * numOfAssociations} will always be {@code -1}.
+     */
+    protected static final class OuterRecord {
+        public final RowData record;
+        public final int numOfAssociations;
+
+        private OuterRecord(RowData record, int numOfAssociations) {
+            this.record = record;
+            this.numOfAssociations = numOfAssociations;
         }
     }
 }
