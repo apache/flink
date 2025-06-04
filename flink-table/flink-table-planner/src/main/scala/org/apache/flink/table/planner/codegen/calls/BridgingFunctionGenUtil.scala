@@ -152,7 +152,7 @@ object BridgingFunctionGenUtil {
         contextTerm
       )
     } else if (udf.getKind == FunctionKind.ASYNC_TABLE) {
-      generateAsyncTableFunctionCall(functionTerm, externalOperands, returnType)
+      generateAsyncTableFunctionCall(functionTerm, externalOperands, returnType, skipIfArgsNull)
     } else if (udf.getKind == FunctionKind.ASYNC_SCALAR) {
       generateAsyncScalarFunctionCall(
         ctx,
@@ -205,22 +205,34 @@ object BridgingFunctionGenUtil {
   private def generateAsyncTableFunctionCall(
       functionTerm: String,
       externalOperands: Seq[GeneratedExpression],
-      outputType: LogicalType): GeneratedExpression = {
+      outputType: LogicalType,
+      skipIfArgsNull: Boolean): GeneratedExpression = {
 
     val DELEGATE = className[DelegatingResultFuture[_]]
 
-    val functionCallCode =
-      s"""
-         |${externalOperands.map(_.code).mkString("\n")}
-         |if (${externalOperands.map(_.nullTerm).mkString(" || ")}) {
-         |  $DEFAULT_COLLECTOR_TERM.complete(java.util.Collections.emptyList());
-         |} else {
-         |  $DELEGATE delegates = new $DELEGATE($DEFAULT_COLLECTOR_TERM);
-         |  $functionTerm.eval(
-         |    delegates.getCompletableFuture(),
-         |    ${externalOperands.map(_.resultTerm).mkString(", ")});
-         |}
-         |""".stripMargin
+    val functionCallCode = {
+      if (skipIfArgsNull) {
+        s"""
+           |${externalOperands.map(_.code).mkString("\n")}
+           |if (${externalOperands.map(_.nullTerm).mkString(" || ")}) {
+           |  $DEFAULT_COLLECTOR_TERM.complete(java.util.Collections.emptyList());
+           |} else {
+           |  $DELEGATE delegates = new $DELEGATE($DEFAULT_COLLECTOR_TERM);
+           |  $functionTerm.eval(
+           |    delegates.getCompletableFuture(),
+           |    ${externalOperands.map(_.resultTerm).mkString(", ")});
+           |}
+           |""".stripMargin
+      } else {
+        s"""
+           |${externalOperands.map(_.code).mkString("\n")}
+           |$DELEGATE delegates = new $DELEGATE($DEFAULT_COLLECTOR_TERM);
+           |$functionTerm.eval(
+           |  delegates.getCompletableFuture(),
+           |  ${externalOperands.map(_.resultTerm).mkString(", ")});
+           |""".stripMargin
+      }
+    }
 
     // has no result
     GeneratedExpression(NO_CODE, NEVER_NULL, functionCallCode, outputType)

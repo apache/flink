@@ -47,6 +47,10 @@ public class RexModelCall extends RexCall {
         this.modelProvider = modelProvider;
     }
 
+    public ContextResolvedModel getContextResolvedModel() {
+        return contextResolvedModel;
+    }
+
     public ModelProvider getModelProvider() {
         return modelProvider;
     }

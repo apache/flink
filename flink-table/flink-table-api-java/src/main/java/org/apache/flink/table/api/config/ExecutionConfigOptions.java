@@ -444,6 +444,36 @@ public class ExecutionConfigOptions {
                                     + "execution is failed.");
 
     // ------------------------------------------------------------------------
+    //  Async ML_PREDICT Options
+    // ------------------------------------------------------------------------
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_ML_PREDICT_BUFFER_CAPACITY =
+            key("table.exec.async-ml-predict.buffer-capacity")
+                    .intType()
+                    .defaultValue(100)
+                    .withDescription(
+                            "The max number of async i/o operation that the async ml predict can trigger.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Duration> TABLE_EXEC_ASYNC_ML_PREDICT_TIMEOUT =
+            key("table.exec.async-ml-predict.timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(3))
+                    .withDescription(
+                            "The async timeout for the asynchronous operation to complete.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<AsyncOutputMode> TABLE_EXEC_ASYNC_ML_PREDICT_OUTPUT_MODE =
+            key("table.exec.async-ml-predict.output-mode")
+                    .enumType(AsyncOutputMode.class)
+                    .defaultValue(AsyncOutputMode.ALLOW_UNORDERED)
+                    .withDescription(
+                            "Output mode for asynchronous operations which will convert to {@see AsyncDataStream.OutputMode}, ALLOW_UNORDERED by default. "
+                                    + "That is to say the planner will attempt to use {@see AsyncDataStream.OutputMode.UNORDERED} when it does not "
+                                    + "affect the correctness of the result, otherwise ORDERED will be still used.");
+
+    // ------------------------------------------------------------------------
     //  MiniBatch Options
     // ------------------------------------------------------------------------
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)

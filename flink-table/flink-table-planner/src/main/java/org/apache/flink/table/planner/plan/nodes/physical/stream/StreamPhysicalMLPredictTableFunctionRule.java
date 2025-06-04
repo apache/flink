@@ -72,12 +72,6 @@ public class StreamPhysicalMLPredictTableFunctionRule extends ConverterRule {
 
         final RelTraitSet providedTraitSet =
                 rel.getTraitSet().replace(FlinkConventions.STREAM_PHYSICAL());
-
-        // TODO:
-        // Get model provider and context resolved model from RexModelCall
-        // Get table input from descriptor
-        // Get config from map
-        // Create ModelProviderSpec similar to DynamicTableSourceSpec and TemporalTableSourceSpec
         return new StreamPhysicalMLPredictTableFunction(
                 scan.getCluster(), providedTraitSet, newInput, scan, scan.getRowType());
     }
