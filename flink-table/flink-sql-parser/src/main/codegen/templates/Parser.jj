@@ -5680,6 +5680,8 @@ SqlTypeNameSpec SqlTypeName1(Span s) :
         [ <PRECISION> ] { sqlTypeName = SqlTypeName.DOUBLE; }
     |
         <FLOAT> { s.add(this); sqlTypeName = SqlTypeName.FLOAT; }
+    |
+        <VARIANT> { s.add(this); sqlTypeName = SqlTypeName.VARIANT; }
     )
     {
         return new SqlBasicTypeNameSpec(sqlTypeName, s.end(this));
@@ -8369,6 +8371,7 @@ SqlPostfixOperator PostfixRowOperator() :
 |   < VAR_SAMP: "VAR_SAMP" >
 |   < VARBINARY: "VARBINARY" >
 |   < VARCHAR: "VARCHAR" >
+|   < VARIANT: "VARIANT" >
 |   < VARYING: "VARYING" >
 |   < VERSION: "VERSION" >
 |   < VERSIONING: "VERSIONING" >
