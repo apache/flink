@@ -21,17 +21,18 @@ package org.apache.flink.table.runtime.operators.join.stream;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinRecordStateView;
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinRecordStateViews;
 import org.apache.flink.table.runtime.operators.join.stream.state.OuterJoinRecordStateView;
 import org.apache.flink.table.runtime.operators.join.stream.state.OuterJoinRecordStateViews;
-import org.apache.flink.table.runtime.operators.join.stream.utils.AssociatedRecords;
-import org.apache.flink.table.runtime.operators.join.stream.utils.JoinHelper;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.types.RowKind;
+
+import java.util.Iterator;
 
 /** Streaming unbounded Join operator which supports INNER/LEFT/RIGHT/FULL JOIN. */
 public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
@@ -51,8 +52,6 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
     protected transient JoinRecordStateView leftRecordStateView;
     // right join state
     protected transient JoinRecordStateView rightRecordStateView;
-
-    private transient SyncStateJoinHelper joinHelper;
 
     public StreamingJoinOperator(
             InternalTypeInfo<RowData> leftType,
@@ -122,7 +121,6 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                             rightType,
                             rightStateRetentionTime);
         }
-        this.joinHelper = new SyncStateJoinHelper();
     }
 
     @Override
@@ -135,6 +133,74 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
         processElement(element.getValue(), rightRecordStateView, leftRecordStateView, false, false);
     }
 
+    /**
+     * Process an input element and output incremental joined records, retraction messages will be
+     * sent in some scenarios.
+     *
+     * <p>Following is the pseudo code to describe the core logic of this method. The logic of this
+     * method is too complex, so we provide the pseudo code to help understand the logic. We should
+     * keep sync the following pseudo code with the real logic of the method.
+     *
+     * <p>Note: "+I" represents "INSERT", "-D" represents "DELETE", "+U" represents "UPDATE_AFTER",
+     * "-U" represents "UPDATE_BEFORE". We forward input RowKind if it is inner join, otherwise, we
+     * always send insert and delete for simplification. We can optimize this to send -U & +U
+     * instead of D & I in the future (see FLINK-17337). They are equivalent in this join case. It
+     * may need some refactoring if we want to send -U & +U, so we still keep -D & +I for now for
+     * simplification. See {@code
+     * FlinkChangelogModeInferenceProgram.SatisfyModifyKindSetTraitVisitor}.
+     *
+     * <pre>
+     * if input record is accumulate
+     * |  if input side is outer
+     * |  |  if there is no matched rows on the other side, send +I[record+null], state.add(record, 0)
+     * |  |  if there are matched rows on the other side
+     * |  |  | if other side is outer
+     * |  |  | |  if the matched num in the matched rows == 0, send -D[null+other]
+     * |  |  | |  if the matched num in the matched rows > 0, skip
+     * |  |  | |  otherState.update(other, old + 1)
+     * |  |  | endif
+     * |  |  | send +I[record+other]s, state.add(record, other.size)
+     * |  |  endif
+     * |  endif
+     * |  if input side not outer
+     * |  |  state.add(record)
+     * |  |  if there is no matched rows on the other side, skip
+     * |  |  if there are matched rows on the other side
+     * |  |  |  if other side is outer
+     * |  |  |  |  if the matched num in the matched rows == 0, send -D[null+other]
+     * |  |  |  |  if the matched num in the matched rows > 0, skip
+     * |  |  |  |  otherState.update(other, old + 1)
+     * |  |  |  |  send +I[record+other]s
+     * |  |  |  else
+     * |  |  |  |  send +I/+U[record+other]s (using input RowKind)
+     * |  |  |  endif
+     * |  |  endif
+     * |  endif
+     * endif
+     *
+     * if input record is retract
+     * |  state.retract(record)
+     * |  if there is no matched rows on the other side
+     * |  | if input side is outer, send -D[record+null]
+     * |  endif
+     * |  if there are matched rows on the other side, send -D[record+other]s if outer, send -D/-U[record+other]s if inner.
+     * |  |  if other side is outer
+     * |  |  |  if the matched num in the matched rows == 0, this should never happen!
+     * |  |  |  if the matched num in the matched rows == 1, send +I[null+other]
+     * |  |  |  if the matched num in the matched rows > 1, skip
+     * |  |  |  otherState.update(other, old - 1)
+     * |  |  endif
+     * |  endif
+     * endif
+     * </pre>
+     *
+     * @param input the input element
+     * @param inputSideStateView state of input side
+     * @param otherSideStateView state of other side
+     * @param inputIsLeft whether input side is left side
+     * @param isSuppress whether suppress the output of redundant messages when the other side is
+     *     outer join. This only applies to the case of mini-batch.
+     */
     protected void processElement(
             RowData input,
             JoinRecordStateView inputSideStateView,
@@ -142,52 +208,147 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
             boolean inputIsLeft,
             boolean isSuppress)
             throws Exception {
-        RowKind originalRowKind = input.getRowKind();
-        // erase RowKind for later state updating
-        input.setRowKind(RowKind.INSERT);
+        boolean inputIsOuter = inputIsLeft ? leftIsOuter : rightIsOuter;
+        boolean otherIsOuter = inputIsLeft ? rightIsOuter : leftIsOuter;
+        boolean isAccumulateMsg = RowDataUtil.isAccumulateMsg(input);
+        RowKind inputRowKind = input.getRowKind();
+        input.setRowKind(RowKind.INSERT); // erase RowKind for later state updating
 
-        AssociatedRecords associatedRecords =
-                AssociatedRecords.fromSyncStateView(
-                        input, inputIsLeft, otherSideStateView, joinCondition);
-        // set back RowKind
-        input.setRowKind(originalRowKind);
-        joinHelper.processJoin(
-                input,
-                inputSideStateView,
-                otherSideStateView,
-                inputIsLeft,
-                associatedRecords,
-                isSuppress);
+        if (isAccumulateMsg) { // record is accumulate
+            if (inputIsOuter) { // input side is outer
+                Iterator<OuterRecord> associatedRecords =
+                        AbstractStreamingJoinOperator.iterator(
+                                input, inputIsLeft, otherSideStateView, joinCondition);
+                if (!associatedRecords.hasNext()) { // there is no matched rows on the other side
+                    // send +I[record+null]
+                    outRow.setRowKind(RowKind.INSERT);
+                    outputNullPadding(input, inputIsLeft);
+                    // state.add(record, 0)
+                    ((OuterJoinRecordStateView) inputSideStateView).addRecord(input, 0);
+                    return;
+                } else { // there are matched rows on the other side
+                    int numAssociations = 0;
+                    while (associatedRecords.hasNext()) {
+                        OuterRecord outerRecord = associatedRecords.next();
+                        RowData other = outerRecord.record;
+                        if (otherIsOuter) { // other side is outer
+                            // if the matched num in the matched rows == 0
+                            if (outerRecord.numOfAssociations == 0 && !isSuppress) {
+                                // send -D[null+other]
+                                outRow.setRowKind(RowKind.DELETE);
+                                outputNullPadding(other, !inputIsLeft);
+                            } // ignore matched number > 0
+                            // otherState.update(other, old + 1)
+                            ((OuterJoinRecordStateView) otherSideStateView)
+                                    .updateNumOfAssociations(
+                                            other, outerRecord.numOfAssociations + 1);
+                        }
+                        // send +I[record+other]s
+                        outRow.setRowKind(RowKind.INSERT);
+                        output(input, other, inputIsLeft);
+                        numAssociations++;
+                    }
+                    // state.add(record, other.size)
+                    ((OuterJoinRecordStateView) inputSideStateView)
+                            .addRecord(input, numAssociations);
+                }
+            } else { // input side not outer
+                // state.add(record)
+                inputSideStateView.addRecord(input);
+                Iterator<OuterRecord> associatedRecords =
+                        AbstractStreamingJoinOperator.iterator(
+                                input, inputIsLeft, otherSideStateView, joinCondition);
+                if (associatedRecords.hasNext()) {
+                    if (otherIsOuter) { // if other side is outer
+                        OuterJoinRecordStateView otherSideOuterStateView =
+                                (OuterJoinRecordStateView) otherSideStateView;
+                        while (associatedRecords.hasNext()) {
+                            OuterRecord outerRecord = associatedRecords.next();
+                            if (outerRecord.numOfAssociations == 0
+                                    && !isSuppress) { // if the matched num in the matched rows == 0
+                                // send -D[null+other]
+                                outRow.setRowKind(RowKind.DELETE);
+                                outputNullPadding(outerRecord.record, !inputIsLeft);
+                            }
+                            // otherState.update(other, old + 1)
+                            otherSideOuterStateView.updateNumOfAssociations(
+                                    outerRecord.record, outerRecord.numOfAssociations + 1);
+                            // send +I[record+other]s
+                            outRow.setRowKind(RowKind.INSERT);
+                            output(input, outerRecord.record, inputIsLeft);
+                        }
+                    } else {
+                        // send +I/+U[record+other]s (using input RowKind)
+                        outRow.setRowKind(inputRowKind);
+                        while (associatedRecords.hasNext()) {
+                            OuterRecord other = associatedRecords.next();
+                            output(input, other.record, inputIsLeft);
+                        }
+                    }
+                }
+                // skip when there is no matched rows on the other side
+            }
+        } else { // input record is retract
+            // state.retract(record)
+            if (!isSuppress) {
+                inputSideStateView.retractRecord(input);
+            }
+            Iterator<OuterRecord> associatedRecords =
+                    AbstractStreamingJoinOperator.iterator(
+                            input, inputIsLeft, otherSideStateView, joinCondition);
+            if (!associatedRecords.hasNext()) { // there is no matched rows on the other side
+                if (inputIsOuter) { // input side is outer
+                    // send -D[record+null]
+                    outRow.setRowKind(RowKind.DELETE);
+                    outputNullPadding(input, inputIsLeft);
+                }
+                // nothing to do when input side is not outer
+            } else { // there are matched rows on the other side
+                while (associatedRecords.hasNext()) {
+                    if (inputIsOuter) {
+                        // send -D[record+other]s
+                        outRow.setRowKind(RowKind.DELETE);
+                    } else {
+                        // send -D/-U[record+other]s (using input RowKind)
+                        outRow.setRowKind(inputRowKind);
+                    }
+                    OuterRecord outerRecord = associatedRecords.next();
+                    output(input, outerRecord.record, inputIsLeft);
+                    // if other side is outer
+                    if (otherIsOuter) {
+                        OuterJoinRecordStateView otherSideOuterStateView =
+                                (OuterJoinRecordStateView) otherSideStateView;
+                        if (outerRecord.numOfAssociations == 1 && !isSuppress) {
+                            // send +I[null+other]
+                            outRow.setRowKind(RowKind.INSERT);
+                            outputNullPadding(outerRecord.record, !inputIsLeft);
+                        } // nothing else to do when number of associations > 1
+                        // otherState.update(other, old - 1)
+                        otherSideOuterStateView.updateNumOfAssociations(
+                                outerRecord.record, outerRecord.numOfAssociations - 1);
+                    }
+                }
+            }
+        }
     }
 
-    private class SyncStateJoinHelper
-            extends JoinHelper<JoinRecordStateView, OuterJoinRecordStateView> {
-        public SyncStateJoinHelper() {
-            super(leftIsOuter, rightIsOuter, outRow, leftNullRow, rightNullRow, collector);
-        }
+    // -------------------------------------------------------------------------------------
 
-        @Override
-        public void addRecord(JoinRecordStateView stateView, RowData record) throws Exception {
-            stateView.addRecord(record);
+    private void output(RowData inputRow, RowData otherRow, boolean inputIsLeft) {
+        if (inputIsLeft) {
+            outRow.replace(inputRow, otherRow);
+        } else {
+            outRow.replace(otherRow, inputRow);
         }
+        collector.collect(outRow);
+    }
 
-        @Override
-        public void retractRecord(JoinRecordStateView stateView, RowData record) throws Exception {
-            stateView.retractRecord(record);
+    private void outputNullPadding(RowData row, boolean isLeft) {
+        if (isLeft) {
+            outRow.replace(row, rightNullRow);
+        } else {
+            outRow.replace(leftNullRow, row);
         }
-
-        @Override
-        public void addRecordInOuterSide(
-                OuterJoinRecordStateView stateView, RowData record, int numOfAssociations)
-                throws Exception {
-            stateView.addRecord(record, numOfAssociations);
-        }
-
-        @Override
-        public void updateNumOfAssociationsInOuterSide(
-                OuterJoinRecordStateView stateView, RowData record, int numOfAssociations)
-                throws Exception {
-            stateView.updateNumOfAssociations(record, numOfAssociations);
-        }
+        collector.collect(outRow);
     }
 }
