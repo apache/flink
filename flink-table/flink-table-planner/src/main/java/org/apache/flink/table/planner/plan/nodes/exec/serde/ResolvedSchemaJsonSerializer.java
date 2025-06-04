@@ -41,6 +41,7 @@ final class ResolvedSchemaJsonSerializer extends StdSerializer<ResolvedSchema> {
     static final String COLUMNS = "columns";
     static final String WATERMARK_SPECS = "watermarkSpecs";
     static final String PRIMARY_KEY = "primaryKey";
+    static final String INDEXES = "indexes";
 
     ResolvedSchemaJsonSerializer() {
         super(ResolvedSchema.class);
@@ -60,6 +61,10 @@ final class ResolvedSchemaJsonSerializer extends StdSerializer<ResolvedSchema> {
                 WATERMARK_SPECS, resolvedSchema.getWatermarkSpecs(), jsonGenerator);
         serializeOptionalField(
                 jsonGenerator, PRIMARY_KEY, resolvedSchema.getPrimaryKey(), serializerProvider);
+        if (!resolvedSchema.getIndexes().isEmpty()) {
+            serializerProvider.defaultSerializeField(
+                    INDEXES, resolvedSchema.getIndexes(), jsonGenerator);
+        }
 
         jsonGenerator.writeEndObject();
     }
