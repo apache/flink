@@ -166,7 +166,8 @@ public final class Schema {
         Schema schema = (Schema) o;
         return columns.equals(schema.columns)
                 && watermarkSpecs.equals(schema.watermarkSpecs)
-                && Objects.equals(primaryKey, schema.primaryKey);
+                && Objects.equals(primaryKey, schema.primaryKey)
+                && indexes.equals(schema.indexes);
     }
 
     @Override
