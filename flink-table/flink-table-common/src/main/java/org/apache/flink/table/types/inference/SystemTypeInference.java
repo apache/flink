@@ -208,7 +208,9 @@ public class SystemTypeInference {
             FunctionKind functionKind,
             @Nullable List<StaticArgument> staticArgs,
             TypeStrategy outputStrategy) {
-        if (functionKind != FunctionKind.TABLE && functionKind != FunctionKind.PROCESS_TABLE) {
+        if (functionKind != FunctionKind.TABLE
+                && functionKind != FunctionKind.PROCESS_TABLE
+                && functionKind != FunctionKind.ASYNC_TABLE) {
             return outputStrategy;
         }
         return new SystemOutputStrategy(functionKind, staticArgs, outputStrategy);

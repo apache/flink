@@ -101,6 +101,7 @@ public class FlinkLogicalTableFunctionScan extends TableFunctionScan implements 
             }
             final boolean isTableFunction =
                     functionDefinition.getKind() == FunctionKind.TABLE
+                            || functionDefinition.getKind() == FunctionKind.ASYNC_TABLE
                             || functionDefinition.getKind() == FunctionKind.PROCESS_TABLE;
             return isTableFunction && !(functionDefinition instanceof TemporalTableFunction);
         }
