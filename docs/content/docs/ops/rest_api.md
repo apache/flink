@@ -1,6 +1,6 @@
 ---
 title: "REST API"
-weight: 7
+weight: 8
 type: docs
 aliases:
   - /ops/rest_api.html
