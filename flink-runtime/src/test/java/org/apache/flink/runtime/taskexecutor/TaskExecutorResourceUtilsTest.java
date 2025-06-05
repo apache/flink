@@ -189,7 +189,14 @@ class TaskExecutorResourceUtilsTest {
         config.set(TaskManagerOptions.JVM_OVERHEAD_MAX, new MemorySize(10));
         config.set(TaskManagerOptions.JVM_OVERHEAD_MIN, new MemorySize(10));
 
-        assertThat(TaskExecutorResourceUtils.calculateTotalProcessMemoryFromComponents(config))
+        final long totalFlinkMemory =
+                TaskExecutorResourceUtils.calculateTotalFlinkMemoryFromComponents(config);
+
+        assertThat(totalFlinkMemory).isEqualTo(23L);
+
+        assertThat(
+                        TaskExecutorResourceUtils.calculateTotalProcessMemoryFromComponents(
+                                config, totalFlinkMemory))
                 .isEqualTo(41L);
     }
 
@@ -207,7 +214,9 @@ class TaskExecutorResourceUtilsTest {
         assertThatThrownBy(
                         () ->
                                 TaskExecutorResourceUtils.calculateTotalProcessMemoryFromComponents(
-                                        config))
+                                        config,
+                                        TaskExecutorResourceUtils
+                                                .calculateTotalFlinkMemoryFromComponents(config)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
