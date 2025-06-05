@@ -43,6 +43,9 @@ public final class OpenTelemetryReporterOptions {
         HTTP
     }
 
+    public static final String COMPRESSION_NONE = "none";
+    public static final String COMPRESSION_GZIP = "gzip";
+
     private OpenTelemetryReporterOptions() {}
 
     public static final ConfigOption<Protocol> EXPORTER_PROTOCOL =
@@ -71,6 +74,20 @@ public final class OpenTelemetryReporterOptions {
                             Description.builder()
                                     .text(
                                             "Timeout for OpenTelemetry Reporters, as Duration string. Example: 10s for 10 seconds")
+                                    .build());
+
+    public static final ConfigOption<String> EXPORTER_COMPRESSION =
+            ConfigOptions.key("exporter.compression")
+                    .stringType()
+                    .defaultValue(COMPRESSION_NONE)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            String.format(
+                                                    "Compression method for OTel Reporter only '%s' or '%s'. Default is '%s'.",
+                                                    COMPRESSION_GZIP,
+                                                    COMPRESSION_NONE,
+                                                    COMPRESSION_NONE))
                                     .build());
 
     public static final ConfigOption<String> SERVICE_NAME =
@@ -106,5 +123,21 @@ public final class OpenTelemetryReporterOptions {
         checkArgument(
                 metricConfig.containsKey(endpointConfKey), "Must set " + EXPORTER_ENDPOINT.key());
         builder.accept(metricConfig.getProperty(endpointConfKey));
+    }
+
+    @Internal
+    public static void tryConfigureCompression(
+            MetricConfig metricConfig, Consumer<String> builder) {
+        final String compressionConfKey = EXPORTER_COMPRESSION.key();
+        if (metricConfig.containsKey(compressionConfKey)) {
+            String compression = metricConfig.getProperty(compressionConfKey);
+            checkArgument(
+                    COMPRESSION_NONE.equals(compression) || COMPRESSION_GZIP.equals(compression),
+                    "Unsupported compression method: '%s'. Supported values are '%s' and '%s'.",
+                    compression,
+                    COMPRESSION_NONE,
+                    COMPRESSION_GZIP);
+            builder.accept(compression);
+        }
     }
 }
