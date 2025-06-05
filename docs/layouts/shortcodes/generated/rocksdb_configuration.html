@@ -15,6 +15,12 @@
             <td>The number of threads (per stateful operator) used to transfer (download and upload) files in RocksDBStateBackend.If negative, the common (TM) IO thread pool is used (see cluster.io-pool.size)</td>
         </tr>
         <tr>
+            <td><h5>state.backend.rocksdb.checkpoint.upload-jitter</h5></td>
+            <td style="word-wrap: break-word;">0 ms</td>
+            <td>Duration</td>
+            <td>The time interval used to create jitter for each checkpoint file upload.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.rocksdb.localdir</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>

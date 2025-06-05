@@ -114,7 +114,8 @@ class RocksIncrementalSnapshotStrategyTest {
 
         RocksDBStateUploader rocksDBStateUploader =
                 new RocksDBStateUploader(
-                        RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM.defaultValue());
+                        RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM.defaultValue(),
+                        RocksDBOptions.CHECKPOINT_UPLOAD_JITTER.defaultValue());
 
         int keyGroupPrefixBytes =
                 CompositeKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(2);
