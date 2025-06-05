@@ -28,7 +28,6 @@ import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.rules.TransformationRule;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilder;
-import org.apache.calcite.tools.RelBuilderFactory;
 import org.immutables.value.Value;
 
 import java.util.ArrayList;
@@ -47,21 +46,6 @@ public class FlinkRightJoinToLeftJoinRule extends RelRule<FlinkRightJoinToLeftJo
     /** Creates a FlinkRightJoinToLeftJoinRule. */
     public FlinkRightJoinToLeftJoinRule(FlinkRightJoinToLeftJoinRule.Config config) {
         super(config);
-    }
-
-    @Deprecated // to be removed before 2.0
-    public FlinkRightJoinToLeftJoinRule(Class<? extends Join> clazz) {
-        this(FlinkRightJoinToLeftJoinRule.Config.DEFAULT.withOperandFor(clazz));
-    }
-
-    @Deprecated // to be removed before 2.0
-    public FlinkRightJoinToLeftJoinRule(
-            Class<? extends Join> joinClass, RelBuilderFactory relBuilderFactory) {
-        this(
-                FlinkRightJoinToLeftJoinRule.Config.DEFAULT
-                        .withRelBuilderFactory(relBuilderFactory)
-                        .as(FlinkRightJoinToLeftJoinRule.Config.class)
-                        .withOperandFor(joinClass));
     }
 
     @Override
