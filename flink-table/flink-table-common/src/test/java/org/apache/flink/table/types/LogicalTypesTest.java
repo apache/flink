@@ -49,6 +49,7 @@ import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.logical.SymbolType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampKind;
@@ -544,7 +545,7 @@ public class LogicalTypesTest {
 
     @Test
     void testStructuredType() {
-        assertThat(createUserType(true, true))
+        assertThat(createUserType(true, true, true))
                 .satisfies(
                         baseAssertions(
                                 "`cat`.`db`.`User`",
@@ -554,7 +555,7 @@ public class LogicalTypesTest {
                                 new LogicalType[] {
                                     UDT_NAME_TYPE, UDT_SETTING_TYPE, UDT_TIMESTAMP_TYPE
                                 },
-                                createUserType(true, false)));
+                                createUserType(true, false, true)));
 
         assertThat(createHumanType(false))
                 .satisfies(
@@ -565,7 +566,7 @@ public class LogicalTypesTest {
                                 new Class[] {Row.class, Human.class}));
 
         // not every Human is User
-        assertThat(createUserType(true, true)).doesNotSupportInputConversion(Human.class);
+        assertThat(createUserType(true, true, true)).doesNotSupportInputConversion(Human.class);
 
         // User is not implementing SpecialHuman
         assertThat(createHumanType(true)).doesNotSupportInputConversion(User.class);
@@ -585,7 +586,7 @@ public class LogicalTypesTest {
     }
 
     @Test
-    void testTypeInformationRawType() throws Exception {
+    void testTypeInformationRawType() {
         final TypeInformationRawType<?> rawType =
                 new TypeInformationRawType<>(Types.TUPLE(Types.STRING, Types.INT));
 
@@ -699,23 +700,56 @@ public class LogicalTypesTest {
     }
 
     @Test
-    void testUnregisteredStructuredType() {
-        final StructuredType structuredType = createUserType(false, true);
+    void testInlineStructuredTypeWithResolvedClass() {
+        final StructuredType structuredType = createUserType(false, true, true);
 
         assertThat(structuredType)
-                .satisfies(nonEqualityCheckWithOtherType(createUserType(false, false)))
+                .satisfies(nonEqualityCheckWithOtherType(createUserType(false, false, true)))
                 .satisfies(LogicalTypesTest::nullability)
                 .isJavaSerializable()
-                .hasNoSerializableString()
+                .hasSerializableString(
+                        String.format(
+                                "STRUCTURED<'%s', `name` VARCHAR(1) 'Description.', `setting` INT, `timestamp` TIMESTAMP(6)>",
+                                User.class.getName()))
                 .hasSummaryString(
                         String.format(
-                                "*%s<`name` VARCHAR(1) '...', `setting` INT, `timestamp` TIMESTAMP(6)>*",
+                                "STRUCTURED<'%s', `name` VARCHAR(1) '...', `setting` INT, `timestamp` TIMESTAMP(6)>",
                                 User.class.getName()))
                 .satisfies(
                         conversions(
                                 new Class[] {Row.class, User.class},
                                 new Class[] {Row.class, Human.class, User.class}))
                 .hasExactlyChildren(UDT_NAME_TYPE, UDT_SETTING_TYPE, UDT_TIMESTAMP_TYPE);
+    }
+
+    @Test
+    void testInlineStructuredTypeWithUnresolvedClass() {
+        final StructuredType structuredType = createUserType(false, true, false);
+
+        // Conversions are limited to Row.class only
+        assertThat(structuredType)
+                .satisfies(nonEqualityCheckWithOtherType(createUserType(false, false, false)))
+                .satisfies(LogicalTypesTest::nullability)
+                .isJavaSerializable()
+                .hasSerializableString(
+                        String.format(
+                                "STRUCTURED<'%s', `name` VARCHAR(1) 'Description.', `setting` INT, `timestamp` TIMESTAMP(6)>",
+                                User.class.getName()))
+                .hasSummaryString(
+                        String.format(
+                                "STRUCTURED<'%s', `name` VARCHAR(1) '...', `setting` INT, `timestamp` TIMESTAMP(6)>",
+                                User.class.getName()))
+                .satisfies(conversions(new Class[] {Row.class}, new Class[] {Row.class}))
+                .hasExactlyChildren(UDT_NAME_TYPE, UDT_SETTING_TYPE, UDT_TIMESTAMP_TYPE);
+
+        // Invalid class name
+        assertThatThrownBy(() -> StructuredType.newBuilder("@#$%^&*").build())
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Invalid class name '@#$%^&*'. The class name must comply with JVM identifier rules.");
+
+        // Right side has resolved class, left side is unresolved.
+        assertThat(structuredType).isEqualTo(createUserType(false, true, true));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -797,27 +831,28 @@ public class LogicalTypesTest {
                         useDifferentImplementation ? SpecialHuman.class : Human.class)
                 .attributes(
                         Collections.singletonList(
-                                new StructuredType.StructuredAttribute(
-                                        "name", UDT_NAME_TYPE, "Description.")))
+                                new StructuredAttribute("name", UDT_NAME_TYPE, "Description.")))
                 .description("Human type desc.")
                 .setFinal(false)
                 .setInstantiable(false)
                 .build();
     }
 
-    private StructuredType createUserType(boolean isRegistered, boolean isFinal) {
+    private StructuredType createUserType(
+            boolean isRegistered, boolean isFinal, boolean withResolvedClass) {
         final StructuredType.Builder builder;
         if (isRegistered) {
             builder =
                     StructuredType.newBuilder(ObjectIdentifier.of("cat", "db", "User"), User.class);
-        } else {
+        } else if (withResolvedClass) {
             builder = StructuredType.newBuilder(User.class);
+        } else {
+            builder = StructuredType.newBuilder(User.class.getName());
         }
         return builder.attributes(
                         Arrays.asList(
-                                new StructuredType.StructuredAttribute("setting", UDT_SETTING_TYPE),
-                                new StructuredType.StructuredAttribute(
-                                        "timestamp", UDT_TIMESTAMP_TYPE)))
+                                new StructuredAttribute("setting", UDT_SETTING_TYPE),
+                                new StructuredAttribute("timestamp", UDT_TIMESTAMP_TYPE)))
                 .description("User type desc.")
                 .setFinal(isFinal)
                 .setInstantiable(true)
@@ -825,14 +860,17 @@ public class LogicalTypesTest {
                 .build();
     }
 
+    @SuppressWarnings("unused")
     private abstract static class SpecialHuman {
         public String name;
     }
 
+    @SuppressWarnings("unused")
     private abstract static class Human {
         public String name;
     }
 
+    @SuppressWarnings("unused")
     private static final class User extends Human {
         public int setting;
         public LocalDateTime timestamp;
