@@ -91,6 +91,15 @@ public class RocksDBOptions {
                                     + CLUSTER_IO_EXECUTOR_POOL_SIZE.key()
                                     + ")");
 
+    /** The number of millisecond for RocksDBStateBackend checkpoint file upload jitter. */
+    @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)
+    public static final ConfigOption<Long> CHECKPOINT_UPLOAD_JITTER =
+            ConfigOptions.key("state.backend.rocksdb.checkpoint.upload-jitter")
+                    .longType()
+                    .defaultValue(0L)
+                    .withDescription(
+                            "The number of milliseconds that will be used to create jitter for each checkpoint file upload.");
+
     /** The predefined settings for RocksDB DBOptions and ColumnFamilyOptions by Flink community. */
     @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)
     public static final ConfigOption<String> PREDEFINED_OPTIONS =

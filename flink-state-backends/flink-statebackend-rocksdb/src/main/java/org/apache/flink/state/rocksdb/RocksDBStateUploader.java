@@ -43,21 +43,26 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 /** Help class for uploading RocksDB state files. */
 public class RocksDBStateUploader implements Closeable {
     private static final int READ_BUFFER_SIZE = 16 * 1024;
+    private final long uploadJitter;
 
     private final RocksDBStateDataTransferHelper transfer;
 
     @VisibleForTesting
-    public RocksDBStateUploader(int numberOfSnapshottingThreads) {
-        this(RocksDBStateDataTransferHelper.forThreadNum(numberOfSnapshottingThreads));
+    public RocksDBStateUploader(int numberOfSnapshottingThreads, long uploadJitter) {
+        this(
+                RocksDBStateDataTransferHelper.forThreadNum(numberOfSnapshottingThreads),
+                uploadJitter);
     }
 
-    public RocksDBStateUploader(RocksDBStateDataTransferHelper transfer) {
+    public RocksDBStateUploader(RocksDBStateDataTransferHelper transfer, long uploadJitter) {
         this.transfer = transfer;
+        this.uploadJitter = uploadJitter < 0 ? 0 : uploadJitter;
     }
 
     /**
@@ -133,12 +138,14 @@ public class RocksDBStateUploader implements Closeable {
             CheckpointedStateScope stateScope,
             CloseableRegistry closeableRegistry,
             CloseableRegistry tmpResourcesRegistry)
-            throws IOException {
+            throws IOException, InterruptedException {
 
         InputStream inputStream = null;
         CheckpointStateOutputStream outputStream = null;
 
         try {
+            // add a random jitter
+            applyJitter();
             final byte[] buffer = new byte[READ_BUFFER_SIZE];
 
             inputStream = Files.newInputStream(filePath);
@@ -178,6 +185,13 @@ public class RocksDBStateUploader implements Closeable {
                 IOUtils.closeQuietly(outputStream);
             }
         }
+    }
+
+    @VisibleForTesting
+    long applyJitter() throws InterruptedException {
+        long sleepMilliseconds = ThreadLocalRandom.current().nextLong(0, uploadJitter + 1);
+        Thread.sleep(sleepMilliseconds);
+        return sleepMilliseconds;
     }
 
     @Override

@@ -91,7 +91,7 @@ public class RocksDBStateUploaderTest extends TestLogger {
 
         List<Path> filePaths = new ArrayList<>(1);
         filePaths.add(file.toPath());
-        try (RocksDBStateUploader rocksDBStateUploader = new RocksDBStateUploader(5)) {
+        try (RocksDBStateUploader rocksDBStateUploader = new RocksDBStateUploader(5, 0)) {
             assertThatThrownBy(
                             () ->
                                     rocksDBStateUploader.uploadFilesToCheckpointFs(
@@ -136,7 +136,7 @@ public class RocksDBStateUploaderTest extends TestLogger {
         List<Path> filePaths =
                 generateRandomSstFiles(localFolder, sstFileCount, fileStateSizeThreshold);
         CloseableRegistry tmpResourcesRegistry = new CloseableRegistry();
-        try (RocksDBStateUploader rocksDBStateUploader = new RocksDBStateUploader(1)) {
+        try (RocksDBStateUploader rocksDBStateUploader = new RocksDBStateUploader(1, 0)) {
             rocksDBStateUploader.uploadFilesToCheckpointFs(
                     filePaths,
                     checkpointStreamFactory,
@@ -211,7 +211,7 @@ public class RocksDBStateUploaderTest extends TestLogger {
         List<Path> sstFilePaths =
                 generateRandomSstFiles(localFolder, sstFileCount, fileStateSizeThreshold);
 
-        try (RocksDBStateUploader rocksDBStateUploader = new RocksDBStateUploader(5)) {
+        try (RocksDBStateUploader rocksDBStateUploader = new RocksDBStateUploader(5, 0)) {
             List<HandleAndLocalPath> sstFiles =
                     rocksDBStateUploader.uploadFilesToCheckpointFs(
                             sstFilePaths,
@@ -230,6 +230,16 @@ public class RocksDBStateUploaderTest extends TestLogger {
                                 .getHandle()
                                 .openInputStream());
             }
+        }
+    }
+
+    @Test
+    void testApplyJitter() throws Exception {
+        try (RocksDBStateUploader rocksDBStateUploader = new RocksDBStateUploader(1, 1000)) {
+            long startTime = System.currentTimeMillis();
+            long milliseconds = rocksDBStateUploader.applyJitter();
+            assertThat(milliseconds).isLessThanOrEqualTo(1000);
+            assertThat(System.currentTimeMillis() - startTime).isGreaterThanOrEqualTo(milliseconds);
         }
     }
 
