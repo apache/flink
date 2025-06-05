@@ -63,6 +63,7 @@ public class GenericRowDataKeySelector implements RowDataKeySelector {
         return keyRowType;
     }
 
+    @Override
     public GenericRowDataKeySelector copy() {
         return new GenericRowDataKeySelector(keyRowType, keySerializer, generatedProjection);
     }

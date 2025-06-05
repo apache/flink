@@ -28,4 +28,6 @@ public interface RowDataKeySelector
         extends KeySelector<RowData, RowData>, ResultTypeQueryable<RowData> {
 
     InternalTypeInfo<RowData> getProducedType();
+
+    RowDataKeySelector copy();
 }
