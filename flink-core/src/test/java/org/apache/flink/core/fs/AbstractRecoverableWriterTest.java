@@ -196,16 +196,40 @@ public abstract class AbstractRecoverableWriterTest {
         final Map<String, RecoverableWriter.ResumeRecoverable> recoverables = new HashMap<>(4);
         RecoverableFsDataOutputStream stream = null;
         try {
-            stream = initWriter.open(path);
-            recoverables.put(INIT_EMPTY_PERSIST, stream.persist());
+            try {
+                stream = initWriter.open(path);
+                recoverables.put(INIT_EMPTY_PERSIST, stream.persist());
+            } catch (IOException e) {
+                System.err.println("Unable to open file for writing " + path.toString());
+                throw e;
+            }
 
-            stream.write(testData1.getBytes(StandardCharsets.UTF_8));
-
-            recoverables.put(INTERM_WITH_STATE_PERSIST, stream.persist());
-            recoverables.put(INTERM_WITH_NO_ADDITIONAL_STATE_PERSIST, stream.persist());
+            try {
+                stream.write(testData1.getBytes(StandardCharsets.UTF_8));
+            } catch (IOException e) {
+                System.err.println("Initial write failed: " + e.getMessage());
+                throw e;
+            }
+            try {
+                recoverables.put(INTERM_WITH_STATE_PERSIST, stream.persist());
+            } catch (IOException e) {
+                System.err.println("Persist after first write failed: " + e.getMessage());
+                throw e;
+            }
+            try {
+                recoverables.put(INTERM_WITH_NO_ADDITIONAL_STATE_PERSIST, stream.persist());
+            } catch (IOException e) {
+                System.err.println("Persist after second write failed: " + e.getMessage());
+                throw e;
+            }
 
             // and write some more data
-            stream.write(testData2.getBytes(StandardCharsets.UTF_8));
+            try {
+                stream.write(testData2.getBytes(StandardCharsets.UTF_8));
+            } catch (IOException e) {
+                System.err.println("Second write failed: " + e.getMessage());
+                throw e;
+            }
 
             recoverables.put(FINAL_WITH_EXTRA_STATE, stream.persist());
         } finally {
@@ -236,9 +260,13 @@ public abstract class AbstractRecoverableWriterTest {
                 assertThat(fileContents.getKey().getName()).startsWith(".part-0.inprogress.");
                 assertThat(fileContents.getValue()).isEqualTo(expectedPostRecoveryContents);
             }
-
-            recoveredStream.write(testData3.getBytes(StandardCharsets.UTF_8));
-            recoveredStream.closeForCommit().commit();
+            try {
+                recoveredStream.write(testData3.getBytes(StandardCharsets.UTF_8));
+                recoveredStream.closeForCommit().commit();
+            } catch (IOException e) {
+                System.err.println("Final write failed: " + e.getMessage());
+                throw e;
+            }
 
             files = getFileContentByPath(testDir);
             assertThat(files).hasSize(1);
