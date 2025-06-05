@@ -208,6 +208,35 @@ class WindowAggregateITCase(
          |)
          |""".stripMargin)
 
+    // for offset test
+    // Due to the delayed watermark delivery mechanism, it is impossible to detect the offset problem through SQLTest data.
+    val insertOnlyOffsetDataId = if (useTimestampLtz) {
+      TestValuesTableFactory
+        .registerData(TestData.windowDataForOffsetWithLtzInShanghai)
+    } else {
+      TestValuesTableFactory.registerData(TestData.windowDataForOffsetWithTimestamp)
+    }
+
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE T3 (
+         | `ts` ${if (useTimestampLtz) "BIGINT" else "STRING"},
+         | `int` INT,
+         | `double` DOUBLE,
+         | `float` FLOAT,
+         | `bigdec` DECIMAL(10, 2),
+         | `string` STRING,
+         | `name` STRING,
+         | `rowtime` AS
+         | ${if (useTimestampLtz) "TO_TIMESTAMP_LTZ(`ts`, 3)" else "TO_TIMESTAMP(`ts`)"},
+         | WATERMARK for `rowtime` AS `rowtime` - INTERVAL '1' SECOND
+         |) WITH (
+         | 'connector' = 'values',
+         | 'data-id' = '$insertOnlyOffsetDataId',
+         | 'failing-source' = 'true'
+         |)
+         |""".stripMargin)
+
     tEnv.createFunction("concat_distinct_agg", classOf[ConcatDistinctAggFunction])
 
     tEnv.getConfig.setLocalTimeZone(SHANGHAI_ZONE)
@@ -231,13 +260,13 @@ class WindowAggregateITCase(
   @TestTemplate
   def testEventTimeTumbleWindowWithOffset(): Unit = {
     val expected = Seq(
-      "a,2020-10-09T08:00,2020-10-10T08:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
+      "a,2020-10-09T08:00,2020-10-10T08:00,13,27.75,5.0,1.0,3,Hi|Comment#1|Comment#2",
       "b,2020-10-09T08:00,2020-10-10T08:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
       "null,2020-10-09T08:00,2020-10-10T08:00,1,7.77,7.0,7.0,0,null"
     )
 
     verifyWindowAgg(
-      "TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '1' DAY, INTERVAL '8' HOUR)",
+      "TUMBLE(TABLE T3, DESCRIPTOR(rowtime), INTERVAL '1' DAY, INTERVAL '8' HOUR)",
       expected)
   }
 
@@ -258,7 +287,7 @@ class WindowAggregateITCase(
         |    window_end,
         |    COUNT(DISTINCT `string`) AS cnt
         |    FROM TABLE(
-        |      TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '1' DAY, INTERVAL '8' HOUR))
+        |      TUMBLE(TABLE T3, DESCRIPTOR(rowtime), INTERVAL '1' DAY, INTERVAL '8' HOUR))
         |    GROUP BY `name`, window_start, window_end
         |) GROUP BY cnt, window_start, window_end
       """.stripMargin
@@ -437,8 +466,9 @@ class WindowAggregateITCase(
   @TestTemplate
   def testEventTimeHopWindowWithOffset(): Unit = {
     val expected = Seq(
-      "a,2020-10-09T08:00,2020-10-10T08:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
-      "a,2020-10-09T20:00,2020-10-10T20:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
+      "a,2020-10-08T20:00,2020-10-09T20:00,1,1.11,1.0,1.0,1,Hi",
+      "a,2020-10-09T08:00,2020-10-10T08:00,13,27.75,5.0,1.0,3,Hi|Comment#1|Comment#2",
+      "a,2020-10-09T20:00,2020-10-10T20:00,12,26.64,5.0,1.0,3,Hi|Comment#1|Comment#2",
       "b,2020-10-09T08:00,2020-10-10T08:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
       "b,2020-10-09T20:00,2020-10-10T20:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
       "null,2020-10-09T08:00,2020-10-10T08:00,1,7.77,7.0,7.0,0,null",
@@ -448,7 +478,7 @@ class WindowAggregateITCase(
     verifyWindowAgg(
       """
         |HOP(
-        |  TABLE T1,
+        |  TABLE T3,
         |  DESCRIPTOR(rowtime),
         |  INTERVAL '12' HOUR,
         |  INTERVAL '1' DAY,
@@ -540,14 +570,15 @@ class WindowAggregateITCase(
   @TestTemplate
   def testEventTimeCumulateWindowWithOffset(): Unit = {
     val expected = Seq(
-      "a,2020-10-09T08:00,2020-10-10T08:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
+      "a,2020-10-09T08:00,2020-10-09T20:00,1,1.11,1.0,1.0,1,Hi",
+      "a,2020-10-09T08:00,2020-10-10T08:00,13,27.75,5.0,1.0,3,Hi|Comment#1|Comment#2",
       "b,2020-10-09T08:00,2020-10-10T08:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
       "null,2020-10-09T08:00,2020-10-10T08:00,1,7.77,7.0,7.0,0,null"
     )
     verifyWindowAgg(
       """
         |CUMULATE(
-        |  TABLE T1,
+        |  TABLE T3,
         |  DESCRIPTOR(rowtime),
         |  INTERVAL '12' HOUR,
         |  INTERVAL '1' DAY,
