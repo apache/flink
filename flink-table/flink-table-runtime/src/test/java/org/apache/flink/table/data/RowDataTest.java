@@ -40,6 +40,7 @@ import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -253,6 +254,10 @@ class RowDataTest {
                                 .getFieldOrNull(row))
                 .isEqualTo(map);
         assertThat(
+                        RowData.createFieldGetter(new MultisetType(new IntType()), 13)
+                                .getFieldOrNull(row))
+                .isEqualTo(map);
+        assertThat(
                         RowData.createFieldGetter(RowType.of(new IntType(), new IntType()), 14)
                                 .getFieldOrNull(row))
                 .isEqualTo(underRow);
@@ -314,6 +319,11 @@ class RowDataTest {
                                                 new IntType(nullable),
                                                 new IntType(nullable)),
                                         13)
+                                .getFieldOrNull(row))
+                .isNull();
+        assertThat(
+                        RowData.createFieldGetter(
+                                        new MultisetType(nullable, new IntType(nullable)), 13)
                                 .getFieldOrNull(row))
                 .isNull();
         assertThat(
