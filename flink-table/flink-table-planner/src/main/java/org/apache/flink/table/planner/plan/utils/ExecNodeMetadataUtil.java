@@ -215,7 +215,6 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecGroupTableAggregate.class);
                     add(StreamExecPythonGroupTableAggregate.class);
                     add(StreamExecMultipleInput.class);
-                    add(StreamExecMLPredictTableFunction.class);
                 }
             };
 
@@ -286,9 +285,7 @@ public final class ExecNodeMetadataUtil {
     }
 
     private static void addToLookupMap(Class<? extends ExecNode<?>> execNodeClass) {
-        // TODO: remove the logic when StreamExecMLPredictTableFunction supports serde.
-        if (!hasJsonCreatorAnnotation(execNodeClass)
-                && execNodeClass != StreamExecMLPredictTableFunction.class) {
+        if (!hasJsonCreatorAnnotation(execNodeClass)) {
             throw new IllegalStateException(
                     String.format(
                             "ExecNode: %s does not implement @JsonCreator annotation on "

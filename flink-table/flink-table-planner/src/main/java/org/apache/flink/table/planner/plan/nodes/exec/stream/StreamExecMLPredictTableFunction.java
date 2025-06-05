@@ -74,10 +74,14 @@ import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
@@ -95,30 +99,62 @@ public class StreamExecMLPredictTableFunction extends ExecNodeBase<RowData>
 
     public static final String ML_PREDICT_TRANSFORMATION = "ml-predict-table-function";
 
+    public static final String FIELD_NAME_ML_PREDICT_SPEC = "mlPredictSpec";
+    public static final String FIELD_NAME_MODEL_SPEC = "modelSpec";
+    public static final String FIELD_NAME_ASYNC_OPTIONS = "asyncOptions";
+    public static final String FIELD_NAME_INPUT_UPSERT_KEY = "inputUpsertKeys";
+
+    @JsonProperty(FIELD_NAME_ML_PREDICT_SPEC)
     private final MLPredictSpec mlPredictSpec;
+
+    @JsonProperty(FIELD_NAME_MODEL_SPEC)
     private final ModelSpec modelSpec;
-    private final @Nullable LookupJoinUtil.AsyncLookupOptions asyncLookupOptions;
+
+    @JsonProperty(FIELD_NAME_ASYNC_OPTIONS)
+    private final @Nullable LookupJoinUtil.AsyncLookupOptions asyncOptions;
+
+    @JsonProperty(FIELD_NAME_INPUT_UPSERT_KEY)
     private final @Nullable int[] inputUpsertKeys;
 
     public StreamExecMLPredictTableFunction(
             ReadableConfig persistedConfig,
             MLPredictSpec mlPredictSpec,
             ModelSpec modelSpec,
-            @Nullable LookupJoinUtil.AsyncLookupOptions asyncLookupOptions,
+            @Nullable LookupJoinUtil.AsyncLookupOptions asyncOptions,
             @Nullable int[] inputUpsertKeys,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(
+        this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecMLPredictTableFunction.class),
                 persistedConfig,
+                mlPredictSpec,
+                modelSpec,
+                asyncOptions,
+                inputUpsertKeys,
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
+    }
+
+    @JsonCreator
+    public StreamExecMLPredictTableFunction(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
+            @JsonProperty(FIELD_NAME_ML_PREDICT_SPEC) MLPredictSpec mlPredictSpec,
+            @JsonProperty(FIELD_NAME_MODEL_SPEC) ModelSpec modelSpec,
+            @JsonProperty(FIELD_NAME_ASYNC_OPTIONS) @Nullable
+                    LookupJoinUtil.AsyncLookupOptions asyncOptions,
+            @JsonProperty(FIELD_NAME_INPUT_UPSERT_KEY) int[] inputUpsertKeys,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         this.mlPredictSpec = mlPredictSpec;
         this.modelSpec = modelSpec;
-        this.asyncLookupOptions = asyncLookupOptions;
+        this.asyncOptions = asyncOptions;
         this.inputUpsertKeys = inputUpsertKeys;
     }
 
@@ -128,8 +164,8 @@ public class StreamExecMLPredictTableFunction extends ExecNodeBase<RowData>
         Transformation<RowData> inputTransformation =
                 (Transformation<RowData>) getInputEdges().get(0).translateToPlan(planner);
 
-        ModelProvider provider = modelSpec.getModelProvider();
-        boolean async = asyncLookupOptions != null;
+        ModelProvider provider = modelSpec.getModelProvider(planner.getFlinkContext());
+        boolean async = asyncOptions != null;
         UserDefinedFunction predictFunction = findModelFunction(provider, async);
         FlinkContext context = planner.getFlinkContext();
         DataTypeFactory dataTypeFactory = context.getCatalogManager().getDataTypeFactory();
@@ -256,21 +292,21 @@ public class StreamExecMLPredictTableFunction extends ExecNodeBase<RowData>
                                 config, classLoader, null, inputRowType),
                         InternalSerializers.create(modelOutputType),
                         false,
-                        asyncLookupOptions.asyncBufferCapacity);
-        if (asyncLookupOptions.asyncOutputMode == AsyncDataStream.OutputMode.UNORDERED) {
+                        asyncOptions.asyncBufferCapacity);
+        if (asyncOptions.asyncOutputMode == AsyncDataStream.OutputMode.UNORDERED) {
             // The input stream is insert-only.
             return ExecNodeUtil.createOneInputTransformation(
                     inputTransformation,
                     createTransformationMeta(ML_PREDICT_TRANSFORMATION, config),
                     new AsyncWaitOperatorFactory<>(
                             asyncFunc,
-                            asyncLookupOptions.asyncTimeout,
-                            asyncLookupOptions.asyncBufferCapacity,
-                            asyncLookupOptions.asyncOutputMode),
+                            asyncOptions.asyncTimeout,
+                            asyncOptions.asyncBufferCapacity,
+                            asyncOptions.asyncOutputMode),
                     InternalTypeInfo.of(getOutputType()),
                     inputTransformation.getParallelism(),
                     false);
-        } else if (asyncLookupOptions.asyncOutputMode == AsyncDataStream.OutputMode.ORDERED) {
+        } else if (asyncOptions.asyncOutputMode == AsyncDataStream.OutputMode.ORDERED) {
             // The input stream is cdc-stream.
             int[] shuffleKeys = inputUpsertKeys;
             // If no upset key is specified, use the whole row
@@ -301,9 +337,9 @@ public class StreamExecMLPredictTableFunction extends ExecNodeBase<RowData>
                             createTransformationMeta(ML_PREDICT_TRANSFORMATION, config),
                             new AsyncWaitOperatorFactory<>(
                                     asyncFunc,
-                                    asyncLookupOptions.asyncTimeout,
-                                    asyncLookupOptions.asyncBufferCapacity,
-                                    asyncLookupOptions.asyncOutputMode),
+                                    asyncOptions.asyncTimeout,
+                                    asyncOptions.asyncBufferCapacity,
+                                    asyncOptions.asyncOutputMode),
                             InternalTypeInfo.of(getOutputType()),
                             inputTransformation.getParallelism(),
                             false);
@@ -312,7 +348,7 @@ public class StreamExecMLPredictTableFunction extends ExecNodeBase<RowData>
             return transformation;
         } else {
             throw new TableException(
-                    String.format("Unknown output mode: %s.", asyncLookupOptions.asyncOutputMode));
+                    String.format("Unknown output mode: %s.", asyncOptions.asyncOutputMode));
         }
     }
 
