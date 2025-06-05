@@ -164,7 +164,7 @@ object LookupJoinCodeGenerator {
     val ctx = new CodeGeneratorContext(tableConfig, classLoader)
     val operands = prepareOperands(ctx, inputType, lookupKeys, fieldCopy)
 
-    // TODO: filter all records when there is any nulls on the join key, because
+    // TODO: filter all records when there are any nulls on the join key, because
     //  "IS NOT DISTINCT FROM" is not supported yet.
     // Note: AsyncPredictFunction or PredictFunction does not use Lookup Syntax.
     val skipIfArgsNull = !lookupFunction.isInstanceOf[PredictFunction] && !lookupFunction

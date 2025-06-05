@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.functions;
+package org.apache.flink.table.runtime.functions.ml;
 
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.catalog.ResolvedCatalogModel;

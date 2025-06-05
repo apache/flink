@@ -63,7 +63,7 @@ import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.collector.ListenableCollector;
 import org.apache.flink.table.runtime.collector.TableFunctionResultFuture;
-import org.apache.flink.table.runtime.functions.ModelPredictRuntimeProviderContext;
+import org.apache.flink.table.runtime.functions.ml.ModelPredictRuntimeProviderContext;
 import org.apache.flink.table.runtime.generated.GeneratedCollector;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.generated.GeneratedResultFuture;

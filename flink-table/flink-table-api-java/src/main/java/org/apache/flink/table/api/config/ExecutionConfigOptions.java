@@ -451,7 +451,7 @@ public class ExecutionConfigOptions {
     public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_ML_PREDICT_BUFFER_CAPACITY =
             key("table.exec.async-ml-predict.buffer-capacity")
                     .intType()
-                    .defaultValue(100)
+                    .defaultValue(10)
                     .withDescription(
                             "The max number of async i/o operation that the async ml predict can trigger.");
 
@@ -461,17 +461,18 @@ public class ExecutionConfigOptions {
                     .durationType()
                     .defaultValue(Duration.ofMinutes(3))
                     .withDescription(
-                            "The async timeout for the asynchronous operation to complete.");
+                            "The async timeout for the asynchronous operation to complete. If the deadline fails, a timeout exception will be thrown to indicate the error.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<AsyncOutputMode> TABLE_EXEC_ASYNC_ML_PREDICT_OUTPUT_MODE =
             key("table.exec.async-ml-predict.output-mode")
                     .enumType(AsyncOutputMode.class)
-                    .defaultValue(AsyncOutputMode.ALLOW_UNORDERED)
+                    .defaultValue(AsyncOutputMode.ORDERED)
                     .withDescription(
-                            "Output mode for asynchronous operations which will convert to {@see AsyncDataStream.OutputMode}, ALLOW_UNORDERED by default. "
-                                    + "That is to say the planner will attempt to use {@see AsyncDataStream.OutputMode.UNORDERED} when it does not "
-                                    + "affect the correctness of the result, otherwise ORDERED will be still used.");
+                            "Output mode for async ML predict, which describes whether or not the the output should attempt to be ordered or not. The supported options are: "
+                                    + "ALLOW_UNORDERED means the operator emit the result when execution finishes. The planner will attempt use ALLOW_UNORDERED whn it doesn't affect "
+                                    + "the correctness of the results. This is the default.\n"
+                                    + "ORDERED ensures that the operator emits the result in the same order as the data enters it.");
 
     // ------------------------------------------------------------------------
     //  MiniBatch Options
