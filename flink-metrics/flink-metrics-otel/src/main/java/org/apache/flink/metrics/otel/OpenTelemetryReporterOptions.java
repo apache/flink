@@ -73,6 +73,16 @@ public final class OpenTelemetryReporterOptions {
                                             "Timeout for OpenTelemetry Reporters, as Duration string. Example: 10s for 10 seconds")
                                     .build());
 
+    public static final ConfigOption<String> EXPORTER_COMPRESSION =
+            ConfigOptions.key("exporter.compression")
+                    .stringType()
+                    .defaultValue("none")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Compression method for OTel Reporter only 'gzip' or 'none'. Default is 'none'.")
+                                    .build());
+
     public static final ConfigOption<String> SERVICE_NAME =
             ConfigOptions.key("service.name")
                     .stringType()
@@ -106,5 +116,19 @@ public final class OpenTelemetryReporterOptions {
         checkArgument(
                 metricConfig.containsKey(endpointConfKey), "Must set " + EXPORTER_ENDPOINT.key());
         builder.accept(metricConfig.getProperty(endpointConfKey));
+    }
+
+    @Internal
+    public static void tryConfigureCompression(
+            MetricConfig metricConfig, Consumer<String> builder) {
+        final String compressionConfKey = EXPORTER_COMPRESSION.key();
+        if (metricConfig.containsKey(compressionConfKey)) {
+            String compression = metricConfig.getProperty(compressionConfKey);
+            checkArgument(
+                    "none".equals(compression) || "gzip".equals(compression),
+                    "Unsupported compression method: '%s'. Supported values are 'none' and 'gzip'.",
+                    compression);
+            builder.accept(compression);
+        }
     }
 }
