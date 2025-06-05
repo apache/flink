@@ -217,7 +217,7 @@ function install_uv() {
 
 # Create different Python virtual environments for different Python versions
 function install_py_env() {
-    py_env=("3.8" "3.9" "3.10" "3.11" "3.12")
+    py_env=("3.9" "3.10" "3.11" "3.12")
     for ((i=0;i<${#py_env[@]};i++)) do
         if [ -d "$CURRENT_DIR/.uv/envs/${py_env[i]}" ]; then
             rm -rf "$CURRENT_DIR/.uv/envs/${py_env[i]}"
@@ -378,7 +378,7 @@ function install_environment() {
     fi
 
     # step-2 install python environment which includes
-    # 3.8 3.9 3.10 3.11 3.12
+    # 3.9 3.10 3.11 3.12
     if [ $STEP -lt 2 ] && [ `need_install_component "py_env"` = true ]; then
         print_function "STEP" "installing python environment..."
         install_py_env
