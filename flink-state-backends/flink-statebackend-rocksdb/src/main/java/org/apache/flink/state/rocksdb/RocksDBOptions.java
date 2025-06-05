@@ -27,6 +27,8 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
+import java.time.Duration;
+
 import static org.apache.flink.configuration.ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE;
 import static org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB;
 import static org.apache.flink.state.rocksdb.PredefinedOptions.DEFAULT;
@@ -90,6 +92,15 @@ public class RocksDBOptions {
                                     + "If negative, the common (TM) IO thread pool is used (see "
                                     + CLUSTER_IO_EXECUTOR_POOL_SIZE.key()
                                     + ")");
+
+    /** The time interval used to create jitter for each checkpoint file upload. */
+    @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)
+    public static final ConfigOption<Duration> CHECKPOINT_UPLOAD_JITTER =
+            ConfigOptions.key("state.backend.rocksdb.checkpoint.upload-jitter")
+                    .durationType()
+                    .defaultValue(Duration.ZERO)
+                    .withDescription(
+                            "The time interval used to create jitter for each checkpoint file upload.");
 
     /** The predefined settings for RocksDB DBOptions and ColumnFamilyOptions by Flink community. */
     @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)
