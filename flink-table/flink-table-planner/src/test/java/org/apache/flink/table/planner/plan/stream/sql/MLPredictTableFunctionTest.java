@@ -172,7 +172,7 @@ public class MLPredictTableFunctionTest extends TableTestBase {
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "SQL validation failed. Number of descriptor input columns (3) does not match model input size (2)");
+                        "SQL validation failed. Number of input descriptor columns (3) does not match model input size (2).");
     }
 
     @Test
