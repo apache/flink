@@ -50,7 +50,7 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
     private final List<RowType> inputTypes;
 
     // Cache for pre-computed key extraction structures
-    private final Map<Integer, List<KeyExtractor>> currentRowsFieldIndices;
+    private final Map<Integer, List<KeyExtractor>> inputIdToExtractorsMap;
     private final Map<Integer, List<Integer>> inputKeyFieldIndices;
     private final Map<Integer, List<KeyExtractor>> commonJoinKeyExtractors;
     private RowType commonJoinKeyType;
@@ -68,7 +68,7 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
             final List<RowType> inputTypes) {
         this.joinAttributeMap = joinAttributeMap;
         this.inputTypes = inputTypes;
-        this.currentRowsFieldIndices = new HashMap<>();
+        this.inputIdToExtractorsMap = new HashMap<>();
         this.inputKeyFieldIndices = new HashMap<>();
         this.commonJoinKeyExtractors = new HashMap<>();
 
@@ -79,7 +79,7 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
     // ==================== Public Interface Methods ====================
 
     @Override
-    public RowData getJoinKeyFromInput(RowData row, int inputId) {
+    public RowData getJoinKey(RowData row, int inputId) {
         if (inputId == 0) {
             return null;
         }
@@ -98,17 +98,17 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
     }
 
     @Override
-    public RowData getJoinKeyFromCurrentRows(int depth, RowData[] currentRows) {
+    public RowData getLeftSideJoinKey(int depth, RowData joinedRowData) {
         if (depth == 0) {
             return null;
         }
 
-        List<KeyExtractor> keyExtractors = currentRowsFieldIndices.get(depth);
+        List<KeyExtractor> keyExtractors = inputIdToExtractorsMap.get(depth);
         if (keyExtractors == null || keyExtractors.isEmpty()) {
             return null;
         }
 
-        return buildKeyRow(keyExtractors, currentRows);
+        return buildKeyRow(keyExtractors, joinedRowData);
     }
 
     @Override
@@ -138,7 +138,7 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
             return null;
         }
 
-        return buildCommonJoinKey(row, inputId, extractors);
+        return buildCommonJoinKey(row, extractors);
     }
 
     // ==================== Initialization Methods ====================
@@ -146,13 +146,13 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
     private void initializeCaches() {
         if (this.inputTypes != null) {
             for (int i = 0; i < this.inputTypes.size(); i++) {
-                this.currentRowsFieldIndices.put(i, createJoinKeyFieldCurrentRowsExtractors(i));
+                this.inputIdToExtractorsMap.put(i, createLeftJoinKeyFieldExtractors(i));
                 this.inputKeyFieldIndices.put(i, createJoinKeyFieldInputExtractors(i));
             }
         }
     }
 
-    private List<KeyExtractor> createJoinKeyFieldCurrentRowsExtractors(int depth) {
+    private List<KeyExtractor> createLeftJoinKeyFieldExtractors(int depth) {
         if (depth == 0) {
             return Collections.emptyList();
         }
@@ -178,7 +178,14 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
         RowType rowType = inputTypes.get(attrRef.inputId);
         validateFieldIndex(attrRef.inputId, attrRef.fieldIndex, rowType);
         LogicalType fieldType = rowType.getTypeAt(attrRef.fieldIndex);
-        return new KeyExtractor(attrRef.inputId, attrRef.fieldIndex, fieldType);
+
+        // Calculate absolute field index by summing up field counts of previous inputs
+        int absoluteFieldIndex = attrRef.fieldIndex;
+        for (int i = 0; i < attrRef.inputId; i++) {
+            absoluteFieldIndex += inputTypes.get(i).getFieldCount();
+        }
+
+        return new KeyExtractor(attrRef.inputId, attrRef.fieldIndex, absoluteFieldIndex, fieldType);
     }
 
     private List<Integer> createJoinKeyFieldInputExtractors(int inputId) {
@@ -197,14 +204,14 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
 
     // ==================== Key Building Methods ====================
 
-    private RowData buildKeyRow(List<KeyExtractor> keyExtractors, RowData[] currentRows) {
+    private RowData buildKeyRow(List<KeyExtractor> keyExtractors, RowData joinedRowData) {
         if (keyExtractors.isEmpty()) {
             return null;
         }
 
         GenericRowData keyRow = new GenericRowData(keyExtractors.size());
         for (int i = 0; i < keyExtractors.size(); i++) {
-            keyRow.setField(i, keyExtractors.get(i).getValue(currentRows));
+            keyRow.setField(i, keyExtractors.get(i).getLeftSideKey(joinedRowData));
         }
         return keyRow;
     }
@@ -227,13 +234,11 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
         return keyRow;
     }
 
-    private RowData buildCommonJoinKey(RowData row, int inputId, List<KeyExtractor> extractors) {
+    private RowData buildCommonJoinKey(RowData row, List<KeyExtractor> extractors) {
         GenericRowData commonJoinKeyRow = new GenericRowData(extractors.size());
-        RowData[] tempRows = new RowData[inputId + 1];
-        tempRows[inputId] = row;
 
         for (int i = 0; i < extractors.size(); i++) {
-            commonJoinKeyRow.setField(i, extractors.get(i).getValue(tempRows));
+            commonJoinKeyRow.setField(i, extractors.get(i).getRightSideKey(row));
         }
         return commonJoinKeyRow;
     }
@@ -265,6 +270,7 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
             }
         }
 
+        assert inputTypes != null;
         if (inputTypes.isEmpty() || joinAttributeMap.isEmpty()) {
             return;
         }
@@ -406,7 +412,8 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
             AttributeRef attr = commonAttrsForThisInput.get(i);
             validateFieldIndex(currentInputId, attr.fieldIndex, originalRowType);
             LogicalType fieldType = originalRowType.getTypeAt(attr.fieldIndex);
-            extractors.add(new KeyExtractor(currentInputId, attr.fieldIndex, fieldType));
+            extractors.add(
+                    new KeyExtractor(currentInputId, attr.fieldIndex, attr.fieldIndex, fieldType));
             keyFieldTypes[i] = fieldType;
             keyFieldNames[i] = originalRowType.getFieldNames().get(attr.fieldIndex) + "_common";
         }
@@ -484,27 +491,43 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
 
         private final int inputIdToAccess;
         private final int fieldIndexInSourceRow;
+        private final int absoluteFieldIndex;
         private final LogicalType fieldType;
         private transient RowData.FieldGetter fieldGetter;
 
-        public KeyExtractor(int inputIdToAccess, int fieldIndexInSourceRow, LogicalType fieldType) {
+        public KeyExtractor(
+                int inputIdToAccess,
+                int fieldIndexInSourceRow,
+                int absoluteFieldIndex,
+                LogicalType fieldType) {
             this.inputIdToAccess = inputIdToAccess;
             this.fieldIndexInSourceRow = fieldIndexInSourceRow;
+            this.absoluteFieldIndex = absoluteFieldIndex;
             this.fieldType = fieldType;
             this.fieldGetter =
                     RowData.createFieldGetter(this.fieldType, this.fieldIndexInSourceRow);
         }
 
-        public Object getValue(RowData[] currentRows) {
-            RowData sourceRow = currentRows[inputIdToAccess];
-            if (sourceRow == null) {
+        public Object getRightSideKey(RowData joinedRowData) {
+            if (joinedRowData == null) {
                 return null;
             }
             if (this.fieldGetter == null) {
                 this.fieldGetter =
                         RowData.createFieldGetter(this.fieldType, this.fieldIndexInSourceRow);
             }
-            return this.fieldGetter.getFieldOrNull(sourceRow);
+            return this.fieldGetter.getFieldOrNull(joinedRowData);
+        }
+
+        public Object getLeftSideKey(RowData joinedRowData) {
+            if (joinedRowData == null) {
+                return null;
+            }
+            if (this.fieldGetter == null) {
+                this.fieldGetter =
+                        RowData.createFieldGetter(this.fieldType, this.absoluteFieldIndex);
+            }
+            return this.fieldGetter.getFieldOrNull(joinedRowData);
         }
 
         public int getInputIdToAccess() {
