@@ -37,6 +37,7 @@ from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table import Table, EnvironmentSettings, Expression, ExplainDetail, \
     Module, ModuleEntry, Schema, ChangelogMode
 from pyflink.table.catalog import Catalog, CatalogDescriptor
+from pyflink.table.model_descriptor import ModelDescriptor
 from pyflink.table.compiled_plan import CompiledPlan
 from pyflink.table.plan_reference import PlanReference
 from pyflink.table.serializers import ArrowSerializer
@@ -659,6 +660,32 @@ class TableEnvironment(object):
         j_view_name_array = self._j_tenv.listTemporaryViews()
         return [item for item in j_view_name_array]
 
+    def list_models(self) -> List[str]:
+        """
+        Gets the names of all model available in the current namespace (the current
+        database of the current catalog).
+
+        :return: A list of the names of all registered models in the current database
+                 of the current catalog.
+
+        .. versionadded:: 2.1.0
+        """
+        j_model_name_array = self._j_tenv.listModels()
+        return [item for item in j_model_name_array]
+
+    def list_temporary_models(self) -> List[str]:
+        """
+        Gets the names of all temporary models available in the current namespace (the current
+        database of the current catalog).
+
+        :return: A list of the names of all registered temporary models in the current database
+                 of the current catalog.
+
+        .. versionadded:: 2.1.0
+        """
+        j_model_name_array = self._j_tenv.listTemporaryModels()
+        return [item for item in j_model_name_array]
+
     def drop_temporary_table(self, table_path: str) -> bool:
         """
         Drops a temporary table registered in the given path.
@@ -718,6 +745,36 @@ class TableEnvironment(object):
         .. versionadded:: 2.0.0
         """
         return self._j_tenv.dropView(view_path, ignore_if_not_exists)
+
+    def drop_temporary_model(self, model_path: str) -> bool:
+        """
+        Drops a temporary model registered in the given path.
+
+        If a permanent model with a given path exists, it will be used
+        from now on for any queries that reference this path.
+
+        :param model_path: The path of the registered temporary model.
+        :return: True if a model existed in the given path and was removed.
+
+        .. versionadded:: 2.1.0
+        """
+        return self._j_tenv.dropTemporaryModel(model_path)
+
+    def drop_model(self, model_path: str, ignore_if_not_exists: Optional[bool] = True) -> bool:
+        """
+        Drops a model registered in the given path.
+
+        This method can only drop permanent objects. Temporary objects can shadow permanent ones.
+        If a temporary object exists in a given path,
+        make sure to drop the temporary object first using :func:`drop_temporary_model`.
+
+        :param path: The path of the registered model.
+        :param ignore_if_not_exists: Ignore if model does not exist.
+        :return: True if a model existed in the given path and was removed.
+
+        .. versionadded:: 2.1.0
+        """
+        return self._j_tenv.dropModel(model_path, ignore_if_not_exists)
 
     def explain_sql(self, stmt: str, *extra_details: ExplainDetail) -> str:
         """
@@ -1073,6 +1130,88 @@ class TableEnvironment(object):
         """
 
         self._j_tenv.createView(view_path, table, ignore_if_exists)
+
+    def create_model(self,
+                     model_path: str,
+                     model_descriptor: ModelDescriptor,
+                     ignore_if_exists: Optional[bool] = False):
+        """
+        Registers the given :class:`~pyflink.table.ModelDescriptor` as a catalog model
+        similar to SQL models.
+
+        The ModelDescriptor is converted into a CatalogModel and stored in the catalog.
+
+        If the model should not be permanently stored in a catalog, use
+        :func:`create_temporary_model` instead.
+
+        Examples:
+        ::
+
+            >>> table_env.create_model("MyModel", ModelDescriptor.for_provider("OPENAI")
+            ...     .input_schema(Schema.new_builder()
+            ...                   .column("f0", DataTypes.STRING())
+            ...                   .build())
+            ...     .output_schema(Schema.new_builder()
+            ...                   .column("label", DataTypes.STRING())
+            ...                   .build())
+            ...     .option("task", "regression")
+            ...     .option("type", "remote")
+            ...     .
+            ...     .
+            ...     .build(),
+            ...  True)
+
+        :param model_path: The path under which the model will be registered.
+        :param model_descriptor: Template for creating a CatalogModel instance.
+        :param ignore_if_exists: If a model exists under the given path and this flag is set,
+                               no operation is executed. An exception is thrown otherwise.
+
+        .. versionadded:: 2.1.0
+        """
+        self._j_tenv.createModel(model_path, model_descriptor._j_model_descriptor, ignore_if_exists)
+
+    def create_temporary_model(self,
+                               model_path: str,
+                               model_descriptor: ModelDescriptor,
+                               ignore_if_exists: Optional[bool] = False):
+        """
+           Registers the given :class:`~pyflink.table.ModelDescriptor` as a temporary catalog model
+           similar to SQL temporary models.
+
+           The ModelDescriptor is converted into a CatalogModel and stored in the catalog.
+
+           Temporary objects can shadow permanent ones. If a permanent object in a given path
+           exists, it will be inaccessible in the current session. To make the permanent object
+           available again one can drop the corresponding temporary object.
+
+           Examples:
+           ::
+
+               >>> table_env.create_temporary_model("MyModel", ModelDescriptor
+            ...     .for_provider("OPENAI")
+            ...     .input_schema(Schema.new_builder()
+            ...                   .column("f0", DataTypes.STRING())
+            ...                   .build())
+            ...     .output_schema(Schema.new_builder()
+            ...                   .column("label", DataTypes.STRING())
+            ...                   .build())
+            ...     .option("task", "regression")
+            ...     .option("type", "remote")
+            ...     .
+            ...     .
+            ...     .build(),
+            ...  True)
+
+           :param model_path: The path under which the model will be registered.
+           :param model_descriptor: Template for creating a CatalogModel instance.
+           :param ignore_if_exists: If a model exists under the given path and this flag is
+                                    set, no operation is executed. An exception is thrown
+                                    otherwise.
+
+           .. versionadded:: 2.1.0
+           """
+        self._j_tenv.createTemporaryModel(model_path, model_descriptor._j_model_descriptor,
+                                          ignore_if_exists)
 
     def add_python_file(self, file_path: str):
         """
