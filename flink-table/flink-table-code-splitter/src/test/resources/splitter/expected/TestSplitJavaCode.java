@@ -4,8 +4,12 @@ int[][] rewrite$27 = new int[1][];
 int[] rewrite$28 = new int[16];
 
 {
-rewrite$28[15] = 1;
+    init$0();
 }
+void init$0() {
+    rewrite$28[15] = 1;
+}
+
 
 
 
