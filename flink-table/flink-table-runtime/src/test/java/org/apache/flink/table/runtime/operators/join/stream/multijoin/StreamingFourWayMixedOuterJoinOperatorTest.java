@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.operators.join.stream.multijoin;
 
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.generated.GeneratedMultiJoinCondition;
+import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.AttributeRef;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
@@ -59,19 +59,19 @@ import java.util.Map;
 @ExtendWith(ParameterizedTestExtension.class)
 class StreamingFourWayMixedOuterJoinOperatorTest extends StreamingMultiJoinOperatorTestBase {
 
-    private static final List<GeneratedMultiJoinCondition> customJoinConditions;
+    private static final List<GeneratedJoinCondition> customJoinConditions;
 
     static {
         // Condition for Input 3 (Shipments) LEFT JOIN Input 0 (Users)
         // ON u.user_id_0 = s.user_id_3 AND u.details_0 > s.details_3
-        GeneratedMultiJoinCondition shipmentsJoinCondition =
+        GeneratedJoinCondition shipmentsJoinCondition =
                 createAndCondition(
                         createJoinCondition(
                                 3, 0), // equi-join on user_id (field 0 of input 3 with field 0 of
                         // input 0)
                         createFieldLongGreaterThanCondition(
-                                0, 2, 3,
-                                2) // non-equi: users.details_0 (field 2) > shipments.details_3
+                                2, 2) // non-equi: users.details_0 (field 2 from left side) >
+                        // shipments.details_3 (field 2 from right side)
                         // (field 2)
                         );
 

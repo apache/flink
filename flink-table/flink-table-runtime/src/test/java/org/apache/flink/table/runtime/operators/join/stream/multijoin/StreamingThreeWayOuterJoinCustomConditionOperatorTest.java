@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.join.stream.multijoin;
 
-import org.apache.flink.table.runtime.generated.GeneratedMultiJoinCondition;
+import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.AttributeRef;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
@@ -37,7 +37,7 @@ class StreamingThreeWayOuterJoinCustomConditionOperatorTest
 
     // Condition 1: input[1] (Orders) joins with input[0] (Users) ON user_id (field 0)
     // Condition 2: input[2] (Payments) joins with input[0] (Users) ON user_id (field 0)
-    private static final List<GeneratedMultiJoinCondition> customJoinCondition =
+    private static final List<GeneratedJoinCondition> customJoinCondition =
             Arrays.asList(null, createJoinCondition(1, 0), createJoinCondition(2, 0));
 
     // Define the corresponding attribute map

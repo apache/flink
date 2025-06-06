@@ -18,17 +18,10 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
-import org.apache.calcite.rex.RexNode;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
@@ -50,11 +43,18 @@ import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.generated.MultiJoinCondition;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator;
+import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import org.apache.calcite.rex.RexNode;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.io.Serializable;
@@ -63,6 +63,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Stream {@link StreamExecNode} for N-way Joins. This node handles multi-way joins in streaming
@@ -97,7 +100,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
     private static final String FIELD_NAME_COMMON_KEY_TYPE = "commonKeyType";
 
     @JsonProperty(FIELD_NAME_JOIN_TYPES)
-    private final List<StreamingMultiJoinOperator.JoinType> joinTypes;
+    private final List<JoinType> joinTypes;
 
     @JsonProperty(FIELD_NAME_JOIN_CONDITIONS)
     private final List<? extends @Nullable RexNode> joinConditions;
@@ -125,7 +128,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
 
     public StreamExecMultiJoin(
             ReadableConfig tableConfig,
-            List<StreamingMultiJoinOperator.JoinType> joinTypes,
+            List<JoinType> joinTypes,
             List<? extends @Nullable RexNode> joinConditions,
             @Nullable RexNode generatedMultiJoinCondition,
             Map<
@@ -164,8 +167,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
             @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
-            @JsonProperty(FIELD_NAME_JOIN_TYPES)
-                    List<StreamingMultiJoinOperator.JoinType> joinTypes,
+            @JsonProperty(FIELD_NAME_JOIN_TYPES) List<JoinType> joinTypes,
             @JsonProperty(FIELD_NAME_JOIN_CONDITIONS)
                     List<? extends @Nullable RexNode> joinConditions,
             @Nullable @JsonProperty(FIELD_NAME_GENERATED_MULTI_JOIN_CONDITION)
@@ -201,7 +203,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
 
     private void validateInputs(
             List<InputProperty> inputProperties,
-            List<StreamingMultiJoinOperator.JoinType> joinTypes,
+            List<JoinType> joinTypes,
             List<? extends @Nullable RexNode> joinConditions,
             List<JoinInputSideSpec> inputSideSpecs) {
         checkArgument(
@@ -372,7 +374,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
 
         private final List<InternalTypeInfo<RowData>> inputTypeInfos;
         private final List<JoinInputSideSpec> inputSideSpecs;
-        private final List<StreamingMultiJoinOperator.JoinType> joinTypes;
+        private final List<JoinType> joinTypes;
         @Nullable private final MultiJoinCondition multiJoinCondition;
         private final long[] stateRetentionTime;
         private final JoinCondition[] joinConditions;
@@ -387,7 +389,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
         public StreamingMultiJoinOperatorFactoryImpl(
                 List<InternalTypeInfo<RowData>> inputTypeInfos,
                 List<JoinInputSideSpec> inputSideSpecs,
-                List<StreamingMultiJoinOperator.JoinType> joinTypes,
+                List<JoinType> joinTypes,
                 @Nullable MultiJoinCondition multiJoinCondition,
                 long[] stateRetentionTime,
                 JoinCondition[] joinConditions,

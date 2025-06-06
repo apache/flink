@@ -153,7 +153,7 @@ object JoinUtil {
       .bindSecondInput(rightType)
 
     val body = if (joinCondition == null) {
-      // only equality condition
+      // The join condition is null, which means the join condition is always true
       "return true;"
     } else {
       val condition = exprGenerator.generateExpression(joinCondition)
