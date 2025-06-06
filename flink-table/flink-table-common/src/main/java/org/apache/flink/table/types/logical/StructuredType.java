@@ -504,35 +504,37 @@ public final class StructuredType extends UserDefinedType {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        final StructuredType that = (StructuredType) o;
-        // Builder defaults might change once the planner supports more structured type properties
-        // (i.e. full comparison). Comparing the reference (object identifier or class name) and
-        // attributes should be sufficient.
-        return Objects.equals(getReference(), that.getReference())
-                && Objects.equals(attributes, that.attributes);
+        if (!super.equals(o)) {
+            return false;
+        }
+        StructuredType that = (StructuredType) o;
+        return isInstantiable == that.isInstantiable
+                && attributes.equals(that.attributes)
+                && comparison == that.comparison
+                && Objects.equals(superType, that.superType)
+                && Objects.equals(className, that.className);
     }
 
     @Override
     public int hashCode() {
-        // Builder defaults might change once the planner supports more structured type properties
-        // (i.e. full comparison). Comparing the reference (object identifier or class name) and
-        // attributes should be sufficient.
-        return Objects.hash(getReference(), attributes);
+        return Objects.hash(
+                super.hashCode(), attributes, isInstantiable, comparison, superType, className);
     }
 
     private Object readResolve() throws ObjectStreamException {
-        // Before Flink 2.1 the implementation class was used as a reference.
-        // This restores the old behavior for backwards compatibility.
         if (getReference() != null) {
             return this;
         }
+        // Before Flink 2.1 the implementation class was used as a reference and equality was not
+        // supported. This restores the type with new defaults from old types that potentially
+        // landed in savepoints.
         return new StructuredType(
                 isNullable(),
                 getObjectIdentifier().orElse(null),
                 attributes,
                 isFinal(),
                 isInstantiable,
-                comparison,
+                StructuredComparison.EQUALS,
                 superType,
                 getDescription().orElse(null),
                 implementationClass != null ? implementationClass.getName() : className,
