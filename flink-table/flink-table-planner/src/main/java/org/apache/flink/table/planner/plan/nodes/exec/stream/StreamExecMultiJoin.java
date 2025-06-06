@@ -82,7 +82,6 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
 
     public static final String MULTI_JOIN_TRANSFORMATION = "multi-join";
 
-    // Field names for JSON serialization
     private static final String FIELD_NAME_ID = "id";
     private static final String FIELD_NAME_TYPE = "type";
     private static final String FIELD_NAME_CONFIGURATION = "configuration";
@@ -233,7 +232,6 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
         final int numInputs = inputEdges.size();
         final ClassLoader classLoader = planner.getFlinkContext().getClassLoader();
 
-        // Prepare input transformations and types
         final List<Transformation<RowData>> inputTransforms = new ArrayList<>(numInputs);
         final List<InternalTypeInfo<RowData>> inputTypeInfos = new ArrayList<>(numInputs);
         final List<RowType> inputRowTypes = new ArrayList<>(numInputs);
@@ -247,24 +245,22 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
             inputTypeInfos.add(InternalTypeInfo.of(inputType));
         }
 
-        // Create key extractor and join conditions
         final JoinKeyExtractor keyExtractor =
                 new AttributeBasedJoinKeyExtractor(joinAttributeMap, inputRowTypes);
+
         final JoinCondition[] instantiatedJoinConditions =
                 createJoinConditions(config, classLoader, inputRowTypes);
 
-        // Create operator factory
         final StreamOperatorFactory<RowData> operatorFactory =
                 createOperatorFactory(
                         config, inputTypeInfos, instantiatedJoinConditions, keyExtractor);
 
-        // Create transformation
         final TransformationMetadata metadata =
                 createTransformationMeta(MULTI_JOIN_TRANSFORMATION, config);
+
         final Transformation<RowData> transform =
                 createTransformation(inputTransforms, metadata, operatorFactory);
 
-        // Handle singleton inputs
         if (inputsContainSingleton()) {
             transform.setParallelism(1);
             transform.setMaxParallelism(1);
@@ -342,6 +338,8 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
             RexNode joinCondition,
             List<RowType> inputRowTypes,
             int inputIndex) {
+        // Our join conditions are always associated with the left side (with the inputs to the
+        // left). For input 0, there is no input to the left, so there is no join condition.
         if (inputIndex == 0) {
             return null;
         }
