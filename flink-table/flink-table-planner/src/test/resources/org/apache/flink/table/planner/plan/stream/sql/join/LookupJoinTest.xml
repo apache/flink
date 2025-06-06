@@ -568,85 +568,25 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-	<TestCase name="testJoinAsyncTableKeyOrdered">
-		<Resource name="explain">
-			<![CDATA[== Abstract Syntax Tree ==
-LogicalProject(id=[$0], name=[$1], age=[$2], proctime=[$3], id0=[$4], name0=[$5], age0=[$6])
-+- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=true, output-mode=allow_unordered, table=D}]]])
-   :- LogicalProject(id=[$0], name=[$1], age=[$2], proctime=[PROCTIME()])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, UpsertTable]], hints=[[[ALIAS inheritPath:[] options:[UpsertTable]]]])
-   +- LogicalFilter(condition=[=($cor0.id, $0)])
-      +- LogicalSnapshot(period=[$cor0.proctime])
-         +- LogicalTableScan(table=[[default_catalog, default_database, AsyncLookupTable]])
-
-== Optimized Physical Plan ==
+	<TestCase name="testJoinAsyncTableKeyOrderedCdcSource">
+		<Resource name="optimized exec plan">
+		<![CDATA[
 Calc(select=[id, name, age, PROCTIME_MATERIALIZE(proctime) AS proctime, id0, name0, age0])
 +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=id], select=[id, name, age, proctime, id0, name0, age0], async=[ORDERED, KEY_ORDERED: true, 180000ms, 100])
    +- Calc(select=[id, name, age, PROCTIME() AS proctime])
       +- DropUpdateBefore
          +- TableSourceScan(table=[[default_catalog, default_database, UpsertTable]], fields=[id, name, age])
-
-== Optimized Execution Plan ==
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testJoinAsyncTableKeyOrderedAppendOnlySource">
+		<Resource name="optimized exec plan">
+			<![CDATA[
 Calc(select=[id, name, age, PROCTIME_MATERIALIZE(proctime) AS proctime, id0, name0, age0])
-+- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=id], select=[id, name, age, proctime, id0, name0, age0], async=[ORDERED, KEY_ORDERED: true, 180000ms, 100])
++- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=id], select=[id, name, age, proctime, id0, name0, age0], async=[UNORDERED, KEY_ORDERED: false, 180000ms, 100])
    +- Calc(select=[id, name, age, PROCTIME() AS proctime])
-      +- DropUpdateBefore
-         +- TableSourceScan(table=[[default_catalog, default_database, UpsertTable]], fields=[id, name, age])
-
-== Physical Execution Plan ==
-{
-  "nodes" : [ {
-    "id" : ,
-    "type" : "Source: UpsertTable[]",
-    "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, UpsertTable]], fields=[id, name, age])",
-    "parallelism" : 1
-  }, {
-    "id" : ,
-    "type" : "DropUpdateBefore[]",
-    "pact" : "Operator",
-    "contents" : "[]:DropUpdateBefore",
-    "parallelism" : 1,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "FORWARD",
-      "side" : "second"
-    } ]
-  }, {
-    "id" : ,
-    "type" : "Calc[]",
-    "pact" : "Operator",
-    "contents" : "[]:Calc(select=[id, name, age, PROCTIME() AS proctime])",
-    "parallelism" : 1,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "FORWARD",
-      "side" : "second"
-    } ]
-  }, {
-    "id" : ,
-    "type" : "LookupJoin[]",
-    "pact" : "Operator",
-    "contents" : "[]:LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=id], select=[id, name, age, proctime, id0, name0, age0], async=[ORDERED, KEY_ORDERED: true, 180000ms, 100])",
-    "parallelism" : 1,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "HASH",
-      "side" : "second"
-    } ]
-  }, {
-    "id" : ,
-    "type" : "Calc[]",
-    "pact" : "Operator",
-    "contents" : "[]:Calc(select=[id, name, age, PROCTIME_MATERIALIZE(proctime) AS proctime, id0, name0, age0])",
-    "parallelism" : 1,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "FORWARD",
-      "side" : "second"
-    } ]
-  } ]
-}]]>
+      +- TableSourceScan(table=[[default_catalog, default_database, UpsertTableAppendOnly]], fields=[id, name, age])
+]]>
 		</Resource>
 	</TestCase>
   <TestCase name="testJoinTemporalTableWithComputedColumn">

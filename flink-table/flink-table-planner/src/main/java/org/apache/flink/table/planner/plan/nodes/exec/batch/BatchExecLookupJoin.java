@@ -184,7 +184,7 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin
             RowType resultRowType,
             boolean isLeftOuterJoin,
             LookupJoinUtil.AsyncLookupOptions asyncLookupOptions) {
-        throw new UnsupportedOperationException(
-                "Key ordered async lookup join is not supported in batch mode.");
+        throw new IllegalStateException(
+                "Batch mode should not use key-ordered async lookup joins. This is a bug. Please file an issue.");
     }
 }
