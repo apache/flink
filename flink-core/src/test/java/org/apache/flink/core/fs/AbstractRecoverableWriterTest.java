@@ -44,7 +44,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 public abstract class AbstractRecoverableWriterTest {
 
-    private static final Logger Log = LoggerFactory.getLogger(AbstractRecoverableWriterTest.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractRecoverableWriterTest.class);
 
     private static final Random RND = new Random();
 
