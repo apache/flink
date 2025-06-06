@@ -32,10 +32,12 @@ import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.planner.factories.TestValuesModelFactory;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
+import org.apache.flink.table.test.program.ModelTestStep;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.SqlTestStep;
@@ -149,6 +151,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                 TestKind.CONFIG,
                 TestKind.FUNCTION,
                 TestKind.TEMPORAL_FUNCTION,
+                TestKind.MODEL,
                 TestKind.SOURCE_WITH_RESTORE_DATA,
                 TestKind.SOURCE_WITH_DATA,
                 TestKind.SINK_WITH_RESTORE_DATA,
@@ -269,6 +272,13 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
             sourceTestStep.apply(tEnv, options);
         }
 
+        for (ModelTestStep modelTestStep : program.getSetupModelTestSteps()) {
+            final Map<String, String> options = new HashMap<>();
+            options.put("provider", "values");
+            options.put("data-id", TestValuesModelFactory.registerData(modelTestStep.data));
+            modelTestStep.apply(tEnv, options);
+        }
+
         final List<CompletableFuture<?>> futures = new ArrayList<>();
         for (SinkTestStep sinkTestStep : program.getSetupSinkTestSteps()) {
             registerSinkObserver(futures, sinkTestStep, true);
@@ -345,6 +355,13 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                 options.put("terminating", "false");
             }
             sourceTestStep.apply(tEnv, options);
+        }
+
+        for (ModelTestStep modelTestStep : program.getSetupModelTestSteps()) {
+            final Map<String, String> options = new HashMap<>();
+            options.put("provider", "values");
+            options.put("data-id", TestValuesModelFactory.registerData(modelTestStep.data));
+            modelTestStep.apply(tEnv, options);
         }
 
         final List<CompletableFuture<?>> futures = new ArrayList<>();
