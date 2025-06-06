@@ -220,7 +220,7 @@ public abstract class AbstractRecoverableWriterTest {
                 stream.write(testData2.getBytes(StandardCharsets.UTF_8));
 
             } catch (IOException e) {
-                Log.warn("{} execution failed, err message{}: ", times, e.getMessage());
+                LOG.warn("{} execution failed, err message{}: ", times, e.getMessage());
                 throw e;
             }
 
