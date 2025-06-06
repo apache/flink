@@ -34,6 +34,7 @@ object FlinkStreamProgram {
   val DEFAULT_REWRITE = "default_rewrite"
   val PREDICATE_PUSHDOWN = "predicate_pushdown"
   val JOIN_REORDER = "join_reorder"
+  val MULTI_JOIN = "multi_join"
   val PROJECT_REWRITE = "project_rewrite"
   val LOGICAL = "logical"
   val LOGICAL_REWRITE = "logical_rewrite"
@@ -226,6 +227,17 @@ object FlinkStreamProgram {
               .build(),
             "do join reorder"
           )
+          .build()
+      )
+    }
+
+    if (tableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED)) {
+      chainedProgram.addLast(
+        MULTI_JOIN,
+        FlinkHepRuleSetProgramBuilder.newBuilder
+          .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+          .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+          .add(FlinkStreamRuleSets.MULTI_JOIN)
           .build()
       )
     }

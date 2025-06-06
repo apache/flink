@@ -518,4 +518,10 @@ object FlinkStreamRuleSets {
     TwoStageOptimizedWindowAggregateRule.INSTANCE
   )
 
+  val MULTI_JOIN: RuleSet = RuleSets.ofList(
+    FlinkRightJoinToLeftJoinRule.INSTANCE,
+    FlinkProjectMergeRule.INSTANCE,
+    FlinkStreamJoinToMultiJoinRule.INSTANCE
+  )
+
 }

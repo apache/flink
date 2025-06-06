@@ -134,6 +134,16 @@ public class OptimizerConfigOptions {
                     .withDescription("Enables join reorder in optimizer. Default is disabled.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_MULTI_JOIN_ENABLED =
+            key("table.optimizer.multi-join")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Convert chains of binary join with common join key into a single multijoin operator. "
+                                    + "This feature can help to get rid of extra intermediate state. For more "
+                                    + "information see FLIP-516.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Integer> TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD =
             key("table.optimizer.bushy-join-reorder-threshold")
                     .intType()
