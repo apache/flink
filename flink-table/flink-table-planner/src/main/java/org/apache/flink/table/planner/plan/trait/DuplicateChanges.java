@@ -15,23 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.planner.plan.optimize.program
 
-import org.apache.flink.table.planner.plan.`trait`.MiniBatchInterval
+package org.apache.flink.table.planner.plan.trait;
 
-/** A OptimizeContext allows to obtain stream table environment information when optimizing. */
-trait StreamOptimizeContext extends FlinkOptimizeContext {
+/**
+ * Lists all kinds of all behaviors that handle consume redundant data produced by upstream
+ * operators.
+ */
+public enum DuplicateChanges {
 
-  /**
-   * Returns true if the root is required to send UPDATE_BEFORE message with UPDATE_AFTER message
-   * together for update changes.
-   */
-  def isUpdateBeforeRequired: Boolean
+    /** Allow to produce duplicated data for downstream operators to consume. */
+    ALLOW,
 
-  /** Returns the mini-batch interval that sink requests. */
-  def getMiniBatchInterval: MiniBatchInterval
+    /** Disallow to produce duplicated data for downstream operators to consume. */
+    DISALLOW,
 
-  /** Returns true if the root can output duplicate changes. */
-  def isAllowDuplicateChanges: Boolean
+    /** There are no operators downstream of the operator like sink. */
+    NONE,
 
+    /** The {@link DuplicateChanges} is not inferred yet. */
+    UNKNOWN
 }

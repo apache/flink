@@ -508,6 +508,11 @@ object FlinkStreamRuleSets {
     MiniBatchIntervalInferRule.INSTANCE
   )
 
+  val DUPLICATE_CHANGES_RULES: RuleSet = RuleSets.ofList(
+    // duplicate changes infer rule
+    DuplicateChangesInferRule.INSTANCE
+  )
+
   /** RuleSet to optimize plans after stream exec execution. */
   val PHYSICAL_REWRITE: RuleSet = RuleSets.ofList(
     // optimize agg rule
@@ -516,6 +521,8 @@ object FlinkStreamRuleSets {
     IncrementalAggregateRule.INSTANCE,
     // optimize window agg rule
     TwoStageOptimizedWindowAggregateRule.INSTANCE
+    // delta join redundant data acceptable infer rule
+
   )
 
 }
