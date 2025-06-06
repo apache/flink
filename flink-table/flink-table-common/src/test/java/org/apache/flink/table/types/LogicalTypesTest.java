@@ -545,7 +545,11 @@ public class LogicalTypesTest {
 
     @Test
     void testStructuredType() {
-        assertThat(createUserType(true, true, true))
+        assertThat(
+                        createUserType(
+                                StructuredRegistered.YES,
+                                StructuredFinal.YES,
+                                StructuredClassResolved.YES))
                 .satisfies(
                         baseAssertions(
                                 "`cat`.`db`.`User`",
@@ -555,7 +559,10 @@ public class LogicalTypesTest {
                                 new LogicalType[] {
                                     UDT_NAME_TYPE, UDT_SETTING_TYPE, UDT_TIMESTAMP_TYPE
                                 },
-                                createUserType(true, false, true)));
+                                createUserType(
+                                        StructuredRegistered.YES,
+                                        StructuredFinal.NO,
+                                        StructuredClassResolved.YES)));
 
         assertThat(createHumanType(false))
                 .satisfies(
@@ -566,7 +573,12 @@ public class LogicalTypesTest {
                                 new Class[] {Row.class, Human.class}));
 
         // not every Human is User
-        assertThat(createUserType(true, true, true)).doesNotSupportInputConversion(Human.class);
+        assertThat(
+                        createUserType(
+                                StructuredRegistered.YES,
+                                StructuredFinal.YES,
+                                StructuredClassResolved.YES))
+                .doesNotSupportInputConversion(Human.class);
 
         // User is not implementing SpecialHuman
         assertThat(createHumanType(true)).doesNotSupportInputConversion(User.class);
@@ -701,10 +713,17 @@ public class LogicalTypesTest {
 
     @Test
     void testInlineStructuredTypeWithResolvedClass() {
-        final StructuredType structuredType = createUserType(false, true, true);
+        final StructuredType structuredType =
+                createUserType(
+                        StructuredRegistered.NO, StructuredFinal.YES, StructuredClassResolved.YES);
 
         assertThat(structuredType)
-                .satisfies(nonEqualityCheckWithOtherType(createUserType(false, false, true)))
+                .satisfies(
+                        nonEqualityCheckWithOtherType(
+                                createUserType(
+                                        StructuredRegistered.NO,
+                                        StructuredFinal.NO,
+                                        StructuredClassResolved.YES)))
                 .satisfies(LogicalTypesTest::nullability)
                 .isJavaSerializable()
                 .hasSerializableString(
@@ -724,11 +743,18 @@ public class LogicalTypesTest {
 
     @Test
     void testInlineStructuredTypeWithUnresolvedClass() {
-        final StructuredType structuredType = createUserType(false, true, false);
+        final StructuredType structuredType =
+                createUserType(
+                        StructuredRegistered.NO, StructuredFinal.YES, StructuredClassResolved.NO);
 
         // Conversions are limited to Row.class only
         assertThat(structuredType)
-                .satisfies(nonEqualityCheckWithOtherType(createUserType(false, false, false)))
+                .satisfies(
+                        nonEqualityCheckWithOtherType(
+                                createUserType(
+                                        StructuredRegistered.NO,
+                                        StructuredFinal.NO,
+                                        StructuredClassResolved.NO)))
                 .satisfies(LogicalTypesTest::nullability)
                 .isJavaSerializable()
                 .hasSerializableString(
@@ -749,7 +775,12 @@ public class LogicalTypesTest {
                         "Invalid class name '@#$%^&*'. The class name must comply with JVM identifier rules.");
 
         // Right side has resolved class, left side is unresolved.
-        assertThat(structuredType).isEqualTo(createUserType(false, true, true));
+        assertThat(structuredType)
+                .isEqualTo(
+                        createUserType(
+                                StructuredRegistered.NO,
+                                StructuredFinal.YES,
+                                StructuredClassResolved.YES));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -838,13 +869,30 @@ public class LogicalTypesTest {
                 .build();
     }
 
+    private enum StructuredRegistered {
+        YES,
+        NO
+    }
+
+    private enum StructuredFinal {
+        YES,
+        NO
+    }
+
+    private enum StructuredClassResolved {
+        YES,
+        NO
+    }
+
     private StructuredType createUserType(
-            boolean isRegistered, boolean isFinal, boolean withResolvedClass) {
+            StructuredRegistered registered,
+            StructuredFinal isFinal,
+            StructuredClassResolved resolvedClass) {
         final StructuredType.Builder builder;
-        if (isRegistered) {
+        if (registered == StructuredRegistered.YES) {
             builder =
                     StructuredType.newBuilder(ObjectIdentifier.of("cat", "db", "User"), User.class);
-        } else if (withResolvedClass) {
+        } else if (resolvedClass == StructuredClassResolved.YES) {
             builder = StructuredType.newBuilder(User.class);
         } else {
             builder = StructuredType.newBuilder(User.class.getName());
@@ -854,7 +902,7 @@ public class LogicalTypesTest {
                                 new StructuredAttribute("setting", UDT_SETTING_TYPE),
                                 new StructuredAttribute("timestamp", UDT_TIMESTAMP_TYPE)))
                 .description("User type desc.")
-                .setFinal(isFinal)
+                .setFinal(isFinal == StructuredFinal.YES)
                 .setInstantiable(true)
                 .superType(createHumanType(false))
                 .build();

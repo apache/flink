@@ -1241,8 +1241,8 @@ contain the same set of fields. For example, `Visit(amount DOUBLE)` is distinct 
 its identifier.
 
 Similar to classes in object-oriented programming languages, structured types are identified by a class name and contain
-zero, one or more attributes. Each attribute consists of a name and a type. A type cannot be defined in such a way that
-one of its attribute types (transitively) refers to itself.
+zero, one or more attributes. Each attribute has a name, a type, and an optional description. A type cannot be defined
+in such a way that one of its attribute types (transitively) refers to itself.
 
 Structured types are internally converted by the system into suitable data structures. Serialization and equality checks
 are managed by the system based on the logical type.
@@ -1254,7 +1254,7 @@ STRUCTURED<'c', n0 t0, n1 t1, ...>
 STRUCTURED<'c', n0 t0, n1 t1 'd1', ...>
 ```
 The type can be declared using `STRUCTURED<'c', n0 t0 'd0', n1 t1 'd1', ...>` where `c` is the class name, `n` is the
-unique name of a field, `t` is the logical type of a field, `d` is the description of a field.
+unique name of a field, `t` is the logical type of a field, `d` is the optional description of a field.
 {{< /tab >}}
 
 {{< tab "Java/Scala" >}}
@@ -1353,10 +1353,13 @@ class Customer {
 
 Or via explicit declaration:
 ```java
-DataTypes.STRUCTURED(Class, DataTypes.FIELD(n0, t0), DataTypes.FIELD(n1, t1), ...);
-DataTypes.STRUCTURED(String, DataTypes.FIELD(n0, t0), DataTypes.FIELD(n1, t1), ...);
+// Provide an implementation class
+DataTypes.STRUCTURED(MyPojo.class, DataTypes.FIELD(n0, t0), DataTypes.FIELD(n1, t1), ...);
 
-// For example:
+// Provide a class name only, the class is resolved only if available in the classpath
+DataTypes.STRUCTURED("com.myorg.MyPojo", DataTypes.FIELD(n0, t0), DataTypes.FIELD(n1, t1), ...);
+
+// Full example
 DataTypes.STRUCTURED(
   Customer.class,
   DataTypes.FIELD("age", DataTypes.INT().notNull()),

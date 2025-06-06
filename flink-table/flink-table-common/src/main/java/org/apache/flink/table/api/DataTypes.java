@@ -929,9 +929,9 @@ public final class DataTypes {
 
     /**
      * Data type of a user-defined object structured type. Structured types are identified by a
-     * class name and contain zero, one or more attributes. Each attribute consists of a name and a
-     * type. A type cannot be defined in such a way that one of its attribute types (transitively)
-     * refers to itself.
+     * class name and contain zero, one or more attributes. Each attribute has a name, a type, and
+     * an optional description. A type cannot be defined in such a way that one of its attribute
+     * types (transitively) refers to itself.
      *
      * <p>Compared to {@link #ROW(Field...)}, which may also be considered a "struct-like" type,
      * structured types are distinguishable even if they contain the same set of fields. For
@@ -971,9 +971,9 @@ public final class DataTypes {
 
     /**
      * Data type of a user-defined object structured type. Structured types are identified by a
-     * class name and contain zero, one or more attributes. Each attribute consists of a name and a
-     * type. A type cannot be defined in such a way that one of its attribute types (transitively)
-     * refers to itself.
+     * class name and contain zero, one or more attributes. Each attribute has a name, a type, and
+     * an optional description. A type cannot be defined in such a way that one of its attribute
+     * types (transitively) refers to itself.
      *
      * <p>Compared to {@link #ROW(Field...)}, which may also be considered a "struct-like" type,
      * structured types are distinguishable even if they contain the same set of fields. For

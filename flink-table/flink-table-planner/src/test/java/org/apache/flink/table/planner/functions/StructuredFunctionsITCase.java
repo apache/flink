@@ -36,6 +36,7 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                         .andDataTypes(DataTypes.INT(), DataTypes.STRING())
                         .withFunction(Type1.Type1Constructor.class)
                         .withFunction(Type2.Type2Constructor.class)
+                        .withFunction(NestedType.NestedConstructor.class)
                         // Same value from function
                         .testSqlResult(
                                 "Type1Constructor(f0, f1) = Type1Constructor(14, 'Bob')",
@@ -75,7 +76,16 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                                 "Type1Constructor(f0, f1) = CAST((14, 'Bob') AS STRUCTURED<'"
                                         + Type1.class.getName()
                                         + "', a BOOLEAN, b BOOLEAN>)",
-                                "Cannot apply '=' to arguments"));
+                                "Cannot apply '=' to arguments")
+                        // Test nesting
+                        .testSqlResult(
+                                String.format(
+                                        "NestedConstructor(Type1Constructor(f0, f1), Type2Constructor(15, 'Alice')) = CAST("
+                                                + "(CAST((14, 'Bob') AS %s), CAST((15, 'Alice') AS %s))"
+                                                + " AS %s)",
+                                        Type1.TYPE, Type2.TYPE, NestedType.TYPE),
+                                true,
+                                DataTypes.BOOLEAN()));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -84,7 +94,7 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
 
     /** Structured type Type1. */
     public static class Type1 {
-        public static final String TYPE =
+        private static final String TYPE =
                 "STRUCTURED<'" + Type1.class.getName() + "', a INT, b STRING>";
 
         public Integer a;
@@ -102,7 +112,7 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
 
     /** Structured type Type2. */
     public static class Type2 {
-        public static final String TYPE =
+        private static final String TYPE =
                 "STRUCTURED<'" + Type2.class.getName() + "', a INT, b STRING>";
 
         public Integer a;
@@ -113,6 +123,27 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                 final Type2 t = new Type2();
                 t.a = a;
                 t.b = b;
+                return t;
+            }
+        }
+    }
+
+    /** Structured type NestedType. */
+    public static class NestedType {
+        private static final String TYPE =
+                String.format(
+                        "STRUCTURED<'" + NestedType.class.getName() + "', n1 %s, n2 %s>",
+                        Type1.TYPE,
+                        Type2.TYPE);
+
+        public Type1 n1;
+        public Type2 n2;
+
+        public static class NestedConstructor extends ScalarFunction {
+            public NestedType eval(Type1 n1, Type2 n2) {
+                final NestedType t = new NestedType();
+                t.n1 = n1;
+                t.n2 = n2;
                 return t;
             }
         }

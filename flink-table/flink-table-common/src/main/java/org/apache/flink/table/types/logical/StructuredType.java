@@ -44,8 +44,8 @@ import static org.apache.flink.table.utils.EncodingUtils.escapeSingleQuotes;
 
 /**
  * Logical type of a user-defined object structured type. Structured types contain zero, one or more
- * attributes. Each attribute consists of a name and a type. A type cannot be defined in such a way
- * that one of its attribute types (transitively) refers to itself.
+ * attributes. Each attribute has a name, a type, and an optional description. A type cannot be
+ * defined in such a way that one of its attribute types (transitively) refers to itself.
  *
  * <p>Compared to {@link RowType}, which may also be considered a "struct-like" type, structured
  * types are distinguishable even if they contain the same set of fields. For example, "Visit(amount
@@ -89,7 +89,7 @@ import static org.apache.flink.table.utils.EncodingUtils.escapeSingleQuotes;
  *
  * <p>The serialized string representation is {@code STRUCTURED<'c', n0 t0 'd0', n1 t1 'd1', ...>}
  * where {@code c} is the class name, {@code n} is the unique name of a field, {@code t} is the
- * logical type of a field, {@code d} is the description of a field.
+ * logical type of a field, {@code d} is the optional description of a field.
  *
  * <h1>Implementation Class</h1>
  *
