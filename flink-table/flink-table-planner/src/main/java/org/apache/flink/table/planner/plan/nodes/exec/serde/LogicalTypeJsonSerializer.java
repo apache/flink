@@ -355,10 +355,10 @@ final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
             jsonGenerator.writeStringField(
                     FIELD_NAME_DESCRIPTION, structuredType.getDescription().get());
         }
-        if (structuredType.getImplementationClass().isPresent()) {
+        if (structuredType.getClassName().isPresent()) {
             serializerProvider.defaultSerializeField(
                     FIELD_NAME_IMPLEMENTATION_CLASS,
-                    structuredType.getImplementationClass().get(),
+                    structuredType.getClassName().get(),
                     jsonGenerator);
         }
         jsonGenerator.writeFieldName(FIELD_NAME_ATTRIBUTES);
@@ -482,16 +482,25 @@ final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
 
         @Override
         public Boolean visit(DistinctType distinctType) {
-            // catalog-based distinct types are always string serializable,
-            // however, depending on the configuration, we serialize the entire type
+            // A catalog-based distinct type is always string serializable if the children are
+            // serializable and the configuration allows it to be compact.
+            final boolean canBeCompact = distinctType.getSourceType().accept(this);
+            if (!canBeCompact) {
+                return false;
+            }
             return !serializeCatalogObjects;
         }
 
         @Override
         public Boolean visit(StructuredType structuredType) {
-            // catalog-based structured types are always string serializable,
-            // however, depending on the configuration, we serialize the entire type
-            return structuredType.getObjectIdentifier().isPresent() && !serializeCatalogObjects;
+            // Inline structured types are always string serializable.
+            // A catalog-based structured type is always string serializable if the children are
+            // serializable and the configuration allows it to be compact.
+            final boolean canBeCompact = defaultMethod(structuredType);
+            if (!canBeCompact) {
+                return false;
+            }
+            return structuredType.getObjectIdentifier().isEmpty() || !serializeCatalogObjects;
         }
 
         @Override
@@ -531,7 +540,9 @@ final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
                 case MULTISET:
                 case MAP:
                 case ROW:
+                case STRUCTURED_TYPE:
                 case NULL:
+                case DESCRIPTOR:
                     return true;
                 default:
                     // fall back to generic serialization

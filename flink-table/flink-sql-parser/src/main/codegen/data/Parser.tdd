@@ -150,6 +150,7 @@
     "org.apache.flink.sql.parser.type.ExtendedSqlRowTypeNameSpec"
     "org.apache.flink.sql.parser.type.SqlMapTypeNameSpec"
     "org.apache.flink.sql.parser.type.SqlRawTypeNameSpec"
+    "org.apache.flink.sql.parser.type.SqlStructuredTypeNameSpec"
     "org.apache.flink.sql.parser.type.SqlTimestampLtzTypeNameSpec"
     "org.apache.flink.sql.parser.utils.ParserResource"
     "org.apache.flink.sql.parser.validate.FlinkSqlConformance"
@@ -219,6 +220,7 @@
     "STATISTICS"
     "STOP"
     "STRING"
+    "STRUCTURED"
     "SUSPEND"
     "REFRESH"
     "RESUME"
@@ -661,6 +663,7 @@
     "SqlMapTypeName()"
     "SqlRawTypeName()"
     "ExtendedSqlRowTypeName()"
+    "SqlStructuredTypeName()"
   ]
 
   # List of methods for parsing builtin function calls.

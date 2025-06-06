@@ -130,7 +130,7 @@ public class SqlNodeToCallOperationTest extends SqlNodeToOperationConversionTest
                 "CALL PROCEDURE:"
                         + " (procedureIdentifier: [`p1`.`system`.`pojo_result`],"
                         + " inputTypes: [STRING, BIGINT NOT NULL],"
-                        + " outputTypes: [*org.apache.flink.table.planner.operations.SqlNodeToCallOperationTest$MyPojo<`name` STRING, `id` BIGINT NOT NULL>*],"
+                        + " outputTypes: [STRUCTURED<'org.apache.flink.table.planner.operations.SqlNodeToCallOperationTest$MyPojo', `name` STRING, `id` BIGINT NOT NULL>],"
                         + " arguments: [name, 1])");
 
         // test call the procedure with timestamp as arguments

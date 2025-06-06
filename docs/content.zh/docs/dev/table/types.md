@@ -1232,34 +1232,46 @@ equivalent to `ROW<myField INT, myOtherField BOOLEAN>`.
 
 ### User-Defined Data Types
 
-{{< tabs "udf" >}}
+#### `STRUCTURED`
+
+Data type for a user-defined object.
+
+Compared to `ROW`, which may also be considered a "struct-like" type, structured types are distinguishable even if they
+contain the same set of fields. For example, `Visit(amount DOUBLE)` is distinct from `Interaction(amount DOUBLE)` due
+its identifier.
+
+Similar to classes in object-oriented programming languages, structured types are identified by a class name and contain
+zero, one or more attributes. Each attribute has a name, a type, and an optional description. A type cannot be defined
+in such a way that one of its attribute types (transitively) refers to itself.
+
+Structured types are internally converted by the system into suitable data structures. Serialization and equality checks
+are managed by the system based on the logical type.
+
+{{< tabs "udt" >}}
+{{< tab "SQL" >}}
+```sql
+STRUCTURED<'c', n0 t0, n1 t1, ...>
+STRUCTURED<'c', n0 t0, n1 t1 'd1', ...>
+```
+The type can be declared using `STRUCTURED<'c', n0 t0 'd0', n1 t1 'd1', ...>` where `c` is the class name, `n` is the
+unique name of a field, `t` is the logical type of a field, `d` is the optional description of a field.
+{{< /tab >}}
+
 {{< tab "Java/Scala" >}}
-<span class="label label-danger">Attention</span> User-defined data types are not fully supported yet. They are
-currently (as of Flink 1.11) only exposed as unregistered structured types in parameters and return types of functions.
+Usually structured types are defined **inline** and can be reflectively extracted from a corresponding implementation class.
+For example, in the signature of an `eval()` method for functions. This is useful when programmatically defining a table
+program. They enable reusing existing JVM classes without manually defining the schema of a data type again.
 
-A structured type is similar to an object in an object-oriented programming language. It contains
-zero, one or more attributes. Each attribute consists of a name and a type.
+If the class name matches a class in the classpath, the system will convert a structured object to a JVM object at the edges
+of the table ecosystem (e.g. when bridging to a function or connector). The implementation class must provide either a
+zero-argument constructor or a full constructor that assigns all attributes.
 
-There are two kinds of structured types:
+But the class name does not need to be resolvable in the classpath, it may be used solely to distinguish between objects with
+identical attribute sets. However, in Table API and UDF calls, the system will attempt to resolve the class name to an
+actual implementation class. If resolution fails, `Row` is used as a fallback.
 
-- Types that are stored in a catalog and are identified by a _catalog identifier_ (like `cat.db.MyType`). Those
-are equal to the SQL standard definition of structured types.
-
-- Anonymously defined, unregistered types (usually reflectively extracted) that are identified by
-an _implementation class_ (like `com.myorg.model.MyType`). Those are useful when programmatically
-defining a table program. They enable reusing existing JVM classes without manually defining the
-schema of a data type again.
-
-#### Registered Structured Types
-
-Currently, registered structured types are not supported. Thus, they cannot be stored in a catalog
-or referenced in a `CREATE TABLE` DDL.
-
-#### Unregistered Structured Types
-
-Unregistered structured types can be created from regular POJOs (Plain Old Java Objects) using automatic reflective extraction.
-
-The implementation class of a structured type must meet the following requirements:
+Inline structured types can be created from regular POJOs (Plain Old Java Objects) if the implementation class meets the
+following requirements:
 - The class must be globally accessible which means it must be declared `public`, `static`, and not `abstract`.
 - The class must offer a default constructor with zero arguments or a full constructor that assigns all
 fields.
@@ -1281,15 +1293,51 @@ For some classes an annotation is required in order to map the class to a data t
 to assign a fixed precision and scale for `java.math.BigDecimal`).
 {{< /tab >}}
 {{< tab "Python" >}}
+```python
+Not supported.
+```
 {{< /tab >}}
 {{< /tabs >}}
 
 **Declaration**
 
 {{< tabs "c5e5527b-b09d-4dc5-9549-8fd2bfc7cc2a" >}}
-{{< tab "Java" >}}
+{{< tab "Java/Scala" >}}
+Structured types are usually declared via their implementation classes:
+
 ```java
-class User {
+// A simple POJO that qualifies as a structured type.
+// Note: Without a fully assigning constructor, the order of fields will be alphabetical.
+// The final data type will be:
+// STRUCTURED<'com.myorg.Customer', active BOOLEAN, id INT NOT NULL, name STRING, properties MAP<STRING, STRING>>
+class Customer {
+  public int id;
+  public String name;
+  public Map<String, String> properties;
+  public boolean active;
+}
+
+// A POJO with a fully assigning constructor defining the field order.
+// The final data type will be:
+// STRUCTURED<'com.myorg.Customer', id INT NOT NULL, name STRING, properties MAP<STRING, STRING>, active BOOLEAN>
+class Customer {
+  public int id;
+  public String name;
+  public Map<String, String> properties;
+  public boolean active;
+
+  public Customer(int id, String name, Map<String, String> properties, boolean active) {
+    this.id = id;
+    this.name = name;
+    this.properties = properties;
+    this.active = active;
+  }
+}
+
+// A POJO that uses the @DataTypeHint annotations for supporting the reflective extraction.
+// The final data type will be:
+// STRUCTURED<'com.myorg.Customer', age INT NOT NULL, modelClass RAW(...), name STRING, totalBalance DECIMAL(10, 2)>
+class Customer {
 
     // extract fields automatically
     public int age;
@@ -1301,35 +1349,30 @@ class User {
     // enrich the extraction with forcing using RAW types
     public @DataTypeHint("RAW") Class<?> modelClass;
 }
-
-DataTypes.of(User.class);
 ```
 
-**Bridging to JVM Types**
+Or via explicit declaration:
+```java
+// Provide an implementation class
+DataTypes.STRUCTURED(MyPojo.class, DataTypes.FIELD(n0, t0), DataTypes.FIELD(n1, t1), ...);
 
-| Java Type                            | Input | Output | Remarks                                 |
-|:-------------------------------------|:-----:|:------:|:----------------------------------------|
-|*class*                               | X     | X      | Originating class or subclasses (for input) or <br>superclasses (for output). *Default* |
-|`org.apache.flink.types.Row`          | X     | X      | Represent the structured type as a row. |
-|`org.apache.flink.table.data.RowData` | X     | X      | Internal data structure.                |
+// Provide a class name only, the class is resolved only if available in the classpath
+DataTypes.STRUCTURED("com.myorg.MyPojo", DataTypes.FIELD(n0, t0), DataTypes.FIELD(n1, t1), ...);
 
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-case class User(
+// Full example
+DataTypes.STRUCTURED(
+  Customer.class,
+  DataTypes.FIELD("age", DataTypes.INT().notNull()),
+  DataTypes.FIELD("name", DataTypes.STRING())
+);
+```
 
-    // extract fields automatically
-    age: Int,
-    name: String,
+Or via explicit extraction:
+```java
+DataTypes.of(Class);
 
-    // enrich the extraction with precision information
-    @DataTypeHint("DECIMAL(10, 2)") totalBalance: java.math.BigDecimal,
-
-    // enrich the extraction with forcing using a RAW type
-    @DataTypeHint("RAW") modelClass: Class[_]
-)
-
-DataTypes.of(classOf[User])
+// For example:
+DataTypes.of(Customer.class);
 ```
 
 **Bridging to JVM Types**

@@ -27,7 +27,6 @@ import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.TimestampKind;
 
 import static org.apache.flink.table.types.inference.InputTypeStrategies.LITERAL;
@@ -155,14 +154,14 @@ public final class SpecificInputTypeStrategies {
      * arguments.
      */
     public static final InputTypeStrategy TWO_FULLY_COMPARABLE =
-            comparable(ConstantArgumentCount.of(2), StructuredType.StructuredComparison.FULL);
+            comparable(ConstantArgumentCount.of(2), StructuredComparison.FULL);
 
     /**
      * Strategy that checks all types are equals comparable with each other. Requires exactly two
      * arguments.
      */
     public static final InputTypeStrategy TWO_EQUALS_COMPARABLE =
-            comparable(ConstantArgumentCount.of(2), StructuredType.StructuredComparison.EQUALS);
+            comparable(ConstantArgumentCount.of(2), StructuredComparison.EQUALS);
 
     /** Type strategy specific for {@link BuiltInFunctionDefinitions#IN}. */
     public static final InputTypeStrategy IN = new SubQueryInputTypeStrategy();

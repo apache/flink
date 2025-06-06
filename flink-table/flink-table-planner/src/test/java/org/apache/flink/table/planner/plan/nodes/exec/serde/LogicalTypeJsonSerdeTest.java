@@ -39,7 +39,7 @@ import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
-import org.apache.flink.table.types.logical.DistinctType;
+import org.apache.flink.table.types.logical.DescriptorType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
@@ -52,6 +52,7 @@ import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.logical.SymbolType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampKind;
@@ -77,7 +78,6 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -284,53 +284,33 @@ public class LogicalTypeJsonSerdeTest {
                                 VarCharType.ofEmptyLiteral(),
                                 BinaryType.ofEmptyLiteral(),
                                 VarBinaryType.ofEmptyLiteral()),
-                        // registered structured type
-                        StructuredType.newBuilder(
-                                        ObjectIdentifier.of("cat", "db", "structuredType"),
-                                        PojoClass.class)
-                                .attributes(
-                                        Arrays.asList(
-                                                new StructuredType.StructuredAttribute(
-                                                        "f0", new IntType(true)),
-                                                new StructuredType.StructuredAttribute(
-                                                        "f1", new BigIntType(true)),
-                                                new StructuredType.StructuredAttribute(
-                                                        "f2", new VarCharType(200), "desc")))
-                                .comparison(StructuredType.StructuredComparison.FULL)
-                                .setFinal(false)
-                                .setInstantiable(false)
-                                .superType(
-                                        StructuredType.newBuilder(
-                                                        ObjectIdentifier.of(
-                                                                "cat", "db", "structuredType2"))
-                                                .attributes(
-                                                        Collections.singletonList(
-                                                                new StructuredType
-                                                                        .StructuredAttribute(
-                                                                        "f0",
-                                                                        new BigIntType(false))))
-                                                .build())
-                                .description("description for StructuredType")
-                                .build(),
-                        // unregistered structured type
+                        // inline structured type with resolved class
                         StructuredType.newBuilder(PojoClass.class)
                                 .attributes(
                                         Arrays.asList(
-                                                new StructuredType.StructuredAttribute(
-                                                        "f0", new IntType(true)),
-                                                new StructuredType.StructuredAttribute(
-                                                        "f1", new BigIntType(true)),
-                                                new StructuredType.StructuredAttribute(
+                                                new StructuredAttribute("f0", new IntType(true)),
+                                                new StructuredAttribute("f1", new BigIntType(true)),
+                                                new StructuredAttribute(
                                                         "f2", new VarCharType(200), "desc")))
                                 .build(),
-                        // registered distinct type
-                        DistinctType.newBuilder(
-                                        ObjectIdentifier.of("cat", "db", "distinctType"),
-                                        new VarCharType(5))
+                        // inline structured type with class name only
+                        StructuredType.newBuilder(PojoClass.class.getName())
+                                .attributes(
+                                        Arrays.asList(
+                                                new StructuredAttribute("f0", new IntType(true)),
+                                                new StructuredAttribute("f1", new BigIntType(true)),
+                                                new StructuredAttribute(
+                                                        "f2", new VarCharType(200), "desc")))
                                 .build(),
-                        DistinctType.newBuilder(
-                                        ObjectIdentifier.of("cat", "db", "distinctType"),
-                                        new VarCharType(false, 5))
+                        // inline structured type with time indicator type
+                        StructuredType.newBuilder(PojoClass.class.getName())
+                                .attributes(
+                                        Arrays.asList(
+                                                new StructuredAttribute("f0", new IntType(true)),
+                                                new StructuredAttribute(
+                                                        "f1",
+                                                        new TimestampType(
+                                                                false, TimestampKind.ROWTIME, 3))))
                                 .build(),
                         // custom RawType
                         new RawType<>(LocalDateTime.class, LocalDateTimeSerializer.INSTANCE),
@@ -338,7 +318,8 @@ public class LogicalTypeJsonSerdeTest {
                         new RawType<>(
                                 Row.class,
                                 ExternalSerializer.of(
-                                        DataTypes.ROW(DataTypes.INT(), DataTypes.STRING()))));
+                                        DataTypes.ROW(DataTypes.INT(), DataTypes.STRING()))),
+                        new DescriptorType());
 
         final List<LogicalType> mutableTypes = new ArrayList<>(types);
 

@@ -24,8 +24,11 @@ import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.legacy.types.logical.TypeInformationRawType
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.planner.plan.schema._
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.types.{LogicalTypeDataTypeConverter, PlannerTypeUtils}
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.utils.TableSchemaUtils
 import org.apache.flink.types.Nothing
@@ -388,6 +391,29 @@ class FlinkTypeFactory(
     val rawType = RawType.restore(classLoader, className, serializerString)
     val rawRelDataType = createFieldTypeFromLogicalType(rawType)
     canonize(rawRelDataType)
+  }
+
+  override def createStructuredType(
+      className: String,
+      fieldTypes: util.List[RelDataType],
+      fieldNames: util.List[String]): RelDataType = {
+    val resolvedClass = toScala(StructuredType.resolveClass(classLoader, className))
+    val builder = resolvedClass
+      .map(StructuredType.newBuilder)
+      .getOrElse(StructuredType.newBuilder(className))
+
+    val relFields = 0
+      .until(fieldTypes.size())
+      .map(i => new RelDataTypeFieldImpl(fieldNames.get(i), i, fieldTypes.get(i)))
+      .map(_.asInstanceOf[RelDataTypeField])
+      .toList
+
+    val attributes =
+      relFields.map(f => new StructuredAttribute(f.getName, toLogicalType(f.getType)))
+    builder.attributes(attributes.asJava)
+
+    val relDataType = new StructuredRelDataType(builder.build(), relFields.asJava)
+    canonize(relDataType)
   }
 
   override def createSqlType(typeName: SqlTypeName): RelDataType = {

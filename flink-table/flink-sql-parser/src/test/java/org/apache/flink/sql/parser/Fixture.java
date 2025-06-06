@@ -29,6 +29,7 @@ public class Fixture {
 
     static final String RAW_TYPE_INT_CLASS = "java.lang.Integer";
     static final String RAW_TYPE_INT_SERIALIZER_STRING = "<Serializer Snapshot>";
+    static final String STRUCTURED_TYPE_NAME = "org.apache.flink.MyStructuredType";
 
     final RelDataType char1Type;
     final RelDataType char33Type;
@@ -112,8 +113,9 @@ public class Fixture {
         return typeFactory.createStructType(keyTypes, names);
     }
 
-    public RelDataType createRawType(String className, String serializerString) {
-        return typeFactory.createRawType(className, serializerString);
+    public RelDataType createStructuredType(
+            String className, List<RelDataType> typeList, List<String> fieldNameList) {
+        return typeFactory.createStructuredType(className, typeList, fieldNameList);
     }
 
     public RelDataType nullable(RelDataType type) {

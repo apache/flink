@@ -32,8 +32,6 @@ import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.util.Litmus;
 import org.apache.calcite.util.NlsString;
 
-import java.util.Objects;
-
 /**
  * Represents a raw type such as {@code RAW('org.my.Class', 'sW3Djsds...')}.
  *
@@ -55,6 +53,7 @@ public final class SqlRawTypeNameSpec extends SqlTypeNameSpec {
     }
 
     @Override
+    @SuppressWarnings("DataFlowIssue")
     public RelDataType deriveType(SqlValidator validator) {
         return ((ExtendedRelTypeFactory) validator.getTypeFactory())
                 .createRawType(
@@ -79,10 +78,10 @@ public final class SqlRawTypeNameSpec extends SqlTypeNameSpec {
             return litmus.fail("{} != {}", this, spec);
         }
         SqlRawTypeNameSpec that = (SqlRawTypeNameSpec) spec;
-        if (!Objects.equals(this.className, that.className)) {
+        if (!className.equalsDeep(that.className, litmus)) {
             return litmus.fail("{} != {}", this, spec);
         }
-        if (!Objects.equals(this.serializerString, that.serializerString)) {
+        if (!serializerString.equalsDeep(that.serializerString, litmus)) {
             return litmus.fail("{} != {}", this, spec);
         }
         return litmus.succeed();

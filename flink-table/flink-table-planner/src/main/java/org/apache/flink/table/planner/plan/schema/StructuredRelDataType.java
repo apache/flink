@@ -36,21 +36,17 @@ import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * The {@link RelDataType} representation of a {@link StructuredType}.
  *
- * <p>It extends {@link ObjectSqlType} for preserving the original logical type (including an
- * optional implementation class) and supporting anonymous/unregistered structured types from Table
- * API.
+ * <p>It extends {@link ObjectSqlType} for by inline structured types and an optional implementation
+ * class.
  */
 @Internal
 public final class StructuredRelDataType extends ObjectSqlType {
 
     private static final String IDENTIFIER_FORMAT = "*%s*";
-
-    private static final String DIGEST_FORMAT = "*%s(%s)*%s";
 
     private final StructuredType structuredType;
 
@@ -108,25 +104,7 @@ public final class StructuredRelDataType extends ObjectSqlType {
             return;
         }
         if (withDetail) {
-            if (structuredType.getObjectIdentifier().isPresent()) {
-                sb.append(structuredType.asSerializableString());
-            }
-            // in case of inline structured types we are using a temporary digest
-            // that includes both the implementation class plus its children for cases with classes
-            // that use generics
-            else {
-                sb.append(
-                        String.format(
-                                DIGEST_FORMAT,
-                                structuredType
-                                        .getImplementationClass()
-                                        .map(Class::getName)
-                                        .orElseThrow(IllegalStateException::new),
-                                fieldList.stream()
-                                        .map(field -> field.getType().getFullTypeString())
-                                        .collect(Collectors.joining(", ")),
-                                structuredType.isNullable() ? "" : " NOT NULL"));
-            }
+            sb.append(structuredType.asSerializableString());
         } else {
             sb.append(structuredType.asSummaryString());
         }
@@ -149,8 +127,7 @@ public final class StructuredRelDataType extends ObjectSqlType {
                                         String.format(
                                                 IDENTIFIER_FORMAT,
                                                 structuredType
-                                                        .getImplementationClass()
-                                                        .map(Class::getName)
+                                                        .getClassName()
                                                         .orElseThrow(IllegalStateException::new)),
                                         SqlParserPos.ZERO));
     }

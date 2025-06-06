@@ -29,10 +29,13 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Logical type of a user-defined distinct type. A distinct type specifies an identifier and is
- * backed by a source type. A distinct type has the same internal representation as a source type,
- * but is considered to be a separate and incompatible data type for most operations. Compared to
- * the SQL standard, every non-user-defined type can be used as a source type.
+ * Logical type of a user-defined distinct type. This type is currently not fully supported in the
+ * planner and remains future work.
+ *
+ * <p>A distinct type specifies an identifier and is backed by a source type. A distinct type has
+ * the same internal representation as the source type, but is considered to be a separate and
+ * incompatible data type for most operations. Compared to the SQL standard, every non-user-defined
+ * type can be used as a source type.
  *
  * <p>A distinct type can always be cast to its source type and vice versa.
  *
@@ -115,6 +118,14 @@ public final class DistinctType extends UserDefinedType {
                 getObjectIdentifier().orElseThrow(IllegalStateException::new),
                 sourceType.copy(isNullable),
                 getDescription().orElse(null));
+    }
+
+    @Override
+    public String asSerializableString() {
+        return withNullability(
+                getObjectIdentifier()
+                        .orElseThrow(IllegalStateException::new)
+                        .asSerializableString());
     }
 
     @Override

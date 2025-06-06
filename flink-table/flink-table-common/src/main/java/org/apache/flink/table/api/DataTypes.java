@@ -23,7 +23,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.catalog.DataTypeFactory;
-import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.AtomicDataType;
@@ -66,6 +65,7 @@ import org.apache.flink.table.types.logical.YearMonthIntervalType.YearMonthResol
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -928,28 +928,37 @@ public final class DataTypes {
     }
 
     /**
-     * Data type of a user-defined object structured type. Structured types contain zero, one or
-     * more attributes. Each attribute consists of a name and a type. A type cannot be defined so
-     * that one of its attribute types (transitively) uses itself.
+     * Data type of a user-defined object structured type. Structured types are identified by a
+     * class name and contain zero, one or more attributes. Each attribute has a name, a type, and
+     * an optional description. A type cannot be defined in such a way that one of its attribute
+     * types (transitively) refers to itself.
      *
-     * <p>There are two kinds of structured types. Types that are stored in a catalog and are
-     * identified by an {@link ObjectIdentifier} or anonymously defined, unregistered types (usually
-     * reflectively extracted) that are identified by an implementation {@link Class}.
+     * <p>Compared to {@link #ROW(Field...)}, which may also be considered a "struct-like" type,
+     * structured types are distinguishable even if they contain the same set of fields. For
+     * example, "Visit(amount DOUBLE)" is distinct from "Interaction(amount DOUBLE)" due its
+     * identifier.
      *
-     * <p>This method helps in manually constructing anonymous, unregistered types. This is useful
-     * in cases where the reflective extraction using {@link DataTypes#of(Class)} is not applicable.
-     * However, {@link DataTypes#of(Class)} is the recommended way of creating inline structured
-     * types as it also considers {@link DataTypeHint}s.
+     * <p>This method allows for manually constructing an inline structured type. This is useful in
+     * cases where the reflective extraction using {@link DataTypes#of(Class)} is not applicable.
+     * However, {@link DataTypes#of(Class)} is the recommended approach for creating inline
+     * structured types, as it also considers {@link DataTypeHint}s.
      *
-     * <p>Structured types are converted to internal data structures by the runtime. The given
-     * implementation class is only used at the edges of the table ecosystem (e.g. when bridging to
-     * a function or connector). Serialization and equality ({@code hashCode/equals}) are handled by
-     * the runtime based on the logical type. An implementation class must offer a default
-     * constructor with zero arguments or a full constructor that assigns all attributes.
+     * <p>Structured types are internally converted by the system into suitable data structures.
+     * Serialization and equality checks (e.g. {@code hashCode/equals}) are managed by the system
+     * based on the logical type.
      *
-     * <p>Note: A caller of this method must make sure that the {@link
-     * DataType#getConversionClass()} of the given fields matches with the attributes of the given
-     * implementation class, otherwise an exception might be thrown during runtime.
+     * <p>If an optional implementation class is provided, the system will convert a structured
+     * object to a JVM object at the edges of the table ecosystem (e.g. when bridging to a function
+     * or connector). The implementation class must provide either a zero-argument constructor or a
+     * full constructor that assigns all attributes. The class name does not need to be resolvable
+     * in the classpath; it may be used solely to distinguish between objects with identical
+     * attribute sets. However, in Table API and UDF calls, the system will attempt to resolve the
+     * class name to an actual implementation class. If resolution fails, {@link Row} is used as a
+     * fallback.
+     *
+     * <p>Note: The caller of this method must ensure that the {@link DataType#getConversionClass()}
+     * of each field matches the corresponding attribute in the implementation class. Otherwise, a
+     * runtime exception may be thrown.
      *
      * @see DataTypes#of(Class)
      * @see StructuredType
@@ -957,8 +966,50 @@ public final class DataTypes {
     public static <T> DataType STRUCTURED(Class<T> implementationClass, Field... fields) {
         // some basic validation of the class to prevent common mistakes
         validateStructuredClass(implementationClass);
+        return buildStructuredType(StructuredType.newBuilder(implementationClass), fields);
+    }
 
-        final StructuredType.Builder builder = StructuredType.newBuilder(implementationClass);
+    /**
+     * Data type of a user-defined object structured type. Structured types are identified by a
+     * class name and contain zero, one or more attributes. Each attribute has a name, a type, and
+     * an optional description. A type cannot be defined in such a way that one of its attribute
+     * types (transitively) refers to itself.
+     *
+     * <p>Compared to {@link #ROW(Field...)}, which may also be considered a "struct-like" type,
+     * structured types are distinguishable even if they contain the same set of fields. For
+     * example, "Visit(amount DOUBLE)" is distinct from "Interaction(amount DOUBLE)" due its
+     * identifier.
+     *
+     * <p>This method allows for manually constructing an inline structured type. This is useful in
+     * cases where the reflective extraction using {@link DataTypes#of(Class)} is not applicable.
+     * However, {@link DataTypes#of(Class)} is the recommended approach for creating inline
+     * structured types, as it also considers {@link DataTypeHint}s.
+     *
+     * <p>Structured types are internally converted by the system into suitable data structures.
+     * Serialization and equality checks (e.g. {@code hashCode/equals}) are managed by the system
+     * based on the logical type.
+     *
+     * <p>If an optional implementation class is provided, the system will convert a structured
+     * object to a JVM object at the edges of the table ecosystem (e.g. when bridging to a function
+     * or connector). The implementation class must provide either a zero-argument constructor or a
+     * full constructor that assigns all attributes. The class name does not need to be resolvable
+     * in the classpath; it may be used solely to distinguish between objects with identical
+     * attribute sets. However, in Table API and UDF calls, the system will attempt to resolve the
+     * class name to an actual implementation class. If resolution fails, {@link Row} is used as a
+     * fallback.
+     *
+     * <p>Note: The caller of this method must ensure that the {@link DataType#getConversionClass()}
+     * of each field matches the corresponding attribute in the implementation class. Otherwise, a
+     * runtime exception may be thrown.
+     *
+     * @see DataTypes#of(Class)
+     * @see StructuredType
+     */
+    public static <T> DataType STRUCTURED(String className, Field... fields) {
+        return buildStructuredType(StructuredType.newBuilder(className), fields);
+    }
+
+    private static DataType buildStructuredType(StructuredType.Builder builder, Field... fields) {
         final List<StructuredAttribute> attributes =
                 Stream.of(fields)
                         .map(
@@ -969,11 +1020,12 @@ public final class DataTypes {
                                                 f.getDescription().orElse(null)))
                         .collect(Collectors.toList());
         builder.attributes(attributes);
-        builder.setFinal(true);
-        builder.setInstantiable(true);
+        final StructuredType structuredType = builder.build();
+
         final List<DataType> fieldDataTypes =
                 Stream.of(fields).map(DataTypes.Field::getDataType).collect(Collectors.toList());
-        return new FieldsDataType(builder.build(), implementationClass, fieldDataTypes);
+        return new FieldsDataType(
+                structuredType, structuredType.getDefaultConversion(), fieldDataTypes);
     }
 
     // --------------------------------------------------------------------------------------------
