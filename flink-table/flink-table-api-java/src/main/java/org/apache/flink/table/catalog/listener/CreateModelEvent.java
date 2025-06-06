@@ -24,7 +24,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 
 /** When a model is created, a {@link CreateModelEvent} event will be created and fired. */
 @PublicEvolving
-public interface CreateModelEvent extends CatalogModificationEvent {
+public interface CreateModelEvent extends ModelModificationEvent {
     ObjectIdentifier identifier();
 
     CatalogModel model();

@@ -99,7 +99,8 @@ public class TimestampsAndWatermarksOperator<T> extends AbstractStreamOperator<T
                                 new WatermarkGeneratorSupplier.Context() {
                                     @Override
                                     public MetricGroup getMetricGroup() {
-                                        return this.getMetricGroup();
+                                        return TimestampsAndWatermarksOperator.this
+                                                .getMetricGroup();
                                     }
 
                                     @Override

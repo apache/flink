@@ -34,6 +34,7 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
@@ -107,6 +108,8 @@ public class CompactorOperator
     // submitted again while restoring
     private ListState<Map<Long, List<CompactorRequest>>> remainingRequestsState;
 
+    private long lastKnownCheckpointId = CheckpointIDCounter.INITIAL_CHECKPOINT_ID - 1;
+
     public CompactorOperator(
             StreamOperatorParameters<CommittableMessage<FileSinkCommittable>> parameters,
             FileCompactStrategy strategy,
@@ -139,15 +142,16 @@ public class CompactorOperator
     @Override
     public void endInput() throws Exception {
         // add collecting requests into the final snapshot
-        checkpointRequests.put(CommittableMessage.EOI, collectingRequests);
+        long checkpointId = lastKnownCheckpointId + 1;
+        checkpointRequests.put(checkpointId, collectingRequests);
         collectingRequests = new ArrayList<>();
 
         // submit all requests and wait until they are done
-        submitUntil(CommittableMessage.EOI);
+        submitUntil(checkpointId);
         assert checkpointRequests.isEmpty();
 
         getAllTasksFuture().join();
-        emitCompacted(CommittableMessage.EOI);
+        emitCompacted(checkpointId);
         assert compactingRequests.isEmpty();
     }
 
@@ -225,6 +229,8 @@ public class CompactorOperator
     }
 
     private void emitCompacted(long checkpointId) throws Exception {
+        lastKnownCheckpointId = checkpointId;
+
         List<FileSinkCommittable> compacted = new ArrayList<>();
         Iterator<Tuple2<CompactorRequest, CompletableFuture<Iterable<FileSinkCommittable>>>> iter =
                 compactingRequests.iterator();
@@ -251,7 +257,6 @@ public class CompactorOperator
                         getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
                         getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks(),
                         checkpointId,
-                        compacted.size(),
                         compacted.size(),
                         0);
         output.collect(new StreamRecord<>(summary));

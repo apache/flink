@@ -139,6 +139,7 @@ public class MetricUtils {
         instantiateMemoryMetrics(jvm.addGroup(METRIC_GROUP_MEMORY));
         instantiateThreadMetrics(jvm.addGroup("Threads"));
         instantiateCPUMetrics(jvm.addGroup("CPU"));
+        instantiateFileDescriptorMetrics(jvm.addGroup("FileDescriptor"));
     }
 
     public static void instantiateFlinkMemoryMetricGroup(
@@ -335,6 +336,30 @@ public class MetricUtils {
             LOG.debug(
                     "More than one memory pool named 'Metaspace' is present. Only the first pool was used for instantiating the '{}' metrics.",
                     METRIC_GROUP_METASPACE_NAME);
+        }
+    }
+
+    static void instantiateFileDescriptorMetrics(MetricGroup metrics) {
+        try {
+            final com.sun.management.OperatingSystemMXBean mxBean =
+                    (com.sun.management.OperatingSystemMXBean)
+                            ManagementFactory.getOperatingSystemMXBean();
+
+            if (mxBean instanceof com.sun.management.UnixOperatingSystemMXBean) {
+                com.sun.management.UnixOperatingSystemMXBean unixMXBean =
+                        (com.sun.management.UnixOperatingSystemMXBean) mxBean;
+                metrics.<Long, Gauge<Long>>gauge("Max", unixMXBean::getMaxFileDescriptorCount);
+                metrics.<Long, Gauge<Long>>gauge("Open", unixMXBean::getOpenFileDescriptorCount);
+
+            } else {
+                throw new UnsupportedOperationException(
+                        "Can't find com.sun.management.UnixOperatingSystemMXBean in JVM.");
+            }
+        } catch (Exception e) {
+            LOG.warn(
+                    "Cannot access com.sun.management.UnixOperatingSystemMXBean.getOpenFileDescriptorCount()"
+                            + " - FileDescriptor metrics will not be available.",
+                    e);
         }
     }
 

@@ -21,6 +21,7 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
 
 import java.util.Collections;
@@ -87,14 +88,14 @@ public class SortQueryOperation implements QueryOperation {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SqlFactory sqlFactory) {
         final StringBuilder s =
                 new StringBuilder(
                         String.format(
                                 "SELECT %s FROM (%s\n) %s ORDER BY %s",
                                 OperationUtils.formatSelectColumns(
                                         getResolvedSchema(), INPUT_ALIAS),
-                                OperationUtils.indent(child.asSerializableString()),
+                                OperationUtils.indent(child.asSerializableString(sqlFactory)),
                                 INPUT_ALIAS,
                                 order.stream()
                                         .map(
@@ -102,7 +103,10 @@ public class SortQueryOperation implements QueryOperation {
                                                         OperationExpressionsUtils
                                                                 .scopeReferencesWithAlias(
                                                                         INPUT_ALIAS, expr))
-                                        .map(ResolvedExpression::asSerializableString)
+                                        .map(
+                                                resolvedExpression ->
+                                                        resolvedExpression.asSerializableString(
+                                                                sqlFactory))
                                         .collect(Collectors.joining(", "))));
 
         if (offset >= 0) {

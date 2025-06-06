@@ -367,7 +367,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                         leftTypeInfo,
                         rightTypeInfo,
                         joinFunction);
-
+        // TODO: add async version procJoinFunc to use AsyncKeyedCoProcessOperator
         return ExecNodeUtil.createTwoInputTransformation(
                 leftInputTransform,
                 rightInputTransform,
@@ -404,7 +404,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                         joinFunction,
                         windowBounds.getLeftTimeIdx(),
                         windowBounds.getRightTimeIdx());
-
+        // TODO: add async version rowJoinFunc to use AsyncKeyedCoProcessOperator
         return ExecNodeUtil.createTwoInputTransformation(
                 leftInputTransform,
                 rightInputTransform,

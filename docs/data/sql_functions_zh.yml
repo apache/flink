@@ -1250,6 +1250,15 @@ valueconstruction:
   - sql: MAP '[' value1, value2 [, value3, value4 ]* ']'
     table: map(ANY1, ANY2, ANY3, ANY4, ...)
     description: 返回从键值对列表 ((value1, value2), (value3, value4), ...) 创建的 map。
+  - sql: DESCRIPTOR '(' identifier1 [, identifier2  ]* ')'
+    table: descriptor(STRING1, STRING2, ...)
+    description: |
+      Returns a literal describing an arbitrary, unvalidated list of column names. Passing a list of columns
+      can be useful for parameterizing a function. In particular, it enables declaring the `on_time` argument
+      for process table functions (PTFs).
+      ```sql
+      f(columns => DESCRIPTOR(`col1`, `col2`), on_time => DESCRIPTOR(`ts`))
+      ```
   - table: NUMERIC.rows
     description: 创建一个 NUMERIC 行间隔（通常用于窗口创建）。
 

@@ -45,7 +45,11 @@ public enum StaticArgumentTrait {
     REQUIRE_ON_TIME(TABLE),
 
     // For TABLE_AS_SET
-    OPTIONAL_PARTITION_BY(TABLE_AS_SET);
+    OPTIONAL_PARTITION_BY(TABLE_AS_SET),
+
+    // For SUPPORT_UPDATES
+    REQUIRE_UPDATE_BEFORE(SUPPORT_UPDATES),
+    REQUIRE_FULL_DELETE(SUPPORT_UPDATES);
 
     private final Set<StaticArgumentTrait> requirements;
 

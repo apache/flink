@@ -97,6 +97,21 @@ CREATE TABLE Orders (
 )
 ```
 
+对于集合类型，你可以指定集合的大小（元素个数）。
+
+```sql
+CREATE TABLE Orders (
+    f0 Array<INT>,
+    f1 Map<INT, STRING>,
+    f2 MULTISET<INT>
+) WITH (
+  'connector' = 'datagen',
+  'fields.f0.length' = '10',
+  'fields.f1.length' = '11',
+  'fields.f2.length' = '12'
+);
+```
+
 字段类型
 -----
 
@@ -285,21 +300,21 @@ CREATE TABLE Orders (
       <td>可选</td>
       <td style="word-wrap: break-word;">(Minimum value of type)</td>
       <td>(Type of field)</td>
-      <td>随机生成器的最小值，适用于数字类型。</td>
+      <td>随机生成器的最小值，仅适用于数字类型。</td>
     </tr>
     <tr>
       <td><h5>fields.#.max</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">(Maximum value of type)</td>
       <td>(Type of field)</td>
-      <td>随机生成器的最大值，适用于数字类型。</td>
+      <td>随机生成器的最大值，仅适用于数字类型。</td>
     </tr>
     <tr>
       <td><h5>fields.#.max-past</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">0</td>
       <td>Duration</td>
-      <td>随机生成器生成相对当前时间向过去偏移的最大值，适用于 timestamp 类型。</td>
+      <td>对于 string/bytes 类型为 100，对于 array/map/multiset 类型为 3。</td>
     </tr>
     <tr>
       <td><h5>fields.#.length</h5></td>
@@ -337,7 +352,7 @@ CREATE TABLE Orders (
     <tr>
       <td><h5>fields.#.null-rate</h5></td>
       <td>optional</td>
-      <td style="word-wrap: break-word;">(none)</td>
+      <td style="word-wrap: break-word;">0</td>
       <td>(Type of field)</td>
       <td>空值比例。</td>
     </tr>

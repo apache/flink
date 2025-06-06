@@ -203,8 +203,8 @@ function install_uv() {
 
     if [ ! -d "$CURRENT_DIR/.uv/venv" ]; then
         print_function "STEP" "setup uv virtualenv"
-        # Create a Python 3.11 virtual environment as the base environment.
-        $CURRENT_DIR/download/uv venv "$CURRENT_DIR/.uv" --seed --python 3.11
+        # Create a Python 3.12 virtual environment as the base environment.
+        $CURRENT_DIR/download/uv venv "$CURRENT_DIR/.uv" --seed --python 3.12
         print_function "STEP" "setup uv virtualenv... [SUCCESS]"
         # orjson depend on pip >= 20.3
         print_function "STEP" "upgrade pip..."
@@ -217,7 +217,7 @@ function install_uv() {
 
 # Create different Python virtual environments for different Python versions
 function install_py_env() {
-    py_env=("3.8" "3.9" "3.10" "3.11")
+    py_env=("3.9" "3.10" "3.11" "3.12")
     for ((i=0;i<${#py_env[@]};i++)) do
         if [ -d "$CURRENT_DIR/.uv/envs/${py_env[i]}" ]; then
             rm -rf "$CURRENT_DIR/.uv/envs/${py_env[i]}"
@@ -291,7 +291,7 @@ function install_flake8() {
         fi
     fi
 
-    $CURRENT_DIR/install_command.sh -q flake8==4.0.1 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q flake8==7.2.0 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "uv pip install flake8 failed \
         please try to exec the script again.\
@@ -378,7 +378,7 @@ function install_environment() {
     fi
 
     # step-2 install python environment which includes
-    # 3.8 3.9 3.10 3.11
+    # 3.9 3.10 3.11 3.12
     if [ $STEP -lt 2 ] && [ `need_install_component "py_env"` = true ]; then
         print_function "STEP" "installing python environment..."
         install_py_env
@@ -559,7 +559,7 @@ function check_stage() {
 #########################
 # Tox check
 function tox_check() {
-    LATEST_PYTHON="py311"
+    LATEST_PYTHON="py312"
     print_function "STAGE" "tox checks"
     # Set created py-env in $PATH for tox's creating virtual env
     activate

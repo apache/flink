@@ -50,6 +50,12 @@ under the License.
 	</scm>
 
 	<repositories>
+		<!-- Add Redhat GA repository for jackson-mapper-asl -->
+		<repository>
+			<id>redhat</id>
+			<url>https://maven.repository.redhat.com/ga/</url>
+		</repository>
+
 		<repository>
 			<id>repository.jboss.org</id>
 			<url>https://repository.jboss.org/nexus/content/groups/public/</url>
@@ -127,7 +133,7 @@ under the License.
 		<source.java.version>11</source.java.version>
 		<target.java.version>17</target.java.version>
 		<slf4j.version>1.7.36</slf4j.version>
-		<log4j.version>2.24.1</log4j.version>
+		<log4j.version>2.24.3</log4j.version>
 		<!-- Overwrite default values from parent pom.
 			 IntelliJ IDEA is (sometimes?) using those values to choose target language level
 			 and thus is changing back to java 1.6 on each maven re-import -->
@@ -143,6 +149,7 @@ under the License.
 		<curator.version>5.4.0</curator.version>
 		<avro.version>1.11.4</avro.version>
 		<!-- Version for transitive Jackson dependencies that are not used within Flink itself.-->
+		<jackson.mapper.asl.version>1.9.14.jdk17-redhat-00001</jackson.mapper.asl.version>
 		<jackson-bom.version>2.18.2</jackson-bom.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
@@ -325,6 +332,13 @@ under the License.
 			separatly in the flink-shaded-hadoop-2 dependency).
 		-->
 		<dependencies>
+
+			<!-- Setting default version for jackson-mapper-asl -->
+			<dependency>
+				<groupId>org.codehaus.jackson</groupId>
+				<artifactId>jackson-mapper-asl</artifactId>
+				<version>${jackson.mapper.asl.version}</version>
+			</dependency>
 
 			<dependency>
 				<groupId>org.apache.flink</groupId>
@@ -1047,11 +1061,6 @@ under the License.
 				<pluginManagement>
 					<plugins>
 						<plugin>
-							<groupId>org.codehaus.mojo</groupId>
-							<artifactId>build-helper-maven-plugin</artifactId>
-							<version>1.7</version>
-						</plugin>
-						<plugin>
 							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-surefire-plugin</artifactId>
 							<configuration>
@@ -1593,11 +1602,8 @@ under the License.
 						<exclude>flink-runtime-web/web-dashboard/angular.json</exclude>
 						<exclude>flink-runtime-web/web-dashboard/proxy.conf.json</exclude>
 						<exclude>flink-runtime-web/web-dashboard/tsconfig.json</exclude>
-						<exclude>flink-runtime-web/web-dashboard/tslint.json</exclude>
 						<exclude>flink-runtime-web/web-dashboard/src/browserslist</exclude>
 						<exclude>flink-runtime-web/web-dashboard/src/tsconfig.app.json</exclude>
-						<exclude>flink-runtime-web/web-dashboard/src/tsconfig.spec.json</exclude>
-						<exclude>flink-runtime-web/web-dashboard/src/tslint.json</exclude>
 
 						<!-- web dashboard non-binary assets -->
 						<exclude>flink-runtime-web/web-dashboard/src/assets/**</exclude>
@@ -2260,6 +2266,12 @@ under the License.
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-remote-resources-plugin</artifactId>
 					<version>3.2.0</version>
+				</plugin>
+				<!-- Pin the version of the build helper plugin -->
+				<plugin>
+					<groupId>org.codehaus.mojo</groupId>
+					<artifactId>build-helper-maven-plugin</artifactId>
+					<version>3.6.0</version>
 				</plugin>
 
 				<plugin>

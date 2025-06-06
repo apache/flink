@@ -47,6 +47,7 @@ public class InternalSourceSplitMetricGroup extends ProxyMetricGroup<MetricGroup
     private static final String WATERMARK = "watermark";
     private static final long SPLIT_NOT_STARTED = -1L;
     private long splitStartTime = SPLIT_NOT_STARTED;
+    private final MetricGroup splitWatermarkMetricGroup;
 
     private InternalSourceSplitMetricGroup(
             MetricGroup parentMetricGroup,
@@ -55,8 +56,7 @@ public class InternalSourceSplitMetricGroup extends ProxyMetricGroup<MetricGroup
             Gauge<Long> currentWatermark) {
         super(parentMetricGroup);
         this.clock = clock;
-        MetricGroup splitWatermarkMetricGroup =
-                parentMetricGroup.addGroup(SPLIT, splitId).addGroup(WATERMARK);
+        splitWatermarkMetricGroup = parentMetricGroup.addGroup(SPLIT, splitId).addGroup(WATERMARK);
         pausedTimePerSecond =
                 splitWatermarkMetricGroup.gauge(
                         MetricNames.SPLIT_PAUSED_TIME, new TimerGauge(clock));
@@ -83,9 +83,9 @@ public class InternalSourceSplitMetricGroup extends ProxyMetricGroup<MetricGroup
 
     @VisibleForTesting
     public static InternalSourceSplitMetricGroup mock(
-            MetricGroup metricGroup, String splitId, Gauge<Long> currentWatermakr) {
+            MetricGroup metricGroup, String splitId, Gauge<Long> currentWatermark) {
         return new InternalSourceSplitMetricGroup(
-                metricGroup, SystemClock.getInstance(), splitId, currentWatermakr);
+                metricGroup, SystemClock.getInstance(), splitId, currentWatermark);
     }
 
     @VisibleForTesting
@@ -190,5 +190,22 @@ public class InternalSourceSplitMetricGroup extends ProxyMetricGroup<MetricGroup
 
     public Boolean isActive() {
         return !isPaused() && !isIdle();
+    }
+
+    public void onSplitFinished() {
+        if (splitWatermarkMetricGroup instanceof AbstractMetricGroup) {
+            ((AbstractMetricGroup) splitWatermarkMetricGroup).close();
+        } else {
+            if (splitWatermarkMetricGroup != null) {
+                LOG.warn(
+                        "Split watermark metric group can not be closed, expecting an instance of AbstractMetricGroup but got: ",
+                        splitWatermarkMetricGroup.getClass().getName());
+            }
+        }
+    }
+
+    @VisibleForTesting
+    public MetricGroup getSplitWatermarkMetricGroup() {
+        return splitWatermarkMetricGroup;
     }
 }

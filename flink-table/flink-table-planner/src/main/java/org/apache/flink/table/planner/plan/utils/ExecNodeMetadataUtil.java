@@ -71,6 +71,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLimit;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalGroupAggregate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalWindowAggregate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLookupJoin;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMLPredictTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMatch;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMiniBatchAssigner;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMultipleInput;
@@ -170,6 +171,7 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecPythonGroupAggregate.class);
                     add(StreamExecPythonGroupWindowAggregate.class);
                     add(StreamExecPythonOverAggregate.class);
+                    add(StreamExecMLPredictTableFunction.class);
                     // Batch execution mode
                     add(BatchExecSink.class);
                     add(BatchExecTableSourceScan.class);
@@ -213,6 +215,7 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecGroupTableAggregate.class);
                     add(StreamExecPythonGroupTableAggregate.class);
                     add(StreamExecMultipleInput.class);
+                    add(StreamExecMLPredictTableFunction.class);
                 }
             };
 
@@ -283,7 +286,9 @@ public final class ExecNodeMetadataUtil {
     }
 
     private static void addToLookupMap(Class<? extends ExecNode<?>> execNodeClass) {
-        if (!hasJsonCreatorAnnotation(execNodeClass)) {
+        // TODO: remove the logic when StreamExecMLPredictTableFunction supports serde.
+        if (!hasJsonCreatorAnnotation(execNodeClass)
+                && execNodeClass != StreamExecMLPredictTableFunction.class) {
             throw new IllegalStateException(
                     String.format(
                             "ExecNode: %s does not implement @JsonCreator annotation on "

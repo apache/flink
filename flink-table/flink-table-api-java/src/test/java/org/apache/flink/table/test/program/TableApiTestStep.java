@@ -21,6 +21,7 @@ package org.apache.flink.table.test.program;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.types.AbstractDataType;
 
@@ -84,7 +85,8 @@ public class TableApiTestStep implements TestStep {
 
     public TableResult applyAsSql(TableEnvironment env) {
         final Table table = toTable(env);
-        final String query = table.getQueryOperation().asSerializableString();
+        final String query =
+                table.getQueryOperation().asSerializableString(DefaultSqlFactory.INSTANCE);
         return env.executeSql(String.format("INSERT INTO %s %s", sinkName, query));
     }
 

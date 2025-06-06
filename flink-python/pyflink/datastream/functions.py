@@ -1247,8 +1247,8 @@ class InternalSingleValueProcessWindowFunction(InternalWindowFunction[IN, OUT, K
 
     def __init__(self, wrapped_function: ProcessWindowFunction):
         self._wrapped_function = wrapped_function
-        self._internal_context = \
-            InternalProcessWindowContext()  # type: InternalProcessWindowContext
+        self._internal_context: InternalProcessWindowContext = \
+            InternalProcessWindowContext()
 
     def open(self, runtime_context: RuntimeContext):
         self._wrapped_function.open(runtime_context)
@@ -1275,8 +1275,8 @@ class InternalSingleValueProcessAllWindowFunction(InternalWindowFunction[IN, OUT
 
     def __init__(self, wrapped_function: ProcessAllWindowFunction):
         self._wrapped_function = wrapped_function
-        self._internal_context = \
-            InternalProcessAllWindowContext()  # type: InternalProcessAllWindowContext
+        self._internal_context: InternalProcessAllWindowContext = \
+            InternalProcessAllWindowContext()
 
     def open(self, runtime_context: RuntimeContext):
         self._wrapped_function.open(runtime_context)
@@ -1303,8 +1303,8 @@ class InternalIterableProcessWindowFunction(InternalWindowFunction[Iterable[IN],
 
     def __init__(self, wrapped_function: ProcessWindowFunction):
         self._wrapped_function = wrapped_function
-        self._internal_context = \
-            InternalProcessWindowContext()  # type: InternalProcessWindowContext
+        self._internal_context: InternalProcessWindowContext = \
+            InternalProcessWindowContext()
 
     def open(self, runtime_context: RuntimeContext):
         self._wrapped_function.open(runtime_context)
@@ -1600,8 +1600,8 @@ class InternalIterableProcessAllWindowFunction(InternalWindowFunction[Iterable[I
 
     def __init__(self, wrapped_function: ProcessAllWindowFunction):
         self._wrapped_function = wrapped_function
-        self._internal_context = \
-            InternalProcessAllWindowContext()  # type: InternalProcessAllWindowContext
+        self._internal_context: InternalProcessAllWindowContext = \
+            InternalProcessAllWindowContext()
 
     def open(self, runtime_context: RuntimeContext):
         self._wrapped_function.open(runtime_context)

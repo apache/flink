@@ -180,7 +180,7 @@ Unbounded over windows start with the first row of a partition.
 
 .. versionadded:: 1.12.0
 """
-UNBOUNDED_ROW = Expression("UNBOUNDED_ROW")  # type: Expression
+UNBOUNDED_ROW: Expression = Expression("UNBOUNDED_ROW")
 
 
 """
@@ -190,7 +190,7 @@ Unbounded over windows start with the first row of a partition.
 
 .. versionadded:: 1.12.0
 """
-UNBOUNDED_RANGE = Expression("UNBOUNDED_RANGE")  # type: Expression
+UNBOUNDED_RANGE: Expression = Expression("UNBOUNDED_RANGE")
 
 
 """
@@ -199,7 +199,7 @@ Use this for setting the upper bound of the window to the current row.
 
 .. versionadded:: 1.12.0
 """
-CURRENT_ROW = Expression("CURRENT_ROW")  # type: Expression
+CURRENT_ROW: Expression = Expression("CURRENT_ROW")
 
 
 """
@@ -209,7 +209,7 @@ all rows with the same sort key as the current row are included in the window.
 
 .. versionadded:: 1.12.0
 """
-CURRENT_RANGE = Expression("CURRENT_RANGE")  # type: Expression
+CURRENT_RANGE: Expression = Expression("CURRENT_RANGE")
 
 
 def current_database() -> Expression:

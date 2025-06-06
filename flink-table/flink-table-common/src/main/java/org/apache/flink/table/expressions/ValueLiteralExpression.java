@@ -48,6 +48,7 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.Period;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -226,7 +227,7 @@ public final class ValueLiteralExpression implements ResolvedExpression {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SqlFactory sqlFactory) {
         if (value == null && !dataType.getLogicalType().is(LogicalTypeRoot.NULL)) {
             return String.format(
                     "CAST(NULL AS %s)",
@@ -271,12 +272,15 @@ public final class ValueLiteralExpression implements ResolvedExpression {
             case DATE:
                 return String.format("DATE '%s'", getValueAs(LocalDate.class).get());
             case TIME_WITHOUT_TIME_ZONE:
-                return String.format("TIME '%s'", getValueAs(LocalTime.class).get());
+                final LocalTime localTime = getValueAs(LocalTime.class).get();
+                return String.format(
+                        "TIME '%s'", localTime.format(DateTimeFormatter.ISO_LOCAL_TIME));
             case TIMESTAMP_WITHOUT_TIME_ZONE:
                 final LocalDateTime localDateTime = getValueAs(LocalDateTime.class).get();
                 return String.format(
                         "TIMESTAMP '%s %s'",
-                        localDateTime.toLocalDate(), localDateTime.toLocalTime());
+                        localDateTime.toLocalDate(),
+                        localDateTime.toLocalTime().format(DateTimeFormatter.ISO_LOCAL_TIME));
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 final Instant instant = getValueAs(Instant.class).get();
                 if (instant.getNano() % 1_000_000 != 0) {

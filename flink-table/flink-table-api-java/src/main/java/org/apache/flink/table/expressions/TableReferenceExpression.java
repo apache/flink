@@ -85,12 +85,12 @@ public final class TableReferenceExpression implements ResolvedExpression {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SqlFactory sqlFactory) {
         if (queryOperation instanceof PartitionQueryOperation) {
-            return OperationUtils.indent(queryOperation.asSerializableString());
+            return OperationUtils.indent(queryOperation.asSerializableString(sqlFactory));
         }
         return String.format(
-                "(%s\n)", OperationUtils.indent(queryOperation.asSerializableString()));
+                "(%s\n)", OperationUtils.indent(queryOperation.asSerializableString(sqlFactory)));
     }
 
     @Override

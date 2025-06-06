@@ -47,6 +47,8 @@ import java.util.List;
 public class SlidingEventTimeWindows extends WindowAssigner<Object, TimeWindow> {
     private static final long serialVersionUID = 1L;
 
+    public static final int MAX_WINDOW_NUM = 10000000;
+
     private final long size;
 
     private final long slide;
@@ -58,6 +60,12 @@ public class SlidingEventTimeWindows extends WindowAssigner<Object, TimeWindow> 
             throw new IllegalArgumentException(
                     "SlidingEventTimeWindows parameters must satisfy "
                             + "abs(offset) < slide and size > 0");
+        }
+        if (size / slide > MAX_WINDOW_NUM) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "SlidingEventTimeWindows parameters must satisfy size / slide <= %d",
+                            MAX_WINDOW_NUM));
         }
 
         this.size = size;

@@ -27,7 +27,6 @@ import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.coordination.MockOperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
@@ -103,7 +102,6 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
 
         this.subtaskIndex = subtaskIndex;
         this.parallelism = parallelism;
-        this.metrics = UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
         initSourceMetricGroup();
 
         // unchecked wrapping is okay to keep tests simpler

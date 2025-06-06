@@ -28,8 +28,8 @@ import javax.annotation.Nullable;
 import static org.apache.flink.table.functions.ProcessTableFunction.TimeContext;
 
 /**
- * Internal {@link TimeContext} for PTFs with row semantics, PTFs without table arguments, or traits
- * {@link StaticArgumentTrait#PASS_COLUMNS_THROUGH} and {@link StaticArgumentTrait#SUPPORT_UPDATES}.
+ * Internal {@link TimeContext} for PTFs with row semantics, PTFs without table arguments, or trait
+ * {@link StaticArgumentTrait#PASS_COLUMNS_THROUGH}.
  */
 @Internal
 class ReadableInternalTimeContext implements ProcessTableFunction.TimeContext<Long> {

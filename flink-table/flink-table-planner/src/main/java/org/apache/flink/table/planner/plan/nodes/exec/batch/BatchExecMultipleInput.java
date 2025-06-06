@@ -262,6 +262,10 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
         return originalEdges;
     }
 
+    public List<ExecNode<?>> getMemberExecNodes() {
+        return memberExecNodes;
+    }
+
     @VisibleForTesting
     public ExecNode<?> getRootNode() {
         return rootNode;

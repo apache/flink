@@ -39,7 +39,7 @@ python pyflink/gen_protos.py
 ```
 
 PyFlink depends on the following libraries to execute the above script:
-1. grpcio-tools (>=1.29.0,<=1.50.0)
+1. grpcio-tools (>=1.29.0,<=1.71.0)
 2. setuptools (>=37.0.0)
 3. pip (>=20.3)
 
@@ -60,13 +60,13 @@ export FLINK_UV_HOME=$(dirname $(dirname $(which uv)))
 
 Create a virtual environment:
 ```shell
-uv venv pyflink_38 --python=3.8
+uv venv pyflink_39 --python=3.9
 ```
 
 Then you can activate your environment and run tests, for example:
 
 ```shell
-source pyflink_38/bin/activate
+source pyflink_39/bin/activate
 uv pip install -r ./dev/dev-requirements.txt
 ./dev/lint-python.sh
 ```

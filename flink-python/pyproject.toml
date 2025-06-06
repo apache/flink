@@ -21,13 +21,14 @@ requires = [
     "packaging>=20.5; platform_machine=='arm64'",  # macos M1
     "setuptools>=75.3",
     "wheel",
+    "cython>=0.29.24,<3; sys_platform == 'darwin' and python_version == '3.8'",
+    "fastavro==1.7.4; sys_platform == 'darwin' and python_version == '3.8'",
     "apache-beam>=2.54.0,<=2.61.0",
-    "cython>=0.29.24",
-    "fastavro>=1.1.0,!=1.8.0"
+    "cython>=0.29.24"
 ]
 
 [tool.cibuildwheel]
-build = ["cp38-*", "cp39-*", "cp310-*", "cp311-*"]
+build = ["cp39-*", "cp310-*", "cp311-*", "cp312-*"]
 
 [tool.cibuildwheel.macos]
 archs = ["x86_64", "arm64"]

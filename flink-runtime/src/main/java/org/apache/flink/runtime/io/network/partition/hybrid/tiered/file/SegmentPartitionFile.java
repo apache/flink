@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.file;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -46,7 +47,7 @@ public class SegmentPartitionFile {
 
     static final String SEGMENT_FILE_PREFIX = "seg-";
 
-    static final String SEGMENT_FINISH_DIR_NAME = "FINISH";
+    @VisibleForTesting public static final String SEGMENT_FINISH_DIR_NAME = "FINISH";
 
     public static SegmentPartitionFileWriter createPartitionFileWriter(
             String dataFilePath, int numSubpartitions) {

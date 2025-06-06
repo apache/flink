@@ -156,6 +156,9 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         TwoPhaseCommitSinkFunction.StateSerializer.class.getName(),
                         IntervalJoinOperator.BufferEntrySerializer.class.getName(),
                         GlobalWindow.Serializer.class.getName(),
+                        org.apache.flink.table.runtime.operators.window.GlobalWindow.Serializer
+                                .class
+                                .getName(),
                         org.apache.flink.queryablestate.client.VoidNamespaceSerializer.class
                                 .getName(),
                         org.apache.flink.runtime.state.VoidNamespaceSerializer.class.getName(),
@@ -218,6 +221,9 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         InternalTimersSnapshotReaderWriters.LegacyTimerSerializer.class.getName(),
                         TwoPhaseCommitSinkFunction.StateSerializer.class.getName(),
                         GlobalWindow.Serializer.class.getName(),
+                        org.apache.flink.table.runtime.operators.window.GlobalWindow.Serializer
+                                .class
+                                .getName(),
                         TestDuplicateSerializer.class.getName(),
                         LinkedListSerializer.class.getName(),
                         WindowKeySerializer.class.getName(),

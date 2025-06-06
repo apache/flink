@@ -68,6 +68,8 @@ class ForStHandle implements AutoCloseable {
     private ColumnFamilyHandle defaultColumnFamilyHandle;
     @Nullable private ForStNativeMetricMonitor nativeMetricMonitor;
 
+    private final Function<StateMetaInfoSnapshot, RegisteredStateMetaInfoBase> stateMetaInfoFactory;
+
     protected ForStHandle(
             Map<String, ForStOperationUtils.ForStKvStateInfo> kvStateInformation,
             Path instanceRocksDBPath,
@@ -77,6 +79,28 @@ class ForStHandle implements AutoCloseable {
             MetricGroup metricGroup,
             ForStDBTtlCompactFiltersManager ttlCompactFiltersManager,
             Long writeBufferManagerCapacity) {
+        this(
+                kvStateInformation,
+                instanceRocksDBPath,
+                dbOptions,
+                columnFamilyOptionsFactory,
+                nativeMetricOptions,
+                metricGroup,
+                ttlCompactFiltersManager,
+                writeBufferManagerCapacity,
+                RegisteredStateMetaInfoBase::fromMetaInfoSnapshot);
+    }
+
+    protected ForStHandle(
+            Map<String, ForStOperationUtils.ForStKvStateInfo> kvStateInformation,
+            Path instanceRocksDBPath,
+            DBOptions dbOptions,
+            Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
+            ForStNativeMetricOptions nativeMetricOptions,
+            MetricGroup metricGroup,
+            ForStDBTtlCompactFiltersManager ttlCompactFiltersManager,
+            Long writeBufferManagerCapacity,
+            Function<StateMetaInfoSnapshot, RegisteredStateMetaInfoBase> stateMetaInfoFactory) {
         this.kvStateInformation = kvStateInformation;
         this.dbPath = instanceRocksDBPath.getPath();
         this.dbOptions = dbOptions;
@@ -87,6 +111,7 @@ class ForStHandle implements AutoCloseable {
         this.columnFamilyDescriptors = Collections.emptyList();
         this.ttlCompactFiltersManager = ttlCompactFiltersManager;
         this.writeBufferManagerCapacity = writeBufferManagerCapacity;
+        this.stateMetaInfoFactory = stateMetaInfoFactory;
     }
 
     void openDB() throws IOException {
@@ -141,7 +166,7 @@ class ForStHandle implements AutoCloseable {
             // create a meta info for the state on restore;
             // this allows us to retain the state in future snapshots even if it wasn't accessed
             RegisteredStateMetaInfoBase stateMetaInfo =
-                    RegisteredStateMetaInfoBase.fromMetaInfoSnapshot(stateMetaInfoSnapshot);
+                    stateMetaInfoFactory.apply(stateMetaInfoSnapshot);
             if (columnFamilyHandle == null) {
                 registeredStateMetaInfoEntry =
                         createStateInfo(

@@ -257,11 +257,6 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
         }
 
         @Override
-        public List<String> coPartitionArgs() {
-            return List.of();
-        }
-
-        @Override
         public Optional<ChangelogMode> changelogMode() {
             return Optional.empty();
         }

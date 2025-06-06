@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.forst.fs.cache;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -144,6 +145,11 @@ public final class FileBasedCache extends DoubleListLru<String, FileCacheEntry>
      */
     public static void setFlinkThread() {
         isFlinkThread.set(true);
+    }
+
+    @VisibleForTesting
+    public static void unsetFlinkThread() {
+        isFlinkThread.set(false);
     }
 
     /**

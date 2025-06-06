@@ -19,7 +19,7 @@ import argparse
 import logging
 import sys
 
-from pyflink.table import TableEnvironment, EnvironmentSettings, TableDescriptor, Schema,\
+from pyflink.table import TableEnvironment, EnvironmentSettings, TableDescriptor, Schema, \
     DataTypes, FormatDescriptor
 from pyflink.table.expressions import col, lit
 from pyflink.table.udf import udf

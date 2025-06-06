@@ -444,4 +444,36 @@ class ScanReuseTest extends TableTestBase {
         stmt.addInsertSql("INSERT INTO snk2 select `id` from src");
         util.verifyExecPlan(stmt);
     }
+
+    @TestTemplate
+    void testWatermarkPushDownWithTimestampChanged() {
+        assumeThat(isStreaming).isTrue();
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE MyTableWatermark (\n"
+                                + " a bigint,\n"
+                                + " b int,\n"
+                                + " ts_ltz timestamp_ltz(3),\n"
+                                + " WATERMARK FOR ts_ltz AS ts_ltz - INTERVAL '10' MINUTE"
+                                + ") with (\n"
+                                + "  'connector' = 'values',\n"
+                                + "  'bounded' = 'false',\n"
+                                + "  'disable-lookup' = 'true',\n"
+                                + "  'enable-watermark-push-down' = 'true'\n"
+                                + ")");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE MySinkTs (\n"
+                                + "a bigint, "
+                                + "ts timestamp_ltz(3)"
+                                + ") with (\n"
+                                + "  'connector' = 'values',\n"
+                                + "  'table-sink-class' = 'DEFAULT')");
+
+        StatementSet stmt = util.tableEnv().createStatementSet();
+        stmt.addInsertSql("INSERT INTO MySinkTs SELECT a, ts_ltz FROM MyTableWatermark");
+        stmt.addInsertSql("INSERT INTO MySinkTs SELECT b, ts_ltz FROM MyTableWatermark");
+        util.verifyExecPlan(stmt);
+    }
 }

@@ -111,7 +111,9 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
             if (asyncKeyedStateBackend != null) {
                 this.asyncExecutionController =
                         new AsyncExecutionController(
-                                environment.getMainMailboxExecutor(),
+                                streamTask
+                                        .getMailboxExecutorFactory()
+                                        .createExecutor(getOperatorConfig().getChainIndex()),
                                 this::handleAsyncStateException,
                                 asyncKeyedStateBackend.createStateExecutor(),
                                 declarationManager,

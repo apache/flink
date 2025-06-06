@@ -22,6 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.functions.ChangelogFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.TableSemantics;
@@ -67,11 +69,24 @@ public interface CallContext {
     /**
      * Returns information about the table that has been passed to a table argument.
      *
-     * <p>Semantics are only available for table arguments (i.e. arguments of a {@link
-     * ProcessTableFunction} that are annotated with {@code @ArgumentHint(TABLE_AS_SET)} or
-     * {@code @ArgumentHint(TABLE_AS_ROW)}).
+     * <p>This method applies only to {@link ProcessTableFunction}s.
+     *
+     * <p>Semantics are only available for table arguments that are annotated with
+     * {@code @ArgumentHint(TABLE_AS_SET)} or {@code @ArgumentHint(TABLE_AS_ROW)}).
      */
     default Optional<TableSemantics> getTableSemantics(int pos) {
+        return Optional.empty();
+    }
+
+    /**
+     * Returns the {@link ChangelogMode} that the framework requires from the function.
+     *
+     * <p>This method applies only to {@link ProcessTableFunction}.
+     *
+     * <p>Returns empty during type inference phase as the changelog mode is still unknown. Returns
+     * an actual changelog mode, when the PTF implements the {@link ChangelogFunction} interface.
+     */
+    default Optional<ChangelogMode> getOutputChangelogMode() {
         return Optional.empty();
     }
 

@@ -24,10 +24,8 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 
 /** When a model is altered, a {@link AlterModelEvent} event will be created and fired. */
 @PublicEvolving
-public interface AlterModelEvent extends CatalogModificationEvent {
+public interface AlterModelEvent extends ModelModificationEvent {
     ObjectIdentifier identifier();
-
-    CatalogModel model();
 
     CatalogModel newModel();
 
@@ -58,6 +56,11 @@ public interface AlterModelEvent extends CatalogModificationEvent {
             public CatalogModel model() {
                 throw new IllegalStateException(
                         "There is no model in AlterModelEvent, use identifier() instead.");
+            }
+
+            @Override
+            public boolean isTemporary() {
+                return false;
             }
 
             @Override

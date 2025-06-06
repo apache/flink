@@ -64,6 +64,7 @@ extensions = [
     'sphinx.ext.inheritance_diagram',
     'sphinx.ext.doctest',
     'sphinx.ext.autosummary',
+    'sphinx.ext.intersphinx',
     'sphinx_mdinclude'
 ]
 
@@ -101,6 +102,11 @@ pygments_style = 'sphinx'
 # Look at the first line of the docstring for function and method signatures.
 autosummary_generate = True
 autodoc_docstring_signature = True
+
+# Map to external docs for type annotations
+intersphinx_mapping = {
+    "pandas": ("https://pandas.pydata.org/docs/", None),
+}
 
 # -- Options for HTML output -------------------------------------------------
 

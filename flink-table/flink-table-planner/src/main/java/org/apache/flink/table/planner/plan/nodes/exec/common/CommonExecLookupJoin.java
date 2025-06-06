@@ -92,11 +92,13 @@ import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory;
@@ -415,6 +417,11 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
         DataTypeFactory dataTypeFactory =
                 ShortcutUtils.unwrapContext(relBuilder).getCatalogManager().getDataTypeFactory();
 
+        List<LookupJoinUtil.LookupKey> convertedKeys =
+                Arrays.stream(LookupJoinUtil.getOrderedLookupKeys(allLookupKeys.keySet()))
+                        .mapToObj(allLookupKeys::get)
+                        .collect(Collectors.toList());
+
         LookupJoinCodeGenerator.GeneratedTableFunctionWithDataType<AsyncFunction<RowData, Object>>
                 generatedFuncWithType =
                         LookupJoinCodeGenerator.generateAsyncLookupFunction(
@@ -424,8 +431,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                                 inputRowType,
                                 tableSourceRowType,
                                 resultRowType,
-                                allLookupKeys,
-                                LookupJoinUtil.getOrderedLookupKeys(allLookupKeys.keySet()),
+                                convertedKeys,
                                 asyncLookupFunction,
                                 StringUtils.join(temporalTable.getQualifiedName(), "."));
 
@@ -551,8 +557,10 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
         DataTypeFactory dataTypeFactory =
                 ShortcutUtils.unwrapContext(relBuilder).getCatalogManager().getDataTypeFactory();
 
-        int[] orderedLookupKeys = LookupJoinUtil.getOrderedLookupKeys(allLookupKeys.keySet());
-
+        List<LookupJoinUtil.LookupKey> convertedKeys =
+                Arrays.stream(LookupJoinUtil.getOrderedLookupKeys(allLookupKeys.keySet()))
+                        .mapToObj(allLookupKeys::get)
+                        .collect(Collectors.toList());
         GeneratedFunction<FlatMapFunction<RowData, RowData>> generatedFetcher =
                 LookupJoinCodeGenerator.generateSyncLookupFunction(
                         config,
@@ -561,8 +569,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                         inputRowType,
                         tableSourceRowType,
                         resultRowType,
-                        allLookupKeys,
-                        orderedLookupKeys,
+                        convertedKeys,
                         syncLookupFunction,
                         StringUtils.join(temporalTable.getQualifiedName(), "."),
                         isObjectReuseEnabled);

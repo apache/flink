@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
@@ -242,6 +243,11 @@ class AlignedCheckpointsMassiveRandomTest {
 
         @Override
         public void checkpointStopped(long cancelledCheckpointId) {}
+
+        @Override
+        public ResultPartitionType getConsumedPartitionType() {
+            return ResultPartitionType.PIPELINED;
+        }
 
         @Override
         public void triggerDebloating() {}

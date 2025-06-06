@@ -24,9 +24,6 @@ import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.Optional;
-
-import static org.apache.flink.streaming.api.connector.sink2.CommittableMessage.EOI;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class CommittableCollectorTest {
@@ -44,22 +41,5 @@ class CommittableCollectorTest {
         committableCollector.addMessage(new CommittableSummary<>(1, 1, 3L, 1, 0));
 
         assertThat(committableCollector.getCheckpointCommittablesUpTo(2)).hasSize(2);
-
-        assertThat(committableCollector.getEndOfInputCommittable()).isNotPresent();
-    }
-
-    @Test
-    void testGetEndOfInputCommittable() {
-        final CommittableCollector<Integer> committableCollector =
-                new CommittableCollector<>(METRIC_GROUP);
-        CommittableSummary<Integer> first = new CommittableSummary<>(1, 1, EOI, 1, 0);
-        committableCollector.addMessage(first);
-
-        Optional<CheckpointCommittableManager<Integer>> endOfInputCommittable =
-                committableCollector.getEndOfInputCommittable();
-        assertThat(endOfInputCommittable).isPresent();
-        assertThat(endOfInputCommittable)
-                .get()
-                .returns(EOI, CheckpointCommittableManager::getCheckpointId);
     }
 }

@@ -26,6 +26,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
 import java.time.Duration;
+import java.time.Instant;
 
 /** {@link TableTestProgram} definitions for testing {@link StreamExecChangelogNormalize}. */
 public class ChangelogNormalizeTestPrograms {
@@ -198,5 +199,89 @@ public class ChangelogNormalizeTestPrograms {
                                     .consumedAfterRestore("-D[three, 3, cc]")
                                     .build())
                     .runSql("INSERT INTO sink_t SELECT a, b, c FROM source_t WHERE b < 10")
+                    .build();
+
+    static final TableTestProgram UPSERT_SOURCE_WITH_FILTER_ON_WATERMARK =
+            TableTestProgram.of(
+                            "changelog-normalize-upsert-filter-watermark",
+                            "validates changelog normalize upsert with filter using current_watermark")
+                    .setupConfig(
+                            ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, true)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addSchema(
+                                            "a VARCHAR",
+                                            "b INT NOT NULL",
+                                            "c VARCHAR",
+                                            "d TIMESTAMP_LTZ(3)",
+                                            "WATERMARK FOR d AS d",
+                                            "PRIMARY KEY(a) NOT ENFORCED")
+                                    .producedBeforeRestore(
+                                            Row.ofKind(
+                                                    RowKind.UPDATE_AFTER,
+                                                    "one",
+                                                    1,
+                                                    "a",
+                                                    Instant.ofEpochMilli(1L)),
+                                            Row.ofKind(
+                                                    RowKind.UPDATE_AFTER,
+                                                    "one",
+                                                    2,
+                                                    "b",
+                                                    Instant.ofEpochMilli(2L)),
+                                            Row.ofKind(
+                                                    RowKind.UPDATE_AFTER,
+                                                    "one",
+                                                    12,
+                                                    "b",
+                                                    Instant.ofEpochMilli(3L)),
+                                            Row.ofKind(
+                                                    RowKind.UPDATE_AFTER,
+                                                    "one",
+                                                    13,
+                                                    "b",
+                                                    Instant.ofEpochMilli(4L)),
+                                            Row.ofKind(
+                                                    RowKind.UPDATE_AFTER,
+                                                    "three",
+                                                    3,
+                                                    "cc",
+                                                    Instant.ofEpochMilli(5L)))
+                                    .producedAfterRestore(
+                                            Row.ofKind(
+                                                    RowKind.UPDATE_AFTER,
+                                                    "one",
+                                                    15,
+                                                    "aa",
+                                                    Instant.ofEpochMilli(6L)),
+                                            Row.ofKind(
+                                                    RowKind.DELETE,
+                                                    "one",
+                                                    15,
+                                                    "c",
+                                                    Instant.ofEpochMilli(7L)),
+                                            Row.ofKind(
+                                                    RowKind.DELETE,
+                                                    "three",
+                                                    3,
+                                                    "cc",
+                                                    Instant.ofEpochMilli(8L)))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(SINK_SCHEMA)
+                                    .consumedBeforeRestore(
+                                            "+I[one, 1, a]",
+                                            "-U[one, 1, a]",
+                                            "+U[one, 2, b]",
+                                            "-D[one, 2, b]",
+                                            "+I[three, 3, cc]")
+                                    .consumedAfterRestore("-D[three, 3, cc]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT a, b, c FROM source_t WHERE b < 10 AND "
+                                    + "CURRENT_WATERMARK(d) IS NULL OR "
+                                    + "CURRENT_WATERMARK(d) >= TIMESTAMP '1970-01-01 00:00:00'")
                     .build();
 }

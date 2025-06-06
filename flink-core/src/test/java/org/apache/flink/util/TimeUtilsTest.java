@@ -117,6 +117,14 @@ class TimeUtilsTest {
     }
 
     @Test
+    public void testParseDurationISO8601() {
+        assertThat(TimeUtils.parseDuration("PT20.345S").toMillis()).isEqualTo(20345);
+        assertThat(TimeUtils.parseDuration("PT15M").toMinutes()).isEqualTo(15);
+        assertThat(TimeUtils.parseDuration("PT10H").toHours()).isEqualTo(10);
+        assertThat(TimeUtils.parseDuration("P2DT3H4M").toMinutes()).isEqualTo(3064);
+    }
+
+    @Test
     void testParseDurationInvalid() {
         // null
         assertThatThrownBy(() -> TimeUtils.parseDuration(null))
@@ -145,6 +153,10 @@ class TimeUtilsTest {
         // negative number
         assertThatThrownBy(() -> TimeUtils.parseDuration("-100 ms"))
                 .isInstanceOf(IllegalArgumentException.class);
+
+        // negative ISO-8601
+        assertThatThrownBy(() -> TimeUtils.parseDuration("-PT6H3M"))
+                .isInstanceOf(NumberFormatException.class);
     }
 
     @Test

@@ -26,7 +26,10 @@ public interface CommittableMessage<CommT> {
     /**
      * Special value for checkpointId for the end of input in case of batch commit or final
      * checkpoint.
+     *
+     * @deprecated the special value is not used anymore at all (remove with Flink 2.2)
      */
+    @Deprecated(forRemoval = true)
     long EOI = Long.MAX_VALUE;
 
     /** The subtask that created this committable. */
@@ -35,6 +38,13 @@ public interface CommittableMessage<CommT> {
     /**
      * Returns the checkpoint id or EOI if this message belong to the final checkpoint or the batch
      * commit.
+     *
+     * @deprecated the special value EOI is not used anymore
      */
-    long getCheckpointIdOrEOI();
+    @Deprecated(forRemoval = true)
+    default long getCheckpointIdOrEOI() {
+        return getCheckpointId();
+    }
+
+    long getCheckpointId();
 }

@@ -173,11 +173,12 @@ public class EventReceivingTasks implements SubtaskAccess.SubtaskAccessFactory {
 
     // ------------------------------------------------------------------------
 
-    private final class TestSubtaskAccess implements SubtaskAccess {
+    final class TestSubtaskAccess implements SubtaskAccess {
 
         private final ExecutionAttemptID executionAttemptId;
         private final CompletableFuture<?> running;
         private final int subtaskIndex;
+        private final List<Throwable> taskFailoverReasons = new ArrayList<>();
 
         private TestSubtaskAccess(int subtaskIndex, int attemptNumber, boolean isRunning) {
             this.subtaskIndex = subtaskIndex;
@@ -234,7 +235,11 @@ public class EventReceivingTasks implements SubtaskAccess.SubtaskAccessFactory {
 
         @Override
         public void triggerTaskFailover(Throwable cause) {
-            // ignore this in the tests
+            taskFailoverReasons.add(cause);
+        }
+
+        public List<Throwable> getTaskFailoverReasons() {
+            return taskFailoverReasons;
         }
     }
 

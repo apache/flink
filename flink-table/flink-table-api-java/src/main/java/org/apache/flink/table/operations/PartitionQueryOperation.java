@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.SqlFactory;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -50,12 +51,12 @@ public class PartitionQueryOperation implements QueryOperation {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SqlFactory sqlFactory) {
         return String.format(
                 "(%s\n) PARTITION BY (%s)",
-                OperationUtils.indent(child.asSerializableString()),
+                OperationUtils.indent(child.asSerializableString(sqlFactory)),
                 partitionExpressions.stream()
-                        .map(ResolvedExpression::asSerializableString)
+                        .map(expr -> expr.asSerializableString(sqlFactory))
                         .collect(Collectors.joining(", ")));
     }
 

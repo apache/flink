@@ -35,6 +35,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
@@ -43,11 +44,11 @@ import org.apache.flink.types.ColumnList;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -143,7 +144,7 @@ public class SystemTypeInference {
 
         checkReservedArgs(declaredArgs);
         checkMultipleTableArgs(declaredArgs);
-        checkUpdatingPassThroughColumns(declaredArgs);
+        checkPassThroughColumns(declaredArgs);
 
         final List<StaticArgument> newStaticArgs = new ArrayList<>(declaredArgs);
         newStaticArgs.addAll(PROCESS_TABLE_FUNCTION_SYSTEM_ARGS);
@@ -166,21 +167,30 @@ public class SystemTypeInference {
     }
 
     private static void checkMultipleTableArgs(List<StaticArgument> staticArgs) {
-        if (staticArgs.stream().filter(arg -> arg.is(StaticArgumentTrait.TABLE)).count() > 1) {
+        if (staticArgs.stream().filter(arg -> arg.is(StaticArgumentTrait.TABLE)).count() <= 1) {
+            return;
+        }
+        if (staticArgs.stream().anyMatch(arg -> !arg.is(StaticArgumentTrait.TABLE_AS_SET))) {
             throw new ValidationException(
-                    "Currently, only signatures with at most one table argument are supported.");
+                    "All table arguments must use set semantics if multiple table arguments are declared.");
         }
     }
 
-    private static void checkUpdatingPassThroughColumns(List<StaticArgument> staticArgs) {
+    private static void checkPassThroughColumns(List<StaticArgument> staticArgs) {
         final Set<StaticArgumentTrait> traits =
                 staticArgs.stream()
                         .flatMap(arg -> arg.getTraits().stream())
                         .collect(Collectors.toSet());
-        if (traits.contains(StaticArgumentTrait.SUPPORT_UPDATES)
-                && traits.contains(StaticArgumentTrait.PASS_COLUMNS_THROUGH)) {
+        if (!traits.contains(StaticArgumentTrait.PASS_COLUMNS_THROUGH)) {
+            return;
+        }
+        if (traits.contains(StaticArgumentTrait.SUPPORT_UPDATES)) {
             throw new ValidationException(
                     "Signatures with updating inputs must not pass columns through.");
+        }
+        if (staticArgs.stream().filter(arg -> arg.is(StaticArgumentTrait.TABLE)).count() > 1) {
+            throw new ValidationException(
+                    "Pass-through columns are not supported if multiple table arguments are declared.");
         }
     }
 
@@ -323,37 +333,44 @@ public class SystemTypeInference {
 
             final Set<String> usedOnTimeFields = new HashSet<>();
 
-            final List<LogicalType> onTimeColumns =
-                    IntStream.range(0, staticArgs.size())
-                            .mapToObj(
-                                    pos -> {
-                                        final StaticArgument staticArg = staticArgs.get(pos);
-                                        if (!staticArg.is(StaticArgumentTrait.TABLE)) {
-                                            return null;
-                                        }
-                                        final RowType rowType =
-                                                LogicalTypeUtils.toRowType(
-                                                        args.get(pos).getLogicalType());
-                                        final int onTimeColumn =
-                                                findUniqueOnTimeColumn(
-                                                        staticArg.getName(), rowType, onTimeFields);
-                                        if (onTimeColumn >= 0) {
-                                            usedOnTimeFields.add(
-                                                    rowType.getFieldNames().get(onTimeColumn));
-                                            return rowType.getTypeAt(onTimeColumn);
-                                        }
-                                        if (staticArg.is(StaticArgumentTrait.REQUIRE_ON_TIME)) {
-                                            throw new ValidationException(
-                                                    String.format(
-                                                            "Table argument '%s' requires a time attribute. "
-                                                                    + "Please provide one using the implicit `on_time` argument. "
-                                                                    + "For example: myFunction(..., on_time => DESCRIPTOR(`my_timestamp`)",
-                                                            staticArg.getName()));
-                                        }
-                                        return null;
-                                    })
-                            .filter(Objects::nonNull)
-                            .collect(Collectors.toList());
+            final List<LogicalType> onTimeColumns = new ArrayList<>();
+            final List<String> missingOnTimeColumns = new ArrayList<>();
+            IntStream.range(0, staticArgs.size())
+                    .forEach(
+                            pos -> {
+                                final StaticArgument staticArg = staticArgs.get(pos);
+                                if (!staticArg.is(StaticArgumentTrait.TABLE)) {
+                                    return;
+                                }
+                                final RowType rowType =
+                                        LogicalTypeUtils.toRowType(args.get(pos).getLogicalType());
+                                final int onTimeColumn =
+                                        findUniqueOnTimeColumn(
+                                                staticArg.getName(), rowType, onTimeFields);
+                                if (onTimeColumn >= 0) {
+                                    usedOnTimeFields.add(rowType.getFieldNames().get(onTimeColumn));
+                                    onTimeColumns.add(rowType.getTypeAt(onTimeColumn));
+                                    return;
+                                }
+                                if (staticArg.is(StaticArgumentTrait.REQUIRE_ON_TIME)) {
+                                    throw new ValidationException(
+                                            String.format(
+                                                    "Table argument '%s' requires a time attribute. "
+                                                            + "Please provide one using the implicit `on_time` argument. "
+                                                            + "For example: myFunction(..., on_time => DESCRIPTOR(`my_timestamp`)",
+                                                    staticArg.getName()));
+                                } else {
+                                    missingOnTimeColumns.add(staticArg.getName());
+                                }
+                            });
+
+            if (!onTimeColumns.isEmpty() && !missingOnTimeColumns.isEmpty()) {
+                throw new ValidationException(
+                        "Invalid time attribute declaration. If multiple tables are declared, the `on_time` argument "
+                                + "must reference a time column for each table argument or none. "
+                                + "Missing time attributes for: "
+                                + missingOnTimeColumns);
+            }
 
             final Set<String> unusedOnTimeFields = new HashSet<>(onTimeFields);
             unusedOnTimeFields.removeAll(usedOnTimeFields);
@@ -494,7 +511,7 @@ public class SystemTypeInference {
             }
 
             try {
-                checkTableArgTraits(staticArgs, callContext);
+                checkTableArgs(staticArgs, callContext);
                 checkUidArg(callContext);
             } catch (ValidationException e) {
                 return callContext.fail(throwOnFailure, e.getMessage());
@@ -527,8 +544,9 @@ public class SystemTypeInference {
             }
         }
 
-        private static void checkTableArgTraits(
+        private static void checkTableArgs(
                 List<StaticArgument> staticArgs, CallContext callContext) {
+            final List<TableSemantics> tableSemantics = new ArrayList<>();
             IntStream.range(0, staticArgs.size())
                     .forEach(
                             pos -> {
@@ -546,7 +564,46 @@ public class SystemTypeInference {
                                 }
                                 checkRowSemantics(staticArg, semantics);
                                 checkSetSemantics(staticArg, semantics);
+                                tableSemantics.add(semantics);
                             });
+            checkCoPartitioning(tableSemantics);
+        }
+
+        private static void checkCoPartitioning(List<TableSemantics> tableSemantics) {
+            if (tableSemantics.isEmpty()) {
+                return;
+            }
+            final List<LogicalType> partitioningTypes =
+                    tableSemantics.stream()
+                            .map(
+                                    semantics -> {
+                                        final LogicalType tableType =
+                                                semantics.dataType().getLogicalType();
+                                        final List<LogicalType> fieldTypes =
+                                                LogicalTypeChecks.getFieldTypes(tableType);
+                                        final LogicalType[] partitionTypes =
+                                                Arrays.stream(semantics.partitionByColumns())
+                                                        .mapToObj(fieldTypes::get)
+                                                        .toArray(LogicalType[]::new);
+                                        return (LogicalType) RowType.of(partitionTypes);
+                                    })
+                            .collect(Collectors.toList());
+            final LogicalType commonType =
+                    LogicalTypeMerging.findCommonType(partitioningTypes).orElse(null);
+            if (commonType == null
+                    || partitioningTypes.stream()
+                            .anyMatch(
+                                    partitioningType ->
+                                            !LogicalTypeCasts.supportsAvoidingCast(
+                                                    partitioningType, commonType))) {
+                throw new ValidationException(
+                        "Invalid PARTITION BY columns. The number of columns and their data types must match "
+                                + "across all involved table arguments. Given partition key sets: "
+                                + partitioningTypes.stream()
+                                        .map(LogicalType::getChildren)
+                                        .map(Object::toString)
+                                        .collect(Collectors.joining(", ")));
+            }
         }
 
         private static void checkRowSemantics(StaticArgument staticArg, TableSemantics semantics) {

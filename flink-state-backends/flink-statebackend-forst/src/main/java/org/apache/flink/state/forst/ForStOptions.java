@@ -67,6 +67,17 @@ public class ForStOptions {
                                     LOCAL_DIR_AS_PRIMARY_SHORTCUT));
 
     @Documentation.Section(Documentation.Sections.STATE_BACKEND_FORST)
+    public static final ConfigOption<Boolean> SYNC_ENFORCE_LOCAL =
+            ConfigOptions.key("state.backend.forst.sync.enforce-local")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Whether to enforce local state for operators in synchronous mode when"
+                                    + " enabling disaggregated state. This is useful in cases where "
+                                    + "both synchronous operators and asynchronous operators are used "
+                                    + "in the same job.");
+
+    @Documentation.Section(Documentation.Sections.STATE_BACKEND_FORST)
     public static final ConfigOption<String> CACHE_DIRECTORY =
             ConfigOptions.key("state.backend.forst.cache.dir")
                     .stringType()

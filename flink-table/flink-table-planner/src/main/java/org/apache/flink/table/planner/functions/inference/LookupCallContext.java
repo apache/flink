@@ -32,7 +32,6 @@ import org.apache.calcite.rex.RexLiteral;
 
 import java.util.AbstractList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.table.functions.UserDefinedFunctionHelper.generateInlineFunctionName;
@@ -43,9 +42,7 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDa
 @Internal
 public class LookupCallContext extends AbstractSqlCallContext {
 
-    private final Map<Integer, LookupKey> lookupKeys;
-
-    private final int[] lookupKeyOrder;
+    private final List<LookupKey> lookupKeys;
 
     private final List<DataType> argumentDataTypes;
 
@@ -55,14 +52,12 @@ public class LookupCallContext extends AbstractSqlCallContext {
             DataTypeFactory dataTypeFactory,
             UserDefinedFunction function,
             LogicalType inputType,
-            Map<Integer, LookupKey> lookupKeys,
-            int[] lookupKeyOrder,
+            List<LookupKey> lookupKeys,
             LogicalType lookupType) {
         super(dataTypeFactory, function, generateInlineFunctionName(function), false);
         this.lookupKeys = lookupKeys;
-        this.lookupKeyOrder = lookupKeyOrder;
         this.argumentDataTypes =
-                new AbstractList<DataType>() {
+                new AbstractList<>() {
                     @Override
                     public DataType get(int index) {
                         final LookupKey key = getKey(index);
@@ -79,7 +74,7 @@ public class LookupCallContext extends AbstractSqlCallContext {
 
                     @Override
                     public int size() {
-                        return lookupKeyOrder.length;
+                        return lookupKeys.size();
                     }
                 };
         this.outputDataType = fromLogicalToDataType(lookupType);
@@ -123,7 +118,6 @@ public class LookupCallContext extends AbstractSqlCallContext {
     // --------------------------------------------------------------------------------------------
 
     private LookupKey getKey(int pos) {
-        final int index = lookupKeyOrder[pos];
-        return lookupKeys.get(index);
+        return lookupKeys.get(pos);
     }
 }

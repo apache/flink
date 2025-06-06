@@ -28,8 +28,8 @@ from shutil import copytree, copy, rmtree
 from setuptools import setup, Extension
 from xml.etree import ElementTree as ET
 
-if sys.version_info < (3, 8):
-    print("Python versions prior to 3.8 are not supported for PyFlink.",
+if sys.version_info < (3, 9):
+    print("Python versions prior to 3.9 are not supported for PyFlink.",
           file=sys.stderr)
     sys.exit(-1)
 
@@ -324,7 +324,7 @@ try:
                         'numpy>=1.22.4',
                         'pandas>=1.3.0',
                         'pyarrow>=5.0.0',
-                        'pemja==0.4.1;platform_system != "Windows"',
+                        'pemja==0.5.1;platform_system != "Windows"',
                         'httplib2>=0.19.0',
                         'ruamel.yaml>=0.18.4',
                         apache_flink_libraries_dependency]
@@ -341,7 +341,7 @@ try:
         license='https://www.apache.org/licenses/LICENSE-2.0',
         author='Apache Software Foundation',
         author_email='dev@flink.apache.org',
-        python_requires='>=3.8',
+        python_requires='>=3.9',
         install_requires=install_requires,
         cmdclass={'build_ext': build_ext},
         description='Apache Flink Python API',
@@ -351,10 +351,10 @@ try:
         classifiers=[
             'Development Status :: 5 - Production/Stable',
             'License :: OSI Approved :: Apache Software License',
-            'Programming Language :: Python :: 3.8',
             'Programming Language :: Python :: 3.9',
             'Programming Language :: Python :: 3.10',
-            'Programming Language :: Python :: 3.11'],
+            'Programming Language :: Python :: 3.11',
+            'Programming Language :: Python :: 3.12'],
         ext_modules=extensions
     )
 finally:

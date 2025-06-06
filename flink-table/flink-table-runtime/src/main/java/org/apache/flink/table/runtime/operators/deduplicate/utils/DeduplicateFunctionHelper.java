@@ -154,6 +154,7 @@ public class DeduplicateFunctionHelper {
     }
 
     public static void processLastRowOnChangelogWithFilter(
+            FilterCondition.Context context,
             RowData currentRow,
             boolean generateUpdateBefore,
             ValueState<RowData> state,
@@ -166,7 +167,7 @@ public class DeduplicateFunctionHelper {
         RowKind currentKind = currentRow.getRowKind();
         if (currentKind == RowKind.INSERT || currentKind == RowKind.UPDATE_AFTER) {
             if (preRow == null) {
-                if (filterCondition.apply(currentRow)) {
+                if (filterCondition.apply(context, currentRow)) {
                     // the first row, send INSERT message
                     currentRow.setRowKind(RowKind.INSERT);
                     out.collect(currentRow);
@@ -182,7 +183,7 @@ public class DeduplicateFunctionHelper {
                     // state eviction of downstream operators.
                     return;
                 } else {
-                    if (filterCondition.apply(currentRow)) {
+                    if (filterCondition.apply(context, currentRow)) {
                         if (generateUpdateBefore) {
                             preRow.setRowKind(RowKind.UPDATE_BEFORE);
                             out.collect(preRow);

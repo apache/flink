@@ -42,7 +42,7 @@ class InternalWindowProcessFunction(Generic[K, W], ABC):
         self._allowed_lateness = allowed_lateness
         self._window_assigner = window_assigner
         self._window_aggregator = window_aggregator
-        self._ctx = None  # type: Context[K, W]
+        self._ctx: Context[K, W] = None
 
     def open(self, ctx: Context[K, W]):
         self._ctx = ctx
@@ -127,7 +127,7 @@ class GeneralWindowProcessFunction(InternalWindowProcessFunction[K, W]):
                  window_aggregator):
         super(GeneralWindowProcessFunction, self).__init__(
             allowed_lateness, window_assigner, window_aggregator)
-        self._reuse_affected_windows = None  # type: List[W]
+        self._reuse_affected_windows: List[W] = None
 
     def assign_state_namespace(self, input_row: List, timestamp: int) -> List[W]:
         element_windows = self._window_assigner.assign_windows(input_row, timestamp)
@@ -210,7 +210,7 @@ class PanedWindowProcessFunction(InternalWindowProcessFunction[K, W]):
 class MergeResultCollector(MergingWindowAssigner.MergeCallback):
 
     def __init__(self):
-        self.merge_results = {}  # type: Dict[W, Iterable[W]]
+        self.merge_results: Dict[W, Iterable[W]] = {}
 
     def merge(self, merge_result: W, to_be_merged: Iterable[W]):
         self.merge_results[merge_result] = to_be_merged
@@ -229,10 +229,10 @@ class MergingWindowProcessFunction(InternalWindowProcessFunction[K, W]):
         super(MergingWindowProcessFunction, self).__init__(
             allowed_lateness, window_assigner, window_aggregator)
         self._window_assigner = window_assigner
-        self._reuse_actual_windows = None  # type: List
-        self._window_mapping = None  # type: MapState
+        self._reuse_actual_windows: List = None
+        self._window_mapping: MapState = None
         self._state_backend = state_backend
-        self._sorted_windows = None  # type: List
+        self._sorted_windows: List = None
 
         from pyflink.fn_execution.state_impl import LRUCache
 
@@ -306,7 +306,7 @@ class MergingWindowProcessFunction(InternalWindowProcessFunction[K, W]):
         # perform the merge
         merge_results = collector.merge_results
         for merge_result in merge_results:
-            merge_windows = merge_results[merge_result]  # type: Set[W]
+            merge_windows: Set[W] = merge_results[merge_result]
 
             # if our new window is in the merged windows make the merge result the result window
             try:

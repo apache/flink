@@ -88,7 +88,7 @@ public class LookupJoinRunner extends ProcessFunction<RowData, RowData> {
         prepareCollector(in, out);
 
         // apply local filter first
-        if (preFilter(in)) {
+        if (preFilter(FilterCondition.Context.of(ctx), in)) {
             doFetch(in);
         }
 
@@ -101,8 +101,8 @@ public class LookupJoinRunner extends ProcessFunction<RowData, RowData> {
         collector.reset();
     }
 
-    public boolean preFilter(RowData in) throws Exception {
-        return preFilterCondition.apply(in);
+    public boolean preFilter(FilterCondition.Context ctx, RowData in) throws Exception {
+        return preFilterCondition.apply(ctx, in);
     }
 
     public void doFetch(RowData in) throws Exception {

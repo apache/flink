@@ -19,6 +19,7 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedReceivingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedSendingFunction;
@@ -34,6 +35,7 @@ import org.apache.flink.types.RowKind;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Collections;
 
@@ -80,15 +82,38 @@ public class QueryOperationTestPrograms {
             TableTestProgram.of("values-query-operation", "verifies sql serialization")
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
-                                    .addSchema("a bigint", "b string")
-                                    .consumedValues(Row.of(1L, "abc"), Row.of(2L, "cde"))
+                                    .addSchema("a bigint", "b string", "c time", "d timestamp")
+                                    .consumedValues(
+                                            Row.of(
+                                                    1L,
+                                                    "abc",
+                                                    LocalTime.of(12, 30, 0),
+                                                    LocalDateTime.of(1970, 1, 1, 12, 30, 0)),
+                                            Row.of(
+                                                    2L,
+                                                    "cde",
+                                                    LocalTime.of(18, 0, 0),
+                                                    LocalDateTime.of(1970, 1, 1, 18, 0, 0)))
                                     .build())
-                    .runTableApi(t -> t.fromValues(row(1L, "abc"), row(2L, "cde")), "sink")
+                    .runTableApi(
+                            t ->
+                                    t.fromValues(
+                                            row(
+                                                    1L,
+                                                    "abc",
+                                                    LocalTime.of(12, 30, 0),
+                                                    LocalDateTime.of(1970, 1, 1, 12, 30, 0)),
+                                            row(
+                                                    2L,
+                                                    "cde",
+                                                    LocalTime.of(18, 0, 0),
+                                                    LocalDateTime.of(1970, 1, 1, 18, 0, 0))),
+                            "sink")
                     .runSql(
-                            "SELECT `$$T_VAL`.`f0`, `$$T_VAL`.`f1` FROM (VALUES \n"
-                                    + "    (CAST(1 AS BIGINT), 'abc'),\n"
-                                    + "    (CAST(2 AS BIGINT), 'cde')\n"
-                                    + ") $$T_VAL(`f0`, `f1`)")
+                            "SELECT `$$T_VAL`.`f0`, `$$T_VAL`.`f1`, `$$T_VAL`.`f2`, `$$T_VAL`.`f3` FROM (VALUES \n"
+                                    + "    (CAST(1 AS BIGINT), 'abc', TIME '12:30:00', TIMESTAMP '1970-01-01 12:30:00'),\n"
+                                    + "    (CAST(2 AS BIGINT), 'cde', TIME '18:00:00', TIMESTAMP '1970-01-01 18:00:00')\n"
+                                    + ") $$T_VAL(`f0`, `f1`, `f2`, `f3`)")
                     .build();
 
     static final TableTestProgram FILTER_QUERY_OPERATION =
@@ -1078,6 +1103,42 @@ public class QueryOperationTestPrograms {
                                         ptf1.partitionBy($("name")).asArgument("r"),
                                         descriptor("rowtime").asArgument("on_time"));
                             },
+                            "sink")
+                    .build();
+
+    /**
+     * A function that will be used as an inline function in {@link #INLINE_FUNCTION_SERIALIZATION}.
+     */
+    public static class SimpleScalarFunction extends ScalarFunction {
+        public Integer eval(Integer i) {
+            return i + 1;
+        }
+    }
+
+    static final TableTestProgram INLINE_FUNCTION_SERIALIZATION =
+            TableTestProgram.of(
+                            "inline-function-serialization",
+                            "verifies SQL serialization of inline functions")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("a INT", "b INT")
+                                    .producedValues(Row.of(1, 1), Row.of(2, 2))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("a INT", "b INT")
+                                    .consumedValues(Row.of(2, 1), Row.of(3, 2))
+                                    .build())
+                    .runSql(
+                            "SELECT (inlineFunction$00(`$$T_PROJECT`.`a`)) AS `_c0`, `$$T_PROJECT`.`b` FROM (\n"
+                                    + "    SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM `default_catalog`.`default_database`.`t` $$T_SOURCE\n"
+                                    + ") $$T_PROJECT")
+                    .runTableApi(
+                            env ->
+                                    env.from("t")
+                                            .select(
+                                                    call(new SimpleScalarFunction(), $("a")),
+                                                    $("b")),
                             "sink")
                     .build();
 }

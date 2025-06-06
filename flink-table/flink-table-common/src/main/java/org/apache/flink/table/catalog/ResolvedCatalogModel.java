@@ -19,6 +19,8 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
+import org.apache.flink.table.expressions.SqlFactory;
 
 import java.util.Map;
 
@@ -48,11 +50,21 @@ public interface ResolvedCatalogModel extends CatalogModel {
      * <p>Compared to the pure table options in {@link #getOptions()}, the map includes input
      * schema, output schema, comment and options.
      */
-    Map<String, String> toProperties();
+    default Map<String, String> toProperties() {
+        return toProperties(DefaultSqlFactory.INSTANCE);
+    }
+
+    /**
+     * Serializes this instance into a map of string-based properties.
+     *
+     * <p>Compared to the pure table options in {@link #getOptions()}, the map includes input
+     * schema, output schema, comment and options.
+     */
+    Map<String, String> toProperties(SqlFactory sqlFactory);
 
     /**
      * Creates an instance of {@link CatalogModel} from a map of string properties that were
-     * previously created with {@link ResolvedCatalogModel#toProperties()}.
+     * previously created with {@link ResolvedCatalogModel#toProperties(SqlFactory)}.
      *
      * @param properties serialized version of a {@link ResolvedCatalogModel} that includes input
      *     schema, output schema, comment and options.

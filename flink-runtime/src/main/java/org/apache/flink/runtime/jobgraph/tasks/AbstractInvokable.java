@@ -71,9 +71,6 @@ public abstract class AbstractInvokable
     // ------------------------------------------------------------------------
 
     @Override
-    public abstract void invoke() throws Exception;
-
-    @Override
     public void cancel() throws Exception {
         // The default implementation does nothing.
     }

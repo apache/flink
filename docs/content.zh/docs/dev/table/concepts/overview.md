@@ -96,7 +96,7 @@ GROUP BY word;
 
 下面的例子展示了使用 `SELECT ... FROM` 语句查询 [upsert kafka 源表]({{< ref "docs/connectors/table/upsert-kafka" >}})。
 ```sql
-CREATE TABLE upsert_kakfa (
+CREATE TABLE upsert_kafka (
     id INT PRIMARY KEY NOT ENFORCED,
     message  STRING
 ) WITH (
@@ -104,7 +104,7 @@ CREATE TABLE upsert_kakfa (
     ...
 );
 
-SELECT * FROM upsert_kakfa;
+SELECT * FROM upsert_kafka;
 ```
 源表的消息类型只包含 *INSERT*，*UPDATE_AFTER* 和 *DELETE*，然而下游要求完整的 changelog（包含 *UPDATE_BEFORE*）。
 所以虽然查询本身没有包含状态计算，但是优化器依然隐式地推导出了一个 ChangelogNormalize 状态算子来生成完整的 changelog。

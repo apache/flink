@@ -28,7 +28,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.cli.CommandLine;
 import org.junit.jupiter.api.AfterAll;
@@ -376,10 +375,8 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
         }
 
         @Override
-        protected boolean isDeploymentTargetApplication(
-                CustomCommandLine activeCustomCommandLine, CommandLine commandLine)
-                throws FlinkException {
-            application = super.isDeploymentTargetApplication(activeCustomCommandLine, commandLine);
+        protected boolean isDeploymentTargetApplication(Configuration effectiveConfiguration) {
+            application = super.isDeploymentTargetApplication(effectiveConfiguration);
             return application;
         }
 

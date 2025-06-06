@@ -232,12 +232,10 @@ public class StreamOperatorStateHandler {
         try {
             if (timeServiceManager.isPresent()) {
                 boolean requiresLegacyRawKeyedStateSnapshots;
-                final InternalTimeServiceManager<?> manager;
                 if (useAsyncState) {
                     checkState(
                             asyncKeyedStateBackend != null,
-                            "keyedStateBackend should be available with timeServiceManager");
-                    manager = timeServiceManager.get();
+                            "asyncKeyedStateBackend should be available with timeServiceManager");
                     requiresLegacyRawKeyedStateSnapshots =
                             asyncKeyedStateBackend.requiresLegacySynchronousTimerSnapshots(
                                     checkpointOptions.getCheckpointType());
@@ -245,8 +243,6 @@ public class StreamOperatorStateHandler {
                     checkState(
                             keyedStateBackend != null,
                             "keyedStateBackend should be available with timeServiceManager");
-                    manager = timeServiceManager.get();
-
                     requiresLegacyRawKeyedStateSnapshots =
                             keyedStateBackend instanceof AbstractKeyedStateBackend
                                     && ((AbstractKeyedStateBackend<?>) keyedStateBackend)
@@ -257,6 +253,7 @@ public class StreamOperatorStateHandler {
                     checkState(
                             !isUsingCustomRawKeyedState,
                             "Attempting to snapshot timers to raw keyed state, but this operator has custom raw keyed state to write.");
+                    final InternalTimeServiceManager<?> manager = timeServiceManager.get();
                     manager.snapshotToRawKeyedState(
                             snapshotContext.getRawKeyedOperatorStateOutput(), operatorName);
                 }

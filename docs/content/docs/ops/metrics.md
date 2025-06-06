@@ -624,6 +624,35 @@ Some metrics might not be exposed when using other JVM implementations (e.g. IBM
   </tbody>                                                         
 </table>
 
+### File Descriptors
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 22%">Infix</th>
+      <th class="text-left" style="width: 20%">Metrics</th>
+      <th class="text-left" style="width: 32%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="1"><strong>Job-/TaskManager</strong></th>
+      <td rowspan="1">Status.FileDescriptor.Max</td>
+      <td>Count</td>
+      <td>The max number of file descriptors.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <th rowspan="1"><strong>Job-/TaskManager</strong></th>
+      <td rowspan="1">Status.FileDescriptor.Open</td>
+      <td>Count</td>
+      <td>The total open of file descriptors.</td>
+      <td>Gauge</td>
+    </tr>
+  </tbody>
+</table>
+
 ### Threads
 <table class="table table-bordered">
   <thead>
@@ -1353,6 +1382,157 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
     <tr>
       <td>reducingStateMergeNamespacesLatency</td>
       <td>The latency of merge namespace operation for reducing state</td>
+      <td>Histogram</td>
+    </tr>
+  </tbody>
+</table>
+
+### State Size
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 26%">Metrics</th>
+      <th class="text-left" style="width: 48%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="27"><strong>Task/Operator</strong></th>
+      <td>valueStateGetKeySize</td>
+      <td>The key size of get operation for value state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>valueStateGetValueSize</td>
+      <td>The value size of get operation for value state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>valueStateUpdateKeySize</td>
+      <td>The key size of update operation for value state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>valueStateUpdateValueSize</td>
+      <td>The value size of update operation for value state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>reducingStateGetKeySize</td>
+      <td>The key size of get operation for reducing state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>reducingStateGetValueSize</td>
+      <td>The value size of get operation for reducing state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>reducingStateAddKeySize</td>
+      <td>The key size of add operation for reducing state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>reducingStateAddValueSize</td>
+      <td>The value size of add operation for reducing state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>aggregatingStateGetKeySize</td>
+      <td>The key size of get operation for aggregating state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>aggregatingStateAddKeySize</td>
+      <td>The key size of add operation for aggregating state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>listStateGetKeySize</td>
+      <td>The key size of get operation for list state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>listStateGetValueSize</td>
+      <td>The value size of get operation for list state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>listStateAddKeySize</td>
+      <td>The key size of add operation for list state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>listStateAddValueSize</td>
+      <td>The value size of add operation for list state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>listStateAddAllKeySize</td>
+      <td>The key size of addAll operation for list state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>listStateAddAllValueSize</td>
+      <td>The value size of addAll operation for list state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>listStateUpdateKeySize</td>
+      <td>The key size of update operation for list state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>listStateUpdateValueSize</td>
+      <td>The value size of update operation for list state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateGetKeySize</td>
+      <td>The key size of get operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateGetValueSize</td>
+      <td>The value size of get operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStatePutKeySize</td>
+      <td>The key size of put operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStatePutValueSize</td>
+      <td>The value size of put operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateIteratorKeySize</td>
+      <td>The key size of iterator#next operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateIteratorValueSize</td>
+      <td>The value size of iterator#next operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateRemoveKeySize</td>
+      <td>The key size of remove operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateContainsKeySize</td>
+      <td>The key size of contains operation for map state</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mapStateIsEmptyKeySize</td>
+      <td>The key size of isEmpty operation for map state</td>
       <td>Histogram</td>
     </tr>
   </tbody>
@@ -2207,6 +2387,22 @@ A larger value of this configuration will require more memory, but will provide 
 
 <span class="label label-danger">Warning</span> Enabling state-access-latency metrics may impact the performance.
 It is recommended to only use them for debugging purposes.
+
+## State key/value size tracking
+
+Flink also allows to track the keyed state key/value size for standard Flink state-backends or customized state backends which extending from `AbstractStateBackend`. This feature is disabled by default.
+To enable this feature you must set the `state.size-track.keyed-state-enabled` to true in the [Flink configuration]({{< ref "docs/deployment/config" >}}#state-backends-size-tracking-options).
+
+Once tracking keyed state key/value size is enabled, Flink will sample the state size every `N` access, in which `N` is defined by `state.size-track.sample-interval`.
+This configuration has a default value of 100. A smaller value will get more accurate results but have a higher performance impact since it is sampled more frequently.
+
+As the type of this key/value size metrics is histogram, `state.size-track.history-size` will control the maximum number of recorded values in history, which has the default value of 128.
+A larger value of this configuration will require more memory, but will provide a more accurate result.
+
+<span class="label label-danger">Warning</span> Enabling state-size metrics may impact the performance.
+It is recommended to only use them for debugging purposes.
+If state.ttl is enabled, the size of the value will include the size of the TTL-related timestamp.
+The value size of AggregatingState is not accounted for because AggregatingState returns a result processed by a user-defined AggregateFunction, whereas currently, only the actual stored data size in the state can be tracked.
 
 ## REST API integration
 

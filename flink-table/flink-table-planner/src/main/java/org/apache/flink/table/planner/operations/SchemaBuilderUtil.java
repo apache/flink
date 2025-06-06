@@ -62,11 +62,11 @@ public class SchemaBuilderUtil {
     final Function<SqlNode, String> escapeExpressions;
     final DataTypeFactory dataTypeFactory;
 
-    Map<String, Schema.UnresolvedColumn> columns = new LinkedHashMap<>();
+    protected Map<String, Schema.UnresolvedColumn> columns = new LinkedHashMap<>();
     Map<String, UnresolvedWatermarkSpec> watermarkSpecs = new HashMap<>();
     UnresolvedPrimaryKey primaryKey = null;
 
-    SchemaBuilderUtil(
+    protected SchemaBuilderUtil(
             SqlValidator sqlValidator,
             Function<SqlNode, String> escapeExpressions,
             DataTypeFactory dataTypeFactory) {
@@ -193,7 +193,7 @@ public class SchemaBuilderUtil {
     }
 
     /** Converts a {@link SqlRegularColumn} to an {@link UnresolvedPhysicalColumn} object. */
-    UnresolvedPhysicalColumn toUnresolvedPhysicalColumn(SqlRegularColumn column) {
+    protected UnresolvedPhysicalColumn toUnresolvedPhysicalColumn(SqlRegularColumn column) {
         final String name = column.getName().getSimple();
         final Optional<String> comment = getComment(column);
         final LogicalType logicalType = toLogicalType(toRelDataType(column.getType()));

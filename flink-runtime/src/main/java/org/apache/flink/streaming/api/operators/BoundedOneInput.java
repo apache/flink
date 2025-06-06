@@ -35,6 +35,12 @@ public interface BoundedOneInput {
     /**
      * It is notified that no more data will arrive from the input.
      *
+     * <p>Stateful operators need to be aware that a restart with rescaling may occur after
+     * receiving this notification. A changed source split assignment may imply that the same
+     * subtask of this operator that received endInput, has its state after endInput snapshotted,
+     * and will receive new data after restart. Hence, the state should not contain any finalization
+     * that would make it impossible to process new data.
+     *
      * <p><b>WARNING:</b> It is not safe to use this method to commit any transactions or other side
      * effects! You can use this method to flush any buffered data that can later on be committed
      * e.g. in a {@link StreamOperator#notifyCheckpointComplete(long)}.

@@ -111,6 +111,12 @@ class SubtaskGatewayImpl implements OperatorCoordinator.SubtaskGateway {
                 sendResult.whenCompleteAsync(
                         (success, failure) -> {
                             if (failure != null && subtaskAccess.isStillRunning()) {
+                                if (ExceptionUtils.findThrowable(
+                                                        failure, TaskNotRunningException.class)
+                                                .isPresent()
+                                        && evt.isLossTolerant()) {
+                                    return;
+                                }
                                 String msg =
                                         String.format(
                                                 EVENT_LOSS_ERROR_MESSAGE,

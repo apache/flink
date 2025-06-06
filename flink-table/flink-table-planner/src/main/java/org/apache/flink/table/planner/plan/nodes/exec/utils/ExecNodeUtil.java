@@ -21,11 +21,13 @@ package org.apache.flink.table.planner.plan.nodes.exec.utils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
@@ -38,6 +40,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /** An Utility class that helps translating {@link ExecNode} to {@link Transformation}. */
 public class ExecNodeUtil {
@@ -357,6 +360,33 @@ public class ExecNodeUtil {
                 parallelism,
                 memoryBytes,
                 parallelismConfigured);
+    }
+
+    /** Create a {@link KeyedMultipleInputTransformation}. */
+    public static <I, K, O> KeyedMultipleInputTransformation<O> createKeyedMultiInputTransformation(
+            List<Transformation<I>> inputs,
+            List<KeySelector<I, K>> keySelectors,
+            TypeInformation<?> keyType,
+            TransformationMetadata transformationMeta,
+            StreamOperatorFactory<O> operatorFactory,
+            TypeInformation<O> outputType,
+            int parallelism,
+            boolean parallelismConfigured) {
+        final KeyedMultipleInputTransformation<O> transformation =
+                new KeyedMultipleInputTransformation<>(
+                        transformationMeta.getName(),
+                        operatorFactory,
+                        outputType,
+                        parallelism,
+                        parallelismConfigured,
+                        keyType);
+        transformationMeta.fill(transformation);
+        IntStream.range(0, inputs.size())
+                .forEach(
+                        inputIdx ->
+                                transformation.addInput(
+                                        inputs.get(inputIdx), keySelectors.get(inputIdx)));
+        return transformation;
     }
 
     /** Return description for multiple input node. */

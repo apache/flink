@@ -26,6 +26,7 @@ import org.apache.flink.table.connector.RuntimeConverter;
 import org.apache.flink.table.connector.sink.abilities.SupportsBucketing;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
+import org.apache.flink.table.connector.sink.abilities.SupportsTargetColumnWriting;
 import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
@@ -71,6 +72,7 @@ import java.util.Optional;
  *   <li>{@link SupportsPartitioning}
  *   <li>{@link SupportsOverwrite}
  *   <li>{@link SupportsWritingMetadata}
+ *   <li>{@link SupportsTargetColumnWriting}
  * </ul>
  *
  * <p>In the last step, the planner will call {@link #getSinkRuntimeProvider(Context)} for obtaining

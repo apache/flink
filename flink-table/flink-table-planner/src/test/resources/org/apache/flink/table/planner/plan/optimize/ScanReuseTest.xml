@@ -1379,4 +1379,32 @@ Sink(table=[default_catalog.default_database.snk2], fields=[id])
 ]]>
     </Resource>
   </TestCase>
+	<TestCase name="testWatermarkPushDownWithTimestampChanged[isStreaming: true]">
+		<Resource name="ast">
+			<![CDATA[
+LogicalSink(table=[default_catalog.default_database.MySinkTs], fields=[a, ts_ltz])
++- LogicalProject(a=[$0], ts_ltz=[$2])
+   +- LogicalWatermarkAssigner(rowtime=[ts_ltz], watermark=[-($2, 600000:INTERVAL MINUTE)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTableWatermark]])
+
+LogicalSink(table=[default_catalog.default_database.MySinkTs], fields=[a, ts])
++- LogicalProject(a=[CAST($1):BIGINT], ts=[CAST($2):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)])
+   +- LogicalWatermarkAssigner(rowtime=[ts_ltz], watermark=[-($2, 600000:INTERVAL MINUTE)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTableWatermark]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+TableSourceScan(table=[[default_catalog, default_database, MyTableWatermark, project=[a, b, ts_ltz], metadata=[], watermark=[-(ts_ltz, 600000:INTERVAL MINUTE)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, ts_ltz])(reuse_id=[1])
+
+Sink(table=[default_catalog.default_database.MySinkTs], fields=[a, ts_ltz])
++- Calc(select=[a, ts_ltz])
+   +- Reused(reference_id=[1])
+
+Sink(table=[default_catalog.default_database.MySinkTs], fields=[a, ts])
++- Calc(select=[CAST(b AS BIGINT) AS a, CAST(ts_ltz AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)) AS ts])
+   +- Reused(reference_id=[1])
+]]>
+		</Resource>
+	</TestCase>
 </Root>

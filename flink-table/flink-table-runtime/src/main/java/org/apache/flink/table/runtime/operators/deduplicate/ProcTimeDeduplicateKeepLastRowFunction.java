@@ -95,6 +95,7 @@ public class ProcTimeDeduplicateKeepLastRowFunction
                     equaliser);
         } else if (filterCondition != null) {
             processLastRowOnChangelogWithFilter(
+                    FilterCondition.Context.of(ctx),
                     input,
                     generateUpdateBefore,
                     state,

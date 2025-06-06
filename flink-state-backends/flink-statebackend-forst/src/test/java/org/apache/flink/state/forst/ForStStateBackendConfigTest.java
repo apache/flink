@@ -65,6 +65,7 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -496,6 +497,10 @@ public class ForStStateBackendConfigTest {
             verifyIllegalArgument(ForStConfigurableOptions.COMPRESSION_PER_LEVEL, "SNAP");
             verifyIllegalArgument(ForStConfigurableOptions.USE_BLOOM_FILTER, "NO");
             verifyIllegalArgument(ForStConfigurableOptions.BLOOM_FILTER_BLOCK_BASED_MODE, "YES");
+            verifyIllegalArgument(
+                    ForStConfigurableOptions.COMPACT_FILTER_PERIODIC_COMPACTION_TIME, "-1s");
+            verifyIllegalArgument(
+                    ForStConfigurableOptions.COMPACT_FILTER_QUERY_TIME_AFTER_NUM_ENTRIES, "1.1");
         }
 
         // verify legal configuration
@@ -520,6 +525,8 @@ public class ForStStateBackendConfigTest {
             configuration.setString(ForStConfigurableOptions.METADATA_BLOCK_SIZE.key(), "8 kb");
             configuration.setString(ForStConfigurableOptions.BLOCK_CACHE_SIZE.key(), "512 mb");
             configuration.setString(ForStConfigurableOptions.USE_BLOOM_FILTER.key(), "TRUE");
+            configuration.setString(
+                    ForStConfigurableOptions.COMPACT_FILTER_PERIODIC_COMPACTION_TIME.key(), "1h");
 
             try (ForStResourceContainer optionsContainer =
                     new ForStResourceContainer(
@@ -546,6 +553,7 @@ public class ForStStateBackendConfigTest {
                                 CompressionType.SNAPPY_COMPRESSION,
                                 CompressionType.LZ4_COMPRESSION),
                         columnOptions.compressionPerLevel());
+                assertEquals(3600, columnOptions.periodicCompactionSeconds());
 
                 BlockBasedTableConfig tableConfig =
                         (BlockBasedTableConfig) columnOptions.tableFormatConfig();
@@ -777,6 +785,32 @@ public class ForStStateBackendConfigTest {
         ForStStateBackend forStStateBackend = new ForStStateBackend();
         assertFalse(forStStateBackend.supportsSavepointFormat(SavepointFormatType.CANONICAL));
         assertTrue(forStStateBackend.supportsSavepointFormat(SavepointFormatType.NATIVE));
+    }
+
+    @Test
+    public void testConfigurePeriodicCompactionTime() throws Exception {
+        ForStStateBackend forStStateBackend = new ForStStateBackend();
+        Configuration configuration = new Configuration();
+        configuration.setString(
+                ForStConfigurableOptions.COMPACT_FILTER_PERIODIC_COMPACTION_TIME.key(), "1d");
+        forStStateBackend = forStStateBackend.configure(configuration, getClass().getClassLoader());
+        try (ForStResourceContainer resourceContainer =
+                forStStateBackend.createOptionsAndResourceContainer(null)) {
+            assertEquals(Duration.ofDays(1), resourceContainer.getPeriodicCompactionTime());
+        }
+    }
+
+    @Test
+    public void testConfigureQueryTimeAfterNumEntries() throws Exception {
+        ForStStateBackend forStStateBackend = new ForStStateBackend();
+        Configuration configuration = new Configuration();
+        configuration.setString(
+                ForStConfigurableOptions.COMPACT_FILTER_QUERY_TIME_AFTER_NUM_ENTRIES.key(), "100");
+        forStStateBackend = forStStateBackend.configure(configuration, getClass().getClassLoader());
+        try (ForStResourceContainer resourceContainer =
+                forStStateBackend.createOptionsAndResourceContainer(null)) {
+            assertEquals(100L, resourceContainer.getQueryTimeAfterNumEntries().longValue());
+        }
     }
 
     private void verifySetParameter(Runnable setter) {

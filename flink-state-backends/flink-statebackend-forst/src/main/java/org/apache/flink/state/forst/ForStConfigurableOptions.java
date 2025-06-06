@@ -397,7 +397,9 @@ public class ForStConfigurableOptions implements Serializable {
                 BLOOM_FILTER_BLOCK_BASED_MODE,
                 RESTORE_OVERLAP_FRACTION_THRESHOLD,
                 USE_INGEST_DB_RESTORE_MODE,
-                USE_DELETE_FILES_IN_RANGE_DURING_RESCALING
+                USE_DELETE_FILES_IN_RANGE_DURING_RESCALING,
+                COMPACT_FILTER_QUERY_TIME_AFTER_NUM_ENTRIES,
+                COMPACT_FILTER_PERIODIC_COMPACTION_TIME
             };
 
     private static final Set<ConfigOption<?>> POSITIVE_INT_CONFIG_SET =
