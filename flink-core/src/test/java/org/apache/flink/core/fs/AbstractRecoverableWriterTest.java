@@ -220,7 +220,7 @@ public abstract class AbstractRecoverableWriterTest {
                 stream.write(testData2.getBytes(StandardCharsets.UTF_8));
 
             } catch (IOException e) {
-                Log.info("{} execution failed, err message{}: ", times, e.getMessage());
+                Log.warn("{} execution failed, err message{}: ", times, e.getMessage());
                 throw e;
             }
 
@@ -257,7 +257,7 @@ public abstract class AbstractRecoverableWriterTest {
                 recoveredStream.write(testData3.getBytes(StandardCharsets.UTF_8));
                 recoveredStream.closeForCommit().commit();
             } catch (IOException e) {
-                Log.info("Final write failed: " + e.getMessage());
+                Log.warn("Final write failed: {}", e.getMessage());
                 throw e;
             }
 
