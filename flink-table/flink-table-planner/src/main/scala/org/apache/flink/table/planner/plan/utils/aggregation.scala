@@ -18,8 +18,8 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.planner.typeutils.DataViewUtils.DistinctViewSpec
 import org.apache.flink.table.runtime.dataview.DataViewSpec
+import org.apache.flink.table.runtime.dataview.DataViewUtils.DistinctViewSpec
 import org.apache.flink.table.types.DataType
 
 import org.apache.calcite.rel.core.AggregateCall

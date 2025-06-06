@@ -33,6 +33,7 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.ModelAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.ModelNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
@@ -50,6 +51,8 @@ import org.apache.flink.table.catalog.listener.DropModelEvent;
 import org.apache.flink.table.catalog.listener.DropTableEvent;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
+import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver.ExpressionResolverBuilder;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.operations.Operation;
@@ -119,12 +122,15 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
 
     private final CatalogStoreHolder catalogStoreHolder;
 
+    private SqlFactory sqlFactory;
+
     private CatalogManager(
             String defaultCatalogName,
             Catalog defaultCatalog,
             DataTypeFactory typeFactory,
             List<CatalogModificationListener> catalogModificationListeners,
-            CatalogStoreHolder catalogStoreHolder) {
+            CatalogStoreHolder catalogStoreHolder,
+            SqlFactory sqlFactory) {
         checkArgument(
                 !StringUtils.isNullOrWhitespaceOnly(defaultCatalogName),
                 "Default catalog name cannot be null or empty");
@@ -145,6 +151,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         this.catalogModificationListeners = catalogModificationListeners;
 
         this.catalogStoreHolder = catalogStoreHolder;
+
+        this.sqlFactory = sqlFactory;
     }
 
     @VisibleForTesting
@@ -179,6 +187,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         private List<CatalogModificationListener> catalogModificationListeners =
                 Collections.emptyList();
         private CatalogStoreHolder catalogStoreHolder;
+
+        private SqlFactory sqlFactory = DefaultSqlFactory.INSTANCE;
 
         public Builder classLoader(ClassLoader classLoader) {
             this.classLoader = classLoader;
@@ -217,6 +227,11 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             return this;
         }
 
+        public Builder sqlFactory(SqlFactory sqlFactory) {
+            this.sqlFactory = checkNotNull(sqlFactory);
+            return this;
+        }
+
         public CatalogManager build() {
             checkNotNull(classLoader, "Class loader cannot be null");
             checkNotNull(config, "Config cannot be null");
@@ -233,7 +248,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                                             ? null
                                             : executionConfig.getSerializerConfig()),
                     catalogModificationListeners,
-                    catalogStoreHolder);
+                    catalogStoreHolder,
+                    sqlFactory);
         }
     }
 
@@ -305,6 +321,14 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         return typeFactory;
     }
 
+    public SqlFactory getSqlFactory() {
+        return sqlFactory;
+    }
+
+    public void setSqlFactory(SqlFactory sqlFactory) {
+        this.sqlFactory = checkNotNull(sqlFactory);
+    }
+
     /**
      * Creates a catalog under the given name. The catalog name must be unique.
      *
@@ -331,13 +355,12 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                 throw new CatalogException(format("Catalog %s already exists.", catalogName));
             }
         } else {
-            // Store the catalog in the catalog store
-            catalogStoreHolder.catalogStore().storeCatalog(catalogName, catalogDescriptor);
-
             // Initialize and store the catalog in memory
             Catalog catalog = initCatalog(catalogName, catalogDescriptor);
             catalog.open();
             catalogs.put(catalogName, catalog);
+            // Store the catalog in the catalog store
+            catalogStoreHolder.catalogStore().storeCatalog(catalogName, catalogDescriptor);
         }
     }
 
@@ -1520,18 +1543,50 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
     /**
      * Alters a model in a given fully qualified path.
      *
-     * @param modelChange The model containing only changes
+     * @param newModel The new model containing changes.
+     * @param modelChanges The changes to apply to the model.
      * @param objectIdentifier The fully qualified path where to alter the model.
      * @param ignoreIfNotExists If false exception will be thrown if the model to be altered does
      *     not exist.
      */
     public void alterModel(
-            CatalogModel modelChange,
+            CatalogModel newModel,
+            List<ModelChange> modelChanges,
             ObjectIdentifier objectIdentifier,
             boolean ignoreIfNotExists) {
         execute(
                 (catalog, path) -> {
-                    ResolvedCatalogModel resolvedModel = resolveCatalogModel(modelChange);
+                    ResolvedCatalogModel resolvedModel = resolveCatalogModel(newModel);
+                    catalog.alterModel(path, resolvedModel, modelChanges, ignoreIfNotExists);
+                    catalogModificationListeners.forEach(
+                            listener ->
+                                    listener.onEvent(
+                                            AlterModelEvent.createEvent(
+                                                    CatalogContext.createContext(
+                                                            objectIdentifier.getCatalogName(),
+                                                            catalog),
+                                                    objectIdentifier,
+                                                    resolvedModel,
+                                                    ignoreIfNotExists)));
+                },
+                objectIdentifier,
+                ignoreIfNotExists,
+                "AlterModel");
+    }
+
+    /**
+     * Alters a model in a given fully qualified path.
+     *
+     * @param newModel The new model containing changes
+     * @param objectIdentifier The fully qualified path where to alter the model.
+     * @param ignoreIfNotExists If false exception will be thrown if the model to be altered does
+     *     not exist.
+     */
+    public void alterModel(
+            CatalogModel newModel, ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+        execute(
+                (catalog, path) -> {
+                    ResolvedCatalogModel resolvedModel = resolveCatalogModel(newModel);
                     catalog.alterModel(path, resolvedModel, ignoreIfNotExists);
                     catalogModificationListeners.forEach(
                             listener ->
@@ -1648,6 +1703,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                 command.execute(catalog.get(), objectIdentifier.toObjectPath());
             } catch (TableAlreadyExistException
                     | TableNotExistException
+                    | ModelNotExistException
+                    | ModelAlreadyExistException
                     | DatabaseNotExistException e) {
                 throw new ValidationException(getErrorMessage(objectIdentifier, commandName), e);
             } catch (Exception e) {

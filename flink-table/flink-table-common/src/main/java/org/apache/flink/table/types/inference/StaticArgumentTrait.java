@@ -32,14 +32,24 @@ import java.util.stream.Collectors;
  */
 @PublicEvolving
 public enum StaticArgumentTrait {
+    // Roots
     SCALAR(),
     TABLE(),
     MODEL(),
+
+    // For TABLE
     TABLE_AS_ROW(TABLE),
     TABLE_AS_SET(TABLE),
     PASS_COLUMNS_THROUGH(TABLE),
     SUPPORT_UPDATES(TABLE),
-    OPTIONAL_PARTITION_BY(TABLE_AS_SET);
+    REQUIRE_ON_TIME(TABLE),
+
+    // For TABLE_AS_SET
+    OPTIONAL_PARTITION_BY(TABLE_AS_SET),
+
+    // For SUPPORT_UPDATES
+    REQUIRE_UPDATE_BEFORE(SUPPORT_UPDATES),
+    REQUIRE_FULL_DELETE(SUPPORT_UPDATES);
 
     private final Set<StaticArgumentTrait> requirements;
 

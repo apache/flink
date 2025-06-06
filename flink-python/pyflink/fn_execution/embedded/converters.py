@@ -33,7 +33,7 @@ OUT = TypeVar('OUT')
 # Java Window
 JTimeWindow = findClass('org.apache.flink.table.runtime.operators.window.TimeWindow')
 JCountWindow = findClass('org.apache.flink.table.runtime.operators.window.CountWindow')
-JGlobalWindow = findClass('org.apache.flink.streaming.api.windowing.windows.GlobalWindow')
+JGlobalWindow = findClass('org.apache.flink.table.runtime.operators.window.GlobalWindow')
 
 
 class DataConverter(ABC):

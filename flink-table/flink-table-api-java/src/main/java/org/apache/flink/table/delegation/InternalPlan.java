@@ -40,6 +40,11 @@ public interface InternalPlan {
     String asJsonString();
 
     /**
+     * @see CompiledPlan#asSmileBytes()
+     */
+    byte[] asSmileBytes();
+
+    /**
      * Note that {@code ignoreIfExists} has precedence over {@code failIfExists}.
      *
      * @see CompiledPlan#writeToFile(File, boolean)

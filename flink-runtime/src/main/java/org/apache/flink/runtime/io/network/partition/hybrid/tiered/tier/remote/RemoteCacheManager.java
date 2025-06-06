@@ -48,12 +48,16 @@ class RemoteCacheManager {
                             partitionId, subpartitionId, storageMemoryManager, partitionFileWriter);
         }
 
-        Arrays.fill(subpartitionSegmentIds, -1);
+        Arrays.fill(subpartitionSegmentIds, SubpartitionRemoteCacheManager.EMPTY_SEGMENT_ID);
     }
 
     // ------------------------------------------------------------------------
     //  Called by RemoteTierProducerAgent
     // ------------------------------------------------------------------------
+
+    boolean hasAnySegmentStarted(int subpartitionId) {
+        return subpartitionCacheDataManagers[subpartitionId].hasAnySegmentStarted();
+    }
 
     void startSegment(int subpartitionId, int segmentId) {
         subpartitionCacheDataManagers[subpartitionId].startSegment(segmentId);

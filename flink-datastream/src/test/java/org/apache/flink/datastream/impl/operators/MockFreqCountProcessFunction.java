@@ -48,7 +48,7 @@ public class MockFreqCountProcessFunction
             Integer record, Collector<Integer> output, PartitionedContext<Integer> ctx)
             throws Exception {
         Optional<MapState<Integer, Integer>> stateOptional =
-                ctx.getStateManager().getState(mapStateDeclaration);
+                ctx.getStateManager().getStateOptional(mapStateDeclaration);
         if (!stateOptional.isPresent()) {
             throw new RuntimeException("State is not available");
         }

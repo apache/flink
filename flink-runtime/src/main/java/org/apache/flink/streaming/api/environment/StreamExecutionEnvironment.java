@@ -2218,7 +2218,8 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @return A local execution environment with the specified parallelism.
      */
     public static LocalStreamEnvironment createLocalEnvironment(int parallelism) {
-        return createLocalEnvironment(parallelism, new Configuration());
+        return createLocalEnvironment(
+                new Configuration().set(CoreOptions.DEFAULT_PARALLELISM, parallelism));
     }
 
     /**

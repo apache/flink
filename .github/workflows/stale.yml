@@ -19,19 +19,19 @@
 name: Stale PRs
 on:
   schedule:
-    #- cron: '15 6 * * *' # Run once a day at 6:15 UTC
-    - cron: '0 */6 * * *' # Initially we run every 6 hours until we have reached steady state
+    - cron: '15 6 * * *' # Run once a day at 6:15 UTC
   workflow_dispatch:
     inputs:
       operationsPerRun:
         description: 'Max GitHub API operations'
         required: true
-        default: 200 # Initially we set this at a high level to clear the backlog
+        default: 20
         type: number
 
 permissions:
   issues: write
   pull-requests: write
+  actions: write
 
 jobs:
   stale:
@@ -41,11 +41,11 @@ jobs:
         with:
           operations-per-run: ${{ inputs.operationsPerRun || 500 }}
           ascending: true
-          days-before-stale: 180 # This should eventually be reduced to 90
-          days-before-close: 90  # This should eventually be reduced to 30
+          days-before-stale: 90
+          days-before-close: 30
           stale-pr-label: 'stale'
           stale-pr-message: |
-            This PR is being marked as stale since it has not had any activity in the last 180 days. 
+            This PR is being marked as stale since it has not had any activity in the last 90 days. 
             If you would like to keep this PR alive, please leave a comment asking for a review. 
             If the PR has merge conflicts, update it with the latest from the base branch.
 
@@ -53,9 +53,9 @@ jobs:
             community, contact details can be found here: https://flink.apache.org/what-is-flink/community/
 
             If this PR is no longer valid or desired, please feel free to close it. 
-            If no activity occurs in the next 90 days, it will be automatically closed.
+            If no activity occurs in the next 30 days, it will be automatically closed.
           close-pr-label: 'closed-stale'
           close-pr-message: |
-            This PR has been closed since it has not had any activity in 270 days. 
+            This PR has been closed since it has not had any activity in 120 days. 
             If you feel like this was a mistake, or you would like to continue working on it, 
             please feel free to re-open the PR and ask for a review.

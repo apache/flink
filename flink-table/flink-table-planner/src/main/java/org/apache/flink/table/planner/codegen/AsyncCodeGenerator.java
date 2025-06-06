@@ -129,30 +129,24 @@ public class AsyncCodeGenerator {
                 projection.stream()
                         .map(exprGenerator::generateExpression)
                         .collect(Collectors.toList());
-        int syncIndex = 0;
         int index = 0;
-        StringBuilder outputs = new StringBuilder();
-        StringBuilder syncInvocations = new StringBuilder();
+        StringBuilder metadataInvocations = new StringBuilder();
         StringBuilder asyncInvocation = new StringBuilder();
         if (retainHeader) {
-            outputs.append(String.format("%s.setRowKind(rowKind);\n", recordTerm, inputTerm));
+            metadataInvocations.append(
+                    String.format("%s.setRowKind(rowKind);\n", delegatingFutureTerm));
         }
         for (GeneratedExpression fieldExpr : projectionExprs) {
             if (fieldExpr.resultTerm().isEmpty()) {
-                outputs.append(
-                        String.format("%s.setField(%d, resultObject);\n", recordTerm, index));
                 asyncInvocation.append(fieldExpr.code());
+                metadataInvocations.append(
+                        String.format("%s.addAsyncIndex(%d);\n", delegatingFutureTerm, index));
             } else {
-                outputs.append(
+                metadataInvocations.append(fieldExpr.code());
+                metadataInvocations.append(
                         String.format(
-                                "%s.setField(%d, %s.getSynchronousResult(%d));\n",
-                                recordTerm, index, delegatingFutureTerm, syncIndex));
-                syncInvocations.append(fieldExpr.code());
-                syncInvocations.append(
-                        String.format(
-                                "%s.addSynchronousResult(%s);\n",
-                                delegatingFutureTerm, fieldExpr.resultTerm()));
-                syncIndex++;
+                                "%s.addSynchronousResult(%d, %s);\n",
+                                delegatingFutureTerm, index, fieldExpr.resultTerm()));
             }
             index++;
         }
@@ -165,8 +159,7 @@ public class AsyncCodeGenerator {
         values.put("recordTerm", recordTerm);
         values.put("inputTerm", inputTerm);
         values.put("fieldCount", Integer.toString(LogicalTypeChecks.getFieldCount(outRowType)));
-        values.put("outputs", outputs.toString());
-        values.put("syncInvocations", syncInvocations.toString());
+        values.put("metadataInvocations", metadataInvocations.toString());
         values.put("asyncInvocation", asyncInvocation.toString());
         values.put("errorTerm", errorTerm);
 
@@ -175,23 +168,12 @@ public class AsyncCodeGenerator {
                         "\n",
                         new String[] {
                             "final ${delegatingFutureType} ${delegatingFutureTerm} ",
-                            "    = new ${delegatingFutureType}(${collectorTerm});",
+                            "    = new ${delegatingFutureType}(${collectorTerm}, ${fieldCount});",
                             "final org.apache.flink.types.RowKind rowKind = ${inputTerm}.getRowKind();\n",
                             "try {",
-                            "  java.util.function.Function<Object, ${typeTerm}> outputFactory = ",
-                            "    new java.util.function.Function<Object, ${typeTerm}>() {",
-                            "    @Override",
-                            "    public ${typeTerm} apply(Object resultObject) {",
-                            "      final ${typeTerm} ${recordTerm} = new ${typeTerm}(${fieldCount});",
-                            "      ${outputs}",
-                            "      return ${recordTerm};",
-                            "    }",
-                            "  };",
-                            "",
-                            "  ${delegatingFutureTerm}.setOutputFactory(outputFactory);",
-                            // Ensure that sync invocations come first so that we know that they're
+                            // Ensure that metadata setup come first so that we know that they're
                             // available when the async callback occurs.
-                            "  ${syncInvocations}",
+                            "  ${metadataInvocations}",
                             "  ${asyncInvocation}",
                             "",
                             "} catch (Throwable ${errorTerm}) {",

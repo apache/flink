@@ -171,7 +171,7 @@ public class VertexInputInfoComputationUtils {
      * @param isSingleSubpartitionContainsAllData whether single subpartition contains all data
      * @return the computed {@link JobVertexInputInfo}
      */
-    static JobVertexInputInfo computeVertexInputInfoForAllToAll(
+    public static JobVertexInputInfo computeVertexInputInfoForAllToAll(
             int sourceCount,
             int targetCount,
             Function<Integer, Integer> numOfSubpartitionsRetriever,

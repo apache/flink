@@ -38,6 +38,7 @@ import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.util.ResourceCounter;
+import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -664,9 +665,12 @@ public class FineGrainedSlotManager implements SlotManager {
         // Notify jobs that can not be fulfilled
         if (sendNotEnoughResourceNotifications) {
             for (JobID jobId : unfulfillableJobs) {
-                LOG.warn("Could not fulfill resource requirements of job {}.", jobId);
-                resourceEventListener.notEnoughResourceAvailable(
-                        jobId, resourceTracker.getAcquiredResources(jobId));
+                try (MdcUtils.MdcCloseable ignored =
+                        MdcUtils.withContext(MdcUtils.asContextData(jobId))) {
+                    LOG.warn("Could not fulfill resource requirements of job {}.", jobId);
+                    resourceEventListener.notEnoughResourceAvailable(
+                            jobId, resourceTracker.getAcquiredResources(jobId));
+                }
             }
         }
 

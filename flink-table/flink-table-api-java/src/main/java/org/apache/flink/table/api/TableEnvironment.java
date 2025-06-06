@@ -21,6 +21,7 @@ package org.apache.flink.table.api;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.Catalog;
@@ -28,6 +29,7 @@ import org.apache.flink.table.catalog.CatalogDescriptor;
 import org.apache.flink.table.catalog.CatalogStore;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.module.Module;
@@ -964,6 +966,74 @@ public interface TableEnvironment {
      * @return The {@link Table} object describing the pipeline for further transformations.
      */
     Table from(TableDescriptor descriptor);
+
+    /**
+     * Returns a {@link Table} backed by a call to a process table function (PTF).
+     *
+     * <p>A PTF maps zero, one, or multiple tables to a new table. PTFs are the most powerful
+     * function kind for Flink SQL and Table API. They enable implementing user-defined operators
+     * that can be as feature-rich as built-in operations. PTFs have access to Flink's managed
+     * state, event-time and timer services, underlying table changelogs, and can take multiple
+     * partitioned tables to produce a new table.
+     *
+     * <p>This method assumes a call to a previously registered function.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * env.createFunction("MyPTF", MyPTF.class);
+     *
+     * Table table = env.fromCall(
+     *   "MyPTF",
+     *   table.partitionBy($("key")).asArgument("input_table"),
+     *   lit("Bob").asArgument("default_name"),
+     *   lit(42).asArgument("default_threshold")
+     * );
+     * }</pre>
+     *
+     * <p>A PTF can digest tables either per row (with row semantics) or per set (with set
+     * semantics). For set semantics ({@link ArgumentTrait#TABLE_AS_SET}), make sure to partition
+     * the table first using {@link Table#partitionBy(Expression...)}.
+     *
+     * @param path The path of a function.
+     * @param arguments Table and scalar argument {@link Expressions}.
+     * @return The {@link Table} object describing the pipeline for further transformations.
+     * @see Expressions#call(String, Object...)
+     * @see ProcessTableFunction
+     */
+    Table fromCall(String path, Object... arguments);
+
+    /**
+     * Returns a {@link Table} backed by a call to a process table function (PTF).
+     *
+     * <p>A PTF maps zero, one, or multiple tables to a new table. PTFs are the most powerful
+     * function kind for Flink SQL and Table API. They enable implementing user-defined operators
+     * that can be as feature-rich as built-in operations. PTFs have access to Flink's managed
+     * state, event-time and timer services, underlying table changelogs, and can take multiple
+     * partitioned tables to produce a new table.
+     *
+     * <p>This method assumes a call to an unregistered, inline function.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * Table table = env.fromCall(
+     *   MyPTF.class,
+     *   table.partitionBy($("key")).asArgument("input_table")
+     * );
+     * }</pre>
+     *
+     * <p>A PTF can digest tables either per row (with row semantics) or per set (with set
+     * semantics). For set semantics ({@link ArgumentTrait#TABLE_AS_SET}), make sure to partition
+     * the table first using {@link Table#partitionBy(Expression...)}.
+     *
+     * @param function The class containing the function's logic.
+     * @param arguments Table and scalar argument {@link Expressions}.
+     * @return The {@link Table} object describing the pipeline for further transformations.
+     * @see Expressions#call(Class, Object...)
+     * @see ProcessTableFunction
+     */
+    Table fromCall(Class<? extends UserDefinedFunction> function, Object... arguments);
 
     /**
      * Gets the names of all catalogs registered in this environment.

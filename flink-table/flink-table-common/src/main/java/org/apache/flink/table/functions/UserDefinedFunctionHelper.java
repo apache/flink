@@ -95,6 +95,10 @@ public final class UserDefinedFunctionHelper {
 
     public static final String PROCESS_TABLE_EVAL = "eval";
 
+    public static final String PROCESS_TABLE_ON_TIMER = "onTimer";
+
+    public static final String DEFAULT_ACCUMULATOR_NAME = "acc";
+
     /**
      * Tries to infer the TypeInformation of an AggregateFunction's accumulator type.
      *

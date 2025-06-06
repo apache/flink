@@ -34,4 +34,7 @@ public interface RemoteCalcCallFinder {
 
     // If the node contains directly a non-remote call.
     boolean isNonRemoteCall(RexNode node);
+
+    // A name that can be appended onto the rule
+    String getName();
 }

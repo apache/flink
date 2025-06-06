@@ -203,19 +203,6 @@ DataStream<Integer> stream = env.fromSource(
 ...
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-
-val mySource = new MySource(...)
-
-val stream = env.fromSource(
-      mySource,
-      WatermarkStrategy.noWatermarks(),
-      "MySourceName")
-...
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 env = StreamExecutionEnvironment.get_execution_environment()
@@ -383,10 +370,6 @@ Python API 中尚不支持该特性。
 ## 事件时间和水印
 
 Source 的实现需要完成一部分*事件时间*分配和*水印生成*的工作。离开 SourceReader 的事件流需要具有事件时间戳，并且（在流执行期间）包含水印。有关事件时间和水印的介绍，请参见[及时流处理]({{< ref "docs/concepts/time" >}})。
-
-{{< hint warning >}}
-旧版 {{< gh_link file="flink-streaming-java/src/main/java/org/apache/flink/streaming/api/functions/source/SourceFunction.java" name="SourceFunction" >}} 的应用通常在之后的单独的一步中通过 `stream.assignTimestampsAndWatermarks(WatermarkStrategy)` 生成时间戳和水印。这个函数不应该与新的 Sources 一起使用，因为此时时间戳应该已经被分配了，而且该函数会覆盖掉之前的分片（split-aware）水印。
-{{< /hint >}}
 
 #### API
 

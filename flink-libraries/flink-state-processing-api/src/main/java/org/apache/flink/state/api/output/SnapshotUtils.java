@@ -41,11 +41,10 @@ import static org.apache.flink.configuration.CheckpointingOptions.FS_WRITE_BUFFE
 /** Takes a final snapshot of the state of an operator subtask. */
 @Internal
 public final class SnapshotUtils {
-    static final long CHECKPOINT_ID = 0L;
-
     private SnapshotUtils() {}
 
     public static <OUT, OP extends StreamOperator<OUT>> TaggedOperatorSubtaskState snapshot(
+            long checkpointId,
             OP operator,
             int index,
             long timestamp,
@@ -64,21 +63,22 @@ public final class SnapshotUtils {
                         isUnalignedCheckpoint,
                         CheckpointOptions.NO_ALIGNED_CHECKPOINT_TIME_OUT);
 
-        operator.prepareSnapshotPreBarrier(CHECKPOINT_ID);
+        operator.prepareSnapshotPreBarrier(checkpointId);
 
         CheckpointStreamFactory storage = createStreamFactory(configuration, options);
 
         OperatorSnapshotFutures snapshotInProgress =
-                operator.snapshotState(CHECKPOINT_ID, timestamp, options, storage);
+                operator.snapshotState(checkpointId, timestamp, options, storage);
 
         OperatorSubtaskState state =
                 new OperatorSnapshotFinalizer(snapshotInProgress).getJobManagerOwnedState();
 
-        operator.notifyCheckpointComplete(CHECKPOINT_ID);
+        operator.notifyCheckpointComplete(checkpointId);
         return new TaggedOperatorSubtaskState(index, state);
     }
 
     public static <OUT, OP extends StreamOperator<OUT>> TaggedOperatorSubtaskState snapshot(
+            long checkpointId,
             OP operator,
             int index,
             long timestamp,
@@ -89,6 +89,7 @@ public final class SnapshotUtils {
             throws Exception {
 
         return snapshot(
+                checkpointId,
                 operator,
                 index,
                 timestamp,

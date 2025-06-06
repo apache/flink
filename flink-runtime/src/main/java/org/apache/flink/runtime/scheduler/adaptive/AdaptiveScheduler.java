@@ -95,6 +95,7 @@ import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.scheduler.CoordinatorNotExistException;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismInfo;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismStore;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
@@ -1055,10 +1056,7 @@ public class AdaptiveScheduler
                 .orElseGet(
                         () ->
                                 FutureUtils.completedExceptionally(
-                                        new FlinkException(
-                                                "Coordinator of operator "
-                                                        + operator
-                                                        + " does not exist")));
+                                        new CoordinatorNotExistException(operator)));
     }
 
     @Override

@@ -217,7 +217,7 @@ class CustomIterateAggregateFunction(AggregateFunction):
         accumulator[0][input_str] -= 1
         if accumulator[0][input_str] == 0:
             # test removable iterator
-            key_iter = iter(accumulator[0].keys())  # type: RemovableConcatIterator
+            key_iter: RemovableConcatIterator = iter(accumulator[0].keys())
             while True:
                 try:
                     key = next(key_iter)

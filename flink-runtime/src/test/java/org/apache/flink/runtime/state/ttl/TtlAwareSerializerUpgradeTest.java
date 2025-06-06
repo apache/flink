@@ -155,8 +155,8 @@ public class TtlAwareSerializerUpgradeTest
             TypeSerializer<T> writeSerializer,
             Condition<T> testDataCondition)
             throws IOException {
-        TtlAwareSerializer<T> reader = (TtlAwareSerializer<T>) readSerializer;
-        TtlAwareSerializer<T> writer = (TtlAwareSerializer<T>) writeSerializer;
+        TtlAwareSerializer<T, ?> reader = (TtlAwareSerializer<T, ?>) readSerializer;
+        TtlAwareSerializer<T, ?> writer = (TtlAwareSerializer<T, ?>) writeSerializer;
 
         DataOutputSerializer migratedOut = new DataOutputSerializer(INITIAL_OUTPUT_BUFFER_SIZE);
         writer.migrateValueFromPriorSerializer(

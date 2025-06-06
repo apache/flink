@@ -49,11 +49,15 @@ public class OneInputStateTransformation<T> {
     /** The data stream containing the data to bootstrap the operator state with. */
     private final DataStream<T> stream;
 
+    /** Checkpoint ID. */
+    private final long checkpointId;
+
     /** Local max parallelism for the bootstrapped operator. */
     private OptionalInt operatorMaxParallelism = OptionalInt.empty();
 
-    OneInputStateTransformation(DataStream<T> stream) {
+    OneInputStateTransformation(DataStream<T> stream, long checkpointId) {
         this.stream = stream;
+        this.checkpointId = checkpointId;
     }
 
     /**
@@ -84,7 +88,8 @@ public class OneInputStateTransformation<T> {
         SavepointWriterOperatorFactory factory =
                 (timestamp, path) ->
                         SimpleOperatorFactory.of(
-                                new StateBootstrapOperator<>(timestamp, path, processFunction));
+                                new StateBootstrapOperator<>(
+                                        checkpointId, timestamp, path, processFunction));
 
         return transform(factory);
     }
@@ -105,7 +110,7 @@ public class OneInputStateTransformation<T> {
                 (timestamp, path) ->
                         SimpleOperatorFactory.of(
                                 new BroadcastStateBootstrapOperator<>(
-                                        timestamp, path, processFunction));
+                                        checkpointId, timestamp, path, processFunction));
 
         return transform(factory);
     }
@@ -133,7 +138,8 @@ public class OneInputStateTransformation<T> {
     public <K> KeyedStateTransformation<K, T> keyBy(KeySelector<T, K> keySelector) {
         TypeInformation<K> keyType =
                 TypeExtractor.getKeySelectorTypes(keySelector, stream.getType());
-        return new KeyedStateTransformation<>(stream, operatorMaxParallelism, keySelector, keyType);
+        return new KeyedStateTransformation<>(
+                stream, checkpointId, operatorMaxParallelism, keySelector, keyType);
     }
 
     /**
@@ -146,7 +152,8 @@ public class OneInputStateTransformation<T> {
      */
     public <K> KeyedStateTransformation<K, T> keyBy(
             KeySelector<T, K> keySelector, TypeInformation<K> keyType) {
-        return new KeyedStateTransformation<>(stream, operatorMaxParallelism, keySelector, keyType);
+        return new KeyedStateTransformation<>(
+                stream, checkpointId, operatorMaxParallelism, keySelector, keyType);
     }
 
     /**
@@ -186,6 +193,7 @@ public class OneInputStateTransformation<T> {
 
         TypeInformation<Tuple> keyType =
                 TypeExtractor.getKeySelectorTypes(keySelector, stream.getType());
-        return new KeyedStateTransformation<>(stream, operatorMaxParallelism, keySelector, keyType);
+        return new KeyedStateTransformation<>(
+                stream, checkpointId, operatorMaxParallelism, keySelector, keyType);
     }
 }

@@ -42,7 +42,7 @@ public class CommittableSummary<CommT> implements CommittableMessage<CommT> {
     /** The number of committables coming from the given subtask in the particular checkpoint. */
     private final int numberOfCommittables;
 
-    @Deprecated
+    @Deprecated(forRemoval = true)
     /** The number of committables that have not been successfully committed. */
     private final int numberOfPendingCommittables;
 
@@ -88,7 +88,7 @@ public class CommittableSummary<CommT> implements CommittableMessage<CommT> {
         return numberOfSubtasks;
     }
 
-    public long getCheckpointIdOrEOI() {
+    public long getCheckpointId() {
         return checkpointId;
     }
 

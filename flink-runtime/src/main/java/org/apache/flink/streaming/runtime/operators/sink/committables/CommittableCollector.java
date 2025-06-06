@@ -33,7 +33,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
@@ -49,8 +48,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class CommittableCollector<CommT> {
-    private static final long EOI = Long.MAX_VALUE;
-
     /** Mapping of checkpoint id to {@link CheckpointCommittableManagerImpl}. */
     private final NavigableMap<Long, CheckpointCommittableManagerImpl<CommT>>
             checkpointCommittables;
@@ -142,15 +139,6 @@ public class CommittableCollector<CommT> {
     public Collection<? extends CheckpointCommittableManager<CommT>> getCheckpointCommittablesUpTo(
             long checkpointId) {
         return new ArrayList<>(checkpointCommittables.headMap(checkpointId, true).values());
-    }
-
-    /**
-     * Returns {@link CheckpointCommittableManager} belonging to the last input.
-     *
-     * @return {@link CheckpointCommittableManager}
-     */
-    public Optional<CheckpointCommittableManager<CommT>> getEndOfInputCommittable() {
-        return Optional.ofNullable(checkpointCommittables.get(EOI));
     }
 
     /**

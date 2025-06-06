@@ -195,6 +195,8 @@ object FunctionCodeGenerator {
    *   the first input term
    * @param input2Term
    *   the second input term.
+   * @param contextTerm
+   *   the term used for a context for retrieving time service
    * @return
    *   the generated condition function name and code
    */
@@ -204,14 +206,15 @@ object FunctionCodeGenerator {
       clazz: Class[F],
       bodyCode: String,
       input1Term: String = CodeGenUtils.DEFAULT_INPUT1_TERM,
-      input2Term: String = CodeGenUtils.DEFAULT_INPUT2_TERM): (String, String) = {
+      input2Term: String = CodeGenUtils.DEFAULT_INPUT2_TERM,
+      contextTerm: String = CodeGenUtils.DEFAULT_CONTEXT_TERM): (String, String) = {
     val funcName = newName(ctx, name)
 
     val methodHeader = {
       if (clazz == classOf[JoinCondition]) {
         s"apply($ROW_DATA $input1Term, $ROW_DATA $input2Term)"
       } else if (clazz == classOf[FilterCondition]) {
-        s"apply($ROW_DATA $input1Term)"
+        s"apply($FILTER_CONTEXT $contextTerm, $ROW_DATA $input1Term)"
       } else {
         throw new CodeGenException(s"Unsupported Condition Function $clazz.")
       }

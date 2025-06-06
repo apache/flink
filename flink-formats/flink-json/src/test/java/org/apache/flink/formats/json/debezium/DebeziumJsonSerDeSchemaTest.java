@@ -45,6 +45,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.connector.testutils.formats.SchemaTestUtils.open;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.FLOAT;
 import static org.apache.flink.table.api.DataTypes.INT;
@@ -111,6 +112,34 @@ class DebeziumJsonSerDeSchemaTest {
         deserializationSchema.deserialize(null, collector);
         deserializationSchema.deserialize(new byte[] {}, collector);
         assertThat(collector.list).isEmpty();
+    }
+
+    @Test
+    void testIgnoreParseErrors() throws Exception {
+        List<String> lines = readLines("debezium-data-schema-exclude.txt");
+        DebeziumJsonDeserializationSchema deserializationSchema =
+                new DebeziumJsonDeserializationSchema(
+                        PHYSICAL_DATA_TYPE,
+                        Collections.emptyList(),
+                        InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()),
+                        false,
+                        true,
+                        TimestampFormat.ISO_8601);
+        open(deserializationSchema);
+
+        ThrowingExceptionCollector collector = new ThrowingExceptionCollector();
+        assertThatThrownBy(
+                        () -> {
+                            for (String line : lines) {
+                                deserializationSchema.deserialize(
+                                        line.getBytes(StandardCharsets.UTF_8), collector);
+                            }
+                        })
+                .isInstanceOf(RuntimeException.class)
+                .satisfies(
+                        anyCauseMatches(
+                                RuntimeException.class,
+                                "An error occurred while collecting data."));
     }
 
     @Test
@@ -333,6 +362,19 @@ class DebeziumJsonSerDeSchemaTest {
         @Override
         public void collect(RowData record) {
             list.add(record);
+        }
+
+        @Override
+        public void close() {
+            // do nothing
+        }
+    }
+
+    private static class ThrowingExceptionCollector implements Collector<RowData> {
+
+        @Override
+        public void collect(RowData record) {
+            throw new RuntimeException("An error occurred while collecting data.");
         }
 
         @Override

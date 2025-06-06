@@ -28,11 +28,11 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.cep.configuration.SharedBufferCacheConfig;
 import org.apache.flink.util.WrappingRuntimeException;
 
-import org.apache.flink.shaded.guava32.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava32.com.google.common.cache.CacheBuilder;
-import org.apache.flink.shaded.guava32.com.google.common.cache.RemovalCause;
-import org.apache.flink.shaded.guava32.com.google.common.cache.RemovalListener;
-import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava33.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava33.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava33.com.google.common.cache.RemovalCause;
+import org.apache.flink.shaded.guava33.com.google.common.cache.RemovalListener;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Iterables;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

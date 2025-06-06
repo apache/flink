@@ -18,9 +18,9 @@
 package org.apache.flink.runtime.state.v2;
 
 import org.apache.flink.api.common.state.v2.ListState;
-import org.apache.flink.api.common.state.v2.ListStateDescriptor;
 import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.state.v2.StateIterator;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.v2.internal.InternalListState;
@@ -39,8 +39,8 @@ public class AbstractListState<K, N, V> extends AbstractKeyedState<K, N, V>
         implements InternalListState<K, N, V> {
 
     public AbstractListState(
-            StateRequestHandler stateRequestHandler, ListStateDescriptor<V> stateDescriptor) {
-        super(stateRequestHandler, stateDescriptor);
+            StateRequestHandler stateRequestHandler, TypeSerializer<V> serializer) {
+        super(stateRequestHandler, serializer);
     }
 
     @Override

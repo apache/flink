@@ -22,7 +22,7 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 
 /**
- * Test step for execution SQL.
+ * Test step for executing SQL.
  *
  * <p>Note: Not every runner supports generic SQL statements. Sometimes the runner would like to
  * enrich properties e.g. of a CREATE TABLE. Use this step with caution.

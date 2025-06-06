@@ -33,12 +33,14 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.legacy.factories.TableFactory;
+import org.apache.flink.table.ml.ModelProvider;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.table.watermark.WatermarkEmitStrategy;
@@ -94,6 +96,14 @@ public final class FactoryUtil {
                     .withDescription(
                             "Uniquely identifies the connector of a dynamic table that is used for accessing data in "
                                     + "an external system. Its value is used during table source and table sink discovery.");
+
+    public static final ConfigOption<String> PROVIDER =
+            ConfigOptions.key("provider")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Uniquely identifies the provider of a model that is used for model inference."
+                                    + " Its value is used during model provider discovery.");
 
     public static final ConfigOption<String> FORMAT =
             ConfigOptions.key("format")
@@ -291,6 +301,46 @@ public final class FactoryUtil {
     }
 
     /**
+     * Creates a {@link ModelProvider} from a {@link ResolvedCatalogModel}.
+     *
+     * <p>If {@param preferredFactory} is passed, the model provider is created from that factory.
+     * Otherwise, an attempt is made to discover a matching factory using Java SPI (see {@link
+     * Factory} for details).
+     */
+    public static ModelProvider createModelProvider(
+            @Nullable ModelProviderFactory preferredFactory,
+            ObjectIdentifier objectIdentifier,
+            ResolvedCatalogModel catalogModel,
+            ReadableConfig configuration,
+            ClassLoader classLoader,
+            boolean isTemporary) {
+        final DefaultModelProviderContext context =
+                new DefaultModelProviderContext(
+                        objectIdentifier, catalogModel, configuration, classLoader, isTemporary);
+
+        try {
+            final ModelProviderFactory factory =
+                    preferredFactory != null
+                            ? preferredFactory
+                            : discoverModelProviderFactory(context);
+
+            return factory.createModelProvider(context);
+        } catch (Throwable t) {
+            throw new ValidationException(
+                    String.format(
+                            "Unable to create a model provider for model '%s'.\n\n"
+                                    + "Model options are:\n\n"
+                                    + "%s",
+                            objectIdentifier.asSummaryString(),
+                            catalogModel.getOptions().entrySet().stream()
+                                    .map(e -> stringifyOption(e.getKey(), e.getValue()))
+                                    .sorted()
+                                    .collect(Collectors.joining("\n"))),
+                    t);
+        }
+    }
+
+    /**
      * Creates a utility that helps validating options for a {@link CatalogFactory}.
      *
      * <p>Note: This utility checks for left-over options in the final step.
@@ -356,6 +406,16 @@ public final class FactoryUtil {
     public static TableFactoryHelper createTableFactoryHelper(
             DynamicTableFactory factory, DynamicTableFactory.Context context) {
         return new TableFactoryHelper(factory, context);
+    }
+
+    /**
+     * Creates a utility that helps validate options for a {@link ModelProviderFactory}.
+     *
+     * <p>Note: This utility checks for left-over options in the final step.
+     */
+    public static ModelProviderFactoryHelper createModelProviderFactoryHelper(
+            ModelProviderFactory factory, ModelProviderFactory.Context context) {
+        return new ModelProviderFactoryHelper(factory, context);
     }
 
     /**
@@ -658,6 +718,19 @@ public final class FactoryUtil {
         }
     }
 
+    private static ModelProviderFactory discoverModelProviderFactory(
+            ModelProviderFactory.Context context) {
+        final String providerOption = context.getCatalogModel().getOptions().get(PROVIDER.key());
+        if (providerOption == null) {
+            throw new ValidationException(
+                    String.format(
+                            "Model options do not contain an option key '%s' for discovering a provider.",
+                            PROVIDER.key()));
+        }
+        return discoverFactory(
+                context.getClassLoader(), ModelProviderFactory.class, providerOption);
+    }
+
     private static CatalogFactory getCatalogFactory(CatalogFactory.Context context) {
         final String catalogType =
                 context.getOptions().get(CommonCatalogOptions.CATALOG_TYPE.key());
@@ -901,6 +974,23 @@ public final class FactoryUtil {
     }
 
     /**
+     * Helper utility for validating all options for a {@link ModelProviderFactory}.
+     *
+     * @see #createModelProviderFactoryHelper(ModelProviderFactory, ModelProviderFactory.Context)
+     */
+    @PublicEvolving
+    public static class ModelProviderFactoryHelper extends FactoryHelper<ModelProviderFactory> {
+        public ModelProviderFactoryHelper(
+                ModelProviderFactory modelProviderFactory, ModelProviderFactory.Context context) {
+            super(
+                    modelProviderFactory,
+                    context.getCatalogModel().getOptions(),
+                    PROPERTY_VERSION,
+                    PROVIDER);
+        }
+    }
+
+    /**
      * Helper utility for validating all options for a {@link ModuleFactory}.
      *
      * @see #createModuleFactoryHelper(ModuleFactory, ModuleFactory.Context)
@@ -1137,6 +1227,55 @@ public final class FactoryUtil {
                                 identifierFromPlan,
                                 identifierFromEnrichingOptions.get()));
             }
+        }
+    }
+
+    /** Default implementation of {@link ModelProviderFactory.Context}. */
+    @Internal
+    public static class DefaultModelProviderContext implements ModelProviderFactory.Context {
+
+        private final ObjectIdentifier objectIdentifier;
+        private final ResolvedCatalogModel catalogModel;
+        private final ReadableConfig configuration;
+        private final ClassLoader classLoader;
+        private final boolean isTemporary;
+
+        public DefaultModelProviderContext(
+                ObjectIdentifier objectIdentifier,
+                ResolvedCatalogModel catalogModel,
+                ReadableConfig configuration,
+                ClassLoader classLoader,
+                boolean isTemporary) {
+            this.objectIdentifier = objectIdentifier;
+            this.catalogModel = catalogModel;
+            this.configuration = configuration;
+            this.classLoader = classLoader;
+            this.isTemporary = isTemporary;
+        }
+
+        @Override
+        public ObjectIdentifier getObjectIdentifier() {
+            return objectIdentifier;
+        }
+
+        @Override
+        public ResolvedCatalogModel getCatalogModel() {
+            return catalogModel;
+        }
+
+        @Override
+        public ReadableConfig getConfiguration() {
+            return configuration;
+        }
+
+        @Override
+        public ClassLoader getClassLoader() {
+            return classLoader;
+        }
+
+        @Override
+        public boolean isTemporary() {
+            return isTemporary;
         }
     }
 

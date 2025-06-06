@@ -65,7 +65,7 @@ class WatermarkITCase extends StreamingTestBase {
 
         tEnv().executeSql(ddl);
         tEnv().getConfig().set(CoreOptions.DEFAULT_PARALLELISM, 1);
-        String query = "SELECT a, c, current_watermark(c) FROM VirtualTable order by c";
+        String query = "SELECT a, c, CURRENT_WATERMARK(c) FROM VirtualTable ORDER BY c";
 
         final List<Row> result = CollectionUtil.iteratorToList(tEnv().executeSql(query).collect());
         final List<String> actualWatermarks =
@@ -79,30 +79,27 @@ class WatermarkITCase extends StreamingTestBase {
 
         // Underneath, we use FromElementSourceFunctionWithWatermark which is a SourceFunction.
         // SourceFunction does not support watermark moving back. SourceStreamTask does not support
-        // WatermarkGenerator natively. The test implementation calls
-        // WatermarkGenerator#onPeriodicEmit
-        // after each record, which makes the test deterministic.
+        // WatermarkGenerator natively.
+        //
+        // The test implementation calls WatermarkGenerator#onPeriodicEmit after each record, which
+        // makes the test deterministic.
+        //
         // Additionally, the GeneratedWatermarkGeneratorSupplier does not deduplicate already
-        // emitted
-        // watermarks. This is usually handled by the target WatermarkOutput. In this test, we do
-        // not deduplicate watermarks because we use TestValuesWatermarkOutput.
+        // emitted watermarks. This is usually handled by the target WatermarkOutput. In this test,
+        // we do not deduplicate watermarks because we use TestValuesWatermarkOutput.
         // Given the fact watermarks are generated after every record and we don't deduplicate them,
         // we have "2024-01-03T00:00" twice in the expected watermarks.
+        //
+        // Since the third row is late, the ORDER BY filters the late event. Thus, the result
+        // contains only 2 elements.
         assertThat(actualWatermarks)
                 .containsExactly("2024-01-01T00:00", "2024-01-03T00:00", "2024-01-03T00:00");
         assertThat(result)
                 .containsExactly(
-                        Row.of(
-                                1,
-                                LocalDateTime.parse("2024-01-01T00:00"),
-                                LocalDateTime.parse("2024-01-01T00:00")),
-                        Row.of(
-                                2,
-                                LocalDateTime.parse("2024-01-02T00:00"),
-                                LocalDateTime.parse("2024-01-03T00:00")),
+                        Row.of(1, LocalDateTime.parse("2024-01-01T00:00"), null),
                         Row.of(
                                 3,
                                 LocalDateTime.parse("2024-01-03T00:00"),
-                                LocalDateTime.parse("2024-01-03T00:00")));
+                                LocalDateTime.parse("2024-01-01T00:00")));
     }
 }

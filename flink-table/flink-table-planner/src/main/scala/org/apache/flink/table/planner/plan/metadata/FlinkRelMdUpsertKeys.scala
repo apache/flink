@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalGr
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
-import org.apache.flink.table.planner.plan.utils.{FlinkRexUtil, RankUtil}
+import org.apache.flink.table.planner.plan.utils.{FlinkRexUtil, RankUtil, UpsertKeyUtil}
 
 import com.google.common.collect.ImmutableSet
 import org.apache.calcite.plan.hep.HepRelVertex
@@ -230,6 +230,12 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
       mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
     val joinInfo = JoinInfo.of(rel.getLeft, rel.getRight, rel.originalCondition)
     getJoinUpsertKeys(joinInfo, rel.getJoinType, rel.getLeft, rel.getRight, mq)
+  }
+
+  def getUpsertKeys(
+      rel: StreamPhysicalProcessTableFunction,
+      mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
+    FlinkRelMdUniqueKeys.INSTANCE.getPtfUniqueKeys(rel)
   }
 
   def getUpsertKeys(

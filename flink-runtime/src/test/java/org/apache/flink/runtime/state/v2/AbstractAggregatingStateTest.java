@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.v2;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.state.v2.AggregatingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -79,8 +80,12 @@ class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
         AggregatingStateDescriptor<Integer, Integer, Integer> descriptor =
                 new AggregatingStateDescriptor<>(
                         "testAggState", aggregator, BasicTypeInfo.INT_TYPE_INFO);
+        descriptor.initializeSerializerUnlessSet(new ExecutionConfig());
         AbstractAggregatingState<String, Void, Integer, Integer, Integer> state =
-                new AbstractAggregatingState<>(aec, descriptor);
+                new AbstractAggregatingState<>(
+                        aec,
+                        descriptor.getAggregateFunction(),
+                        descriptor.getSerializer().duplicate());
 
         aec.setCurrentContext(aec.buildContext("test", "test"));
 
@@ -101,16 +106,19 @@ class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
     }
 
     @Test
-    public void testMergeNamespace() throws Exception {
-        AggregateFunction<Integer, Integer, Integer> aggregator = new SumAggregator(0);
+    @SuppressWarnings({"unchecked"})
+    public void testAggregatingStateAddWithSyncAPI() {
+        AggregateFunction<Integer, Integer, Integer> aggregator = new SumAggregator(1);
         AggregatingStateDescriptor<Integer, Integer, Integer> descriptor =
                 new AggregatingStateDescriptor<>(
                         "testState", aggregator, BasicTypeInfo.INT_TYPE_INFO);
+        descriptor.initializeSerializerUnlessSet(new ExecutionConfig());
+        AggregatingStateExecutor aggregatingStateExecutor = new AggregatingStateExecutor();
         AsyncExecutionController<String> aec =
                 new AsyncExecutionController<>(
                         new SyncMailboxExecutor(),
                         (a, b) -> {},
-                        new AbstractAggregatingStateTest.AggregatingStateExecutor(),
+                        aggregatingStateExecutor,
                         new DeclarationManager(),
                         1,
                         100,
@@ -119,115 +127,107 @@ class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
                         null,
                         null);
         AbstractAggregatingState<String, String, Integer, Integer, Integer> aggregatingState =
-                new AbstractAggregatingState<>(aec, descriptor);
+                new AbstractAggregatingState<>(
+                        aec, descriptor.getAggregateFunction(), descriptor.getSerializer());
+        aec.setCurrentContext(aec.buildContext("test", "test"));
+        aec.setCurrentNamespaceForState(aggregatingState, "1");
+        aggregatingState.add(1);
+        assertThat(aggregatingStateExecutor.getResultMap().size()).isEqualTo(1);
+        assertThat(aggregatingStateExecutor.getResultMap().get(Tuple2.of("test", "1")))
+                .isEqualTo(2);
+        aec.setCurrentNamespaceForState(aggregatingState, "2");
+        aggregatingState.add(2);
+        assertThat(aggregatingStateExecutor.getResultMap().size()).isEqualTo(2);
+        assertThat(aggregatingStateExecutor.getResultMap().get(Tuple2.of("test", "1")))
+                .isEqualTo(2);
+        assertThat(aggregatingStateExecutor.getResultMap().get(Tuple2.of("test", "2")))
+                .isEqualTo(3);
+    }
+
+    @Test
+    public void testMergeNamespace() throws Exception {
+        AggregateFunction<Integer, Integer, Integer> aggregator = new SumAggregator(0);
+        AggregatingStateDescriptor<Integer, Integer, Integer> descriptor =
+                new AggregatingStateDescriptor<>(
+                        "testState", aggregator, BasicTypeInfo.INT_TYPE_INFO);
+        descriptor.initializeSerializerUnlessSet(new ExecutionConfig());
+        AggregatingStateExecutor aggregatingStateExecutor = new AggregatingStateExecutor();
+        AsyncExecutionController<String> aec =
+                new AsyncExecutionController<>(
+                        new SyncMailboxExecutor(),
+                        (a, b) -> {},
+                        aggregatingStateExecutor,
+                        new DeclarationManager(),
+                        1,
+                        100,
+                        10000,
+                        1,
+                        null,
+                        null);
+        AbstractAggregatingState<String, String, Integer, Integer, Integer> aggregatingState =
+                new AbstractAggregatingState<>(
+                        aec, descriptor.getAggregateFunction(), descriptor.getSerializer());
         aec.setCurrentContext(aec.buildContext("test", "test"));
         aec.setCurrentNamespaceForState(aggregatingState, "1");
         aggregatingState.asyncAdd(1);
         aec.drainInflightRecords(0);
-        assertThat(AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.size())
-                .isEqualTo(1);
-        assertThat(
-                        AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.get(
-                                Tuple2.of("test", "1")))
+        assertThat(aggregatingStateExecutor.getResultMap().size()).isEqualTo(1);
+        assertThat(aggregatingStateExecutor.getResultMap().get(Tuple2.of("test", "1")))
                 .isEqualTo(1);
         aec.setCurrentNamespaceForState(aggregatingState, "2");
         aggregatingState.asyncAdd(2);
         aec.drainInflightRecords(0);
-        assertThat(AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.size())
-                .isEqualTo(2);
-        assertThat(
-                        AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.get(
-                                Tuple2.of("test", "1")))
+        assertThat(aggregatingStateExecutor.getResultMap().size()).isEqualTo(2);
+        assertThat(aggregatingStateExecutor.getResultMap().get(Tuple2.of("test", "1")))
                 .isEqualTo(1);
-        assertThat(
-                        AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.get(
-                                Tuple2.of("test", "2")))
+        assertThat(aggregatingStateExecutor.getResultMap().get(Tuple2.of("test", "2")))
                 .isEqualTo(2);
         aec.setCurrentNamespaceForState(aggregatingState, "3");
         aggregatingState.asyncAdd(3);
         aec.drainInflightRecords(0);
-        assertThat(AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.size())
-                .isEqualTo(3);
-        assertThat(
-                        AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.get(
-                                Tuple2.of("test", "1")))
+        assertThat(aggregatingStateExecutor.getResultMap().size()).isEqualTo(3);
+        assertThat(aggregatingStateExecutor.getResultMap().get(Tuple2.of("test", "1")))
                 .isEqualTo(1);
-        assertThat(
-                        AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.get(
-                                Tuple2.of("test", "2")))
+        assertThat(aggregatingStateExecutor.getResultMap().get(Tuple2.of("test", "2")))
                 .isEqualTo(2);
-        assertThat(
-                        AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.get(
-                                Tuple2.of("test", "3")))
+        assertThat(aggregatingStateExecutor.getResultMap().get(Tuple2.of("test", "3")))
                 .isEqualTo(3);
 
         List<String> sources = new ArrayList<>(Arrays.asList("1", "2", "3"));
         aggregatingState.asyncMergeNamespaces("0", sources);
         aec.drainInflightRecords(0);
-        assertThat(AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.size())
-                .isEqualTo(1);
-        assertThat(
-                        AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.get(
-                                Tuple2.of("test", "0")))
+        assertThat(aggregatingStateExecutor.getResultMap().size()).isEqualTo(1);
+        assertThat(aggregatingStateExecutor.getResultMap().get(Tuple2.of("test", "0")))
                 .isEqualTo(6);
-        assertThat(
-                        AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.get(
-                                Tuple2.of("test", "1")))
-                .isNull();
-        assertThat(
-                        AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.get(
-                                Tuple2.of("test", "2")))
-                .isNull();
-        assertThat(
-                        AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.get(
-                                Tuple2.of("test", "3")))
-                .isNull();
+        assertThat(aggregatingStateExecutor.getResultMap().get(Tuple2.of("test", "1"))).isNull();
+        assertThat(aggregatingStateExecutor.getResultMap().get(Tuple2.of("test", "2"))).isNull();
+        assertThat(aggregatingStateExecutor.getResultMap().get(Tuple2.of("test", "3"))).isNull();
 
         aec.setCurrentNamespaceForState(aggregatingState, "4");
         aggregatingState.asyncAdd(4);
         aec.drainInflightRecords(0);
-        assertThat(AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.size())
-                .isEqualTo(2);
-        assertThat(
-                        AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.get(
-                                Tuple2.of("test", "0")))
+        assertThat(aggregatingStateExecutor.getResultMap().size()).isEqualTo(2);
+        assertThat(aggregatingStateExecutor.getResultMap().get(Tuple2.of("test", "0")))
                 .isEqualTo(6);
-        assertThat(
-                        AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.get(
-                                Tuple2.of("test", "4")))
+        assertThat(aggregatingStateExecutor.getResultMap().get(Tuple2.of("test", "4")))
                 .isEqualTo(4);
 
         List<String> sources1 = new ArrayList<>(Arrays.asList("4"));
         aggregatingState.asyncMergeNamespaces("0", sources1);
         aec.drainInflightRecords(0);
 
-        assertThat(AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.size())
-                .isEqualTo(1);
-        assertThat(
-                        AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.get(
-                                Tuple2.of("test", "0")))
+        assertThat(aggregatingStateExecutor.getResultMap().size()).isEqualTo(1);
+        assertThat(aggregatingStateExecutor.getResultMap().get(Tuple2.of("test", "0")))
                 .isEqualTo(10);
-        assertThat(
-                        AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.get(
-                                Tuple2.of("test", "1")))
-                .isNull();
-        assertThat(
-                        AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.get(
-                                Tuple2.of("test", "2")))
-                .isNull();
-        assertThat(
-                        AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.get(
-                                Tuple2.of("test", "3")))
-                .isNull();
-        assertThat(
-                        AbstractAggregatingStateTest.AggregatingStateExecutor.hashMap.get(
-                                Tuple2.of("test", "4")))
-                .isNull();
+        assertThat(aggregatingStateExecutor.getResultMap().get(Tuple2.of("test", "1"))).isNull();
+        assertThat(aggregatingStateExecutor.getResultMap().get(Tuple2.of("test", "2"))).isNull();
+        assertThat(aggregatingStateExecutor.getResultMap().get(Tuple2.of("test", "3"))).isNull();
+        assertThat(aggregatingStateExecutor.getResultMap().get(Tuple2.of("test", "4"))).isNull();
     }
 
     static class AggregatingStateExecutor implements StateExecutor {
 
-        private static final HashMap<Tuple2<String, String>, Integer> hashMap = new HashMap<>();
+        private final HashMap<Tuple2<String, String>, Integer> hashMap = new HashMap<>();
 
         @SuppressWarnings({"unchecked", "rawtypes"})
         @Override
@@ -265,6 +265,10 @@ class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
             } else {
                 throw new UnsupportedOperationException("Unsupported type");
             }
+        }
+
+        public HashMap<Tuple2<String, String>, Integer> getResultMap() {
+            return hashMap;
         }
 
         @Override

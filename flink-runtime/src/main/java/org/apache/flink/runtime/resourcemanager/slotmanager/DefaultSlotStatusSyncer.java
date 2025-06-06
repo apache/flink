@@ -30,6 +30,7 @@ import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotOccupiedException;
+import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -44,6 +45,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.BiFunction;
 
 /** Default implementation of {@link SlotStatusSyncer} for fine-grained slot management. */
 public class DefaultSlotStatusSyncer implements SlotStatusSyncer {
@@ -100,106 +102,115 @@ public class DefaultSlotStatusSyncer implements SlotStatusSyncer {
         Preconditions.checkNotNull(targetAddress);
         Preconditions.checkNotNull(resourceProfile);
         checkStarted();
-        final AllocationID allocationId = new AllocationID();
         final Optional<TaskManagerInfo> taskManager =
                 taskManagerTracker.getRegisteredTaskManager(instanceId);
         Preconditions.checkState(
                 taskManager.isPresent(),
                 "Could not find a registered task manager for instance id " + instanceId + '.');
-        final TaskExecutorGateway gateway =
-                taskManager.get().getTaskExecutorConnection().getTaskExecutorGateway();
-        final ResourceID resourceId = taskManager.get().getTaskExecutorConnection().getResourceID();
 
-        LOG.info(
-                "Starting allocation of slot {} from {} for job {} with resource profile {}.",
-                allocationId,
-                resourceId,
-                jobId,
-                resourceProfile);
+        try (MdcUtils.MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobId))) {
+            final AllocationID allocationId = new AllocationID();
+            final TaskExecutorGateway gateway =
+                    taskManager.get().getTaskExecutorConnection().getTaskExecutorGateway();
+            final ResourceID resourceId =
+                    taskManager.get().getTaskExecutorConnection().getResourceID();
+            LOG.info(
+                    "Starting allocation of slot {} from {} for job {} with resource profile {}.",
+                    allocationId,
+                    resourceId,
+                    jobId,
+                    resourceProfile);
 
-        taskManagerTracker.notifySlotStatus(
-                allocationId, jobId, instanceId, resourceProfile, SlotState.PENDING);
-        resourceTracker.notifyAcquiredResource(jobId, resourceProfile);
-        pendingSlotAllocations.add(allocationId);
+            taskManagerTracker.notifySlotStatus(
+                    allocationId, jobId, instanceId, resourceProfile, SlotState.PENDING);
+            resourceTracker.notifyAcquiredResource(jobId, resourceProfile);
+            pendingSlotAllocations.add(allocationId);
 
-        // RPC call to the task manager
-        CompletableFuture<Acknowledge> requestFuture =
-                gateway.requestSlot(
-                        SlotID.getDynamicSlotID(resourceId),
-                        jobId,
-                        allocationId,
-                        resourceProfile,
-                        targetAddress,
-                        resourceManagerId,
-                        taskManagerRequestTimeout);
+            // RPC call to the task manager
+            CompletableFuture<Acknowledge> requestFuture =
+                    gateway.requestSlot(
+                            SlotID.getDynamicSlotID(resourceId),
+                            jobId,
+                            allocationId,
+                            resourceProfile,
+                            targetAddress,
+                            resourceManagerId,
+                            taskManagerRequestTimeout);
 
-        CompletableFuture<Void> returnedFuture = new CompletableFuture<>();
+            CompletableFuture<Void> returnedFuture = new CompletableFuture<>();
 
-        FutureUtils.assertNoException(
-                requestFuture.handleAsync(
-                        (Acknowledge acknowledge, Throwable throwable) -> {
-                            if (!pendingSlotAllocations.remove(allocationId)) {
-                                LOG.debug(
-                                        "Ignoring slot allocation update from task manager {} for allocation {} and job {}, because the allocation was already completed or cancelled.",
-                                        instanceId,
-                                        allocationId,
-                                        jobId);
-                                returnedFuture.complete(null);
-                                return null;
-                            }
-                            if (!taskManagerTracker
-                                    .getAllocatedOrPendingSlot(allocationId)
-                                    .isPresent()) {
-                                LOG.debug(
-                                        "The slot {} has been removed before. Ignore the future.",
-                                        allocationId);
-                                returnedFuture.complete(null);
-                                return null;
-                            }
-                            if (acknowledge != null) {
-                                LOG.trace(
-                                        "Completed allocation of allocation {} for job {}.",
-                                        allocationId,
-                                        jobId);
-                                taskManagerTracker.notifySlotStatus(
-                                        allocationId,
-                                        jobId,
-                                        instanceId,
-                                        resourceProfile,
-                                        SlotState.ALLOCATED);
-                                returnedFuture.complete(null);
-                            } else {
-                                if (throwable instanceof SlotOccupiedException) {
-                                    LOG.error("Should not get this exception.", throwable);
-                                } else {
-                                    // TODO If the taskManager does not have enough resource, we
-                                    // may endlessly allocate slot on it until the next heartbeat.
-                                    LOG.warn(
-                                            "Slot allocation for allocation {} for job {} failed.",
-                                            allocationId,
-                                            jobId,
-                                            throwable);
-                                    resourceTracker.notifyLostResource(jobId, resourceProfile);
-                                    taskManagerTracker.notifySlotStatus(
-                                            allocationId,
-                                            jobId,
-                                            instanceId,
-                                            resourceProfile,
-                                            SlotState.FREE);
-                                }
-                                returnedFuture.completeExceptionally(throwable);
-                            }
-                            return null;
-                        },
-                        mainThreadExecutor));
-        return returnedFuture;
+            FutureUtils.assertNoException(
+                    requestFuture.handleAsync(
+                            handleSlotAllocation(
+                                    instanceId,
+                                    jobId,
+                                    resourceProfile,
+                                    allocationId,
+                                    returnedFuture),
+                            mainThreadExecutor));
+            return returnedFuture;
+        }
+    }
+
+    private BiFunction<Acknowledge, Throwable, Object> handleSlotAllocation(
+            InstanceID instanceId,
+            JobID jobId,
+            ResourceProfile resourceProfile,
+            AllocationID allocationId,
+            CompletableFuture<Void> returnedFuture) {
+        return (Acknowledge acknowledge, Throwable throwable) -> {
+            try (MdcUtils.MdcCloseable ignored =
+                    MdcUtils.withContext(MdcUtils.asContextData(jobId))) {
+                if (!pendingSlotAllocations.remove(allocationId)) {
+                    LOG.debug(
+                            "Ignoring slot allocation update from task manager {} for allocation {} and job {}, because the allocation was already completed or cancelled.",
+                            instanceId,
+                            allocationId,
+                            jobId);
+                    returnedFuture.complete(null);
+                    return null;
+                }
+                if (!taskManagerTracker.getAllocatedOrPendingSlot(allocationId).isPresent()) {
+                    LOG.debug(
+                            "The slot {} has been removed before. Ignore the future.",
+                            allocationId);
+                    returnedFuture.complete(null);
+                    return null;
+                }
+                if (acknowledge != null) {
+                    LOG.trace(
+                            "Completed allocation of allocation {} for job {}.",
+                            allocationId,
+                            jobId);
+                    taskManagerTracker.notifySlotStatus(
+                            allocationId, jobId, instanceId, resourceProfile, SlotState.ALLOCATED);
+                    returnedFuture.complete(null);
+                } else {
+                    if (throwable instanceof SlotOccupiedException) {
+                        LOG.error("Should not get this exception.", throwable);
+                    } else {
+                        // TODO If the taskManager does not have enough resource, we
+                        // may endlessly allocate slot on it until the next heartbeat.
+                        LOG.warn(
+                                "Slot allocation for allocation {} for job {} failed.",
+                                allocationId,
+                                jobId,
+                                throwable);
+                        resourceTracker.notifyLostResource(jobId, resourceProfile);
+                        taskManagerTracker.notifySlotStatus(
+                                allocationId, jobId, instanceId, resourceProfile, SlotState.FREE);
+                    }
+                    returnedFuture.completeExceptionally(throwable);
+                }
+                return null;
+            }
+        };
     }
 
     @Override
     public void freeSlot(AllocationID allocationId) {
         Preconditions.checkNotNull(allocationId);
         checkStarted();
-        LOG.info("Freeing slot {}.", allocationId);
 
         final Optional<TaskManagerSlotInformation> slotOptional =
                 taskManagerTracker.getAllocatedOrPendingSlot(allocationId);
@@ -209,16 +220,20 @@ public class DefaultSlotStatusSyncer implements SlotStatusSyncer {
         }
 
         final TaskManagerSlotInformation slot = slotOptional.get();
-        if (slot.getState() == SlotState.PENDING) {
-            pendingSlotAllocations.remove(allocationId);
+        try (MdcUtils.MdcCloseable ignored =
+                MdcUtils.withContext(MdcUtils.asContextData(slot.getJobId()))) {
+            LOG.info("Freeing slot {}.", allocationId);
+            if (slot.getState() == SlotState.PENDING) {
+                pendingSlotAllocations.remove(allocationId);
+            }
+            resourceTracker.notifyLostResource(slot.getJobId(), slot.getResourceProfile());
+            taskManagerTracker.notifySlotStatus(
+                    allocationId,
+                    slot.getJobId(),
+                    slot.getInstanceId(),
+                    slot.getResourceProfile(),
+                    SlotState.FREE);
         }
-        resourceTracker.notifyLostResource(slot.getJobId(), slot.getResourceProfile());
-        taskManagerTracker.notifySlotStatus(
-                allocationId,
-                slot.getJobId(),
-                slot.getInstanceId(),
-                slot.getResourceProfile(),
-                SlotState.FREE);
     }
 
     @Override
@@ -251,15 +266,18 @@ public class DefaultSlotStatusSyncer implements SlotStatusSyncer {
             // the next slot report or the acknowledgement of the allocation request.
             if (!reportedAllocationIds.contains(slot.getAllocationId())
                     && slot.getState() == SlotState.ALLOCATED) {
-                LOG.info("Freeing slot {} by slot report.", slot.getAllocationId());
-                taskManagerTracker.notifySlotStatus(
-                        slot.getAllocationId(),
-                        slot.getJobId(),
-                        slot.getInstanceId(),
-                        slot.getResourceProfile(),
-                        SlotState.FREE);
-                resourceTracker.notifyLostResource(slot.getJobId(), slot.getResourceProfile());
-                canApplyPreviousAllocations = false;
+                try (MdcUtils.MdcCloseable ignored =
+                        MdcUtils.withContext(MdcUtils.asContextData(slot.getJobId()))) {
+                    LOG.info("Freeing slot {} by slot report.", slot.getAllocationId());
+                    taskManagerTracker.notifySlotStatus(
+                            slot.getAllocationId(),
+                            slot.getJobId(),
+                            slot.getInstanceId(),
+                            slot.getResourceProfile(),
+                            SlotState.FREE);
+                    resourceTracker.notifyLostResource(slot.getJobId(), slot.getResourceProfile());
+                    canApplyPreviousAllocations = false;
+                }
             }
         }
 
@@ -277,35 +295,38 @@ public class DefaultSlotStatusSyncer implements SlotStatusSyncer {
     private boolean syncAllocatedSlotStatus(SlotStatus slotStatus, TaskManagerInfo taskManager) {
         final AllocationID allocationId = Preconditions.checkNotNull(slotStatus.getAllocationID());
         final JobID jobId = Preconditions.checkNotNull(slotStatus.getJobID());
-        final ResourceProfile resourceProfile =
-                Preconditions.checkNotNull(slotStatus.getResourceProfile());
+        try (MdcUtils.MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobId))) {
+            final ResourceProfile resourceProfile =
+                    Preconditions.checkNotNull(slotStatus.getResourceProfile());
 
-        if (taskManager.getAllocatedSlots().containsKey(allocationId)) {
-            if (taskManager.getAllocatedSlots().get(allocationId).getState() == SlotState.PENDING) {
-                // Allocation Complete
-                final TaskManagerSlotInformation slot =
-                        taskManager.getAllocatedSlots().get(allocationId);
-                pendingSlotAllocations.remove(slot.getAllocationId());
+            if (taskManager.getAllocatedSlots().containsKey(allocationId)) {
+                if (taskManager.getAllocatedSlots().get(allocationId).getState()
+                        == SlotState.PENDING) {
+                    // Allocation Complete
+                    final TaskManagerSlotInformation slot =
+                            taskManager.getAllocatedSlots().get(allocationId);
+                    pendingSlotAllocations.remove(slot.getAllocationId());
+                    taskManagerTracker.notifySlotStatus(
+                            slot.getAllocationId(),
+                            slot.getJobId(),
+                            slot.getInstanceId(),
+                            slot.getResourceProfile(),
+                            SlotState.ALLOCATED);
+                }
+                return true;
+            } else {
+                Preconditions.checkState(
+                        !taskManagerTracker.getAllocatedOrPendingSlot(allocationId).isPresent(),
+                        "Duplicated allocation for " + allocationId);
                 taskManagerTracker.notifySlotStatus(
-                        slot.getAllocationId(),
-                        slot.getJobId(),
-                        slot.getInstanceId(),
-                        slot.getResourceProfile(),
+                        allocationId,
+                        jobId,
+                        taskManager.getInstanceId(),
+                        resourceProfile,
                         SlotState.ALLOCATED);
+                resourceTracker.notifyAcquiredResource(jobId, resourceProfile);
+                return false;
             }
-            return true;
-        } else {
-            Preconditions.checkState(
-                    !taskManagerTracker.getAllocatedOrPendingSlot(allocationId).isPresent(),
-                    "Duplicated allocation for " + allocationId);
-            taskManagerTracker.notifySlotStatus(
-                    allocationId,
-                    jobId,
-                    taskManager.getInstanceId(),
-                    resourceProfile,
-                    SlotState.ALLOCATED);
-            resourceTracker.notifyAcquiredResource(jobId, resourceProfile);
-            return false;
         }
     }
 

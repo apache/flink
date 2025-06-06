@@ -34,12 +34,13 @@ import org.apache.flink.runtime.testutils.InMemoryReporter;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2;
+import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2.Record;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableMap;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -138,12 +139,15 @@ public class SinkV2MetricsITCase extends TestLogger {
                 sharedObjects.add(new CountDownLatch(numCommittables));
         SharedReference<CountDownLatch> afterLatch = sharedObjects.add(new CountDownLatch(1));
 
+        TestSinkV2<Long> sink =
+                TestSinkV2.<Long>newBuilder()
+                        .setCommitter(
+                                new MetricCommitter(beforeLatch, afterLatch),
+                                TestSinkV2.RecordSerializer::new)
+                        .build();
         env.fromSequence(0, numCommittables - 1)
                 .returns(BasicTypeInfo.LONG_TYPE_INFO)
-                .sinkTo(
-                        (TestSinkV2.<Long>newBuilder()
-                                        .setCommitter(new MetricCommitter(beforeLatch, afterLatch)))
-                                .build())
+                .sinkTo(sink)
                 .name(TEST_SINK_NAME);
         JobClient jobClient = env.executeAsync();
         final JobID jobId = jobClient.getJobID();
@@ -295,7 +299,7 @@ public class SinkV2MetricsITCase extends TestLogger {
         }
     }
 
-    private static class MetricCommitter extends TestSinkV2.DefaultCommitter {
+    private static class MetricCommitter extends TestSinkV2.DefaultCommitter<Record<Long>> {
         private int counter = 0;
         private SharedReference<CountDownLatch> beforeLatch;
         private SharedReference<CountDownLatch> afterLatch;
@@ -309,7 +313,7 @@ public class SinkV2MetricsITCase extends TestLogger {
         }
 
         @Override
-        public void commit(Collection<CommitRequest<String>> committables) {
+        public void commit(Collection<CommitRequest<Record<Long>>> committables) {
             if (counter == 0) {
                 System.err.println(
                         "Committables arrived "
@@ -333,26 +337,26 @@ public class SinkV2MetricsITCase extends TestLogger {
 
                 committables.forEach(
                         c -> {
-                            switch (c.getCommittable().charAt(1)) {
-                                case '0':
+                            switch (c.getCommittable().getValue().intValue()) {
+                                case 0:
                                     c.signalAlreadyCommitted();
                                     // 1 already committed
                                     break;
-                                case '1':
-                                case '2':
+                                case 1:
+                                case 2:
                                     // 2 failed
                                     c.signalFailedWithKnownReason(new RuntimeException());
                                     break;
-                                case '3':
+                                case 3:
                                     // Retry without change
                                     if (counter == 1) {
                                         c.retryLater();
                                     }
                                     break;
-                                case '4':
-                                case '5':
+                                case 4:
+                                case 5:
                                     // Retry with change
-                                    c.updateAndRetryLater("Retry-" + c.getCommittable());
+                                    c.updateAndRetryLater(c.getCommittable().withValue(6L));
                             }
                         });
             }

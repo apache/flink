@@ -40,7 +40,7 @@ import org.apache.flink.table.planner.sources.TableSourceUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.operators.wmassigners.PeriodicWatermarkAssignerWrapper;
-import org.apache.flink.table.runtime.operators.wmassigners.PunctuatedWatermarkStrategyWrapper;
+import org.apache.flink.table.runtime.operators.wmassigners.PunctuatedWatermarkAssignerWrapper;
 import org.apache.flink.table.sources.wmstrategies.PeriodicWatermarkAssigner;
 import org.apache.flink.table.sources.wmstrategies.PunctuatedWatermarkAssigner;
 import org.apache.flink.table.sources.wmstrategies.WatermarkStrategy;
@@ -151,8 +151,8 @@ public class StreamExecLegacyTableSourceScan extends CommonExecLegacyTableSource
                                         return ingestedTable.assignTimestampsAndWatermarks(
                                                 watermarkGenerator);
                                     } else if (strategy instanceof PunctuatedWatermarkAssigner) {
-                                        PunctuatedWatermarkStrategyWrapper watermarkGenerator =
-                                                new PunctuatedWatermarkStrategyWrapper(
+                                        PunctuatedWatermarkAssignerWrapper watermarkGenerator =
+                                                new PunctuatedWatermarkAssignerWrapper(
                                                         (PunctuatedWatermarkAssigner) strategy,
                                                         rowtimeFieldIdx,
                                                         tableSource.getProducedDataType());

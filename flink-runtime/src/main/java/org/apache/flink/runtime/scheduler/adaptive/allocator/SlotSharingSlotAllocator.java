@@ -32,6 +32,7 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.util.ResourceCounter;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -46,6 +47,9 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.scheduler.adaptive.allocator.AllocatorUtil.getMinimumRequiredSlots;
+import static org.apache.flink.runtime.scheduler.adaptive.allocator.AllocatorUtil.getSlotSharingGroupMetaInfos;
+
 /** {@link SlotAllocator} implementation that supports slot sharing. */
 public class SlotSharingSlotAllocator implements SlotAllocator {
 
@@ -53,28 +57,38 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     private final FreeSlotFunction freeSlotFunction;
     private final IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction;
     private final boolean localRecoveryEnabled;
+    private final @Nullable String executionTarget;
+    private final boolean minimalTaskManagerPreferred;
 
     private SlotSharingSlotAllocator(
             ReserveSlotFunction reserveSlot,
             FreeSlotFunction freeSlotFunction,
             IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction,
-            boolean localRecoveryEnabled) {
+            boolean localRecoveryEnabled,
+            @Nullable String executionTarget,
+            boolean minimalTaskManagerPreferred) {
         this.reserveSlotFunction = reserveSlot;
         this.freeSlotFunction = freeSlotFunction;
         this.isSlotAvailableAndFreeFunction = isSlotAvailableAndFreeFunction;
         this.localRecoveryEnabled = localRecoveryEnabled;
+        this.executionTarget = executionTarget;
+        this.minimalTaskManagerPreferred = minimalTaskManagerPreferred;
     }
 
     public static SlotSharingSlotAllocator createSlotSharingSlotAllocator(
             ReserveSlotFunction reserveSlot,
             FreeSlotFunction freeSlotFunction,
             IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction,
-            boolean localRecoveryEnabled) {
+            boolean localRecoveryEnabled,
+            @Nullable String executionTarget,
+            boolean minimalTaskManagerPreferred) {
         return new SlotSharingSlotAllocator(
                 reserveSlot,
                 freeSlotFunction,
                 isSlotAvailableAndFreeFunction,
-                localRecoveryEnabled);
+                localRecoveryEnabled,
+                executionTarget,
+                minimalTaskManagerPreferred);
     }
 
     @Override
@@ -93,12 +107,9 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
             JobInformation jobInformation, Collection<? extends SlotInfo> freeSlots) {
 
         final Map<SlotSharingGroupId, SlotSharingGroupMetaInfo> slotSharingGroupMetaInfo =
-                SlotSharingGroupMetaInfo.from(jobInformation.getVertices());
+                getSlotSharingGroupMetaInfos(jobInformation);
 
-        final int minimumRequiredSlots =
-                slotSharingGroupMetaInfo.values().stream()
-                        .map(SlotSharingGroupMetaInfo::getMaxLowerBound)
-                        .reduce(0, Integer::sum);
+        final int minimumRequiredSlots = getMinimumRequiredSlots(slotSharingGroupMetaInfo);
 
         if (minimumRequiredSlots > freeSlots.size()) {
             return Optional.empty();
@@ -140,7 +151,8 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
                             SlotAssigner slotAssigner =
                                     localRecoveryEnabled && !jobAllocationsInformation.isEmpty()
                                             ? new StateLocalitySlotAssigner()
-                                            : new DefaultSlotAssigner();
+                                            : new DefaultSlotAssigner(
+                                                    executionTarget, minimalTaskManagerPreferred);
                             return new JobSchedulingPlan(
                                     parallelism,
                                     slotAssigner.assignSlots(
@@ -306,7 +318,7 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
         }
     }
 
-    private static class SlotSharingGroupMetaInfo {
+    static class SlotSharingGroupMetaInfo {
 
         private final int minLowerBound;
         private final int maxLowerBound;

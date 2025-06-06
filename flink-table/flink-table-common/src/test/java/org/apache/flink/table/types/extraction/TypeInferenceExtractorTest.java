@@ -55,6 +55,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import javax.annotation.Nullable;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
@@ -626,8 +627,12 @@ class TypeInferenceExtractorTest {
                 // ---
                 TestSpec.forProcessTableFunction(MultiStateProcessTableFunction.class)
                         .expectStaticArgument(StaticArgument.scalar("i", DataTypes.INT(), false))
-                        .expectState("s1", TypeStrategies.explicit(MyFirstState.TYPE))
-                        .expectState("s2", TypeStrategies.explicit(MySecondState.TYPE))
+                        .expectState(
+                                "s1",
+                                TypeStrategies.explicit(MyFirstState.TYPE),
+                                Duration.ofDays(2))
+                        .expectState(
+                                "s2", TypeStrategies.explicit(MySecondState.TYPE), Duration.ZERO)
                         .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
                 // ---
                 TestSpec.forProcessTableFunction(UntypedTableArgProcessTableFunction.class)
@@ -662,7 +667,7 @@ class TypeInferenceExtractorTest {
                                 StaticArgument.table(
                                         "rowTable",
                                         Row.class,
-                                        true,
+                                        false,
                                         EnumSet.of(StaticArgumentTrait.TABLE_AS_ROW)))
                         .expectStaticArgument(StaticArgument.scalar("s", DataTypes.STRING(), true))
                         .expectState("s1", TypeStrategies.explicit(MyFirstState.TYPE))
@@ -688,7 +693,7 @@ class TypeInferenceExtractorTest {
                                 StaticArgument.table(
                                         "rowTable",
                                         Row.class,
-                                        true,
+                                        false,
                                         EnumSet.of(StaticArgumentTrait.TABLE_AS_ROW)))
                         .expectStaticArgument(StaticArgument.scalar("s", DataTypes.STRING(), true))
                         .expectState("s1", TypeStrategies.explicit(MyFirstState.TYPE))
@@ -711,8 +716,20 @@ class TypeInferenceExtractorTest {
                                 "Could not extract a data type from 'class java.lang.Object' in parameter 0 of method 'eval'"),
                 // ---
                 TestSpec.forProcessTableFunction(EnrichedExtractionStateProcessTableFunction.class)
-                        .expectState("d", TypeStrategies.explicit(DataTypes.DECIMAL(3, 2)))
+                        .expectState(
+                                "u",
+                                TypeStrategies.explicit(
+                                        EnrichedExtractionStateProcessTableFunction.User.TYPE))
                         .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
+                TestSpec.forProcessTableFunction(
+                                MissingDefaultConstructorStateProcessTableFunction.class)
+                        .expectErrorMessage(
+                                "State entries must provide an argument-less constructor so that all fields are mutable."),
+                // ---
+                TestSpec.forProcessTableFunction(NonCompositeStateProcessTableFunction.class)
+                        .expectErrorMessage(
+                                "State entries must use a mutable, composite data type. But was: INT"),
                 // ---
                 TestSpec.forProcessTableFunction(WrongTypedTableProcessTableFunction.class)
                         .expectErrorMessage(
@@ -1251,22 +1268,16 @@ class TypeInferenceExtractorTest {
         }
 
         TestSpec expectAccumulator(TypeStrategy typeStrategy) {
-            this.expectedStateStrategies.put("acc", StateTypeStrategy.of(typeStrategy));
-            return this;
-        }
-
-        TestSpec expectState(String name, StateTypeStrategy stateTypeStrategy) {
-            this.expectedStateStrategies.put(name, stateTypeStrategy);
+            expectState("acc", typeStrategy);
             return this;
         }
 
         TestSpec expectState(String name, TypeStrategy typeStrategy) {
-            this.expectedStateStrategies.put(name, StateTypeStrategy.of(typeStrategy));
-            return this;
+            return expectState(name, typeStrategy, null);
         }
 
-        TestSpec expectState(LinkedHashMap<String, StateTypeStrategy> stateTypeStrategy) {
-            this.expectedStateStrategies.putAll(stateTypeStrategy);
+        TestSpec expectState(String name, TypeStrategy typeStrategy, @Nullable Duration ttl) {
+            this.expectedStateStrategies.put(name, StateTypeStrategy.of(typeStrategy, ttl));
             return this;
         }
 
@@ -2277,7 +2288,10 @@ class TypeInferenceExtractorTest {
     }
 
     private static class MultiStateProcessTableFunction extends ProcessTableFunction<Integer> {
-        public void eval(@StateHint MyFirstState s1, @StateHint MySecondState s2, Integer i) {}
+        public void eval(
+                @StateHint(ttl = "2 days") MyFirstState s1,
+                @StateHint(ttl = "0") MySecondState s2,
+                Integer i) {}
     }
 
     private static class UntypedTableArgProcessTableFunction extends ProcessTableFunction<Integer> {
@@ -2314,8 +2328,7 @@ class TypeInferenceExtractorTest {
                 @ArgumentHint(name = "i") Integer i,
                 @ArgumentHint(
                                 value = {ArgumentTrait.TABLE_AS_ROW},
-                                name = "rowTable",
-                                isOptional = true)
+                                name = "rowTable")
                         Row t2,
                 @ArgumentHint(isOptional = true, name = "s") String s) {}
     }
@@ -2333,8 +2346,7 @@ class TypeInferenceExtractorTest {
                 @ArgumentHint(name = "i", type = @DataTypeHint("INT")),
                 @ArgumentHint(
                         name = "rowTable",
-                        value = {ArgumentTrait.TABLE_AS_ROW},
-                        isOptional = true),
+                        value = {ArgumentTrait.TABLE_AS_ROW}),
                 @ArgumentHint(name = "s", isOptional = true, type = @DataTypeHint("STRING"))
             },
             output = @DataTypeHint("ROW<b BOOLEAN>"))
@@ -2365,13 +2377,21 @@ class TypeInferenceExtractorTest {
     private static class EnrichedExtractionStateProcessTableFunction
             extends ProcessTableFunction<Integer> {
 
+        public static class User {
+            static final DataType TYPE =
+                    DataTypes.STRUCTURED(
+                            EnrichedExtractionStateProcessTableFunction.User.class,
+                            DataTypes.FIELD("score", DataTypes.DECIMAL(3, 2)));
+            public BigDecimal score;
+        }
+
         public void eval(
                 @StateHint(
                                 type =
                                         @DataTypeHint(
                                                 defaultDecimalPrecision = 3,
                                                 defaultDecimalScale = 2))
-                        BigDecimal d) {}
+                        User u) {}
     }
 
     private static class WrongTypedTableProcessTableFunction extends ProcessTableFunction<Integer> {
@@ -2405,6 +2425,31 @@ class TypeInferenceExtractorTest {
         public void eval(int i) {}
 
         public void eval(String i) {}
+    }
+
+    private static class MissingDefaultConstructorStateProcessTableFunction
+            extends ProcessTableFunction<Integer> {
+
+        public static class Score {
+
+            public final int value;
+
+            public Score(int value) {
+                this.value = value;
+            }
+        }
+
+        public int eval(@StateHint Score s, @ArgumentHint(ArgumentTrait.TABLE_AS_ROW) Row t) {
+            return 0;
+        }
+    }
+
+    private static class NonCompositeStateProcessTableFunction
+            extends ProcessTableFunction<Integer> {
+
+        public int eval(@StateHint Integer i, @ArgumentHint(ArgumentTrait.TABLE_AS_ROW) Row t) {
+            return 0;
+        }
     }
 
     private static class TableArgScalarFunction extends ScalarFunction {

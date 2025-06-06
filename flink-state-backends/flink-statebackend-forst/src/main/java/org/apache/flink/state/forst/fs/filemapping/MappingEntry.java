@@ -21,12 +21,15 @@ package org.apache.flink.state.forst.fs.filemapping;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.asyncprocessing.ReferenceCounted;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.state.forst.fs.cache.FileBasedCache;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
+import java.io.IOException;
 
 /**
  * A file mapping entry that encapsulates source and destination path. Source Path : dest Path = 1 :
@@ -40,7 +43,11 @@ public class MappingEntry extends ReferenceCounted {
 
     FileOwnership fileOwnership;
 
+    final @Nullable FileBasedCache cache;
+
     final boolean isDirectory;
+
+    volatile boolean writing;
 
     /** When delete a directory, if the directory is the parent of this source file, track it. */
     @Nullable MappingEntry parentDir;
@@ -54,7 +61,9 @@ public class MappingEntry extends ReferenceCounted {
                 initReference,
                 new HandleBackedMappingEntrySource(stateHandle),
                 fileOwnership,
-                isDirectory);
+                null,
+                isDirectory,
+                false);
     }
 
     public MappingEntry(
@@ -63,19 +72,32 @@ public class MappingEntry extends ReferenceCounted {
                 initReference,
                 new FileBackedMappingEntrySource(sourcePath),
                 fileOwnership,
-                isDirectory);
+                null,
+                isDirectory,
+                false);
     }
 
     public MappingEntry(
             int initReference,
             MappingEntrySource source,
             FileOwnership fileOwnership,
-            boolean isDirectory) {
+            FileBasedCache cache,
+            boolean isDirectory,
+            boolean writing) {
         super(initReference);
         this.source = source;
         this.parentDir = null;
         this.fileOwnership = fileOwnership;
+        this.cache = cache;
         this.isDirectory = isDirectory;
+        this.writing = writing;
+        if (!writing && cache != null && !isDirectory && source.cacheable()) {
+            try {
+                cache.registerInCache(source.getFilePath(), source.getSize());
+            } catch (IOException e) {
+                LOG.warn("Failed to register file {} in cache.", source, e);
+            }
+        }
     }
 
     public void setFileOwnership(FileOwnership ownership) {
@@ -108,6 +130,14 @@ public class MappingEntry extends ReferenceCounted {
         return fileOwnership;
     }
 
+    public boolean isWriting() {
+        return writing;
+    }
+
+    public void endWriting() {
+        writing = false;
+    }
+
     @Override
     protected void referenceCountReachedZero(@Nullable Object o) {
         try {
@@ -119,6 +149,9 @@ public class MappingEntry extends ReferenceCounted {
                 return;
             }
             source.delete(isDirectory);
+            if (cache != null && !isDirectory && source.cacheable()) {
+                cache.delete(source.getFilePath());
+            }
         } catch (Exception e) {
             LOG.warn("Failed to delete file {}.", source, e);
         }

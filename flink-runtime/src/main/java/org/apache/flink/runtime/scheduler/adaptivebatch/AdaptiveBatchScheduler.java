@@ -64,6 +64,7 @@ import org.apache.flink.runtime.jobgraph.topology.DefaultLogicalTopology;
 import org.apache.flink.runtime.jobgraph.topology.DefaultLogicalVertex;
 import org.apache.flink.runtime.jobmaster.event.ExecutionJobVertexFinishedEvent;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.scheduler.DefaultExecutionDeployer;
 import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
@@ -274,7 +275,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
         logicalTopology = DefaultLogicalTopology.fromJobGraph(getJobGraph());
 
         // 4. update json plan
-        getExecutionGraph().setJsonPlan(JsonPlanGenerator.generatePlan(getJobGraph()));
+        getExecutionGraph().setPlan(JsonPlanGenerator.generatePlan(getJobGraph()));
 
         // 5. In broadcast join optimization, results might be written first with a hash
         // method and then read with a broadcast method. Therefore, we need to update the
@@ -505,17 +506,16 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
     }
 
     /**
-     * Aggregates subpartition bytes if all conditions are met. This method checks whether the
-     * result info instance is of type {@link AllToAllBlockingResultInfo}, whether all consumer
-     * vertices are created, whether all consumer vertices are initialized, and whether input bytes
-     * information for all consumer vertices has been initialized . If these conditions are
-     * satisfied, the fine-grained statistic info will not be required by consumer vertices, and
-     * then we could aggregate the subpartition bytes.
+     * Notifies that fine-grained subpartition bytes may not be needed for the specified result
+     * info. This method checks if the given {@link BlockingResultInfo} instance is of type {@link
+     * AllToAllBlockingResultInfo}, if all consumer vertices are created and initialized, and if the
+     * input bytes information for all consumer vertices is initialized. If all these conditions are
+     * met, the fine-grained statistics for subpartition bytes will not be needed.
      *
-     * @param resultInfo the BlockingResultInfo instance to potentially aggregate subpartition bytes
-     *     for.
+     * @param resultInfo the {@link BlockingResultInfo} instance, which holds the fine-grained
+     *     subpartition bytes.
      */
-    private void maybeAggregateSubpartitionBytes(BlockingResultInfo resultInfo) {
+    private void notifyFineGrainedSubpartitionBytesMayNotNeeded(BlockingResultInfo resultInfo) {
         IntermediateResult intermediateResult =
                 getExecutionGraph().getAllIntermediateResults().get(resultInfo.getResultId());
 
@@ -534,7 +534,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
                                                         taskVertex ->
                                                                 taskVertex.getInputBytes()
                                                                         != NUM_BYTES_UNKNOWN))) {
-            ((AllToAllBlockingResultInfo) resultInfo).aggregateSubpartitionBytes();
+            ((AllToAllBlockingResultInfo) resultInfo).onFineGrainedSubpartitionBytesNotNeeded();
         }
     }
 
@@ -824,7 +824,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
                             blockingResultInfo.getNumBytesProduced(
                                     partitionIndexRange, subpartitionIndexRange);
                 }
-                maybeAggregateSubpartitionBytes(blockingResultInfo);
+                notifyFineGrainedSubpartitionBytesMayNotNeeded(blockingResultInfo);
             }
             ev.setInputBytes(inputBytes);
         }
@@ -838,11 +838,11 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
         // job vertices
         jobVertex.getJobVertex().setDynamicParallelism(parallelism);
         try {
-            getExecutionGraph().setJsonPlan(JsonPlanGenerator.generatePlan(getJobGraph()));
+            getExecutionGraph().setPlan(JsonPlanGenerator.generatePlan(getJobGraph()));
         } catch (Throwable t) {
-            log.warn("Cannot create JSON plan for job", t);
+            log.warn("Cannot create plan for job", t);
             // give the graph an empty plan
-            getExecutionGraph().setJsonPlan("{}");
+            getExecutionGraph().setPlan(new JobPlanInfo.Plan("", "", "", new ArrayList<>()));
         }
 
         jobVertex.setParallelism(parallelism);
@@ -901,8 +901,18 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
     }
 
     private boolean canInitialize(final ExecutionJobVertex jobVertex) {
-        if (jobVertex.isInitialized() || !jobVertex.isParallelismDecided()) {
+        if (jobVertex.isInitialized()
+                || (!jobVertex.isParallelismDecided()
+                        && adaptiveExecutionHandler.getInitialParallelism(
+                                        jobVertex.getJobVertexId())
+                                == ExecutionConfig.PARALLELISM_DEFAULT)) {
             return false;
+        }
+
+        if (!jobVertex.isParallelismDecided()) {
+            changeJobVertexParallelism(
+                    jobVertex,
+                    adaptiveExecutionHandler.getInitialParallelism(jobVertex.getJobVertexId()));
         }
 
         // all the upstream job vertices need to have been initialized

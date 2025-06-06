@@ -72,9 +72,6 @@ InputFormat.
 
 The following example shows how to use Hadoop's `TextInputFormat`.
 
-{{< tabs "baa59ec9-046e-4fe3-a2db-db5ee09d0635" >}}
-{{< tab "Java" >}}
-
 ```java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 KeyValueTextInputFormat textInputFormat = new KeyValueTextInputFormat();
@@ -85,22 +82,5 @@ DataStream<Tuple2<Text, Text>> input = env.createInput(HadoopInputs.readHadoopFi
 // Do something with the data.
 [...]
 ```
-
-{{< /tab >}}
-{{< tab "Scala" >}}
-
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment
-val textInputFormat = new KeyValueTextInputFormat
-val input: DataStream[(Text, Text)] =
-  env.createInput(HadoopInputs.readHadoopFile(
-    textInputFormat, classOf[Text], classOf[Text], textPath))
-
-// Do something with the data.
-[...]
-```
-
-{{< /tab >}}
-{{< /tabs >}}
 
 {{< top >}}

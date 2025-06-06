@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens.generateEquals
 import org.apache.flink.table.runtime.generated.{GeneratedRecordEqualiser, RecordEqualiser}
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
-import org.apache.flink.table.types.logical.{BooleanType, DistinctType, LogicalType, RowType}
+import org.apache.flink.table.types.logical.{BooleanType, DistinctType, LogicalType}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldTypes, isCompositeType}
 
@@ -40,12 +40,12 @@ class EqualiserCodeGenerator(
   private val LEFT_INPUT = "left"
   private val RIGHT_INPUT = "right"
 
-  def this(rowType: RowType, classLoader: ClassLoader) = {
-    this(rowType.getChildren.asScala.toArray, rowType.getChildren.asScala.toArray, classLoader)
-  }
-
   def this(fieldTypes: Array[LogicalType], classLoader: ClassLoader) = {
     this(fieldTypes, fieldTypes, classLoader)
+  }
+
+  def this(compositeType: LogicalType, classLoader: ClassLoader) = {
+    this(getFieldTypes(compositeType).asScala.toArray, classLoader)
   }
 
   def generateRecordEqualiser(name: String): GeneratedRecordEqualiser = {
@@ -188,6 +188,14 @@ class EqualiserCodeGenerator(
 }
 
 object EqualiserCodeGenerator {
+
+  def generateRowEquals(
+      ctx: CodeGeneratorContext,
+      compositeType: LogicalType,
+      name: String): GeneratedRecordEqualiser = {
+    val equaliserGenerator = new EqualiserCodeGenerator(compositeType, ctx.classLoader)
+    equaliserGenerator.generateRecordEqualiser(name)
+  }
 
   def generateRecordEqualiserCode(
       ctx: CodeGeneratorContext,

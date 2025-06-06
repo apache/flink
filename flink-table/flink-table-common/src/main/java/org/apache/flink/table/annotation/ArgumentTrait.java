@@ -20,6 +20,7 @@ package org.apache.flink.table.annotation;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.functions.ProcessTableFunction;
+import org.apache.flink.table.functions.ProcessTableFunction.TimeContext;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.types.RowKind;
 
@@ -90,16 +91,16 @@ public enum ArgumentTrait {
      * PARTITION BY clause are passed through.
      *
      * <p>Given a table t (containing columns k and v), and a PTF f() (producing columns c1 and c2),
-     * the output of a {@code SELECT * FROM f(tableArg => TABLE t PARTITION BY k)} uses the
+     * the output of a {@code SELECT * FROM f(table_arg => TABLE t PARTITION BY k)} uses the
      * following order:
      *
      * <pre>
-     *     Default: | k | c1 | c2 |
-     *     With pass-through columns: | k | v | c1 | c2 |
+     * Default: | k | c1 | c2 |
+     * With pass-through columns: | k | v | c1 | c2 |
      * </pre>
      *
-     * <p>In case of multiple table arguments, pass-through columns are added according to the
-     * declaration order in the PTF signature.
+     * <p>Pass-through columns are only available for append-only PTFs taking a single table
+     * argument and don't use timers.
      *
      * <p>Note: This trait is valid for {@link #TABLE_AS_ROW} and {@link #TABLE_AS_SET} arguments.
      */
@@ -114,25 +115,135 @@ public enum ArgumentTrait {
      * to digest retraction messages:
      *
      * <pre>
-     *     // Changes +[1] followed by -U[1], +U[2], -U[2], +U[3] will enter the function
-     *     WITH UpdatingTable AS (
-     *       SELECT COUNT(*) FROM (VALUES 1, 2, 3)
-     *     )
-     *     SELECT * FROM f(tableArg => TABLE UpdatingTable)
+     * // The change +I[1] followed by -U[1], +U[2], -U[2], +U[3] will enter the function
+     * // if `table_arg` is declared with SUPPORTS_UPDATES
+     * WITH UpdatingTable AS (
+     *   SELECT COUNT(*) FROM (VALUES 1, 2, 3)
+     * )
+     * SELECT * FROM f(table_arg => TABLE UpdatingTable)
      * </pre>
      *
      * <p>If updates should be supported, ensure that the data type of the table argument is chosen
      * in a way that it can encode changes. In other words: choose a row type that exposes the
      * {@link RowKind} change flag.
      *
+     * <p>The changelog of the backing input table decides which kinds of changes enter the
+     * function. The function receives {+I} when the input table is append-only. The function
+     * receives {+I,+U,-D} if the input table is upserting using the same upsert key as the
+     * partition key. Otherwise, retractions {+I,-U,+U,-D} (i.e. including {@link
+     * RowKind#UPDATE_BEFORE}) enter the function. Use {@link #REQUIRE_UPDATE_BEFORE} to enforce
+     * retractions for all updating cases.
+     *
+     * <p>For upserting tables, if the changelog contains key-only deletions (also known as partial
+     * deletions), only upsert key fields are set when a row enters the function. Non-key fields are
+     * set to null, regardless of NOT NULL constraints. Use {@link #REQUIRE_FULL_DELETE} to enforce
+     * that only full deletes enter the function.
+     *
      * <p>This trait is intended for advanced use cases. Please note that inputs are always
      * insert-only in batch mode. Thus, if the PTF should produce the same results in both batch and
-     * streaming mode, results should be emitted based on watermarks and event-time. The trait
-     * {@link #PASS_COLUMNS_THROUGH} is not supported if this trait is declared.
+     * streaming mode, results should be emitted based on watermarks and event-time.
+     *
+     * <p>The trait {@link #PASS_COLUMNS_THROUGH} is not supported if this trait is declared.
+     *
+     * <p>The `on_time` argument is not supported if the PTF receives updates.
+     *
+     * <p>Note: This trait is valid for {@link #TABLE_AS_ROW} and {@link #TABLE_AS_SET} arguments.
+     *
+     * @see #REQUIRE_UPDATE_BEFORE
+     * @see #REQUIRE_FULL_DELETE
+     */
+    SUPPORT_UPDATES(false, StaticArgumentTrait.SUPPORT_UPDATES),
+
+    /**
+     * Defines that a table argument which {@link #SUPPORT_UPDATES} should include a {@link
+     * RowKind#UPDATE_BEFORE} message when encoding updates. In other words: it enforces presenting
+     * the updating table in retract changelog mode.
+     *
+     * <p>This trait is intended for advanced use cases. By default, updates are encoded as emitted
+     * by the input operation. Thus, the updating table might be encoded in upsert changelog mode
+     * and deletes might only contain keys.
+     *
+     * <p>The following example shows how the input changelog encodes updates differently:
+     *
+     * <pre>
+     * // Given a table UpdatingTable(name STRING PRIMARY KEY, score INT)
+     * // backed by upsert changelog with changes
+     * // +I[Alice, 42], +I[Bob, 0], +U[Bob, 2], +U[Bob, 100], -D[Bob, NULL].
+     *
+     * // Given a function `f` that declares `table_arg` with REQUIRE_UPDATE_BEFORE.
+     * SELECT * FROM f(table_arg => TABLE UpdatingTable PARTITION BY name)
+     *
+     * // The following changes will enter the function:
+     * // +I[Alice, 42], +I[Bob, 0], -U[Bob, 0], +U[Bob, 2], -U[Bob, 2], +U[Bob, 100], -U[Bob, 100]
+     *
+     * // In both encodings, a materialized table would only contain a row for Alice.
+     * </pre>
+     *
+     * <p>Note: This trait is valid for {@link #TABLE_AS_SET} arguments that {@link
+     * #SUPPORT_UPDATES}.
+     *
+     * @see #SUPPORT_UPDATES
+     */
+    REQUIRE_UPDATE_BEFORE(false, StaticArgumentTrait.REQUIRE_UPDATE_BEFORE),
+
+    /**
+     * Defines that a table argument which {@link #SUPPORT_UPDATES} should include all fields in the
+     * {@link RowKind#DELETE} message if the updating table is backed by an upsert changelog.
+     *
+     * <p>This trait is intended for advanced use cases. For upserting tables, if the changelog
+     * contains key-only deletes (also known as partial deletes), only upsert key fields are set
+     * when a row enters the function. Non-key fields are set to null, regardless of NOT NULL
+     * constraints.
+     *
+     * <p>The following example shows how the input changelog encodes updates differently:
+     *
+     * <pre>
+     * // Given a table UpdatingTable(name STRING PRIMARY KEY, score INT)
+     * // backed by upsert changelog with changes
+     * // +I[Alice, 42], +I[Bob, 0], +U[Bob, 2], +U[Bob, 100], -D[Bob, NULL].
+     *
+     * // Given a function `f` that declares `table_arg` with REQUIRE_FULL_DELETE.
+     * SELECT * FROM f(table_arg => TABLE UpdatingTable PARTITION BY name)
+     *
+     * // The following changes will enter the function:
+     * // +I[Alice, 42], +I[Bob, 0], +U[Bob, 2], +U[Bob, 100], -D[Bob, 100].
+     *
+     * // In both encodings, a materialized table would only contain a row for Alice.
+     * </pre>
+     *
+     * <p>Note: This trait is valid for {@link #TABLE_AS_SET} arguments that {@link
+     * #SUPPORT_UPDATES}.
+     *
+     * @see #SUPPORT_UPDATES
+     */
+    REQUIRE_FULL_DELETE(false, StaticArgumentTrait.REQUIRE_FULL_DELETE),
+
+    /**
+     * Defines that an {@code on_time} argument must be provided, referencing a watermarked
+     * timestamp column in the given table.
+     *
+     * <p>The {@code on_time} argument indicates which column provides the event-time timestamp. In
+     * other words, it specifies the column that defines the timestamp for when a row was generated.
+     * This timestamp is used within the PTF for timers and time-based operations when the watermark
+     * progresses the logical clock.
+     *
+     * <p>By default, the {@code on_time} argument is optional. If no timestamp column is set for
+     * the PTF, the {@link TimeContext#time()} will return null. If the {@code on_time} argument is
+     * provided, {@link TimeContext#time()} will return it and the PTF will return a {@code rowtime}
+     * column in the output, allowing subsequent operations to access and propagate the resulting
+     * event-time timestamp.
+     *
+     * <p>For example:
+     *
+     * <pre>
+     *     CREATE TABLE t (v STRING, ts TIMESTAMP_LTZ(3), WATERMARK FOR ts AS ts - INTERVAL '2' SECONDS);
+     *
+     *     SELECT v, rowtime FROM f(table_arg => TABLE t, on_time => DESCRIPTOR(ts));
+     * </pre>
      *
      * <p>Note: This trait is valid for {@link #TABLE_AS_ROW} and {@link #TABLE_AS_SET} arguments.
      */
-    SUPPORT_UPDATES(false, StaticArgumentTrait.SUPPORT_UPDATES);
+    REQUIRE_ON_TIME(false, StaticArgumentTrait.REQUIRE_ON_TIME);
 
     private final boolean isRoot;
     private final StaticArgumentTrait staticTrait;

@@ -56,6 +56,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.flink.connector.datagen.table.RandomGeneratorVisitor.RANDOM_COLLECTION_LENGTH_DEFAULT;
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -81,6 +82,11 @@ class DataGenTableSourceFactoryTest {
                     Column.physical("f2", DataTypes.VARCHAR(30)),
                     Column.physical("f3", DataTypes.VARBINARY(20)),
                     Column.physical("f4", DataTypes.STRING()));
+    private static final ResolvedSchema COLLECTION_SCHEMA =
+            ResolvedSchema.of(
+                    Column.physical("f0", DataTypes.ARRAY(DataTypes.STRING())),
+                    Column.physical("f1", DataTypes.MAP(DataTypes.STRING(), DataTypes.INT())),
+                    Column.physical("f2", DataTypes.MULTISET(DataTypes.INT())));
 
     @Test
     void testDataTypeCoverage() throws Exception {
@@ -345,6 +351,43 @@ class DataGenTableSourceFactoryTest {
                 21,
                 null,
                 "Custom length '21' for variable-length type (VARCHAR/STRING/VARBINARY/BYTES) field 'f3' should be shorter than '20' defined in the schema.");
+    }
+
+    @Test
+    void testLengthForCollectionType() throws Exception {
+        DescriptorProperties descriptor = new DescriptorProperties();
+        final int rowsNumber = 200;
+        final int collectionSize = 10;
+        descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
+        descriptor.putLong(DataGenConnectorOptions.NUMBER_OF_ROWS.key(), rowsNumber);
+        // test for default length.
+        List<RowData> results = runGenerator(COLLECTION_SCHEMA, descriptor);
+        assertThat(results).hasSize(rowsNumber);
+        for (RowData row : results) {
+            assertThat(row.getArray(0).size()).isEqualTo(RANDOM_COLLECTION_LENGTH_DEFAULT);
+            assertThat(row.getMap(1).size())
+                    .isEqualTo(RandomGeneratorVisitor.RANDOM_COLLECTION_LENGTH_DEFAULT);
+            assertThat(row.getMap(2).size())
+                    .isEqualTo(RandomGeneratorVisitor.RANDOM_COLLECTION_LENGTH_DEFAULT);
+        }
+
+        // test for provided length.
+        descriptor.putLong(
+                DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.LENGTH,
+                collectionSize);
+        descriptor.putLong(
+                DataGenConnectorOptionsUtil.FIELDS + ".f1." + DataGenConnectorOptionsUtil.LENGTH,
+                collectionSize);
+        descriptor.putLong(
+                DataGenConnectorOptionsUtil.FIELDS + ".f2." + DataGenConnectorOptionsUtil.LENGTH,
+                collectionSize);
+        results = runGenerator(COLLECTION_SCHEMA, descriptor);
+        assertThat(results).hasSize(rowsNumber);
+        for (RowData row : results) {
+            assertThat(row.getArray(0).size()).isEqualTo(collectionSize);
+            assertThat(row.getMap(1).size()).isEqualTo(collectionSize);
+            assertThat(row.getMap(2).size()).isEqualTo(collectionSize);
+        }
     }
 
     @Test

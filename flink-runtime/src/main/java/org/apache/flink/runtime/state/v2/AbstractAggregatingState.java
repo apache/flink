@@ -20,8 +20,8 @@ package org.apache.flink.runtime.state.v2;
 
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.state.v2.AggregatingState;
-import org.apache.flink.api.common.state.v2.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.v2.StateFuture;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
@@ -50,13 +50,14 @@ public class AbstractAggregatingState<K, N, IN, ACC, OUT> extends AbstractKeyedS
      * Creates a new AbstractKeyedState with the given asyncExecutionController and stateDescriptor.
      *
      * @param stateRequestHandler The async request handler for handling all requests.
-     * @param stateDescriptor The properties of the state.
+     * @param valueSerializer The type serializer for the values in the state.
      */
     public AbstractAggregatingState(
             StateRequestHandler stateRequestHandler,
-            AggregatingStateDescriptor<IN, ACC, OUT> stateDescriptor) {
-        super(stateRequestHandler, stateDescriptor);
-        this.aggregateFunction = stateDescriptor.getAggregateFunction();
+            AggregateFunction<IN, ACC, OUT> aggregateFunction,
+            TypeSerializer<ACC> valueSerializer) {
+        super(stateRequestHandler, valueSerializer);
+        this.aggregateFunction = aggregateFunction;
     }
 
     @Override
@@ -100,7 +101,8 @@ public class AbstractAggregatingState<K, N, IN, ACC, OUT> extends AbstractKeyedS
         try {
             ACC newValue =
                     acc == null
-                            ? this.aggregateFunction.createAccumulator()
+                            ? this.aggregateFunction.add(
+                                    value, this.aggregateFunction.createAccumulator())
                             : this.aggregateFunction.add(value, acc);
             updateInternal(newValue);
         } catch (Exception e) {

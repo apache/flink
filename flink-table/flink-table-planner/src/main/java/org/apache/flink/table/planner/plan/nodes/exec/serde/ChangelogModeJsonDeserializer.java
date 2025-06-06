@@ -28,6 +28,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 
 import java.io.IOException;
+import java.util.Objects;
 
 /**
  * JSON deserializer for {@link ChangelogMode}.
@@ -37,6 +38,7 @@ import java.io.IOException;
 @Internal
 final class ChangelogModeJsonDeserializer extends StdDeserializer<ChangelogMode> {
     private static final long serialVersionUID = 1L;
+    private static final String PARTIAL_DELETE = "~" + RowKind.DELETE.name();
 
     ChangelogModeJsonDeserializer() {
         super(ChangelogMode.class);
@@ -49,8 +51,14 @@ final class ChangelogModeJsonDeserializer extends StdDeserializer<ChangelogMode>
         ChangelogMode.Builder builder = ChangelogMode.newBuilder();
         JsonNode rowKindsNode = jsonParser.readValueAsTree();
         for (JsonNode rowKindNode : rowKindsNode) {
-            RowKind rowKind = RowKind.valueOf(rowKindNode.asText().toUpperCase());
-            builder.addContainedKind(rowKind);
+            final String rowKindText = rowKindNode.asText();
+            if (Objects.equals(PARTIAL_DELETE, rowKindText)) {
+                builder.keyOnlyDeletes(true);
+                builder.addContainedKind(RowKind.DELETE);
+            } else {
+                RowKind rowKind = RowKind.valueOf(rowKindText);
+                builder.addContainedKind(rowKind);
+            }
         }
         return builder.build();
     }

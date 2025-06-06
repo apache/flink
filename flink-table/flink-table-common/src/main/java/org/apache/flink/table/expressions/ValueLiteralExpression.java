@@ -28,6 +28,8 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.utils.ValueDataTypeConverter;
+import org.apache.flink.table.utils.EncodingUtils;
+import org.apache.flink.types.ColumnList;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -46,6 +48,7 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.Period;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -224,7 +227,7 @@ public final class ValueLiteralExpression implements ResolvedExpression {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SqlFactory sqlFactory) {
         if (value == null && !dataType.getLogicalType().is(LogicalTypeRoot.NULL)) {
             return String.format(
                     "CAST(NULL AS %s)",
@@ -269,12 +272,15 @@ public final class ValueLiteralExpression implements ResolvedExpression {
             case DATE:
                 return String.format("DATE '%s'", getValueAs(LocalDate.class).get());
             case TIME_WITHOUT_TIME_ZONE:
-                return String.format("TIME '%s'", getValueAs(LocalTime.class).get());
+                final LocalTime localTime = getValueAs(LocalTime.class).get();
+                return String.format(
+                        "TIME '%s'", localTime.format(DateTimeFormatter.ISO_LOCAL_TIME));
             case TIMESTAMP_WITHOUT_TIME_ZONE:
                 final LocalDateTime localDateTime = getValueAs(LocalDateTime.class).get();
                 return String.format(
                         "TIMESTAMP '%s %s'",
-                        localDateTime.toLocalDate(), localDateTime.toLocalTime());
+                        localDateTime.toLocalDate(),
+                        localDateTime.toLocalTime().format(DateTimeFormatter.ISO_LOCAL_TIME));
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 final Instant instant = getValueAs(Instant.class).get();
                 if (instant.getNano() % 1_000_000 != 0) {
@@ -295,6 +301,17 @@ public final class ValueLiteralExpression implements ResolvedExpression {
                         duration.toMinutes() % 60,
                         duration.getSeconds() % 60,
                         duration.getNano() / 1_000_000);
+            case DESCRIPTOR:
+                final ColumnList columnList = getValueAs(ColumnList.class).get();
+                if (!columnList.getDataTypes().isEmpty()) {
+                    throw new TableException("Data types in DESCRIPTOR are not supported yet.");
+                }
+                return String.format(
+                        "DESCRIPTOR(%s)",
+                        columnList.getNames().stream()
+                                .map(EncodingUtils::escapeBackticks)
+                                .map(c -> String.format("`%s`", c))
+                                .collect(Collectors.joining()));
             case ARRAY:
             case MULTISET:
             case MAP:
@@ -303,11 +320,11 @@ public final class ValueLiteralExpression implements ResolvedExpression {
                         "Constructed type literals are not SQL serializable. Please use respective"
                                 + " constructor functions");
             case TIMESTAMP_WITH_TIME_ZONE:
+            case DISTINCT_TYPE:
             case STRUCTURED_TYPE:
             case RAW:
-            case DISTINCT_TYPE:
-            case UNRESOLVED:
             case SYMBOL:
+            case UNRESOLVED:
             default:
                 throw new TableException(
                         "Literals with "

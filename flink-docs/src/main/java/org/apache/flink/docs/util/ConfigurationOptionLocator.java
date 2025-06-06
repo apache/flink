@@ -69,6 +69,9 @@ public class ConfigurationOptionLocator {
                         "flink-state-backends/flink-statebackend-rocksdb",
                         "org.apache.flink.state.rocksdb"),
                 new OptionsClassLocation(
+                        "flink-state-backends/flink-statebackend-forst",
+                        "org.apache.flink.state.forst"),
+                new OptionsClassLocation(
                         "flink-table/flink-table-api-java", "org.apache.flink.table.api.config"),
                 new OptionsClassLocation("flink-python", "org.apache.flink.python"),
                 new OptionsClassLocation(

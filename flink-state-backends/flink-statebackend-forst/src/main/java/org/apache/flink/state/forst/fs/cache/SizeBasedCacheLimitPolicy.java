@@ -33,22 +33,31 @@ public class SizeBasedCacheLimitPolicy implements CacheLimitPolicy {
     /** The capacity. */
     private final long capacity;
 
+    /** The estimated sst file size. */
+    private final long sstFileSize;
+
     /** The usage size. */
     private long usageSize;
 
-    public SizeBasedCacheLimitPolicy(long capacity) {
+    public SizeBasedCacheLimitPolicy(long capacity, long sstFileSize) {
         this.capacity = capacity;
+        this.sstFileSize = sstFileSize;
         this.usageSize = 0;
         LOG.info("Creating SizeBasedCacheLimitPolicy with capacity {}", capacity);
     }
 
     @Override
-    public boolean isSafeToAdd(long toAddSize) {
-        return toAddSize < capacity;
+    public boolean directWriteInCache() {
+        return isSafeToAdd(sstFileSize);
     }
 
     @Override
-    public boolean isOverflow(long toAddSize) {
+    public boolean isSafeToAdd(long toAddSize) {
+        return toAddSize <= capacity;
+    }
+
+    @Override
+    public boolean isOverflow(long toAddSize, boolean hasFile) {
         return usageSize + toAddSize > capacity;
     }
 

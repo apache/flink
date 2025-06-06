@@ -104,7 +104,7 @@ def extract_process_function(
                 return
             for value in values:
                 if isinstance(value, tuple) and isinstance(value[0], OutputTag):
-                    output_tag = value[0]  # type: OutputTag
+                    output_tag: OutputTag = value[0]
                     side_output_context.collect(output_tag.tag_id, value[1])
                 else:
                     yield value
@@ -244,9 +244,9 @@ def extract_process_function(
 
     elif func_type == UserDefinedDataStreamFunction.WINDOW:
 
-        window_operation_descriptor = (
+        window_operation_descriptor: WindowOperationDescriptor = (
             user_defined_func
-        )  # type: WindowOperationDescriptor
+        )
 
         def user_key_selector(normal_data):
             return normal_data

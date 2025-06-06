@@ -106,7 +106,7 @@ class TableConfig(object):
         jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
         classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
         if key in [jars_key, classpaths_key]:
-            jar_urls = Configuration.parse_jars_value(value, jvm)
+            jar_urls = Configuration.parse_list_value(value)
             add_jars_to_context_class_loader(jar_urls)
         return self
 

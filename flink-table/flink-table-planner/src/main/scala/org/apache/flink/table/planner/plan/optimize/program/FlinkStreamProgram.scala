@@ -287,11 +287,19 @@ object FlinkStreamProgram {
       FlinkGroupProgramBuilder
         .newBuilder[StreamOptimizeContext]
         // add a HEP program for watermark transpose rules to make this optimization deterministic
+        // Applying these rules before the changelog mode inference is important because
+        // 1. if we transpose calc and projection before we infer the changelog mode, we
+        //    can, e.g., project out metadata columns which may potentially allow us to drop the
+        //    changelog normalize node
+        // 2. if we push a condition into a changelog normalize we may emit only UPDATE_AFTER, if
+        //    the downstream operators don't need UPDATE_BEFORE, without the push we need to emit
+        //    UPDATE_BEFORE. With the condition evaluated inside of changelog normalize we can
+        //    emit DELETEs instead of UPDATE_BEFORE if the condition is not met.
         .addProgram(
           FlinkHepRuleSetProgramBuilder.newBuilder
             .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
             .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-            .add(FlinkStreamRuleSets.WATERMARK_TRANSPOSE_RULES)
+            .add(FlinkStreamRuleSets.CHANGELOG_NORMALIZE_TRANSPOSE_RULES)
             .build(),
           "watermark transpose"
         )

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
@@ -31,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -72,6 +74,7 @@ public class AllToAllBlockingResultInfo extends AbstractBlockingResultInfo {
             Map<Integer, long[]> subpartitionBytesByPartitionIndex) {
         super(resultId, numOfPartitions, numOfSubpartitions, subpartitionBytesByPartitionIndex);
         this.singleSubpartitionContainsAllData = singleSubpartitionContainsAllData;
+        this.isBroadcast = singleSubpartitionContainsAllData;
     }
 
     @Override
@@ -128,7 +131,8 @@ public class AllToAllBlockingResultInfo extends AbstractBlockingResultInfo {
     }
 
     /**
-     * Aggregates the subpartition bytes to reduce space usage.
+     * This method should be called when fine-grained information is no longer needed. It will
+     * aggregate and clears the fine-grained subpartition bytes to reduce space usage.
      *
      * <p>Once all partitions are finished and all consumer jobVertices are initialized, we can
      * convert the subpartition bytes to aggregated value to reduce the space usage, because the
@@ -136,9 +140,11 @@ public class AllToAllBlockingResultInfo extends AbstractBlockingResultInfo {
      * tasks of ALL_TO_ALL edges(Hashing or Rebalancing, we do not consider rare cases such as
      * custom partitions here).
      */
-    protected void aggregateSubpartitionBytes() {
+    protected void onFineGrainedSubpartitionBytesNotNeeded() {
         if (subpartitionBytesByPartitionIndex.size() == numOfPartitions) {
-            this.aggregatedSubpartitionBytes = getAggregatedSubpartitionBytesInternal();
+            if (this.aggregatedSubpartitionBytes == null) {
+                this.aggregatedSubpartitionBytes = getAggregatedSubpartitionBytesInternal();
+            }
             this.subpartitionBytesByPartitionIndex.clear();
         }
     }
@@ -179,15 +185,29 @@ public class AllToAllBlockingResultInfo extends AbstractBlockingResultInfo {
         }
     }
 
+    @Override
+    public long getNumBytesProduced(
+            IndexRange partitionIndexRange, IndexRange subpartitionIndexRange) {
+        if (partitionIndexRange.getStartIndex() == 0
+                && partitionIndexRange.getEndIndex() == getNumPartitions() - 1) {
+            return IntStream.rangeClosed(
+                            subpartitionIndexRange.getStartIndex(),
+                            subpartitionIndexRange.getEndIndex())
+                    .mapToLong(i -> getAggregatedSubpartitionBytes().get(i))
+                    .sum();
+        } else {
+            return super.getNumBytesProduced(partitionIndexRange, subpartitionIndexRange);
+        }
+    }
+
     public List<Long> getAggregatedSubpartitionBytes() {
         checkState(
                 aggregatedSubpartitionBytes != null
                         || subpartitionBytesByPartitionIndex.size() == numOfPartitions,
                 "Not all partition infos are ready");
         if (aggregatedSubpartitionBytes == null) {
-            return getAggregatedSubpartitionBytesInternal();
-        } else {
-            return Collections.unmodifiableList(aggregatedSubpartitionBytes);
+            aggregatedSubpartitionBytes = getAggregatedSubpartitionBytesInternal();
         }
+        return Collections.unmodifiableList(aggregatedSubpartitionBytes);
     }
 }

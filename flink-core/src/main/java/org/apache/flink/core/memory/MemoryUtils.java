@@ -169,10 +169,9 @@ public class MemoryUtils {
         Preconditions.checkState(offHeapAddress > 0, "negative pointer or size");
         Preconditions.checkState(
                 offHeapAddress < Long.MAX_VALUE - Integer.MAX_VALUE,
-                "Segment initialized with too large address: "
-                        + offHeapAddress
-                        + " ; Max allowed address is "
-                        + (Long.MAX_VALUE - Integer.MAX_VALUE - 1));
+                "Segment initialized with too large address: %s ; Max allowed address is %d",
+                offHeapAddress,
+                (Long.MAX_VALUE - Integer.MAX_VALUE - 1));
 
         return offHeapAddress;
     }

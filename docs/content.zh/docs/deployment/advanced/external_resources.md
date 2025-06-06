@@ -109,8 +109,6 @@ external-resource.fpga.yarn.config-key: yarn.io/fpga # 定义 FPGA 在 Yarn 中�
 算子可以通过 `getExternalResourceInfos(String resourceName)` 从 `RuntimeContext` 或 `FunctionContext` 中获取特定扩展资源的 `ExternalResourceInfo`。
 此处的 `resourceName` 应与在扩展资源列表中定义的名称相同。具体用法如下：
 
-{{< tabs "5e1a48c8-14ae-4836-b5fd-84879c4bf36d" >}}
-{{< tab "Java" >}}
 ```java
 public class ExternalResourceMapFunction extends RichMapFunction<String, String> {
     private static final String RESOURCE_NAME = "foo";
@@ -126,25 +124,6 @@ public class ExternalResourceMapFunction extends RichMapFunction<String, String>
     }
 }
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-class ExternalResourceMapFunction extends RichMapFunction[(String, String)] {
-    var RESOURCE_NAME = "foo"
-
-    override def map(value: String): String = {
-        val externalResourceInfos = getRuntimeContext().getExternalResourceInfos(RESOURCE_NAME)
-        val addresses = new util.ArrayList[String]
-        externalResourceInfos.asScala.foreach(
-        externalResourceInfo => addresses.add(externalResourceInfo.getProperty("address").get()))
-
-        // map function with addresses.
-        // ...
-    }
-}
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 `ExternalResourceInfo` 中包含一个或多个键-值对，其键值表示资源的不同维度。你可以通过 `ExternalResourceInfo#getKeys` 获取所有的键。
 
@@ -166,8 +145,6 @@ class ExternalResourceMapFunction extends RichMapFunction[(String, String)] {
 
 例如，要为名为“FPGA”的扩展资源实现插件，你首先需要实现 `FPGADriver` 和 `FPGADriverFactory`：
 
-{{< tabs "b44c0b2c-52ef-4281-8a93-40ca3843c3b8" >}}
-{{< tab "Java" >}}
 ```java
 public class FPGADriver implements ExternalResourceDriver {
 	@Override
@@ -196,34 +173,6 @@ public class FPGAInfo implements ExternalResourceInfo {
 	}
 }
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-class FPGADriver extends ExternalResourceDriver {
-  override def retrieveResourceInfo(amount: Long): Set[FPGAInfo] = {
-    // return the information set of "FPGA"
-  }
-}
-
-class FPGADriverFactory extends ExternalResourceDriverFactory {
-  override def createExternalResourceDriver(config: Configuration): ExternalResourceDriver = {
-    new FPGADriver()
-  }
-}
-
-// Also implement FPGAInfo which contains basic properties of "FPGA" resource.
-class FPGAInfo extends ExternalResourceInfo {
-  override def getProperty(key: String): Option[String] = {
-    // return the property with the given key.
-  }
-
-  override def getKeys(): util.Collection[String] = {
-    // return all property keys.
-  }
-}
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 在 `META-INF/services/` 中创建名为 `org.apache.flink.api.common.externalresource.ExternalResourceDriverFactory` 的文件，向其中写入工厂类名，如 `your.domain.FPGADriverFactory`。
 

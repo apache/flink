@@ -28,8 +28,10 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.functions.AsyncScalarFunction;
 import org.apache.flink.table.functions.FunctionContext;
+import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,6 +48,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.table.api.Expressions.row;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT Case tests for {@link AsyncScalarFunction}. */
@@ -238,6 +241,51 @@ public class AsyncCalcITCase extends StreamingTestBase {
         assertThat(results).containsSequence(expectedRows);
     }
 
+    @Test
+    public void testTableFuncWithAsyncCalc() {
+        Table t1 = tEnv.fromValues(1, 2).as("f1");
+        tEnv.createTemporaryView("t1", t1);
+        tEnv.createTemporarySystemFunction("func", new RandomTableFunction());
+        tEnv.createTemporarySystemFunction("addTen", new AsyncFuncAdd10());
+        final List<Row> results = executeSql("select * FROM t1, LATERAL TABLE(func(addTen(f1)))");
+        final List<Row> expectedRows =
+                Arrays.asList(
+                        Row.of(1, "blah 11"),
+                        Row.of(1, "foo 11"),
+                        Row.of(2, "blah 12"),
+                        Row.of(2, "foo 12"));
+        assertThat(results).containsSequence(expectedRows);
+    }
+
+    @Test
+    public void testMultiArgumentAsyncWithAdditionalProjection() {
+        // This was the cause of a bug previously where the reference to the sync projection was
+        // getting garbled by janino. See issue https://issues.apache.org/jira/browse/FLINK-37721
+        Table t1 =
+                tEnv.fromValues(row("a1", "b1", "c1"), row("a2", "b2", "c2")).as("f1", "f2", "f3");
+        tEnv.createTemporaryView("t1", t1);
+        tEnv.createTemporarySystemFunction("func", new AsyncFuncThreeParams());
+        final List<Row> results = executeSql("select f1, func(f1, f2, f3) FROM t1");
+        final List<Row> expectedRows =
+                Arrays.asList(Row.of("a1", "val a1b1c1"), Row.of("a2", "val a2b2c2"));
+        assertThat(results).containsSequence(expectedRows);
+    }
+
+    @Test
+    public void testGroupBy() {
+        Table t1 = tEnv.fromValues(row(1, 1), row(2, 2), row(1, 3)).as("f1", "f2");
+        tEnv.createTemporaryView("t1", t1);
+        tEnv.createTemporarySystemFunction("func", new AsyncFuncAdd10());
+        final List<Row> results = executeSql("select f1, func(SUM(f2)) FROM t1 group by f1");
+        final List<Row> expectedRows =
+                Arrays.asList(
+                        Row.of(1, 11),
+                        Row.of(2, 12),
+                        Row.ofKind(RowKind.UPDATE_BEFORE, 1, 11),
+                        Row.ofKind(RowKind.UPDATE_AFTER, 1, 14));
+        assertThat(results).containsSequence(expectedRows);
+    }
+
     private List<Row> executeSql(String sql) {
         TableResult result = tEnv.executeSql(sql);
         final List<Row> rows = new ArrayList<>();
@@ -252,6 +300,16 @@ public class AsyncCalcITCase extends StreamingTestBase {
 
         public void eval(CompletableFuture<String> future, Integer param) {
             executor.schedule(() -> future.complete("val " + param), 10, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    /** Test function. */
+    public static class AsyncFuncThreeParams extends AsyncFuncBase {
+
+        private static final long serialVersionUID = 1L;
+
+        public void eval(CompletableFuture<String> future, String a, String b, String c) {
+            executor.schedule(() -> future.complete("val " + a + b + c), 10, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -380,6 +438,15 @@ public class AsyncCalcITCase extends StreamingTestBase {
 
         public void eval(CompletableFuture<Integer> future, Integer param1, Integer param2) {
             executor.schedule(() -> future.complete(param1 + param2), 10, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    /** A table function. */
+    public static class RandomTableFunction extends TableFunction<String> {
+
+        public void eval(Integer i) {
+            collect("blah " + i);
+            collect("foo " + i);
         }
     }
 }

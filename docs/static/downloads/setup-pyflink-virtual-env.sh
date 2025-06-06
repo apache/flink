@@ -14,28 +14,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 set -e
-# download miniconda.sh
+
 sys_os=$(uname -s)
 echo "Detected OS: ${sys_os}"
 sys_machine=$(uname -m)
 echo "Detected machine: ${sys_machine}"
 
-if [[ ${sys_os} == "Darwin" ]]; then
-    wget "https://repo.anaconda.com/miniconda/Miniconda3-py310_23.5.2-0-MacOSX-${sys_machine}.sh" -O "miniconda.sh"
-elif [[ ${sys_os} == "Linux" ]]; then
-    wget "https://repo.anaconda.com/miniconda/Miniconda3-py310_23.5.2-0-Linux-${sys_machine}.sh" -O "miniconda.sh"
-else
-    echo "Unsupported OS: ${sys_os}"
-    exit 1
-fi
+wget "https://github.com/astral-sh/uv/releases/download/0.5.23/uv-installer.sh" -O "uv-installer.sh"
+chmod +x uv-installer.sh
 
-# add the execution permission
-chmod +x miniconda.sh
+UV_UNMANAGED_INSTALL="uv-bin" ./uv-installer.sh
 
 # create python virtual environment
-./miniconda.sh -b -p venv
+uv-bin/uv venv venv
 
-# activate the conda python virtual environment
+# activate the python virtual environment
 source venv/bin/activate ""
 
 # install PyFlink dependency
@@ -47,11 +40,8 @@ else
     pip install "apache-flink==$1"
 fi
 
-# deactivate the conda python virtual environment
-conda deactivate
+# deactivate the python virtual environment
+deactivate
 
-# remove the cached packages
-rm -rf venv/pkgs
-
-# package the prepared conda python virtual environment
+# package the prepared python virtual environment
 zip -r venv.zip venv

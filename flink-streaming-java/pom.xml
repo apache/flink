@@ -111,12 +111,6 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
-
-		<dependency>
-			<groupId>com.twitter</groupId>
-			<artifactId>chill-java</artifactId>
-			<version>${chill.version}</version>
-		</dependency>
 	</dependencies>
 
 	<build>

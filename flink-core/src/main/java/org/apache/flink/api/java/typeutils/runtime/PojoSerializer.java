@@ -81,6 +81,9 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
     private final TypeSerializer<?>[] registeredSerializers;
 
+    /** Cache of non-registered subclass names to their classes, created on-the-fly. */
+    private transient Map<String, Class<?>> subclassCache;
+
     /** Cache of non-registered subclasses to their serializers, created on-the-fly. */
     private transient Map<Class<?>, TypeSerializer<?>> subclassSerializerCache;
 
@@ -121,6 +124,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
         this.registeredSerializers =
                 createRegisteredSubclassSerializers(registeredSubclasses, serializerConfig);
 
+        this.subclassCache = new HashMap<>();
         this.subclassSerializerCache = new HashMap<>();
         if (TypeExtractor.isRecord(clazz)) {
             this.recordFactory = JavaRecordBuilderFactory.create(clazz, fields);
@@ -146,6 +150,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
         this.fieldSerializers = checkNotNull(fieldSerializers);
         this.registeredClasses = checkNotNull(registeredClasses);
         this.registeredSerializers = checkNotNull(registeredSerializers);
+        this.subclassCache = new HashMap<>();
         this.subclassSerializerCache = checkNotNull(subclassSerializerCache);
         this.serializerConfig = checkNotNull(serializerConfig);
         this.cl = Thread.currentThread().getContextClassLoader();
@@ -426,11 +431,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
         if ((flags & IS_SUBCLASS) != 0) {
             String subclassName = source.readUTF();
-            try {
-                actualSubclass = Class.forName(subclassName, true, cl);
-            } catch (ClassNotFoundException e) {
-                throw new RuntimeException("Cannot instantiate class.", e);
-            }
+            actualSubclass = getSubclassByName(subclassName);
             subclassSerializer = getSubclassSerializer(actualSubclass);
             target = (T) subclassSerializer.createInstance();
             // also initialize fields for which the subclass serializer is not responsible
@@ -492,11 +493,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
         TypeSerializer subclassSerializer = null;
         if ((flags & IS_SUBCLASS) != 0) {
             String subclassName = source.readUTF();
-            try {
-                subclass = Class.forName(subclassName, true, cl);
-            } catch (ClassNotFoundException e) {
-                throw new RuntimeException("Cannot instantiate class.", e);
-            }
+            subclass = getSubclassByName(subclassName);
             subclassSerializer = getSubclassSerializer(subclass);
 
             if (reuse == null || subclass != reuse.getClass()) {
@@ -600,14 +597,8 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
         if ((flags & IS_SUBCLASS) != 0) {
             String className = source.readUTF();
             target.writeUTF(className);
-            try {
-                Class<?> subclass =
-                        Class.forName(
-                                className, true, Thread.currentThread().getContextClassLoader());
-                subclassSerializer = getSubclassSerializer(subclass);
-            } catch (ClassNotFoundException e) {
-                throw new RuntimeException("Cannot instantiate class.", e);
-            }
+            Class<?> subclass = getSubclassByName(className);
+            subclassSerializer = getSubclassSerializer(subclass);
         } else if ((flags & IS_TAGGED_SUBCLASS) != 0) {
             int subclassTag = source.readByte();
             target.writeByte(subclassTag);
@@ -690,6 +681,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
         }
 
         cl = Thread.currentThread().getContextClassLoader();
+        subclassCache = new HashMap<>();
         subclassSerializerCache = new HashMap<>();
         if (TypeExtractor.isRecord(clazz)) {
             this.recordFactory = JavaRecordBuilderFactory.create(clazz, fields);
@@ -804,6 +796,19 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
         }
 
         return subclassSerializers;
+    }
+
+    private Class<?> getSubclassByName(String subclassName) {
+        Class<?> subclass = subclassCache.get(subclassName);
+        if (subclass == null) {
+            try {
+                subclass = Class.forName(subclassName, true, cl);
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException("Cannot instantiate class.", e);
+            }
+            subclassCache.put(subclassName, subclass);
+        }
+        return subclass;
     }
 
     /**

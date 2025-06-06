@@ -32,7 +32,8 @@ under the License.
 	<name>Flink : Metrics : OpenTelemetry</name>
 
 	<properties>
-		<opentelemetry.version>1.30.0</opentelemetry.version>
+		<opentelemetry.version>1.30.1</opentelemetry.version>
+		<opentelemetry.test.version>1.30.0</opentelemetry.test.version>
 	</properties>
 
 	<dependencies>
@@ -98,14 +99,14 @@ under the License.
 		<dependency>
 			<groupId>io.opentelemetry.javaagent</groupId>
 			<artifactId>opentelemetry-testing-common</artifactId>
-			<version>${opentelemetry.version}-alpha</version>
+			<version>${opentelemetry.test.version}-alpha</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>io.opentelemetry.javaagent</groupId>
 			<artifactId>opentelemetry-agent-for-testing</artifactId>
-			<version>${opentelemetry.version}-alpha</version>
+			<version>${opentelemetry.test.version}-alpha</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -143,4 +144,40 @@ under the License.
 		</dependency>
 
 	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<artifactSet>
+								<includes>
+									<include>io.opentelemetry:*</include>
+									<include>com.squareup.okhttp3:*</include>
+									<include>com.squareup.okio:*</include>
+								</includes>
+							</artifactSet>
+							<relocations>
+								<relocation>
+									<pattern>okhttp3/internal/publicsuffix</pattern>
+									<shadedPattern>META-INF</shadedPattern>
+									<includes>
+										<include>**/NOTICE</include>
+									</includes>
+								</relocation>
+							</relocations>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
 </project>

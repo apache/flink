@@ -37,13 +37,18 @@ public class BundledCacheLimitPolicy implements CacheLimitPolicy {
     }
 
     @Override
+    public boolean directWriteInCache() {
+        return policies.stream().allMatch(CacheLimitPolicy::directWriteInCache);
+    }
+
+    @Override
     public boolean isSafeToAdd(long toAddSize) {
         return policies.stream().allMatch(policy -> policy.isSafeToAdd(toAddSize));
     }
 
     @Override
-    public boolean isOverflow(long toAddSize) {
-        return policies.stream().anyMatch(policy -> policy.isOverflow(toAddSize));
+    public boolean isOverflow(long toAddSize, boolean hasFile) {
+        return policies.stream().anyMatch(policy -> policy.isOverflow(toAddSize, hasFile));
     }
 
     @Override

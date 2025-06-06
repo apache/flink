@@ -21,9 +21,10 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.types.RowKind;
 
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 
@@ -33,14 +34,16 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTest
 @Execution(ExecutionMode.CONCURRENT)
 class ChangelogModeJsonSerdeTest {
 
-    @Test
-    void testChangelogModeSerde() throws IOException {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testChangelogModeSerde(boolean keyOnlyDeletes) throws IOException {
         ChangelogMode changelogMode =
                 ChangelogMode.newBuilder()
                         .addContainedKind(RowKind.INSERT)
                         .addContainedKind(RowKind.DELETE)
                         .addContainedKind(RowKind.UPDATE_AFTER)
                         .addContainedKind(RowKind.UPDATE_BEFORE)
+                        .keyOnlyDeletes(keyOnlyDeletes)
                         .build();
 
         testJsonRoundTrip(changelogMode, ChangelogMode.class);

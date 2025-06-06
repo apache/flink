@@ -19,32 +19,33 @@
 package org.apache.flink.state.table;
 
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
 
-/** Configuration for SQL state columns. */
+/** Configuration for SQL savepoint columns. */
 @SuppressWarnings("rawtypes")
 public class StateValueColumnConfiguration implements Serializable {
     private final int columnIndex;
     private final String stateName;
     private final SavepointConnectorOptions.StateType stateType;
-    @Nullable private final String mapKeyFormat;
-    private final String valueFormat;
+    @Nullable private final TypeInformation mapKeyTypeInfo;
+    @Nullable private final TypeInformation valueTypeInfo;
     @Nullable private StateDescriptor stateDescriptor;
 
     public StateValueColumnConfiguration(
             int columnIndex,
             final String stateName,
             final SavepointConnectorOptions.StateType stateType,
-            @Nullable final String mapKeyFormat,
-            @Nullable final String valueFormat) {
+            @Nullable final TypeInformation mapKeyTypeInfo,
+            final TypeInformation valueTypeInfo) {
         this.columnIndex = columnIndex;
         this.stateName = stateName;
         this.stateType = stateType;
-        this.mapKeyFormat = mapKeyFormat;
-        this.valueFormat = valueFormat;
+        this.mapKeyTypeInfo = mapKeyTypeInfo;
+        this.valueTypeInfo = valueTypeInfo;
     }
 
     public int getColumnIndex() {
@@ -60,12 +61,12 @@ public class StateValueColumnConfiguration implements Serializable {
     }
 
     @Nullable
-    public String getMapKeyFormat() {
-        return mapKeyFormat;
+    public TypeInformation getMapKeyTypeInfo() {
+        return mapKeyTypeInfo;
     }
 
-    public String getValueFormat() {
-        return valueFormat;
+    public TypeInformation getValueTypeInfo() {
+        return valueTypeInfo;
     }
 
     public void setStateDescriptor(StateDescriptor stateDescriptor) {

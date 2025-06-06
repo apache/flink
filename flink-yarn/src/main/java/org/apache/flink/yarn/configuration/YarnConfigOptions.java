@@ -401,6 +401,26 @@ public class YarnConfigOptions {
                                     + " Unlike yarn.provided.lib.dirs, YARN will not cache it on the nodes as it is for each application. An example could be "
                                     + "hdfs://$namenode_address/path/of/flink/usrlib");
 
+    public static final ConfigOption<String> ROLLED_LOGS_INCLUDE_PATTERN =
+            key("yarn.rolled-logs.include-pattern")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Java regular expression to match log file names for inclusion in rolling log aggregation."
+                                    + " This regex is used by YARN’s log aggregation mechanism to identify which log files to collect."
+                                    + " To enable rolling aggregation in YARN, set the `yarn.nodemanager.log-aggregation.roll-monitoring-interval-seconds` property in `yarn-site.xml`."
+                                    + " Ensure that Flink’s Log4J configuration uses FileAppender or a compatible appender that can handle file deletions during runtime."
+                                    + " The regex pattern (e.g., `jobmanager*`) must align with the log file names defined in the Log4J configuration (e.g., `jobmanager.log`) to ensure all relevant files will be aggregated.");
+
+    public static final ConfigOption<String> ROLLED_LOGS_EXCLUDE_PATTERN =
+            key("yarn.rolled-logs.exclude-pattern")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Java regular expression to exclude certain log files from rolling log aggregation."
+                                    + " Log files matching the defined exclude pattern will be ignored during aggregation."
+                                    + " If a log file matches both the include and exclude patterns, the exclude pattern takes precedence and the file will be excluded from aggregation.");
+
     @SuppressWarnings("unused")
     public static final ConfigOption<String> HADOOP_CONFIG_KEY =
             key("flink.hadoop.<key>")

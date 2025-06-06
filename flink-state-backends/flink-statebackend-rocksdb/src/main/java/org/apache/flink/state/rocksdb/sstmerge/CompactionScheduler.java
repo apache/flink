@@ -28,7 +28,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static java.util.Collections.emptyList;
-import static org.apache.flink.shaded.guava32.com.google.common.util.concurrent.Uninterruptibles.awaitTerminationUninterruptibly;
+import static org.apache.flink.shaded.guava33.com.google.common.util.concurrent.Uninterruptibles.awaitTerminationUninterruptibly;
 
 /**
  * Schedules manual compactions of small disjoint SST files created by RocksDB. It does so

@@ -56,7 +56,7 @@ CREATE TABLE datagen
       'connector' = 'datagen',
       'number-of-rows' = '10'
 );
-CREATE VIEW person AS
+CREATE TEMPORARY VIEW person AS
 SELECT person.id,
        person.name,
        person.emailAddress,
@@ -93,7 +93,6 @@ SELECT bid.auction,
 FROM datagen
 WHERE event_type = 2;
 
-
 CREATE TABLE nexmark_q7
 (
     auction    BIGINT,
@@ -105,6 +104,9 @@ CREATE TABLE nexmark_q7
       'connector' = 'blackhole'
 );
 
+CREATE TABLE nexmark_q8 (id BIGINT, name VARCHAR, stime TIMESTAMP(3)) WITH ('connector' = 'blackhole');
+
+BEGIN STATEMENT SET;
 INSERT INTO nexmark_q7
 SELECT B.auction, B.price, B.bidder, B.`dateTime`, B.extra
 from bid B
@@ -114,3 +116,37 @@ from bid B
                GROUP BY window_start, window_end) B1
               ON B.price = B1.maxprice
 WHERE B.`dateTime` BETWEEN B1.`dateTime` - INTERVAL '10' SECOND AND B1.`dateTime`;
+
+INSERT INTO nexmark_q8
+    SELECT
+        P.id, P.name, P.starttime
+    FROM
+        (
+            SELECT
+                P.id,
+                P.name,
+                TUMBLE_START(P.dateTime, INTERVAL '10' SECOND) AS starttime,
+                TUMBLE_END(P.dateTime, INTERVAL '10' SECOND) AS endtime
+            FROM
+                person P
+            GROUP BY
+                P.id,
+                P.name,
+                TUMBLE(P.dateTime, INTERVAL '10' SECOND)
+        ) P
+        JOIN (
+            SELECT
+                A.seller,
+                TUMBLE_START(A.dateTime, INTERVAL '10' SECOND) AS starttime,
+                TUMBLE_END(A.dateTime, INTERVAL '10' SECOND) AS endtime
+            FROM
+                auction A
+            GROUP BY
+                A.seller,
+                TUMBLE(A.dateTime, INTERVAL '10' SECOND)
+        ) A
+            ON P.id = A.seller
+                AND P.starttime = A.starttime
+                AND P.endtime = A.endtime;
+END;
+

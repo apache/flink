@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.functions.sql;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.sql.internal.SqlAuxiliaryGroupAggFunction;
+import org.apache.flink.table.planner.functions.sql.ml.SqlMLPredictTableFunction;
 import org.apache.flink.table.planner.plan.type.FlinkReturnTypes;
 import org.apache.flink.table.planner.plan.type.NumericExceptFirstOperandChecker;
 
@@ -1335,12 +1336,14 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     // WINDOW TABLE FUNCTIONS
     // use the definitions in Flink, because we have different return types
     // and special check on the time attribute.
-    // SESSION is not supported yet, because Calcite doesn't support PARTITION BY clause in TVF
-    public static final SqlOperator DESCRIPTOR = new SqlDescriptorOperator();
+    public static final SqlOperator DESCRIPTOR = SqlStdOperatorTable.DESCRIPTOR;
     public static final SqlFunction TUMBLE = new SqlTumbleTableFunction();
     public static final SqlFunction HOP = new SqlHopTableFunction();
     public static final SqlFunction CUMULATE = new SqlCumulateTableFunction();
     public static final SqlFunction SESSION = new SqlSessionTableFunction();
+
+    // MODEL TABLE FUNCTIONS
+    public static final SqlFunction ML_PREDICT = new SqlMLPredictTableFunction();
 
     // Catalog Functions
     public static final SqlFunction CURRENT_DATABASE =

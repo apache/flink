@@ -148,7 +148,7 @@ class SimpleNamespaceAggsHandleFunction(NamespaceAggsHandleFunction[N]):
         self._udfs = udfs
         self._input_extractors = input_extractors
         self._named_property_extractor = named_property_extractor
-        self._accumulators = None  # type: List
+        self._accumulators: List = None
         self._udf_data_view_specs = udf_data_view_specs
         self._udf_data_views = []
         self._filter_args = filter_args
@@ -302,11 +302,11 @@ class GroupWindowAggFunctionBase(Generic[K, W]):
         self._window_aggregator = window_aggregator
         self._rowtime_index = rowtime_index
         self._shift_timezone = shift_timezone
-        self._window_function = None  # type: InternalWindowProcessFunction[K, W]
-        self._internal_timer_service = None  # type: LegacyInternalTimerServiceImpl
-        self._window_context = None  # type: WindowContext
+        self._window_function: InternalWindowProcessFunction[K, W] = None
+        self._internal_timer_service: LegacyInternalTimerServiceImpl = None
+        self._window_context: WindowContext = None
         self._trigger = trigger
-        self._trigger_context = None  # type: TriggerContext
+        self._trigger_context: TriggerContext = None
         self._window_state = self._state_backend.get_value_state("window_state", state_value_coder)
 
     def open(self, function_context: FunctionContext):
@@ -351,7 +351,7 @@ class GroupWindowAggFunctionBase(Generic[K, W]):
         affected_windows = self._window_function.assign_state_namespace(input_value, timestamp)
         for window in affected_windows:
             self._window_state.set_current_namespace(window)
-            acc = self._window_state.value()  # type: List
+            acc: List = self._window_state.value()
             if acc is None:
                 acc = self._window_aggregator.create_accumulators()
             self._window_aggregator.set_accumulators(window, acc)

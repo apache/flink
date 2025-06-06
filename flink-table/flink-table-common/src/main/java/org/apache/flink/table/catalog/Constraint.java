@@ -33,7 +33,7 @@ public interface Constraint {
      * Constraints can either be enforced or non-enforced. If a constraint is enforced it will be
      * checked whenever any SQL statement is executed that results in data or schema changes. If the
      * constraint is not enforced the owner of the data is responsible for ensuring data integrity.
-     * Flink will rely the information is valid and might use it for query optimisations.
+     * Flink will rely on the information as valid and might use it for query optimisations.
      */
     boolean isEnforced();
 

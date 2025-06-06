@@ -57,7 +57,7 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -367,7 +367,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                         leftTypeInfo,
                         rightTypeInfo,
                         joinFunction);
-
+        // TODO: add async version procJoinFunc to use AsyncKeyedCoProcessOperator
         return ExecNodeUtil.createTwoInputTransformation(
                 leftInputTransform,
                 rightInputTransform,
@@ -404,7 +404,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                         joinFunction,
                         windowBounds.getLeftTimeIdx(),
                         windowBounds.getRightTimeIdx());
-
+        // TODO: add async version rowJoinFunc to use AsyncKeyedCoProcessOperator
         return ExecNodeUtil.createTwoInputTransformation(
                 leftInputTransform,
                 rightInputTransform,

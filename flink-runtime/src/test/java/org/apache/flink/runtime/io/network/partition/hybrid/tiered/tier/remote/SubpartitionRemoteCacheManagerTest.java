@@ -81,7 +81,8 @@ class SubpartitionRemoteCacheManagerTest {
         TieredStoragePartitionId partitionId =
                 TieredStorageIdMappingUtils.convertId(new ResultPartitionID());
         int subpartitionId = 0;
-        int segmentId = 0;
+        int firstSegmentId = 0;
+        int secondSegmentId = 1;
 
         SubpartitionRemoteCacheManager cacheManager =
                 new SubpartitionRemoteCacheManager(
@@ -89,8 +90,9 @@ class SubpartitionRemoteCacheManagerTest {
                         subpartitionId,
                         new TestingTieredStorageMemoryManager.Builder().build(),
                         new TestingPartitionFileWriter.Builder().build());
+        cacheManager.startSegment(firstSegmentId);
         cacheManager.addBuffer(BufferBuilderTestUtils.buildSomeBuffer());
-        assertThatThrownBy(() -> cacheManager.startSegment(segmentId))
+        assertThatThrownBy(() -> cacheManager.startSegment(secondSegmentId))
                 .isInstanceOf(IllegalStateException.class);
     }
 
@@ -117,6 +119,7 @@ class SubpartitionRemoteCacheManagerTest {
         TieredStoragePartitionId partitionId =
                 TieredStorageIdMappingUtils.convertId(new ResultPartitionID());
         int subpartitionId = 0;
+        int segmentId = 0;
 
         AtomicInteger numWrittenBuffers = new AtomicInteger(0);
         PartitionFileWriter partitionFileWriter =
@@ -149,6 +152,7 @@ class SubpartitionRemoteCacheManagerTest {
                 new NetworkBuffer(
                         MemorySegmentFactory.allocateUnpooledSegment(1),
                         FreeingBufferRecycler.INSTANCE);
+        cacheManager.startSegment(segmentId);
         cacheManager.addBuffer(buffer);
         cacheManager.close();
         cacheManager.release();
@@ -183,9 +187,35 @@ class SubpartitionRemoteCacheManagerTest {
                         subpartitionId,
                         new TestingTieredStorageMemoryManager.Builder().build(),
                         partitionFileWriter);
+        cacheManager.startSegment(segmentId);
         cacheManager.addBuffer(BufferBuilderTestUtils.buildSomeBuffer());
         cacheManager.close();
         assertThat(numReceivedBuffers).hasValue(1);
+    }
+
+    @Test
+    void testClose_noSegmentHasStarted() {
+        final TieredStoragePartitionId partitionId =
+                TieredStorageIdMappingUtils.convertId(new ResultPartitionID());
+        final int subpartitionId = 0;
+        final AtomicBoolean writeCalled = new AtomicBoolean(false);
+
+        TestingPartitionFileWriter partitionFileWriter =
+                new TestingPartitionFileWriter.Builder()
+                        .setWriteFunction(
+                                (ignoredPartitionId, bufferContexts) -> {
+                                    writeCalled.set(true);
+                                    return FutureUtils.completedVoidFuture();
+                                })
+                        .build();
+        SubpartitionRemoteCacheManager cacheManager =
+                new SubpartitionRemoteCacheManager(
+                        partitionId,
+                        subpartitionId,
+                        new TestingTieredStorageMemoryManager.Builder().build(),
+                        partitionFileWriter);
+        cacheManager.close();
+        assertThat(writeCalled).isFalse();
     }
 
     @Test

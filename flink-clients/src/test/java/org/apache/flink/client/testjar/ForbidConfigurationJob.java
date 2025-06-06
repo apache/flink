@@ -23,7 +23,7 @@ import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
 
 /** Simulate a class setting a configuration. */
 public class ForbidConfigurationJob {

@@ -30,30 +30,27 @@ public class PrintSinkOutputWriter<IN> implements Serializable, SinkWriter<IN> {
 
     private static final long serialVersionUID = 1L;
 
-    private static final boolean STD_OUT = false;
-    private static final boolean STD_ERR = true;
-
-    private final boolean target;
+    private final boolean isStdErr;
     private transient PrintStream stream;
     private final String sinkIdentifier;
     private transient String completedPrefix;
 
     public PrintSinkOutputWriter() {
-        this("", STD_OUT);
+        this("", false);
     }
 
-    public PrintSinkOutputWriter(final boolean stdErr) {
-        this("", stdErr);
+    public PrintSinkOutputWriter(final boolean isStdErr) {
+        this("", isStdErr);
     }
 
-    public PrintSinkOutputWriter(final String sinkIdentifier, final boolean stdErr) {
-        this.target = stdErr;
+    public PrintSinkOutputWriter(final String sinkIdentifier, final boolean isStdErr) {
+        this.isStdErr = isStdErr;
         this.sinkIdentifier = (sinkIdentifier == null ? "" : sinkIdentifier);
     }
 
     public void open(int subtaskIndex, int numParallelSubtasks) {
         // get the target stream
-        stream = target == STD_OUT ? System.out : System.err;
+        stream = isStdErr ? System.err : System.out;
 
         completedPrefix = sinkIdentifier;
 
@@ -88,6 +85,6 @@ public class PrintSinkOutputWriter<IN> implements Serializable, SinkWriter<IN> {
 
     @Override
     public String toString() {
-        return "Print to " + (target == STD_OUT ? "System.out" : "System.err");
+        return "Print to " + (isStdErr ? "System.err" : "System.out");
     }
 }

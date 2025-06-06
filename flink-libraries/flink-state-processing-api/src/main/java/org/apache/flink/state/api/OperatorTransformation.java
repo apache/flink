@@ -64,6 +64,19 @@ public final class OperatorTransformation {
      * @return A {@link OneInputStateTransformation}.
      */
     public static <T> OneInputStateTransformation<T> bootstrapWith(DataStream<T> stream) {
-        return new OneInputStateTransformation<>(stream);
+        return new OneInputStateTransformation<>(stream, 0L);
+    }
+
+    /**
+     * Create a new {@link OneInputStateTransformation} from a {@link DataStream}.
+     *
+     * @param stream A data stream of elements.
+     * @param checkpointId checkpoint ID.
+     * @param <T> The type of the input.
+     * @return A {@link OneInputStateTransformation}.
+     */
+    public static <T> OneInputStateTransformation<T> bootstrapWith(
+            DataStream<T> stream, long checkpointId) {
+        return new OneInputStateTransformation<>(stream, checkpointId);
     }
 }

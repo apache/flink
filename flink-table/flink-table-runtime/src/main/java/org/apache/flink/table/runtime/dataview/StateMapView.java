@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
+import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.util.IterableIterator;
 
@@ -48,7 +49,7 @@ public abstract class StateMapView<N, EK, EV> extends MapView<EK, EV> implements
         try {
             entries().forEach(entry -> map.put(entry.getKey(), entry.getValue()));
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Unable to collect map.", e);
         }
         return map;
     }
@@ -58,8 +59,10 @@ public abstract class StateMapView<N, EK, EV> extends MapView<EK, EV> implements
         clear();
         try {
             putAll(map);
+        } catch (TableRuntimeException e) {
+            throw e;
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Unable to replace map.", e);
         }
     }
 
@@ -81,26 +84,31 @@ public abstract class StateMapView<N, EK, EV> extends MapView<EK, EV> implements
 
         @Override
         public EV get(EK key) throws Exception {
+            checkKey(key);
             return getMapState().get(key);
         }
 
         @Override
         public void put(EK key, EV value) throws Exception {
+            checkKey(key);
             getMapState().put(key, value);
         }
 
         @Override
         public void putAll(Map<EK, EV> map) throws Exception {
+            checkMap(map);
             getMapState().putAll(map);
         }
 
         @Override
         public void remove(EK key) throws Exception {
+            checkKey(key);
             getMapState().remove(key);
         }
 
         @Override
         public boolean contains(EK key) throws Exception {
+            checkKey(key);
             return getMapState().contains(key);
         }
 
@@ -136,6 +144,18 @@ public abstract class StateMapView<N, EK, EV> extends MapView<EK, EV> implements
         @Override
         public void clear() {
             getMapState().clear();
+        }
+
+        private static void checkKey(Object key) {
+            if (key == null) {
+                throw new TableRuntimeException("Map views don't support null keys.");
+            }
+        }
+
+        private static void checkMap(Map<?, ?> map) {
+            if (map.containsKey(null)) {
+                throw new TableRuntimeException("Map views don't support null keys.");
+            }
         }
     }
 

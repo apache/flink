@@ -35,7 +35,7 @@ under the License.
 
 Flink 为流式/批式处理应用程序的开发提供了不同级别的抽象。
 
-{{< img src="/fig/levels_of_abstraction.svg" alt="Programming levels of abstraction" class="offset" width="80%" >}}
+{{< img src="/fig/concepts/levels_of_abstraction.svg" alt="Programming levels of abstraction" class="offset" width="80%" >}}
 
   - Flink API 最底层的抽象为**有状态实时流处理**。其抽象实现是 [Process Function]({{< ref "docs/dev/datastream/operators/process_function" >}})，并且 **Process Function** 被 Flink 框架集成到了 [DataStream API]({{< ref "docs/dev/datastream/overview" >}}) 中来为我们使用。它允许用户在应用程序中自由地处理来自单流或多流的事件（数据），并提供具有全局一致性和容错保障的*状态*。此外，用户可以在此层抽象中注册事件时间（event time）和处理时间（processing time）回调方法，从而允许程序可以实现复杂计算。
 

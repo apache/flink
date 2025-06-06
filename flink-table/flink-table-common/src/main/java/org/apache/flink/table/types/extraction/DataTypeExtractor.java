@@ -335,8 +335,8 @@ public final class DataTypeExtractor {
         // early and helpful exception for common mistakes
         checkForCommonErrors(type);
 
-        // PREDEFINED
-        resultDataType = extractPredefinedType(template, type);
+        // PREDEFINED or DESCRIPTOR
+        resultDataType = extractPredefinedOrDescriptorType(template, type);
         if (resultDataType != null) {
             return resultDataType;
         }
@@ -449,7 +449,8 @@ public final class DataTypeExtractor {
         }
     }
 
-    private @Nullable DataType extractPredefinedType(DataTypeTemplate template, Type type) {
+    private @Nullable DataType extractPredefinedOrDescriptorType(
+            DataTypeTemplate template, Type type) {
         final Class<?> clazz = toClass(type);
         // all predefined types are representable as classes
         if (clazz == null) {

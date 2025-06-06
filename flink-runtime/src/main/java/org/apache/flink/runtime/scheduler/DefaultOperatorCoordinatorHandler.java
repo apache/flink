@@ -135,10 +135,8 @@ public class DefaultOperatorCoordinatorHandler implements OperatorCoordinatorHan
 
         final OperatorCoordinatorHolder coordinatorHolder = coordinatorMap.get(operator);
         if (coordinatorHolder == null) {
-            throw new FlinkException(
-                    "Coordinator of operator "
-                            + operator
-                            + " does not exist or the job vertex this operator belongs to is not initialized.");
+            throw new CoordinatorNotExistException(
+                    operator, "the job vertex this operator belongs to is not initialized.", false);
         }
 
         final OperatorCoordinator coordinator = coordinatorHolder.coordinator();

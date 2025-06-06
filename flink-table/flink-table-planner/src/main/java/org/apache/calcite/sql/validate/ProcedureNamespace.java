@@ -18,6 +18,7 @@ package org.apache.calcite.sql.validate;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.planner.calcite.FlinkSqlCallBinding;
+import org.apache.flink.table.planner.functions.sql.ml.SqlMLTableFunction;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCall;
@@ -61,7 +62,7 @@ public final class ProcedureNamespace extends AbstractNamespace {
         final SqlOperator operator = call.getOperator();
         final SqlCallBinding callBinding = new FlinkSqlCallBinding(validator, scope, call);
         final SqlCall permutedCall = callBinding.permutedCall();
-        if (operator instanceof SqlWindowTableFunction) {
+        if (operator instanceof SqlWindowTableFunction || operator instanceof SqlMLTableFunction) {
             permutedCall.validate(validator, scope);
         }
 

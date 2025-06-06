@@ -19,28 +19,39 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedReceivingFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedSendingFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsRowFunction;
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Collections;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.UNBOUNDED_ROW;
 import static org.apache.flink.table.api.Expressions.call;
+import static org.apache.flink.table.api.Expressions.descriptor;
 import static org.apache.flink.table.api.Expressions.ifThenElse;
 import static org.apache.flink.table.api.Expressions.lag;
 import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.nullOf;
 import static org.apache.flink.table.api.Expressions.row;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.BASE_SINK_SCHEMA;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.BASIC_VALUES;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.KEYED_TIMED_BASE_SINK_SCHEMA;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_SOURCE;
 
 /**
  * Collection of {@link TableTestProgram TableTestPrograms} for basic {@link QueryOperation
@@ -71,15 +82,38 @@ public class QueryOperationTestPrograms {
             TableTestProgram.of("values-query-operation", "verifies sql serialization")
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
-                                    .addSchema("a bigint", "b string")
-                                    .consumedValues(Row.of(1L, "abc"), Row.of(2L, "cde"))
+                                    .addSchema("a bigint", "b string", "c time", "d timestamp")
+                                    .consumedValues(
+                                            Row.of(
+                                                    1L,
+                                                    "abc",
+                                                    LocalTime.of(12, 30, 0),
+                                                    LocalDateTime.of(1970, 1, 1, 12, 30, 0)),
+                                            Row.of(
+                                                    2L,
+                                                    "cde",
+                                                    LocalTime.of(18, 0, 0),
+                                                    LocalDateTime.of(1970, 1, 1, 18, 0, 0)))
                                     .build())
-                    .runTableApi(t -> t.fromValues(row(1L, "abc"), row(2L, "cde")), "sink")
+                    .runTableApi(
+                            t ->
+                                    t.fromValues(
+                                            row(
+                                                    1L,
+                                                    "abc",
+                                                    LocalTime.of(12, 30, 0),
+                                                    LocalDateTime.of(1970, 1, 1, 12, 30, 0)),
+                                            row(
+                                                    2L,
+                                                    "cde",
+                                                    LocalTime.of(18, 0, 0),
+                                                    LocalDateTime.of(1970, 1, 1, 18, 0, 0))),
+                            "sink")
                     .runSql(
-                            "SELECT `$$T_VAL`.`f0`, `$$T_VAL`.`f1` FROM (VALUES \n"
-                                    + "    (CAST(1 AS BIGINT), 'abc'),\n"
-                                    + "    (CAST(2 AS BIGINT), 'cde')\n"
-                                    + ") $$T_VAL(`f0`, `f1`)")
+                            "SELECT `$$T_VAL`.`f0`, `$$T_VAL`.`f1`, `$$T_VAL`.`f2`, `$$T_VAL`.`f3` FROM (VALUES \n"
+                                    + "    (CAST(1 AS BIGINT), 'abc', TIME '12:30:00', TIMESTAMP '1970-01-01 12:30:00'),\n"
+                                    + "    (CAST(2 AS BIGINT), 'cde', TIME '18:00:00', TIMESTAMP '1970-01-01 18:00:00')\n"
+                                    + ") $$T_VAL(`f0`, `f1`, `f2`, `f3`)")
                     .build();
 
     static final TableTestProgram FILTER_QUERY_OPERATION =
@@ -142,7 +176,13 @@ public class QueryOperationTestPrograms {
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
                                     .addSchema("a string", "b bigint")
-                                    .consumedValues(Row.of("apple", 30L), Row.of("pear", 20L))
+                                    .consumedValues(
+                                            Row.ofKind(RowKind.INSERT, "apple", 10L),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, "apple", 10L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "apple", 30L),
+                                            Row.ofKind(RowKind.INSERT, "pear", 5L),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, "pear", 5L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "pear", 20L))
                                     .build())
                     .runTableApi(
                             t -> t.from("s").groupBy($("b")).select($("b"), $("a").sum()), "sink")
@@ -172,7 +212,14 @@ public class QueryOperationTestPrograms {
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
                                     .addSchema("b bigint")
-                                    .consumedValues(Row.of(50L))
+                                    .consumedValues(
+                                            Row.ofKind(RowKind.INSERT, 10L),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, 10L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 30L),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, 30L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 35L),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, 35L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 50L))
                                     .build())
                     .runTableApi(t -> t.from("s").select($("a").sum()), "sink")
                     .runSql(
@@ -411,7 +458,7 @@ public class QueryOperationTestPrograms {
                                             "`rowtime` AS TO_TIMESTAMP(`ts`)",
                                             "`proctime` AS PROCTIME()",
                                             "WATERMARK for `rowtime` AS `rowtime` - INTERVAL '1' SECOND")
-                                    .producedBeforeRestore(
+                                    .producedValues(
                                             Row.of(
                                                     "2020-10-10 00:00:01",
                                                     1,
@@ -501,8 +548,7 @@ public class QueryOperationTestPrograms {
                                                     3f,
                                                     new BigDecimal("3.33"),
                                                     "Comment#3",
-                                                    "b"))
-                                    .producedAfterRestore(
+                                                    "b"),
                                             Row.of(
                                                     "2020-10-10 00:00:41",
                                                     10,
@@ -539,15 +585,14 @@ public class QueryOperationTestPrograms {
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
                                     .addSchema("name STRING", "cnt BIGINT")
-                                    .consumedBeforeRestore(
+                                    .consumedValues(
                                             "+I[a, 4]",
                                             "+I[b, 2]",
                                             "+I[a, 6]",
                                             "+I[a, 1]",
                                             "+I[b, 2]",
                                             "+I[b, 1]",
-                                            "+I[b, 1]")
-                                    .consumedAfterRestore(
+                                            "+I[b, 1]",
                                             "+I[b, 1]",
                                             "+I[null, 1]",
                                             "+I[b, 1]",
@@ -579,14 +624,13 @@ public class QueryOperationTestPrograms {
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
                                     .addSchema("a INT", "b VARCHAR", "c INT")
-                                    .producedBeforeRestore(
+                                    .producedValues(
                                             Row.of(2, "a", 6),
                                             Row.of(4, "b", 8),
                                             Row.of(6, "c", 10),
                                             Row.of(1, "a", 5),
                                             Row.of(3, "b", 7),
-                                            Row.of(5, "c", 9))
-                                    .producedAfterRestore(
+                                            Row.of(5, "c", 9),
                                             // ignored since smaller than the least max (4, b, 8)
                                             Row.of(2, "a", 6),
                                             // replaces (4, b, 8) from beforeRestore
@@ -597,21 +641,16 @@ public class QueryOperationTestPrograms {
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
                                     .addSchema("a INT", "b VARCHAR", "c BIGINT")
-                                    // heap state
-                                    //      [4, b, 8]
-                                    // [5, c, 9]  [6, c, 10]
-                                    .consumedBeforeRestore(
+                                    .consumedValues(
                                             "+I[2, a, 6]",
                                             "+I[4, b, 8]",
                                             "+I[6, c, 10]",
                                             "-D[2, a, 6]",
                                             "+I[3, b, 7]",
                                             "-D[3, b, 7]",
-                                            "+I[5, c, 9]")
-                                    // heap state
-                                    //       [5, c, 9]
-                                    // [6, c, 10]  [6, c, 10]
-                                    .consumedAfterRestore("-D[4, b, 8]", "+I[6, c, 10]")
+                                            "+I[5, c, 9]",
+                                            "-D[4, b, 8]",
+                                            "+I[6, c, 10]")
                                     .build())
                     .runTableApi(
                             env -> env.from("source_t").orderBy($("a").desc()).limit(3), "sink_t")
@@ -630,7 +669,7 @@ public class QueryOperationTestPrograms {
                             SourceTestStep.newBuilder("source_t")
                                     .addSchema(
                                             "a INT", "b BIGINT", "c INT", "d VARCHAR", "e BIGINT")
-                                    .producedBeforeRestore(
+                                    .producedValues(
                                             Row.of(2, 3L, 2, "Hello World Like", 1L),
                                             Row.of(3, 4L, 3, "Hello World Its nice", 2L),
                                             Row.of(2, 2L, 1, "Hello World", 2L),
@@ -645,8 +684,7 @@ public class QueryOperationTestPrograms {
                                             Row.of(5, 12L, 11, "HIJ", 3L),
                                             Row.of(4, 8L, 7, "DEF", 1L),
                                             Row.of(5, 13L, 12, "IJK", 3L),
-                                            Row.of(3, 6L, 5, "BCD", 3L))
-                                    .producedAfterRestore(
+                                            Row.of(3, 6L, 5, "BCD", 3L),
                                             Row.of(1, 1L, 0, "Hello", 1L),
                                             Row.of(3, 5L, 4, "ABC", 2L),
                                             Row.of(4, 10L, 9, "FGH", 2L),
@@ -662,7 +700,7 @@ public class QueryOperationTestPrograms {
                                             "s1 BIGINT",
                                             "c1 VARCHAR",
                                             "PRIMARY KEY (d) NOT ENFORCED")
-                                    .consumedBeforeRestore(
+                                    .consumedValues(
                                             "+I[1, 1, Hello World Like]",
                                             "+I[2, 2, Hello World Its nice]",
                                             "+U[2, 2, Hello World Its nice|Hello World]",
@@ -677,8 +715,9 @@ public class QueryOperationTestPrograms {
                                             "+I[3, 3, HIJ]",
                                             "+U[1, 1, Hello World Like|Hello|GHI|EFG|DEF]",
                                             "+U[3, 3, HIJ|IJK]",
-                                            "+U[3, 3, HIJ|IJK|BCD]")
-                                    .consumedAfterRestore("+I[7, 7, MNO]", "+U[7, 7, MNO|XYZ]")
+                                            "+U[3, 3, HIJ|IJK|BCD]",
+                                            "+I[7, 7, MNO]",
+                                            "+U[7, 7, MNO|XYZ]")
                                     .build())
                     .runTableApi(
                             env ->
@@ -696,7 +735,7 @@ public class QueryOperationTestPrograms {
                     .setupTableSource(
                             SourceTestStep.newBuilder("T1")
                                     .addSchema("a int", "b bigint", "c varchar")
-                                    .producedBeforeRestore(
+                                    .producedValues(
                                             Row.of(1, 1L, "Baker1"),
                                             Row.of(1, 2L, "Baker2"),
                                             Row.of(1, 2L, "Baker2"),
@@ -704,29 +743,29 @@ public class QueryOperationTestPrograms {
                                             Row.of(2, 7L, "Baker5"),
                                             Row.of(1, 9L, "Baker6"),
                                             Row.of(1, 8L, "Baker8"),
-                                            Row.of(3, 8L, "Baker9"))
-                                    .producedAfterRestore(Row.of(1, 1L, "PostRestore"))
+                                            Row.of(3, 8L, "Baker9"),
+                                            Row.of(1, 1L, "PostRestore"))
                                     .build())
                     .setupTableSource(
                             SourceTestStep.newBuilder("T2")
                                     .addSchema("a int", "b bigint", "c varchar")
-                                    .producedBeforeRestore(
+                                    .producedValues(
                                             Row.of(1, 1L, "BakerBaker"),
                                             Row.of(2, 2L, "HeHe"),
-                                            Row.of(3, 2L, "HeHe"))
-                                    .producedAfterRestore(Row.of(2, 1L, "PostRestoreRight"))
+                                            Row.of(3, 2L, "HeHe"),
+                                            Row.of(2, 1L, "PostRestoreRight"))
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("MySink")
                                     .addSchema("a int", "c1 varchar", "c2 varchar")
-                                    .consumedBeforeRestore(
+                                    .consumedValues(
                                             Row.of(1, "BakerBaker", "Baker2"),
                                             Row.of(1, "BakerBaker", "Baker2"),
                                             Row.of(1, "BakerBaker", "Baker3"),
                                             Row.of(2, "HeHe", "Baker5"),
                                             Row.of(1, "BakerBaker", "Baker6"),
-                                            Row.of(1, "BakerBaker", "Baker8"))
-                                    .consumedAfterRestore(Row.of(2, "PostRestoreRight", "Baker5"))
+                                            Row.of(1, "BakerBaker", "Baker8"),
+                                            Row.of(2, "PostRestoreRight", "Baker5"))
                                     .build())
                     .runSql(
                             "insert into MySink "
@@ -778,18 +817,18 @@ public class QueryOperationTestPrograms {
                                             "v bigint",
                                             "ts TIMESTAMP_LTZ(3)",
                                             "WATERMARK for `ts` AS `ts`")
-                                    .producedBeforeRestore(
+                                    .producedValues(
                                             Row.of("Apple", 5L, dayOfSeconds(0)),
-                                            Row.of("Apple", 4L, dayOfSeconds(1)))
-                                    .producedAfterRestore(Row.of("Apple", 3L, dayOfSeconds(2)))
+                                            Row.of("Apple", 4L, dayOfSeconds(1)),
+                                            Row.of("Apple", 3L, dayOfSeconds(2)))
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
                                     .addSchema("k string", "v bigint", "ts TIMESTAMP_LTZ(3)")
-                                    .consumedBeforeRestore(
+                                    .consumedValues(
                                             Row.of("Apple", 5L, dayOfSeconds(0)),
-                                            Row.of("Apple", 4L, dayOfSeconds(1)))
-                                    .consumedAfterRestore(Row.of("Apple", 3L, dayOfSeconds(2)))
+                                            Row.of("Apple", 4L, dayOfSeconds(1)),
+                                            Row.of("Apple", 3L, dayOfSeconds(2)))
                                     .build())
                     .runSql(
                             "SELECT `$$T_PROJECT`.`k`, (LAST_VALUE(`$$T_PROJECT`.`v`) "
@@ -824,18 +863,18 @@ public class QueryOperationTestPrograms {
                                             "v bigint",
                                             "ts TIMESTAMP_LTZ(3)",
                                             "WATERMARK for `ts` AS `ts`")
-                                    .producedBeforeRestore(
+                                    .producedValues(
                                             Row.of("Apple", 5L, dayOfSeconds(0)),
-                                            Row.of("Apple", 4L, dayOfSeconds(1)))
-                                    .producedAfterRestore(Row.of("Apple", 3L, dayOfSeconds(2)))
+                                            Row.of("Apple", 4L, dayOfSeconds(1)),
+                                            Row.of("Apple", 3L, dayOfSeconds(2)))
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
                                     .addSchema("k string", "v bigint", "ts TIMESTAMP_LTZ(3)")
-                                    .consumedBeforeRestore(
+                                    .consumedValues(
                                             Row.of("Apple", 5L, dayOfSeconds(0)),
-                                            Row.of("Apple", 4L, dayOfSeconds(1)))
-                                    .consumedAfterRestore(Row.of("Apple", 3L, dayOfSeconds(2)))
+                                            Row.of("Apple", 4L, dayOfSeconds(1)),
+                                            Row.of("Apple", 3L, dayOfSeconds(2)))
                                     .build())
                     .runSql(
                             "SELECT `$$T_PROJECT`.`k`, (LAST_VALUE(`$$T_PROJECT`.`v`) OVER"
@@ -873,18 +912,18 @@ public class QueryOperationTestPrograms {
                                             "v bigint",
                                             "ts TIMESTAMP_LTZ(3)",
                                             "WATERMARK for `ts` AS `ts`")
-                                    .producedBeforeRestore(
+                                    .producedValues(
                                             Row.of("Apple", 5L, dayOfSeconds(0)),
-                                            Row.of("Apple", 4L, dayOfSeconds(1)))
-                                    .producedAfterRestore(Row.of("Apple", 3L, dayOfSeconds(2)))
+                                            Row.of("Apple", 4L, dayOfSeconds(1)),
+                                            Row.of("Apple", 3L, dayOfSeconds(2)))
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
                                     .addSchema("v bigint", "ts TIMESTAMP_LTZ(3)")
-                                    .consumedBeforeRestore(
+                                    .consumedValues(
                                             Row.of(5L, dayOfSeconds(0)),
-                                            Row.of(4L, dayOfSeconds(1)))
-                                    .consumedAfterRestore(Row.of(3L, dayOfSeconds(2)))
+                                            Row.of(4L, dayOfSeconds(1)),
+                                            Row.of(3L, dayOfSeconds(2)))
                                     .build())
                     .runSql(
                             "SELECT (LAST_VALUE(`$$T_PROJECT`.`v`) OVER(ORDER BY `$$T_PROJECT`"
@@ -915,11 +954,10 @@ public class QueryOperationTestPrograms {
                                             "b MAP<DOUBLE, DOUBLE>",
                                             "`r_time` AS TO_TIMESTAMP(`ts`)",
                                             "WATERMARK for `r_time` AS `r_time`")
-                                    .producedBeforeRestore(
+                                    .producedValues(
                                             Row.of(
                                                     "2020-04-15 08:00:05",
-                                                    Collections.singletonMap(42.0, 42.0)))
-                                    .producedAfterRestore(
+                                                    Collections.singletonMap(42.0, 42.0)),
                                             Row.of(
                                                     "2020-04-15 08:00:06",
                                                     Collections.singletonMap(42.1, 42.1)))
@@ -927,8 +965,8 @@ public class QueryOperationTestPrograms {
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
                                     .addSchema("ts STRING", "b MAP<DOUBLE, DOUBLE>")
-                                    .consumedBeforeRestore(Row.of("2020-04-15 08:00:05", null))
-                                    .consumedAfterRestore(
+                                    .consumedValues(
+                                            Row.of("2020-04-15 08:00:05", null),
                                             Row.of(
                                                     "2020-04-15 08:00:06",
                                                     Collections.singletonMap(42.0, 42.0)))
@@ -952,14 +990,12 @@ public class QueryOperationTestPrograms {
                     .setupTableSource(
                             SourceTestStep.newBuilder("data")
                                     .addSchema("f0 bigint")
-                                    .producedBeforeRestore(Row.of(1L), Row.of(2L))
-                                    .producedAfterRestore(Row.of(3L))
+                                    .producedValues(Row.of(1L), Row.of(2L), Row.of(3L))
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
                                     .addSchema("v bigint")
-                                    .consumedBeforeRestore(Row.of(1L), Row.of(2L))
-                                    .consumedAfterRestore(Row.of(3L))
+                                    .consumedValues(Row.of(1L), Row.of(2L), Row.of(3L))
                                     .build())
                     .runSql(
                             "SELECT (`$$T_PROJECT`.`composite_column`.`f0_nested`) AS `composite_column$f0_nested` FROM (\n"
@@ -985,6 +1021,124 @@ public class QueryOperationTestPrograms {
                                                                                             .STRING())))
                                                             .as("composite_column"))
                                             .select($("composite_column").get("f0_nested")),
+                            "sink")
+                    .build();
+
+    public static final TableTestProgram TABLE_AS_ROW_PTF =
+            TableTestProgram.of("process-row-table-api", "table with row semantics")
+                    .setupTemporarySystemFunction("f", TableAsRowFunction.class)
+                    .setupSql(BASIC_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[{+I[Bob, 12], 1}]", "+I[{+I[Alice, 42], 1}]")
+                                    .build())
+                    .runSql(
+                            "SELECT `$$T_FUNC`.`out` FROM TABLE(\n"
+                                    + "    `f`((\n"
+                                    + "        SELECT `$$T_SOURCE`.`name`, `$$T_SOURCE`.`score` FROM `default_catalog`.`default_database`.`t` $$T_SOURCE\n"
+                                    + "    ), 1, DEFAULT, 'f')\n"
+                                    + ") $$T_FUNC")
+                    .runTableApi(
+                            env ->
+                                    env.fromCall(
+                                            "f",
+                                            env.from("t").asArgument("r"),
+                                            lit(1).asArgument("i")),
+                            "sink")
+                    .build();
+
+    static final TableTestProgram TABLE_AS_SET_PTF =
+            TableTestProgram.of("partitioned-ptf", "verifies SQL serialization")
+                    .setupTemporarySystemFunction("f1", ChainedSendingFunction.class)
+                    .setupTemporarySystemFunction("f2", ChainedReceivingFunction.class)
+                    .setupTableSource(TIMED_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_TIMED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {Processing input row +I[Bob, {Processing input row +I[Bob, 1, 1970-01-01T00:00:00Z] at time 0 watermark null}, 1970-01-01T00:00:00Z] at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Registering timer t for 1 at time 0 watermark null}, 1970-01-01T00:00:00Z] at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Alice, {Processing input row +I[Alice, {Processing input row +I[Alice, 1, 1970-01-01T00:00:00.001Z] at time 1 watermark -1}, 1970-01-01T00:00:00.001Z] at time 1 watermark -1}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Alice, {Processing input row +I[Alice, {Registering timer t for 2 at time 1 watermark -1}, 1970-01-01T00:00:00.001Z] at time 1 watermark -1}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Processing input row +I[Bob, 2, 1970-01-01T00:00:00.002Z] at time 2 watermark 0}, 1970-01-01T00:00:00.002Z] at time 2 watermark 0}, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Registering timer t for 3 at time 2 watermark 0}, 1970-01-01T00:00:00.002Z] at time 2 watermark 0}, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Processing input row +I[Bob, 3, 1970-01-01T00:00:00.003Z] at time 3 watermark 1}, 1970-01-01T00:00:00.003Z] at time 3 watermark 1}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Registering timer t for 4 at time 3 watermark 1}, 1970-01-01T00:00:00.003Z] at time 3 watermark 1}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Alice, {Processing input row +I[Alice, {Timer t fired at time 2 watermark 2}, 1970-01-01T00:00:00.002Z] at time 2 watermark 1}, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Alice, {Processing input row +I[Alice, {2}, 1970-01-01T00:00:00.002Z] at time 2 watermark 1}, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Processing input row +I[Bob, 4, 1970-01-01T00:00:00.004Z] at time 4 watermark 2}, 1970-01-01T00:00:00.004Z] at time 4 watermark 2}, 1970-01-01T00:00:00.004Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Registering timer t for 5 at time 4 watermark 2}, 1970-01-01T00:00:00.004Z] at time 4 watermark 2}, 1970-01-01T00:00:00.004Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Processing input row +I[Bob, 5, 1970-01-01T00:00:00.005Z] at time 5 watermark 3}, 1970-01-01T00:00:00.005Z] at time 5 watermark 3}, 1970-01-01T00:00:00.005Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Registering timer t for 6 at time 5 watermark 3}, 1970-01-01T00:00:00.005Z] at time 5 watermark 3}, 1970-01-01T00:00:00.005Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Processing input row +I[Bob, 6, 1970-01-01T00:00:00.006Z] at time 6 watermark 4}, 1970-01-01T00:00:00.006Z] at time 6 watermark 4}, 1970-01-01T00:00:00.006Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Registering timer t for 7 at time 6 watermark 4}, 1970-01-01T00:00:00.006Z] at time 6 watermark 4}, 1970-01-01T00:00:00.006Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {Timer t fired at time 7 watermark 9223372036854775807}, 1970-01-01T00:00:00.007Z] at time 7 watermark 5}, 1970-01-01T00:00:00.007Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, {7}, 1970-01-01T00:00:00.007Z] at time 7 watermark 5}, 1970-01-01T00:00:00.007Z]")
+                                    .build())
+                    .runSql(
+                            "SELECT `$$T_FUNC`.`name`, `$$T_FUNC`.`out`, `$$T_FUNC`.`rowtime` FROM TABLE(\n"
+                                    + "    `f2`(\n"
+                                    + "        (\n"
+                                    + "            SELECT `$$T_FUNC`.`name`, `$$T_FUNC`.`out`, `$$T_FUNC`.`rowtime` FROM TABLE(\n"
+                                    + "                `f1`(\n"
+                                    + "                    (\n"
+                                    + "                        SELECT `$$T_SOURCE`.`name`, `$$T_SOURCE`.`score`, `$$T_SOURCE`.`ts` FROM `default_catalog`.`default_database`.`t` $$T_SOURCE\n"
+                                    + "                    ) PARTITION BY (`name`), DESCRIPTOR(`ts`), 'f1')\n"
+                                    + "            ) $$T_FUNC\n"
+                                    + "        ) PARTITION BY (`name`), DESCRIPTOR(`rowtime`), 'f2')\n"
+                                    + ") $$T_FUNC")
+                    .runTableApi(
+                            env -> {
+                                final Table ptf1 =
+                                        env.fromCall(
+                                                "f1",
+                                                env.from("t")
+                                                        .partitionBy($("name"))
+                                                        .asArgument("r"),
+                                                descriptor("ts").asArgument("on_time"));
+                                return env.fromCall(
+                                        "f2",
+                                        ptf1.partitionBy($("name")).asArgument("r"),
+                                        descriptor("rowtime").asArgument("on_time"));
+                            },
+                            "sink")
+                    .build();
+
+    /**
+     * A function that will be used as an inline function in {@link #INLINE_FUNCTION_SERIALIZATION}.
+     */
+    public static class SimpleScalarFunction extends ScalarFunction {
+        public Integer eval(Integer i) {
+            return i + 1;
+        }
+    }
+
+    static final TableTestProgram INLINE_FUNCTION_SERIALIZATION =
+            TableTestProgram.of(
+                            "inline-function-serialization",
+                            "verifies SQL serialization of inline functions")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("a INT", "b INT")
+                                    .producedValues(Row.of(1, 1), Row.of(2, 2))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("a INT", "b INT")
+                                    .consumedValues(Row.of(2, 1), Row.of(3, 2))
+                                    .build())
+                    .runSql(
+                            "SELECT (inlineFunction$00(`$$T_PROJECT`.`a`)) AS `_c0`, `$$T_PROJECT`.`b` FROM (\n"
+                                    + "    SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM `default_catalog`.`default_database`.`t` $$T_SOURCE\n"
+                                    + ") $$T_PROJECT")
+                    .runTableApi(
+                            env ->
+                                    env.from("t")
+                                            .select(
+                                                    call(new SimpleScalarFunction(), $("a")),
+                                                    $("b")),
                             "sink")
                     .build();
 }

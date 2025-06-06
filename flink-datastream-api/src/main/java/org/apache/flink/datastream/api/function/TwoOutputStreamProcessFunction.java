@@ -61,7 +61,7 @@ public interface TwoOutputStreamProcessFunction<IN, OUT1, OUT2> extends ProcessF
      *
      * @param ctx the context in which this function is executed.
      */
-    default void endInput(TwoOutputNonPartitionedContext<OUT1, OUT2> ctx) {}
+    default void endInput(TwoOutputNonPartitionedContext<OUT1, OUT2> ctx) throws Exception {}
 
     /**
      * Callback for processing timer.
@@ -75,7 +75,8 @@ public interface TwoOutputStreamProcessFunction<IN, OUT1, OUT2> extends ProcessF
             long timestamp,
             Collector<OUT1> output1,
             Collector<OUT2> output2,
-            TwoOutputPartitionedContext<OUT1, OUT2> ctx) {}
+            TwoOutputPartitionedContext<OUT1, OUT2> ctx)
+            throws Exception {}
 
     /**
      * Callback function when receive the watermark from the input.
@@ -89,7 +90,8 @@ public interface TwoOutputStreamProcessFunction<IN, OUT1, OUT2> extends ProcessF
             Watermark watermark,
             Collector<OUT1> output1,
             Collector<OUT2> output2,
-            TwoOutputNonPartitionedContext<OUT1, OUT2> ctx) {
+            TwoOutputNonPartitionedContext<OUT1, OUT2> ctx)
+            throws Exception {
         return WatermarkHandlingResult.PEEK;
     }
 }

@@ -18,11 +18,12 @@
 
 package org.apache.flink.runtime.state.ttl;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
+import org.apache.flink.api.common.typeutils.base.ListSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
+import org.apache.flink.api.common.typeutils.base.MapSerializerSnapshot;
 
 import org.junit.jupiter.api.Test;
 
@@ -51,6 +52,13 @@ class TtlAwareSerializerTest {
         assertThat(TtlAwareSerializer.isSerializerTtlEnabled(intTtlSerializer)).isTrue();
         assertThat(TtlAwareSerializer.isSerializerTtlEnabled(listTtlSerializer)).isTrue();
         assertThat(TtlAwareSerializer.isSerializerTtlEnabled(mapTtlSerializer)).isTrue();
+
+        assertThat(TtlAwareSerializer.needTtlStateMigration(intSerializer, intTtlSerializer))
+                .isTrue();
+        assertThat(TtlAwareSerializer.needTtlStateMigration(listSerializer, listTtlSerializer))
+                .isTrue();
+        assertThat(TtlAwareSerializer.needTtlStateMigration(mapSerializer, mapTtlSerializer))
+                .isTrue();
     }
 
     @Test
@@ -60,27 +68,20 @@ class TtlAwareSerializerTest {
         MapSerializer<Integer, Integer> mapSerializer =
                 new MapSerializer<>(intSerializer, intSerializer);
 
-        TypeSerializer<?> intTtlAwareSerializer =
+        TtlAwareSerializer<?, ?> intTtlAwareSerializer =
                 TtlAwareSerializer.wrapTtlAwareSerializer(intSerializer);
-        ListSerializer<?> listTtlAwareSerializer =
-                (ListSerializer<?>) TtlAwareSerializer.wrapTtlAwareSerializer(listSerializer);
-        MapSerializer<?, ?> mapTtlAwareSerializer =
-                (MapSerializer<?, ?>) TtlAwareSerializer.wrapTtlAwareSerializer(mapSerializer);
+        TtlAwareSerializer<?, ?> listTtlAwareSerializer =
+                TtlAwareSerializer.wrapTtlAwareSerializer(listSerializer);
+        TtlAwareSerializer<?, ?> mapTtlAwareSerializer =
+                TtlAwareSerializer.wrapTtlAwareSerializer(mapSerializer);
 
-        assertThat(intTtlAwareSerializer).isInstanceOf(TtlAwareSerializer.class);
-        assertThat(((TtlAwareSerializer<?>) intTtlAwareSerializer).isTtlEnabled()).isFalse();
-        assertThat(listTtlAwareSerializer.getElementSerializer())
-                .isInstanceOf(TtlAwareSerializer.class);
-        assertThat(
-                        ((TtlAwareSerializer<?>) listTtlAwareSerializer.getElementSerializer())
-                                .isTtlEnabled())
-                .isFalse();
-        assertThat(mapTtlAwareSerializer.getValueSerializer())
-                .isInstanceOf(TtlAwareSerializer.class);
-        assertThat(
-                        ((TtlAwareSerializer<?>) mapTtlAwareSerializer.getValueSerializer())
-                                .isTtlEnabled())
-                .isFalse();
+        assertThat(intTtlAwareSerializer.isTtlEnabled()).isFalse();
+        assertThat(listTtlAwareSerializer)
+                .isInstanceOf(TtlAwareSerializer.TtlAwareListSerializer.class);
+        assertThat((listTtlAwareSerializer).isTtlEnabled()).isFalse();
+        assertThat(mapTtlAwareSerializer)
+                .isInstanceOf(TtlAwareSerializer.TtlAwareMapSerializer.class);
+        assertThat(mapTtlAwareSerializer.isTtlEnabled()).isFalse();
     }
 
     @Test
@@ -93,26 +94,57 @@ class TtlAwareSerializerTest {
         MapSerializer<Integer, TtlValue<Integer>> mapTtlSerializer =
                 new MapSerializer<>(IntSerializer.INSTANCE, intTtlSerializer);
 
-        TypeSerializer<?> intTtlAwareSerializer =
+        TtlAwareSerializer<?, ?> intTtlAwareSerializer =
                 TtlAwareSerializer.wrapTtlAwareSerializer(intTtlSerializer);
-        ListSerializer<?> listTtlAwareSerializer =
-                (ListSerializer<?>) TtlAwareSerializer.wrapTtlAwareSerializer(listTtlSerializer);
-        MapSerializer<?, ?> mapTtlAwareSerializer =
-                (MapSerializer<?, ?>) TtlAwareSerializer.wrapTtlAwareSerializer(mapTtlSerializer);
+        TtlAwareSerializer<?, ?> listTtlAwareSerializer =
+                TtlAwareSerializer.wrapTtlAwareSerializer(listTtlSerializer);
+        TtlAwareSerializer<?, ?> mapTtlAwareSerializer =
+                TtlAwareSerializer.wrapTtlAwareSerializer(mapTtlSerializer);
 
-        assertThat(intTtlAwareSerializer).isInstanceOf(TtlAwareSerializer.class);
-        assertThat(((TtlAwareSerializer<?>) intTtlAwareSerializer).isTtlEnabled()).isTrue();
-        assertThat(listTtlAwareSerializer.getElementSerializer())
-                .isInstanceOf(TtlAwareSerializer.class);
+        assertThat((intTtlAwareSerializer).isTtlEnabled()).isTrue();
+        assertThat(listTtlAwareSerializer)
+                .isInstanceOf(TtlAwareSerializer.TtlAwareListSerializer.class);
+        assertThat((listTtlAwareSerializer).isTtlEnabled()).isTrue();
+        assertThat(mapTtlAwareSerializer)
+                .isInstanceOf(TtlAwareSerializer.TtlAwareMapSerializer.class);
+        assertThat(mapTtlAwareSerializer.isTtlEnabled()).isTrue();
+    }
+
+    @Test
+    @SuppressWarnings("rawtypes")
+    void testSnapshotConfiguration() {
+        TtlAwareSerializer<?, ?> intTtlAwareSerializer =
+                TtlAwareSerializer.wrapTtlAwareSerializer(IntSerializer.INSTANCE);
+        TtlAwareSerializer.TtlAwareListSerializer<?> listTtlAwareSerializer =
+                (TtlAwareSerializer.TtlAwareListSerializer<?>)
+                        TtlAwareSerializer.wrapTtlAwareSerializer(
+                                new ListSerializer<>(IntSerializer.INSTANCE));
+        TtlAwareSerializer.TtlAwareMapSerializer<?, ?> mapTtlAwareSerializer =
+                (TtlAwareSerializer.TtlAwareMapSerializer<?, ?>)
+                        TtlAwareSerializer.wrapTtlAwareSerializer(
+                                new MapSerializer<>(
+                                        IntSerializer.INSTANCE, IntSerializer.INSTANCE));
+
+        assertThat(intTtlAwareSerializer.snapshotConfiguration())
+                .isInstanceOf(TtlAwareSerializerSnapshot.class);
         assertThat(
-                        ((TtlAwareSerializer<?>) listTtlAwareSerializer.getElementSerializer())
-                                .isTtlEnabled())
-                .isTrue();
-        assertThat(mapTtlAwareSerializer.getValueSerializer())
-                .isInstanceOf(TtlAwareSerializer.class);
+                        ((TtlAwareSerializerSnapshot<?>)
+                                        intTtlAwareSerializer.snapshotConfiguration())
+                                .getOrinalTypeSerializerSnapshot())
+                .isInstanceOf(IntSerializer.IntSerializerSnapshot.class);
+
+        assertThat(listTtlAwareSerializer.snapshotConfiguration())
+                .isInstanceOf(ListSerializerSnapshot.class);
         assertThat(
-                        ((TtlAwareSerializer<?>) mapTtlAwareSerializer.getValueSerializer())
-                                .isTtlEnabled())
-                .isTrue();
+                        (((ListSerializerSnapshot) listTtlAwareSerializer.snapshotConfiguration())
+                                .getElementSerializerSnapshot()))
+                .isInstanceOf(TtlAwareSerializerSnapshot.class);
+
+        assertThat(mapTtlAwareSerializer.snapshotConfiguration())
+                .isInstanceOf(MapSerializerSnapshot.class);
+        assertThat(
+                        (((MapSerializerSnapshot) mapTtlAwareSerializer.snapshotConfiguration())
+                                .getValueSerializerSnapshot()))
+                .isInstanceOf(TtlAwareSerializerSnapshot.class);
     }
 }

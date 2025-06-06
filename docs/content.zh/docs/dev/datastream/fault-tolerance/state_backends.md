@@ -44,12 +44,6 @@ config.set(StateBackendOptions.STATE_BACKEND, "rocksdb");
 env.configure(config);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-env.setStateBackend(...)
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 config = Configuration()

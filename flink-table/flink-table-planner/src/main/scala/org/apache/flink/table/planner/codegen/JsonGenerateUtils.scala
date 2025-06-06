@@ -22,8 +22,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.{Arr
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.util.RawValue
 import org.apache.flink.table.api.{DataTypes, JsonOnNull}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{className, newName, rowFieldReadAccess, typeTerm, ARRAY_DATA, MAP_DATA}
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
+import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable.{JSON_ARRAY, JSON_OBJECT}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapFunctionDefinition
@@ -186,6 +185,18 @@ object JsonGenerateUtils {
     }
   }
 
+  /** Determines whether the given operand is a call to a JSON_ARRAY */
+  def isJsonArrayOperand(operand: RexNode): Boolean = {
+    operand match {
+      case rexCall: RexCall =>
+        rexCall.getOperator match {
+          case JSON_ARRAY => true
+          case _ => false
+        }
+      case _ => false
+    }
+  }
+
   /**
    * Determines whether the given operand is a call to a JSON_OBJECT or JSON_ARRAY whose result
    * should be inserted as a raw value instead of as a character string.
@@ -214,6 +225,17 @@ object JsonGenerateUtils {
         }
       case _ => false
     }
+  }
+
+  /**
+   * Determines whether a JSON function is allowed in the current context. JSON functions are
+   * allowed as values in JSON_ARRAY calls or as value parameters in JSON_OBJECT calls. In the case
+   * of a JSON_OBJECT call, we do (i % 2) == 0 to check if it's being used in second parameter, the
+   * values' parameter.
+   */
+  def isSupportedJsonOperand(operand: RexNode, call: RexNode, i: Int): Boolean = {
+    isJsonFunctionOperand(operand) &&
+    (isJsonArrayOperand(call) || isJsonObjectOperand(call) && (i % 2) == 0)
   }
 
   /** Generates a method to convert arrays into [[ArrayNode]]. */

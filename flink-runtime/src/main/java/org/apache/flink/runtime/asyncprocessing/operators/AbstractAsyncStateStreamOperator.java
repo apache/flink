@@ -99,13 +99,17 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
 
         final StreamTask<?, ?> containingTask = checkNotNull(getContainingTask());
         environment = containingTask.getEnvironment();
-        final MailboxExecutor mailboxExecutor = environment.getMainMailboxExecutor();
+        final MailboxExecutor mailboxExecutor =
+                containingTask
+                        .getMailboxExecutorFactory()
+                        .createExecutor(getOperatorConfig().getChainIndex());
         final int maxParallelism = environment.getTaskInfo().getMaxNumberOfParallelSubtasks();
         final int inFlightRecordsLimit =
-                environment.getExecutionConfig().getAsyncInflightRecordsLimit();
-        final int asyncBufferSize = environment.getExecutionConfig().getAsyncStateBufferSize();
+                environment.getExecutionConfig().getAsyncStateTotalBufferSize();
+        final int asyncBufferSize =
+                environment.getExecutionConfig().getAsyncStateActiveBufferSize();
         final long asyncBufferTimeout =
-                environment.getExecutionConfig().getAsyncStateBufferTimeout();
+                environment.getExecutionConfig().getAsyncStateActiveBufferTimeout();
 
         this.declarationManager = new DeclarationManager();
         if (isAsyncStateProcessingEnabled()) {
@@ -382,12 +386,18 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
     }
 
     /**
-     * A hook that will be invoked after finishing advancing the watermark. It is not recommended to
-     * perform async state here. Only some synchronous logic is suggested.
+     * A hook that will be invoked after finishing advancing the watermark and right before the
+     * watermark being emitting downstream. Here is a chance for customization of the emitting
+     * watermark. It is not recommended to perform async state here. Only some synchronous logic is
+     * suggested.
      *
      * @param watermark the advanced watermark.
+     * @return the watermark that should be emitted to downstream. Null if there is no need for
+     *     following emitting.
      */
-    public void postProcessWatermark(Watermark watermark) throws Exception {}
+    public Watermark postProcessWatermark(Watermark watermark) throws Exception {
+        return watermark;
+    }
 
     /**
      * Process a watermark when receiving it. Do not override this method since the async processing
@@ -424,8 +434,10 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
                 },
                 () -> {
                     if (watermarkRef.get() != null) {
-                        output.emitWatermark(watermarkRef.get());
-                        postProcessWatermark(watermarkRef.get());
+                        Watermark postProcessWatermark = postProcessWatermark(watermarkRef.get());
+                        if (postProcessWatermark != null) {
+                            output.emitWatermark(postProcessWatermark);
+                        }
                     }
                 });
     }

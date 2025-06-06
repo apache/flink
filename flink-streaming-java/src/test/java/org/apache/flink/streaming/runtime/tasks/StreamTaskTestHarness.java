@@ -574,7 +574,7 @@ public class StreamTaskTestHarness<OUT> {
         }
 
         @Override
-        public void register(Metric metric, String metricName, AbstractMetricGroup group) {
+        public void register(Metric metric, String metricName, AbstractMetricGroup<?> group) {
             metrics.put(metricName, metric);
         }
     }

@@ -19,7 +19,6 @@ package org.apache.flink.runtime.state.v2;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.v2.State;
-import org.apache.flink.api.common.state.v2.StateDescriptor;
 import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
@@ -42,16 +41,15 @@ import org.apache.flink.runtime.state.v2.internal.InternalKeyedState;
 public abstract class AbstractKeyedState<K, N, V> implements InternalKeyedState<K, N, V> {
 
     protected final StateRequestHandler stateRequestHandler;
-
-    private final StateDescriptor<V> stateDescriptor;
+    private final ThreadLocal<TypeSerializer<V>> valueSerializer;
 
     /**
      * Creates a new AbstractKeyedState with the given asyncExecutionController and stateDescriptor.
      */
     public AbstractKeyedState(
-            StateRequestHandler stateRequestHandler, StateDescriptor<V> stateDescriptor) {
+            StateRequestHandler stateRequestHandler, TypeSerializer<V> valueSerializer) {
         this.stateRequestHandler = stateRequestHandler;
-        this.stateDescriptor = stateDescriptor;
+        this.valueSerializer = ThreadLocal.withInitial(valueSerializer::duplicate);
     }
 
     /**
@@ -84,14 +82,9 @@ public abstract class AbstractKeyedState<K, N, V> implements InternalKeyedState<
         handleRequestSync(StateRequestType.CLEAR, null);
     }
 
-    /** Return specific {@code StateDescriptor}. */
-    public StateDescriptor<V> getStateDescriptor() {
-        return stateDescriptor;
-    }
-
     /** Return related value serializer. */
     public TypeSerializer<V> getValueSerializer() {
-        return stateDescriptor.getSerializer();
+        return valueSerializer.get();
     }
 
     public StateRequestHandler getStateRequestHandler() {

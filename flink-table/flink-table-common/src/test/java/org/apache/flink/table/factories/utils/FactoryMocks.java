@@ -22,15 +22,19 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.catalog.CatalogModel;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.factories.ModelProviderFactory;
+import org.apache.flink.table.ml.ModelProvider;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -51,8 +55,32 @@ public final class FactoryMocks {
 
     public static final RowType PHYSICAL_TYPE = (RowType) PHYSICAL_DATA_TYPE.getLogicalType();
 
+    public static final ResolvedSchema OUTPUT_SCHEMA =
+            ResolvedSchema.of(Column.physical("output", DataTypes.STRING()));
+
     public static final ObjectIdentifier IDENTIFIER =
             ObjectIdentifier.of("default", "default", "t1");
+
+    public static final ObjectIdentifier MODEL_IDENTIFIER =
+            ObjectIdentifier.of("default", "default", "m1");
+
+    public static ModelProvider createModelProvider(
+            ResolvedSchema inputSchema, ResolvedSchema outputSchema, Map<String, String> options) {
+        return FactoryUtil.createModelProvider(
+                null,
+                MODEL_IDENTIFIER,
+                ResolvedCatalogModel.of(
+                        CatalogModel.of(
+                                Schema.newBuilder().fromResolvedSchema(inputSchema).build(),
+                                Schema.newBuilder().fromResolvedSchema(outputSchema).build(),
+                                options,
+                                "mock model"),
+                        inputSchema,
+                        outputSchema),
+                new Configuration(),
+                FactoryMocks.class.getClassLoader(),
+                false);
+    }
 
     public static DynamicTableSource createTableSource(
             ResolvedSchema schema, Map<String, String> options) {
@@ -96,6 +124,23 @@ public final class FactoryMocks {
                                 .build(),
                         schema),
                 Collections.emptyMap(),
+                new Configuration(),
+                FactoryMocks.class.getClassLoader(),
+                false);
+    }
+
+    public static ModelProviderFactory.Context createModelContext(
+            ResolvedSchema schema, ResolvedSchema outputSchema, Map<String, String> options) {
+        return new FactoryUtil.DefaultModelProviderContext(
+                MODEL_IDENTIFIER,
+                ResolvedCatalogModel.of(
+                        CatalogModel.of(
+                                Schema.newBuilder().fromResolvedSchema(schema).build(),
+                                Schema.newBuilder().fromResolvedSchema(outputSchema).build(),
+                                options,
+                                "mock model"),
+                        schema,
+                        outputSchema),
                 new Configuration(),
                 FactoryMocks.class.getClassLoader(),
                 false);

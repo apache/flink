@@ -32,21 +32,34 @@ import java.io.File;
  */
 public class SpaceBasedCacheLimitPolicy implements CacheLimitPolicy {
     private static final Logger LOG = LoggerFactory.getLogger(SpaceBasedCacheLimitPolicy.class);
+
+    /** The reserved size of space that should always be available. */
     private final long reservedSize;
+
+    /** The base path of the instance where the cache is stored. */
     private final File instanceBasePath;
+
+    /** The estimated size of the SST file. */
+    private final long sstFileSize;
+
+    /** The current usage size of the cache. */
     private long usageSize;
 
     public SpaceBasedCacheLimitPolicy(
             File instanceBasePath, long reservedSize, long baseTargetFileSize) {
         this.reservedSize = reservedSize;
         this.instanceBasePath = instanceBasePath;
+        this.sstFileSize = baseTargetFileSize;
         this.usageSize = 0;
         long initFreeSpace = instanceBasePath.getFreeSpace();
         if (initFreeSpace < reservedSize || reservedSize < baseTargetFileSize) {
             LOG.warn(
-                    "Illegal configuration of preserved space, current free space %s, reserve space %s "
-                            + "and base targetFile size %s on instance base path %s.",
-                    initFreeSpace, reservedSize, baseTargetFileSize, instanceBasePath);
+                    "Illegal configuration of preserved space, current free space {}, reserve space {} "
+                            + "and base targetFile size {} on instance base path {}.",
+                    initFreeSpace,
+                    reservedSize,
+                    baseTargetFileSize,
+                    instanceBasePath);
         }
         LOG.info(
                 "Creating SpaceBasedCacheLimitPolicy with initFreeSpace {} and preserved space {}",
@@ -54,18 +67,31 @@ public class SpaceBasedCacheLimitPolicy implements CacheLimitPolicy {
                 reservedSize);
     }
 
+    public static boolean worksOn(File instanceBasePath) {
+        // We could detect the free space of the instance base path to determine whether the cache
+        // limit policy works.
+        return instanceBasePath.getFreeSpace() > 0;
+    }
+
     private boolean isOverSpace(long toAddSize, long leftSpace) {
         return toAddSize > instanceBasePath.getFreeSpace() - leftSpace;
     }
 
     @Override
-    public boolean isSafeToAdd(long toAddSize) {
-        return toAddSize < instanceBasePath.getFreeSpace() - reservedSize + usageSize;
+    public boolean directWriteInCache() {
+        return isSafeToAdd(sstFileSize);
     }
 
     @Override
-    public boolean isOverflow(long toAddSize) {
-        return isOverSpace(toAddSize, reservedSize);
+    public boolean isSafeToAdd(long toAddSize) {
+        return toAddSize <= instanceBasePath.getFreeSpace() - reservedSize + usageSize;
+    }
+
+    @Override
+    public boolean isOverflow(long toAddSize, boolean hasFile) {
+        // hasFile = true means the file is already in cache, so the toAddSize is 0 considering the
+        // reserved size.
+        return isOverSpace(hasFile ? 0 : toAddSize, reservedSize);
     }
 
     @Override

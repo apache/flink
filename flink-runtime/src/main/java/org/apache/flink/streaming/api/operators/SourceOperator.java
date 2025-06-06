@@ -38,6 +38,7 @@ import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalSourceSplitMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
@@ -175,7 +176,10 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private final List<SplitT> splitsToInitializeOutput = new ArrayList<>();
 
     private final Map<String, Long> splitCurrentWatermarks = new HashMap<>();
+
     private final Set<String> currentlyPausedSplits = new HashSet<>();
+
+    private final Map<String, InternalSourceSplitMetricGroup> splitMetricGroups = new HashMap<>();
 
     private enum OperatingMode {
         READING,
@@ -350,6 +354,26 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         return sourceMetricGroup;
     }
 
+    protected InternalSourceSplitMetricGroup getOrCreateSplitMetricGroup(String splitId) {
+        if (!this.splitMetricGroups.containsKey(splitId)) {
+            InternalSourceSplitMetricGroup splitMetricGroup =
+                    InternalSourceSplitMetricGroup.wrap(
+                            getMetricGroup(),
+                            splitId,
+                            () ->
+                                    splitCurrentWatermarks.getOrDefault(
+                                            splitId, Watermark.UNINITIALIZED.getTimestamp()));
+            splitMetricGroup.markSplitStart();
+            this.splitMetricGroups.put(splitId, splitMetricGroup);
+        }
+        return this.splitMetricGroups.get(splitId);
+    }
+
+    @VisibleForTesting
+    public InternalSourceSplitMetricGroup getSplitMetricGroup(String splitId) {
+        return this.splitMetricGroups.get(splitId);
+    }
+
     @Override
     public void open() throws Exception {
         mainInputActivityClock = new PausableRelativeClock(getProcessingTimeService().getClock());
@@ -381,6 +405,9 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         final List<SplitT> splits = CollectionUtil.iterableToList(readerState.get());
         if (!splits.isEmpty()) {
             LOG.info("Restoring state for {} split(s) to reader.", splits.size());
+            for (SplitT s : splits) {
+                getOrCreateSplitMetricGroup(s.splitId());
+            }
             splitsToInitializeOutput.addAll(splits);
             sourceReader.addSplits(splits);
         }
@@ -647,6 +674,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                 createOutputForSplits(newSplits);
             }
             sourceReader.addSplits(newSplits);
+            createMetricGroupForSplits(newSplits);
         } catch (IOException e) {
             throw new FlinkRuntimeException("Failed to deserialize the splits.", e);
         }
@@ -655,6 +683,12 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private void createOutputForSplits(List<SplitT> newSplits) {
         for (SplitT split : newSplits) {
             currentMainOutput.createOutputForSplit(split.splitId());
+        }
+    }
+
+    private void createMetricGroupForSplits(List<SplitT> newSplits) {
+        for (SplitT split : newSplits) {
+            getOrCreateSplitMetricGroup(split.splitId());
         }
     }
 
@@ -684,8 +718,19 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     }
 
     @Override
+    public void updateCurrentSplitIdle(String splitId, boolean idle) {
+        if (idle) {
+            this.getOrCreateSplitMetricGroup(splitId).markIdle();
+        } else {
+            this.getOrCreateSplitMetricGroup(splitId).markNotIdle();
+        }
+    }
+
+    @Override
     public void splitFinished(String splitId) {
         splitCurrentWatermarks.remove(splitId);
+        getOrCreateSplitMetricGroup(splitId).onSplitFinished();
+        this.splitMetricGroups.remove(splitId);
     }
 
     /**
@@ -718,10 +763,21 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         try {
             sourceReader.pauseOrResumeSplits(splitsToPause, splitsToResume);
             eventTimeLogic.pauseOrResumeSplits(splitsToPause, splitsToResume);
+            reportPausedOrResumed(splitsToPause, splitsToResume);
         } catch (UnsupportedOperationException e) {
             if (!allowUnalignedSourceSplits) {
                 throw e;
             }
+        }
+    }
+
+    private void reportPausedOrResumed(
+            Collection<String> splitsToPause, Collection<String> splitsToResume) {
+        for (String splitId : splitsToResume) {
+            getOrCreateSplitMetricGroup(splitId).markNotPaused();
+        }
+        for (String splitId : splitsToPause) {
+            getOrCreateSplitMetricGroup(splitId).markPaused();
         }
     }
 

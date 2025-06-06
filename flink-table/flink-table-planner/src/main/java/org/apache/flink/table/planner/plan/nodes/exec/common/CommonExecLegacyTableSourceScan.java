@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.legacy.api.TableSchema;
 import org.apache.flink.table.legacy.sources.DefinedFieldMapping;
 import org.apache.flink.table.legacy.sources.TableSource;
@@ -162,7 +163,8 @@ public abstract class CommonExecLegacyTableSourceScan extends ExecNodeBase<RowDa
         RowType outputType = (RowType) getOutputType();
         TableSchema tableSchema =
                 TableSchema.fromResolvedSchema(
-                        DataTypeUtils.expandCompositeTypeToSchema(DataTypes.of(outputType)));
+                        DataTypeUtils.expandCompositeTypeToSchema(DataTypes.of(outputType)),
+                        DefaultSqlFactory.INSTANCE);
         return TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
                 tableSource, tableSchema.getTableColumns(), isStreaming, getNameRemapping());
     }

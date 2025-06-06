@@ -31,6 +31,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.ExplainFormat;
+import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.SqlParserException;
@@ -72,7 +73,10 @@ import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.execution.StagingSinkJobStatusHook;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.TableReferenceExpression;
+import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor;
 import org.apache.flink.table.factories.CatalogStoreFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
@@ -150,6 +154,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     private final ModuleManager moduleManager;
     protected final ResourceManager resourceManager;
     private final OperationTreeBuilder operationTreeBuilder;
+    private final TableReferenceChecker tableReferenceChecker = new TableReferenceChecker();
 
     protected final TableConfig tableConfig;
     protected final Executor execEnv;
@@ -200,7 +205,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                 Optional<SourceQueryOperation> catalogQueryOperation =
                                         scanInternal(unresolvedIdentifier);
                                 return catalogQueryOperation.map(
-                                        t -> ApiExpressionUtils.tableRef(path, t));
+                                        t -> ApiExpressionUtils.tableRef(path, t, this));
                             } catch (SqlParserException ex) {
                                 // The TableLookup is used during resolution of expressions and it
                                 // actually might not be an
@@ -279,6 +284,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                         .config(tableConfig)
                                         .classloader(userClassLoader)
                                         .build())
+                        .sqlFactory(
+                                settings.getSqlFactory()
+                                        .orElseGet(() -> DefaultSqlFactory.INSTANCE))
                         .build();
 
         final FunctionCatalog functionCatalog =
@@ -593,6 +601,19 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         final QueryOperation queryOperation =
                 new SourceQueryOperation(ContextResolvedTable.anonymous(resolvedCatalogBaseTable));
         return createTable(queryOperation);
+    }
+
+    @Override
+    public Table fromCall(String path, Object... arguments) {
+        tableReferenceChecker.check(arguments);
+        return createTable(operationTreeBuilder.tableFunction(Expressions.call(path, arguments)));
+    }
+
+    @Override
+    public Table fromCall(Class<? extends UserDefinedFunction> function, Object... arguments) {
+        tableReferenceChecker.check(arguments);
+        return createTable(
+                operationTreeBuilder.tableFunction(Expressions.call(function, arguments)));
     }
 
     private Optional<SourceQueryOperation> scanInternal(UnresolvedIdentifier identifier) {
@@ -1240,7 +1261,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         String defaultJobName = "collect";
 
         try {
-            defaultJobName = operation.asSerializableString();
+            defaultJobName = operation.asSerializableString(catalogManager.getSqlFactory());
         } catch (Throwable e) {
             // ignore error for unsupported operations and use 'collect' as default job name
         }
@@ -1372,5 +1393,34 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return sinkModifyOperation.isDelete() || sinkModifyOperation.isUpdate();
         }
         return false;
+    }
+
+    /** A utility for {@link #fromCall} to check that all references belong to this environment. */
+    private class TableReferenceChecker extends ApiExpressionDefaultVisitor<Void> {
+
+        void check(Object... arguments) {
+            final TableReferenceChecker checker = new TableReferenceChecker();
+            Arrays.stream(arguments)
+                    .filter(Expression.class::isInstance)
+                    .map(Expression.class::cast)
+                    .forEach(e -> e.accept(checker));
+        }
+
+        @Override
+        protected Void defaultMethod(Expression expression) {
+            expression.getChildren().forEach(child -> child.accept(this));
+            return null;
+        }
+
+        @Override
+        public Void visit(TableReferenceExpression tableRef) {
+            super.visit(tableRef);
+            if (tableRef.getTableEnvironment() != null
+                    && tableRef.getTableEnvironment() != TableEnvironmentImpl.this) {
+                throw new ValidationException(
+                        "All table references must use the same TableEnvironment.");
+            }
+            return null;
+        }
     }
 }

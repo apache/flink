@@ -21,7 +21,7 @@ package org.apache.flink.api.connector.source.util.ratelimit;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
-import org.apache.flink.shaded.guava32.com.google.common.util.concurrent.RateLimiter;
+import org.apache.flink.shaded.guava33.com.google.common.util.concurrent.RateLimiter;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;

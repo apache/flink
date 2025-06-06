@@ -55,7 +55,7 @@ public class HadoopUtils {
         // Instantiate an HdfsConfiguration to load the hdfs-site.xml and hdfs-default.xml
         // from the classpath
 
-        Configuration result = new HdfsConfiguration();
+        Configuration config = new HdfsConfiguration();
         boolean foundHadoopConfiguration = false;
 
         // We need to load both core-site.xml and hdfs-site.xml to determine the default fs path and
@@ -76,7 +76,7 @@ public class HadoopUtils {
 
         for (String possibleHadoopConfPath : possibleHadoopConfPaths) {
             if (possibleHadoopConfPath != null) {
-                foundHadoopConfiguration = addHadoopConfIfFound(result, possibleHadoopConfPath);
+                foundHadoopConfiguration = addHadoopConfIfFound(config, possibleHadoopConfPath);
             }
         }
 
@@ -85,7 +85,7 @@ public class HadoopUtils {
         if (hadoopConfDir != null) {
             LOG.debug("Searching Hadoop configuration files in HADOOP_CONF_DIR: {}", hadoopConfDir);
             foundHadoopConfiguration =
-                    addHadoopConfIfFound(result, hadoopConfDir) || foundHadoopConfiguration;
+                    addHadoopConfIfFound(config, hadoopConfDir) || foundHadoopConfiguration;
         }
 
         // Approach 3: Flink configuration
@@ -95,7 +95,7 @@ public class HadoopUtils {
                 if (key.startsWith(prefix)) {
                     String newKey = key.substring(prefix.length());
                     String value = flinkConfiguration.getString(key, null);
-                    result.set(newKey, value);
+                    config.set(newKey, value);
                     LOG.debug(
                             "Adding Flink config entry for {} as {}={} to Hadoop config",
                             key,
@@ -112,7 +112,7 @@ public class HadoopUtils {
                             + "(Flink configuration, environment variables).");
         }
 
-        return result;
+        return config;
     }
 
     public static boolean isKerberosSecurityEnabled(UserGroupInformation ugi) {

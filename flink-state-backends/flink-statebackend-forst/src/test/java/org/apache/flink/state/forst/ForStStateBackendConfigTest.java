@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -64,11 +65,13 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
+import static org.apache.flink.state.forst.ForStStateBackend.LOCAL_DIR_AS_PRIMARY_SHORTCUT;
 import static org.apache.flink.state.forst.ForStTestUtils.createKeyedStateBackend;
 import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -283,6 +286,7 @@ public class ForStStateBackendConfigTest {
         conf.set(ForStConfigurableOptions.LOG_LEVEL, InfoLogLevel.DEBUG_LEVEL);
         conf.set(ForStConfigurableOptions.LOG_FILE_NUM, 4);
         conf.set(ForStConfigurableOptions.LOG_MAX_FILE_SIZE, MemorySize.parse("1kb"));
+        conf.set(ForStOptions.PRIMARY_DIRECTORY, LOCAL_DIR_AS_PRIMARY_SHORTCUT);
         final ForStStateBackend forStBackend =
                 new ForStStateBackend().configure(conf, getClass().getClassLoader());
         final String dbStoragePath = new Path(folder.toURI().toString()).toString();
@@ -493,6 +497,10 @@ public class ForStStateBackendConfigTest {
             verifyIllegalArgument(ForStConfigurableOptions.COMPRESSION_PER_LEVEL, "SNAP");
             verifyIllegalArgument(ForStConfigurableOptions.USE_BLOOM_FILTER, "NO");
             verifyIllegalArgument(ForStConfigurableOptions.BLOOM_FILTER_BLOCK_BASED_MODE, "YES");
+            verifyIllegalArgument(
+                    ForStConfigurableOptions.COMPACT_FILTER_PERIODIC_COMPACTION_TIME, "-1s");
+            verifyIllegalArgument(
+                    ForStConfigurableOptions.COMPACT_FILTER_QUERY_TIME_AFTER_NUM_ENTRIES, "1.1");
         }
 
         // verify legal configuration
@@ -517,6 +525,8 @@ public class ForStStateBackendConfigTest {
             configuration.setString(ForStConfigurableOptions.METADATA_BLOCK_SIZE.key(), "8 kb");
             configuration.setString(ForStConfigurableOptions.BLOCK_CACHE_SIZE.key(), "512 mb");
             configuration.setString(ForStConfigurableOptions.USE_BLOOM_FILTER.key(), "TRUE");
+            configuration.setString(
+                    ForStConfigurableOptions.COMPACT_FILTER_PERIODIC_COMPACTION_TIME.key(), "1h");
 
             try (ForStResourceContainer optionsContainer =
                     new ForStResourceContainer(
@@ -543,6 +553,7 @@ public class ForStStateBackendConfigTest {
                                 CompressionType.SNAPPY_COMPRESSION,
                                 CompressionType.LZ4_COMPRESSION),
                         columnOptions.compressionPerLevel());
+                assertEquals(3600, columnOptions.periodicCompactionSeconds());
 
                 BlockBasedTableConfig tableConfig =
                         (BlockBasedTableConfig) columnOptions.tableFormatConfig();
@@ -742,10 +753,11 @@ public class ForStStateBackendConfigTest {
     }
 
     @Test
-    public void testRemoteDirectory() throws Exception {
+    public void testPrimaryDirectory() throws Exception {
         FileSystem.initialize(new Configuration(), null);
         Configuration configuration = new Configuration();
-        configuration.set(ForStOptions.REMOTE_DIRECTORY, tempFolder.newFolder().toURI().toString());
+        configuration.set(
+                ForStOptions.PRIMARY_DIRECTORY, tempFolder.newFolder().toURI().toString());
         ForStStateBackend forStStateBackend =
                 new ForStStateBackend().configure(configuration, null);
         ForStKeyedStateBackend<Integer> keyedBackend = null;
@@ -759,12 +771,45 @@ public class ForStStateBackendConfigTest {
                     keyedBackend
                             .getRemoteBasePath()
                             .toString()
-                            .startsWith(configuration.get(ForStOptions.REMOTE_DIRECTORY)));
+                            .startsWith(configuration.get(ForStOptions.PRIMARY_DIRECTORY)));
         } finally {
             if (keyedBackend != null) {
                 keyedBackend.dispose();
                 keyedBackend.close();
             }
+        }
+    }
+
+    @Test
+    public void testSupportSavepoint() {
+        ForStStateBackend forStStateBackend = new ForStStateBackend();
+        assertFalse(forStStateBackend.supportsSavepointFormat(SavepointFormatType.CANONICAL));
+        assertTrue(forStStateBackend.supportsSavepointFormat(SavepointFormatType.NATIVE));
+    }
+
+    @Test
+    public void testConfigurePeriodicCompactionTime() throws Exception {
+        ForStStateBackend forStStateBackend = new ForStStateBackend();
+        Configuration configuration = new Configuration();
+        configuration.setString(
+                ForStConfigurableOptions.COMPACT_FILTER_PERIODIC_COMPACTION_TIME.key(), "1d");
+        forStStateBackend = forStStateBackend.configure(configuration, getClass().getClassLoader());
+        try (ForStResourceContainer resourceContainer =
+                forStStateBackend.createOptionsAndResourceContainer(null)) {
+            assertEquals(Duration.ofDays(1), resourceContainer.getPeriodicCompactionTime());
+        }
+    }
+
+    @Test
+    public void testConfigureQueryTimeAfterNumEntries() throws Exception {
+        ForStStateBackend forStStateBackend = new ForStStateBackend();
+        Configuration configuration = new Configuration();
+        configuration.setString(
+                ForStConfigurableOptions.COMPACT_FILTER_QUERY_TIME_AFTER_NUM_ENTRIES.key(), "100");
+        forStStateBackend = forStStateBackend.configure(configuration, getClass().getClassLoader());
+        try (ForStResourceContainer resourceContainer =
+                forStStateBackend.createOptionsAndResourceContainer(null)) {
+            assertEquals(100L, resourceContainer.getQueryTimeAfterNumEntries().longValue());
         }
     }
 

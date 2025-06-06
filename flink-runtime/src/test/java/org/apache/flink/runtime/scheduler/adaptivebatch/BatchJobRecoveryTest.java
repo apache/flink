@@ -413,9 +413,12 @@ public class BatchJobRecoveryTest {
 
             // check middle task0 is CREATED because it's waiting source task0 finished.
             if (vertex.getParallelSubtaskIndex() == subtaskIndex) {
-                ExecutionState expectedState =
-                        isBlockingShuffle ? ExecutionState.CREATED : ExecutionState.DEPLOYING;
-                assertThat(vertex.getExecutionState()).isEqualTo(expectedState);
+                if (isBlockingShuffle) {
+                    assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.CREATED);
+                } else {
+                    assertThat(vertex.getExecutionState().ordinal())
+                            .isLessThanOrEqualTo(ExecutionState.DEPLOYING.ordinal());
+                }
                 continue;
             }
 

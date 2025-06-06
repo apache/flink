@@ -58,6 +58,7 @@ import static org.apache.flink.runtime.state.StateBackendLoader.FORST_STATE_BACK
  *       </code>.
  *   <li><code>--execution-mode &lt;mode&gt;</code>The execution mode (BATCH, STREAMING, or
  *       AUTOMATIC) of this pipeline.
+ *   <li><code>--async-state</code> Whether enable async state.
  * </ul>
  *
  * <p>This example shows how to:

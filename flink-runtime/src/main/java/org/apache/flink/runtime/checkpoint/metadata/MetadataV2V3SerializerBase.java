@@ -30,7 +30,7 @@ import org.apache.flink.runtime.checkpoint.filemerging.LogicalFile;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
-import org.apache.flink.runtime.state.InputChannelStateHandle;
+import org.apache.flink.runtime.state.InputStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsSavepointStateHandle;
@@ -38,7 +38,7 @@ import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
-import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
+import org.apache.flink.runtime.state.OutputStateHandle;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -312,8 +312,8 @@ public abstract class MetadataV2V3SerializerBase {
             state.setRawKeyedState(rawKeyedState);
         }
 
-        state.setInputChannelState(deserializeInputChannelStateHandle(dis, context));
-        state.setResultSubpartitionState(deserializeResultSubpartitionStateHandle(dis, context));
+        state.setInputChannelState(deserializeInputStateHandle(dis, context));
+        state.setResultSubpartitionState(deserializeOutputStateHandle(dis, context));
 
         return state.build();
     }
@@ -696,24 +696,20 @@ public abstract class MetadataV2V3SerializerBase {
     //  channel state (unaligned checkpoints)
     // ------------------------------------------------------------------------
 
-    protected StateObjectCollection<ResultSubpartitionStateHandle>
-            deserializeResultSubpartitionStateHandle(
-                    DataInputStream dis, @Nullable DeserializationContext context)
-                    throws IOException {
-        return StateObjectCollection.empty();
-    }
-
-    protected StateObjectCollection<InputChannelStateHandle> deserializeInputChannelStateHandle(
+    protected StateObjectCollection<OutputStateHandle> deserializeOutputStateHandle(
             DataInputStream dis, @Nullable DeserializationContext context) throws IOException {
         return StateObjectCollection.empty();
     }
 
-    protected void serializeResultSubpartitionStateHandle(
-            ResultSubpartitionStateHandle resultSubpartitionStateHandle, DataOutputStream dos)
+    protected StateObjectCollection<InputStateHandle> deserializeInputStateHandle(
+            DataInputStream dis, @Nullable DeserializationContext context) throws IOException {
+        return StateObjectCollection.empty();
+    }
+
+    protected void serializeOutputStateHandle(OutputStateHandle handle, DataOutputStream dos)
             throws IOException {}
 
-    protected void serializeInputChannelStateHandle(
-            InputChannelStateHandle inputChannelStateHandle, DataOutputStream dos)
+    protected void serializeInputStateHandle(InputStateHandle handle, DataOutputStream dos)
             throws IOException {}
 
     // ------------------------------------------------------------------------

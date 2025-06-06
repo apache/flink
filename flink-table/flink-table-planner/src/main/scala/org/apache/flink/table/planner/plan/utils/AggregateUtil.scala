@@ -38,11 +38,10 @@ import org.apache.flink.table.planner.plan.`trait`.{ModifyKindSetTrait, ModifyKi
 import org.apache.flink.table.planner.plan.logical.{HoppingWindowSpec, WindowSpec}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
-import org.apache.flink.table.planner.typeutils.DataViewUtils
 import org.apache.flink.table.planner.typeutils.LegacyDataViewUtils.useNullSerializerForStateViewFieldsFromAccType
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory
-import org.apache.flink.table.runtime.dataview.DataViewSpec
+import org.apache.flink.table.runtime.dataview.{DataViewSpec, DataViewUtils}
 import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction
 import org.apache.flink.table.runtime.groupwindow._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
@@ -586,8 +585,8 @@ object AggregateUtil extends Enumeration {
     val inference = udf.getTypeInference(dataTypeFactory)
 
     // enrich argument types with conversion class
-    val adaptedCallContext = TypeInferenceUtil.adaptArguments(inference, callContext, null)
-    val enrichedArgumentDataTypes = toScala(adaptedCallContext.getArgumentDataTypes)
+    val castCallContext = TypeInferenceUtil.castArguments(inference, callContext, null)
+    val enrichedArgumentDataTypes = toScala(castCallContext.getArgumentDataTypes)
 
     // derive accumulator type with conversion class
     val stateStrategies = inference.getStateTypeStrategies
@@ -597,11 +596,11 @@ object AggregateUtil extends Enumeration {
     }
     val accumulatorStrategy = stateStrategies.values().head
     val enrichedAccumulatorDataType =
-      TypeInferenceUtil.inferOutputType(adaptedCallContext, accumulatorStrategy)
+      TypeInferenceUtil.inferOutputType(castCallContext, accumulatorStrategy)
 
     // enrich output types with conversion class
     val enrichedOutputDataType =
-      TypeInferenceUtil.inferOutputType(adaptedCallContext, inference.getOutputTypeStrategy)
+      TypeInferenceUtil.inferOutputType(castCallContext, inference.getOutputTypeStrategy)
 
     createImperativeAggregateInfo(
       call,

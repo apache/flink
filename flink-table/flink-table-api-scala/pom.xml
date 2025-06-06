@@ -75,27 +75,6 @@ under the License.
 			<artifactId>scala-compiler</artifactId>
 		</dependency>
 
-		<!--
-		The KryoSerializer dynamically loads Kryo instances via Chill and requires that Chill
-		is in the classpath.
-		-->
-		<dependency>
-			<groupId>com.twitter</groupId>
-			<artifactId>chill_${scala.binary.version}</artifactId>
-			<version>${chill.version}</version>
-			<!-- exclusions for dependency conversion -->
-			<exclusions>
-				<exclusion>
-					<groupId>com.esotericsoftware.kryo</groupId>
-					<artifactId>kryo</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.scala-lang</groupId>
-					<artifactId>scala-library</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
 		<!-- Test dependencies -->
 
 		<dependency>

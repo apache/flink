@@ -48,7 +48,7 @@ public class MockMultiplierProcessFunction
             Integer record, Collector<Integer> output, PartitionedContext<Integer> ctx)
             throws Exception {
         Optional<ValueState<Integer>> stateOptional =
-                ctx.getStateManager().getState(valueStateDeclaration);
+                ctx.getStateManager().getStateOptional(valueStateDeclaration);
         if (!stateOptional.isPresent()) {
             throw new RuntimeException("State is not available");
         }

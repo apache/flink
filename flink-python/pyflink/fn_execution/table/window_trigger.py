@@ -117,7 +117,7 @@ class ProcessingTimeTrigger(Trigger[TimeWindow]):
     """
 
     def __init__(self):
-        self._ctx = None  # type: TriggerContext
+        self._ctx: TriggerContext = None
 
     def open(self, ctx: TriggerContext):
         self._ctx = ctx
@@ -146,7 +146,7 @@ class EventTimeTrigger(Trigger[TimeWindow]):
     """
 
     def __init__(self):
-        self._ctx = None  # type: TriggerContext
+        self._ctx: TriggerContext = None
 
     def open(self, ctx: TriggerContext):
         self._ctx = ctx
@@ -181,7 +181,7 @@ class CountTrigger(Trigger[CountWindow]):
         self._count_elements = count_elements
         self._count_state_desc = ValueStateDescriptor(
             "trigger-count-%s" % count_elements, Types.LONG())
-        self._ctx = None  # type: TriggerContext
+        self._ctx: TriggerContext = None
 
     def open(self, ctx: TriggerContext):
         self._ctx = ctx

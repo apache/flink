@@ -43,7 +43,7 @@ import org.apache.calcite.rel.{BiRel, RelNode, RelVisitor}
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeFamily
-import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.sql.{SqlKind, SqlUtil}
 import org.apache.calcite.util.{ImmutableBitSet, Util}
 
 import java.time.Duration
@@ -177,7 +177,7 @@ object WindowUtil {
   }
 
   def validateTimeFieldWithTimeAttribute(windowCall: RexCall, inputRowType: RelDataType): Unit = {
-    val timeIndex = getTimeAttributeIndex(windowCall.operands(1))
+    val timeIndex = getTimeAttributeIndex(windowCall)
     val fieldType = inputRowType.getFieldList.get(timeIndex).getType
     if (!FlinkTypeFactory.isTimeIndicatorType(fieldType)) {
       throw new ValidationException(
@@ -198,8 +198,8 @@ object WindowUtil {
           "function, can't convert it into WindowingStrategy")
     }
 
-    val timeIndex = getTimeAttributeIndex(windowCall.operands(1))
     val inputRowType = scanInput.getRowType
+    val timeIndex = getTimeAttributeIndex(windowCall)
     val fieldType = inputRowType.getFieldList.get(timeIndex).getType
     val timeAttributeType = FlinkTypeFactory.toLogicalType(fieldType)
     if (!canBeTimeAttributeType(timeAttributeType)) {
@@ -217,6 +217,16 @@ object WindowUtil {
           null
         }
         val interval = getOperandAsLong(windowCall.operands(2))
+        if (interval <= 0) {
+          throw new ValidationException(
+            s"TUMBLE table function based aggregate requires size to be positive," +
+              s" but got $interval ms.")
+        }
+        if (offset != null && Math.abs(offset.toMillis) >= interval) {
+          throw new ValidationException(
+            s"TUMBLE table function parameters must satisfy abs(offset) < size, " +
+              s"but got size $interval ms and offset ${offset.toMillis} ms.")
+        }
         new TumblingWindowSpec(Duration.ofMillis(interval), offset)
 
       case FlinkSqlOperatorTable.HOP =>
@@ -227,6 +237,11 @@ object WindowUtil {
         }
         val slide = getOperandAsLong(windowCall.operands(2))
         val size = getOperandAsLong(windowCall.operands(3))
+        if (slide <= 0 || size <= 0) {
+          throw new ValidationException(
+            s"HOP table function based aggregate requires slide and size to be positive," +
+              s" but got slide $slide ms and size $size ms.")
+        }
         new HoppingWindowSpec(Duration.ofMillis(size), Duration.ofMillis(slide), offset)
 
       case FlinkSqlOperatorTable.CUMULATE =>
@@ -237,6 +252,15 @@ object WindowUtil {
         }
         val step = getOperandAsLong(windowCall.operands(2))
         val maxSize = getOperandAsLong(windowCall.operands(3))
+        if (step <= 0 || maxSize <= 0) {
+          throw new ValidationException(
+            s"CUMULATE table function based aggregate requires maxSize and step to be positive," +
+              s" but got maxSize $maxSize ms and step $step ms.")
+        }
+        if (maxSize % step != 0) {
+          throw new ValidationException("CUMULATE table function based aggregate requires maxSize " +
+            s"must be an integral multiple of step, but got maxSize $maxSize ms and step $step ms.")
+        }
         new CumulativeWindowSpec(Duration.ofMillis(maxSize), Duration.ofMillis(step), offset)
       case FlinkSqlOperatorTable.SESSION =>
         val tableArgCall = windowCall.operands(0).asInstanceOf[RexTableArgCall]
@@ -244,6 +268,11 @@ object WindowUtil {
           throw new ValidationException("Session window TVF doesn't support order by clause.")
         }
         val gap = getOperandAsLong(windowCall.operands(2))
+        if (gap <= 0) {
+          throw new ValidationException(
+            s"SESSION table function based aggregate requires gap to be positive," +
+              s" but got gap $gap ms.")
+        }
         new SessionWindowSpec(Duration.ofMillis(gap), tableArgCall.getPartitionKeys)
     }
 
@@ -366,21 +395,20 @@ object WindowUtil {
   // Private Helpers
   // ------------------------------------------------------------------------------------------
 
-  private def getTimeAttributeIndex(operand: RexNode): Int = {
-    val timeAttributeIndex = operand match {
-      case call: RexCall if call.getKind == SqlKind.DESCRIPTOR =>
-        call.operands(0) match {
-          case inputRef: RexInputRef => inputRef.getIndex
-          case _ => -1
-        }
-      case _ => -1
-    }
-    if (timeAttributeIndex == -1) {
+  private def getTimeAttributeIndex(windowCall: RexNode): Int = {
+    val call = windowCall.asInstanceOf[RexCall]
+    val tableArg = call.operands(0)
+    val onTimeArg = call.operands(1)
+
+    val fieldName = RexLiteral.stringValue(onTimeArg.asInstanceOf[RexCall].operands(0))
+    val timeAttributeIndex = tableArg.getType.getField(fieldName, true, false)
+
+    if (timeAttributeIndex == null) {
       throw new TableException(
-        s"Failed to get time attribute index from $operand. " +
+        s"Failed to get time attribute index from $onTimeArg. " +
           "This is a bug, please file a JIRA issue.")
     }
-    timeAttributeIndex
+    timeAttributeIndex.getIndex
   }
 
   private def getOperandAsLong(operand: RexNode): Long = {

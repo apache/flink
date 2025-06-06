@@ -38,6 +38,7 @@ import org.apache.flink.table.factories.TestFormatFactory;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.plan.abilities.sink.OverwriteSpec;
 import org.apache.flink.table.planner.plan.abilities.sink.PartitioningSpec;
+import org.apache.flink.table.planner.plan.abilities.sink.TargetColumnWritingSpec;
 import org.apache.flink.table.planner.plan.abilities.sink.WritingMetadataSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec;
 import org.apache.flink.table.planner.utils.PlannerMocks;
@@ -173,7 +174,37 @@ class DynamicTableSinkSpecSerdeTest {
                                         RowType.of(new BigIntType(), new IntType()))),
                         null);
 
-        return Stream.of(spec1, spec2, spec3);
+        Map<String, String> options4 = new HashMap<>();
+        options4.put("connector", TestValuesTableFactory.IDENTIFIER);
+        int[][] targetColumnIndices = new int[][] {{0}, {1}};
+
+        // Todo: add test cases for nested columns in schema after FLINK-31301 is fixed.
+        final ResolvedSchema resolvedSchema4 =
+                new ResolvedSchema(
+                        Arrays.asList(
+                                Column.physical("a", DataTypes.BIGINT()),
+                                Column.physical("b", DataTypes.INT()),
+                                Column.metadata("p", DataTypes.STRING(), null, false)),
+                        Collections.emptyList(),
+                        null);
+        final CatalogTable catalogTable4 =
+                CatalogTable.newBuilder()
+                        .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema4).build())
+                        .options(options4)
+                        .build();
+
+        DynamicTableSinkSpec spec4 =
+                new DynamicTableSinkSpec(
+                        ContextResolvedTable.temporary(
+                                ObjectIdentifier.of(
+                                        CatalogManagerMocks.DEFAULT_CATALOG,
+                                        CatalogManagerMocks.DEFAULT_DATABASE,
+                                        "MyTable"),
+                                new ResolvedCatalogTable(catalogTable4, resolvedSchema4)),
+                        Collections.singletonList(new TargetColumnWritingSpec(targetColumnIndices)),
+                        targetColumnIndices);
+
+        return Stream.of(spec1, spec2, spec3, spec4);
     }
 
     @ParameterizedTest

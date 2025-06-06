@@ -21,6 +21,7 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
 
 import java.util.Collections;
@@ -77,8 +78,8 @@ public class AggregateQueryOperation implements QueryOperation {
     }
 
     @Override
-    public String asSerializableString() {
-        final String groupingExprs = getGroupingExprs();
+    public String asSerializableString(SqlFactory sqlFactory) {
+        final String groupingExprs = getGroupingExprs(sqlFactory);
         return String.format(
                 "SELECT %s FROM (%s\n) %s\nGROUP BY %s",
                 Stream.concat(groupingExpressions.stream(), aggregateExpressions.stream())
@@ -86,14 +87,16 @@ public class AggregateQueryOperation implements QueryOperation {
                                 expr ->
                                         OperationExpressionsUtils.scopeReferencesWithAlias(
                                                 INPUT_ALIAS, expr))
-                        .map(ResolvedExpression::asSerializableString)
+                        .map(
+                                resolvedExpression ->
+                                        resolvedExpression.asSerializableString(sqlFactory))
                         .collect(Collectors.joining(", ")),
-                OperationUtils.indent(child.asSerializableString()),
+                OperationUtils.indent(child.asSerializableString(sqlFactory)),
                 INPUT_ALIAS,
                 groupingExprs);
     }
 
-    private String getGroupingExprs() {
+    private String getGroupingExprs(SqlFactory sqlFactory) {
         if (groupingExpressions.isEmpty()) {
             return "1";
         } else {
@@ -102,7 +105,7 @@ public class AggregateQueryOperation implements QueryOperation {
                             expr ->
                                     OperationExpressionsUtils.scopeReferencesWithAlias(
                                             INPUT_ALIAS, expr))
-                    .map(ResolvedExpression::asSerializableString)
+                    .map(resolvedExpression -> resolvedExpression.asSerializableString(sqlFactory))
                     .collect(Collectors.joining(", "));
         }
     }

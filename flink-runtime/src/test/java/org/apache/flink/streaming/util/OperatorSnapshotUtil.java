@@ -21,10 +21,10 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.metadata.MetadataV3Serializer;
-import org.apache.flink.runtime.state.InputChannelStateHandle;
+import org.apache.flink.runtime.state.InputStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
+import org.apache.flink.runtime.state.OutputStateHandle;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -61,7 +61,8 @@ public class OperatorSnapshotUtil {
             if (rawOperatorState != null) {
                 dos.writeInt(rawOperatorState.size());
                 for (OperatorStateHandle operatorStateHandle : rawOperatorState) {
-                    MetadataV3Serializer.serializeOperatorStateHandleUtil(operatorStateHandle, dos);
+                    MetadataV3Serializer.INSTANCE.serializeOperatorStateHandleUtil(
+                            operatorStateHandle, dos);
                 }
             } else {
                 // this means no states, not even an empty list
@@ -72,7 +73,8 @@ public class OperatorSnapshotUtil {
             if (managedOperatorState != null) {
                 dos.writeInt(managedOperatorState.size());
                 for (OperatorStateHandle operatorStateHandle : managedOperatorState) {
-                    MetadataV3Serializer.serializeOperatorStateHandleUtil(operatorStateHandle, dos);
+                    MetadataV3Serializer.INSTANCE.serializeOperatorStateHandleUtil(
+                            operatorStateHandle, dos);
                 }
             } else {
                 // this means no states, not even an empty list
@@ -83,7 +85,8 @@ public class OperatorSnapshotUtil {
             if (rawKeyedState != null) {
                 dos.writeInt(rawKeyedState.size());
                 for (KeyedStateHandle keyedStateHandle : rawKeyedState) {
-                    MetadataV3Serializer.serializeKeyedStateHandleUtil(keyedStateHandle, dos);
+                    MetadataV3Serializer.INSTANCE.serializeKeyedStateHandleUtil(
+                            keyedStateHandle, dos);
                 }
             } else {
                 // this means no operator states, not even an empty list
@@ -94,27 +97,26 @@ public class OperatorSnapshotUtil {
             if (managedKeyedState != null) {
                 dos.writeInt(managedKeyedState.size());
                 for (KeyedStateHandle keyedStateHandle : managedKeyedState) {
-                    MetadataV3Serializer.serializeKeyedStateHandleUtil(keyedStateHandle, dos);
+                    MetadataV3Serializer.INSTANCE.serializeKeyedStateHandleUtil(
+                            keyedStateHandle, dos);
                 }
             } else {
                 // this means no operator states, not even an empty list
                 dos.writeInt(-1);
             }
 
-            Collection<InputChannelStateHandle> inputChannelStateHandles =
-                    state.getInputChannelState();
+            Collection<InputStateHandle> inputChannelStateHandles = state.getInputChannelState();
             dos.writeInt(inputChannelStateHandles.size());
-            for (InputChannelStateHandle inputChannelStateHandle : inputChannelStateHandles) {
-                MetadataV3Serializer.INSTANCE.serializeInputChannelStateHandle(
+            for (InputStateHandle inputChannelStateHandle : inputChannelStateHandles) {
+                MetadataV3Serializer.INSTANCE.serializeInputStateHandle(
                         inputChannelStateHandle, dos);
             }
 
-            Collection<ResultSubpartitionStateHandle> resultSubpartitionStateHandles =
+            Collection<OutputStateHandle> resultSubpartitionStateHandles =
                     state.getResultSubpartitionState();
             dos.writeInt(inputChannelStateHandles.size());
-            for (ResultSubpartitionStateHandle resultSubpartitionStateHandle :
-                    resultSubpartitionStateHandles) {
-                MetadataV3Serializer.INSTANCE.serializeResultSubpartitionStateHandle(
+            for (OutputStateHandle resultSubpartitionStateHandle : resultSubpartitionStateHandles) {
+                MetadataV3Serializer.INSTANCE.serializeOutputStateHandle(
                         resultSubpartitionStateHandle, dos);
             }
 
@@ -139,7 +141,7 @@ public class OperatorSnapshotUtil {
                 rawOperatorState = new ArrayList<>();
                 for (int i = 0; i < numRawOperatorStates; i++) {
                     OperatorStateHandle operatorState =
-                            MetadataV3Serializer.deserializeOperatorStateHandleUtil(dis);
+                            MetadataV3Serializer.INSTANCE.deserializeOperatorStateHandleUtil(dis);
                     rawOperatorState.add(operatorState);
                 }
             }
@@ -150,7 +152,7 @@ public class OperatorSnapshotUtil {
                 managedOperatorState = new ArrayList<>();
                 for (int i = 0; i < numManagedOperatorStates; i++) {
                     OperatorStateHandle operatorState =
-                            MetadataV3Serializer.deserializeOperatorStateHandleUtil(dis);
+                            MetadataV3Serializer.INSTANCE.deserializeOperatorStateHandleUtil(dis);
                     managedOperatorState.add(operatorState);
                 }
             }
@@ -161,7 +163,7 @@ public class OperatorSnapshotUtil {
                 rawKeyedState = new ArrayList<>();
                 for (int i = 0; i < numRawKeyedStates; i++) {
                     KeyedStateHandle keyedState =
-                            MetadataV3Serializer.deserializeKeyedStateHandleUtil(dis);
+                            MetadataV3Serializer.INSTANCE.deserializeKeyedStateHandleUtil(dis);
                     rawKeyedState.add(keyedState);
                 }
             }
@@ -172,22 +174,20 @@ public class OperatorSnapshotUtil {
                 managedKeyedState = new ArrayList<>();
                 for (int i = 0; i < numManagedKeyedStates; i++) {
                     KeyedStateHandle keyedState =
-                            MetadataV3Serializer.deserializeKeyedStateHandleUtil(dis);
+                            MetadataV3Serializer.INSTANCE.deserializeKeyedStateHandleUtil(dis);
                     managedKeyedState.add(keyedState);
                 }
             }
 
-            final StateObjectCollection<InputChannelStateHandle> inputChannelStateHandles =
+            final StateObjectCollection<InputStateHandle> inputChannelStateHandles =
                     v == MetadataV3Serializer.VERSION
-                            ? MetadataV3Serializer.deserializeInputChannelStateHandle(dis)
+                            ? MetadataV3Serializer.INSTANCE.deserializeInputStateHandle(dis)
                             : StateObjectCollection.empty();
 
-            final StateObjectCollection<ResultSubpartitionStateHandle>
-                    resultSubpartitionStateHandles =
-                            v == MetadataV3Serializer.VERSION
-                                    ? MetadataV3Serializer.INSTANCE
-                                            .deserializeResultSubpartitionStateHandle(dis)
-                                    : StateObjectCollection.empty();
+            final StateObjectCollection<OutputStateHandle> resultSubpartitionStateHandles =
+                    v == MetadataV3Serializer.VERSION
+                            ? MetadataV3Serializer.INSTANCE.deserializeOutputStateHandle(dis)
+                            : StateObjectCollection.empty();
 
             return OperatorSubtaskState.builder()
                     .setManagedOperatorState(new StateObjectCollection<>(managedOperatorState))

@@ -22,10 +22,8 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.types.RowKind;
 
 import java.io.Serializable;
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -40,9 +38,10 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
     private final int inputIndex;
     private final DataType dataType;
     private final int[] partitionByColumns;
-    private final byte[] expectedChanges;
+    private final RuntimeChangelogMode consumedChangelogMode;
     private final boolean passColumnsThrough;
     private final boolean hasSetSemantics;
+    private final int timeColumn;
 
     private transient ChangelogMode changelogMode;
 
@@ -51,16 +50,18 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
             int inputIndex,
             DataType dataType,
             int[] partitionByColumns,
-            byte[] expectedChanges,
+            RuntimeChangelogMode consumedChangelogMode,
             boolean passColumnsThrough,
-            boolean hasSetSemantics) {
+            boolean hasSetSemantics,
+            int timeColumn) {
         this.argName = argName;
         this.inputIndex = inputIndex;
         this.dataType = dataType;
         this.partitionByColumns = partitionByColumns;
-        this.expectedChanges = expectedChanges;
+        this.consumedChangelogMode = consumedChangelogMode;
         this.passColumnsThrough = passColumnsThrough;
         this.hasSetSemantics = hasSetSemantics;
+        this.timeColumn = timeColumn;
     }
 
     public String getArgName() {
@@ -77,6 +78,13 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
 
     public boolean hasSetSemantics() {
         return hasSetSemantics;
+    }
+
+    public ChangelogMode getChangelogMode() {
+        if (changelogMode == null) {
+            changelogMode = consumedChangelogMode.deserialize();
+        }
+        return changelogMode;
     }
 
     @Override
@@ -96,23 +104,11 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
 
     @Override
     public int timeColumn() {
-        return -1;
-    }
-
-    @Override
-    public List<String> coPartitionArgs() {
-        return List.of();
+        return timeColumn;
     }
 
     @Override
     public Optional<ChangelogMode> changelogMode() {
-        if (changelogMode == null) {
-            final ChangelogMode.Builder builder = ChangelogMode.newBuilder();
-            for (byte expectedChange : expectedChanges) {
-                builder.addContainedKind(RowKind.fromByteValue(expectedChange));
-            }
-            changelogMode = builder.build();
-        }
-        return Optional.of(changelogMode);
+        return Optional.of(getChangelogMode());
     }
 }

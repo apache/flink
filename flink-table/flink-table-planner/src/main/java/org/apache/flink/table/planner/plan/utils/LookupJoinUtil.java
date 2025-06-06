@@ -392,6 +392,30 @@ public final class LookupJoinUtil {
                                                 .TABLE_EXEC_ASYNC_LOOKUP_OUTPUT_MODE))));
     }
 
+    public static AsyncLookupOptions getMergedMLPredictAsyncOptions(
+            Map<String, String> runtimeConfig,
+            TableConfig config,
+            ChangelogMode inputChangelogMode) {
+        Configuration queryConf = Configuration.fromMap(runtimeConfig);
+        ExecutionConfigOptions.AsyncOutputMode asyncOutputMode =
+                coalesce(
+                        queryConf.get(ASYNC_OUTPUT_MODE),
+                        config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_ML_PREDICT_OUTPUT_MODE));
+
+        return new AsyncLookupOptions(
+                coalesce(
+                        queryConf.get(ASYNC_CAPACITY),
+                        config.get(
+                                ExecutionConfigOptions
+                                        .TABLE_EXEC_ASYNC_ML_PREDICT_BUFFER_CAPACITY)),
+                coalesce(
+                                queryConf.get(ASYNC_TIMEOUT),
+                                config.get(
+                                        ExecutionConfigOptions.TABLE_EXEC_ASYNC_ML_PREDICT_TIMEOUT))
+                        .toMillis(),
+                convert(inputChangelogMode, asyncOutputMode));
+    }
+
     /**
      * This method determines whether async lookup is enabled according to the given lookup keys
      * with considering lookup {@link RelHint} and required upsertMaterialize. Note: it will not

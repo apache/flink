@@ -36,7 +36,7 @@ public interface Compilable {
      * pipelines to ensure backwards compatibility and enable stateful streaming job upgrades. See
      * {@link CompiledPlan} and the website documentation for more information.
      *
-     * <p>Note: The compiled plan feature is not supported in batch mode.
+     * <p>Note: The compiled plan feature is experimental in batch mode.
      *
      * @throws TableException if any of the statements is invalid or if the plan cannot be
      *     persisted.

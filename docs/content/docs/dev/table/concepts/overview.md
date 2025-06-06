@@ -103,7 +103,7 @@ or through user configuration (see [`table-exec-source-cdc-events-duplicate`]({{
 
 The following figure illustrates a `SELECT ... FROM` statement that querying an [upsert kafka source]({{< ref "docs/connectors/table/upsert-kafka" >}}).
 ```sql
-CREATE TABLE upsert_kakfa (
+CREATE TABLE upsert_kafka (
     id INT PRIMARY KEY NOT ENFORCED,
     message  STRING
 ) WITH (
@@ -111,7 +111,7 @@ CREATE TABLE upsert_kakfa (
     ...
 );
 
-SELECT * FROM upsert_kakfa;
+SELECT * FROM upsert_kafka;
 ```
 The table source only provides messages with *INSERT*, *UPDATE_AFTER* and *DELETE* type, while the downstream sink requires a complete changelog (including *UPDATE_BEFORE*). 
 As a result, although this query itself does not involve explicit stateful calculation, the planner still generates a stateful operator called "ChangelogNormalize" to help obtain the complete changelog.

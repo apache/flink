@@ -28,7 +28,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Iterators;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;

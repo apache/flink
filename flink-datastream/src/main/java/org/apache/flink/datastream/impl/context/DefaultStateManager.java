@@ -79,7 +79,7 @@ public class DefaultStateManager implements StateManager {
     }
 
     @Override
-    public <T> Optional<ValueState<T>> getState(ValueStateDeclaration<T> stateDeclaration)
+    public <T> Optional<ValueState<T>> getStateOptional(ValueStateDeclaration<T> stateDeclaration)
             throws Exception {
         ValueStateDescriptor<T> valueStateDescriptor =
                 new ValueStateDescriptor<>(
@@ -90,7 +90,14 @@ public class DefaultStateManager implements StateManager {
     }
 
     @Override
-    public <T> Optional<ListState<T>> getState(ListStateDeclaration<T> stateDeclaration)
+    public <T> ValueState<T> getState(ValueStateDeclaration<T> stateDeclaration) throws Exception {
+        Optional<ValueState<T>> stateOptional = getStateOptional(stateDeclaration);
+        checkStateIsAvailable(stateOptional);
+        return stateOptional.get();
+    }
+
+    @Override
+    public <T> Optional<ListState<T>> getStateOptional(ListStateDeclaration<T> stateDeclaration)
             throws Exception {
 
         ListStateDescriptor<T> listStateDescriptor =
@@ -114,8 +121,15 @@ public class DefaultStateManager implements StateManager {
     }
 
     @Override
-    public <K, V> Optional<MapState<K, V>> getState(MapStateDeclaration<K, V> stateDeclaration)
-            throws Exception {
+    public <T> ListState<T> getState(ListStateDeclaration<T> stateDeclaration) throws Exception {
+        Optional<ListState<T>> stateOptional = getStateOptional(stateDeclaration);
+        checkStateIsAvailable(stateOptional);
+        return stateOptional.get();
+    }
+
+    @Override
+    public <K, V> Optional<MapState<K, V>> getStateOptional(
+            MapStateDeclaration<K, V> stateDeclaration) throws Exception {
         MapStateDescriptor<K, V> mapStateDescriptor =
                 new MapStateDescriptor<>(
                         stateDeclaration.getName(),
@@ -127,8 +141,16 @@ public class DefaultStateManager implements StateManager {
     }
 
     @Override
-    public <T> Optional<ReducingState<T>> getState(ReducingStateDeclaration<T> stateDeclaration)
+    public <K, V> MapState<K, V> getState(MapStateDeclaration<K, V> stateDeclaration)
             throws Exception {
+        Optional<MapState<K, V>> stateOptional = getStateOptional(stateDeclaration);
+        checkStateIsAvailable(stateOptional);
+        return stateOptional.get();
+    }
+
+    @Override
+    public <T> Optional<ReducingState<T>> getStateOptional(
+            ReducingStateDeclaration<T> stateDeclaration) throws Exception {
         ReducingStateDescriptor<T> reducingStateDescriptor =
                 new ReducingStateDescriptor<>(
                         stateDeclaration.getName(),
@@ -139,7 +161,15 @@ public class DefaultStateManager implements StateManager {
     }
 
     @Override
-    public <IN, ACC, OUT> Optional<AggregatingState<IN, OUT>> getState(
+    public <T> ReducingState<T> getState(ReducingStateDeclaration<T> stateDeclaration)
+            throws Exception {
+        Optional<ReducingState<T>> stateOptional = getStateOptional(stateDeclaration);
+        checkStateIsAvailable(stateOptional);
+        return stateOptional.get();
+    }
+
+    @Override
+    public <IN, ACC, OUT> Optional<AggregatingState<IN, OUT>> getStateOptional(
             AggregatingStateDeclaration<IN, ACC, OUT> stateDeclaration) throws Exception {
         AggregatingStateDescriptor<IN, ACC, OUT> aggregatingStateDescriptor =
                 new AggregatingStateDescriptor<>(
@@ -151,7 +181,15 @@ public class DefaultStateManager implements StateManager {
     }
 
     @Override
-    public <K, V> Optional<BroadcastState<K, V>> getState(
+    public <IN, ACC, OUT> AggregatingState<IN, OUT> getState(
+            AggregatingStateDeclaration<IN, ACC, OUT> stateDeclaration) throws Exception {
+        Optional<AggregatingState<IN, OUT>> stateOptional = getStateOptional(stateDeclaration);
+        checkStateIsAvailable(stateOptional);
+        return stateOptional.get();
+    }
+
+    @Override
+    public <K, V> Optional<BroadcastState<K, V>> getStateOptional(
             BroadcastStateDeclaration<K, V> stateDeclaration) throws Exception {
         MapStateDescriptor<K, V> mapStateDescriptor =
                 new MapStateDescriptor<>(
@@ -161,6 +199,25 @@ public class DefaultStateManager implements StateManager {
                         TypeExtractor.createTypeInfo(
                                 stateDeclaration.getValueTypeDescriptor().getTypeClass()));
         return Optional.ofNullable(operatorStateStore.getBroadcastState(mapStateDescriptor));
+    }
+
+    @Override
+    public <K, V> BroadcastState<K, V> getState(BroadcastStateDeclaration<K, V> stateDeclaration)
+            throws Exception {
+        Optional<BroadcastState<K, V>> stateOptional = getStateOptional(stateDeclaration);
+        checkStateIsAvailable(stateOptional);
+        return stateOptional.get();
+    }
+
+    private void checkStateIsAvailable(Optional<?> stateOptional) {
+        if (stateOptional.isEmpty()) {
+            throw new IllegalStateException(
+                    "Failed to access the State. You may need to declare it first and ensure that "
+                            + "the context can access the State. For more information, please refer"
+                            + " to 'https://nightlies.apache.org/flink/flink-docs-master/docs"
+                            + "/dev/datastream-v2/context_and_state_processing"
+                            + "/#the-legitimacy-of-state-declaration-and-access'.");
+        }
     }
 
     /**

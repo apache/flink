@@ -29,8 +29,8 @@ LogicalProject(f1=[$1], f5=[$5])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[f1, f5], where=[IS NOT NULL(f3)])
-+- ChangelogNormalize(key=[f1, f2])
+Calc(select=[f1, f5])
++- ChangelogNormalize(key=[f1, f2], condition=[IS NOT NULL(f3)])
    +- Exchange(distribution=[hash[f1, f2]])
       +- Calc(select=[f1, f2, f3, f5], where=[OR(<(f1, 1), >(f2, 10))])
          +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2, f3, f4, f5, f6, f7])
@@ -50,8 +50,8 @@ LogicalProject(f0=[$0], f1=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[f0, f1], where=[IS NOT NULL(f0)])
-+- ChangelogNormalize(key=[f1, f2])
+Calc(select=[f0, f1])
++- ChangelogNormalize(key=[f1, f2], condition=[IS NOT NULL(f0)])
    +- Exchange(distribution=[hash[f1, f2]])
       +- Calc(select=[f0, f1, f2], where=[OR(<(f1, 1), >(f2, 10))])
          +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2])
@@ -90,8 +90,8 @@ LogicalProject(f1=[$1], f5=[$5])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[f1, f5], where=[IS NOT NULL(f3)])
-+- ChangelogNormalize(key=[f1, f2])
+Calc(select=[f1, f5])
++- ChangelogNormalize(key=[f1, f2], condition=[IS NOT NULL(f3)])
    +- Exchange(distribution=[hash[f1, f2]])
       +- Calc(select=[f1, f2, f3, f5], where=[<(f1, 1)])
          +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2, f3, f4, f5, f6, f7])
@@ -132,8 +132,8 @@ LogicalAggregate(group=[{0}], sum=[SUM($0)])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[f1, f1 AS sum], where=[OR(>(f1, 3), IS NULL(f2))])
-+- ChangelogNormalize(key=[f1])
+Calc(select=[f1, f1 AS sum])
++- ChangelogNormalize(key=[f1], condition=[OR(>(f1, 3), IS NULL(f2))])
    +- Exchange(distribution=[hash[f1]])
       +- Calc(select=[f1, f2], where=[<(f1, 10)])
          +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2])

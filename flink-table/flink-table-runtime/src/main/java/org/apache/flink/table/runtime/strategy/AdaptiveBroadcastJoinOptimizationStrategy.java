@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.graph.util.ImmutableStreamEdge;
 import org.apache.flink.streaming.api.graph.util.ImmutableStreamNode;
 import org.apache.flink.streaming.api.graph.util.StreamEdgeUpdateRequestInfo;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
-import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.ForwardForUnspecifiedPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
@@ -38,8 +38,10 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.apache.flink.table.runtime.strategy.AdaptiveJoinOptimizationUtils.filterEdges;
 import static org.apache.flink.table.runtime.strategy.AdaptiveJoinOptimizationUtils.isBroadcastJoin;
@@ -55,6 +57,7 @@ public class AdaptiveBroadcastJoinOptimizationStrategy
     private Long broadcastThreshold;
 
     private Map<Integer, Map<Integer, Long>> aggregatedInputBytesByTypeNumberAndNodeId;
+    private Set<Integer> optimizedAdaptiveJoinNodes;
 
     @Override
     public void initialize(StreamGraphContext context) {
@@ -62,6 +65,7 @@ public class AdaptiveBroadcastJoinOptimizationStrategy
         broadcastThreshold =
                 config.get(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD);
         aggregatedInputBytesByTypeNumberAndNodeId = new HashMap<>();
+        optimizedAdaptiveJoinNodes = new HashSet<>();
     }
 
     @Override
@@ -79,8 +83,8 @@ public class AdaptiveBroadcastJoinOptimizationStrategy
             ImmutableStreamNode adaptiveJoinNode,
             List<ImmutableStreamEdge> upstreamStreamEdges,
             AdaptiveJoin adaptiveJoin) {
-        if (!canPerformOptimization(
-                adaptiveJoinNode, context.getStreamGraph().getConfiguration())) {
+        if (!canPerformOptimization(adaptiveJoinNode, context)
+                || optimizedAdaptiveJoinNodes.contains(adaptiveJoinNode.getId())) {
             return;
         }
         for (ImmutableStreamEdge upstreamEdge : upstreamStreamEdges) {
@@ -98,82 +102,124 @@ public class AdaptiveBroadcastJoinOptimizationStrategy
                     adaptiveJoinNode, upstreamEdge.getTypeNumber(), producedBytes);
         }
 
-        // If all upstream nodes have finished, we attempt to optimize the AdaptiveJoin node.
-        if (context.areAllUpstreamNodesFinished(adaptiveJoinNode)) {
-            Long leftInputSize =
-                    aggregatedInputBytesByTypeNumberAndNodeId.get(adaptiveJoinNode.getId()).get(1);
+        FlinkJoinType joinType = adaptiveJoin.getJoinType();
+        Long leftInputSize = null;
+        Long rightInputSize = null;
+
+        // When either input side of the adaptive join meets broadcast requirements, the broadcast
+        // optimization can be immediately applied. This allows the opposite side to produce data
+        // in a pointwise manner if it has not yet started scheduling, thereby reducing the costs
+        // associated with shuffle writes and network overhead. Furthermore, in the future,
+        // when multi-input support is available in the runtime, it could enable chaining large
+        // input nodes with adaptive join nodes, further minimizing overall overhead.
+        if (context.checkUpstreamNodesFinished(adaptiveJoinNode, LEFT_INPUT_TYPE_NUMBER)) {
+            leftInputSize =
+                    aggregatedInputBytesByTypeNumberAndNodeId
+                            .get(adaptiveJoinNode.getId())
+                            .get(LEFT_INPUT_TYPE_NUMBER);
             checkState(
                     leftInputSize != null,
                     "Left input bytes of adaptive join [%s] is unknown, which is unexpected.",
                     adaptiveJoinNode.getId());
-            Long rightInputSize =
-                    aggregatedInputBytesByTypeNumberAndNodeId.get(adaptiveJoinNode.getId()).get(2);
+            boolean leftIsBuild = true;
+            if (checkInputSideCanBeBroadcast(joinType, leftIsBuild, leftInputSize)
+                    && tryBroadcastOptimization(
+                            adaptiveJoinNode, context, adaptiveJoin, leftIsBuild, leftInputSize)) {
+                return;
+            }
+        }
+        if (context.checkUpstreamNodesFinished(adaptiveJoinNode, RIGHT_INPUT_TYPE_NUMBER)) {
+            rightInputSize =
+                    aggregatedInputBytesByTypeNumberAndNodeId
+                            .get(adaptiveJoinNode.getId())
+                            .get(RIGHT_INPUT_TYPE_NUMBER);
             checkState(
                     rightInputSize != null,
                     "Right input bytes of adaptive join [%s] is unknown, which is unexpected.",
                     adaptiveJoinNode.getId());
+            boolean leftIsBuild = false;
+            if (checkInputSideCanBeBroadcast(joinType, leftIsBuild, rightInputSize)
+                    && tryBroadcastOptimization(
+                            adaptiveJoinNode, context, adaptiveJoin, leftIsBuild, rightInputSize)) {
+                return;
+            }
+        }
 
-            boolean leftSizeSmallerThanThreshold = leftInputSize <= broadcastThreshold;
-            boolean rightSizeSmallerThanThreshold = rightInputSize <= broadcastThreshold;
+        // When neither input meets broadcast thresholds, recompute the smaller side to provide
+        // better performance for the shuffle join.
+        if (leftInputSize != null && rightInputSize != null) {
+            LOG.debug(
+                    "The size of the specified side of the input data for the join node [{}] "
+                            + "is too large to be converted into a broadcast hash join. "
+                            + "The Join type: {}, Broadcast threshold: {} bytes, Left input size: "
+                            + "{} bytes, Right input size: {} bytes.",
+                    adaptiveJoinNode.getId(),
+                    joinType,
+                    broadcastThreshold,
+                    leftInputSize,
+                    rightInputSize);
             boolean leftSmallerThanRight = leftInputSize < rightInputSize;
-            FlinkJoinType joinType = adaptiveJoin.getJoinType();
-            boolean canBeBroadcast;
-            boolean leftIsBuild;
-            switch (joinType) {
-                case RIGHT:
-                    // For a right outer join, if the left side can be broadcast, then the left side
-                    // is
-                    // always the build side; otherwise, the smaller side is the build side.
-                    canBeBroadcast = leftSizeSmallerThanThreshold;
-                    leftIsBuild = true;
-                    break;
-                case INNER:
-                    canBeBroadcast = leftSizeSmallerThanThreshold || rightSizeSmallerThanThreshold;
-                    leftIsBuild = leftSmallerThanRight;
-                    break;
-                case LEFT:
-                case SEMI:
-                case ANTI:
-                    // For left outer / semi / anti join, if the right side can be broadcast, then
-                    // the
-                    // right side is always the build side; otherwise, the smaller side is the build
-                    // side.
-                    canBeBroadcast = rightSizeSmallerThanThreshold;
-                    leftIsBuild = false;
-                    break;
-                case FULL:
-                default:
-                    throw new RuntimeException(String.format("Unexpected join type %s.", joinType));
-            }
-
-            boolean isBroadcast = false;
-            if (canBeBroadcast) {
-                isBroadcast =
-                        tryModifyStreamEdgesForBroadcastJoin(
-                                adaptiveJoinNode.getInEdges(), context, leftIsBuild);
-
-                if (isBroadcast) {
-                    LOG.info(
-                            "The {} input data size of the join node [{}] is small enough, "
-                                    + "adaptively convert it to a broadcast hash join. Broadcast "
-                                    + "threshold bytes: {}, left input bytes: {}, right input bytes: {}.",
-                            leftIsBuild ? "left" : "right",
-                            adaptiveJoinNode.getId(),
-                            broadcastThreshold,
-                            leftInputSize,
-                            rightInputSize);
-                }
-            }
-            adaptiveJoin.markAsBroadcastJoin(
-                    isBroadcast, isBroadcast ? leftIsBuild : leftSmallerThanRight);
-
+            adaptiveJoin.markAsBroadcastJoin(false, leftSmallerThanRight);
+            optimizedAdaptiveJoinNodes.add(adaptiveJoinNode.getId());
             aggregatedInputBytesByTypeNumberAndNodeId.remove(adaptiveJoinNode.getId());
         }
     }
 
+    private boolean tryBroadcastOptimization(
+            ImmutableStreamNode adaptiveJoinNode,
+            StreamGraphContext context,
+            AdaptiveJoin adaptiveJoin,
+            boolean leftIsBuild,
+            long inputBytes) {
+        if (tryModifyStreamEdgesForBroadcastJoin(
+                adaptiveJoinNode.getInEdges(), context, leftIsBuild)) {
+            LOG.info(
+                    "The {} input data size of the join node [{}] is small enough, "
+                            + "adaptively convert it to a broadcast hash join. Broadcast "
+                            + "threshold bytes: {}, actual input bytes: {}.",
+                    leftIsBuild ? "left" : "right",
+                    adaptiveJoinNode.getId(),
+                    broadcastThreshold,
+                    inputBytes);
+            adaptiveJoin.markAsBroadcastJoin(true, leftIsBuild);
+            optimizedAdaptiveJoinNodes.add(adaptiveJoinNode.getId());
+            aggregatedInputBytesByTypeNumberAndNodeId.remove(adaptiveJoinNode.getId());
+            return true;
+        } else {
+            LOG.info(
+                    "Modification to stream edges for the join node [{}] failed. Keep the join node as is.",
+                    adaptiveJoinNode.getId());
+            return false;
+        }
+    }
+
+    private Boolean checkInputSideCanBeBroadcast(
+            FlinkJoinType joinType, boolean isLeftBuild, long producedBytes) {
+        if (producedBytes < broadcastThreshold) {
+            switch (joinType) {
+                case RIGHT:
+                    return isLeftBuild;
+                case INNER:
+                    return true;
+                case LEFT:
+                case SEMI:
+                case ANTI:
+                    return !isLeftBuild;
+                case FULL:
+                default:
+                    throw new RuntimeException(String.format("Unexpected join type %s.", joinType));
+            }
+        }
+        return false;
+    }
+
     private boolean canPerformOptimization(
-            ImmutableStreamNode adaptiveJoinNode, ReadableConfig config) {
-        return !isBroadcastJoinDisabled(config) && !isBroadcastJoin(adaptiveJoinNode);
+            ImmutableStreamNode adaptiveJoinNode, StreamGraphContext context) {
+        if (isBroadcastJoinDisabled(context.getStreamGraph().getConfiguration())
+                || isBroadcastJoin(adaptiveJoinNode)) {
+            return false;
+        }
+        return canPerformOptimizationAutomatic(context, adaptiveJoinNode);
     }
 
     private void aggregatedInputBytesByTypeNumber(
@@ -205,10 +251,16 @@ public class AdaptiveBroadcastJoinOptimizationStrategy
             List<ImmutableStreamEdge> inEdges, StreamGraphContext context, boolean leftIsBuild) {
         List<StreamEdgeUpdateRequestInfo> modifiedBuildSideEdges =
                 generateStreamEdgeUpdateRequestInfos(
-                        filterEdges(inEdges, leftIsBuild ? 1 : 2), new BroadcastPartitioner<>());
+                        filterEdges(
+                                inEdges,
+                                leftIsBuild ? LEFT_INPUT_TYPE_NUMBER : RIGHT_INPUT_TYPE_NUMBER),
+                        new BroadcastPartitioner<>());
         List<StreamEdgeUpdateRequestInfo> modifiedProbeSideEdges =
                 generateStreamEdgeUpdateRequestInfos(
-                        filterEdges(inEdges, leftIsBuild ? 2 : 1), new ForwardPartitioner<>());
+                        filterEdges(
+                                inEdges,
+                                leftIsBuild ? RIGHT_INPUT_TYPE_NUMBER : LEFT_INPUT_TYPE_NUMBER),
+                        new ForwardForUnspecifiedPartitioner<>());
         modifiedBuildSideEdges.addAll(modifiedProbeSideEdges);
 
         return context.modifyStreamEdge(modifiedBuildSideEdges);

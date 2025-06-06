@@ -24,6 +24,7 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.SupportsConcurrentExecutionAttempts;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.io.InputFormat;
@@ -119,9 +120,10 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.util.TestAnyModeReadingStreamOperator;
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.SerializedValue;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Iterables;
 
 import org.assertj.core.api.Assertions;
 import org.assertj.core.data.Offset;
@@ -155,6 +157,7 @@ import static org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator.ar
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Tests for {@link StreamingJobGraphGenerator} and {@link AdaptiveGraphManager}.
@@ -2161,6 +2164,32 @@ abstract class JobGraphGeneratorTestBase {
     void testOutputFormatSupportConcurrentExecutionAttempts() {
         testWhetherOutputFormatSupportsConcurrentExecutionAttempts(
                 new TestingOutputFormatSupportConcurrentExecutionAttempts<>(), true);
+    }
+
+    @Test
+    void testEnableAsyncStateForSyncOperatorThrowException() throws Exception {
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(new Configuration());
+        try {
+            env.fromData(1, 2, 3, 4, 5)
+                    .keyBy(k -> k)
+                    .flatMap(
+                            new FlatMapFunction<Integer, Integer>() {
+                                @Override
+                                public void flatMap(Integer value, Collector<Integer> out)
+                                        throws Exception {
+                                    out.collect(value);
+                                }
+                            })
+                    .enableAsyncState()
+                    .print();
+            fail("Enabling async state for synchronous operators is forbidden.");
+        } catch (UnsupportedOperationException e) {
+            assertThat(e.getMessage())
+                    .isEqualTo(
+                            "The transformation does not support "
+                                    + "async state, or you are enabling the async state without a keyed context (not behind a keyBy()).");
+        }
     }
 
     private void testWhetherOutputFormatSupportsConcurrentExecutionAttempts(

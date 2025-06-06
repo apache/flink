@@ -19,15 +19,17 @@
 package org.apache.flink.table.runtime.operators.calc.async;
 
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
-import java.util.function.Function;
 
 /**
  * Inspired by {@link org.apache.flink.table.runtime.operators.join.lookup.DelegatingResultFuture}
@@ -36,35 +38,41 @@ import java.util.function.Function;
 public class DelegatingAsyncResultFuture implements BiConsumer<Object, Throwable> {
 
     private final ResultFuture<Object> delegatedResultFuture;
-    private final List<Object> synchronousResults = new ArrayList<>();
-    private Function<Object, RowData> outputFactory;
+    private final int totalResultSize;
+    private final Map<Integer, Object> synchronousIndexToResults = new HashMap<>();
     private CompletableFuture<Object> future;
-    private CompletableFuture<Object> convertedFuture;
+    private DataStructureConverter<Object, Object> converter;
 
-    public DelegatingAsyncResultFuture(ResultFuture<Object> delegatedResultFuture) {
+    private int asyncIndex = -1;
+    private RowKind rowKind;
+
+    public DelegatingAsyncResultFuture(
+            ResultFuture<Object> delegatedResultFuture, int totalResultSize) {
         this.delegatedResultFuture = delegatedResultFuture;
+        this.totalResultSize = totalResultSize;
     }
 
-    public synchronized void addSynchronousResult(Object object) {
-        synchronousResults.add(object);
+    public synchronized void setRowKind(RowKind rowKind) {
+        this.rowKind = rowKind;
     }
 
-    public synchronized Object getSynchronousResult(int index) {
-        return synchronousResults.get(index);
+    public synchronized void addSynchronousResult(int resultIndex, Object object) {
+        synchronousIndexToResults.put(resultIndex, object);
     }
 
-    public void setOutputFactory(Function<Object, RowData> outputFactory) {
-        this.outputFactory = outputFactory;
+    public synchronized void addAsyncIndex(int resultIndex) {
+        Preconditions.checkState(asyncIndex == -1);
+        asyncIndex = resultIndex;
     }
 
     public CompletableFuture<?> createAsyncFuture(
             DataStructureConverter<Object, Object> converter) {
         Preconditions.checkState(future == null);
-        Preconditions.checkState(convertedFuture == null);
-        Preconditions.checkNotNull(outputFactory);
+        Preconditions.checkState(this.converter == null);
+        Preconditions.checkState(this.asyncIndex >= 0);
         future = new CompletableFuture<>();
-        convertedFuture = future.thenApply(converter::toInternal);
-        this.convertedFuture.whenComplete(this);
+        this.converter = converter;
+        future.whenComplete(this);
         return future;
     }
 
@@ -74,11 +82,26 @@ public class DelegatingAsyncResultFuture implements BiConsumer<Object, Throwable
             delegatedResultFuture.completeExceptionally(throwable);
         } else {
             try {
-                RowData rowData = outputFactory.apply(o);
-                delegatedResultFuture.complete(java.util.Collections.singleton(rowData));
+                delegatedResultFuture.complete(
+                        () -> {
+                            Object converted = converter.toInternal(o);
+                            return Collections.singleton(createResult(converted));
+                        });
             } catch (Throwable t) {
                 delegatedResultFuture.completeExceptionally(t);
             }
         }
+    }
+
+    private RowData createResult(Object asyncResult) {
+        GenericRowData result = new GenericRowData(totalResultSize);
+        if (rowKind != null) {
+            result.setRowKind(rowKind);
+        }
+        for (Map.Entry<Integer, Object> entry : synchronousIndexToResults.entrySet()) {
+            result.setField(entry.getKey(), entry.getValue());
+        }
+        result.setField(asyncIndex, asyncResult);
+        return result;
     }
 }

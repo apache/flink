@@ -204,8 +204,7 @@ public final class ActorSystemScheduledExecutorAdapter implements ScheduledExecu
                 return 0;
             }
 
-            long diff = getDelay(TimeUnit.NANOSECONDS) - o.getDelay(TimeUnit.NANOSECONDS);
-            return (diff < 0L) ? -1 : (diff > 0L) ? 1 : 0;
+            return Long.compare(getDelay(TimeUnit.NANOSECONDS), o.getDelay(TimeUnit.NANOSECONDS));
         }
 
         @Override

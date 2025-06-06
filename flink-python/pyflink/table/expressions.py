@@ -180,7 +180,7 @@ Unbounded over windows start with the first row of a partition.
 
 .. versionadded:: 1.12.0
 """
-UNBOUNDED_ROW = Expression("UNBOUNDED_ROW")  # type: Expression
+UNBOUNDED_ROW: Expression = Expression("UNBOUNDED_ROW")
 
 
 """
@@ -190,7 +190,7 @@ Unbounded over windows start with the first row of a partition.
 
 .. versionadded:: 1.12.0
 """
-UNBOUNDED_RANGE = Expression("UNBOUNDED_RANGE")  # type: Expression
+UNBOUNDED_RANGE: Expression = Expression("UNBOUNDED_RANGE")
 
 
 """
@@ -199,7 +199,7 @@ Use this for setting the upper bound of the window to the current row.
 
 .. versionadded:: 1.12.0
 """
-CURRENT_ROW = Expression("CURRENT_ROW")  # type: Expression
+CURRENT_ROW: Expression = Expression("CURRENT_ROW")
 
 
 """
@@ -209,7 +209,7 @@ all rows with the same sort key as the current row are included in the window.
 
 .. versionadded:: 1.12.0
 """
-CURRENT_RANGE = Expression("CURRENT_RANGE")  # type: Expression
+CURRENT_RANGE: Expression = Expression("CURRENT_RANGE")
 
 
 def current_database() -> Expression:
@@ -775,12 +775,12 @@ def json(value) -> Expression:
     Expects a raw, pre-formatted JSON string and returns its values as-is without escaping
     it as a string.
 
-    This function can currently only be used within the `JSON_OBJECT` function. It allows passing
-    pre-formatted JSON strings that will be inserted directly into the resulting JSON structure
-    rather than being escaped as a string value. This allows storing nested JSON structures in a
-    JSON_OBJECT without processing them as strings, which is often useful when ingesting already
-    formatted json data. If the value is NULL or empty, the function
-    returns NULL.
+    This function can currently only be used within the `JSON_OBJECT` and `JSON_ARRAY` functions.
+    It allows passing pre-formatted JSON strings that will be inserted directly into the
+    resulting JSON structure rather than being escaped as a string value. This allows storing
+    nested JSON structures in a `JSON_OBJECT` or `JSON_ARRAY` without processing them as strings,
+    which is often useful when ingesting already formatted json data. If the value is NULL or
+    empty, the function returns NULL.
 
     Examples:
     ::
@@ -790,6 +790,12 @@ def json(value) -> Expression:
 
         >>> # {"K": null}
         >>> json_object(JsonOnNull.NULL, "K", json(''))
+
+        >>> # [{"nested":{"value":42}}]
+        >>> json_array(JsonOnNull.NULL, json('{"nested":{"value": 42}}'))
+
+        >>> # [null]
+        >>> json_array(JsonOnNull.NULL, json(''))
 
         >>> # Invalid - JSON function can only be used within JSON_OBJECT
         >>> json('{"value": 42}')
@@ -843,8 +849,12 @@ def json_object(on_null: JsonOnNull = JsonOnNull.NULL, *args) -> Expression:
         >>> json_object(JsonOnNull.ABSENT, "K1", null_of(DataTypes.STRING())) # '{}'
 
         >>> # '{"K1":{"K2":"V"}}'
+        >>> json_object(JsonOnNull.NULL, "K1", json('{"K2":"V"}'))
+
+        >>> # '{"K1":{"K2":"V"}}'
         >>> json_object(JsonOnNull.NULL, "K1", json_object(JsonOnNull.NULL, "K2", "V"))
 
+    .. seealso:: :func:`~pyflink.table.expressions.json`
     .. seealso:: :func:`~pyflink.table.expressions.json_array`
     """
     return _varargs_op("jsonObject", *(on_null._to_j_json_on_null(), *args))
@@ -898,6 +908,10 @@ def json_array(on_null: JsonOnNull = JsonOnNull.ABSENT, *args) -> Expression:
 
         >>> json_array(JsonOnNull.NULL, json_array(JsonOnNull.NULL, 1)) # '[[1]]'
 
+        # '[{"nested_json":{"value":42}}]'
+        >>> json_array(JsonOnNull.NULL, json('{"nested_json": {"value": 42}}'))
+
+    .. seealso:: :func:`~pyflink.table.expressions.json`
     .. seealso:: :func:`~pyflink.table.expressions.json_object`
     """
     return _varargs_op("jsonArray", *(on_null._to_j_json_on_null(), *args))

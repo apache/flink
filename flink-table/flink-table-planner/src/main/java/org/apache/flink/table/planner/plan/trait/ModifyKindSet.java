@@ -106,19 +106,27 @@ public class ModifyKindSet {
     }
 
     /** Returns the default {@link ChangelogMode} from this {@link ModifyKindSet}. */
-    public ChangelogMode toChangelogMode() {
-        ChangelogMode.Builder builder = ChangelogMode.newBuilder();
-        if (this.contains(ModifyKind.INSERT)) {
-            builder.addContainedKind(RowKind.INSERT);
-        }
-        if (this.contains(ModifyKind.UPDATE)) {
+    public ChangelogMode toDefaultChangelogMode() {
+        final ChangelogMode.Builder builder = toChangelogModeBuilder();
+        if (contains(ModifyKind.UPDATE)) {
             builder.addContainedKind(RowKind.UPDATE_BEFORE);
-            builder.addContainedKind(RowKind.UPDATE_AFTER);
-        }
-        if (this.contains(ModifyKind.DELETE)) {
-            builder.addContainedKind(RowKind.DELETE);
         }
         return builder.build();
+    }
+
+    /** Returns a builder for {@link ChangelogMode} that is initialized from minimal traits. */
+    public ChangelogMode.Builder toChangelogModeBuilder() {
+        final ChangelogMode.Builder builder = ChangelogMode.newBuilder();
+        if (contains(ModifyKind.INSERT)) {
+            builder.addContainedKind(RowKind.INSERT);
+        }
+        if (contains(ModifyKind.UPDATE)) {
+            builder.addContainedKind(RowKind.UPDATE_AFTER);
+        }
+        if (contains(ModifyKind.DELETE)) {
+            builder.addContainedKind(RowKind.DELETE);
+        }
+        return builder;
     }
 
     @Override

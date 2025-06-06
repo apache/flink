@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.Set;
 
 import static java.util.stream.Collectors.toSet;
-import static org.apache.flink.shaded.guava32.com.google.common.base.Predicates.not;
+import static org.apache.flink.shaded.guava33.com.google.common.base.Predicates.not;
 import static org.apache.flink.streaming.api.CheckpointingMode.convertToCheckpointingMode;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 

@@ -97,12 +97,26 @@ the same time. For applications with large state in Flink, this often ties up to
 When a savepoint is manually triggered, it may be in process concurrently with an ongoing checkpoint.
 
 
-## Tuning RocksDB
+## Tuning RocksDB or ForSt
 
 The state storage workhorse of many large scale Flink streaming applications is the *RocksDB State Backend*.
 The backend scales well beyond main memory and reliably stores large [keyed state]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}).
 
+If you are handling very large state, even exceeding the local disk space of the TaskManagers, you may want to consider
+using the disaggregated state store [ForStStateBackend]({{< ref "docs/deployment/config" >}}#forst-state-backend).
+This backend stores the state in a separate storage system, such as HDFS or S3, and only keeps the
+state metadata and cache in the TaskManagers. And the [State API V2]({{< ref "docs/dev/datastream/fault-tolerance/state_v2" >}})
+is also recommended to cooperate with ForStStateBackend for large state applications.
+
 RocksDB's performance can vary with configuration, this section outlines some best-practices for tuning jobs that use the RocksDB State Backend.
+
+{{< hint info >}}
+The design of ForSt is very similar to RocksDB, and the configurable options are almost the same,
+so you can refer to following sections to configure ForSt.
+
+The following article is introduced from the perspective of RocksDB. If you want to configure ForSt
+in a similar way, you need to use the corresponding configuration under ForSt.
+{{< /hint >}}
 
 ### Incremental Checkpoints
 

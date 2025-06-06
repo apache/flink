@@ -156,13 +156,6 @@ public abstract class StreamExecWindowAggregateBase extends StreamExecAggregateB
         } else if (windowSpec instanceof CumulativeWindowSpec) {
             Duration maxSize = ((CumulativeWindowSpec) windowSpec).getMaxSize();
             Duration step = ((CumulativeWindowSpec) windowSpec).getStep();
-            if (maxSize.toMillis() % step.toMillis() != 0) {
-                throw new TableException(
-                        String.format(
-                                "CUMULATE table function based aggregate requires maxSize must be an "
-                                        + "integral multiple of step, but got maxSize %s ms and step %s ms",
-                                maxSize.toMillis(), step.toMillis()));
-            }
             SliceAssigners.CumulativeSliceAssigner assigner =
                     SliceAssigners.cumulative(timeAttributeIndex, shiftTimeZone, maxSize, step);
             Duration offset = ((CumulativeWindowSpec) windowSpec).getOffset();

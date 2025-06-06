@@ -33,10 +33,10 @@ import java.util.concurrent.Executors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit test for {@link ForStGeneralMultiGetOperation}. */
-public class ForStGeneralMultiGetOperationTest extends ForStDBOperationTestBase {
+class ForStGeneralMultiGetOperationTest extends ForStDBOperationTestBase {
 
     @Test
-    public void testValueStateMultiGet() throws Exception {
+    void testValueStateMultiGet() throws Exception {
         ForStValueState<Integer, VoidNamespace, String> valueState1 =
                 buildForStValueState("test-multiGet-1");
         ForStValueState<Integer, VoidNamespace, String> valueState2 =
@@ -76,7 +76,7 @@ public class ForStGeneralMultiGetOperationTest extends ForStDBOperationTestBase 
     }
 
     @Test
-    public void testListStateMultiGet() throws Exception {
+    void testListStateMultiGet() throws Exception {
         ForStListState<Integer, VoidNamespace, String> listState1 =
                 buildForStListState("test-multiGet-1");
         ForStListState<Integer, VoidNamespace, String> listState2 =
@@ -99,9 +99,6 @@ public class ForStGeneralMultiGetOperationTest extends ForStDBOperationTestBase 
             value.add(String.valueOf(i + 1));
 
             resultCheckList.add(Tuple2.of(value, future));
-            if (value == null) {
-                continue;
-            }
             byte[] keyBytes = request.buildSerializedKey();
             byte[] valueBytes = table.serializeValue(value);
             db.put(request.getColumnFamilyHandle(), keyBytes, valueBytes);
@@ -120,7 +117,7 @@ public class ForStGeneralMultiGetOperationTest extends ForStDBOperationTestBase 
                             (e) -> {
                                 assertThat(expected.remove(e)).isTrue();
                             });
-            assertThat(expected.isEmpty()).isTrue();
+            assertThat(expected).isEmpty();
         }
         executor.shutdownNow();
     }

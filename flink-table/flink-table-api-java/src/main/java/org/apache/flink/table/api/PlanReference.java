@@ -19,10 +19,12 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Objects;
 
 /**
@@ -67,7 +69,13 @@ public abstract class PlanReference {
     /** Create a reference starting from a JSON string. */
     public static PlanReference fromJsonString(String jsonString) {
         Objects.requireNonNull(jsonString, "Json string cannot be null");
-        return new ContentPlanReference(jsonString);
+        return new JsonContentPlanReference(jsonString);
+    }
+
+    /** Create a reference starting from a Smile binary representation. */
+    public static PlanReference fromSmileBytes(byte[] smileBytes) {
+        Objects.requireNonNull(smileBytes, "Smile bytes cannot be null");
+        return new BytesContentPlanReference(smileBytes);
     }
 
     /**
@@ -124,12 +132,12 @@ public abstract class PlanReference {
     }
 
     /** Plan reference to a string containing the serialized persisted plan in JSON. */
-    @Experimental
-    public static class ContentPlanReference extends PlanReference {
+    @PublicEvolving
+    public static class JsonContentPlanReference extends PlanReference {
 
         private final String content;
 
-        private ContentPlanReference(String content) {
+        private JsonContentPlanReference(String content) {
             this.content = content;
         }
 
@@ -145,7 +153,7 @@ public abstract class PlanReference {
             if (o == null || getClass() != o.getClass()) {
                 return false;
             }
-            ContentPlanReference that = (ContentPlanReference) o;
+            JsonContentPlanReference that = (JsonContentPlanReference) o;
             return Objects.equals(content, that.content);
         }
 
@@ -157,6 +165,43 @@ public abstract class PlanReference {
         @Override
         public String toString() {
             return "Plan:\n" + content;
+        }
+    }
+
+    /** Plan reference to binary bytes containing the serialized persisted plan in Smile. */
+    @PublicEvolving
+    public static class BytesContentPlanReference extends PlanReference {
+
+        private final byte[] content;
+
+        private BytesContentPlanReference(byte[] content) {
+            this.content = content;
+        }
+
+        public byte[] getContent() {
+            return content;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            BytesContentPlanReference that = (BytesContentPlanReference) o;
+            return Arrays.equals(content, that.content);
+        }
+
+        @Override
+        public int hashCode() {
+            return Arrays.hashCode(content);
+        }
+
+        @Override
+        public String toString() {
+            return "Plan:\n" + Arrays.toString(content);
         }
     }
 

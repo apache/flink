@@ -25,7 +25,12 @@ import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.AppendProcessTableFunctionBase;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.DescriptorFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyArgFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidUpdatingSemanticsFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MultiInputFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RequiredTimeFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarArgsFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsRowFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsRowPassThroughFunction;
@@ -33,6 +38,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetPassThroughFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedTableAsRowFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedTableAsSetFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingUpsertFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.User;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
@@ -76,10 +82,18 @@ public class ProcessTableFunctionTest extends TableTestBase {
         util.tableEnv()
                 .executeSql("CREATE VIEW t_updating AS SELECT name, COUNT(*) FROM t GROUP BY name");
         util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE t_watermarked (name STRING, score INT, ts TIMESTAMP_LTZ(3), WATERMARK FOR ts AS ts) "
+                                + "WITH ('connector' = 'datagen')");
+        util.tableEnv()
                 .executeSql("CREATE TABLE t_sink (`out` STRING) WITH ('connector' = 'blackhole')");
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE t_keyed_sink (`name` STRING, `out` STRING) WITH ('connector' = 'blackhole')");
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE t_full_delete_sink (`name` STRING PRIMARY KEY NOT ENFORCED, `name0` STRING, `count` BIGINT, `mode` STRING) "
+                                + "WITH ('connector' = 'values')");
     }
 
     @Test
@@ -135,6 +149,23 @@ public class ProcessTableFunctionTest extends TableTestBase {
     }
 
     @Test
+    void testDescriptors() {
+        util.addTemporarySystemFunction("f", DescriptorFunction.class);
+        util.verifyRelPlan(
+                "SELECT * FROM f("
+                        + "columnList1 => DESCRIPTOR(a), "
+                        + "columnList2 => DESCRIPTOR(b, c), "
+                        + "columnList3 => DESCRIPTOR())");
+    }
+
+    @Test
+    void testOnTime() {
+        util.addTemporarySystemFunction("f", RequiredTimeFunction.class);
+        util.verifyRelPlan(
+                "SELECT `out`, `rowtime` FROM f(r => TABLE t_watermarked, on_time => DESCRIPTOR(ts))");
+    }
+
+    @Test
     void testMissingUid() {
         // Function name contains special characters and can thus not be used as UID
         util.addTemporarySystemFunction("f*", TableAsSetFunction.class);
@@ -177,7 +208,6 @@ public class ProcessTableFunctionTest extends TableTestBase {
     @Test
     void testUidPipelineMergeWithFanOut() {
         util.addTemporarySystemFunction("f", TableAsSetFunction.class);
-
         util.verifyExecPlan(
                 util.tableEnv()
                         .createStatementSet()
@@ -190,7 +220,6 @@ public class ProcessTableFunctionTest extends TableTestBase {
     @Test
     void testTableAsRowOptionalUid() {
         util.addTemporarySystemFunction("f", TableAsRowFunction.class);
-
         util.verifyExecPlan(
                 util.tableEnv()
                         .createStatementSet()
@@ -202,97 +231,203 @@ public class ProcessTableFunctionTest extends TableTestBase {
     @MethodSource("errorSpecs")
     void testErrorBehavior(ErrorSpec spec) {
         util.addTemporarySystemFunction("f", spec.functionClass);
-        assertThatThrownBy(() -> util.verifyExecPlan(spec.sql))
+        assertThatThrownBy(
+                        () -> {
+                            if (spec.selectSql != null) {
+                                util.verifyExecPlan(spec.selectSql);
+                            } else {
+                                util.verifyExecPlan(
+                                        util.tableEnv()
+                                                .createStatementSet()
+                                                .addInsertSql(spec.insertIntoSql));
+                            }
+                        })
                 .satisfies(anyCauseMatches(spec.errorMessage));
     }
 
     private static Stream<ErrorSpec> errorSpecs() {
         return Stream.of(
-                ErrorSpec.of(
+                ErrorSpec.ofSelect(
                         "invalid uid",
                         ScalarArgsFunction.class,
                         "SELECT * FROM f(uid => '%', i => 1, b => true)",
                         "Invalid unique identifier for process table function. "
                                 + "The `uid` argument must be a string literal that follows the pattern [a-zA-Z_][a-zA-Z-_0-9]*. "
                                 + "But found: %"),
-                ErrorSpec.of(
+                ErrorSpec.ofSelect(
                         "typed table as row with invalid input",
                         TypedTableAsRowFunction.class,
                         // function expects <STRING name, INT score>
                         "SELECT * FROM f(u => TABLE t_type_diff, i => 1)",
                         "No match found for function signature "
-                                + "f(<RecordType(CHAR(3) name, BOOLEAN isValid)>, <NUMERIC>, <CHARACTER>)"),
-                ErrorSpec.of(
+                                + "f(<RecordType(CHAR(3) name, BOOLEAN isValid)>, <NUMERIC>, <COLUMN_LIST>, <CHARACTER>)"),
+                ErrorSpec.ofSelect(
                         "table as set with missing partition by",
                         TableAsSetFunction.class,
                         "SELECT * FROM f(r => TABLE t, i => 1)",
                         "Table argument 'r' requires a PARTITION BY clause for parallel processing."),
-                ErrorSpec.of(
+                ErrorSpec.ofSelect(
                         "typed table as set with invalid input",
                         TypedTableAsSetFunction.class,
                         // function expects <STRING name, INT score>
                         "SELECT * FROM f(u => TABLE t_type_diff PARTITION BY name, i => 1)",
                         "No match found for function signature "
-                                + "f(<RecordType(CHAR(3) name, BOOLEAN isValid)>, <NUMERIC>, <CHARACTER>)"),
-                ErrorSpec.of(
+                                + "f(<RecordType(CHAR(3) name, BOOLEAN isValid)>, <NUMERIC>, <COLUMN_LIST>, <CHARACTER>)"),
+                ErrorSpec.ofSelect(
                         "table function instead of process table function",
                         NoProcessTableFunction.class,
                         "SELECT * FROM f(r => TABLE t)",
                         "Only scalar arguments are supported at this location. "
                                 + "But argument 'r' declared the following traits: [TABLE, TABLE_AS_ROW]"),
-                ErrorSpec.of(
+                ErrorSpec.ofSelect(
                         "reserved args",
                         ReservedArgFunction.class,
                         "SELECT * FROM f(uid => 'my-ptf')",
-                        "Function signature must not declare system arguments. Reserved argument names are: [uid]"),
-                ErrorSpec.of(
+                        "Function signature must not declare system arguments. Reserved argument names are: [on_time, uid]"),
+                ErrorSpec.ofSelect(
                         "multiple table args",
-                        MultiTableFunction.class,
+                        InvalidMultiTableWithRowFunction.class,
                         "SELECT * FROM f(r1 => TABLE t, r2 => TABLE t)",
-                        "Currently, only signatures with at most one table argument are supported."),
-                ErrorSpec.of(
+                        "All table arguments must use set semantics if multiple table arguments are declared."),
+                ErrorSpec.ofSelect(
                         "row instead of table",
                         TableAsRowFunction.class,
                         "SELECT * FROM f(r => ROW(42), i => 1)",
                         "Invalid argument value. Argument 'r' expects a table to be passed."),
-                ErrorSpec.of(
+                ErrorSpec.ofSelect(
                         "table as row partition by",
                         TableAsRowFunction.class,
                         "SELECT * FROM f(r => TABLE t PARTITION BY name, i => 1)",
                         "Only tables with set semantics may be partitioned. "
                                 + "Invalid PARTITION BY clause in the 0-th operand of table function 'f'"),
-                ErrorSpec.of(
+                ErrorSpec.ofSelect(
                         "invalid partition by clause",
                         TableAsSetFunction.class,
                         "SELECT * FROM f(r => TABLE t PARTITION BY invalid, i => 1)",
                         "Invalid column 'invalid' for PARTITION BY clause. Available columns are: [name, score]"),
-                ErrorSpec.of(
+                ErrorSpec.ofSelect(
                         "unsupported order by",
                         TableAsSetFunction.class,
                         "SELECT * FROM f(r => TABLE t PARTITION BY name ORDER BY score, i => 1)",
                         "ORDER BY clause is currently not supported."),
-                ErrorSpec.of(
+                ErrorSpec.ofSelect(
                         "updates into insert-only table arg",
                         TableAsSetFunction.class,
                         "SELECT * FROM f(r => TABLE t_updating PARTITION BY name, i => 1)",
                         "StreamPhysicalProcessTableFunction doesn't support consuming update changes"),
-                ErrorSpec.of(
+                ErrorSpec.ofSelect(
                         "updates into POJO table arg",
                         InvalidTypedUpdatingArgFunction.class,
                         "SELECT * FROM f(r => TABLE t_updating, i => 1)",
                         "Table arguments that support updates must use a row type."),
-                ErrorSpec.of(
+                ErrorSpec.ofSelect(
                         "uid conflict",
                         TableAsSetFunction.class,
                         "SELECT * FROM f(r => TABLE t PARTITION BY name, i => 42, uid => 'same') "
                                 + "UNION ALL SELECT * FROM f(r => TABLE t PARTITION BY name, i => 999, uid => 'same')",
                         "Duplicate unique identifier 'same' detected among process table functions. "
                                 + "Make sure that all PTF calls have an identifier defined that is globally unique."),
-                ErrorSpec.of(
+                ErrorSpec.ofSelect(
                         "no updates and pass through",
                         UpdatingPassThrough.class,
                         "SELECT * FROM f(r => TABLE t PARTITION BY name)",
-                        "Signatures with updating inputs must not pass columns through."));
+                        "Signatures with updating inputs must not pass columns through."),
+                ErrorSpec.ofSelect(
+                        "invalid descriptor",
+                        DescriptorFunction.class,
+                        "SELECT * FROM f(columnList1 => NULL, columnList3 => DESCRIPTOR(b.INVALID))",
+                        "column alias must be a simple identifier"),
+                ErrorSpec.ofSelect(
+                        "ambiguous on_time reference",
+                        TableAsRowFunction.class,
+                        "WITH duplicate_ts AS (SELECT ts AS ts1, ts AS ts2 FROM t_watermarked) "
+                                + "SELECT * FROM f(r => TABLE duplicate_ts, i => 1, on_time => DESCRIPTOR(ts1, ts2))",
+                        "Ambiguous time attribute found. The `on_time` argument must reference at "
+                                + "most one column in a table argument. Currently, the columns in "
+                                + "`on_time` point to both 'ts1' and 'ts2' in table argument 'r'."),
+                ErrorSpec.ofSelect(
+                        "invalid on_time data type",
+                        RequiredTimeFunction.class,
+                        "SELECT * FROM f(r => TABLE t_watermarked)",
+                        "Table argument 'r' requires a time attribute. "
+                                + "Please provide one using the implicit `on_time` argument. "
+                                + "For example: myFunction(..., on_time => DESCRIPTOR(`my_timestamp`)"),
+                ErrorSpec.ofSelect(
+                        "invalid on_time column",
+                        TableAsRowFunction.class,
+                        "SELECT * FROM f(r => TABLE t_watermarked, i => 1, on_time => DESCRIPTOR(ts, INVALID))",
+                        "Invalid time attribute declaration. Each column in the `on_time` argument must "
+                                + "reference at least one column in one of the table arguments. "
+                                + "Unknown references: [INVALID]"),
+                ErrorSpec.ofSelect(
+                        "invalid optional table argument",
+                        OptionalUntypedTable.class,
+                        "SELECT * FROM f()",
+                        "Table arguments must not be optional."),
+                ErrorSpec.ofSelect(
+                        "no changelog support for tables with row semantics",
+                        InvalidUpdatingSemanticsFunction.class,
+                        "SELECT * FROM f(r => TABLE t)",
+                        "PTFs that take table arguments with row semantics don't support updating output. "
+                                + "Table argument 'r' of function 'f' must use set semantics."),
+                ErrorSpec.ofSelect(
+                        "on_time is not supported on updating output",
+                        UpdatingUpsertFunction.class,
+                        "SELECT * FROM f(r => TABLE t_watermarked PARTITION BY name, on_time => DESCRIPTOR(ts))",
+                        "Time operations using the `on_time` argument are currently not supported for "
+                                + "PTFs that consume or produce updates."),
+                ErrorSpec.ofSelect(
+                        "no pass-through for multiple table args",
+                        InvalidPassThroughTables.class,
+                        "SELECT * FROM f(r1 => TABLE t, r2 => TABLE t)",
+                        "Pass-through columns are not supported if multiple table arguments are declared."),
+                ErrorSpec.ofSelect(
+                        "on_time must be declared for multiple table args",
+                        MultiInputFunction.class,
+                        "SELECT * FROM f(in1 => TABLE t PARTITION BY name, in2 => TABLE t_watermarked PARTITION BY name, "
+                                + "on_time => DESCRIPTOR(ts))",
+                        "Invalid time attribute declaration. If multiple tables are declared, "
+                                + "the `on_time` argument must reference a time column for each table argument "
+                                + "or none. Missing time attributes for: [in1]"),
+                ErrorSpec.ofSelect(
+                        "different partition keys by data type",
+                        MultiInputFunction.class,
+                        "SELECT * FROM f(in1 => TABLE t PARTITION BY score, in2 => TABLE t PARTITION BY name)",
+                        "Invalid PARTITION BY columns. The number of columns and their data types must match across all "
+                                + "involved table arguments. Given partition key sets: [INT NOT NULL], [VARCHAR(5) NOT NULL]"),
+                ErrorSpec.ofSelect(
+                        "different partition keys by column count",
+                        MultiInputFunction.class,
+                        "SELECT * FROM f(in1 => TABLE t PARTITION BY score, in2 => TABLE t)",
+                        "Invalid PARTITION BY columns. The number of columns and their data types must match across all "
+                                + "involved table arguments. Given partition key sets: [INT NOT NULL], []"),
+                ErrorSpec.ofSelect(
+                        "maximum table arguments reached",
+                        HighMultiInputFunction.class,
+                        "SELECT * FROM f("
+                                + "in1 => TABLE t PARTITION BY score, "
+                                + "in2 => TABLE t PARTITION BY score, "
+                                + "in3 => TABLE t PARTITION BY score, "
+                                + "in4 => TABLE t PARTITION BY score, "
+                                + "in5 => TABLE t PARTITION BY score, "
+                                + "in6 => TABLE t PARTITION BY score, "
+                                + "in7 => TABLE t PARTITION BY score, "
+                                + "in8 => TABLE t PARTITION BY score, "
+                                + "in9 => TABLE t PARTITION BY score, "
+                                + "in10 => TABLE t PARTITION BY score, "
+                                + "in11 => TABLE t PARTITION BY score, "
+                                + "in12 => TABLE t PARTITION BY score, "
+                                + "in13 => TABLE t PARTITION BY score, "
+                                + "in14 => TABLE t PARTITION BY score, "
+                                + "in15 => TABLE t PARTITION BY score, "
+                                + "in16 => TABLE t PARTITION BY score, "
+                                + "in17 => TABLE t PARTITION BY score, "
+                                + "in18 => TABLE t PARTITION BY score, "
+                                + "in19 => TABLE t PARTITION BY score, "
+                                + "in20 => TABLE t PARTITION BY score, "
+                                + "in21 => TABLE t PARTITION BY score"
+                                + ")",
+                        "Unsupported table argument count. Currently, the number of input tables is limited to 20."));
     }
 
     /** Testing function. */
@@ -302,11 +437,11 @@ public class ProcessTableFunctionTest extends TableTestBase {
     }
 
     /** Testing function. */
-    public static class MultiTableFunction extends ProcessTableFunction<String> {
+    public static class InvalidMultiTableWithRowFunction extends ProcessTableFunction<String> {
         @SuppressWarnings("unused")
         public void eval(
                 @ArgumentHint({TABLE_AS_SET, OPTIONAL_PARTITION_BY}) Row r1,
-                @ArgumentHint({TABLE_AS_SET, OPTIONAL_PARTITION_BY}) Row r2) {}
+                @ArgumentHint(TABLE_AS_ROW) Row r2) {}
     }
 
     /** Testing function. */
@@ -342,29 +477,82 @@ public class ProcessTableFunctionTest extends TableTestBase {
                 @ArgumentHint({TABLE_AS_SET, SUPPORT_UPDATES, PASS_COLUMNS_THROUGH}) Row r) {}
     }
 
+    /** Testing function. */
+    public static class OptionalUntypedTable extends ProcessTableFunction<String> {
+        @SuppressWarnings("unused")
+        public void eval(@ArgumentHint(value = TABLE_AS_ROW, isOptional = true) Row r) {}
+    }
+
+    /** Testing function. */
+    public static class InvalidPassThroughTables extends ProcessTableFunction<String> {
+        @SuppressWarnings("unused")
+        public void eval(
+                @ArgumentHint({TABLE_AS_SET, PASS_COLUMNS_THROUGH}) Row r1,
+                @ArgumentHint({TABLE_AS_SET, PASS_COLUMNS_THROUGH}) Row r2) {}
+    }
+
+    /** Testing function. */
+    public static class HighMultiInputFunction extends AppendProcessTableFunctionBase {
+        @SuppressWarnings("unused")
+        public void eval(
+                @ArgumentHint(TABLE_AS_SET) Row in1,
+                @ArgumentHint(TABLE_AS_SET) Row in2,
+                @ArgumentHint(TABLE_AS_SET) Row in3,
+                @ArgumentHint(TABLE_AS_SET) Row in4,
+                @ArgumentHint(TABLE_AS_SET) Row in5,
+                @ArgumentHint(TABLE_AS_SET) Row in6,
+                @ArgumentHint(TABLE_AS_SET) Row in7,
+                @ArgumentHint(TABLE_AS_SET) Row in8,
+                @ArgumentHint(TABLE_AS_SET) Row in9,
+                @ArgumentHint(TABLE_AS_SET) Row in10,
+                @ArgumentHint(TABLE_AS_SET) Row in11,
+                @ArgumentHint(TABLE_AS_SET) Row in12,
+                @ArgumentHint(TABLE_AS_SET) Row in13,
+                @ArgumentHint(TABLE_AS_SET) Row in14,
+                @ArgumentHint(TABLE_AS_SET) Row in15,
+                @ArgumentHint(TABLE_AS_SET) Row in16,
+                @ArgumentHint(TABLE_AS_SET) Row in17,
+                @ArgumentHint(TABLE_AS_SET) Row in18,
+                @ArgumentHint(TABLE_AS_SET) Row in19,
+                @ArgumentHint(TABLE_AS_SET) Row in20,
+                @ArgumentHint(TABLE_AS_SET) Row in21)
+                throws Exception {}
+    }
+
     private static class ErrorSpec {
         private final String description;
         private final Class<? extends UserDefinedFunction> functionClass;
-        private final String sql;
+        private final String selectSql;
+        private final String insertIntoSql;
         private final String errorMessage;
 
         private ErrorSpec(
                 String description,
                 Class<? extends UserDefinedFunction> functionClass,
-                String sql,
+                String selectSql,
+                String insertIntoSql,
                 String errorMessage) {
             this.description = description;
             this.functionClass = functionClass;
-            this.sql = sql;
+            this.selectSql = selectSql;
+            this.insertIntoSql = insertIntoSql;
             this.errorMessage = errorMessage;
         }
 
-        static ErrorSpec of(
+        static ErrorSpec ofSelect(
                 String description,
                 Class<? extends UserDefinedFunction> functionClass,
-                String sql,
+                String selectSql,
                 String errorMessage) {
-            return new ErrorSpec(description, functionClass, sql, errorMessage);
+            return new ErrorSpec(description, functionClass, selectSql, null, errorMessage);
+        }
+
+        static ErrorSpec ofInsertInto(
+                String description,
+                Class<? extends UserDefinedFunction> functionClass,
+                String insertIntoSql,
+                String errorMessage) {
+            return new ErrorSpec(description, functionClass, null, insertIntoSql, errorMessage);
         }
 
         @Override

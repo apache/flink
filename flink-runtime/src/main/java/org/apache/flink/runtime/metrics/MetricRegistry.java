@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.metrics;
 
+import org.apache.flink.events.EventBuilder;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
@@ -41,7 +42,10 @@ public interface MetricRegistry {
     int getNumberReporters();
 
     /** Add and log a {@link Span}. */
-    void addSpan(SpanBuilder spanBuilder);
+    void addSpan(SpanBuilder spanBuilder, AbstractMetricGroup<?> group);
+
+    /** Add and log an {@link org.apache.flink.events.Event}. */
+    void addEvent(EventBuilder eventBuilder, AbstractMetricGroup<?> group);
 
     /**
      * Registers a new {@link Metric} with this registry.
@@ -50,7 +54,7 @@ public interface MetricRegistry {
      * @param metricName the name of the metric
      * @param group the group that contains the metric
      */
-    void register(Metric metric, String metricName, AbstractMetricGroup group);
+    void register(Metric metric, String metricName, AbstractMetricGroup<?> group);
 
     /**
      * Un-registers the given {@link Metric} with this registry.
@@ -59,7 +63,7 @@ public interface MetricRegistry {
      * @param metricName the name of the metric
      * @param group the group that contains the metric
      */
-    void unregister(Metric metric, String metricName, AbstractMetricGroup group);
+    void unregister(Metric metric, String metricName, AbstractMetricGroup<?> group);
 
     /**
      * Returns the scope formats.

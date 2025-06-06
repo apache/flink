@@ -28,9 +28,7 @@ This page lists which Java versions Flink supports and what limitations apply (i
 
 ## Java 11
 
-Support for Java 11 was added in 1.10.0 and is the recommended Java version to run Flink on.
-
-This is the default version for docker images.
+Support for Java 11 was added in 1.10.0.
 
 ### Untested Flink features
 
@@ -45,12 +43,23 @@ The following Flink features have not been tested with Java 11:
 
 ## Java 17
 
-Experimental support for Java 17 was added in 1.18. ([FLINK-15736](https://issues.apache.org/jira/browse/FLINK-15736))
-In Flink 1.19, we added support for Java Records. ([FLINK-32380](https://issues.apache.org/jira/browse/FLINK-32380))
+We use Java 17 by default in Flink 2.0.0 and is the recommended Java version to run Flink on.
+This is the default version for docker images.
 
 ### Untested Flink features
 
 These Flink features have not been tested with Java 17:
+
+* Hive connector
+* Hbase 1.x connector
+
+## Java 21
+
+Experimental support for Java 21 was added in 2.0.0. ([FLINK-33163](https://issues.apache.org/jira/browse/FLINK-33163))
+
+### Untested Flink features
+
+These Flink features have not been tested with Java 21:
 
 * Hive connector
 * Hbase 1.x connector

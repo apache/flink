@@ -80,7 +80,8 @@ public class StateMetaInfoSnapshot {
     public enum CommonSerializerKeys {
         KEY_SERIALIZER,
         NAMESPACE_SERIALIZER,
-        VALUE_SERIALIZER
+        VALUE_SERIALIZER,
+        USER_KEY_SERIALIZER
     }
 
     /** The name of the state. */

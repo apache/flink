@@ -278,8 +278,15 @@ public class StaticArgument {
         if (!traits.contains(StaticArgumentTrait.TABLE)) {
             return;
         }
+        checkTableNotOptional();
         checkPolymorphicTableType();
         checkTypedTableType();
+    }
+
+    private void checkTableNotOptional() {
+        if (isOptional) {
+            throw new ValidationException("Table arguments must not be optional.");
+        }
     }
 
     private void checkPolymorphicTableType() {

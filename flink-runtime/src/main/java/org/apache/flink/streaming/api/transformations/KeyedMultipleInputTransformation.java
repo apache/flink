@@ -45,6 +45,18 @@ public class KeyedMultipleInputTransformation<OUT>
         updateManagedMemoryStateBackendUseCase(true);
     }
 
+    public KeyedMultipleInputTransformation(
+            String name,
+            StreamOperatorFactory<OUT> operatorFactory,
+            TypeInformation<OUT> outputType,
+            int parallelism,
+            boolean parallelismConfigured,
+            TypeInformation<?> stateKeyType) {
+        super(name, operatorFactory, outputType, parallelism, parallelismConfigured);
+        this.stateKeyType = stateKeyType;
+        updateManagedMemoryStateBackendUseCase(true);
+    }
+
     public KeyedMultipleInputTransformation<OUT> addInput(
             Transformation<?> input, KeySelector<?, ?> keySelector) {
         inputs.add(input);

@@ -98,13 +98,14 @@ public class ForStStateDataTransfer implements Closeable {
             CheckpointStreamFactory checkpointStreamFactory,
             CheckpointedStateScope stateScope,
             CloseableRegistry snapshotCloseableRegistry,
-            CloseableRegistry tmpResourcesRegistry)
+            CloseableRegistry tmpResourcesRegistry,
+            boolean forceCopy)
             throws Exception {
 
         try {
             DataTransferStrategy strategy =
                     DataTransferStrategyBuilder.buildForSnapshot(
-                            sharingFilesStrategy, forStFs, checkpointStreamFactory);
+                            sharingFilesStrategy, forStFs, checkpointStreamFactory, forceCopy);
             return createTransferFuture(
                             strategy,
                             file,
@@ -126,11 +127,12 @@ public class ForStStateDataTransfer implements Closeable {
             CheckpointStreamFactory checkpointStreamFactory,
             CheckpointedStateScope stateScope,
             CloseableRegistry closeableRegistry,
-            CloseableRegistry tmpResourcesRegistry)
+            CloseableRegistry tmpResourcesRegistry,
+            boolean forceCopy)
             throws Exception {
         DataTransferStrategy strategy =
                 DataTransferStrategyBuilder.buildForSnapshot(
-                        sharingFilesStrategy, forStFs, checkpointStreamFactory);
+                        sharingFilesStrategy, forStFs, checkpointStreamFactory, forceCopy);
         List<CompletableFuture<HandleAndLocalPath>> futures =
                 files.stream()
                         .map(

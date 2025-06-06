@@ -19,12 +19,12 @@ package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
-import org.apache.flink.runtime.metrics.filter.MetricFilter;
+import org.apache.flink.runtime.metrics.filter.ReporterFilter;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableMap;
 
 import org.junit.jupiter.api.Test;
 
@@ -46,10 +46,10 @@ class FrontMetricGroupTest {
 
         final FrontMetricGroup<?> frontMetricGroup =
                 new FrontMetricGroup<>(
-                        new ReporterScopedSettings(
+                        new ReporterScopedSettings<>(
                                 0,
                                 delimiter,
-                                MetricFilter.NO_OP_FILTER,
+                                ReporterFilter.NO_OP_FILTER,
                                 Collections.emptySet(),
                                 Collections.emptyMap()),
                         new ProcessMetricGroup(
@@ -81,10 +81,10 @@ class FrontMetricGroupTest {
 
         final FrontMetricGroup<?> frontMetricGroup =
                 new FrontMetricGroup<>(
-                        new ReporterScopedSettings(
+                        new ReporterScopedSettings<>(
                                 0,
                                 delimiter,
-                                MetricFilter.NO_OP_FILTER,
+                                ReporterFilter.NO_OP_FILTER,
                                 Collections.emptySet(),
                                 Collections.emptyMap()),
                         new ProcessMetricGroup(
@@ -111,10 +111,10 @@ class FrontMetricGroupTest {
     void testGetAllVariablesWithAdditionalVariables() {
         final FrontMetricGroup<?> frontMetricGroup =
                 new FrontMetricGroup<>(
-                        new ReporterScopedSettings(
+                        new ReporterScopedSettings<>(
                                 0,
                                 '.',
-                                MetricFilter.NO_OP_FILTER,
+                                ReporterFilter.NO_OP_FILTER,
                                 Collections.emptySet(),
                                 ImmutableMap.of(ScopeFormat.asVariable("foo"), "bar")),
                         new ProcessMetricGroup(TestingMetricRegistry.builder().build(), "host"));

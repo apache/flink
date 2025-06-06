@@ -36,7 +36,7 @@ import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.TestingMiniCluster;
 import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
-import org.apache.flink.runtime.rest.JobRestEndpointFactory;
+import org.apache.flink.runtime.rest.ApplicationRestEndpointFactory;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.table.gateway.service.utils.MockHttpServer;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
@@ -249,7 +249,7 @@ class ScriptRunnerITCase {
                     new DefaultDispatcherRunnerFactory(
                             applicationDispatcherLeaderProcessFactoryFactory),
                     StandaloneResourceManagerFactory.getInstance(),
-                    JobRestEndpointFactory.INSTANCE);
+                    ApplicationRestEndpointFactory.INSTANCE);
         };
     }
 

@@ -95,7 +95,8 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
                                | primary key (a) not enforced
                                |) with (
                                | 'connector' = 'values',
-                               | 'changelog-mode' = 'I,UA,D'
+                               | 'changelog-mode' = 'I,UA,D',
+                               | 'source.produces-delete-by-key' = 'true'
                                |)""".stripMargin)
     util.tableEnv.executeSql("""
                                |create temporary table upsert_src_with_meta (
@@ -109,6 +110,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
                                |) with (
                                | 'connector' = 'values',
                                | 'changelog-mode' = 'I,UA,D',
+                               | 'source.produces-delete-by-key' = 'true',
                                | 'readable-metadata' = 'metadata_1:INT, metadata_2:STRING'
                                |)""".stripMargin)
 

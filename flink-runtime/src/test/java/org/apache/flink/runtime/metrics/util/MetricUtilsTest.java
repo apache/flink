@@ -38,7 +38,7 @@ import org.apache.flink.util.ChildFirstClassLoader;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.function.CheckedSupplier;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Sets;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -175,6 +175,16 @@ class MetricUtilsTest {
         assertThat(heapMetrics.get(MetricNames.MEMORY_USED)).isNotNull();
         assertThat(heapMetrics.get(MetricNames.MEMORY_COMMITTED)).isNotNull();
         assertThat(heapMetrics.get(MetricNames.MEMORY_MAX)).isNotNull();
+    }
+
+    @Test
+    void testFileDescriptorMetricsCompleteness() {
+        final InterceptingOperatorMetricGroup heapMetrics = new InterceptingOperatorMetricGroup();
+
+        MetricUtils.instantiateFileDescriptorMetrics(heapMetrics);
+
+        assertThat(heapMetrics.get(MetricNames.FILE_DESCRIPTOR_MAX)).isNotNull();
+        assertThat(heapMetrics.get(MetricNames.FILE_DESCRIPTOR_OPEN)).isNotNull();
     }
 
     /**

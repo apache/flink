@@ -27,12 +27,14 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.ParameterTool;
 
 import java.time.Duration;
 
@@ -40,6 +42,8 @@ import java.time.Duration;
 public class GroupedProcessingTimeWindowExample {
 
     public static void main(String[] args) throws Exception {
+        final ParameterTool params = ParameterTool.fromArgs(args);
+        final boolean asyncState = params.has("async-state");
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -57,8 +61,12 @@ public class GroupedProcessingTimeWindowExample {
 
         DataStream<Tuple2<Long, Long>> stream =
                 env.fromSource(generatorSource, WatermarkStrategy.noWatermarks(), "Data Generator");
+        KeyedStream<Tuple2<Long, Long>, Long> keyedStream = stream.keyBy(value -> value.f0);
+        if (asyncState) {
+            keyedStream = keyedStream.enableAsyncState();
+        }
 
-        stream.keyBy(value -> value.f0)
+        keyedStream
                 .window(
                         SlidingProcessingTimeWindows.of(
                                 Duration.ofMillis(2500), Duration.ofMillis(500)))

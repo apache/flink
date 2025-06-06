@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.collector;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.streaming.api.functions.async.CollectionSupplier;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 
 /** The basic implementation of collector for {@link ResultFuture} in table joining. */
@@ -59,5 +60,14 @@ public abstract class TableFunctionResultFuture<T> extends AbstractRichFunction
     @Override
     public void completeExceptionally(Throwable error) {
         this.resultFuture.completeExceptionally(error);
+    }
+
+    /**
+     * Unsupported, because the containing classes are AsyncFunctions which don't have access to the
+     * mailbox to invoke from the caller thread.
+     */
+    @Override
+    public void complete(CollectionSupplier<T> supplier) {
+        throw new UnsupportedOperationException();
     }
 }

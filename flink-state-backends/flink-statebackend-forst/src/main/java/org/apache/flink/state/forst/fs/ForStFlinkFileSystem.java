@@ -18,12 +18,14 @@
 
 package org.apache.flink.state.forst.fs;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.BlockLocation;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.local.LocalBlockLocation;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.state.forst.fs.cache.BundledCacheLimitPolicy;
@@ -33,8 +35,10 @@ import org.apache.flink.state.forst.fs.cache.CachedDataOutputStream;
 import org.apache.flink.state.forst.fs.cache.FileBasedCache;
 import org.apache.flink.state.forst.fs.cache.SizeBasedCacheLimitPolicy;
 import org.apache.flink.state.forst.fs.cache.SpaceBasedCacheLimitPolicy;
+import org.apache.flink.state.forst.fs.filemapping.FSDataOutputStreamWithEntry;
 import org.apache.flink.state.forst.fs.filemapping.FileBackedMappingEntrySource;
 import org.apache.flink.state.forst.fs.filemapping.FileMappingManager;
+import org.apache.flink.state.forst.fs.filemapping.FileOwnership;
 import org.apache.flink.state.forst.fs.filemapping.FileOwnershipDecider;
 import org.apache.flink.state.forst.fs.filemapping.MappingEntry;
 import org.apache.flink.state.forst.fs.filemapping.MappingEntrySource;
@@ -46,12 +50,14 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.Closeable;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.apache.flink.state.forst.ForStConfigurableOptions.TARGET_FILE_SIZE_BASE;
 
 /**
  * A {@link FileSystem} delegates some requests to file system loaded by Flink FileSystem mechanism.
@@ -59,14 +65,12 @@ import java.util.List;
  * <p>All methods in this class maybe used by ForSt, please start a discussion firstly if it has to
  * be modified.
  */
-public class ForStFlinkFileSystem extends FileSystem {
+public class ForStFlinkFileSystem extends FileSystem implements Closeable {
 
     private static final Logger LOG = LoggerFactory.getLogger(ForStFlinkFileSystem.class);
 
     // TODO: make it configurable
     private static final int DEFAULT_INPUT_STREAM_CAPACITY = 32;
-
-    private static final long SST_FILE_SIZE = 1024 * 1024 * 64;
 
     private final FileSystem localFS;
     private final FileSystem delegateFS;
@@ -108,31 +112,56 @@ public class ForStFlinkFileSystem extends FileSystem {
     }
 
     public static FileBasedCache getFileBasedCache(
-            Path cacheBase, long cacheCapacity, long cacheReservedSize, MetricGroup metricGroup)
+            ReadableConfig config,
+            Path cacheBase,
+            Path remoteForStPath,
+            long cacheCapacity,
+            long cacheReservedSize,
+            MetricGroup metricGroup)
             throws IOException {
         if (cacheBase == null || cacheCapacity <= 0 && cacheReservedSize <= 0) {
             return null;
         }
+        if (cacheBase.getFileSystem().equals(remoteForStPath.getFileSystem())) {
+            LOG.info(
+                    "Skip creating ForSt cache "
+                            + "since the cache and primary path are on the same file system.");
+            return null;
+        }
+        // Create cache directory to enforce SpaceBasedCacheLimitPolicy.
+        if (!cacheBase.getFileSystem().mkdirs(cacheBase)) {
+            throw new IOException(
+                    String.format("Could not create ForSt cache directory at %s.", cacheBase));
+        }
         CacheLimitPolicy cacheLimitPolicy = null;
-        if (cacheCapacity > 0 && cacheReservedSize > 0) {
+        long targetSstFileSize = config.get(TARGET_FILE_SIZE_BASE).getBytes();
+        boolean useSizeBasedCache = cacheCapacity > 0;
+        // We may encounter the case that the SpaceBasedCacheLimitPolicy cannot work properly on
+        // the file system, so we need to check if it works.
+        boolean useSpaceBasedCache =
+                cacheReservedSize > 0
+                        && SpaceBasedCacheLimitPolicy.worksOn(new File(cacheBase.toString()));
+        if (useSizeBasedCache && useSpaceBasedCache) {
             cacheLimitPolicy =
                     new BundledCacheLimitPolicy(
-                            new SizeBasedCacheLimitPolicy(cacheCapacity),
+                            new SizeBasedCacheLimitPolicy(cacheCapacity, targetSstFileSize),
                             new SpaceBasedCacheLimitPolicy(
                                     new File(cacheBase.toString()),
                                     cacheReservedSize,
-                                    SST_FILE_SIZE));
-        } else if (cacheCapacity > 0) {
-            cacheLimitPolicy = new SizeBasedCacheLimitPolicy(cacheCapacity);
-        } else if (cacheReservedSize > 0) {
+                                    targetSstFileSize));
+        } else if (useSizeBasedCache) {
+            cacheLimitPolicy = new SizeBasedCacheLimitPolicy(cacheCapacity, targetSstFileSize);
+        } else if (useSpaceBasedCache) {
             cacheLimitPolicy =
                     new SpaceBasedCacheLimitPolicy(
-                            new File(cacheBase.toString()), cacheReservedSize, SST_FILE_SIZE);
+                            new File(cacheBase.toString()), cacheReservedSize, targetSstFileSize);
+        } else {
+            return null;
         }
         return new FileBasedCache(
-                Integer.MAX_VALUE,
+                config,
                 cacheLimitPolicy,
-                cacheBase.getFileSystem(),
+                getUnguardedFileSystem(cacheBase),
                 cacheBase,
                 metricGroup);
     }
@@ -162,7 +191,9 @@ public class ForStFlinkFileSystem extends FileSystem {
     public synchronized ByteBufferWritableFSDataOutputStream create(
             Path dbFilePath, WriteMode overwriteMode) throws IOException {
         // Create a file in the mapping table
-        MappingEntry createdMappingEntry = fileMappingManager.createNewFile(dbFilePath);
+        MappingEntry createdMappingEntry =
+                fileMappingManager.createNewFile(
+                        dbFilePath, overwriteMode == WriteMode.OVERWRITE, fileBasedCache);
 
         // The source must be backed by a file
         FileBackedMappingEntrySource source =
@@ -170,12 +201,22 @@ public class ForStFlinkFileSystem extends FileSystem {
         Path sourceRealPath = source.getFilePath();
 
         // Create the actual file output stream
-        FileSystem fileSystem = sourceRealPath.getFileSystem();
+        // Should use the one WITHOUT safety net protection. The reason is that the ForSt LOG file
+        // might be created by any thread but share among all the threads, so we cannot let the LOG
+        // file auto-closed by one thread's quit.
+        FileSystem fileSystem = getUnguardedFileSystem(sourceRealPath);
         FSDataOutputStream outputStream = fileSystem.create(sourceRealPath, overwriteMode);
+        // Bundle the output stream with the mapping entry, to close the entry when the stream is
+        // closed.
+        outputStream = new FSDataOutputStreamWithEntry(outputStream, createdMappingEntry);
 
         // Try to create file cache for SST files
         CachedDataOutputStream cachedDataOutputStream =
-                createCachedDataOutputStream(dbFilePath, sourceRealPath, outputStream);
+                createCachedDataOutputStream(
+                        dbFilePath,
+                        sourceRealPath,
+                        outputStream,
+                        createdMappingEntry.getFileOwnership());
 
         LOG.trace(
                 "Create file: dbFilePath: {}, sourceRealPath: {}, cachedDataOutputStream: {}",
@@ -197,7 +238,11 @@ public class ForStFlinkFileSystem extends FileSystem {
                 () -> {
                     FSDataInputStream inputStream = source.openInputStream(bufferSize);
                     CachedDataInputStream cachedDataInputStream =
-                            createCachedDataInputStream(dbFilePath, source, inputStream);
+                            createCachedDataInputStream(
+                                    dbFilePath,
+                                    source,
+                                    inputStream,
+                                    mappingEntry.getFileOwnership());
                     return cachedDataInputStream == null ? inputStream : cachedDataInputStream;
                 },
                 DEFAULT_INPUT_STREAM_CAPACITY,
@@ -215,7 +260,11 @@ public class ForStFlinkFileSystem extends FileSystem {
                 () -> {
                     FSDataInputStream inputStream = source.openInputStream();
                     CachedDataInputStream cachedDataInputStream =
-                            createCachedDataInputStream(dbFilePath, source, inputStream);
+                            createCachedDataInputStream(
+                                    dbFilePath,
+                                    source,
+                                    inputStream,
+                                    mappingEntry.getFileOwnership());
                     return cachedDataInputStream == null ? inputStream : cachedDataInputStream;
                 },
                 DEFAULT_INPUT_STREAM_CAPACITY,
@@ -249,41 +298,58 @@ public class ForStFlinkFileSystem extends FileSystem {
             return delegateFS.exists(f) && delegateFS.getFileStatus(f).isDir();
         }
 
-        if (FileOwnershipDecider.shouldAlwaysBeLocal(f)) {
-            return localFS.exists(mappingEntry.getSourcePath())
-                    || delegateFS.exists(mappingEntry.getSourcePath());
+        if (FileOwnershipDecider.shouldAlwaysBeLocal(f, mappingEntry.getFileOwnership())) {
+            return localFS.exists(mappingEntry.getSourcePath());
         } else {
+            // Should be protected with synchronized, since the file closing is not an atomic
+            // operation, see FSDataOutputStreamWithEntry.close()
+            synchronized (mappingEntry) {
+                if (mappingEntry.isWriting()) {
+                    return true;
+                }
+            }
             return delegateFS.exists(mappingEntry.getSourcePath());
         }
     }
 
     @Override
     public synchronized FileStatus getFileStatus(Path path) throws IOException {
-        Path sourcePath = getSourcePath(path);
-        FileSystem fileSystem = sourcePath.getFileSystem();
-        return new FileStatusWrapper(fileSystem.getFileStatus(sourcePath), path);
+        MappingEntry mappingEntry = fileMappingManager.mappingEntry(path.toString());
+        if (mappingEntry == null) {
+            return new FileStatusWrapper(delegateFS.getFileStatus(path), path);
+        }
+        if (FileOwnershipDecider.shouldAlwaysBeLocal(path, mappingEntry.getFileOwnership())) {
+            return new FileStatusWrapper(localFS.getFileStatus(mappingEntry.getSourcePath()), path);
+        } else {
+            // Should be protected with synchronized, since the file closing is not an atomic
+            // operation, see FSDataOutputStreamWithEntry.close()
+            synchronized (mappingEntry) {
+                if (mappingEntry.isWriting()) {
+                    return new DummyFSFileStatus(path);
+                }
+            }
+            return new FileStatusWrapper(
+                    delegateFS.getFileStatus(mappingEntry.getSourcePath()), path);
+        }
     }
 
     @Override
     public synchronized BlockLocation[] getFileBlockLocations(FileStatus file, long start, long len)
             throws IOException {
-        Path sourcePath = getSourcePath(file.getPath());
-
-        FileSystem fileSystem = sourcePath.getFileSystem();
-        FileStatus fileStatus = fileSystem.getFileStatus(sourcePath);
-        return fileSystem.getFileBlockLocations(fileStatus, start, len);
-    }
-
-    private @Nonnull Path getSourcePath(Path path) throws FileNotFoundException {
-        MappingEntry mappingEntry = fileMappingManager.mappingEntry(path.toString());
-        Preconditions.checkNotNull(mappingEntry);
-        MappingEntrySource source = mappingEntry.getSource();
-        Path sourcePath = source.getFilePath();
-        if (sourcePath == null) {
-            throw new FileNotFoundException(
-                    String.format("Cannot get file path for source: %s", source));
+        Path path = file.getPath();
+        if (file instanceof FileStatusWrapper) {
+            if (FileOwnershipDecider.shouldAlwaysBeLocal(path)) {
+                return localFS.getFileBlockLocations(
+                        ((FileStatusWrapper) file).delegate, start, len);
+            } else {
+                return delegateFS.getFileBlockLocations(
+                        ((FileStatusWrapper) file).delegate, start, len);
+            }
+        } else if (file instanceof DummyFSFileStatus) {
+            return new BlockLocation[] {new LocalBlockLocation(0L)};
+        } else {
+            throw new IOException("file is not an instance from ForStFlinkFileSystem.");
         }
-        return sourcePath;
     }
 
     @Override
@@ -307,12 +373,7 @@ public class ForStFlinkFileSystem extends FileSystem {
 
     @Override
     public synchronized boolean delete(Path path, boolean recursive) throws IOException {
-        boolean success = fileMappingManager.deleteFileOrDirectory(path, recursive);
-        if (fileBasedCache != null) {
-            // only new generated file will put into cache, no need to consider file mapping
-            fileBasedCache.delete(path);
-        }
-        return success;
+        return fileMappingManager.deleteFileOrDirectory(path, recursive);
     }
 
     @Override
@@ -335,7 +396,9 @@ public class ForStFlinkFileSystem extends FileSystem {
 
     public synchronized void registerReusedRestoredFile(
             String key, StreamStateHandle stateHandle, Path dbFilePath) {
-        fileMappingManager.registerReusedRestoredFile(key, stateHandle, dbFilePath);
+        MappingEntry mappingEntry =
+                fileMappingManager.registerReusedRestoredFile(
+                        key, stateHandle, dbFilePath, fileBasedCache);
     }
 
     public synchronized @Nullable MappingEntry getMappingEntry(Path path) {
@@ -346,10 +409,18 @@ public class ForStFlinkFileSystem extends FileSystem {
         fileMappingManager.giveUpOwnership(path, stateHandle);
     }
 
+    private static FileSystem getUnguardedFileSystem(Path path) throws IOException {
+        return FileSystem.getUnguardedFileSystem(path.toUri());
+    }
+
     private @Nullable CachedDataOutputStream createCachedDataOutputStream(
-            Path dbFilePath, Path srcRealPath, FSDataOutputStream outputStream) throws IOException {
+            Path dbFilePath,
+            Path srcRealPath,
+            FSDataOutputStream outputStream,
+            FileOwnership fileOwnership)
+            throws IOException {
         // do not create cache for local files
-        if (FileOwnershipDecider.shouldAlwaysBeLocal(dbFilePath)) {
+        if (FileOwnershipDecider.shouldAlwaysBeLocal(dbFilePath, fileOwnership)) {
             return null;
         }
 
@@ -357,15 +428,26 @@ public class ForStFlinkFileSystem extends FileSystem {
     }
 
     private @Nullable CachedDataInputStream createCachedDataInputStream(
-            Path dbFilePath, MappingEntrySource source, FSDataInputStream inputStream)
+            Path dbFilePath,
+            MappingEntrySource source,
+            FSDataInputStream inputStream,
+            FileOwnership fileOwnership)
             throws IOException {
-        if (FileOwnershipDecider.shouldAlwaysBeLocal(dbFilePath) || !source.cacheable()) {
+        if (FileOwnershipDecider.shouldAlwaysBeLocal(dbFilePath, fileOwnership)
+                || !source.cacheable()) {
             return null;
         }
 
         return fileBasedCache == null
                 ? null
                 : fileBasedCache.open(source.getFilePath(), inputStream);
+    }
+
+    @Override
+    public void close() throws IOException {
+        if (fileBasedCache != null) {
+            fileBasedCache.close();
+        }
     }
 
     public static class FileStatusWrapper implements FileStatus {
@@ -405,6 +487,50 @@ public class ForStFlinkFileSystem extends FileSystem {
         @Override
         public boolean isDir() {
             return delegate.isDir();
+        }
+
+        @Override
+        public Path getPath() {
+            return path;
+        }
+    }
+
+    /** A dummy file status that only confirms the existence. */
+    static class DummyFSFileStatus implements FileStatus {
+        private final Path path;
+
+        DummyFSFileStatus(Path path) {
+            this.path = path;
+        }
+
+        @Override
+        public long getLen() {
+            return 0L;
+        }
+
+        @Override
+        public long getBlockSize() {
+            return 0L;
+        }
+
+        @Override
+        public short getReplication() {
+            return 0;
+        }
+
+        @Override
+        public long getModificationTime() {
+            return 0;
+        }
+
+        @Override
+        public long getAccessTime() {
+            return 0;
+        }
+
+        @Override
+        public boolean isDir() {
+            return false;
         }
 
         @Override

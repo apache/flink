@@ -28,7 +28,7 @@ The planner can optimize all added statements together and then submit them as o
 
 The added statements will be cleared when calling the :func:`~StatementSet.execute` method.
 
-.. currentmodule:: pyflink.table.statement_set
+.. currentmodule:: pyflink.table
 
 .. autosummary::
     :toctree: api/
@@ -36,7 +36,9 @@ The added statements will be cleared when calling the :func:`~StatementSet.execu
     StatementSet.add_insert_sql
     StatementSet.attach_as_datastream
     StatementSet.add_insert
+    StatementSet.compile_plan
     StatementSet.explain
+    StatementSet.print_explain
     StatementSet.execute
 
 
@@ -45,7 +47,7 @@ TableResult
 
 A :class:`~pyflink.table.TableResult` is the representation of the statement execution result.
 
-.. currentmodule:: pyflink.table.table_result
+.. currentmodule:: pyflink.table
 
 .. autosummary::
     :toctree: api/
@@ -53,6 +55,7 @@ A :class:`~pyflink.table.TableResult` is the representation of the statement exe
     TableResult.get_job_client
     TableResult.wait
     TableResult.get_table_schema
+    TableResult.get_resolved_schema
     TableResult.get_result_kind
     TableResult.collect
     TableResult.print
@@ -72,7 +75,7 @@ The statement (e.g. DDL, USE) executes successfully, and the result only contain
 The statement (e.g. DML, DQL, SHOW) executes successfully, and the result contains important
 content.
 
-.. currentmodule:: pyflink.table.table_result
+.. currentmodule:: pyflink.table
 
 .. autosummary::
     :toctree: api/

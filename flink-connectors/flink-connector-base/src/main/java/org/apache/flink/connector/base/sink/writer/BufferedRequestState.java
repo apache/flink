@@ -39,6 +39,7 @@ public class BufferedRequestState<RequestEntryT extends Serializable> implements
     private final List<RequestEntryWrapper<RequestEntryT>> bufferedRequestEntries;
     private final long stateSize;
 
+    @Deprecated
     public BufferedRequestState(Deque<RequestEntryWrapper<RequestEntryT>> bufferedRequestEntries) {
         this.bufferedRequestEntries = new ArrayList<>(bufferedRequestEntries);
         this.stateSize = calculateStateSize();
@@ -46,6 +47,11 @@ public class BufferedRequestState<RequestEntryT extends Serializable> implements
 
     public BufferedRequestState(List<RequestEntryWrapper<RequestEntryT>> bufferedRequestEntries) {
         this.bufferedRequestEntries = new ArrayList<>(bufferedRequestEntries);
+        this.stateSize = calculateStateSize();
+    }
+
+    public BufferedRequestState(RequestBuffer<RequestEntryT> requestBuffer) {
+        this.bufferedRequestEntries = new ArrayList<>(requestBuffer.getBufferedState());
         this.stateSize = calculateStateSize();
     }
 

@@ -187,7 +187,9 @@ public class RemoteStorageScanner implements Runnable {
                 TieredStoragePartitionId partitionId = ids.getKey().f0;
                 TieredStorageSubpartitionId subpartitionId = ids.getKey().f1;
                 int requiredSegmentId = ids.getValue();
-                int maxSegmentId = scannedMaxSegmentIds.getOrDefault(ids.getKey(), -1);
+                int maxSegmentId =
+                        scannedMaxSegmentIds.getOrDefault(
+                                ids.getKey(), SubpartitionRemoteCacheManager.EMPTY_SEGMENT_ID);
                 if (maxSegmentId >= requiredSegmentId
                         && checkSegmentExist(partitionId, subpartitionId, requiredSegmentId)) {
                     scanned = true;

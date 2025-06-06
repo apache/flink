@@ -347,11 +347,11 @@ public static void main(String[] args) throws Exception {
     StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
     DataStream<String> control = env
-        .fromElements("DROP", "IGNORE")
+        .fromData("DROP", "IGNORE")
         .keyBy(x -> x);
 
     DataStream<String> streamOfWords = env
-        .fromElements("Apache", "DROP", "Flink", "IGNORE")
+        .fromData("Apache", "DROP", "Flink", "IGNORE")
         .keyBy(x -> x);
   
     control

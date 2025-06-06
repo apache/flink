@@ -28,9 +28,7 @@ This page lists which Java versions Flink supports and what limitations apply (i
 
 ## Java 11
 
-Support for Java 11 was added in 1.10.0 and is the recommended Java version to run Flink on.
-
-This is the default version for docker images.
+Support for Java 11 was added in 1.10.0.
 
 ### Untested Flink features
 
@@ -45,11 +43,23 @@ The following Flink features have not been tested with Java 11:
 
 ## Java 17
 
-Experimental support for Java 17 was added in 1.18.0. ([FLINK-15736](https://issues.apache.org/jira/browse/FLINK-15736))
+We use Java 17 by default in Flink 2.0.0 and is the recommended Java version to run Flink on.
+This is the default version for docker images.
 
 ### Untested Flink features
 
 These Flink features have not been tested with Java 17:
+
+* Hive connector
+* Hbase 1.x connector
+
+## Java 21
+
+Experimental support for Java 21 was added in 2.0.0. ([FLINK-33163](https://issues.apache.org/jira/browse/FLINK-33163))
+
+### Untested Flink features
+
+These Flink features have not been tested with Java 21:
 
 * Hive connector
 * Hbase 1.x connector
@@ -68,5 +78,5 @@ The list of configured arguments must not be shortened, but only extended.
 
 ### Known issues
 
-* Java records are not supported. See [FLINK-32380](https://issues.apache.org/jira/browse/FLINK-32380) for updates.
+* Mandatory Kryo dependency upgrade, [FLIP-371](https://cwiki.apache.org/confluence/display/FLINK/FLIP-317%3A+Upgrade+Kryo+from+2.24.0+to+5.5.0).
 * SIGSEGV in C2 Compiler thread: Early Java 17 builds are affected by a bug where the JVM can fail abruptly. Update your Java 17 installation to resolve the issue. See [JDK-8277529](https://bugs.openjdk.org/browse/JDK-8277529) for details.

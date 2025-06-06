@@ -57,6 +57,8 @@ public class ForStDBMapKeyIterRequest<K, N, UK, UV> extends ForStDBIterRequest<K
             throws IOException {
         Collection<UK> deserializedEntries = new ArrayList<>(entries.size());
         for (RawEntry en : entries) {
+            // TODO: Determine whether this is from sync mode, and if so, filter the entries with
+            // null value.
             deserializedEntries.add(deserializeUserKey(en.rawKeyBytes, userKeyOffset));
         }
         return deserializedEntries;

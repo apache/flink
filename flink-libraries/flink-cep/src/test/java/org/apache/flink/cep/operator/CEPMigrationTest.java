@@ -36,6 +36,7 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.test.util.MigrationTest;
 
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -53,9 +54,14 @@ import static org.junit.Assert.assertTrue;
  * Tests for checking whether CEP operator can restore from snapshots that were done using previous
  * Flink versions.
  *
+ * <p>NOTE: Due to major upgrades of serializers, Flink 2.0 is not compatible with saved state from
+ * Flink 1.x, and this test is temporarily disabled. This test should be reinstated for future
+ * versions of Flink, such as Flink 2.1, that promise compatibility with older releases.
+ *
  * <p>For regenerating the binary snapshot file of previous versions you have to run the {@code
  * write*()} method on the corresponding Flink release-* branch.
  */
+@Ignore("Flink 2.0 is not compatible with saved state from Flink 1.x")
 @RunWith(Parameterized.class)
 public class CEPMigrationTest implements MigrationTest {
 

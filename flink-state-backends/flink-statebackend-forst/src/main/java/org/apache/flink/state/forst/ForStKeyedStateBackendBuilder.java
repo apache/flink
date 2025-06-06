@@ -76,6 +76,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static org.apache.flink.state.forst.ForStConfigurableOptions.WRITE_BATCH_SIZE;
+import static org.apache.flink.state.forst.fs.cache.FileBasedCache.setFlinkThread;
 
 /**
  * Builder class for {@link ForStKeyedStateBackend} which handles all necessary initializations and
@@ -247,6 +248,9 @@ public class ForStKeyedStateBackendBuilder<K>
         PriorityQueueSetFactory priorityQueueFactory;
 
         try {
+            // Current thread (task thread) must be a Flink thread to enable proper cache
+            // management.
+            setFlinkThread();
             optionsContainer.prepareDirectories();
             restoreOperation =
                     getForStRestoreOperation(
@@ -259,10 +263,16 @@ public class ForStKeyedStateBackendBuilder<K>
             defaultColumnFamilyHandle = restoreResult.getDefaultColumnFamilyHandle();
             nativeMetricMonitor = restoreResult.getNativeMetricMonitor();
 
-            // TODO: init materializedSstFiles and lastCompletedCheckpointId when implement restore
             SortedMap<Long, Collection<IncrementalKeyedStateHandle.HandleAndLocalPath>>
                     materializedSstFiles = new TreeMap<>();
             long lastCompletedCheckpointId = -1L;
+            if (restoreOperation instanceof ForStIncrementalRestoreOperation) {
+                backendUID = restoreResult.getBackendUID();
+                lastCompletedCheckpointId = restoreResult.getLastCompletedCheckpointId();
+                if (recoveryClaimMode != RecoveryClaimMode.NO_CLAIM) {
+                    materializedSstFiles = restoreResult.getRestoredSstFiles();
+                }
+            }
 
             snapshotStrategy =
                     initializeSnapshotStrategy(
@@ -288,6 +298,9 @@ public class ForStKeyedStateBackendBuilder<K>
             IOUtils.closeQuietly(restoreOperation);
             try {
                 optionsContainer.clearDirectories();
+                // TODO: Remove this after FLINK-37442, if we could properly handl the directory
+                //       deletion in file mapping manager.
+                optionsContainer.forceClearRemoteDirectories();
             } catch (Exception ex) {
                 logger.warn(
                         "Failed to delete ForSt local base path {}, remote base path {}.",
@@ -316,6 +329,7 @@ public class ForStKeyedStateBackendBuilder<K>
                 backendUID,
                 executionConfig,
                 this.optionsContainer,
+                forstResourceGuard,
                 keyGroupPrefixBytes,
                 this.keySerializerProvider.currentSchemaSerializer(),
                 serializedKeyBuilder,
@@ -345,7 +359,6 @@ public class ForStKeyedStateBackendBuilder<K>
         // env. We expect to directly use the dfs directory in flink env or local directory as
         // working dir. We will implement this in ForStDB later, but before that, we achieved this
         // by setting the dbPath to "/" when the dfs directory existed.
-        // TODO: use localForStPath as dbPath after ForSt Support mixing local-dir and remote-dir
         Path instanceForStPath =
                 optionsContainer.getRemoteForStPath() == null
                         ? optionsContainer.getLocalForStPath()
@@ -389,7 +402,9 @@ public class ForStKeyedStateBackendBuilder<K>
                     overlapFractionThreshold,
                     useIngestDbRestoreMode,
                     rescalingUseDeleteFilesInRange,
-                    recoveryClaimMode);
+                    recoveryClaimMode,
+                    org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo
+                            ::fromMetaInfoSnapshot);
         } else if (priorityQueueConfig.getPriorityQueueStateType()
                 == ForStStateBackend.PriorityQueueStateType.HEAP) {
             // Note: This branch can be touched after ForSt Support canonical savepoint,

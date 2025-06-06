@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.runtime.batch.sql.adaptive
 
-import org.apache.flink.configuration.{BatchExecutionOptions, MemorySize}
+import org.apache.flink.configuration.{BatchExecutionOptions, MemorySize, PipelineOptions}
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 
 import org.junit.jupiter.api.{BeforeEach, Test}
@@ -87,6 +87,13 @@ class AdaptiveSkewedJoinITCase extends AdaptiveJoinITCase {
     checkResult(sql)
   }
 
+  @Test
+  def testJoinWithHashOutput(): Unit = {
+    val sql =
+      "SELECT * FROM (SELECT * FROM T1, T2 WHERE T1.a1 = T2.a2) as T4 LEFT JOIN T3 ON T3.b3 = T4.b1"
+    checkResult(sql)
+  }
+
   override def checkResult(sql: String): Unit = {
     tEnv.getConfig
       .set(
@@ -103,6 +110,8 @@ class AdaptiveSkewedJoinITCase extends AdaptiveJoinITCase {
         OptimizerConfigOptions.TABLE_OPTIMIZER_ADAPTIVE_SKEWED_JOIN_OPTIMIZATION_STRATEGY,
         OptimizerConfigOptions.AdaptiveSkewedJoinOptimizationStrategy.FORCED
       )
+    tEnv.getConfig.set(PipelineOptions.OPERATOR_CHAINING, Boolean.box(false))
     checkResult(sql, expected)
+    tEnv.getConfig.set(PipelineOptions.OPERATOR_CHAINING, Boolean.box(true))
   }
 }

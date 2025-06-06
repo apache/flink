@@ -29,13 +29,15 @@ import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.util.PortRange;
 
-import com.mashape.unirest.http.HttpResponse;
-import com.mashape.unirest.http.Unirest;
-import com.mashape.unirest.http.exceptions.UnirestException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -58,6 +60,7 @@ class PrometheusReporterTest {
     private static final String DEFAULT_LABELS = "{" + DIMENSIONS + ",}";
     private static final String SCOPE_PREFIX =
             PrometheusReporter.SCOPE_PREFIX + LOGICAL_SCOPE + PrometheusReporter.SCOPE_SEPARATOR;
+    private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
 
     private static final PortRangeProvider portRangeProvider = new PortRangeProvider();
 
@@ -85,10 +88,11 @@ class PrometheusReporterTest {
      * {@link io.prometheus.client.Counter} may not decrease, so report {@link Counter} as {@link
      * io.prometheus.client.Gauge}.
      *
-     * @throws UnirestException Might be thrown on HTTP problems.
+     * @throws IOException Might be thrown on I/O problems.
+     * @throws InterruptedException Might be thrown if the thread is interrupted.
      */
     @Test
-    void counterIsReportedAsPrometheusGauge() throws UnirestException {
+    void counterIsReportedAsPrometheusGauge() throws IOException, InterruptedException {
         Counter testCounter = new SimpleCounter();
         testCounter.inc(7);
 
@@ -96,34 +100,34 @@ class PrometheusReporterTest {
     }
 
     @Test
-    void gaugeIsReportedAsPrometheusGauge() throws UnirestException {
+    void gaugeIsReportedAsPrometheusGauge() throws IOException, InterruptedException {
         Gauge<Integer> testGauge = () -> 1;
 
         assertThatGaugeIsExported(testGauge, "testGauge", "1.0");
     }
 
     @Test
-    void nullGaugeDoesNotBreakReporter() throws UnirestException {
+    void nullGaugeDoesNotBreakReporter() throws IOException, InterruptedException {
         Gauge<Integer> testGauge = () -> null;
 
         assertThatGaugeIsExported(testGauge, "testGauge", "0.0");
     }
 
     @Test
-    void meterRateIsReportedAsPrometheusGauge() throws UnirestException {
+    void meterRateIsReportedAsPrometheusGauge() throws IOException, InterruptedException {
         Meter testMeter = new TestMeter();
 
         assertThatGaugeIsExported(testMeter, "testMeter", "5.0");
     }
 
     private void assertThatGaugeIsExported(Metric metric, String name, String expectedValue)
-            throws UnirestException {
+            throws IOException, InterruptedException {
         assertThat(addMetricAndPollResponse(metric, name))
                 .contains(createExpectedPollResponse(name, "", "gauge", expectedValue));
     }
 
     @Test
-    void histogramIsReportedAsPrometheusSummary() throws UnirestException {
+    void histogramIsReportedAsPrometheusSummary() throws IOException, InterruptedException {
         Histogram testHistogram = new TestHistogram();
 
         String histogramName = "testHistogram";
@@ -152,7 +156,8 @@ class PrometheusReporterTest {
      * name still exist.
      */
     @Test
-    void metricIsRemovedWhileOtherMetricsWithSameNameExist() throws UnirestException {
+    void metricIsRemovedWhileOtherMetricsWithSameNameExist()
+            throws IOException, InterruptedException {
         String metricName = "metric";
 
         Counter metric1 = new SimpleCounter();
@@ -168,7 +173,7 @@ class PrometheusReporterTest {
         reporter.notifyOfAddedMetric(metric2, metricName, metricGroup2);
         reporter.notifyOfRemovedMetric(metric1, metricName, metricGroup);
 
-        String response = pollMetrics(reporter.getPort()).getBody();
+        String response = pollMetrics(reporter.getPort()).body();
 
         assertThat(response).contains("some_value").doesNotContain(labelValueThatShouldBeRemoved);
     }
@@ -239,13 +244,18 @@ class PrometheusReporterTest {
     }
 
     private String addMetricAndPollResponse(Metric metric, String metricName)
-            throws UnirestException {
+            throws IOException, InterruptedException {
         reporter.notifyOfAddedMetric(metric, metricName, metricGroup);
-        return pollMetrics(reporter.getPort()).getBody();
+        return pollMetrics(reporter.getPort()).body();
     }
 
-    static HttpResponse<String> pollMetrics(int port) throws UnirestException {
-        return Unirest.get("http://localhost:" + port + "/metrics").asString();
+    static HttpResponse<String> pollMetrics(int port) throws IOException, InterruptedException {
+        HttpRequest request =
+                HttpRequest.newBuilder()
+                        .uri(URI.create("http://localhost:" + port + "/metrics"))
+                        .GET()
+                        .build();
+        return HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
     private static String createExpectedPollResponse(

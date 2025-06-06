@@ -1439,7 +1439,7 @@ public abstract class AbstractQueryableStateTestBase {
                         + "    @Override\n"
                         + "    public void write(Kryo kryo, Output output, Byte testJob) {}\n"
                         + "    @Override\n"
-                        + "    public Byte read(Kryo kryo, Input input, Class<Byte> aClass) {\n"
+                        + "    public Byte read(Kryo kryo, Input input, Class<? extends Byte> aClass) {\n"
                         + "        return null;\n"
                         + "    }\n"
                         + "}\n");

@@ -19,7 +19,12 @@
 package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.EventOptions;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.configuration.TraceOptions;
+import org.apache.flink.events.Event;
+import org.apache.flink.events.EventBuilder;
+import org.apache.flink.events.reporter.EventReporter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
@@ -33,17 +38,22 @@ import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorSer
 import org.apache.flink.runtime.metrics.CollectingMetricsReporter.MetricGroupAndName;
 import org.apache.flink.runtime.metrics.dump.MetricDumpSerialization;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
-import org.apache.flink.runtime.metrics.filter.DefaultMetricFilter;
+import org.apache.flink.runtime.metrics.filter.DefaultReporterFilters;
 import org.apache.flink.runtime.metrics.groups.MetricGroupTest;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
+import org.apache.flink.runtime.metrics.util.TestEventReporter;
 import org.apache.flink.runtime.metrics.util.TestReporter;
+import org.apache.flink.runtime.metrics.util.TestTraceReporter;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
+import org.apache.flink.traces.Span;
+import org.apache.flink.traces.SpanBuilder;
+import org.apache.flink.traces.reporter.TraceReporter;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Iterators;
 
 import org.junit.jupiter.api.Test;
 
@@ -54,6 +64,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -132,7 +143,8 @@ class MetricRegistryImplTest {
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Collections.singletonList(
-                                ReporterSetup.forReporter("test", config, reporter)));
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
+                                        "test", config, reporter)));
 
         long start = System.currentTimeMillis();
 
@@ -175,7 +187,7 @@ class MetricRegistryImplTest {
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Collections.singletonList(
-                                ReporterSetup.forReporter(
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
                                         "test", config, new ReportCountingReporter())),
                         manuallyTriggeredScheduledExecutorService);
         try {
@@ -210,26 +222,54 @@ class MetricRegistryImplTest {
     /** Verifies that reporters are notified of added/removed metrics. */
     @Test
     void testReporterNotifications() throws Exception {
-        final NotificationCapturingReporter reporter1 = new NotificationCapturingReporter();
-        final NotificationCapturingReporter reporter2 = new NotificationCapturingReporter();
+        final NotificationCapturingMetricReporter reporter1 =
+                new NotificationCapturingMetricReporter();
+        final NotificationCapturingMetricReporter reporter2 =
+                new NotificationCapturingMetricReporter();
+        final NotificationCapturingEventReporter eventReporter1 =
+                new NotificationCapturingEventReporter();
+        final NotificationCapturingEventReporter eventReporter2 =
+                new NotificationCapturingEventReporter();
+        final NotificationCapturingSpanReporter spanReporter1 =
+                new NotificationCapturingSpanReporter();
+        final NotificationCapturingSpanReporter spanReporter2 =
+                new NotificationCapturingSpanReporter();
 
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Arrays.asList(
-                                ReporterSetup.forReporter("test1", reporter1),
-                                ReporterSetup.forReporter("test2", reporter2)));
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
+                                        "test1", reporter1),
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
+                                        "test2", reporter2)),
+                        Arrays.asList(
+                                ReporterSetupBuilder.TRACE_SETUP_BUILDER.forReporter(
+                                        "trace_test1", spanReporter1),
+                                ReporterSetupBuilder.TRACE_SETUP_BUILDER.forReporter(
+                                        "trace_test2", spanReporter2)),
+                        Arrays.asList(
+                                ReporterSetupBuilder.EVENT_SETUP_BUILDER.forReporter(
+                                        "event_test1", eventReporter1),
+                                ReporterSetupBuilder.EVENT_SETUP_BUILDER.forReporter(
+                                        "event_test2", eventReporter2)));
 
         TaskManagerMetricGroup root =
                 TaskManagerMetricGroup.createTaskManagerMetricGroup(
                         registry, "host", new ResourceID("id"));
         root.counter("rootCounter");
+        root.addEvent(Event.builder(getClass(), "TestEvent"));
+        root.addSpan(Span.builder(getClass(), "TestSpan"));
 
         assertThat(reporter1.getLastAddedMetric()).containsInstanceOf(Counter.class);
         assertThat(reporter1.getLastAddedMetricName()).hasValue("rootCounter");
+        assertThat(eventReporter1.getLastAddedEvent().map(Event::getName)).hasValue("TestEvent");
+        assertThat(spanReporter1.getLastAddedSpan().map(Span::getName)).hasValue("TestSpan");
 
         assertThat(reporter2.getLastAddedMetric()).containsInstanceOf(Counter.class);
         assertThat(reporter2.getLastAddedMetricName()).hasValue("rootCounter");
+        assertThat(eventReporter2.getLastAddedEvent().map(Event::getName)).hasValue("TestEvent");
+        assertThat(spanReporter2.getLastAddedSpan().map(Span::getName)).hasValue("TestSpan");
 
         root.close();
 
@@ -246,7 +286,7 @@ class MetricRegistryImplTest {
      * Reporter that exposes the name and metric instance of the last metric that was added or
      * removed.
      */
-    private static class NotificationCapturingReporter extends TestReporter {
+    private static class NotificationCapturingMetricReporter extends TestReporter {
         @Nullable private Metric addedMetric;
         @Nullable private String addedMetricName;
 
@@ -282,6 +322,32 @@ class MetricRegistryImplTest {
         }
     }
 
+    private static class NotificationCapturingEventReporter extends TestEventReporter {
+        @Nullable private Event addedEvent;
+
+        @Override
+        public void notifyOfAddedEvent(Event event) {
+            this.addedEvent = event;
+        }
+
+        public Optional<Event> getLastAddedEvent() {
+            return Optional.ofNullable(addedEvent);
+        }
+    }
+
+    private static class NotificationCapturingSpanReporter extends TestTraceReporter {
+        @Nullable private Span addedSpan;
+
+        @Override
+        public void notifyOfAddedSpan(Span span) {
+            this.addedSpan = span;
+        }
+
+        public Optional<Span> getLastAddedSpan() {
+            return Optional.ofNullable(addedSpan);
+        }
+    }
+
     /** Verifies that the scope configuration is properly extracted. */
     @Test
     void testScopeConfig() {
@@ -309,7 +375,8 @@ class MetricRegistryImplTest {
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.fromConfiguration(config),
-                        ReporterSetup.fromConfiguration(config, null));
+                        ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
+                                config, DefaultReporterFilters::metricsFromConfiguration, null));
 
         TaskManagerMetricGroup tmGroup =
                 TaskManagerMetricGroup.createTaskManagerMetricGroup(
@@ -330,13 +397,48 @@ class MetricRegistryImplTest {
         MetricConfig config3 = new MetricConfig();
         config3.setProperty(MetricOptions.REPORTER_SCOPE_DELIMITER.key(), "AA");
 
+        MetricConfig traceConfig1 = new MetricConfig();
+        traceConfig1.setProperty(TraceOptions.REPORTER_SCOPE_DELIMITER.key(), "_");
+
+        MetricConfig traceConfig2 = new MetricConfig();
+        traceConfig2.setProperty(TraceOptions.REPORTER_SCOPE_DELIMITER.key(), "-");
+
+        MetricConfig traceConfig3 = new MetricConfig();
+        traceConfig3.setProperty(TraceOptions.REPORTER_SCOPE_DELIMITER.key(), "AA");
+
+        MetricConfig eventConfig1 = new MetricConfig();
+        eventConfig1.setProperty(EventOptions.REPORTER_SCOPE_DELIMITER.key(), "_");
+
+        MetricConfig eventConfig2 = new MetricConfig();
+        eventConfig2.setProperty(EventOptions.REPORTER_SCOPE_DELIMITER.key(), "-");
+
+        MetricConfig eventConfig3 = new MetricConfig();
+        eventConfig3.setProperty(EventOptions.REPORTER_SCOPE_DELIMITER.key(), "AA");
+
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Arrays.asList(
-                                ReporterSetup.forReporter("test1", config1, new TestReporter()),
-                                ReporterSetup.forReporter("test2", config2, new TestReporter()),
-                                ReporterSetup.forReporter("test3", config3, new TestReporter())));
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
+                                        "test1", config1, new TestReporter()),
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
+                                        "test2", config2, new TestReporter()),
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
+                                        "test3", config3, new TestReporter())),
+                        Arrays.asList(
+                                ReporterSetupBuilder.TRACE_SETUP_BUILDER.forReporter(
+                                        "traceTest1", traceConfig1, new TestTraceReporter()),
+                                ReporterSetupBuilder.TRACE_SETUP_BUILDER.forReporter(
+                                        "traceTest2", traceConfig2, new TestTraceReporter()),
+                                ReporterSetupBuilder.TRACE_SETUP_BUILDER.forReporter(
+                                        "traceTest3", traceConfig3, new TestTraceReporter())),
+                        Arrays.asList(
+                                ReporterSetupBuilder.EVENT_SETUP_BUILDER.forReporter(
+                                        "eventTest1", eventConfig1, new TestEventReporter()),
+                                ReporterSetupBuilder.EVENT_SETUP_BUILDER.forReporter(
+                                        "eventTest2", eventConfig2, new TestEventReporter()),
+                                ReporterSetupBuilder.EVENT_SETUP_BUILDER.forReporter(
+                                        "eventTest3", eventConfig3, new TestEventReporter())));
 
         assertThat(registry.getDelimiter()).isEqualTo(GLOBAL_DEFAULT_DELIMITER);
         assertThat(registry.getDelimiter(0)).isEqualTo('_');
@@ -344,6 +446,20 @@ class MetricRegistryImplTest {
         assertThat(registry.getDelimiter(2)).isEqualTo(GLOBAL_DEFAULT_DELIMITER);
         assertThat(registry.getDelimiter(3)).isEqualTo(GLOBAL_DEFAULT_DELIMITER);
         assertThat(registry.getDelimiter(-1)).isEqualTo(GLOBAL_DEFAULT_DELIMITER);
+
+        List<MetricRegistryImpl.ReporterAndSettings<TraceReporter, SpanBuilder>> traceReporters =
+                registry.getTraceReporters();
+        assertThat(traceReporters.get(0).getSettings().getDelimiter()).isEqualTo('_');
+        assertThat(traceReporters.get(1).getSettings().getDelimiter()).isEqualTo('-');
+        assertThat(traceReporters.get(2).getSettings().getDelimiter())
+                .isEqualTo(GLOBAL_DEFAULT_DELIMITER);
+
+        List<MetricRegistryImpl.ReporterAndSettings<EventReporter, EventBuilder>> eventReporters =
+                registry.getEventReporters();
+        assertThat(traceReporters.get(0).getSettings().getDelimiter()).isEqualTo('_');
+        assertThat(traceReporters.get(1).getSettings().getDelimiter()).isEqualTo('-');
+        assertThat(traceReporters.get(2).getSettings().getDelimiter())
+                .isEqualTo(GLOBAL_DEFAULT_DELIMITER);
 
         registry.closeAsync().get();
     }
@@ -365,13 +481,14 @@ class MetricRegistryImplTest {
 
         List<ReporterSetup> reporterConfigurations =
                 Arrays.asList(
-                        ReporterSetup.forReporter(
+                        ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
                                 "test1", config1, new CollectingMetricsReporter()),
-                        ReporterSetup.forReporter(
+                        ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
                                 "test2", config2, new CollectingMetricsReporter()),
-                        ReporterSetup.forReporter(
+                        ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
                                 "test3", config3, new CollectingMetricsReporter()),
-                        ReporterSetup.forReporter("test4", new CollectingMetricsReporter()));
+                        ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
+                                "test4", new CollectingMetricsReporter()));
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.fromConfiguration(config), reporterConfigurations);
@@ -425,14 +542,17 @@ class MetricRegistryImplTest {
 
     @Test
     void testExceptionIsolation() throws Exception {
-        final NotificationCapturingReporter reporter1 = new NotificationCapturingReporter();
+        final NotificationCapturingMetricReporter reporter1 =
+                new NotificationCapturingMetricReporter();
 
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Arrays.asList(
-                                ReporterSetup.forReporter("test1", new FailingReporter()),
-                                ReporterSetup.forReporter("test2", reporter1)));
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
+                                        "test1", new FailingReporter()),
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
+                                        "test2", reporter1)));
 
         Counter metric = new SimpleCounter();
         registry.register(
@@ -466,7 +586,8 @@ class MetricRegistryImplTest {
     @Test
     void testMetricFiltering() {
         final String excludedMetricName = "excluded";
-        final NotificationCapturingReporter reporter = new NotificationCapturingReporter();
+        final NotificationCapturingMetricReporter reporter =
+                new NotificationCapturingMetricReporter();
 
         final Configuration reporterConfig = new Configuration();
         reporterConfig.set(MetricOptions.REPORTER_INCLUDES, Arrays.asList("*:*:counter"));
@@ -477,10 +598,11 @@ class MetricRegistryImplTest {
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Arrays.asList(
-                                ReporterSetup.forReporter(
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
                                         "test",
-                                        DefaultMetricFilter.fromConfiguration(reporterConfig),
-                                        reporter)));
+                                        reporter,
+                                        DefaultReporterFilters.metricsFromConfiguration(
+                                                reporterConfig))));
 
         registry.register(
                 new TestMeter(), "", new MetricGroupTest.DummyAbstractMetricGroup(registry));
@@ -498,5 +620,161 @@ class MetricRegistryImplTest {
                 new TestCounter(), "foo", new MetricGroupTest.DummyAbstractMetricGroup(registry));
 
         assertThat(reporter.getLastAddedMetric()).isNotEmpty();
+    }
+
+    @Test
+    void testSpanFiltering() {
+        final String includedGroupName = "foo";
+        final String excludedSpanName = "excluded";
+        final NotificationCapturingSpanReporter reporter = new NotificationCapturingSpanReporter();
+
+        final Configuration reporterConfig = new Configuration();
+        reporterConfig.set(
+                TraceOptions.REPORTER_INCLUDES,
+                Collections.singletonList(includedGroupName + ":*"));
+        reporterConfig.set(
+                TraceOptions.REPORTER_EXCLUDES, Collections.singletonList("*:" + excludedSpanName));
+
+        MetricRegistryImpl registry =
+                new MetricRegistryImpl(
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
+                        Collections.emptyList(),
+                        Collections.singletonList(
+                                ReporterSetupBuilder.TRACE_SETUP_BUILDER.forReporter(
+                                        "test",
+                                        reporter,
+                                        DefaultReporterFilters.tracesFromConfiguration(
+                                                reporterConfig))),
+                        Collections.emptyList());
+
+        registry.addSpan(
+                Span.builder(getClass(), "testSpan"),
+                new MetricGroupTest.DummyAbstractMetricGroup(registry, "bar"));
+
+        assertThat(reporter.getLastAddedSpan()).isEmpty();
+
+        registry.addSpan(
+                Span.builder(getClass(), excludedSpanName),
+                new MetricGroupTest.DummyAbstractMetricGroup(registry, includedGroupName));
+
+        assertThat(reporter.getLastAddedSpan()).isEmpty();
+
+        registry.addSpan(
+                Span.builder(getClass(), "foo"),
+                new MetricGroupTest.DummyAbstractMetricGroup(registry, includedGroupName));
+
+        assertThat(reporter.getLastAddedSpan()).isNotEmpty();
+    }
+
+    @Test
+    void testEventFiltering() {
+        final String includedGroupName = "foo";
+        final String excludedSpanName = "excluded";
+        final NotificationCapturingEventReporter reporter =
+                new NotificationCapturingEventReporter();
+
+        final Configuration reporterConfig = new Configuration();
+        reporterConfig.set(
+                EventOptions.REPORTER_INCLUDES,
+                Collections.singletonList(includedGroupName + ":*"));
+        reporterConfig.set(
+                EventOptions.REPORTER_EXCLUDES, Collections.singletonList("*:" + excludedSpanName));
+
+        MetricRegistryImpl registry =
+                new MetricRegistryImpl(
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
+                        Collections.emptyList(),
+                        Collections.emptyList(),
+                        Collections.singletonList(
+                                ReporterSetupBuilder.EVENT_SETUP_BUILDER.forReporter(
+                                        "test",
+                                        reporter,
+                                        DefaultReporterFilters.eventsFromConfiguration(
+                                                reporterConfig))));
+
+        registry.addEvent(
+                Event.builder(getClass(), "testEvent"),
+                new MetricGroupTest.DummyAbstractMetricGroup(registry, "bar"));
+
+        assertThat(reporter.getLastAddedEvent()).isEmpty();
+
+        registry.addEvent(
+                Event.builder(getClass(), excludedSpanName),
+                new MetricGroupTest.DummyAbstractMetricGroup(registry, includedGroupName));
+
+        assertThat(reporter.getLastAddedEvent()).isEmpty();
+
+        registry.addEvent(
+                Event.builder(getClass(), "foo"),
+                new MetricGroupTest.DummyAbstractMetricGroup(registry, includedGroupName));
+
+        assertThat(reporter.getLastAddedEvent()).isNotEmpty();
+    }
+
+    @Test
+    void testSpanAdditionalVariables() {
+        final NotificationCapturingSpanReporter reporter = new NotificationCapturingSpanReporter();
+
+        final Configuration reporterConfig = new Configuration();
+
+        Map<String, String> additionalVariables = Collections.singletonMap("foo", "bar");
+
+        MetricRegistryImpl registry =
+                new MetricRegistryImpl(
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
+                        Collections.emptyList(),
+                        Collections.singletonList(
+                                ReporterSetupBuilder.TRACE_SETUP_BUILDER.forReporter(
+                                        "test",
+                                        new MetricConfig(),
+                                        reporter,
+                                        DefaultReporterFilters.tracesFromConfiguration(
+                                                reporterConfig),
+                                        additionalVariables)),
+                        Collections.emptyList());
+
+        registry.addSpan(
+                Span.builder(getClass(), "testEvent"),
+                new MetricGroupTest.DummyAbstractMetricGroup(registry, "testGroup"));
+
+        Optional<Span> lastAddedSpan = reporter.getLastAddedSpan();
+
+        assertThat(lastAddedSpan.get().getName()).isEqualTo("testEvent");
+        assertThat(lastAddedSpan.get().getAttributes())
+                .containsExactlyInAnyOrderEntriesOf(additionalVariables);
+    }
+
+    @Test
+    void testEventAdditionalVariables() {
+        final NotificationCapturingEventReporter reporter =
+                new NotificationCapturingEventReporter();
+
+        final Configuration reporterConfig = new Configuration();
+
+        Map<String, String> additionalVariables = Collections.singletonMap("foo", "bar");
+
+        MetricRegistryImpl registry =
+                new MetricRegistryImpl(
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
+                        Collections.emptyList(),
+                        Collections.emptyList(),
+                        Collections.singletonList(
+                                ReporterSetupBuilder.EVENT_SETUP_BUILDER.forReporter(
+                                        "test",
+                                        new MetricConfig(),
+                                        reporter,
+                                        DefaultReporterFilters.eventsFromConfiguration(
+                                                reporterConfig),
+                                        additionalVariables)));
+
+        registry.addEvent(
+                Event.builder(getClass(), "testEvent"),
+                new MetricGroupTest.DummyAbstractMetricGroup(registry, "testGroup"));
+
+        Optional<Event> lastAddedEvent = reporter.getLastAddedEvent();
+
+        assertThat(lastAddedEvent.get().getName()).isEqualTo("testEvent");
+        assertThat(lastAddedEvent.get().getAttributes())
+                .containsExactlyInAnyOrderEntriesOf(additionalVariables);
     }
 }

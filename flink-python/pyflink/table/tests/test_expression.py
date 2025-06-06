@@ -132,6 +132,8 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('PERCENTILE(a, array(0.1, 0.5))', str(expr1.percentile(array(0.1, 0.5))))
         self.assertEqual('PERCENTILE(a, array(0.1, 0.5), b)',
                          str(expr1.percentile(array(0.1, 0.5), expr2)))
+        self.assertEqual("ASSIGNMENT('a2', a)", str(expr1.as_argument('a2')))
+        self.assertEqual("ASSIGNMENT('a', 10)", str(expr5.as_argument('a')))
 
         # string functions
         self.assertEqual('substring(a, b)', str(expr1.substring(expr2)))

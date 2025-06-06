@@ -492,6 +492,7 @@ class TableScanTest extends TableTestBase {
                     |  'connector' = 'values',
                     |  'changelog-mode' = 'UA,D',
                     |  'enable-watermark-push-down' = 'true',
+                    |  'source.produces-delete-by-key' = 'true',
                     |  'disable-lookup' = 'true'
                     |)
       """.stripMargin)
@@ -508,7 +509,8 @@ class TableScanTest extends TableTestBase {
                     |  PRIMARY KEY (a) NOT ENFORCED
                     |) WITH (
                     |  'connector' = 'values',
-                    |  'changelog-mode' = 'UA,D'
+                    |  'changelog-mode' = 'UA,D',
+                    |  'source.produces-delete-by-key' = 'true'
                     |)
       """.stripMargin)
     util.addTable("""
@@ -593,6 +595,7 @@ class TableScanTest extends TableTestBase {
                     |) WITH (
                     |  'connector' = 'values',
                     |  'changelog-mode' = 'UA,D',
+                    |  'source.produces-delete-by-key' = 'true',
                     |  'disable-lookup' = 'true'
                     |)
       """.stripMargin)
@@ -628,6 +631,7 @@ class TableScanTest extends TableTestBase {
                     |) WITH (
                     |  'connector' = 'values',
                     |  'changelog-mode' = 'UA,D',
+                    |  'source.produces-delete-by-key' = 'true',
                     |  'disable-lookup' = 'true'
                     |)
       """.stripMargin)
@@ -786,7 +790,8 @@ class TableScanTest extends TableTestBase {
                     |  'runtime-source' = 'DataStream',
                     |  'scan.parallelism' = '5',
                     |  'enable-projection-push-down' = 'false',
-                    |  'changelog-mode' = 'I,UA,D'
+                    |  'changelog-mode' = 'I,UA,D',
+                    |  'source.produces-delete-by-key' = 'true'
                     |)
       """.stripMargin)
     util.addTable("""

@@ -174,71 +174,6 @@ public class CountWithTimeoutFunction
 }
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-import org.apache.flink.api.common.state.ValueState
-import org.apache.flink.api.common.state.ValueStateDescriptor
-import org.apache.flink.api.java.tuple.Tuple
-import org.apache.flink.streaming.api.functions.KeyedProcessFunction
-import org.apache.flink.util.Collector
-
-// 源数据流
-val stream: DataStream[Tuple2[String, String]] = ...
-
-// 使用 process function 来处理一个 Keyed Stream
-val result: DataStream[Tuple2[String, Long]] = stream
-  .keyBy(_._1)
-  .process(new CountWithTimeoutFunction())
-
-/**
-  * 存储在状态中的数据类型
-  */
-case class CountWithTimestamp(key: String, count: Long, lastModified: Long)
-
-/**
-  * 该 ProcessFunction 的实现用于维护计数和超时
-  */
-class CountWithTimeoutFunction extends KeyedProcessFunction[Tuple, (String, String), (String, Long)] {
-
-  /** 由 process function 管理的状态  */
-  lazy val state: ValueState[CountWithTimestamp] = getRuntimeContext
-    .getState(new ValueStateDescriptor[CountWithTimestamp]("myState", classOf[CountWithTimestamp]))
-
-
-  override def processElement(
-      value: (String, String), 
-      ctx: KeyedProcessFunction[Tuple, (String, String), (String, Long)]#Context, 
-      out: Collector[(String, Long)]): Unit = {
-
-    // 初始化或更新状态
-    val current: CountWithTimestamp = state.value match {
-      case null =>
-        CountWithTimestamp(value._1, 1, ctx.timestamp)
-      case CountWithTimestamp(key, count, lastModified) =>
-        CountWithTimestamp(key, count + 1, ctx.timestamp)
-    }
-
-    // 将更新后的状态写回
-    state.update(current)
-
-    // 注册一个 60s 之后的事件时间回调
-    ctx.timerService.registerEventTimeTimer(current.lastModified + 60000)
-  }
-
-  override def onTimer(
-      timestamp: Long, 
-      ctx: KeyedProcessFunction[Tuple, (String, String), (String, Long)]#OnTimerContext, 
-      out: Collector[(String, Long)]): Unit = {
-
-    state.value match {
-      case CountWithTimestamp(key, count, lastModified) if (timestamp == lastModified + 60000) =>
-        out.collect((key, count))
-      case _ =>
-    }
-  }
-}
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 import datetime
@@ -351,14 +286,6 @@ public void onTimer(long timestamp, OnTimerContext ctx, Collector<OUT> out) thro
 
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-override def onTimer(timestamp: Long, ctx: OnTimerContext, out: Collector[OUT]): Unit = {
-  var key = ctx.getCurrentKey
-  // ...
-}
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 def on_timer(self, timestamp: int, ctx: 'KeyedProcessFunction.OnTimerContext'):
@@ -403,12 +330,6 @@ long coalescedTime = ((ctx.timestamp() + timeout) / 1000) * 1000;
 ctx.timerService().registerProcessingTimeTimer(coalescedTime);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val coalescedTime = ((ctx.timestamp + timeout) / 1000) * 1000
-ctx.timerService.registerProcessingTimeTimer(coalescedTime)
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 coalesced_time = ((ctx.timestamp() + timeout) // 1000) * 1000
@@ -424,12 +345,6 @@ ctx.timer_service().register_processing_time_timer(coalesced_time)
 ```java
 long coalescedTime = ctx.timerService().currentWatermark() + 1;
 ctx.timerService().registerEventTimeTimer(coalescedTime);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val coalescedTime = ctx.timerService.currentWatermark + 1
-ctx.timerService.registerEventTimeTimer(coalescedTime)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -451,12 +366,6 @@ long timestampOfTimerToStop = ...;
 ctx.timerService().deleteProcessingTimeTimer(timestampOfTimerToStop);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val timestampOfTimerToStop = ...
-ctx.timerService.deleteProcessingTimeTimer(timestampOfTimerToStop)
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 timestamp_of_timer_to_stop = ...
@@ -472,12 +381,6 @@ ctx.timer_service().delete_processing_time_timer(timestamp_of_timer_to_stop)
 ```java
 long timestampOfTimerToStop = ...;
 ctx.timerService().deleteEventTimeTimer(timestampOfTimerToStop);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val timestampOfTimerToStop = ...
-ctx.timerService.deleteEventTimeTimer(timestampOfTimerToStop)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}

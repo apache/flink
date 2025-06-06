@@ -69,62 +69,7 @@ public interface TableResult {
     void await(long timeout, TimeUnit unit)
             throws InterruptedException, ExecutionException, TimeoutException;
 
-    /**
-     * Returns the schema of the result.
-     *
-     * <p>The schema of DDL, USE, EXPLAIN:
-     *
-     * <pre>
-     * +-------------+-------------+----------+
-     * | column name | column type | comments |
-     * +-------------+-------------+----------+
-     * | result      | STRING      |          |
-     * +-------------+-------------+----------+
-     * </pre>
-     *
-     * <p>The schema of SHOW:
-     *
-     * <pre>
-     * +---------------+-------------+----------+
-     * |  column name  | column type | comments |
-     * +---------------+-------------+----------+
-     * | &lt;object name&gt; | STRING      |          |
-     * +---------------+-------------+----------+
-     * The column name of `SHOW CATALOGS` is "catalog name",
-     * the column name of `SHOW DATABASES` is "database name",
-     * the column name of `SHOW TABLES` is "table name",
-     * the column name of `SHOW VIEWS` is "view name",
-     * the column name of `SHOW FUNCTIONS` is "function name",
-     * the column name of `SHOW MODULES` is "module name".
-     * </pre>
-     *
-     * <p>The schema of DESCRIBE:
-     *
-     * <pre>
-     * +------------------+-------------+-----------------------------------------------------------------------------+
-     * | column name      | column type |                              comments                                       |
-     * +------------------+-------------+-----------------------------------------------------------------------------+
-     * | name             | STRING      | field name                                                                  |
-     * | type             | STRING      | field type expressed as a String                                            |
-     * | null             | BOOLEAN     | field nullability: true if a field is nullable, else false                  |
-     * | key              | BOOLEAN     | key constraint: 'PRI' for primary keys, 'UNQ' for unique keys, else null    |
-     * | extras           | STRING      | extras such as computed or metadata column information, else null           |
-     * | watermark        | STRING      | watermark: string expression if a field is watermark, else null             |
-     * +------------------+-------------+-----------------------------------------------------------------------------+
-     * </pre>
-     *
-     * <p>The schema of INSERT: (one column per one sink)
-     *
-     * <pre>
-     * +----------------------------+-------------+-----------------------+
-     * | column name                | column type | comments              |
-     * +----------------------------+-------------+-----------------------+
-     * | (name of the insert table) | BIGINT      | the insert table name |
-     * +----------------------------+-------------+-----------------------+
-     * </pre>
-     *
-     * <p>The schema of SELECT is the selected field names and types.
-     */
+    /** Returns the schema of the result. */
     ResolvedSchema getResolvedSchema();
 
     /**

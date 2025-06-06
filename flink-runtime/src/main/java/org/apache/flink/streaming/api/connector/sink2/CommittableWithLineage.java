@@ -50,7 +50,7 @@ public class CommittableWithLineage<CommT> implements CommittableMessage<CommT> 
         return subtaskId;
     }
 
-    public long getCheckpointIdOrEOI() {
+    public long getCheckpointId() {
         return checkpointId;
     }
 

@@ -19,43 +19,87 @@
 package org.apache.flink.table.runtime.operators.process;
 
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.generated.GeneratedHashFunction;
 import org.apache.flink.table.runtime.generated.GeneratedProcessTableRunner;
+import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
+import org.apache.flink.table.runtime.generated.HashFunction;
 import org.apache.flink.table.runtime.generated.ProcessTableRunner;
+import org.apache.flink.table.runtime.generated.RecordEqualiser;
 
-import javax.annotation.Nullable;
+import java.util.Arrays;
+import java.util.List;
 
-/** The factory of {@link ProcessTableOperator}. */
-public class ProcessTableOperatorFactory extends AbstractStreamOperatorFactory<RowData>
-        implements OneInputStreamOperatorFactory<RowData, RowData> {
+/** The factory for subclasses of {@link AbstractProcessTableOperator}. */
+public class ProcessTableOperatorFactory extends AbstractStreamOperatorFactory<RowData> {
 
     private static final long serialVersionUID = 1L;
 
-    private final @Nullable RuntimeTableSemantics tableSemantics;
+    private final List<RuntimeTableSemantics> tableSemantics;
+    private final List<RuntimeStateInfo> stateInfos;
     private final GeneratedProcessTableRunner generatedProcessTableRunner;
+    private final GeneratedHashFunction[] generatedStateHashCode;
+    private final GeneratedRecordEqualiser[] generatedStateEquals;
+    private final RuntimeChangelogMode producedChangelogMode;
 
     public ProcessTableOperatorFactory(
-            @Nullable RuntimeTableSemantics tableSemantics,
-            GeneratedProcessTableRunner generatedProcessTableRunner) {
+            List<RuntimeTableSemantics> tableSemantics,
+            List<RuntimeStateInfo> stateInfos,
+            GeneratedProcessTableRunner generatedProcessTableRunner,
+            GeneratedHashFunction[] generatedStateHashCode,
+            GeneratedRecordEqualiser[] generatedStateEquals,
+            RuntimeChangelogMode producedChangelogMode) {
         this.tableSemantics = tableSemantics;
+        this.stateInfos = stateInfos;
         this.generatedProcessTableRunner = generatedProcessTableRunner;
+        this.generatedStateHashCode = generatedStateHashCode;
+        this.generatedStateEquals = generatedStateEquals;
+        this.producedChangelogMode = producedChangelogMode;
     }
 
     @Override
     @SuppressWarnings({"rawtypes", "unchecked"})
     public StreamOperator createStreamOperator(StreamOperatorParameters parameters) {
-        final ProcessTableRunner runner =
-                generatedProcessTableRunner.newInstance(
-                        parameters.getContainingTask().getUserCodeClassLoader());
-        return new ProcessTableOperator(parameters, tableSemantics, runner);
+        final ClassLoader classLoader = parameters.getContainingTask().getUserCodeClassLoader();
+        final ProcessTableRunner runner = generatedProcessTableRunner.newInstance(classLoader);
+        final HashFunction[] stateHashCode =
+                Arrays.stream(generatedStateHashCode)
+                        .map(g -> g.newInstance(classLoader))
+                        .toArray(HashFunction[]::new);
+        final RecordEqualiser[] stateEquals =
+                Arrays.stream(generatedStateEquals)
+                        .map(g -> g.newInstance(classLoader))
+                        .toArray(RecordEqualiser[]::new);
+        if (tableSemantics.stream().anyMatch(RuntimeTableSemantics::hasSetSemantics)) {
+            return new ProcessSetTableOperator(
+                    parameters,
+                    tableSemantics,
+                    stateInfos,
+                    runner,
+                    stateHashCode,
+                    stateEquals,
+                    producedChangelogMode);
+        } else {
+            return new ProcessRowTableOperator(
+                    parameters,
+                    tableSemantics,
+                    stateInfos,
+                    runner,
+                    stateHashCode,
+                    stateEquals,
+                    producedChangelogMode);
+        }
     }
 
     @Override
     @SuppressWarnings("rawtypes")
     public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-        return ProcessTableOperator.class;
+        if (tableSemantics.stream().anyMatch(RuntimeTableSemantics::hasSetSemantics)) {
+            return ProcessSetTableOperator.class;
+        } else {
+            return ProcessRowTableOperator.class;
+        }
     }
 }

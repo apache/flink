@@ -81,6 +81,16 @@ class PythonRemoteCalcCallFinder extends RemoteCalcCallFinder {
   override def isNonRemoteCall(node: RexNode): Boolean = {
     PythonUtil.isNonPythonCall(node)
   }
+
+  override def equals(obj: Any): Boolean = {
+    obj != null && obj.isInstanceOf[PythonRemoteCalcCallFinder]
+  }
+
+  override def hashCode(): Int = {
+    this.getClass.hashCode()
+  }
+
+  override def getName: String = "Python"
 }
 
 object PythonCalcSplitRule {

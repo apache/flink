@@ -1,5 +1,4 @@
 **/*.svg
-**/test.ts
 package.json
 web/
 node_modules/

@@ -65,7 +65,7 @@ public class MockListAppenderProcessFunction
             Integer record, Collector<Integer> output, PartitionedContext<Integer> ctx)
             throws Exception {
         Optional<ListState<Integer>> stateOptional =
-                ctx.getStateManager().getState(listStateDeclaration);
+                ctx.getStateManager().getStateOptional(listStateDeclaration);
         if (!stateOptional.isPresent()) {
             throw new RuntimeException("State is not available");
         }

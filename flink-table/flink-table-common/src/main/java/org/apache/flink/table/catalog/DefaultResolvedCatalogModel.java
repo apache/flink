@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Map;
@@ -66,9 +67,8 @@ public final class DefaultResolvedCatalogModel implements ResolvedCatalogModel, 
         return resolvedOutputSchema;
     }
 
-    @Override
-    public Map<String, String> toProperties() {
-        return CatalogPropertiesUtil.serializeResolvedCatalogModel(this);
+    public Map<String, String> toProperties(SqlFactory sqlFactory) {
+        return CatalogPropertiesUtil.serializeResolvedCatalogModel(this, sqlFactory);
     }
 
     // --------------------------------------------------------------------------------------------

@@ -540,7 +540,19 @@ class CatalogManagerTest {
                                         false))
                 .isInstanceOf(CatalogException.class)
                 .hasMessage("Catalog cat_comment already exists.");
+        assertThatThrownBy(
+                        () ->
+                                catalogManager.createCatalog(
+                                        "cat_no_type",
+                                        CatalogDescriptor.of(
+                                                "cat_no_type",
+                                                new Configuration(),
+                                                "catalog without type"),
+                                        false))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Unable to create catalog 'cat_no_type'.");
 
+        assertFalse(catalogManager.listCatalogs().contains("cat_no_type"));
         assertTrue(catalogManager.getCatalog("cat1").isPresent());
         assertTrue(catalogManager.getCatalog("cat2").isPresent());
         assertTrue(catalogManager.getCatalog("cat3").isPresent());

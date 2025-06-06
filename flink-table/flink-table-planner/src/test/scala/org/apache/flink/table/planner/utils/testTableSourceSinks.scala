@@ -33,6 +33,7 @@ import org.apache.flink.table.api.{DataTypes, TableDescriptor, TableEnvironment}
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.descriptors._
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR, CONNECTOR_TYPE}
+import org.apache.flink.table.expressions.DefaultSqlFactory
 import org.apache.flink.table.factories.FactoryUtil
 import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.legacy.descriptors.Schema
@@ -329,7 +330,7 @@ class TestPartitionableTableSource(
 
   override def explainSource(): String = {
     if (remainingPartitions != null) {
-      s"partitions=${remainingPartitions.mkString(", ")}"
+      s"partitions=${PartitionUtils.sortPartitionsByKey(remainingPartitions)}"
     } else {
       ""
     }
@@ -461,11 +462,17 @@ class TestOptionsTableFactory extends TableSourceFactory[Row] with TableSinkFact
   }
 
   override def createTableSource(context: TableSourceFactory.Context): TableSource[Row] = {
-    createPropertiesSource(context.getTable.asInstanceOf[ResolvedCatalogTable].toProperties)
+    createPropertiesSource(
+      context.getTable
+        .asInstanceOf[ResolvedCatalogTable]
+        .toProperties(DefaultSqlFactory.INSTANCE))
   }
 
   override def createTableSink(context: TableSinkFactory.Context): TableSink[Row] = {
-    createPropertiesSink(context.getTable.asInstanceOf[ResolvedCatalogTable].toProperties)
+    createPropertiesSink(
+      context.getTable
+        .asInstanceOf[ResolvedCatalogTable]
+        .toProperties(DefaultSqlFactory.INSTANCE))
   }
 }
 

@@ -28,10 +28,6 @@ under the License.
 
 Materialized Table is a new table type introduced in Flink SQL, aimed at simplifying both batch and stream data pipelines, providing a consistent development experience. By specifying data freshness and query when creating Materialized Table, the engine automatically derives the schema for the materialized table and creates corresponding data refresh pipeline to achieve the specified freshness.
 
-{{< hint warning >}}
-**Note**: This feature is currently an MVP (“minimum viable product”) feature and only available within [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}) which connected to a [Standalone]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}) deployed Flink cluster.
-{{< /hint >}}
-
 # Core Concepts
 
 Materialized Table encompass the following core concepts: Data Freshness, Refresh Mode, Query Definition and Schema.

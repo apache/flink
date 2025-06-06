@@ -40,7 +40,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 
-import org.apache.flink.shaded.guava32.com.google.common.primitives.Primitives;
+import org.apache.flink.shaded.guava33.com.google.common.primitives.Primitives;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;

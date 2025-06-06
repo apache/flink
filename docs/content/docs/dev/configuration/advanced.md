@@ -52,7 +52,7 @@ For more information about classloading, refer to the section on [Classloading i
 
 Different Scala versions are not binary compatible with one another. All Flink dependencies that 
 (transitively) depend on Scala are suffixed with the Scala version that they are built for 
-(i.e. `flink-streaming-scala_2.12`).
+(i.e. `flink-table-api-scala-bridge_2.12`).
 
 If you are only using Flink's Java APIs, you can use any Scala version. If you are using Flink's Scala APIs, 
 you need to pick the Scala version that matches the application's Scala version.

@@ -163,9 +163,16 @@ public final class ResolvedSchema {
         return Optional.ofNullable(primaryKey);
     }
 
-    /** Returns the primary key indexes, if any, otherwise returns an empty array. */
+    /**
+     * Returns the primary key indexes in the {@link #toPhysicalRowDataType()}, if any, otherwise
+     * returns an empty array.
+     */
     public int[] getPrimaryKeyIndexes() {
-        final List<String> columns = getColumnNames();
+        final List<String> columns =
+                getColumns().stream()
+                        .filter(Column::isPhysical)
+                        .map(Column::getName)
+                        .collect(Collectors.toList());
         return getPrimaryKey()
                 .map(UniqueConstraint::getColumns)
                 .map(pkColumns -> pkColumns.stream().mapToInt(columns::indexOf).toArray())

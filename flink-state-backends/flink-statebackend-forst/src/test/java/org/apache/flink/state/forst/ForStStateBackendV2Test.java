@@ -54,8 +54,9 @@ import static org.apache.flink.configuration.StateRecoveryOptions.RESTORE_MODE;
 import static org.apache.flink.state.forst.ForStConfigurableOptions.USE_DELETE_FILES_IN_RANGE_DURING_RESCALING;
 import static org.apache.flink.state.forst.ForStConfigurableOptions.USE_INGEST_DB_RESTORE_MODE;
 import static org.apache.flink.state.forst.ForStOptions.LOCAL_DIRECTORIES;
-import static org.apache.flink.state.forst.ForStOptions.REMOTE_DIRECTORY;
-import static org.apache.flink.state.forst.ForStStateBackend.REMOTE_SHORTCUT_CHECKPOINT;
+import static org.apache.flink.state.forst.ForStOptions.PRIMARY_DIRECTORY;
+import static org.apache.flink.state.forst.ForStStateBackend.CHECKPOINT_DIR_AS_PRIMARY_SHORTCUT;
+import static org.apache.flink.state.forst.ForStStateBackend.LOCAL_DIR_AS_PRIMARY_SHORTCUT;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 /** Tests for the async keyed state backend part of {@link ForStStateBackend}. */
@@ -169,7 +170,9 @@ class ForStStateBackendV2Test extends StateBackendTestV2Base<ForStStateBackend> 
             config.set(LOCAL_DIRECTORIES, tempFolderForForStLocal.toString());
         }
         if (hasRemoteDir) {
-            config.set(REMOTE_DIRECTORY, tempFolderForForstRemote.toString());
+            config.set(PRIMARY_DIRECTORY, tempFolderForForstRemote.toString());
+        } else {
+            config.set(PRIMARY_DIRECTORY, LOCAL_DIR_AS_PRIMARY_SHORTCUT);
         }
         config.set(USE_INGEST_DB_RESTORE_MODE, useIngestDbRestoreMode);
         config.set(USE_DELETE_FILES_IN_RANGE_DURING_RESCALING, useDeleteFileInRange);
@@ -207,7 +210,7 @@ class ForStStateBackendV2Test extends StateBackendTestV2Base<ForStStateBackend> 
 
         Configuration config = new Configuration();
         config.set(LOCAL_DIRECTORIES, tempFolderForForStLocal.toString());
-        config.set(REMOTE_DIRECTORY, REMOTE_SHORTCUT_CHECKPOINT);
+        config.set(PRIMARY_DIRECTORY, CHECKPOINT_DIR_AS_PRIMARY_SHORTCUT);
         config.set(CheckpointingOptions.CREATE_CHECKPOINT_SUB_DIR, createJob);
 
         checkpointStorage =

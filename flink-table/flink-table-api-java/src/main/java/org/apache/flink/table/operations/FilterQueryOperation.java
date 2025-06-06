@@ -21,6 +21,7 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
 
 import java.util.Collections;
@@ -60,14 +61,14 @@ public class FilterQueryOperation implements QueryOperation {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SqlFactory sqlFactory) {
         return String.format(
                 "SELECT %s FROM (%s\n) %s WHERE %s",
                 OperationUtils.formatSelectColumns(getResolvedSchema(), INPUT_ALIAS),
-                OperationUtils.indent(child.asSerializableString()),
+                OperationUtils.indent(child.asSerializableString(sqlFactory)),
                 INPUT_ALIAS,
                 OperationExpressionsUtils.scopeReferencesWithAlias(INPUT_ALIAS, condition)
-                        .asSerializableString());
+                        .asSerializableString(sqlFactory));
     }
 
     @Override

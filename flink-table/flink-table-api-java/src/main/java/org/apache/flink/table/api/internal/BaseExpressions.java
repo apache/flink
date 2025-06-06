@@ -251,6 +251,36 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
+     * Converts this expression into a named argument.
+     *
+     * <p>If the function declares a static signature (usually indicated by the "=>" assignment
+     * operator), the framework is able to reorder named arguments and consider optional arguments
+     * accordingly, before passing them into the function call.
+     *
+     * <p>Note: Not every function supports named arguments. Named arguments are not available for
+     * signatures that are overloaded, use varargs, or any other kind of input type strategy.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * table.select(
+     *   Expressions.call(
+     *     "MyFunction",
+     *     $("my_column").asArgument("input"),
+     *     lit(42).asArgument("threshold")
+     *   )
+     * )
+     * }</pre>
+     */
+    public OutType asArgument(String name) {
+        return toApiSpecificExpression(
+                ApiExpressionUtils.unresolvedCall(
+                        BuiltInFunctionDefinitions.ASSIGNMENT,
+                        ApiExpressionUtils.valueLiteral(name),
+                        toExpr()));
+    }
+
+    /**
      * Returns an ARRAY that contains the elements from array1 that are not in array2. If no
      * elements remain after excluding the elements in array2 from array1, the function returns an
      * empty ARRAY.

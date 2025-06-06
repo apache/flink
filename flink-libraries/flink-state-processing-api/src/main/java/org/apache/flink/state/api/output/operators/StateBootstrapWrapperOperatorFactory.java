@@ -47,6 +47,8 @@ public class StateBootstrapWrapperOperatorFactory<
                 OPF extends OneInputStreamOperatorFactory<IN, OUT>>
         extends AbstractStreamOperatorFactory<TaggedOperatorSubtaskState> {
 
+    private final long checkpointId;
+
     private final long timestamp;
 
     private final Path savepointPath;
@@ -56,7 +58,11 @@ public class StateBootstrapWrapperOperatorFactory<
     private final WindowOperator<?, IN, ?, ?, ?> operator;
 
     public StateBootstrapWrapperOperatorFactory(
-            long timestamp, Path savepointPath, WindowOperator<?, IN, ?, ?, ?> operator) {
+            long checkpointId,
+            long timestamp,
+            Path savepointPath,
+            WindowOperator<?, IN, ?, ?, ?> operator) {
+        this.checkpointId = checkpointId;
         this.timestamp = timestamp;
         this.savepointPath = savepointPath;
         this.operator = operator;
@@ -67,7 +73,8 @@ public class StateBootstrapWrapperOperatorFactory<
     public <T extends StreamOperator<TaggedOperatorSubtaskState>> T createStreamOperator(
             StreamOperatorParameters<TaggedOperatorSubtaskState> parameters) {
         StateBootstrapWrapperOperator<IN, OUT, OP> wrapperOperator =
-                new StateBootstrapWrapperOperator<>(timestamp, savepointPath, operator);
+                new StateBootstrapWrapperOperator<>(
+                        checkpointId, timestamp, savepointPath, operator);
         wrapperOperator.setup(
                 parameters.getContainingTask(),
                 parameters.getStreamConfig(),

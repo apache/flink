@@ -62,6 +62,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalW
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils;
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
+import org.apache.flink.table.planner.plan.utils.FlinkRelUtil;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.planner.plan.utils.OverAggregateUtil;
@@ -78,7 +79,6 @@ import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
-import org.apache.calcite.rex.RexSlot;
 import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.util.ImmutableBitSet;
 
@@ -297,7 +297,8 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                     calc.getProgram().getProjectList().stream()
                             .map(expr -> calc.getProgram().expandLocalRef(expr))
                             .collect(Collectors.toList());
-            Map<Integer, List<Integer>> outFromSourcePos = extractSourceMapping(projects);
+            Map<Integer, List<Integer>> outFromSourcePos =
+                    FlinkRelUtil.extractSourceMapping(projects);
             List<Integer> conv2Inputs =
                     requireDeterminism.toList().stream()
                             .map(
@@ -629,10 +630,9 @@ public class StreamNonDeterministicUpdatePlanVisitor {
             }
             return transmitDeterminismRequirement(overAgg, NO_REQUIRED_DETERMINISM);
         } else {
-            // OverAgg does not support input with updates currently, so this branch will not be
-            // reached for now.
-
-            // We should append partition keys and order key to requireDeterminism
+            // OverAgg does not support input with updates when order by column is a time-attribute
+            // Only non-time order by attribute can support updates
+            // Append partition and order keys to requireDeterminism
             return transmitDeterminismRequirement(
                     overAgg, mappingRequireDeterminismToInput(requireDeterminism, overAgg));
         }
@@ -812,22 +812,6 @@ public class StreamNonDeterministicUpdatePlanVisitor {
         return transmitDeterminismRequirement(rel, inputRequireDeterminism);
     }
 
-    /** Extracts the out from source field index mapping of the given projects. */
-    private Map<Integer, List<Integer>> extractSourceMapping(final List<RexNode> projects) {
-        Map<Integer, List<Integer>> mapOutFromInPos = new HashMap<>();
-
-        for (int index = 0; index < projects.size(); index++) {
-            RexNode expr = projects.get(index);
-            mapOutFromInPos.put(
-                    index,
-                    FlinkRexUtil.findAllInputRefs(expr).stream()
-                            .mapToInt(RexSlot::getIndex)
-                            .boxed()
-                            .collect(Collectors.toList()));
-        }
-        return mapOutFromInPos;
-    }
-
     private void checkNonDeterministicRexProgram(
             final ImmutableBitSet requireDeterminism,
             final RexProgram program,
@@ -982,6 +966,10 @@ public class StreamNonDeterministicUpdatePlanVisitor {
             // add aggCall's input
             int aggOutputIndex = inputFieldCnt;
             for (OverSpec.GroupSpec groupSpec : overSpec.getGroups()) {
+                // Add sort fields
+                Arrays.stream(groupSpec.getSort().getFieldIndices())
+                        .forEach(allRequiredInputSet::add);
+                // Add aggregation fields
                 for (AggregateCall aggCall : groupSpec.getAggCalls()) {
                     if (requireDeterminism.get(aggOutputIndex)) {
                         requiredSourceInput(aggCall, allRequiredInputSet);

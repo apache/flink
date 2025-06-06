@@ -23,6 +23,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionVisitor;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.types.DataType;
 
 import org.apache.calcite.rex.RexNode;
@@ -73,7 +74,7 @@ public final class RexNodeExpression implements ResolvedExpression {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SqlFactory sqlFactory) {
         if (serializableString != null) {
             return serializableString;
         }

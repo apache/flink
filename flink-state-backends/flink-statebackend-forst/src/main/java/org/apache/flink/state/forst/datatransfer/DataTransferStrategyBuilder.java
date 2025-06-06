@@ -47,21 +47,25 @@ public class DataTransferStrategyBuilder {
     public static DataTransferStrategy buildForSnapshot(
             SnapshotType.SharingFilesStrategy sharingFilesStrategy,
             @Nullable ForStFlinkFileSystem forStFlinkFileSystem,
-            @Nullable CheckpointStreamFactory checkpointStreamFactory) {
+            @Nullable CheckpointStreamFactory checkpointStreamFactory,
+            boolean forceCopy) {
         return buildForSnapshot(
                 sharingFilesStrategy,
                 forStFlinkFileSystem,
                 isDbPathUnderCheckpointPathForSnapshot(
-                        forStFlinkFileSystem, checkpointStreamFactory));
+                        forStFlinkFileSystem, checkpointStreamFactory),
+                forceCopy);
     }
 
     @VisibleForTesting
     static DataTransferStrategy buildForSnapshot(
             SnapshotType.SharingFilesStrategy sharingFilesStrategy,
             @Nullable ForStFlinkFileSystem forStFlinkFileSystem,
-            boolean isDbPathUnderCheckpointPathForSnapshot) {
+            boolean isDbPathUnderCheckpointPathForSnapshot,
+            boolean forceCopy) {
         DataTransferStrategy strategy;
-        if (sharingFilesStrategy != SnapshotType.SharingFilesStrategy.FORWARD_BACKWARD
+        if (forceCopy
+                || sharingFilesStrategy == SnapshotType.SharingFilesStrategy.NO_SHARING
                 || forStFlinkFileSystem == null
                 || !isDbPathUnderCheckpointPathForSnapshot) {
             strategy =
@@ -125,7 +129,7 @@ public class DataTransferStrategyBuilder {
         if (forStFlinkFileSystem == null
                 || cpSharedFs == null
                 || !forStFlinkFileSystem.getUri().equals(cpSharedFs.getUri())
-                || recoveryClaimMode != RecoveryClaimMode.CLAIM) {
+                || recoveryClaimMode == RecoveryClaimMode.NO_CLAIM) {
             strategy =
                     forStFlinkFileSystem == null
                             ? new CopyDataTransferStrategy()

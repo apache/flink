@@ -2438,23 +2438,28 @@ LogicalSink(table=[default_catalog.default_database.sink2], fields=[a, day, b, c
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, day, b0, day0, c, d], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])(reuse_id=[1])
-:- Exchange(distribution=[hash[a]])
-:  +- Calc(select=[a, b, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd') AS day])
-:     +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a, b], metadata=[]]], fields=[a, b])
-+- Exchange(distribution=[hash[d]])
-   +- Calc(select=[b, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd')) AS day, c, d])
-      +- TableSourceScan(table=[[default_catalog, default_database, src2, project=[b, c, d], metadata=[]]], fields=[b, c, d])
+Exchange(distribution=[hash[a]])(reuse_id=[1])
++- Calc(select=[a, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd') AS day])
+   +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a], metadata=[]]], fields=[a])
+
+TableSourceScan(table=[[default_catalog, default_database, src2, project=[b, c, d], metadata=[]]], fields=[b, c, d])(reuse_id=[2])
 
 Sink(table=[default_catalog.default_database.sink1], fields=[a, day, EXPR$2, EXPR$3])
 +- GroupAggregate(groupBy=[a, day], select=[a, day, SUM_RETRACT(b) AS EXPR$2, COUNT_RETRACT(DISTINCT c) AS EXPR$3])
    +- Exchange(distribution=[hash[a, day]])
-      +- Calc(select=[a, day, b0 AS b, c])
-         +- Reused(reference_id=[1])
+      +- Calc(select=[a, day, b, c])
+         +- Join(joinType=[InnerJoin], where=[(a = d)], select=[a, day, b, c, d], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+            :- Reused(reference_id=[1])
+            +- Exchange(distribution=[hash[d]])
+               +- Reused(reference_id=[2])
 
-Sink(table=[default_catalog.default_database.sink2], fields=[a, day, b0, c])
-+- Calc(select=[a, day, b0, c], where=[(b0 > 100)])
-   +- Reused(reference_id=[1])
+Sink(table=[default_catalog.default_database.sink2], fields=[a, day, b, c])
++- Calc(select=[a, day, b, c])
+   +- Join(joinType=[InnerJoin], where=[(a = d)], select=[a, day, b, c, d], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+      :- Reused(reference_id=[1])
+      +- Exchange(distribution=[hash[d]])
+         +- Calc(select=[b, c, d], where=[(b > 100)])
+            +- Reused(reference_id=[2])
 ]]>
     </Resource>
   </TestCase>
@@ -2489,7 +2494,7 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, qmt, day]
    +- GroupAggregate(groupBy=[a, day], select=[a, day, SUM_RETRACT(b) AS qmt])
       +- Exchange(distribution=[hash[a, day]])
          +- Calc(select=[a, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd') AS day, b])
-            +- Deduplicate(keep=[LastRow], key=[a], order=[PROCTIME])
+            +- Deduplicate(keep=[LastRow], key=[a], order=[PROCTIME], outputInsertOnly=[false])
                +- Exchange(distribution=[hash[a]])
                   +- Calc(select=[a, b, PROCTIME() AS $4])
                      +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[a, b, c, d])
@@ -2518,18 +2523,17 @@ LogicalSink(table=[default_catalog.default_database.sink2], fields=[a, b, d])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[id, deepNested_nested2_num AS a, deepNested_nested1_name AS name, ((deepNested_nested1_value + deepNested_nested2_num) + metadata_1) AS b])(reuse_id=[1])
-+- TableSourceScan(table=[[default_catalog, default_database, nested_src, project=[id, deepNested_nested2_num, deepNested_nested1_name, deepNested_nested1_value], metadata=[metadata_1]]], fields=[id, deepNested_nested2_num, deepNested_nested1_name, deepNested_nested1_value, metadata_1])
+TableSourceScan(table=[[default_catalog, default_database, nested_src, project=[deepNested, deepNested_nested1_value, deepNested_nested2_num, metadata_1], metadata=[metadata_1]]], fields=[deepNested, deepNested_nested1_value, deepNested_nested2_num, metadata_1])(reuse_id=[1])
 
 Sink(table=[default_catalog.default_database.sink1], fields=[a, b, d])
 +- Calc(select=[a, day AS b, CAST(EXPR$2 AS BIGINT) AS d])
    +- GroupAggregate(groupBy=[a, day], select=[a, day, SUM_RETRACT(b) AS EXPR$2])
       +- Exchange(distribution=[hash[a, day]])
-         +- Calc(select=[a, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd') AS day, b])
+         +- Calc(select=[deepNested_nested2_num AS a, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd') AS day, ((deepNested_nested1_value + deepNested_nested2_num) + metadata_1) AS b])
             +- Reused(reference_id=[1])
 
 Sink(table=[default_catalog.default_database.sink2], fields=[a, b, d])
-+- Calc(select=[a, name AS b, CAST(b AS BIGINT) AS d], where=[(b > 100)])
++- Calc(select=[deepNested.nested2.num AS a, deepNested.nested1.name AS b, CAST(((deepNested.nested1.value + deepNested.nested2.num) + metadata_1) AS BIGINT) AS d], where=[(((deepNested.nested1.value + deepNested.nested2.num) + metadata_1) > 100)])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>

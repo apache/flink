@@ -23,14 +23,26 @@ public final class TestOperatorEvent implements OperatorEvent {
     private static final long serialVersionUID = 1L;
 
     private final int value;
+    private final boolean optional;
 
     public TestOperatorEvent() {
         // pick some random and rather unique value
         this.value = System.identityHashCode(this);
+        this.optional = false;
     }
 
     public TestOperatorEvent(int value) {
+        this(value, false);
+    }
+
+    public TestOperatorEvent(int value, boolean optional) {
         this.value = value;
+        this.optional = optional;
+    }
+
+    @Override
+    public boolean isLossTolerant() {
+        return optional;
     }
 
     public int getValue() {

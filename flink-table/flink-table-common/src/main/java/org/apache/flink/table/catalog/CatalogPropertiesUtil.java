@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.Column.ComputedColumn;
 import org.apache.flink.table.catalog.Column.MetadataColumn;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.StringUtils;
@@ -72,11 +73,12 @@ public final class CatalogPropertiesUtil {
     public static final String FLINK_PROPERTY_PREFIX = "flink.";
 
     /** Serializes the given {@link ResolvedCatalogTable} into a map of string properties. */
-    public static Map<String, String> serializeCatalogTable(ResolvedCatalogTable resolvedTable) {
+    public static Map<String, String> serializeCatalogTable(
+            ResolvedCatalogTable resolvedTable, SqlFactory sqlFactory) {
         try {
             final Map<String, String> properties = new HashMap<>();
 
-            serializeResolvedSchema(properties, resolvedTable.getResolvedSchema());
+            serializeResolvedSchema(properties, resolvedTable.getResolvedSchema(), sqlFactory);
 
             final String comment = resolvedTable.getComment();
             if (comment != null && !comment.isEmpty()) {
@@ -99,11 +101,12 @@ public final class CatalogPropertiesUtil {
     }
 
     /** Serializes the given {@link ResolvedCatalogView} into a map of string properties. */
-    public static Map<String, String> serializeCatalogView(ResolvedCatalogView resolvedView) {
+    public static Map<String, String> serializeCatalogView(
+            ResolvedCatalogView resolvedView, SqlFactory sqlFactory) {
         try {
             final Map<String, String> properties = new HashMap<>();
 
-            serializeResolvedSchema(properties, resolvedView.getResolvedSchema());
+            serializeResolvedSchema(properties, resolvedView.getResolvedSchema(), sqlFactory);
 
             final String comment = resolvedView.getComment();
             if (comment != null && !comment.isEmpty()) {
@@ -125,11 +128,12 @@ public final class CatalogPropertiesUtil {
      * properties.
      */
     public static Map<String, String> serializeCatalogMaterializedTable(
-            ResolvedCatalogMaterializedTable resolvedMaterializedTable) {
+            ResolvedCatalogMaterializedTable resolvedMaterializedTable, SqlFactory sqlFactory) {
         try {
             final Map<String, String> properties = new HashMap<>();
 
-            serializeResolvedSchema(properties, resolvedMaterializedTable.getResolvedSchema());
+            serializeResolvedSchema(
+                    properties, resolvedMaterializedTable.getResolvedSchema(), sqlFactory);
 
             final String comment = resolvedMaterializedTable.getComment();
             if (comment != null && comment.length() > 0) {
@@ -175,14 +179,15 @@ public final class CatalogPropertiesUtil {
 
     /** Serializes the given {@link ResolvedCatalogModel} into a map of string properties. */
     public static Map<String, String> serializeResolvedCatalogModel(
-            ResolvedCatalogModel resolvedModel) {
+            ResolvedCatalogModel resolvedModel, SqlFactory sqlFactory) {
         try {
             final Map<String, String> properties = new HashMap<>();
 
             serializeResolvedModelSchema(
                     properties,
                     resolvedModel.getResolvedInputSchema(),
-                    resolvedModel.getResolvedOutputSchema());
+                    resolvedModel.getResolvedOutputSchema(),
+                    sqlFactory);
 
             final String comment = resolvedModel.getComment();
             if (comment != null && !comment.isEmpty()) {
@@ -538,19 +543,23 @@ public final class CatalogPropertiesUtil {
     }
 
     private static void serializeResolvedModelSchema(
-            Map<String, String> map, ResolvedSchema inputSchema, ResolvedSchema outputSchema) {
+            Map<String, String> map,
+            ResolvedSchema inputSchema,
+            ResolvedSchema outputSchema,
+            SqlFactory sqlFactory) {
         checkNotNull(inputSchema);
         checkNotNull(outputSchema);
-        serializeColumnsWithKey(map, inputSchema.getColumns(), MODEL_INPUT_SCHEMA);
-        serializeColumnsWithKey(map, outputSchema.getColumns(), MODEL_OUTPUT_SCHEMA);
+        serializeColumnsWithKey(map, inputSchema.getColumns(), MODEL_INPUT_SCHEMA, sqlFactory);
+        serializeColumnsWithKey(map, outputSchema.getColumns(), MODEL_OUTPUT_SCHEMA, sqlFactory);
     }
 
-    private static void serializeResolvedSchema(Map<String, String> map, ResolvedSchema schema) {
+    private static void serializeResolvedSchema(
+            Map<String, String> map, ResolvedSchema schema, SqlFactory sqlFactory) {
         checkNotNull(schema);
 
-        serializeColumns(map, schema.getColumns());
+        serializeColumns(map, schema.getColumns(), sqlFactory);
 
-        serializeWatermarkSpecs(map, schema.getWatermarkSpecs());
+        serializeWatermarkSpecs(map, schema.getWatermarkSpecs(), sqlFactory);
 
         schema.getPrimaryKey().ifPresent(pk -> serializePrimaryKey(map, pk));
     }
@@ -563,14 +572,15 @@ public final class CatalogPropertiesUtil {
     }
 
     private static void serializeWatermarkSpecs(
-            Map<String, String> map, List<WatermarkSpec> specs) {
+            Map<String, String> map, List<WatermarkSpec> specs, SqlFactory sqlFactory) {
         if (!specs.isEmpty()) {
             final List<List<String>> watermarkValues = new ArrayList<>();
             for (WatermarkSpec spec : specs) {
                 watermarkValues.add(
                         Arrays.asList(
                                 spec.getRowtimeAttribute(),
-                                serializeResolvedExpression(spec.getWatermarkExpression()),
+                                serializeResolvedExpression(
+                                        spec.getWatermarkExpression(), sqlFactory),
                                 serializeDataType(
                                         spec.getWatermarkExpression().getOutputDataType())));
             }
@@ -585,15 +595,19 @@ public final class CatalogPropertiesUtil {
         }
     }
 
-    private static void serializeColumns(Map<String, String> map, List<Column> columns) {
-        serializeColumnsWithKey(map, columns, SCHEMA);
+    private static void serializeColumns(
+            Map<String, String> map, List<Column> columns, SqlFactory sqlFactory) {
+        serializeColumnsWithKey(map, columns, SCHEMA, sqlFactory);
     }
 
     private static void serializeColumnsWithKey(
-            Map<String, String> map, List<Column> columns, String schemaKey) {
+            Map<String, String> map,
+            List<Column> columns,
+            String schemaKey,
+            SqlFactory sqlFactory) {
         final String[] names = serializeColumnNames(columns);
         final String[] dataTypes = serializeColumnDataTypes(columns);
-        final String[] expressions = serializeColumnComputations(columns);
+        final String[] expressions = serializeColumnComputations(columns, sqlFactory);
         final String[] metadata = serializeColumnMetadataKeys(columns);
         final String[] virtual = serializeColumnVirtuality(columns);
         final String[] comments = serializeColumnComments(columns);
@@ -617,9 +631,10 @@ public final class CatalogPropertiesUtil {
                 values);
     }
 
-    private static String serializeResolvedExpression(ResolvedExpression resolvedExpression) {
+    private static String serializeResolvedExpression(
+            ResolvedExpression resolvedExpression, SqlFactory sqlFactory) {
         try {
-            return resolvedExpression.asSerializableString();
+            return resolvedExpression.asSerializableString(sqlFactory);
         } catch (TableException e) {
             throw new TableException(
                     String.format(
@@ -660,13 +675,14 @@ public final class CatalogPropertiesUtil {
                 .toArray(String[]::new);
     }
 
-    private static String[] serializeColumnComputations(List<Column> columns) {
+    private static String[] serializeColumnComputations(
+            List<Column> columns, SqlFactory sqlFactory) {
         return columns.stream()
                 .map(
                         column -> {
                             if (column instanceof ComputedColumn) {
                                 final ComputedColumn c = (ComputedColumn) column;
-                                return serializeResolvedExpression(c.getExpression());
+                                return serializeResolvedExpression(c.getExpression(), sqlFactory);
                             }
                             return null;
                         })

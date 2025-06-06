@@ -80,8 +80,8 @@ public class CollectingMetricsReporter extends TestReporter {
 
     @SuppressWarnings("OptionalGetWithoutIsPresent")
     private MetricGroupAndName getMetricGroupAndName(
-            String name, List<MetricGroupAndName> removedMetrics) {
-        return removedMetrics.stream()
+            String name, List<MetricGroupAndName> metricsList) {
+        return metricsList.stream()
                 .filter(groupAndName -> groupAndName.name.equals(name))
                 .findAny()
                 .get();

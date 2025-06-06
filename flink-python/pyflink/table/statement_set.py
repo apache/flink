@@ -19,7 +19,9 @@ from typing import Union
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table import ExplainDetail
+from pyflink.table.compiled_plan import CompiledPlan
 from pyflink.table.table_descriptor import TableDescriptor
+from pyflink.table.table_pipeline import TablePipeline
 from pyflink.table.table_result import TableResult
 from pyflink.util.java_utils import to_j_explain_detail_arr
 
@@ -39,6 +41,18 @@ class StatementSet(object):
     def __init__(self, _j_statement_set, t_env):
         self._j_statement_set = _j_statement_set
         self._t_env = t_env
+
+    def add(self, table_pipeline: TablePipeline) -> 'StatementSet':
+        """
+        Adds a :class:`~pyflink.table.TablePipeline`.
+
+        :param table_pipeline: The TablePipeline to be added.
+        :return: current StatementSet instance.
+
+        .. versionadded:: 2.1.0
+        """
+        self._j_statement_set.add(table_pipeline._j_table_pipeline)
+        return self
 
     def add_insert_sql(self, stmt: str) -> 'StatementSet':
         """
@@ -143,6 +157,15 @@ class StatementSet(object):
         j_extra_details = to_j_explain_detail_arr(extra_details)
         return self._j_statement_set.explain(TEXT, j_extra_details)
 
+    def print_explain(self, *extra_details: ExplainDetail):
+        """
+        Like :func:`~pyflink.table.StatementSet.explain`, but prints the result to the client
+        console.
+
+        .. versionadded:: 2.1.0
+        """
+        print(self.explain(*extra_details))
+
     def execute(self) -> TableResult:
         """
         execute all statements and Tables as a batch.
@@ -156,3 +179,23 @@ class StatementSet(object):
         """
         self._t_env._before_execute()
         return TableResult(self._j_statement_set.execute())
+
+    def compile_plan(self) -> CompiledPlan:
+        """
+        Compiles all statements into a :class:`~pyflink.table.CompiledPlan` that can be executed
+        as one job.
+
+        :class:`~pyflink.table.CompiledPlan`s can be persisted and reloaded across Flink versions.
+        They describe static pipelines to ensure backwards compatibility and enable stateful
+        streaming job upgrades. See :class:`~pyflink.table.CompiledPlan` and the website
+        documentation for more information.
+
+        .. note::
+            The compiled plan feature is experimental in batch mode.
+
+        :raises TableException: if any of the statements is invalid or if the plan cannot be
+            persisted.
+
+        .. versionadded:: 2.1.0
+        """
+        return CompiledPlan(j_compiled_plan=self._j_statement_set.compilePlan(), t_env=self._t_env)

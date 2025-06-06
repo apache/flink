@@ -18,13 +18,16 @@
 
 package org.apache.flink.traces;
 
+import org.apache.flink.AttributeBuilder;
 import org.apache.flink.annotation.Experimental;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Map;
 
 /** Builder used to construct {@link Span}. See {@link Span#builder(Class, String)}. */
 @Experimental
-public class SpanBuilder {
+public class SpanBuilder implements AttributeBuilder {
     private final HashMap<String, Object> attributes = new HashMap<>();
     private final Class<?> classScope;
     private final String name;
@@ -44,14 +47,22 @@ public class SpanBuilder {
     }
 
     public Span build() {
+        return build(Collections.emptyMap());
+    }
+
+    public Span build(Map<String, String> additionalVariables) {
         long startTsMillisToBuild = startTsMillis;
         if (startTsMillisToBuild == 0) {
             startTsMillisToBuild = System.currentTimeMillis();
         }
+
         long endTsMillisToBuild = endTsMillis;
         if (endTsMillisToBuild == 0) {
             endTsMillisToBuild = startTsMillisToBuild;
         }
+
+        attributes.putAll(additionalVariables);
+
         return new SimpleSpan(
                 classScope.getCanonicalName(),
                 name,
@@ -79,20 +90,34 @@ public class SpanBuilder {
     }
 
     /** Additional attribute to be attached to this {@link Span}. */
+    @Override
     public SpanBuilder setAttribute(String key, String value) {
         attributes.put(key, value);
         return this;
     }
 
     /** Additional attribute to be attached to this {@link Span}. */
+    @Override
     public SpanBuilder setAttribute(String key, long value) {
         attributes.put(key, value);
         return this;
     }
 
     /** Additional attribute to be attached to this {@link Span}. */
+    @Override
     public SpanBuilder setAttribute(String key, double value) {
         attributes.put(key, value);
         return this;
+    }
+
+    /** Additional attribute to be attached to this {@link Span}. */
+    @Override
+    public SpanBuilder setAttribute(String key, boolean value) {
+        attributes.put(key, value);
+        return this;
+    }
+
+    public String getName() {
+        return name;
     }
 }

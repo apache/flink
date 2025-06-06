@@ -43,6 +43,10 @@ public class FileOwnershipDecider {
         return filePath.getName().endsWith(SST_SUFFIX);
     }
 
+    public static boolean shouldAlwaysBeLocal(Path filePath, FileOwnership fileOwnership) {
+        return !isSstFile(filePath) && fileOwnership != FileOwnership.NOT_OWNED;
+    }
+
     public static boolean shouldAlwaysBeLocal(Path filePath) {
         return !isSstFile(filePath);
     }

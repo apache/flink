@@ -91,9 +91,10 @@ public final class ForStResourceContainer implements AutoCloseable {
     @Nullable private final Path localForStPath;
 
     @Nullable private Path cacheBasePath;
-    private long cacheCapacity;
 
-    private long cacheReservedSize;
+    private final long cacheCapacity;
+
+    private final long cacheReservedSize;
 
     /** The configurations from file. */
     private final ReadableConfig configuration;
@@ -189,8 +190,8 @@ public final class ForStResourceContainer implements AutoCloseable {
         this.enableStatistics = enableStatistics;
         this.handlesToClose = new ArrayList<>();
         this.cacheBasePath = configuration.getOptional(CACHE_DIRECTORY).map(Path::new).orElse(null);
-        this.cacheCapacity = configuration.get(CACHE_SIZE_BASE_LIMIT);
-        this.cacheReservedSize = configuration.get(CACHE_RESERVED_SIZE);
+        this.cacheCapacity = configuration.get(CACHE_SIZE_BASE_LIMIT).getBytes();
+        this.cacheReservedSize = configuration.get(CACHE_RESERVED_SIZE).getBytes();
         this.metricGroup = metricGroup;
     }
 
@@ -386,7 +387,12 @@ public final class ForStResourceContainer implements AutoCloseable {
                             remoteForStPath.toUri(),
                             localForStPath,
                             ForStFlinkFileSystem.getFileBasedCache(
-                                    cacheBasePath, cacheCapacity, cacheReservedSize, metricGroup));
+                                    configuration,
+                                    cacheBasePath,
+                                    remoteForStPath,
+                                    cacheCapacity,
+                                    cacheReservedSize,
+                                    metricGroup));
         } else {
             forStFileSystem = null;
         }
@@ -429,6 +435,12 @@ public final class ForStResourceContainer implements AutoCloseable {
         }
     }
 
+    public void forceClearRemoteDirectories() throws Exception {
+        if (remoteBasePath != null) {
+            clearDirectories(remoteBasePath);
+        }
+    }
+
     private static void clearDirectories(Path basePath) throws IOException {
         FileSystem fileSystem = basePath.getFileSystem();
         if (fileSystem.exists(basePath)) {
@@ -452,6 +464,9 @@ public final class ForStResourceContainer implements AutoCloseable {
             sharedResources.close();
         }
         cleanRelocatedDbLogs();
+        if (forStFileSystem != null) {
+            forStFileSystem.close();
+        }
     }
 
     /**
@@ -553,6 +568,10 @@ public final class ForStResourceContainer implements AutoCloseable {
 
         currentOptions.setMinWriteBufferNumberToMerge(
                 internalGetOption(ForStConfigurableOptions.MIN_WRITE_BUFFER_NUMBER_TO_MERGE));
+
+        currentOptions.setPeriodicCompactionSeconds(
+                internalGetOption(ForStConfigurableOptions.COMPACT_FILTER_PERIODIC_COMPACTION_TIME)
+                        .getSeconds());
 
         TableFormatConfig tableFormatConfig = currentOptions.tableFormatConfig();
 

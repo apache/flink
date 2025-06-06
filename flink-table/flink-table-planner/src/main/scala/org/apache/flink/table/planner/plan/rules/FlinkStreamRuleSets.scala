@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.rules
 
 import org.apache.flink.table.planner.plan.nodes.logical._
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalProcessTableFunctionRule
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalMLPredictTableFunctionRule, StreamPhysicalProcessTableFunctionRule}
 import org.apache.flink.table.planner.plan.rules.logical._
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule
 import org.apache.flink.table.planner.plan.rules.physical.stream._
@@ -417,7 +417,9 @@ object FlinkStreamRuleSets {
     // Avoid async calls which call async calls.
     AsyncCalcSplitRule.NESTED_SPLIT,
     // Avoid having async calls in multiple projections in a single calc.
-    AsyncCalcSplitRule.ONE_PER_CALC_SPLIT
+    AsyncCalcSplitRule.ONE_PER_CALC_SPLIT,
+    // Split async calls from correlates
+    AsyncCorrelateSplitRule.INSTANCE
   )
 
   /** RuleSet to do physical optimize for stream */
@@ -468,6 +470,8 @@ object FlinkStreamRuleSets {
     StreamPhysicalWindowDeduplicateRule.INSTANCE,
     // process table function
     StreamPhysicalProcessTableFunctionRule.INSTANCE,
+    // model TVFs
+    StreamPhysicalMLPredictTableFunctionRule.INSTANCE,
     // join
     StreamPhysicalJoinRule.INSTANCE,
     StreamPhysicalIntervalJoinRule.INSTANCE,
@@ -486,10 +490,16 @@ object FlinkStreamRuleSets {
     StreamPhysicalLegacySinkRule.INSTANCE
   )
 
-  /** RuleSet related to transpose watermark to be close to source */
-  val WATERMARK_TRANSPOSE_RULES: RuleSet = RuleSets.ofList(
+  /**
+   * RuleSet related to optimizing ChangelogNormalize:
+   *   1. transpose watermark to be close to source 2. transpose projections 3. push filter either
+   *      inside of a changelog normalize or past it
+   */
+  val CHANGELOG_NORMALIZE_TRANSPOSE_RULES: RuleSet = RuleSets.ofList(
     WatermarkAssignerChangelogNormalizeTransposeRule.WITH_CALC,
-    WatermarkAssignerChangelogNormalizeTransposeRule.WITHOUT_CALC
+    WatermarkAssignerChangelogNormalizeTransposeRule.WITHOUT_CALC,
+    // reduce state size in ChangelogNormalize
+    PushCalcPastChangelogNormalizeRule.INSTANCE
   )
 
   /** RuleSet related to mini-batch. */
@@ -505,9 +515,7 @@ object FlinkStreamRuleSets {
     // incremental agg rule
     IncrementalAggregateRule.INSTANCE,
     // optimize window agg rule
-    TwoStageOptimizedWindowAggregateRule.INSTANCE,
-    // optimize ChangelogNormalize
-    PushCalcPastChangelogNormalizeRule.INSTANCE
+    TwoStageOptimizedWindowAggregateRule.INSTANCE
   )
 
 }

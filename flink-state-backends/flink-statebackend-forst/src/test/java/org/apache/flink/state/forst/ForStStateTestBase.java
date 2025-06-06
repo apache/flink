@@ -57,19 +57,19 @@ public class ForStStateTestBase {
 
     protected RecordContext<String> context;
 
+    protected MockEnvironment env;
+
     @BeforeEach
     public void setup(@TempDir File temporaryFolder) throws IOException {
         FileSystem.initialize(new Configuration(), null);
         Configuration configuration = new Configuration();
-        configuration.set(ForStOptions.REMOTE_DIRECTORY, temporaryFolder.toURI().toString());
+        configuration.set(ForStOptions.PRIMARY_DIRECTORY, temporaryFolder.toURI().toString());
         ForStStateBackend forStStateBackend =
                 new ForStStateBackend().configure(configuration, null);
 
-        keyedBackend =
-                createKeyedStateBackend(
-                        forStStateBackend,
-                        getMockEnvironment(temporaryFolder),
-                        StringSerializer.INSTANCE);
+        env = getMockEnvironment(temporaryFolder);
+
+        keyedBackend = createKeyedStateBackend(forStStateBackend, env, StringSerializer.INSTANCE);
 
         mailboxExecutor =
                 new MailboxExecutorImpl(
@@ -106,7 +106,7 @@ public class ForStStateTestBase {
         aec.drainInflightRecords(0);
     }
 
-    private static MockEnvironment getMockEnvironment(File tempDir) throws IOException {
+    protected static MockEnvironment getMockEnvironment(File tempDir) throws IOException {
         MockEnvironment env =
                 MockEnvironment.builder()
                         .setUserCodeClassLoader(ForStStateBackendConfigTest.class.getClassLoader())

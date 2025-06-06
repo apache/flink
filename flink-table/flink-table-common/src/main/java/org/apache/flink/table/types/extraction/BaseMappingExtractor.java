@@ -27,11 +27,13 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.procedures.Procedure;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.extraction.FunctionResultTemplate.FunctionOutputTemplate;
 import org.apache.flink.table.types.extraction.FunctionResultTemplate.FunctionStateTemplate;
+import org.apache.flink.table.types.extraction.FunctionResultTemplate.FunctionStateTemplate.StateInfoTemplate;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.types.Row;
 
@@ -177,8 +179,10 @@ abstract class BaseMappingExtractor {
                                 baseClass,
                                 genericPos,
                                 extractor.getFunctionClass());
-                final LinkedHashMap<String, DataType> state = new LinkedHashMap<>();
-                state.put("acc", dataType);
+                final LinkedHashMap<String, StateInfoTemplate> state = new LinkedHashMap<>();
+                state.put(
+                        UserDefinedFunctionHelper.DEFAULT_ACCUMULATOR_NAME,
+                        StateInfoTemplate.of(dataType, null));
                 return FunctionResultTemplate.ofState(state);
             }
             return createStateTemplateFromParameters(extractor, method, stateParameters);
@@ -325,9 +329,19 @@ abstract class BaseMappingExtractor {
                                                 s.pos))
                         .collect(Collectors.toList());
 
-        final LinkedHashMap<String, DataType> state =
-                IntStream.range(0, dataTypes.size())
-                        .mapToObj(i -> Map.entry(argumentNames[i], dataTypes.get(i)))
+        final LinkedHashMap<String, StateInfoTemplate> state =
+                IntStream.range(0, argumentNames.length)
+                        .mapToObj(
+                                i -> {
+                                    final DataType dataType = dataTypes.get(i);
+                                    final StateHint hint =
+                                            stateParameters
+                                                    .get(i)
+                                                    .parameter
+                                                    .getAnnotation(StateHint.class);
+                                    return Map.entry(
+                                            argumentNames[i], StateInfoTemplate.of(dataType, hint));
+                                })
                         .collect(
                                 Collectors.toMap(
                                         Map.Entry::getKey,
