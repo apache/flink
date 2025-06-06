@@ -112,7 +112,7 @@ import static org.junit.Assert.assertEquals;
  * </ul>
  */
 @Timeout(value = 100, unit = TimeUnit.SECONDS)
-class AsyncWaitOperatorTest {
+public class AsyncWaitOperatorTest {
     private static final long TIMEOUT = 1000L;
 
     @RegisterExtension
@@ -202,7 +202,7 @@ class AsyncWaitOperatorTest {
      * is used in the testStateSnapshotAndRestore, ensuring that {@link StreamElement} can stay in
      * the {@link StreamElementQueue} to be snapshotted while checkpointing.
      */
-    private static class LazyAsyncFunction extends MyAsyncFunction {
+    public static class LazyAsyncFunction extends MyAsyncFunction {
         private static final long serialVersionUID = 3537791752703154670L;
 
         private static CountDownLatch latch;

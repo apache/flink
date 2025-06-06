@@ -16,18 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.keyselector;
+package org.apache.flink.table.runtime.operators.join.lookup.utils;
 
-import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import java.util.Queue;
 
-/** RowDataKeySelector takes an RowData and extracts the deterministic key for the RowData. */
-public interface RowDataKeySelector
-        extends KeySelector<RowData, RowData>, ResultTypeQueryable<RowData> {
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-    InternalTypeInfo<RowData> getProducedType();
+/** Util functions for lookup join test. */
+public class AsyncLookupTestUtils {
 
-    RowDataKeySelector copy();
+    public static void assertKeyOrdered(Queue<?> actual, Queue<?> expected) {
+        assertFalse(actual.isEmpty());
+        assertFalse(expected.isEmpty());
+        for (Object element : actual) {
+            if (element.equals(expected.peek())) {
+                expected.poll();
+            }
+        }
+        assertTrue(expected.isEmpty());
+    }
 }
