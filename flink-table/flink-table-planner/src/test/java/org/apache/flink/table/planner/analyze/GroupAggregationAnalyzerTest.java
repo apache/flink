@@ -150,6 +150,7 @@ class GroupAggregationAnalyzerTest extends TableTestBase {
                 false,
                 new Enumeration.Value[] {PlanKind.OPT_REL_WITH_ADVICE()},
                 () -> UNIT,
+                false,
                 false);
     }
 
@@ -198,6 +199,7 @@ class GroupAggregationAnalyzerTest extends TableTestBase {
                 false,
                 new Enumeration.Value[] {PlanKind.OPT_REL_WITH_ADVICE()},
                 () -> UNIT,
+                false,
                 false);
     }
 
