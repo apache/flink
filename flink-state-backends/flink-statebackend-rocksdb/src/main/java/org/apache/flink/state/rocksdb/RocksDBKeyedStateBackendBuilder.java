@@ -132,6 +132,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
     private RocksDBNativeMetricOptions nativeMetricOptions;
 
     private int numberOfTransferingThreads;
+    private long uploadJitter;
     private long writeBatchSize =
             RocksDBConfigurableOptions.WRITE_BATCH_SIZE.defaultValue().getBytes();
 
@@ -200,6 +201,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
         this.nativeMetricOptions = new RocksDBNativeMetricOptions();
         this.numberOfTransferingThreads =
                 RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM.defaultValue();
+        this.uploadJitter = RocksDBOptions.CHECKPOINT_UPLOAD_JITTER.defaultValue();
     }
 
     @VisibleForTesting
@@ -626,7 +628,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                 injectRocksDBStateUploader == null
                         ? new RocksDBStateUploader(
                                 RocksDBStateDataTransferHelper.forThreadNumIfSpecified(
-                                        numberOfTransferingThreads, ioExecutor))
+                                        numberOfTransferingThreads, ioExecutor),
+                                uploadJitter)
                         : injectRocksDBStateUploader;
         if (enableIncrementalCheckpointing) {
             checkpointSnapshotStrategy =
