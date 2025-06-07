@@ -472,28 +472,27 @@ public class JoinTestPrograms {
                         .setupTableSource(
                                 SourceTestStep.newBuilder("source_t1")
                                         .addSchema("a INTEGER", "b BIGINT", "c STRING")
-                                        .producedBeforeRestore(Row.of(1, 2L, "3"))
-                                        .producedAfterRestore(Row.of(12, 34L, "56"))
+                                        .producedBeforeRestore(
+                                                Row.of(1, 2L, "3"), Row.of(12, 34L, "56"))
                                         .build())
                         .setupTableSource(
                                 SourceTestStep.newBuilder("source_t2")
                                         .addSchema("d INTEGER", "e BIGINT", "f STRING")
-                                        .producedBeforeRestore(Row.of(1, 2L, "3"))
-                                        .producedAfterRestore(Row.of(11, 22L, "33"))
+                                        .producedBeforeRestore(
+                                                Row.of(1, 2L, "3"), Row.of(11, 22L, "33"))
                                         .build())
                         .setupTableSource(
                                 SourceTestStep.newBuilder("source_t3")
                                         .addSchema("i INTEGER", "j BIGINT", "k STRING")
-                                        .producedBeforeRestore(Row.of(1, 2L, "3"))
-                                        .producedAfterRestore(Row.of(111, 222L, "333"))
+                                        .producedBeforeRestore(
+                                                Row.of(1, 2L, "3"), Row.of(111, 222L, "333"))
                                         .build())
                         .setupTableSink(
                                 SinkTestStep.newBuilder("sink_t")
                                         .addSchema("b BIGINT")
-                                        .consumedBeforeRestore("+I[2]")
-                                        .consumedAfterRestore(
-                                                "-D[2]", "+I[2]", "+I[34]", "-D[2]", "-D[34]",
-                                                "+I[2]", "+I[34]")
+                                        .consumedBeforeRestore(
+                                                "+I[2]", "+I[34]", "-D[2]", "-D[34]", "+I[2]",
+                                                "+I[34]")
                                         .build())
                         .runSql(
                                 "INSERT INTO sink_t SELECT b FROM source_t1 WHERE"
