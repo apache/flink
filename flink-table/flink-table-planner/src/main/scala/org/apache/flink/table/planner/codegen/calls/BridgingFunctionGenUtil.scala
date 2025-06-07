@@ -153,16 +153,12 @@ object BridgingFunctionGenUtil {
         contextTerm
       )
     } else if (udf.getKind == FunctionKind.ASYNC_TABLE) {
-<<<<<<< HEAD
-      generateAsyncTableFunctionCall(functionTerm, externalOperands, returnType, outputDataType, skipIfArgsNull)
-=======
       generateAsyncTableFunctionCall(
         functionTerm,
         externalOperands,
         returnType,
         outputDataType,
         skipIfArgsNull)
->>>>>>> d6de8733b14 (Review feedback)
     } else if (udf.getKind == FunctionKind.ASYNC_SCALAR) {
       generateAsyncScalarFunctionCall(
         ctx,
