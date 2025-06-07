@@ -460,12 +460,12 @@ public class ExecutionConfigOptions {
     //  Async Table Function
     // ------------------------------------------------------------------------
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
-    public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_TABLE_BUFFER_CAPACITY =
-            key("table.exec.async-table.buffer-capacity")
+    public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_TABLE_MAX_CONCURRENT_OPERATIONS =
+            key("table.exec.async-table.max-concurrent-operations")
                     .intType()
                     .defaultValue(10)
                     .withDescription(
-                            "The max number of async i/o operations that the async table function can trigger.");
+                            "The max number of concurrent async i/o operations that the async table function can trigger.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<Duration> TABLE_EXEC_ASYNC_TABLE_TIMEOUT =
@@ -491,8 +491,8 @@ public class ExecutionConfigOptions {
                     .withDescription("The delay to wait before trying again.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
-    public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_TABLE_MAX_ATTEMPTS =
-            key("table.exec.async-table.max-attempts")
+    public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_TABLE_MAX_RETRIES =
+            key("table.exec.async-table.max-retries")
                     .intType()
                     .defaultValue(3)
                     .withDescription(

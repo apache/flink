@@ -33,6 +33,5 @@ import org.apache.calcite.plan.RelOptRule;
 public class PythonCorrelateSplitRule {
 
     public static final RelOptRule INSTANCE =
-            RemoteCorrelateSplitRule.Config.createDefault(new PythonRemoteCalcCallFinder())
-                    .toRule();
+            RemoteCorrelateSplitRule.Config.createDefault(new PythonRemoteCallFinder()).toRule();
 }

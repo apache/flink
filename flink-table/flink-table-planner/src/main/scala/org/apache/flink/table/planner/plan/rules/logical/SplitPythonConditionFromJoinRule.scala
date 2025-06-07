@@ -20,6 +20,6 @@ package org.apache.flink.table.planner.plan.rules.logical
 import org.apache.calcite.plan.RelOptRule
 
 object SplitPythonConditionFromJoinRule {
-  private val callFinder = new PythonRemoteCalcCallFinder()
+  private val callFinder = new PythonRemoteCallFinder()
   val INSTANCE: RelOptRule = new SplitRemoteConditionFromJoinRule(callFinder, Option.empty)
 }

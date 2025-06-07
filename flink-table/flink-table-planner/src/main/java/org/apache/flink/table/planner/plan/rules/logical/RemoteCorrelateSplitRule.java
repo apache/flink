@@ -58,9 +58,9 @@ import scala.collection.mutable.ArrayBuffer;
  */
 @Value.Enclosing
 public class RemoteCorrelateSplitRule extends RelRule<RemoteCorrelateSplitRule.Config> {
-    private final RemoteCalcCallFinder callFinder;
+    private final RemoteCallFinder callFinder;
 
-    RemoteCorrelateSplitRule(Config config, RemoteCalcCallFinder callFinder) {
+    RemoteCorrelateSplitRule(Config config, RemoteCallFinder callFinder) {
         super(config);
         this.callFinder = callFinder;
     }
@@ -351,9 +351,9 @@ public class RemoteCorrelateSplitRule extends RelRule<RemoteCorrelateSplitRule.C
     @Value.Immutable(singleton = false)
     public interface Config extends RelRule.Config {
 
-        public abstract RemoteCalcCallFinder callFinder();
+        public abstract RemoteCallFinder callFinder();
 
-        static RemoteCorrelateSplitRule.Config createDefault(RemoteCalcCallFinder callFinder) {
+        static RemoteCorrelateSplitRule.Config createDefault(RemoteCallFinder callFinder) {
             return ImmutableRemoteCorrelateSplitRule.Config.builder()
                     .callFinder(callFinder)
                     .build()

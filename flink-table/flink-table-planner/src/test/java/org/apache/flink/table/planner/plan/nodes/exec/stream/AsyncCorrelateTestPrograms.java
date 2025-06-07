@@ -34,8 +34,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_BUFFER_CAPACITY;
-import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_MAX_ATTEMPTS;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_MAX_CONCURRENT_OPERATIONS;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_MAX_RETRIES;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_RETRY_DELAY;
 
 /** {@link TableTestProgram} definitions for testing {@link StreamExecAsyncCorrelate}. */
@@ -160,8 +160,8 @@ public class AsyncCorrelateTestPrograms {
                             "async-correlate-exception",
                             "validates async calc node that fails some number of times and then recovers after restore")
                     .setupConfig(TABLE_EXEC_ASYNC_TABLE_RETRY_DELAY, Duration.ofMillis(3000))
-                    .setupConfig(TABLE_EXEC_ASYNC_TABLE_MAX_ATTEMPTS, 3)
-                    .setupConfig(TABLE_EXEC_ASYNC_TABLE_BUFFER_CAPACITY, 5)
+                    .setupConfig(TABLE_EXEC_ASYNC_TABLE_MAX_RETRIES, 3)
+                    .setupConfig(TABLE_EXEC_ASYNC_TABLE_MAX_CONCURRENT_OPERATIONS, 5)
                     .setupTemporaryCatalogFunction("func1", FailureThenSucceedSplit.class)
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")

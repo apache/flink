@@ -40,7 +40,7 @@ import java.util.List;
  */
 public class AsyncCorrelateRunner extends RichAsyncFunction<RowData, RowData> {
 
-    private static final long serialVersionUID = 7004349814516992850L;
+    private static final long serialVersionUID = 1L;
 
     private final GeneratedFunction<AsyncFunction<RowData, Object>> generatedFetcher;
     private final DataStructureConverter<RowData, Object> fetcherConverter;

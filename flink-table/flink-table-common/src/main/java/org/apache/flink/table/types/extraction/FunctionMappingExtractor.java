@@ -35,6 +35,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -210,7 +211,7 @@ final class FunctionMappingExtractor extends BaseMappingExtractor {
      * CompletableFuture}.
      */
     static MethodVerification createParameterAndCompletableFutureVerification(
-            Class<?> baseClass, @Nullable Class<?> nestedArgumentClass) {
+            Class<?> baseClass, boolean verifyFutureContainsCollection) {
         return (method, state, arguments, result) -> {
             checkNoState(state);
             checkScalarArgumentsOnly(arguments);
@@ -228,19 +229,23 @@ final class FunctionMappingExtractor extends BaseMappingExtractor {
                         "The method '%s' needs generic parameters for the CompletableFuture at position %d.",
                         method.getName(), 0);
             }
-            // If nestedArgumentClass is given, it is assumed to be a generic parameters of
-            // argumentClass, also at the position genericPos
-            if (nestedArgumentClass != null) {
-                genericType = parameterized.get().getActualTypeArguments()[0];
-                parameterized = getParameterizedType(genericType);
-                if (!parameterized.isPresent()
-                        || !parameterized.get().getRawType().equals(nestedArgumentClass)) {
+            // If verifyFutureContainsCollection is given, it is assumed to be a generic parameters
+            // of argumentClass, also at the position genericPos
+            final Type returnType;
+            if (verifyFutureContainsCollection) {
+                Type nestedGenericType = parameterized.get().getActualTypeArguments()[0];
+                Optional<ParameterizedType> nestedParameterized =
+                        getParameterizedType(nestedGenericType);
+                if (!nestedParameterized.isPresent()
+                        || !nestedParameterized.get().getRawType().equals(Collection.class)) {
                     throw extractionError(
-                            "The method '%s' expects nested generic type CompletableFuture<%s> for the %d arg.",
-                            method.getName(), nestedArgumentClass.getName(), 0);
+                            "The method '%s' expects nested generic type CompletableFuture<Collection> for the %d arg.",
+                            method.getName(), 0);
                 }
+                returnType = nestedParameterized.get().getActualTypeArguments()[0];
+            } else {
+                returnType = parameterized.get().getActualTypeArguments()[0];
             }
-            final Type returnType = ((ParameterizedType) genericType).getActualTypeArguments()[0];
             Class<?> returnTypeClass = getClassFromType(returnType);
             // Parameters should be validated using strict autoboxing.
             // For return types, we can be more flexible as the UDF should know what it declared.

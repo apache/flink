@@ -26,11 +26,13 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.functions.AsyncTableFunction;
+import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.AsyncSumScalarFunction;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.AsyncTestTableFunction;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.SumScalarFunction;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +44,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -57,7 +61,8 @@ public class AsyncCorrelateITCase extends StreamingTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         tEnv = StreamTableEnvironment.create(env, EnvironmentSettings.inStreamingMode());
-        tEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_BUFFER_CAPACITY, 1);
+        tEnv.getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_MAX_CONCURRENT_OPERATIONS, 1);
         tEnv.getConfig()
                 .set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_TIMEOUT, Duration.ofMinutes(1));
     }
@@ -202,10 +207,11 @@ public class AsyncCorrelateITCase extends StreamingTestBase {
     }
 
     @Test
-    public void testFailures() {
+    public void testRecoverableFailures() {
         // If there is a failure after hitting the end of the input, then it doesn't retry. Having
         // the buffer = 1 triggers the end input only after completion.
-        tEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_BUFFER_CAPACITY, 1);
+        tEnv.getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_MAX_CONCURRENT_OPERATIONS, 1);
         Table t1 = tEnv.fromValues(1).as("f1");
         tEnv.createTemporaryView("t1", t1);
         AsyncErrorFunction func = new AsyncErrorFunction(2);
@@ -215,10 +221,66 @@ public class AsyncCorrelateITCase extends StreamingTestBase {
         assertThat(results).containsSequence(expectedRows);
     }
 
+    @Test
+    public void testConcurrentOperations() {
+        tEnv.getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_MAX_CONCURRENT_OPERATIONS, 3);
+        Table t1 = tEnv.fromValues(1, 2, 3, 4, 5).as("f1");
+        tEnv.createTemporaryView("t1", t1);
+        tEnv.createTemporarySystemFunction("func", CountConcurrents.class);
+        final TableResult result = tEnv.executeSql("select * FROM t1, LATERAL TABLE(func(f1))");
+        CountConcurrents.setNextToFinish(2);
+        CountConcurrents.setNextToFinish(1);
+        CloseableIterator<Row> iterator = result.collect();
+        List<Row> results = collect(iterator, 2);
+        assertThat(results).containsSequence(Row.of(1, "1"), Row.of(2, "2"));
+        CountConcurrents.setNextToFinish(3);
+        results = collect(iterator, 1);
+        assertThat(results).containsSequence(Row.of(3, "3"));
+        CountConcurrents.setNextToFinish(4);
+        CountConcurrents.setNextToFinish(5);
+        results = collect(iterator, 2);
+        assertThat(results).containsSequence(Row.of(4, "4"), Row.of(5, "5"));
+        assertThat(iterator).isExhausted();
+        assertThat(CountConcurrents.getMaxConcurrent()).isEqualTo(3);
+    }
+
+    @Test
+    public void testRetries() {
+        tEnv.getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_MAX_CONCURRENT_OPERATIONS, 1);
+        tEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_MAX_RETRIES, 8);
+        tEnv.getConfig()
+                .set(
+                        ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_RETRY_DELAY,
+                        Duration.ofMillis(1));
+        Table t1 = tEnv.fromValues(1).as("f1");
+        tEnv.createTemporaryView("t1", t1);
+
+        AsyncErrorFunction func = new AsyncErrorFunction(8);
+        tEnv.createTemporarySystemFunction("func", func);
+        final List<Row> results = executeSql("select * FROM t1, LATERAL TABLE(func(f1))");
+        final List<Row> expectedRows = Collections.singletonList(Row.of(1, "9"));
+        assertThat(results).containsSequence(expectedRows);
+
+        AsyncErrorFunction func2 = new AsyncErrorFunction(9);
+        tEnv.createTemporarySystemFunction("func2", func2);
+        assertThatThrownBy(() -> executeSql("select * FROM t1, LATERAL TABLE(func2(f1))"))
+                .hasRootCauseMessage("Error 9");
+    }
+
     private List<Row> executeSql(String sql) {
         TableResult result = tEnv.executeSql(sql);
         final List<Row> rows = new ArrayList<>();
         result.collect().forEachRemaining(rows::add);
+        return rows;
+    }
+
+    private List<Row> collect(CloseableIterator<Row> iterator, int numRows) {
+        final List<Row> rows = new ArrayList<>();
+        while (rows.size() < numRows && iterator.hasNext()) {
+            rows.add(iterator.next());
+        }
         return rows;
     }
 
@@ -250,6 +312,73 @@ public class AsyncCorrelateITCase extends StreamingTestBase {
                 return;
             }
             future.complete(Collections.singletonList("" + failures.get()));
+        }
+    }
+
+    /** A error function. */
+    public static class CountConcurrents extends AsyncTableFunction<String> {
+
+        static int nextToFinish = -1;
+        static int maxConcurrent = 0;
+        static int concurrent = 0;
+        static final Object LOCK = new Object();
+
+        static ExecutorService executorService;
+
+        @Override
+        public void open(FunctionContext context) throws Exception {
+            executorService = Executors.newFixedThreadPool(10);
+        }
+
+        @Override
+        public void close() throws Exception {
+            executorService.shutdownNow();
+        }
+
+        public void eval(CompletableFuture<Collection<String>> future, int param) {
+            executorService.submit(
+                    () -> {
+                        try {
+                            synchronized (LOCK) {
+                                concurrent++;
+                                if (concurrent > maxConcurrent) {
+                                    maxConcurrent = concurrent;
+                                }
+                                while (nextToFinish != param) {
+                                    LOCK.wait();
+                                }
+                                future.complete(Collections.singletonList("" + param));
+                                nextToFinish = -1;
+                                LOCK.notifyAll();
+                                concurrent--;
+                            }
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            future.completeExceptionally(e);
+                        }
+                    });
+        }
+
+        public static void setNextToFinish(int next) {
+            synchronized (LOCK) {
+                while (nextToFinish != -1) {
+                    try {
+                        LOCK.wait();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException(
+                                "Interrupted while waiting for next to finish", e);
+                    }
+                }
+                nextToFinish = next;
+                LOCK.notifyAll();
+            }
+        }
+
+        public static int getMaxConcurrent() {
+            synchronized (LOCK) {
+                return maxConcurrent;
+            }
         }
     }
 }

@@ -23,7 +23,7 @@ import org.apache.calcite.rex.RexNode;
 /**
  * Finds whether a {@link RexNode} contains remote calls or not.
  */
-public interface RemoteCalcCallFinder {
+public interface RemoteCallFinder {
 
     // If the node contains directly or indirectly a remote call.
     boolean containsRemoteCall(RexNode node);
