@@ -80,6 +80,10 @@ public class OpenTelemetryMetricReporterITCase extends OpenTelemetryTestBase {
         reporter.notifyOfAddedMetric(gauge, "foo.gauge", group);
 
         reporter.report();
+        // Reporting is async, hence reports order is not deterministic.
+        // As test utils rely on verification of "last" report, we enforce report order
+        // for testing purposes.
+        reporter.waitForLastReportToComplete();
 
         MeterView meter = new MeterView(counter);
         reporter.notifyOfAddedMetric(meter, "foo.meter", group);
