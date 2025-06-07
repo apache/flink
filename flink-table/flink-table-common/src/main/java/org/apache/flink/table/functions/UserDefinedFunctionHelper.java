@@ -571,8 +571,8 @@ public final class UserDefinedFunctionHelper {
                         foundParam = true;
                     } else if (parameterized.isPresent()
                             && parameterized.get().getActualTypeArguments().length > 0) {
-                        firstParam = parameterized.get().getActualTypeArguments()[0];
-                        if (isGenericOfClass(Collection.class, firstParam)) {
+                        Type firstTypeArgument = parameterized.get().getActualTypeArguments()[0];
+                        if (isGenericOfClass(Collection.class, firstTypeArgument)) {
                             foundParam = true;
                         }
                     }

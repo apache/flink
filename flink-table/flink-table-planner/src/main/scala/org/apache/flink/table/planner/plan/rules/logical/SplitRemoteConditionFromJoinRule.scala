@@ -36,7 +36,7 @@ import scala.collection.JavaConversions._
  * [[FlinkLogicalJoin]].
  */
 class SplitRemoteConditionFromJoinRule(
-    protected val callFinder: RemoteCalcCallFinder,
+    protected val callFinder: RemoteCallFinder,
     protected val errorOnUnsplittableRemoteCall: Option[String])
   extends RelOptRule(operand(classOf[FlinkLogicalJoin], none), "SplitRemoteConditionFromJoinRule") {
 

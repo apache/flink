@@ -18,6 +18,21 @@
 
 package org.apache.flink.table.planner.plan.utils;
 
+<<<<<<< HEAD
+=======
+import org.apache.flink.streaming.api.datastream.AsyncDataStream;
+import org.apache.flink.streaming.api.functions.async.AsyncRetryStrategy;
+import org.apache.flink.streaming.util.retryable.AsyncRetryStrategies;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionKind;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.rules.logical.RemoteCallFinder;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
+import org.apache.flink.util.Preconditions;
+
+>>>>>>> 8ace5b0ea7c (Review feedback)
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 
@@ -134,6 +149,57 @@ public class AsyncUtil {
             return findAsyncCall == isImmediateAsyncCall
                     || (recursive
                     && call.getOperands().stream().anyMatch(node -> node.accept(this)));
+        }
+    }
+
+    /**
+     * An Async implementation of {@link RemoteCallFinder} which finds uses of {@link
+     * org.apache.flink.table.functions.AsyncScalarFunction} and {@link
+     * org.apache.flink.table.functions.AsyncTableFunction}.
+     */
+    public static class AsyncRemoteCallFinder implements RemoteCallFinder {
+
+        private final FunctionKind functionKind;
+
+        public AsyncRemoteCallFinder(FunctionKind functionKind) {
+            this.functionKind = functionKind;
+        }
+
+        @Override
+        public boolean containsRemoteCall(RexNode node) {
+            return containsAsyncCall(node, functionKind);
+        }
+
+        @Override
+        public boolean containsNonRemoteCall(RexNode node) {
+            return containsNonAsyncCall(node, functionKind);
+        }
+
+        @Override
+        public boolean isRemoteCall(RexNode node) {
+            return isAsyncCall(node, functionKind);
+        }
+
+        @Override
+        public boolean isNonRemoteCall(RexNode node) {
+            return isNonAsyncCall(node, functionKind);
+        }
+
+        @Override
+        public String getName() {
+            return "Async";
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj != null
+                    && this.getClass() == obj.getClass()
+                    && functionKind == ((AsyncRemoteCallFinder) obj).functionKind;
+        }
+
+        @Override
+        public int hashCode() {
+            return this.getClass().hashCode();
         }
     }
 }
