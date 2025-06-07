@@ -26,7 +26,7 @@ import org.apache.flink.table.functions._
 import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.PlannerBase
-import org.apache.flink.table.planner.functions.aggfunctions.{AvgAggFunction, CountAggFunction, Sum0AggFunction}
+import org.apache.flink.table.planner.functions.aggfunctions.{AvgAggFunction, CountAggFunction, LiteralAggFunction, Sum0AggFunction}
 import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.Sum0AggFunction._
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
@@ -56,6 +56,7 @@ import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.RelCollations
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.core.Aggregate.AggCallBinding
+import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.{SqlTypeName, SqlTypeUtil}
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind, SqlRankFunction}
 import org.apache.calcite.sql.fun._
@@ -782,6 +783,7 @@ object AggregateUtil extends Enumeration {
         false,
         false,
         false,
+        new util.ArrayList[RexNode](),
         new util.ArrayList[Integer](),
         -1,
         null,
@@ -860,12 +862,14 @@ object AggregateUtil extends Enumeration {
             false,
             false,
             call.ignoreNulls,
+            call.rexList,
             call.getArgList,
             -1, // remove filterArg
             null,
             RelCollations.EMPTY,
             call.getType,
-            call.getName)
+            call.getName
+          )
         } else {
           call
         }
@@ -999,6 +1003,11 @@ object AggregateUtil extends Enumeration {
             val name = aggInfoList.aggInfos(i).agg.getAggregation.getName.toLowerCase
             index += 1
             Array(s"$name$$$index")
+
+          case daf: LiteralAggFunction =>
+            index += 1
+            Array(s"${daf.getAttrName}$$$index")
+
           case daf: DeclarativeAggregateFunction =>
             daf.aggBufferAttributes.map {
               a =>
@@ -1103,6 +1112,11 @@ object AggregateUtil extends Enumeration {
             val name = aggInfoList.aggInfos(i).agg.getAggregation.getName.toLowerCase
             index += 1
             Array(s"$name$$$index")
+
+          case daf: LiteralAggFunction =>
+            index += 1
+            Array(s"${daf.getAttrName}$$$index")
+
           case daf: DeclarativeAggregateFunction =>
             daf.aggBufferAttributes.map {
               a =>
