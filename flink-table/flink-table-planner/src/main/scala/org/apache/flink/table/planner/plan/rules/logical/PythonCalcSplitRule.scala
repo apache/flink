@@ -40,7 +40,7 @@ import scala.collection.mutable
  * applied, it will only contain general Python functions or pandas Python functions in the
  * projection of each [[FlinkLogicalCalc]].
  */
-class PythonCalcSplitPandasInProjectionRule(callFinder: RemoteCalcCallFinder)
+class PythonCalcSplitPandasInProjectionRule(callFinder: RemoteCallFinder)
   extends RemoteCalcSplitProjectionRuleBase("PythonCalcSplitPandasInProjectionRule", callFinder) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -65,7 +65,7 @@ class PythonCalcSplitPandasInProjectionRule(callFinder: RemoteCalcCallFinder)
   }
 }
 
-class PythonRemoteCalcCallFinder extends RemoteCalcCallFinder {
+class PythonRemoteCallFinder extends RemoteCallFinder {
   override def containsRemoteCall(node: RexNode): Boolean = {
     PythonUtil.containsPythonCall(node)
   }
@@ -83,7 +83,7 @@ class PythonRemoteCalcCallFinder extends RemoteCalcCallFinder {
   }
 
   override def equals(obj: Any): Boolean = {
-    obj != null && obj.isInstanceOf[PythonRemoteCalcCallFinder]
+    obj != null && obj.isInstanceOf[PythonRemoteCallFinder]
   }
 
   override def hashCode(): Int = {
@@ -99,7 +99,7 @@ object PythonCalcSplitRule {
    * These rules should be applied sequentially in the order of SPLIT_CONDITION, SPLIT_PROJECT,
    * SPLIT_PANDAS_IN_PROJECT, EXPAND_PROJECT, PUSH_CONDITION and REWRITE_PROJECT.
    */
-  private val callFinder = new PythonRemoteCalcCallFinder()
+  private val callFinder = new PythonRemoteCallFinder()
   val SPLIT_CONDITION: RelOptRule = new RemoteCalcSplitConditionRule(callFinder)
   val SPLIT_PROJECT: RelOptRule = new RemoteCalcSplitProjectionRule(callFinder)
   val SPLIT_PANDAS_IN_PROJECT: RelOptRule = new PythonCalcSplitPandasInProjectionRule(callFinder)

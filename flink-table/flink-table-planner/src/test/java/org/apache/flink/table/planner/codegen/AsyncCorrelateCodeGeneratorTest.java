@@ -88,6 +88,9 @@ public class AsyncCorrelateCodeGeneratorTest {
                 .registerTemporarySystemFunction("myfunc2", new AsyncRowFunc(), false);
         plannerMocks
                 .getFunctionCatalog()
+                .registerTemporarySystemFunction("myfunc3", new AsyncRowDataFunc(), false);
+        plannerMocks
+                .getFunctionCatalog()
                 .registerTemporarySystemFunction("myfunc_error", new AsyncFuncError(), false);
 
         converter =
@@ -138,6 +141,34 @@ public class AsyncCorrelateCodeGeneratorTest {
                         type,
                         GenericRowData.of(1, 3L, StringData.fromString("foo")));
         assertThat(objects).containsExactly(Row.of(1, 30L, "complete foo"));
+    }
+
+    @Test
+    public void testRowDataReturnType() throws Exception {
+        RowType type = RowType.of(new IntType(), new BigIntType(), VarCharType.STRING_TYPE);
+        List<Object> objects =
+                execute(
+                        "myFunc3(f1, f2, f3)",
+                        type,
+                        GenericRowData.of(2, 3L, StringData.fromString("foo")));
+        assertThat(objects)
+                .containsExactly(
+                        GenericRowData.of(2, 30L, "complete1 foo"),
+                        GenericRowData.of(2, 60L, "complete2 foo"));
+
+        objects =
+                execute(
+                        "myFunc3(f1, f2, f3)",
+                        type,
+                        GenericRowData.of(0, 3L, StringData.fromString("foo")));
+        assertThat(objects).containsExactly();
+
+        objects =
+                execute(
+                        "myFunc3(f1, f2, f3)",
+                        type,
+                        GenericRowData.of(1, 3L, StringData.fromString("foo")));
+        assertThat(objects).containsExactly(GenericRowData.of(1, 30L, "complete foo"));
     }
 
     @Test
@@ -203,6 +234,28 @@ public class AsyncCorrelateCodeGeneratorTest {
                         Arrays.asList(
                                 Row.of(i, l * 10, "complete1 " + s),
                                 Row.of(i, l * 20, "complete2 " + s)));
+            }
+        }
+    }
+
+    /** Test function. */
+    @FunctionHint(
+            output =
+                    @DataTypeHint(
+                            value = "ROW<i INT, b BIGINT, s STRING>",
+                            bridgedTo = RowData.class))
+    public static final class AsyncRowDataFunc extends AsyncTableFunction<RowData> {
+        public void eval(CompletableFuture<Collection<RowData>> f, Integer i, Long l, String s) {
+            if (i == 0) {
+                f.complete(Collections.emptyList());
+            } else if (i == 1) {
+                f.complete(
+                        Collections.singletonList(GenericRowData.of(i, l * 10, "complete " + s)));
+            } else {
+                f.complete(
+                        Arrays.asList(
+                                GenericRowData.of(i, l * 10, "complete1 " + s),
+                                GenericRowData.of(i, l * 20, "complete2 " + s)));
             }
         }
     }

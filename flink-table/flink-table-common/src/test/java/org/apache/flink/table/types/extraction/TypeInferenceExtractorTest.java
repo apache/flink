@@ -468,11 +468,11 @@ class TypeInferenceExtractorTest {
                 // ---
                 TestSpec.forAsyncTableFunction(InvalidMethodTableFunctionMissingCollection.class)
                         .expectErrorMessage(
-                                "The method 'eval' expects nested generic type CompletableFuture<java.util.Collection> for the 0 arg."),
+                                "The method 'eval' expects nested generic type CompletableFuture<Collection> for the 0 arg."),
                 // ---
                 TestSpec.forAsyncTableFunction(InvalidMethodTableFunctionWrongGeneric.class)
                         .expectErrorMessage(
-                                "The method 'eval' expects nested generic type CompletableFuture<java.util.Collection> for the 0 arg."),
+                                "The method 'eval' expects nested generic type CompletableFuture<Collection> for the 0 arg."),
                 // ---
                 TestSpec.forAsyncTableFunction(ConflictingReturnTypesAsyncTable.class)
                         .expectErrorMessage(

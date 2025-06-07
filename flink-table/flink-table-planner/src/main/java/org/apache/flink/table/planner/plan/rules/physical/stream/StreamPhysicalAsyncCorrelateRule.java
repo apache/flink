@@ -59,14 +59,14 @@ public class StreamPhysicalAsyncCorrelateRule extends ConverterRule {
     }
 
     // find only calc and table function
-    private boolean findAsyncTableFunction(FlinkLogicalCalc calc) {
-        RelNode child = ((RelSubset) calc.getInput()).getOriginal();
-        if (child instanceof FlinkLogicalTableFunctionScan) {
-            FlinkLogicalTableFunctionScan scan = (FlinkLogicalTableFunctionScan) child;
+    private boolean findAsyncTableFunction(RelNode node) {
+        if (node instanceof FlinkLogicalTableFunctionScan) {
+            FlinkLogicalTableFunctionScan scan = (FlinkLogicalTableFunctionScan) node;
             return AsyncUtil.isAsyncCall(scan.getCall(), FunctionKind.ASYNC_TABLE);
-        } else if (child instanceof FlinkLogicalCalc) {
-            FlinkLogicalCalc childCalc = (FlinkLogicalCalc) child;
-            return findAsyncTableFunction(childCalc);
+        } else if (node instanceof FlinkLogicalCalc) {
+            FlinkLogicalCalc calc = (FlinkLogicalCalc) node;
+            RelNode child = ((RelSubset) calc.getInput()).getOriginal();
+            return findAsyncTableFunction(child);
         }
         return false;
     }
@@ -75,15 +75,7 @@ public class StreamPhysicalAsyncCorrelateRule extends ConverterRule {
     public boolean matches(RelOptRuleCall call) {
         FlinkLogicalCorrelate correlate = call.rel(0);
         RelNode right = ((RelSubset) correlate.getRight()).getOriginal();
-        if (right instanceof FlinkLogicalTableFunctionScan) {
-            // right node is a table function
-            FlinkLogicalTableFunctionScan scan = (FlinkLogicalTableFunctionScan) right;
-            return AsyncUtil.isAsyncCall(scan.getCall(), FunctionKind.ASYNC_TABLE);
-        } else if (right instanceof FlinkLogicalCalc) {
-            // a filter is pushed above the table function
-            return findAsyncTableFunction((FlinkLogicalCalc) right);
-        }
-        return false;
+        return findAsyncTableFunction(right);
     }
 
     @Override
