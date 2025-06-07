@@ -20,19 +20,16 @@ package org.apache.flink.table.planner.delegation
 import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader
 import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.PlanReference.{FilePlanReference, JsonContentPlanReference, ResourcePlanReference}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.delegation.{Executor, InternalPlan}
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.operations.{ModifyOperation, Operation}
+import org.apache.flink.table.operations.Operation
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.ExecNodeGraphInternalPlan
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph
 import org.apache.flink.table.planner.plan.nodes.exec.processor.ExecNodeGraphProcessor
-import org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 import org.apache.flink.table.planner.plan.optimize.{Optimizer, StreamCommonSubGraphBasedOptimizer}
@@ -43,7 +40,6 @@ import _root_.scala.collection.JavaConversions._
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
 import org.apache.calcite.sql.SqlExplainLevel
 
-import java.io.{File, IOException}
 import java.util
 
 import scala.collection.mutable
@@ -70,7 +66,8 @@ class StreamPlanner(
       FlinkRelDistributionTraitDef.INSTANCE,
       MiniBatchIntervalTraitDef.INSTANCE,
       ModifyKindSetTraitDef.INSTANCE,
-      UpdateKindTraitDef.INSTANCE
+      UpdateKindTraitDef.INSTANCE,
+      DuplicateChangesTraitDef.INSTANCE
     )
   }
 

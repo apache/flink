@@ -48,7 +48,8 @@ class RelTreeWriterImpl(
     withQueryHint: Boolean = true,
     withQueryBlockAlias: Boolean = false,
     statementNum: Integer = 1,
-    withAdvice: Boolean = false)
+    withAdvice: Boolean = false,
+    withDuplicateChangesTrait: Boolean = false)
   extends RelWriterImpl(pw, explainLevel, withIdPrefix) {
 
   val NODE_LEVEL_ADVICE = new util.HashMap[Integer, util.List[PlanAdvice]]()
@@ -178,6 +179,21 @@ class RelTreeWriterImpl(
                   Pair.of("hints", RelExplainUtil.hintsToString(queryBlockAliasHints)))
               }
           }
+        case _ => // ignore
+      }
+    }
+
+    if (withDuplicateChangesTrait) {
+      rel match {
+        case streamRel: StreamPhysicalRel =>
+          val duplicateChanges = DuplicateChangesUtils.getDuplicateChanges(streamRel)
+          val stringifyDuplicateChanges: String =
+            if (duplicateChanges.isEmpty) {
+              "EMPTY"
+            } else {
+              duplicateChanges.get().toString
+            }
+          printValues.add(Pair.of("duplicateChanges", stringifyDuplicateChanges))
         case _ => // ignore
       }
     }

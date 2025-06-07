@@ -558,7 +558,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       withRowType = false,
       Array(PlanKind.AST, PlanKind.OPT_REL, PlanKind.OPT_EXEC),
       () => Unit,
-      withQueryBlockAlias = false)
+      withQueryBlockAlias = false,
+      withDuplicateChanges = false
+    )
   }
 
   /** Verify the AST (abstract syntax tree). */
@@ -569,7 +571,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       withRowType = false,
       Array(PlanKind.AST),
       () => Unit,
-      withQueryBlockAlias = false)
+      withQueryBlockAlias = false,
+      withDuplicateChanges = false)
   }
 
   /** Verify the AST (abstract syntax tree). The plans will contain the extra [[ExplainDetail]]s. */
@@ -580,7 +583,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       withRowType = false,
       Array(PlanKind.AST),
       () => Unit,
-      withQueryBlockAlias = false)
+      withQueryBlockAlias = false,
+      withDuplicateChanges = false)
   }
 
   /**
@@ -684,7 +688,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       withRowType = false,
       Array(PlanKind.AST, PlanKind.OPT_REL),
       () => Unit,
-      withQueryBlockAlias = false)
+      withQueryBlockAlias = false,
+      withDuplicateChanges = false
+    )
   }
 
   /**
@@ -698,7 +704,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       withRowType = false,
       Array(PlanKind.AST, PlanKind.OPT_REL),
       () => Unit,
-      withQueryBlockAlias = false)
+      withQueryBlockAlias = false,
+      withDuplicateChanges = false)
   }
 
   /**
@@ -738,7 +745,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       withRowType = true,
       Array(PlanKind.AST, PlanKind.OPT_REL),
       () => Unit,
-      withQueryBlockAlias = false)
+      withQueryBlockAlias = false,
+      withDuplicateChanges = false
+    )
   }
 
   /**
@@ -757,7 +766,11 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     require(expected.nonEmpty)
     val relNode = TableTestUtil.toRelNode(table)
     val optimizedRel = getPlanner.optimize(relNode)
-    val optimizedPlan = getOptimizedRelPlan(Array(optimizedRel), Array.empty, withRowType = false)
+    val optimizedPlan = getOptimizedRelPlan(
+      Array(optimizedRel),
+      Array.empty,
+      withRowType = false,
+      withDuplicateChanges = false)
     val result = expected.forall(optimizedPlan.contains(_))
     val message = s"\nactual plan:\n$optimizedPlan\nexpected:\n${expected.mkString(", ")}"
     assertTrue(result, message)
@@ -779,7 +792,11 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     require(notExpected.nonEmpty)
     val relNode = TableTestUtil.toRelNode(table)
     val optimizedRel = getPlanner.optimize(relNode)
-    val optimizedPlan = getOptimizedRelPlan(Array(optimizedRel), Array.empty, withRowType = false)
+    val optimizedPlan = getOptimizedRelPlan(
+      Array(optimizedRel),
+      Array.empty,
+      withRowType = false,
+      withDuplicateChanges = false)
     val result = notExpected.forall(!optimizedPlan.contains(_))
     val message = s"\nactual plan:\n$optimizedPlan\nnot expected:\n${notExpected.mkString(", ")}"
     assertTrue(result, message)
@@ -845,7 +862,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       withRowType = false,
       Array(PlanKind.AST, PlanKind.OPT_EXEC),
       () => Unit,
-      withQueryBlockAlias = false)
+      withQueryBlockAlias = false,
+      withDuplicateChanges = false
+    )
   }
 
   /** Verify the explain result for the given SELECT query. See more about [[Table#explain()]]. */
@@ -1061,7 +1080,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       withRowType,
       expectedPlans,
       () => assertEqualsOrExpand("sql", insert),
-      withQueryBlockAlias = false)
+      withQueryBlockAlias = false,
+      withDuplicateChanges = false)
   }
 
   /**
@@ -1121,7 +1141,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       withRowType: Boolean,
       expectedPlans: Array[PlanKind],
       assertSqlEqualsOrExpandFunc: () => Unit,
-      withQueryBlockAlias: Boolean): Unit = {
+      withQueryBlockAlias: Boolean,
+      withDuplicateChanges: Boolean): Unit = {
     val testStmtSet = stmtSet.asInstanceOf[StatementSetImpl[_]]
 
     val relNodes = testStmtSet.getOperations.map(getPlanner.translateToRel)
@@ -1138,7 +1159,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       withRowType,
       expectedPlans,
       assertSqlEqualsOrExpandFunc,
-      withQueryBlockAlias)
+      withQueryBlockAlias,
+      withDuplicateChanges)
   }
 
   /**
@@ -1164,7 +1186,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       withRowType: Boolean,
       expectedPlans: Array[PlanKind],
       assertSqlEqualsOrExpandFunc: () => Unit,
-      withQueryBlockAlias: Boolean = false): Unit = {
+      withQueryBlockAlias: Boolean = false,
+      withDuplicateChanges: Boolean = false): Unit = {
 
     // build ast plan
     val astBuilder = new StringBuilder
@@ -1185,7 +1208,11 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     // build optimized rel plan
     val optimizedRels = getPlanner.optimize(relNodes)
     val optimizedRelPlan = System.lineSeparator +
-      getOptimizedRelPlan(optimizedRels.toArray, extraDetails, withRowType = withRowType)
+      getOptimizedRelPlan(
+        optimizedRels.toArray,
+        extraDetails,
+        withRowType = withRowType,
+        withDuplicateChanges = withDuplicateChanges)
 
     // build optimized exec plan if `expectedPlans` contains OPT_EXEC
     val optimizedExecPlan = if (expectedPlans.contains(PlanKind.OPT_EXEC)) {
@@ -1233,7 +1260,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   protected def getOptimizedRelPlan(
       optimizedRels: Array[RelNode],
       extraDetails: Array[ExplainDetail],
-      withRowType: Boolean): String = {
+      withRowType: Boolean,
+      withDuplicateChanges: Boolean): String = {
     require(optimizedRels.nonEmpty)
     val explainLevel = if (extraDetails.contains(ExplainDetail.ESTIMATED_COST)) {
       SqlExplainLevel.ALL_ATTRIBUTES
@@ -1259,7 +1287,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
                   rel,
                   detailLevel = explainLevel,
                   withChangelogTraits = withChangelogTraits,
-                  withRowType = withRowType)
+                  withRowType = withRowType,
+                  withDuplicateChangesTrait = withDuplicateChanges)
             }
             .mkString("\n")
         }
