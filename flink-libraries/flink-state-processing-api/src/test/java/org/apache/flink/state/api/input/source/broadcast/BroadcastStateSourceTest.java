@@ -16,22 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.api.input;
+package org.apache.flink.state.api.input.source.broadcast;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.state.api.input.splits.OperatorStateInputSplit;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.state.api.runtime.OperatorIDGenerator;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.operators.co.CoBroadcastWithNonKeyedOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.testing.CollectingSink;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
@@ -40,10 +43,11 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
-/** Test for operator broadcast state input format. */
-public class BroadcastStateInputFormatTest {
-    private static MapStateDescriptor<Integer, Integer> descriptor =
+/** Test for operator broadcast state source. */
+public class BroadcastStateSourceTest {
+    private static final MapStateDescriptor<Integer, Integer> STATE_DESCRIPTOR =
             new MapStateDescriptor<>("state", Types.INT, Types.INT);
 
     @Test
@@ -57,26 +61,36 @@ public class BroadcastStateInputFormatTest {
             testHarness.processElement2(new StreamRecord<>(3));
 
             OperatorSubtaskState subtaskState = testHarness.snapshot(0, 0);
-            OperatorState state =
+            OperatorState operatorState =
                     new OperatorState(null, null, OperatorIDGenerator.fromUid("uid"), 1, 4);
-            state.putState(0, subtaskState);
+            operatorState.putState(0, subtaskState);
 
-            OperatorStateInputSplit split =
-                    new OperatorStateInputSplit(subtaskState.getManagedOperatorState(), 0);
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            env.setParallelism(4);
 
-            BroadcastStateInputFormat<Integer, Integer> format =
-                    new BroadcastStateInputFormat<>(
-                            state, new Configuration(), null, descriptor, new ExecutionConfig());
+            BroadcastStateSource<Integer, Integer> source =
+                    new BroadcastStateSource<>(
+                            new HashMapStateBackend(),
+                            operatorState,
+                            new Configuration(),
+                            new ExecutionConfig(),
+                            STATE_DESCRIPTOR);
 
-            format.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
-            format.open(split);
+            DataStream<Tuple2<Integer, Integer>> stream =
+                    env.fromSource(
+                            source,
+                            WatermarkStrategy.noWatermarks(),
+                            "broadcast-state-source",
+                            Types.TUPLE(Types.INT, Types.INT));
 
-            Map<Integer, Integer> results = new HashMap<>(3);
+            CollectingSink<Tuple2<Integer, Integer>> sink = new CollectingSink<>();
+            stream.sinkTo(sink);
+            env.execute();
 
-            while (!format.reachedEnd()) {
-                Tuple2<Integer, Integer> entry = format.nextRecord(null);
-                results.put(entry.f0, entry.f1);
-            }
+            Map<Integer, Integer> output =
+                    sink.getRemainingOutput().stream()
+                            .collect(Collectors.toMap(t -> t.f0, t -> t.f1));
+            sink.close();
 
             Map<Integer, Integer> expected = new HashMap<>(3);
             expected.put(1, 1);
@@ -84,7 +98,7 @@ public class BroadcastStateInputFormatTest {
             expected.put(3, 3);
 
             Assert.assertEquals(
-                    "Failed to read correct list state from state backend", expected, results);
+                    "Failed to read correct list state from state backend", expected, output);
         }
     }
 
@@ -92,7 +106,7 @@ public class BroadcastStateInputFormatTest {
             throws Exception {
         return new TwoInputStreamOperatorTestHarness<>(
                 new CoBroadcastWithNonKeyedOperator<>(
-                        new StatefulFunction(), Collections.singletonList(descriptor)));
+                        new StatefulFunction(), Collections.singletonList(STATE_DESCRIPTOR)));
     }
 
     static class StatefulFunction extends BroadcastProcessFunction<Void, Integer, Void> {
@@ -103,7 +117,7 @@ public class BroadcastStateInputFormatTest {
         @Override
         public void processBroadcastElement(Integer value, Context ctx, Collector<Void> out)
                 throws Exception {
-            ctx.getBroadcastState(descriptor).put(value, value);
+            ctx.getBroadcastState(STATE_DESCRIPTOR).put(value, value);
         }
     }
 }

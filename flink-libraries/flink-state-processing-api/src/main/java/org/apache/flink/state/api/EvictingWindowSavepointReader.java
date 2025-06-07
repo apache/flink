@@ -19,19 +19,21 @@
 package org.apache.flink.state.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.functions.WindowReaderFunction;
-import org.apache.flink.state.api.input.KeyedStateInputFormat;
-import org.apache.flink.state.api.input.SourceBuilder;
 import org.apache.flink.state.api.input.operator.WindowReaderOperator;
 import org.apache.flink.state.api.input.operator.window.AggregateEvictingWindowReaderFunction;
 import org.apache.flink.state.api.input.operator.window.PassThroughReader;
 import org.apache.flink.state.api.input.operator.window.ProcessEvictingWindowReader;
 import org.apache.flink.state.api.input.operator.window.ReduceEvictingWindowReaderFunction;
+import org.apache.flink.state.api.input.source.keyed.KeyedStateSource;
 import org.apache.flink.state.api.runtime.MutableConfig;
 import org.apache.flink.state.api.runtime.metadata.SavepointMetadataV2;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -248,14 +250,19 @@ public class EvictingWindowSavepointReader<W extends Window> {
             TypeInformation<OUT> outputType,
             WindowReaderOperator<?, K, T, W, OUT> operator)
             throws IOException {
-        KeyedStateInputFormat<K, W, OUT> format =
-                new KeyedStateInputFormat<>(
-                        metadata.getOperatorState(OperatorIdentifier.forUid(uid)),
-                        stateBackend,
-                        MutableConfig.of(env.getConfiguration()),
-                        operator,
-                        env.getConfig());
 
-        return SourceBuilder.fromFormat(env, format, outputType);
+        OperatorState operatorState = metadata.getOperatorState(OperatorIdentifier.forUid(uid));
+        Source<OUT, ?, ?> source =
+                new KeyedStateSource<>(
+                        stateBackend,
+                        operatorState,
+                        MutableConfig.of(env.getConfiguration()),
+                        env.getConfig(),
+                        operator);
+        return env.fromSource(
+                source,
+                WatermarkStrategy.noWatermarks(),
+                "Evicting Window State Source",
+                outputType);
     }
 }
