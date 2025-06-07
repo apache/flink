@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.join.stream.multijoin;
 
-import org.apache.flink.table.runtime.generated.GeneratedMultiJoinCondition;
+import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.AttributeRef;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
@@ -49,7 +49,7 @@ class StreamingFourWayMixedInnerJoinOperatorTest extends StreamingMultiJoinOpera
     // Input 1 (Orders) with Input 0 (Users) on user_id
     // Input 2 (Payments) with Input 0 (Users) on user_id
     // Input 3 (Shipments) with Input 0 (Users) on user_id
-    private static final List<GeneratedMultiJoinCondition> customJoinConditions =
+    private static final List<GeneratedJoinCondition> customJoinConditions =
             Arrays.asList(
                     null, // No condition for the first input (Users)
                     createJoinCondition(1, 0), // Orders.user_id_1 = Users.user_id_0

@@ -26,8 +26,8 @@ import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedMultiInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.generated.GeneratedMultiJoinCondition;
-import org.apache.flink.table.runtime.generated.MultiJoinCondition;
+import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
+import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
@@ -79,7 +79,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
     protected final List<RowDataKeySelector> keySelectors;
     protected final List<JoinInputSideSpec> inputSpecs;
     protected final List<JoinType> joinTypes;
-    protected final List<GeneratedMultiJoinCondition> joinConditions;
+    protected final List<GeneratedJoinCondition> joinConditions;
     protected final boolean isFullOuterJoin;
     protected final Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap;
     protected final JoinKeyExtractor keyExtractor;
@@ -99,7 +99,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
             StateBackendMode stateBackendMode,
             int numInputs,
             List<JoinType> joinTypes,
-            List<GeneratedMultiJoinCondition> joinConditions,
+            List<GeneratedJoinCondition> joinConditions,
             boolean isFullOuterJoin) {
         super(stateBackendMode);
         this.inputTypeInfos = new ArrayList<>(numInputs);
@@ -122,7 +122,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
             StateBackendMode stateBackendMode,
             int numInputs,
             List<JoinType> joinTypes,
-            List<GeneratedMultiJoinCondition> joinConditions,
+            List<GeneratedJoinCondition> joinConditions,
             Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap,
             boolean isFullOuterJoin) {
         super(stateBackendMode);
@@ -236,7 +236,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
                 3, new StreamRecord<>(StreamRecordUtils.rowOfKind(DELETE, fields)));
     }
 
-    protected static List<GeneratedMultiJoinCondition> defaultConditions() {
+    protected static List<GeneratedJoinCondition> defaultConditions() {
         return new ArrayList<>();
     }
 
@@ -340,7 +340,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
             for (int i = 0; i < inputSpecs.size(); i++) {
                 // Add the join condition comparing current input (i) with previous (i-1)
                 if (i > 0) {
-                    GeneratedMultiJoinCondition condition = createJoinCondition(i, i - 1);
+                    GeneratedJoinCondition condition = createJoinCondition(i, i - 1);
                     joinConditions.add(condition);
                 }
 
@@ -436,7 +436,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
         private final List<JoinInputSideSpec> inputSpecs;
         private final List<RowType> inputTypeInfos;
         private final List<JoinType> joinTypes;
-        private final List<GeneratedMultiJoinCondition> joinConditions;
+        private final List<GeneratedJoinCondition> joinConditions;
         private final JoinKeyExtractor keyExtractor;
         private final Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap;
 
@@ -444,7 +444,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
                 List<JoinInputSideSpec> inputSpecs,
                 List<RowType> inputTypeInfos,
                 List<JoinType> joinTypes,
-                List<GeneratedMultiJoinCondition> joinConditions,
+                List<GeneratedJoinCondition> joinConditions,
                 Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap) {
             this.inputSpecs = inputSpecs;
             this.inputTypeInfos = inputTypeInfos;
@@ -484,33 +484,30 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
                 List<JoinInputSideSpec> inputSpecs,
                 List<RowType> inputTypeInfos,
                 List<JoinType> joinTypes,
-                List<GeneratedMultiJoinCondition> joinConditions,
+                List<GeneratedJoinCondition> joinConditions,
                 JoinKeyExtractor keyExtractor,
                 Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap) {
 
             long[] retentionTime = new long[inputSpecs.size()];
             Arrays.fill(retentionTime, 9999999L);
 
-            MultiJoinCondition multiJoinCondition =
-                    createMultiJoinCondition(inputSpecs.size())
-                            .newInstance(getClass().getClassLoader());
-            MultiJoinCondition[] createdJoinConditions = createJoinConditions(joinConditions);
+            JoinCondition[] createdJoinConditions = createJoinConditions(joinConditions);
 
             return new StreamingMultiJoinOperator(
                     parameters,
                     inputTypeInfos,
                     inputSpecs,
                     joinTypes,
-                    multiJoinCondition,
+                    null, // multiJoinCondition is no longer used
                     retentionTime,
                     createdJoinConditions,
                     keyExtractor,
                     joinAttributeMap);
         }
 
-        private MultiJoinCondition[] createJoinConditions(
-                List<GeneratedMultiJoinCondition> generatedJoinConditions) {
-            MultiJoinCondition[] conditions = new MultiJoinCondition[inputSpecs.size()];
+        private JoinCondition[] createJoinConditions(
+                List<GeneratedJoinCondition> generatedJoinConditions) {
+            JoinCondition[] conditions = new JoinCondition[inputSpecs.size()];
             // We expect generatedJoinConditions size to match inputSpecs size (or joinTypes size)
             if (generatedJoinConditions.size() != inputSpecs.size()) {
                 throw new IllegalArgumentException(
@@ -518,7 +515,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
                                 + "This might be due to an incorrect joinAttributeMap or incorrect joinConditions. All parameters derived from join conditions have to match!");
             }
             for (int i = 0; i < inputSpecs.size(); i++) {
-                GeneratedMultiJoinCondition generatedCondition = generatedJoinConditions.get(i);
+                GeneratedJoinCondition generatedCondition = generatedJoinConditions.get(i);
                 if (generatedCondition != null) {
                     try {
                         conditions[i] = generatedCondition.newInstance(getClass().getClassLoader());
@@ -569,29 +566,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
                 inputTypeInfos.get(inputIndex).getChildren().toArray(new LogicalType[0]));
     }
 
-    protected static GeneratedMultiJoinCondition createMultiJoinCondition(int numInputs) {
-        String generatedClassName = "DefaultGlobalEquiKeyCondition_manual";
-        return new GeneratedMultiJoinCondition(generatedClassName, "", new Object[0]) {
-            @Override
-            public MultiJoinCondition newInstance(ClassLoader classLoader) {
-                return new DefaultGlobalEquiKeyCondition(numInputs);
-            }
-        };
-    }
-
-    /**
-     * Creates a default GeneratedMultiJoinCondition that compares the join key (field 0) between
-     * the input at `index` and the input at `indexToCompare`. This is typically used for the ON
-     * clause of a specific join step (e.g., A LEFT JOIN B **ON A.key = B.key**).
-     *
-     * @param rightInputId The index of the current input stream (the right side of the conceptual
-     *     join step) in the `inputs` array of `MultiJoinCondition.apply()`.
-     * @param leftInputId The index of the input stream to compare against (the left side) in the
-     *     `inputs` array.
-     * @return A GeneratedMultiJoinCondition representing the equality check on field 0.
-     */
-    protected static GeneratedMultiJoinCondition createJoinCondition(
-            int rightInputId, int leftInputId) {
+    protected static GeneratedJoinCondition createJoinCondition(int rightInputId, int leftInputId) {
         if (rightInputId <= 0 || leftInputId < 0 || rightInputId == leftInputId) {
             throw new IllegalArgumentException(
                     String.format(
@@ -602,11 +577,13 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
         String generatedClassName =
                 String.format(
                         "SpecificInputsEquiKeyCondition_manual_%d_%d", rightInputId, leftInputId);
-        return new GeneratedMultiJoinCondition(generatedClassName, "", new Object[0]) {
+        return new GeneratedJoinCondition(generatedClassName, "", new Object[0]) {
             @Override
-            public MultiJoinCondition newInstance(ClassLoader classLoader) {
-                // Field 0 is assumed for key comparison in this default test condition
-                return new SpecificInputsEquiKeyCondition(leftInputId, 0, rightInputId, 0);
+            public JoinCondition newInstance(ClassLoader classLoader) {
+                // Field 0 of the let side and field 0 of the right side is assumed for equality
+                // key comparison in this default test condition.
+                // We do leftInputId * 3 because each input has 3 fields in our test setup.
+                return new SpecificInputsEquiKeyCondition(leftInputId * 3, 0);
             }
         };
     }
@@ -616,81 +593,41 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
     // ==========================================================================
 
     /**
-     * Checks if all inputs (from `inputs[0]` to `inputs[numInputs-1]`) are non-null, have a
-     * non-null string at field 0, and these strings are all equal to `inputs[0].getString(0)`. This
-     * is used as a global filter condition in some tests.
-     */
-    private static class DefaultGlobalEquiKeyCondition extends AbstractRichFunction
-            implements MultiJoinCondition {
-        private final int numInputs;
-
-        public DefaultGlobalEquiKeyCondition(int numInputs) {
-            this.numInputs = numInputs;
-        }
-
-        @Override
-        public boolean apply(RowData[] inputs) {
-            if (inputs == null || inputs.length < numInputs) {
-                return false;
-            }
-
-            if (numInputs <= 1) {
-                return numInputs != 1 || (inputs[0] != null && !inputs[0].isNullAt(0));
-            }
-
-            if (inputs[0] == null || inputs[0].isNullAt(0)) {
-                return false;
-            }
-
-            for (int i = 1; i < numInputs; i++) {
-                SpecificInputsEquiKeyCondition pairCondition =
-                        new SpecificInputsEquiKeyCondition(0, 0, i, 0);
-                if (!pairCondition.apply(inputs)) {
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
-
-    /**
      * Checks if `inputs[leftInputIndex].getString(leftKeyFieldIndex)` is equal to
      * `inputs[rightInputIndex].getString(rightKeyFieldIndex)`. Used for specific join step
      * conditions.
      */
-    private static class SpecificInputsEquiKeyCondition extends AbstractRichFunction
-            implements MultiJoinCondition {
-        private final int leftInputIndex;
+    protected static class SpecificInputsEquiKeyCondition extends AbstractRichFunction
+            implements JoinCondition {
         private final int leftKeyFieldIndex;
-        private final int rightInputIndex;
         private final int rightKeyFieldIndex;
 
-        public SpecificInputsEquiKeyCondition(
-                int leftInputIndex,
-                int leftKeyFieldIndex,
-                int rightInputIndex,
-                int rightKeyFieldIndex) {
-            this.leftInputIndex = leftInputIndex;
+        public SpecificInputsEquiKeyCondition(int leftKeyFieldIndex, int rightKeyFieldIndex) {
             this.leftKeyFieldIndex = leftKeyFieldIndex;
-            this.rightInputIndex = rightInputIndex;
             this.rightKeyFieldIndex = rightKeyFieldIndex;
         }
 
         @Override
-        public boolean apply(RowData[] inputs) {
-            if (inputs == null
-                    || inputs.length <= Math.max(leftInputIndex, rightInputIndex)
-                    || inputs[leftInputIndex] == null
-                    || inputs[rightInputIndex] == null) {
+        public boolean apply(RowData left, RowData right) {
+            if (left == null || right == null) {
                 return false;
             }
-            if (inputs[leftInputIndex].isNullAt(leftKeyFieldIndex)
-                    || inputs[rightInputIndex].isNullAt(rightKeyFieldIndex)) {
+
+            if (left.isNullAt(leftKeyFieldIndex) || right.isNullAt(rightKeyFieldIndex)) {
                 return false;
             }
-            String keyLeft = inputs[leftInputIndex].getString(leftKeyFieldIndex).toString();
-            String keyRight = inputs[rightInputIndex].getString(rightKeyFieldIndex).toString();
+            String keyLeft = left.getString(leftKeyFieldIndex).toString();
+            String keyRight = right.getString(rightKeyFieldIndex).toString();
             return keyLeft.equals(keyRight);
+        }
+
+        private int calculateActualFieldIndex(int inputIndex, int fieldIndex) {
+            int actualIndex = fieldIndex;
+            // Add the arity of all previous inputs
+            for (int i = 0; i < inputIndex; i++) {
+                actualIndex += 3; // all our inputs in our test setup have 3 fields
+            }
+            return actualIndex;
         }
     }
 
@@ -699,53 +636,43 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
      * the right input. Example: leftInput.field > rightInput.field
      */
     protected static class FieldLongGreaterThanConditionImpl extends AbstractRichFunction
-            implements MultiJoinCondition {
-        private final int leftInputIndex;
+            implements JoinCondition {
         private final int leftFieldIdx;
-        private final int rightInputIndex;
         private final int rightFieldIdx;
 
-        public FieldLongGreaterThanConditionImpl(
-                int leftInputIndex, int leftFieldIdx, int rightInputIndex, int rightFieldIdx) {
-            this.leftInputIndex = leftInputIndex;
+        public FieldLongGreaterThanConditionImpl(int leftFieldIdx, int rightFieldIdx) {
             this.leftFieldIdx = leftFieldIdx;
-            this.rightInputIndex = rightInputIndex;
             this.rightFieldIdx = rightFieldIdx;
         }
 
         @Override
-        public boolean apply(RowData[] inputs) {
-            if (inputs == null
-                    || inputs.length <= Math.max(leftInputIndex, rightInputIndex)
-                    || inputs[leftInputIndex] == null
-                    || inputs[rightInputIndex] == null) {
+        public boolean apply(RowData left, RowData right) {
+            if (left == null || right == null) {
                 return false;
             }
-            if (inputs[leftInputIndex].isNullAt(leftFieldIdx)
-                    || inputs[rightInputIndex].isNullAt(rightFieldIdx)) {
+            if (left.isNullAt(leftFieldIdx) || right.isNullAt(rightFieldIdx)) {
                 return false;
             }
-            return inputs[leftInputIndex].getLong(leftFieldIdx)
-                    > inputs[rightInputIndex].getLong(rightFieldIdx);
+            return left.getLong(leftFieldIdx) > right.getLong(rightFieldIdx);
         }
     }
 
     /** Combines multiple MultiJoinConditions with AND logic. */
-    protected static class AndMultiJoinConditionImpl extends AbstractRichFunction
-            implements MultiJoinCondition {
-        private final MultiJoinCondition[] conditions;
+    protected static class AndJoinConditionImpl extends AbstractRichFunction
+            implements JoinCondition {
+        private final JoinCondition[] conditions;
 
-        public AndMultiJoinConditionImpl(MultiJoinCondition... conditions) {
+        public AndJoinConditionImpl(JoinCondition... conditions) {
             this.conditions = conditions;
         }
 
         @Override
-        public boolean apply(RowData[] inputs) {
-            for (MultiJoinCondition condition : conditions) {
+        public boolean apply(RowData left, RowData right) {
+            for (JoinCondition condition : conditions) {
                 if (condition == null) { // Should not happen if constructed properly via factory
                     return false;
                 }
-                if (!condition.apply(inputs)) {
+                if (!condition.apply(left, right)) {
                     return false;
                 }
             }
@@ -754,42 +681,38 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
     }
 
     // Factory Methods for Conditions
-    protected static GeneratedMultiJoinCondition createFieldLongGreaterThanCondition(
-            int leftInputIdx, int leftFieldIdx, int rightInputIdx, int rightFieldIdx) {
+    protected static GeneratedJoinCondition createFieldLongGreaterThanCondition(
+            int leftFieldIdx, int rightFieldIdx) {
         String generatedClassName =
                 String.format(
-                        "FieldLongGreaterThanCondition_manual_%d_%d_%d_%d",
-                        leftInputIdx, leftFieldIdx, rightInputIdx, rightFieldIdx);
-        return new GeneratedMultiJoinCondition(generatedClassName, "", new Object[0]) {
+                        "FieldLongGreaterThanCondition_manual_%d_%d", leftFieldIdx, rightFieldIdx);
+        return new GeneratedJoinCondition(generatedClassName, "", new Object[0]) {
             @Override
-            public MultiJoinCondition newInstance(ClassLoader classLoader) {
-                return new FieldLongGreaterThanConditionImpl(
-                        leftInputIdx, leftFieldIdx, rightInputIdx, rightFieldIdx);
+            public JoinCondition newInstance(ClassLoader classLoader) {
+                return new FieldLongGreaterThanConditionImpl(leftFieldIdx, rightFieldIdx);
             }
         };
     }
 
-    protected static GeneratedMultiJoinCondition createAndCondition(
-            GeneratedMultiJoinCondition... generatedConditions) {
-        String generatedClassName =
-                "AndMultiJoinCondition_manual"; // Name can be made more unique if needed
-        return new GeneratedMultiJoinCondition(generatedClassName, "", new Object[0]) {
+    protected static GeneratedJoinCondition createAndCondition(
+            GeneratedJoinCondition... generatedConditions) {
+        String generatedClassName = "AndJoinCondition_manual";
+        return new GeneratedJoinCondition(generatedClassName, "", new Object[0]) {
             @Override
-            public MultiJoinCondition newInstance(ClassLoader classLoader) {
-                MultiJoinCondition[] actualConditions =
-                        new MultiJoinCondition[generatedConditions.length];
+            public JoinCondition newInstance(ClassLoader classLoader) {
+                JoinCondition[] actualConditions = new JoinCondition[generatedConditions.length];
                 for (int i = 0; i < generatedConditions.length; i++) {
                     if (generatedConditions[i] == null) {
                         // This case should ideally be prevented by how createAndCondition is called
-                        // or handled by AndMultiJoinConditionImpl if nulls are permissible for some
+                        // or handled by AndJoinConditionImpl if nulls are permissible for some
                         // reason.
                         // For now, let's assume valid conditions are passed.
                         throw new IllegalArgumentException(
-                                "Null GeneratedMultiJoinCondition passed to createAndCondition");
+                                "Null GeneratedJoinCondition passed to createAndCondition");
                     }
                     actualConditions[i] = generatedConditions[i].newInstance(classLoader);
                 }
-                return new AndMultiJoinConditionImpl(actualConditions);
+                return new AndJoinConditionImpl(actualConditions);
             }
         };
     }

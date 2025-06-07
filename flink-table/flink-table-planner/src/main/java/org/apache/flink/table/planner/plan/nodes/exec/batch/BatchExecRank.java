@@ -54,8 +54,8 @@ import java.util.List;
         name = "batch-exec-rank",
         version = 1,
         producedTransformations = BatchExecRank.RANK_TRANSFORMATION,
-        minPlanVersion = FlinkVersion.v2_0,
-        minStateVersion = FlinkVersion.v2_0)
+        minPlanVersion = FlinkVersion.v2_1,
+        minStateVersion = FlinkVersion.v2_1)
 public class BatchExecRank extends ExecNodeBase<RowData>
         implements InputSortedExecNode<RowData>, SingleTransformationTranslator<RowData> {
 

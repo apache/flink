@@ -30,8 +30,8 @@ public interface MultiJoinCondition extends RichFunction {
     /**
      * Evaluates join conditions across multiple input rows at once.
      *
-     * @param inputs Array of input rows to check with join condition
+     * @param joinedRowData All joined rows for N inputs
      * @return True if the join condition is satisfied for all inputs, false otherwise
      */
-    boolean apply(RowData[] inputs);
+    boolean apply(RowData joinedRowData);
 }

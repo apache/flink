@@ -47,8 +47,7 @@ import org.apache.calcite.rel.core.{Join, JoinInfo, JoinRelType}
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode, RexUtil}
 import org.apache.calcite.sql.validate.SqlValidatorUtil
-import org.apache.calcite.util.ImmutableIntList
-import org.apache.calcite.util.Util
+import org.apache.calcite.util.{ImmutableIntList, Util}
 
 import java.util
 import java.util.Collections
@@ -144,7 +143,7 @@ object JoinUtil {
   def generateConditionFunction(
       tableConfig: ReadableConfig,
       classLoader: ClassLoader,
-      nonEquiCondition: RexNode,
+      joinCondition: RexNode,
       leftType: LogicalType,
       rightType: LogicalType): GeneratedJoinCondition = {
     val ctx = new CodeGeneratorContext(tableConfig, classLoader)
@@ -153,11 +152,11 @@ object JoinUtil {
       .bindInput(leftType)
       .bindSecondInput(rightType)
 
-    val body = if (nonEquiCondition == null) {
-      // only equality condition
+    val body = if (joinCondition == null) {
+      // The join condition is null, which means the join condition is always true
       "return true;"
     } else {
-      val condition = exprGenerator.generateExpression(nonEquiCondition)
+      val condition = exprGenerator.generateExpression(joinCondition)
       s"""
          |${condition.code}
          |return ${condition.resultTerm};
