@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.operators.join.stream.multijoin;
 
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
-import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.AttributeRef;
+import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
@@ -28,6 +28,7 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,30 +59,18 @@ class StreamingFourWayMixedInnerJoinOperatorTest extends StreamingMultiJoinOpera
                     );
 
     // Attribute Map for partitioning keys (all join on user_id, which is field 0)
-    private static final Map<Integer, Map<AttributeRef, AttributeRef>> customAttributeMap =
+    private static final Map<Integer, List<ConditionAttributeRef>> customAttributeMap =
             new HashMap<>();
 
     static {
         // Input 1 (Orders) with Input 0 (Users)
-        Map<AttributeRef, AttributeRef> map1 = new HashMap<>();
-        map1.put(
-                new AttributeRef(0, 0), // Users.user_id_0
-                new AttributeRef(1, 0)); // Orders.user_id_1
-        customAttributeMap.put(1, map1);
+        customAttributeMap.put(1, Collections.singletonList(new ConditionAttributeRef(0, 0, 1, 0)));
 
         // Input 2 (Payments) with Input 0 (Users)
-        Map<AttributeRef, AttributeRef> map2 = new HashMap<>();
-        map2.put(
-                new AttributeRef(0, 0), // Users.user_id_0
-                new AttributeRef(2, 0)); // Payments.user_id_2
-        customAttributeMap.put(2, map2);
+        customAttributeMap.put(2, Collections.singletonList(new ConditionAttributeRef(0, 0, 2, 0)));
 
         // Input 3 (Shipments) with Input 0 (Users)
-        Map<AttributeRef, AttributeRef> map3 = new HashMap<>();
-        map3.put(
-                new AttributeRef(0, 0), // Users.user_id_0
-                new AttributeRef(3, 0)); // Shipments.user_id_3
-        customAttributeMap.put(3, map3);
+        customAttributeMap.put(3, Collections.singletonList(new ConditionAttributeRef(0, 0, 3, 0)));
     }
 
     public StreamingFourWayMixedInnerJoinOperatorTest(StateBackendMode stateBackendMode) {

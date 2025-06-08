@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.operators.join.stream.multijoin;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
-import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.AttributeRef;
+import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
 import org.junit.jupiter.api.TestTemplate;
@@ -50,17 +50,17 @@ class StreamingMultiConditionJoinOperatorTest extends StreamingMultiJoinOperator
             Arrays.asList(null, multiCondition); // null for the first input
 
     // Attribute map reflecting A.f0=B.f0 and A.f2=B.f2
-    private static final Map<Integer, Map<AttributeRef, AttributeRef>> customAttributeMap =
+    private static final Map<Integer, List<ConditionAttributeRef>> customAttributeMap =
             new HashMap<>();
 
     static {
         // Mapping for join between input 1 (B) and input 0 (A)
-        Map<AttributeRef, AttributeRef> map1 = new HashMap<>();
-        // A.f0 -> B.f0 (using user_id fields from base schema)
-        map1.put(new AttributeRef(0, 0), new AttributeRef(1, 0));
-        // A.f2 -> B.f2 (using details fields from base schema)
-        map1.put(new AttributeRef(0, 2), new AttributeRef(1, 2));
-        customAttributeMap.put(1, map1); // Key is the right-side input index (1)
+        customAttributeMap.put(
+                1,
+                Arrays.asList(
+                        new ConditionAttributeRef(0, 0, 1, 0), // A.f0 -> B.f0
+                        new ConditionAttributeRef(0, 2, 1, 2) // A.f2 -> B.f2
+                        ));
     }
 
     public StreamingMultiConditionJoinOperatorTest(StateBackendMode stateBackendMode) {

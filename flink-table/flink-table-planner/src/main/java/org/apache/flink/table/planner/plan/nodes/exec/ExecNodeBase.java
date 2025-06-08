@@ -145,7 +145,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     public List<ExecEdge> getInputEdges() {
         return checkNotNull(
                 inputEdges,
-                "inputEdges should not null, please call `setInputEdges(List<ExecEdge>)` first.");
+                "inputEdges should not be null, please call `setInputEdges(List<ExecEdge>)` first.");
     }
 
     @Override

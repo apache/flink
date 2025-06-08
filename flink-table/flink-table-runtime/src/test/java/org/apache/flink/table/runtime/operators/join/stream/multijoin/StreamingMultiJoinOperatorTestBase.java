@@ -32,7 +32,7 @@ import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor;
-import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.AttributeRef;
+import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -52,6 +52,7 @@ import org.junit.jupiter.api.BeforeEach;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -81,7 +82,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
     protected final List<JoinType> joinTypes;
     protected final List<GeneratedJoinCondition> joinConditions;
     protected final boolean isFullOuterJoin;
-    protected final Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap;
+    protected final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap;
     protected final JoinKeyExtractor keyExtractor;
 
     // ==========================================================================
@@ -123,7 +124,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
             int numInputs,
             List<JoinType> joinTypes,
             List<GeneratedJoinCondition> joinConditions,
-            Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap,
+            Map<Integer, List<ConditionAttributeRef>> joinAttributeMap,
             boolean isFullOuterJoin) {
         super(stateBackendMode);
         this.inputTypeInfos = new ArrayList<>(numInputs);
@@ -337,18 +338,13 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
         if (joinConditions.isEmpty()) {
             // First input doesn't have a left input to join with
             joinConditions.add(null);
-            for (int i = 0; i < inputSpecs.size(); i++) {
+            for (int i = 1; i < inputSpecs.size(); i++) {
                 // Add the join condition comparing current input (i) with previous (i-1)
-                if (i > 0) {
-                    GeneratedJoinCondition condition = createJoinCondition(i, i - 1);
-                    joinConditions.add(condition);
-                }
+                GeneratedJoinCondition condition = createJoinCondition(i, i - 1);
+                joinConditions.add(condition);
 
-                Map<AttributeRef, AttributeRef> currentJoinMap = new HashMap<>();
-                AttributeRef leftAttr = new AttributeRef(i - 1, 0);
-                AttributeRef rightAttr = new AttributeRef(i, 0);
-                currentJoinMap.put(leftAttr, rightAttr);
-                joinAttributeMap.put(i, currentJoinMap);
+                joinAttributeMap.put(
+                        i, Collections.singletonList(new ConditionAttributeRef(i - 1, 0, i, 0)));
             }
         } else if (joinConditions.size() != inputSpecs.size()) {
             throw new IllegalArgumentException(
@@ -438,14 +434,14 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
         private final List<JoinType> joinTypes;
         private final List<GeneratedJoinCondition> joinConditions;
         private final JoinKeyExtractor keyExtractor;
-        private final Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap;
+        private final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap;
 
         public MultiStreamingJoinOperatorFactory(
                 List<JoinInputSideSpec> inputSpecs,
                 List<RowType> inputTypeInfos,
                 List<JoinType> joinTypes,
                 List<GeneratedJoinCondition> joinConditions,
-                Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap) {
+                Map<Integer, List<ConditionAttributeRef>> joinAttributeMap) {
             this.inputSpecs = inputSpecs;
             this.inputTypeInfos = inputTypeInfos;
             this.joinTypes = joinTypes;
@@ -486,7 +482,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
                 List<JoinType> joinTypes,
                 List<GeneratedJoinCondition> joinConditions,
                 JoinKeyExtractor keyExtractor,
-                Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap) {
+                Map<Integer, List<ConditionAttributeRef>> joinAttributeMap) {
 
             long[] retentionTime = new long[inputSpecs.size()];
             Arrays.fill(retentionTime, 9999999L);

@@ -75,6 +75,15 @@ public interface JoinKeyExtractor extends Serializable {
     RowType getJoinKeyType(int inputId);
 
     /**
+     * Gets the field indices in the source row that make up the join key for a given input.
+     *
+     * @param inputId The ID of the input stream.
+     * @return An array of integers representing the field indices in the source row that form the
+     *     join key.
+     */
+    int[] getJoinKeyIndices(int inputId);
+
+    /**
      * Extracts the common key from an input row. The common key consists of attributes that are
      * part of all equi-join conditions in the multi-join sequence.
      *
@@ -91,4 +100,13 @@ public interface JoinKeyExtractor extends Serializable {
      * @return The {@link RowType} for the common key join type.
      */
     RowType getCommonJoinKeyType();
+
+    /**
+     * Gets the field indices in the source row that make up the common join key for a given input.
+     *
+     * @param inputId The ID of the input stream.
+     * @return An array of integers representing the field indices in the source row that form the
+     *     common join key.
+     */
+    int[] getCommonJoinKeyIndices(int inputId);
 }

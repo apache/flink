@@ -25,7 +25,7 @@ import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
-import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.AttributeRef;
+import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -39,6 +39,7 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,13 +58,11 @@ class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorT
     private static final List<GeneratedJoinCondition> customJoinConditions =
             Arrays.asList(null, EqualIdAndGreaterAmountCondition);
 
-    private static final Map<Integer, Map<AttributeRef, AttributeRef>> customAttributeMap =
+    private static final Map<Integer, List<ConditionAttributeRef>> customAttributeMap =
             new HashMap<>();
 
     static {
-        Map<AttributeRef, AttributeRef> map = new HashMap<>();
-        map.put(new AttributeRef(0, 0), new AttributeRef(1, 0));
-        customAttributeMap.put(1, map);
+        customAttributeMap.put(1, Collections.singletonList(new ConditionAttributeRef(0, 0, 1, 0)));
     }
 
     public StreamingTwoWayNonEquiJoinOperatorTest(StateBackendMode stateBackendMode) {

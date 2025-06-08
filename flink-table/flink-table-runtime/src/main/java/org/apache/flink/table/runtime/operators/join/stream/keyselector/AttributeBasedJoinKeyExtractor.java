@@ -46,7 +46,7 @@ import java.util.stream.Collectors;
 public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
     private static final long serialVersionUID = 1L;
 
-    private final Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap;
+    private final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap;
     private final List<RowType> inputTypes;
 
     // Cache for pre-computed key extraction structures
@@ -58,13 +58,14 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
     /**
      * Creates an AttributeBasedJoinKeyExtractor.
      *
-     * @param joinAttributeMap Map defining equi-join conditions. Outer key: inputId (>= 1). Inner
-     *     key: {@link AttributeRef} to a field in a *previous* input. Inner value: {@link
-     *     AttributeRef} to the corresponding field in the *current* input (inputId == outer key).
+     * @param joinAttributeMap Map defining equi-join conditions. Outer key: inputId (>= 1). The
+     *     value is a list of {@link ConditionAttributeRef} where each element defines an equi-join
+     *     condition between a previous input (`leftInputId`, `leftFieldIndex`) and the current
+     *     input (`rightInputId`, `rightFieldIndex`).
      * @param inputTypes Type information for all input streams (indexed 0 to N-1).
      */
     public AttributeBasedJoinKeyExtractor(
-            final Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap,
+            final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap,
             final List<RowType> inputTypes) {
         this.joinAttributeMap = joinAttributeMap;
         this.inputTypes = inputTypes;
@@ -84,7 +85,7 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
             return null;
         }
 
-        final Map<AttributeRef, AttributeRef> attributeMapping = joinAttributeMap.get(inputId);
+        final List<ConditionAttributeRef> attributeMapping = joinAttributeMap.get(inputId);
         if (attributeMapping == null || attributeMapping.isEmpty()) {
             return null;
         }
@@ -127,6 +128,15 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
     }
 
     @Override
+    public int[] getJoinKeyIndices(int inputId) {
+        final List<Integer> keyFieldIndices = this.inputKeyFieldIndices.get(inputId);
+        if (keyFieldIndices == null) {
+            return new int[0];
+        }
+        return keyFieldIndices.stream().mapToInt(i -> i).toArray();
+    }
+
+    @Override
     public RowType getCommonJoinKeyType() {
         return this.commonJoinKeyType;
     }
@@ -139,6 +149,16 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
         }
 
         return buildCommonJoinKey(row, extractors);
+    }
+
+    @Override
+    public int[] getCommonJoinKeyIndices(int inputId) {
+        List<KeyExtractor> extractors = commonJoinKeyExtractors.get(inputId);
+        if (extractors == null || extractors.isEmpty()) {
+            return new int[0];
+        }
+
+        return extractors.stream().mapToInt(KeyExtractor::getFieldIndexInSourceRow).toArray();
     }
 
     // ==================== Initialization Methods ====================
@@ -157,14 +177,14 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
             return Collections.emptyList();
         }
 
-        Map<AttributeRef, AttributeRef> attributeMapping = joinAttributeMap.get(depth);
+        List<ConditionAttributeRef> attributeMapping = joinAttributeMap.get(depth);
         if (attributeMapping == null || attributeMapping.isEmpty()) {
             return Collections.emptyList();
         }
 
         List<KeyExtractor> keyExtractors = new ArrayList<>();
-        for (Map.Entry<AttributeRef, AttributeRef> entry : attributeMapping.entrySet()) {
-            AttributeRef leftAttrRef = getAttributeRef(depth, entry);
+        for (ConditionAttributeRef entry : attributeMapping) {
+            AttributeRef leftAttrRef = getLeftAttributeRef(depth, entry);
             keyExtractors.add(createKeyExtractor(leftAttrRef));
         }
 
@@ -172,6 +192,21 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
                 Comparator.comparingInt(KeyExtractor::getInputIdToAccess)
                         .thenComparingInt(KeyExtractor::getFieldIndexInSourceRow));
         return keyExtractors;
+    }
+
+    private static AttributeRef getLeftAttributeRef(int depth, ConditionAttributeRef entry) {
+        AttributeRef leftAttrRef = new AttributeRef(entry.leftInputId, entry.leftFieldIndex);
+        if (leftAttrRef.inputId >= depth) {
+            throw new IllegalStateException(
+                    "Invalid joinAttributeMap configuration for depth "
+                            + depth
+                            + ". Left attribute "
+                            + leftAttrRef
+                            + " does not reference a previous input (< "
+                            + depth
+                            + ").");
+        }
+        return leftAttrRef;
     }
 
     private KeyExtractor createKeyExtractor(AttributeRef attrRef) {
@@ -189,14 +224,14 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
     }
 
     private List<Integer> createJoinKeyFieldInputExtractors(int inputId) {
-        final Map<AttributeRef, AttributeRef> attributeMapping = joinAttributeMap.get(inputId);
+        final List<ConditionAttributeRef> attributeMapping = joinAttributeMap.get(inputId);
         if (attributeMapping == null) {
             return Collections.emptyList();
         }
 
-        return attributeMapping.values().stream()
-                .filter(rightAttrRef -> rightAttrRef.inputId == inputId)
-                .map(rightAttrRef -> rightAttrRef.fieldIndex)
+        return attributeMapping.stream()
+                .filter(rightAttrRef -> rightAttrRef.rightInputId == inputId)
+                .map(rightAttrRef -> rightAttrRef.rightFieldIndex)
                 .distinct()
                 .sorted()
                 .collect(Collectors.toList());
@@ -299,9 +334,11 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
 
     private Set<AttributeRef> collectAllAttributeRefs() {
         Set<AttributeRef> allAttrRefs = new HashSet<>();
-        for (Map<AttributeRef, AttributeRef> mapping : joinAttributeMap.values()) {
-            allAttrRefs.addAll(mapping.keySet());
-            allAttrRefs.addAll(mapping.values());
+        for (List<ConditionAttributeRef> mapping : joinAttributeMap.values()) {
+            for (ConditionAttributeRef attrRef : mapping) {
+                allAttrRefs.add(new AttributeRef(attrRef.leftInputId, attrRef.leftFieldIndex));
+                allAttrRefs.add(new AttributeRef(attrRef.rightInputId, attrRef.rightFieldIndex));
+            }
         }
         return allAttrRefs;
     }
@@ -318,9 +355,13 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
 
     private void processJoinConditions(
             Map<AttributeRef, AttributeRef> parent, Map<AttributeRef, Integer> rank) {
-        for (Map<AttributeRef, AttributeRef> mapping : joinAttributeMap.values()) {
-            for (Map.Entry<AttributeRef, AttributeRef> condition : mapping.entrySet()) {
-                unionAttributeSets(parent, rank, condition.getKey(), condition.getValue());
+        for (List<ConditionAttributeRef> mapping : joinAttributeMap.values()) {
+            for (ConditionAttributeRef condition : mapping) {
+                unionAttributeSets(
+                        parent,
+                        rank,
+                        new AttributeRef(condition.leftInputId, condition.leftFieldIndex),
+                        new AttributeRef(condition.rightInputId, condition.rightFieldIndex));
             }
         }
     }
@@ -351,14 +392,18 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
             return false;
         }
 
-        for (Map<AttributeRef, AttributeRef> conditionsForStep : joinAttributeMap.values()) {
+        for (List<ConditionAttributeRef> conditionsForStep : joinAttributeMap.values()) {
             if (conditionsForStep.isEmpty()) {
                 return false;
             }
 
             boolean foundInThisStep = false;
-            for (Map.Entry<AttributeRef, AttributeRef> condition : conditionsForStep.entrySet()) {
-                if (eqSet.contains(condition.getKey()) || eqSet.contains(condition.getValue())) {
+            for (ConditionAttributeRef condition : conditionsForStep) {
+                if (eqSet.contains(
+                                new AttributeRef(condition.leftInputId, condition.leftFieldIndex))
+                        || eqSet.contains(
+                                new AttributeRef(
+                                        condition.rightInputId, condition.rightFieldIndex))) {
                     foundInThisStep = true;
                     break;
                 }
@@ -427,22 +472,6 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
 
     // ==================== Helper Methods ====================
 
-    private static AttributeRef getAttributeRef(
-            int depth, Map.Entry<AttributeRef, AttributeRef> entry) {
-        AttributeRef leftAttrRef = entry.getKey();
-        if (leftAttrRef.inputId >= depth) {
-            throw new IllegalStateException(
-                    "Invalid joinAttributeMap configuration for depth "
-                            + depth
-                            + ". Left attribute "
-                            + leftAttrRef
-                            + " does not reference a previous input (< "
-                            + depth
-                            + ").");
-        }
-        return leftAttrRef;
-    }
-
     private void validateFieldIndex(int inputId, int fieldIndex, RowType rowType) {
         if (fieldIndex >= rowType.getFieldCount() || fieldIndex < 0) {
             throw new IndexOutOfBoundsException(
@@ -486,6 +515,9 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
     // ==================== Inner Classes ====================
 
     /** Helper class to store pre-computed information for extracting a key part. */
+    // TODO we actually need int[] for the indices
+    // because we can have multiple common join keys as fields
+    // this whole file will be refactored in a next ticket
     private static final class KeyExtractor implements Serializable {
         private static final long serialVersionUID = 1L;
 
@@ -550,10 +582,12 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
 
     /** Reference to a specific field (fieldIndex) within a specific input stream (inputId). */
     public static final class AttributeRef implements Serializable {
-        private static final long serialVersionUID = 1L;
+        public int inputId;
+        public int fieldIndex;
 
-        public final int inputId;
-        public final int fieldIndex;
+        public AttributeRef() {
+            // Default constructor for deserialization
+        }
 
         public AttributeRef(int inputId, int fieldIndex) {
             this.inputId = inputId;
@@ -579,7 +613,60 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
 
         @Override
         public String toString() {
-            return "Input(" + inputId + ").Field(" + fieldIndex + ")";
+            return "InputId:" + inputId + ";FieldIndex:" + fieldIndex + ";";
+        }
+    }
+
+    /** Reference to a specific field (fieldIndex) within a specific input stream (inputId). */
+    public static final class ConditionAttributeRef implements Serializable {
+        public int leftInputId;
+        public int leftFieldIndex;
+        public int rightInputId;
+        public int rightFieldIndex;
+
+        public ConditionAttributeRef() {
+            // Default constructor for deserialization
+        }
+
+        public ConditionAttributeRef(
+                int leftInputId, int leftFieldIndex, int rightInputId, int rightFieldIndex) {
+            this.leftInputId = leftInputId;
+            this.leftFieldIndex = leftFieldIndex;
+            this.rightInputId = rightInputId;
+            this.rightFieldIndex = rightFieldIndex;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            ConditionAttributeRef that = (ConditionAttributeRef) o;
+            return leftInputId == that.leftInputId
+                    && leftFieldIndex == that.leftFieldIndex
+                    && rightInputId == that.rightInputId
+                    && rightFieldIndex == that.rightFieldIndex;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(leftInputId, leftFieldIndex, rightInputId, rightFieldIndex);
+        }
+
+        @Override
+        public String toString() {
+            return "LeftInputId:"
+                    + leftInputId
+                    + ";LeftFieldIndex:"
+                    + leftFieldIndex
+                    + ";RightInputId:"
+                    + rightInputId
+                    + ";RightFieldIndex:"
+                    + rightFieldIndex
+                    + ";";
         }
     }
 }

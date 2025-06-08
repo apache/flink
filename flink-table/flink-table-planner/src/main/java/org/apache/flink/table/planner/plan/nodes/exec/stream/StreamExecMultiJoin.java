@@ -39,15 +39,18 @@ import org.apache.flink.table.planner.plan.nodes.exec.StateMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
+import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.generated.MultiJoinCondition;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor;
+import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -75,8 +78,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
         name = "stream-exec-multi-join",
         version = 1,
         producedTransformations = StreamExecMultiJoin.MULTI_JOIN_TRANSFORMATION,
-        minPlanVersion = FlinkVersion.v2_0,
-        minStateVersion = FlinkVersion.v2_0)
+        minPlanVersion = FlinkVersion.v2_1,
+        minStateVersion = FlinkVersion.v2_1)
 public class StreamExecMultiJoin extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
@@ -93,10 +96,8 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
     private static final String FIELD_NAME_GENERATED_MULTI_JOIN_CONDITION =
             "generatedMultiJoinCondition";
     private static final String FIELD_NAME_JOIN_ATTRIBUTE_MAP = "joinAttributeMap";
-    private static final String FIELD_NAME_INPUT_SIDE_SPECS = "inputSideSpecs";
+    private static final String FIELD_NAME_INPUT_UPSERT_KEYS = "inputUpsertKeys";
     private static final String FIELD_NAME_STATE_METADATA_LIST = "stateMetadataList";
-    private static final String FIELD_NAME_KEY_SELECTORS = "keySelectorsForTransformation";
-    private static final String FIELD_NAME_COMMON_KEY_TYPE = "commonKeyType";
 
     @JsonProperty(FIELD_NAME_JOIN_TYPES)
     private final List<JoinType> joinTypes;
@@ -105,44 +106,31 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
     private final List<? extends @Nullable RexNode> joinConditions;
 
     @JsonProperty(FIELD_NAME_JOIN_ATTRIBUTE_MAP)
-    private final Map<
-                    Integer,
-                    Map<
-                            AttributeBasedJoinKeyExtractor.AttributeRef,
-                            AttributeBasedJoinKeyExtractor.AttributeRef>>
-            joinAttributeMap;
+    private final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap;
 
-    @JsonProperty(FIELD_NAME_INPUT_SIDE_SPECS)
-    private final List<JoinInputSideSpec> inputSideSpecs;
-
-    @JsonProperty(FIELD_NAME_KEY_SELECTORS)
-    private final List<KeySelector<RowData, RowData>> commonJoinKeySelectorsForTransformation;
-
-    @JsonProperty(FIELD_NAME_COMMON_KEY_TYPE)
-    private final InternalTypeInfo<RowData> commonJoinKeyType;
+    @JsonProperty(FIELD_NAME_INPUT_UPSERT_KEYS)
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+    // List of upsert keys for each input, where each inner list corresponds to an input
+    // The reason it's a List<List<int[]>> is that SQL allows only one primary key but
+    // multiple upsert (unique) keys per input
+    private final List<List<int[]>> inputUpsertKeys;
 
     @JsonProperty(FIELD_NAME_STATE_METADATA_LIST)
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private final List<StateMetadata> stateMetadataList;
 
     public StreamExecMultiJoin(
-            ReadableConfig tableConfig,
-            List<JoinType> joinTypes,
-            List<? extends @Nullable RexNode> joinConditions,
-            @Nullable RexNode generatedMultiJoinCondition,
-            Map<
-                            Integer,
-                            Map<
-                                    AttributeBasedJoinKeyExtractor.AttributeRef,
-                                    AttributeBasedJoinKeyExtractor.AttributeRef>>
+            final ReadableConfig tableConfig,
+            final List<JoinType> joinTypes,
+            final List<? extends @Nullable RexNode> joinConditions,
+            @Nullable final RexNode generatedMultiJoinCondition,
+            final Map<Integer, List<AttributeBasedJoinKeyExtractor.ConditionAttributeRef>>
                     joinAttributeMap,
-            List<JoinInputSideSpec> inputSideSpecs,
-            Map<Integer, Long> stateTtlFromHint,
-            List<InputProperty> inputProperties,
-            RowType outputType,
-            String description,
-            List<KeySelector<RowData, RowData>> commonJoinKeySelectorsForTransformation,
-            InternalTypeInfo<RowData> commonJoinKeyType) {
+            final List<List<int[]>> inputUpsertKeys,
+            final Map<Integer, Long> stateTtl,
+            final List<InputProperty> inputProperties,
+            final RowType outputType,
+            final String description) {
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecMultiJoin.class),
@@ -151,60 +139,48 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                 joinConditions,
                 generatedMultiJoinCondition,
                 joinAttributeMap,
-                inputSideSpecs,
+                inputUpsertKeys,
                 StateMetadata.getMultiInputOperatorDefaultMeta(
-                        stateTtlFromHint, tableConfig, generateStateNames(inputProperties.size())),
+                        stateTtl, tableConfig, generateStateNames(inputProperties.size())),
                 inputProperties,
                 outputType,
-                description,
-                commonJoinKeySelectorsForTransformation,
-                commonJoinKeyType);
+                description);
     }
 
     @JsonCreator
     public StreamExecMultiJoin(
-            @JsonProperty(FIELD_NAME_ID) int id,
-            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
-            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
-            @JsonProperty(FIELD_NAME_JOIN_TYPES) List<JoinType> joinTypes,
+            @JsonProperty(FIELD_NAME_ID) final int id,
+            @JsonProperty(FIELD_NAME_TYPE) final ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) final ReadableConfig persistedConfig,
+            @JsonProperty(FIELD_NAME_JOIN_TYPES) final List<JoinType> joinTypes,
             @JsonProperty(FIELD_NAME_JOIN_CONDITIONS)
-                    List<? extends @Nullable RexNode> joinConditions,
+                    final List<? extends @Nullable RexNode> joinConditions,
             @Nullable @JsonProperty(FIELD_NAME_GENERATED_MULTI_JOIN_CONDITION)
-                    RexNode generatedMultiJoinCondition,
+                    final RexNode generatedMultiJoinCondition,
             @JsonProperty(FIELD_NAME_JOIN_ATTRIBUTE_MAP)
-                    Map<
-                                    Integer,
-                                    Map<
-                                            AttributeBasedJoinKeyExtractor.AttributeRef,
-                                            AttributeBasedJoinKeyExtractor.AttributeRef>>
+                    final Map<Integer, List<AttributeBasedJoinKeyExtractor.ConditionAttributeRef>>
                             joinAttributeMap,
-            @JsonProperty(FIELD_NAME_INPUT_SIDE_SPECS) List<JoinInputSideSpec> inputSideSpecs,
+            @JsonProperty(FIELD_NAME_INPUT_UPSERT_KEYS) final List<List<int[]>> inputUpsertKeys,
             @Nullable @JsonProperty(FIELD_NAME_STATE_METADATA_LIST)
-                    List<StateMetadata> stateMetadataList,
-            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
-            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
-            @JsonProperty(FIELD_NAME_DESCRIPTION) String description,
-            @JsonProperty(FIELD_NAME_KEY_SELECTORS)
-                    List<KeySelector<RowData, RowData>> commonJoinKeySelectorsForTransformation,
-            @JsonProperty(FIELD_NAME_COMMON_KEY_TYPE) InternalTypeInfo<RowData> commonJoinKeyType) {
+                    final List<StateMetadata> stateMetadataList,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) final List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) final RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) final String description) {
         super(id, context, persistedConfig, inputProperties, outputType, description);
-        validateInputs(inputProperties, joinTypes, joinConditions, inputSideSpecs);
+        validateInputs(inputProperties, joinTypes, joinConditions, inputUpsertKeys);
 
         this.joinTypes = checkNotNull(joinTypes);
         this.joinConditions = checkNotNull(joinConditions);
         this.joinAttributeMap = checkNotNull(joinAttributeMap);
-        this.inputSideSpecs = checkNotNull(inputSideSpecs);
+        this.inputUpsertKeys = checkNotNull(inputUpsertKeys);
         this.stateMetadataList = stateMetadataList;
-        this.commonJoinKeySelectorsForTransformation =
-                checkNotNull(commonJoinKeySelectorsForTransformation);
-        this.commonJoinKeyType = checkNotNull(commonJoinKeyType);
     }
 
     private void validateInputs(
-            List<InputProperty> inputProperties,
-            List<JoinType> joinTypes,
-            List<? extends @Nullable RexNode> joinConditions,
-            List<JoinInputSideSpec> inputSideSpecs) {
+            final List<InputProperty> inputProperties,
+            final List<JoinType> joinTypes,
+            final List<? extends @Nullable RexNode> joinConditions,
+            final List<List<int[]>> inputUpsertKeys) {
         checkArgument(
                 inputProperties.size() >= 2, "Multi-input join operator needs at least 2 inputs.");
         checkArgument(
@@ -214,8 +190,8 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                 joinConditions.size() == inputProperties.size(),
                 "Size of joinConditions must match the number of inputs.");
         checkArgument(
-                inputSideSpecs.size() == inputProperties.size(),
-                "Size of inputSideSpecs must match the number of inputs.");
+                inputUpsertKeys.size() == inputProperties.size(),
+                "Size of inputUpsertKeys must match the number of inputs.");
     }
 
     private static String[] generateStateNames(int numInputs) {
@@ -227,7 +203,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
     @Override
     @SuppressWarnings("unchecked")
     protected Transformation<RowData> translateToPlanInternal(
-            PlannerBase planner, ExecNodeConfig config) {
+            final PlannerBase planner, final ExecNodeConfig config) {
         final List<ExecEdge> inputEdges = getInputEdges();
         final int numInputs = inputEdges.size();
         final ClassLoader classLoader = planner.getFlinkContext().getClassLoader();
@@ -236,11 +212,11 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
         final List<InternalTypeInfo<RowData>> inputTypeInfos = new ArrayList<>(numInputs);
         final List<RowType> inputRowTypes = new ArrayList<>(numInputs);
 
-        for (ExecEdge inputEdge : inputEdges) {
-            Transformation<RowData> transform =
+        for (final ExecEdge inputEdge : inputEdges) {
+            final Transformation<RowData> transform =
                     (Transformation<RowData>) inputEdge.translateToPlan(planner);
             inputTransforms.add(transform);
-            RowType inputType = (RowType) inputEdge.getOutputType();
+            final RowType inputType = (RowType) inputEdge.getOutputType();
             inputRowTypes.add(inputType);
             inputTypeInfos.add(InternalTypeInfo.of(inputType));
         }
@@ -248,18 +224,40 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
         final JoinKeyExtractor keyExtractor =
                 new AttributeBasedJoinKeyExtractor(joinAttributeMap, inputRowTypes);
 
+        final List<JoinInputSideSpec> inputSideSpecs = new ArrayList<>();
+        for (int i = 0; i < numInputs; i++) {
+            inputSideSpecs.add(
+                    JoinUtil.analyzeJoinInput(
+                            planner.getFlinkContext().getClassLoader(),
+                            inputTypeInfos.get(i),
+                            keyExtractor.getJoinKeyIndices(i),
+                            inputUpsertKeys.get(i)));
+        }
+
         final JoinCondition[] instantiatedJoinConditions =
                 createJoinConditions(config, classLoader, inputRowTypes);
 
         final StreamOperatorFactory<RowData> operatorFactory =
                 createOperatorFactory(
-                        config, inputTypeInfos, instantiatedJoinConditions, keyExtractor);
+                        config,
+                        inputTypeInfos,
+                        inputSideSpecs,
+                        instantiatedJoinConditions,
+                        keyExtractor);
+
+        final List<KeySelector<RowData, RowData>> commonJoinKeySelectors =
+                createKeySelectors(planner, inputTypeInfos, keyExtractor);
 
         final TransformationMetadata metadata =
                 createTransformationMeta(MULTI_JOIN_TRANSFORMATION, config);
 
         final Transformation<RowData> transform =
-                createTransformation(inputTransforms, metadata, operatorFactory);
+                createTransformation(
+                        inputTransforms,
+                        metadata,
+                        operatorFactory,
+                        commonJoinKeySelectors,
+                        keyExtractor);
 
         if (inputsContainSingleton()) {
             transform.setParallelism(1);
@@ -270,37 +268,45 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
     }
 
     private JoinCondition[] createJoinConditions(
-            ExecNodeConfig config, ClassLoader classLoader, List<RowType> inputRowTypes) {
+            final ExecNodeConfig config,
+            final ClassLoader classLoader,
+            final List<RowType> inputRowTypes) {
         final JoinCondition[] instantiatedJoinConditions = new JoinCondition[joinConditions.size()];
         for (int i = 0; i < joinConditions.size(); i++) {
-            RexNode rexCond = joinConditions.get(i);
-            if (rexCond != null) {
-                GeneratedJoinCondition generatedCondition =
-                        generateJoinConditionForInput(
-                                config, classLoader, rexCond, inputRowTypes, i);
+            final RexNode rexCond = joinConditions.get(i);
+            if (rexCond == null) {
+                // No condition for this input, which is valid e.g. for the first input or CROSS
+                // JOIN.
+                continue;
+            }
+
+            final GeneratedJoinCondition generatedCondition =
+                    generateJoinConditionForInput(config, classLoader, rexCond, inputRowTypes, i);
+
+            // For the first input (i=0), there is no preceding input to join with,
+            // so no join condition is generated.
+            if (generatedCondition != null) {
                 try {
-                    assert generatedCondition != null;
                     instantiatedJoinConditions[i] = generatedCondition.newInstance(classLoader);
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     throw new RuntimeException(
                             "Failed to instantiate join condition for input " + i, e);
                 }
-            } else {
-                instantiatedJoinConditions[i] = null;
             }
         }
         return instantiatedJoinConditions;
     }
 
     private StreamOperatorFactory<RowData> createOperatorFactory(
-            ExecNodeConfig config,
-            List<InternalTypeInfo<RowData>> inputTypeInfos,
-            JoinCondition[] joinConditions,
-            JoinKeyExtractor keyExtractor) {
-        List<Long> stateTtls =
+            final ExecNodeConfig config,
+            final List<InternalTypeInfo<RowData>> inputTypeInfos,
+            final List<JoinInputSideSpec> inputSideSpecs,
+            final JoinCondition[] joinConditions,
+            final JoinKeyExtractor keyExtractor) {
+        final List<Long> stateTtls =
                 StateMetadata.getStateTtlForMultiInputOperator(
                         config, inputTypeInfos.size(), stateMetadataList);
-        long[] stateRetentionTimes = stateTtls.stream().mapToLong(Long::longValue).toArray();
+        final long[] stateRetentionTimes = stateTtls.stream().mapToLong(Long::longValue).toArray();
 
         return new StreamingMultiJoinOperatorFactoryImpl(
                 inputTypeInfos,
@@ -313,18 +319,34 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                 joinAttributeMap);
     }
 
+    private List<KeySelector<RowData, RowData>> createKeySelectors(
+            final PlannerBase planner,
+            final List<InternalTypeInfo<RowData>> inputTypeInfos,
+            final JoinKeyExtractor keyExtractor) {
+        return IntStream.range(0, inputTypeInfos.size())
+                .mapToObj(
+                        i ->
+                                KeySelectorUtil.getRowDataSelector(
+                                        planner.getFlinkContext().getClassLoader(),
+                                        keyExtractor.getCommonJoinKeyIndices(i),
+                                        InternalTypeInfo.of(keyExtractor.getCommonJoinKeyType())))
+                .collect(Collectors.toList());
+    }
+
     private Transformation<RowData> createTransformation(
-            List<Transformation<RowData>> inputTransforms,
-            TransformationMetadata metadata,
-            StreamOperatorFactory<RowData> operatorFactory) {
+            final List<Transformation<RowData>> inputTransforms,
+            final TransformationMetadata metadata,
+            final StreamOperatorFactory<RowData> operatorFactory,
+            final List<KeySelector<RowData, RowData>> keySelectors,
+            final JoinKeyExtractor keyExtractor) {
         if (inputTransforms.isEmpty()) {
             throw new IllegalStateException("StreamExecMultiJoin requires at least two inputs.");
         }
 
         return ExecNodeUtil.createKeyedMultiInputTransformation(
                 inputTransforms,
-                commonJoinKeySelectorsForTransformation,
-                commonJoinKeyType,
+                keySelectors,
+                InternalTypeInfo.of(keyExtractor.getCommonJoinKeyType()),
                 metadata,
                 operatorFactory,
                 InternalTypeInfo.of(getOutputType()),
@@ -333,36 +355,45 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
     }
 
     private GeneratedJoinCondition generateJoinConditionForInput(
-            ExecNodeConfig config,
-            ClassLoader classLoader,
-            RexNode joinCondition,
-            List<RowType> inputRowTypes,
-            int inputIndex) {
+            final ExecNodeConfig config,
+            final ClassLoader classLoader,
+            final RexNode joinCondition,
+            final List<RowType> inputRowTypes,
+            final int inputIndex) {
         // Our join conditions are always associated with the left side (with the inputs to the
         // left). For input 0, there is no input to the left, so there is no join condition.
         if (inputIndex == 0) {
             return null;
         }
 
-        RowType leftType = leftTypeForIndex(inputRowTypes, inputIndex);
-        RowType rightType = inputRowTypes.get(inputIndex);
+        final RowType leftType = leftTypeForIndex(inputRowTypes, inputIndex);
+        final RowType rightType = inputRowTypes.get(inputIndex);
 
         return JoinUtil.generateConditionFunction(
                 config, classLoader, joinCondition, leftType, rightType);
     }
 
-    private RowType leftTypeForIndex(List<RowType> inputRowTypes, int inputIndex) {
+    /**
+     * Calculates the accumulated {@link RowType} of all inputs to the left of a given input index.
+     *
+     * <p>For a multi-way join, the condition for input `i` is evaluated against the combined row of
+     * all inputs from `0` to `i-1`. This method computes the {@link RowType} for this combined row,
+     * which is essential for the code generation of the join condition. The resulting {@link
+     * RowType} is a flat structure of all fields from the preceding inputs.
+     */
+    private RowType leftTypeForIndex(final List<RowType> inputRowTypes, final int inputIndex) {
         if (inputIndex <= 0) {
             throw new IllegalArgumentException(
                     "Input index must be greater than 0 for accumulated left type calculation");
         }
 
-        RowType leftType = inputRowTypes.get(0);
-        for (int i = 1; i < inputIndex; i++) {
-            leftType = RowType.of(leftType, leftType);
-        }
+        final LogicalType[] fieldTypes =
+                inputRowTypes.stream()
+                        .limit(inputIndex)
+                        .flatMap(rowType -> rowType.getChildren().stream())
+                        .toArray(LogicalType[]::new);
 
-        return leftType;
+        return RowType.of(fieldTypes);
     }
 
     /** Serializable factory for creating {@link StreamingMultiJoinOperator}. */
@@ -373,31 +404,21 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
         private final List<InternalTypeInfo<RowData>> inputTypeInfos;
         private final List<JoinInputSideSpec> inputSideSpecs;
         private final List<JoinType> joinTypes;
-        @Nullable private final MultiJoinCondition multiJoinCondition;
+        private final MultiJoinCondition multiJoinCondition;
         private final long[] stateRetentionTime;
         private final JoinCondition[] joinConditions;
         private final JoinKeyExtractor keyExtractor;
-        private final Map<
-                        Integer,
-                        Map<
-                                AttributeBasedJoinKeyExtractor.AttributeRef,
-                                AttributeBasedJoinKeyExtractor.AttributeRef>>
-                joinAttributeMap;
+        private final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap;
 
         public StreamingMultiJoinOperatorFactoryImpl(
-                List<InternalTypeInfo<RowData>> inputTypeInfos,
-                List<JoinInputSideSpec> inputSideSpecs,
-                List<JoinType> joinTypes,
-                @Nullable MultiJoinCondition multiJoinCondition,
-                long[] stateRetentionTime,
-                JoinCondition[] joinConditions,
-                JoinKeyExtractor keyExtractor,
-                Map<
-                                Integer,
-                                Map<
-                                        AttributeBasedJoinKeyExtractor.AttributeRef,
-                                        AttributeBasedJoinKeyExtractor.AttributeRef>>
-                        joinAttributeMap) {
+                final List<InternalTypeInfo<RowData>> inputTypeInfos,
+                final List<JoinInputSideSpec> inputSideSpecs,
+                final List<JoinType> joinTypes,
+                @Nullable final MultiJoinCondition multiJoinCondition,
+                final long[] stateRetentionTime,
+                final JoinCondition[] joinConditions,
+                final JoinKeyExtractor keyExtractor,
+                final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap) {
             this.inputTypeInfos = inputTypeInfos;
             this.inputSideSpecs = inputSideSpecs;
             this.joinTypes = joinTypes;
@@ -410,13 +431,13 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
 
         @Override
         public <T extends StreamOperator<RowData>> T createStreamOperator(
-                StreamOperatorParameters<RowData> parameters) {
-            var inputRowTypes =
+                final StreamOperatorParameters<RowData> parameters) {
+            final var inputRowTypes =
                     inputTypeInfos.stream()
                             .map(InternalTypeInfo::toRowType)
                             .collect(Collectors.toList());
 
-            StreamingMultiJoinOperator operator =
+            final StreamingMultiJoinOperator operator =
                     new StreamingMultiJoinOperator(
                             parameters,
                             inputRowTypes,
@@ -429,13 +450,13 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                             joinAttributeMap);
 
             @SuppressWarnings("unchecked")
-            T castedOperator = (T) operator;
+            final T castedOperator = (T) operator;
             return castedOperator;
         }
 
         @Override
         public Class<? extends StreamOperator<RowData>> getStreamOperatorClass(
-                ClassLoader classLoader) {
+                final ClassLoader classLoader) {
             return StreamingMultiJoinOperator.class;
         }
     }

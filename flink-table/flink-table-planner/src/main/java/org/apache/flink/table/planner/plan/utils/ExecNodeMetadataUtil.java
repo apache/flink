@@ -73,6 +73,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalWind
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLookupJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMatch;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMiniBatchAssigner;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMultiJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMultipleInput;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecOverAggregate;
@@ -141,6 +142,7 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecIncrementalGroupAggregate.class);
                     add(StreamExecIntervalJoin.class);
                     add(StreamExecJoin.class);
+                    add(StreamExecMultiJoin.class);
                     add(StreamExecLimit.class);
                     add(StreamExecLocalGroupAggregate.class);
                     add(StreamExecLocalWindowAggregate.class);

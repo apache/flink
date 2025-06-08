@@ -30,7 +30,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.generated.MultiJoinCondition;
-import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.AttributeRef;
+import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor;
 import org.apache.flink.table.runtime.operators.join.stream.state.MultiJoinStateView;
 import org.apache.flink.table.runtime.operators.join.stream.state.MultiJoinStateViews;
@@ -377,7 +377,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             JoinCondition[] joinConditions,
             JoinKeyExtractor keyExtractor,
             // We currently don't use this, but it might be useful in the future for optimizations
-            Map<Integer, Map<AttributeRef, AttributeRef>> joinAttributeMap) {
+            Map<Integer, List<ConditionAttributeRef>> joinAttributeMap) {
         super(parameters, inputSpecs.size());
         this.inputTypes = inputTypes;
         this.inputSpecs = inputSpecs;
