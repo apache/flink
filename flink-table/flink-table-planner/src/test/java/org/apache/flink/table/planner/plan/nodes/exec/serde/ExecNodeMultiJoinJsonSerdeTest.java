@@ -31,8 +31,8 @@ import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
@@ -50,15 +50,78 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class ExecNodeMultiJoinJsonSerializerTest {
+class ExecNodeMultiJoinJsonSerdeTest {
     private final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+    private final SerdeContext serdeContext = JsonSerdeTestUtil.configuredSerdeContext();
 
     @Test
     void testSerializingStreamExecMultiJoin() throws IOException {
-        final ObjectWriter objectWriter =
-                CompiledPlanSerdeUtil.createJsonObjectWriter(
-                        JsonSerdeTestUtil.configuredSerdeContext());
+        // Create test data
+        final StreamExecMultiJoin execNode = createTestMultiJoinNode();
+        final ExecNodeGraph graph =
+                new ExecNodeGraph(FlinkVersion.v2_1, Collections.singletonList(execNode));
 
+        // Test if we can serialize
+        final String serializedGraph = JsonSerdeTestUtil.toJson(serdeContext, graph);
+        assertThat(serializedGraph).isNotEmpty();
+
+        // Test if we can deserialize
+        final ExecNodeGraph deserializedGraph =
+                JsonSerdeTestUtil.toObject(serdeContext, serializedGraph, ExecNodeGraph.class);
+
+        // Verify some general value checks on the deserialized node
+        assertThat(deserializedGraph.getRootNodes()).hasSize(1);
+        final StreamExecMultiJoin deserializedMultiJoinNode =
+                (StreamExecMultiJoin) deserializedGraph.getRootNodes().get(0);
+        assertThat(deserializedMultiJoinNode.getDescription()).isEqualTo("test-multi-join");
+        assertThat(deserializedMultiJoinNode.getOutputType())
+                .isEqualTo(RowType.of(VarCharType.STRING_TYPE, new IntType()));
+    }
+
+    @Test
+    void testSerializedJsonStructure() throws IOException {
+        // Create test data
+        final StreamExecMultiJoin execNode = createTestMultiJoinNode();
+        final ExecNodeGraph graph =
+                new ExecNodeGraph(FlinkVersion.v2_1, Collections.singletonList(execNode));
+
+        // Serialize to JSON
+        final String json = JsonSerdeTestUtil.toJson(serdeContext, graph);
+        final JsonNode jsonNode = new ObjectMapper().readTree(json);
+
+        // Verify JSON structure using JsonSerdeTestUtil assertions
+        // Basic node structure
+        JsonSerdeTestUtil.assertThatJsonContains(jsonNode, "nodes", "0", "type");
+        JsonSerdeTestUtil.assertThatJsonContains(jsonNode, "nodes", "0", "id");
+        JsonSerdeTestUtil.assertThatJsonContains(jsonNode, "nodes", "0", "description");
+        JsonSerdeTestUtil.assertThatJsonContains(jsonNode, "nodes", "0", "inputProperties");
+        JsonSerdeTestUtil.assertThatJsonContains(jsonNode, "nodes", "0", "outputType");
+
+        // MultiJoin specific fields
+        JsonSerdeTestUtil.assertThatJsonContains(jsonNode, "nodes", "0", "joinTypes");
+        JsonSerdeTestUtil.assertThatJsonContains(jsonNode, "nodes", "0", "joinAttributeMap");
+        JsonSerdeTestUtil.assertThatJsonContains(jsonNode, "nodes", "0", "inputUpsertKeys");
+        JsonSerdeTestUtil.assertThatJsonContains(jsonNode, "nodes", "0", "joinConditions");
+        JsonSerdeTestUtil.assertThatJsonContains(jsonNode, "nodes", "0", "stateMetadataList");
+
+        // Verify specific field values
+        JsonNode node = jsonNode.get("nodes").get(0);
+        assertThat(node.get("type").asText()).isEqualTo("stream-exec-multi-join_1");
+        assertThat(node.get("description").asText()).isEqualTo("test-multi-join");
+        assertThat(node.get("joinTypes").isArray()).isTrue();
+        assertThat(node.get("joinTypes").size()).isEqualTo(2);
+        assertThat(node.get("joinTypes").get(0).asText()).isEqualTo("INNER");
+        assertThat(node.get("joinTypes").get(1).asText()).isEqualTo("INNER");
+        assertThat(node.get("joinAttributeMap").isObject()).isTrue();
+        assertThat(node.get("inputUpsertKeys").isArray()).isTrue();
+        assertThat(node.get("inputUpsertKeys").size()).isEqualTo(2);
+        assertThat(node.get("joinConditions").isArray()).isTrue();
+        assertThat(node.get("joinConditions").size()).isEqualTo(2);
+        assertThat(node.get("inputProperties").isArray()).isTrue();
+        assertThat(node.get("inputProperties").size()).isEqualTo(2);
+    }
+
+    private StreamExecMultiJoin createTestMultiJoinNode() {
         final FlinkTypeFactory typeFactory =
                 new FlinkTypeFactory(classLoader, FlinkTypeSystem.INSTANCE);
         final RexBuilder builder = new RexBuilder(typeFactory);
@@ -73,6 +136,7 @@ class ExecNodeMultiJoinJsonSerializerTest {
 
         final Map<Integer, List<AttributeBasedJoinKeyExtractor.ConditionAttributeRef>>
                 joinAttributeMap = createJoinAttributeMap();
+
         final var execNode =
                 new StreamExecMultiJoin(
                         new Configuration(),
@@ -89,36 +153,7 @@ class ExecNodeMultiJoinJsonSerializerTest {
                         "test-multi-join");
 
         execNode.setInputEdges(Collections.emptyList());
-
-        // Serialize the exec node
-        final String serialized =
-                objectWriter.writeValueAsString(
-                        new ExecNodeGraph(FlinkVersion.v2_1, Collections.singletonList(execNode)));
-
-        // Verify the serialized content contains expected fields
-        assertThat(serialized)
-                .contains("\"type\":\"stream-exec-multi-join_1\"")
-                .contains("\"joinTypes\":[\"INNER\",\"INNER\"]")
-                .contains("\"description\":\"test-multi-join\"")
-                .contains(
-                        "\"1\":[{\"leftInputId\":0,\"leftFieldIndex\":0,\"rightInputId\":1,\"rightFieldIndex\":0}]")
-                .contains(
-                        "\"2\":[{\"leftInputId\":0,\"leftFieldIndex\":0,\"rightInputId\":2,\"rightFieldIndex\":0}]");
-
-        // Deserialize back
-        final ObjectReader objectReader =
-                CompiledPlanSerdeUtil.createJsonObjectReader(
-                        JsonSerdeTestUtil.configuredSerdeContext());
-        final ExecNodeGraph deserializedGraph =
-                objectReader.readValue(serialized, ExecNodeGraph.class);
-
-        // Some basic checks to verify the deserialized node matches the original
-        assertThat(deserializedGraph.getRootNodes()).hasSize(1);
-        final StreamExecMultiJoin deserializedMultiJoinNode =
-                (StreamExecMultiJoin) deserializedGraph.getRootNodes().get(0);
-        assertThat(deserializedMultiJoinNode.getDescription()).isEqualTo("test-multi-join");
-        assertThat(deserializedMultiJoinNode.getOutputType())
-                .isEqualTo(RowType.of(VarCharType.STRING_TYPE, new IntType()));
+        return execNode;
     }
 
     private static Map<Integer, List<AttributeBasedJoinKeyExtractor.ConditionAttributeRef>>

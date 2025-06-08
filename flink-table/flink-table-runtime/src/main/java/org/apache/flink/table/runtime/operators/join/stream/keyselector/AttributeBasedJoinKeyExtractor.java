@@ -43,7 +43,7 @@ import java.util.stream.Collectors;
  * through equi-join conditions, assuming input 0 is the base and subsequent inputs join to
  * preceding ones.
  */
-public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor {
+public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Serializable {
     private static final long serialVersionUID = 1L;
 
     private final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap;

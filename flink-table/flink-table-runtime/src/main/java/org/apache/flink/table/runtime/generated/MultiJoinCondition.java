@@ -21,11 +21,13 @@ package org.apache.flink.table.runtime.generated;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.table.data.RowData;
 
+import java.io.Serializable;
+
 /**
  * Interface for code generated condition function for Multi-way Joins. This allows checking join
  * conditions across N inputs at once.
  */
-public interface MultiJoinCondition extends RichFunction {
+public interface MultiJoinCondition extends RichFunction, Serializable {
 
     /**
      * Evaluates join conditions across multiple input rows at once.

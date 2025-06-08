@@ -20,17 +20,14 @@ package org.apache.flink.table.runtime.operators.join.stream.multijoin;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
-import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedMultiInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
+import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperatorFactory;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor;
@@ -56,6 +53,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Base class for testing the StreamingMultiJoinOperator. Provides common functionality and helper
@@ -386,15 +384,25 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
         var joinKeyType = this.keyExtractor.getCommonJoinKeyType();
         InternalTypeInfo<RowData> partitionKeyTypeInfo = InternalTypeInfo.of(joinKeyType);
 
+        final JoinCondition[] createdJoinConditions = createJoinConditions(this.joinConditions);
+        final long[] retentionTime = new long[inputSpecs.size()];
+        Arrays.fill(retentionTime, 9999999L);
+        final List<InternalTypeInfo<RowData>> internalTypeInfos =
+                this.inputTypeInfos.stream().map(InternalTypeInfo::of).collect(Collectors.toList());
+
+        StreamingMultiJoinOperatorFactory factory =
+                new StreamingMultiJoinOperatorFactory(
+                        internalTypeInfos,
+                        this.inputSpecs,
+                        this.joinTypes,
+                        null,
+                        retentionTime,
+                        createdJoinConditions,
+                        this.keyExtractor,
+                        this.joinAttributeMap);
+
         KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> harness =
-                new KeyedMultiInputStreamOperatorTestHarness<>(
-                        new MultiStreamingJoinOperatorFactory(
-                                inputSpecs,
-                                inputTypeInfos,
-                                joinTypes,
-                                joinConditions,
-                                joinAttributeMap),
-                        partitionKeyTypeInfo);
+                new KeyedMultiInputStreamOperatorTestHarness<>(factory, partitionKeyTypeInfo);
 
         setupKeySelectorsForTestHarness(harness);
 
@@ -421,110 +429,28 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
         return values;
     }
 
-    // ==========================================================================
-    // Factory Class
-    // ==========================================================================
-
-    private static class MultiStreamingJoinOperatorFactory
-            extends AbstractStreamOperatorFactory<RowData> {
-
-        private static final long serialVersionUID = 1L;
-        private final List<JoinInputSideSpec> inputSpecs;
-        private final List<RowType> inputTypeInfos;
-        private final List<JoinType> joinTypes;
-        private final List<GeneratedJoinCondition> joinConditions;
-        private final JoinKeyExtractor keyExtractor;
-        private final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap;
-
-        public MultiStreamingJoinOperatorFactory(
-                List<JoinInputSideSpec> inputSpecs,
-                List<RowType> inputTypeInfos,
-                List<JoinType> joinTypes,
-                List<GeneratedJoinCondition> joinConditions,
-                Map<Integer, List<ConditionAttributeRef>> joinAttributeMap) {
-            this.inputSpecs = inputSpecs;
-            this.inputTypeInfos = inputTypeInfos;
-            this.joinTypes = joinTypes;
-            this.joinConditions = joinConditions;
-            this.keyExtractor =
-                    new AttributeBasedJoinKeyExtractor(joinAttributeMap, inputTypeInfos);
-            this.joinAttributeMap = joinAttributeMap;
+    private JoinCondition[] createJoinConditions(
+            List<GeneratedJoinCondition> generatedJoinConditions) {
+        JoinCondition[] conditions = new JoinCondition[inputSpecs.size()];
+        if (generatedJoinConditions.size() != inputSpecs.size()) {
+            throw new IllegalArgumentException(
+                    "The number of generated join conditions must match the number of inputs/joins."
+                            + "This might be due to an incorrect joinAttributeMap or incorrect joinConditions. All parameters derived from join conditions have to match!");
         }
-
-        @Override
-        public <T extends StreamOperator<RowData>> T createStreamOperator(
-                StreamOperatorParameters<RowData> parameters) {
-            StreamingMultiJoinOperator op =
-                    createJoinOperator(
-                            parameters,
-                            inputSpecs,
-                            inputTypeInfos,
-                            joinTypes,
-                            joinConditions,
-                            keyExtractor,
-                            joinAttributeMap);
-
-            @SuppressWarnings("unchecked")
-            T operator = (T) op;
-            return operator;
-        }
-
-        @Override
-        public Class<? extends StreamOperator<RowData>> getStreamOperatorClass(
-                ClassLoader classLoader) {
-            return StreamingMultiJoinOperator.class;
-        }
-
-        private StreamingMultiJoinOperator createJoinOperator(
-                StreamOperatorParameters<RowData> parameters,
-                List<JoinInputSideSpec> inputSpecs,
-                List<RowType> inputTypeInfos,
-                List<JoinType> joinTypes,
-                List<GeneratedJoinCondition> joinConditions,
-                JoinKeyExtractor keyExtractor,
-                Map<Integer, List<ConditionAttributeRef>> joinAttributeMap) {
-
-            long[] retentionTime = new long[inputSpecs.size()];
-            Arrays.fill(retentionTime, 9999999L);
-
-            JoinCondition[] createdJoinConditions = createJoinConditions(joinConditions);
-
-            return new StreamingMultiJoinOperator(
-                    parameters,
-                    inputTypeInfos,
-                    inputSpecs,
-                    joinTypes,
-                    null, // multiJoinCondition is no longer used
-                    retentionTime,
-                    createdJoinConditions,
-                    keyExtractor,
-                    joinAttributeMap);
-        }
-
-        private JoinCondition[] createJoinConditions(
-                List<GeneratedJoinCondition> generatedJoinConditions) {
-            JoinCondition[] conditions = new JoinCondition[inputSpecs.size()];
-            // We expect generatedJoinConditions size to match inputSpecs size (or joinTypes size)
-            if (generatedJoinConditions.size() != inputSpecs.size()) {
-                throw new IllegalArgumentException(
-                        "The number of generated join conditions must match the number of inputs/joins."
-                                + "This might be due to an incorrect joinAttributeMap or incorrect joinConditions. All parameters derived from join conditions have to match!");
-            }
-            for (int i = 0; i < inputSpecs.size(); i++) {
-                GeneratedJoinCondition generatedCondition = generatedJoinConditions.get(i);
-                if (generatedCondition != null) {
-                    try {
-                        conditions[i] = generatedCondition.newInstance(getClass().getClassLoader());
-                    } catch (Exception e) {
-                        throw new RuntimeException(
-                                "Failed to instantiate join condition for input " + i, e);
-                    }
-                } else {
-                    conditions[i] = null;
+        for (int i = 0; i < inputSpecs.size(); i++) {
+            GeneratedJoinCondition generatedCondition = generatedJoinConditions.get(i);
+            if (generatedCondition != null) {
+                try {
+                    conditions[i] = generatedCondition.newInstance(getClass().getClassLoader());
+                } catch (Exception e) {
+                    throw new RuntimeException(
+                            "Failed to instantiate join condition for input " + i, e);
                 }
+            } else {
+                conditions[i] = null;
             }
-            return conditions;
         }
+        return conditions;
     }
 
     // ==========================================================================
@@ -576,7 +502,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
         return new GeneratedJoinCondition(generatedClassName, "", new Object[0]) {
             @Override
             public JoinCondition newInstance(ClassLoader classLoader) {
-                // Field 0 of the let side and field 0 of the right side is assumed for equality
+                // Field 0 of the left side and field 0 of the right side is assumed for equality
                 // key comparison in this default test condition.
                 // We do leftInputId * 3 because each input has 3 fields in our test setup.
                 return new SpecificInputsEquiKeyCondition(leftInputId * 3, 0);

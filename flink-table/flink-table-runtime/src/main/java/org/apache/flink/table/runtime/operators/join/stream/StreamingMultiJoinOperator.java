@@ -133,17 +133,10 @@ import java.util.Map;
  * </ul>
  *
  * <p><b>Base Case (Maximum Depth):</b> When {@link #isMaxDepth(int)} is true, all potential
- * contributing rows are in `joinedRowData`.
+ * contributing rows are in `joinedRowData`. We then emit final row with {@link
+ * #emitJoinedRow(RowData, RowData)}.
  *
- * <ul>
- *   <li>The final {@code multiJoinCondition} is evaluated on the complete `joinedRowData`.
- *   <li>If the conditions pass and `isInputRecordActive` is `true` (Result Emission Mode), the
- *       combined row is constructed and emitted using {@link #emitRow(RowKind, RowData[])}. Note:
- *       if `isInputRecordActive` is `false`, rows might still be emitted if a full combination of
- *       state records forms a valid join.
- * </ul>
- *
- * <hr>
+ * <p><hr>
  *
  * <h3>Example Walkthrough (A LEFT JOIN B INNER JOIN C)</h3>
  *
@@ -513,8 +506,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
      * @param inputId The ID of the input stream for the original input.
      * @param joinedRowData The current set of rows forming the join combination.
      * @param isInputRecordActive Whether the input record is currently active in `joinedRowData`.
-     * @param isLeftJoin True if the join at the current depth (`joinedRowData[depth-1]` LEFT JOIN
-     *     `joinedRowData[depth]`) is a LEFT join.
+     * @param isLeftJoin True if the join at the current depth is a LEFT join.
      * @return An {@code Integer} representing the association count for `joinedRowData[depth-1]`
      *     with matching records from `state[depth]`. Returns {@code null} if no records from
      *     `state[depth]` matched `joinedRowData[depth-1]`.
@@ -643,14 +635,15 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         // ensures that the null padding correctly propagates to the join chain.
 
         RowData newJoinedRowData = newJoinedRowData(depth, joinedRowData, nullRows.get(depth));
-        // When recursing for depth+1, the association count needed is for joinedRowData[depth].
+        // When recursing for depth+1, the association count needed is for the current
+        // joinedRowData.
         // Initialize it to 0.
         recursiveMultiJoin(
                 depth + 1,
                 input,
                 inputId,
                 newJoinedRowData,
-                // Initial association count for joinedRowData[depth]
+                // Initial association count for the current joinedRowData
                 isInputRecordActive);
     }
 
@@ -700,7 +693,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         // --- Left Join Retraction Handling ---
         // For an incoming INSERT/UPDATE_AFTER on the right side of a LEFT join,
         // if the corresponding left-side row previously had no matches (indicated by `!anyMatch`
-        // which means no state records at joinedRowData[depth] matched joinedRowData[depth-1])
+        // which means no state records at the current joinedRowData matched joinedRowData[depth-1])
         // during
         // the association calculation phase where isInputRecordActive was false),
         // it would have resulted in a null-padded output. This new record might form a
@@ -713,15 +706,11 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         // because we have incorporated the actual input record, and any further matches
         // found should lead to output generation or retractions.
         RowData newJoinedRowData = newJoinedRowData(depth, joinedRowData, input);
-        // When recursing for depth+1, the association count needed is for joinedRowData[depth].
+        // When recursing for depth+1, the association count needed is for the current
+        // joinedRowData.
         // Initialize it to 0.
         recursiveMultiJoin(
-                depth + 1,
-                input,
-                inputId,
-                newJoinedRowData,
-                // This is for joinedRowData[depth]
-                true); // true for isInputRecordActive
+                depth + 1, input, inputId, newJoinedRowData, true); // true for isInputRecordActive
 
         // --- Left Join Insertion Handling ---
         // If an incoming DELETE/UPDATE_BEFORE on the right side of a LEFT join removes
@@ -743,14 +732,15 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
 
         // Recurse to emit the potential retraction for the previously null-padded row.
         // This is part of processing the input record, so isInputRecordActive = true.
-        // When recursing for depth+1, the association count needed is for joinedRowData[depth].
+        // When recursing for depth+1, the association count needed is for the current
+        // joinedRowData.
         // Initialize it to 0.
         recursiveMultiJoin(
                 depth + 1,
                 input,
                 inputId,
                 newJoinedRowData,
-                // Initial association count for joinedRowData[depth]
+                // Initial association count for the current joinedRowData
                 true); // true for isInputRecordActive
 
         // Restore the input record's original RowKind to prevent unintended side effects,
@@ -768,14 +758,15 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
 
         // Recurse to emit the potential insertion for the new null-padded row.
         // This is part of processing the input record, so isInputRecordActive = true.
-        // When recursing for depth+1, the association count needed is for joinedRowData[depth].
+        // When recursing for depth+1, the association count needed is for the current
+        // joinedRowData.
         // Initialize it to 0.
         recursiveMultiJoin(
                 depth + 1,
                 input,
                 inputId,
                 newJoinedRowData,
-                // Initial association count for joinedRowData[depth]
+                // Initial association count for the current joinedRowData
                 true); // true for isInputRecordActive
 
         // Restore the input record's original RowKind to prevent unintended side effects,
@@ -847,14 +838,6 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
                                 element);
             }
         };
-    }
-
-    private void emitRow(RowKind rowKind, RowData[] rows) {
-        RowData joinedRow = rows[0];
-        for (int i = 1; i < rows.length; i++) {
-            joinedRow = new JoinedRowData(rowKind, joinedRow, rows[i]);
-        }
-        collector.collect(joinedRow);
     }
 
     private boolean isUpsert(RowData row) {
