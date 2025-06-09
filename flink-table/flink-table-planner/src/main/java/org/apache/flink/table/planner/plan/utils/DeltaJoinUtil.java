@@ -23,6 +23,8 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.LookupTableSource;
+import org.apache.flink.table.functions.AsyncTableFunction;
+import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DeltaJoinSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDeltaJoin;
@@ -35,6 +37,9 @@ import org.apache.flink.table.planner.plan.schema.IntermediateRelTable;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.trait.DuplicateChanges;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.runtime.functions.table.lookup.CachingAsyncLookupFunction;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
+import org.apache.flink.table.runtime.operators.join.lookup.RetryableAsyncLookupFunctionDelegator;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
 
@@ -52,6 +57,7 @@ import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.util.mapping.IntPair;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -71,6 +77,23 @@ public class DeltaJoinUtil {
      */
     private static final Set<Class<?>> ALL_SUPPORTED_DELTA_JOIN_UPSTREAM_NODES =
             Sets.newHashSet(StreamPhysicalTableSourceScan.class, StreamPhysicalExchange.class);
+
+    private static final String NON_ASYNC_LOOKUP_TABLE_ERROR_MSG_TEMPLATE =
+            "Table [%s] does not support async lookup.";
+
+    private static final String NON_ASYNC_LOOKUP_TABLE_SOLUTION_MSG =
+            "If the table supports the option of async lookup joins, "
+                    + "add it to the with parameters of the DDL.";
+
+    /**
+     * All supported join types during delta join optimization. Only the following join types are
+     * supported during delta join optimization. Otherwise, the regular join will not be optimized
+     * into the delta join.
+     *
+     * <p>More join types can be added to support more patterns for delta join.
+     */
+    private static final Set<FlinkJoinType> ALL_SUPPORTED_JOIN_TYPES =
+            Sets.newHashSet(FlinkJoinType.INNER);
 
     private DeltaJoinUtil() {}
 
@@ -139,6 +162,65 @@ public class DeltaJoinUtil {
                 new TemporalTableSourceSpec(lookupTable),
                 allLookupKeys,
                 remainingCondition.orElse(null));
+    }
+
+    /** Check if the join type is supported during delta join optimization. */
+    public static void validateSupportedJoinType(FlinkJoinType joinType) {
+        if (!ALL_SUPPORTED_JOIN_TYPES.contains(joinType)) {
+            throw new IllegalStateException(
+                    String.format(
+                            "The current sql doesn't support to do delta join optimization.\n"
+                                    + "Unsupported join type [%s] encountered while attempting to convert to delta join.",
+                            joinType));
+        }
+    }
+
+    /** Get the {@link TableScan} recursively on the input of this node. */
+    public static RelOptTable getTable(RelNode node) {
+        return getTableScan(node).getTable();
+    }
+
+    /**
+     * Get the async lookup function to lookup join this temporal table. Furthermore, this method
+     * also unwraps the cache and retryable lookup function to access the inner {@link
+     * AsyncTableFunction}.
+     */
+    public static AsyncTableFunction<?> getUnwrappedAsyncLookupFunction(
+            RelOptTable temporalTable, Collection<Integer> lookupKeys, ClassLoader classLoader) {
+        UserDefinedFunction lookupFunction =
+                LookupJoinUtil.getLookupFunction(
+                        temporalTable,
+                        lookupKeys,
+                        classLoader,
+                        true, // async
+                        null, // retryStrategy
+                        false); // applyCustomShuffle
+
+        if (!(lookupFunction instanceof AsyncTableFunction)) {
+            throw new IllegalStateException(
+                    String.format(
+                            NON_ASYNC_LOOKUP_TABLE_ERROR_MSG_TEMPLATE
+                                    + NON_ASYNC_LOOKUP_TABLE_SOLUTION_MSG,
+                            String.join(".", temporalTable.getQualifiedName())));
+        }
+
+        boolean changed = true;
+        while (changed) {
+            // unwrap cache delegator
+            if (lookupFunction instanceof CachingAsyncLookupFunction) {
+                lookupFunction = ((CachingAsyncLookupFunction) temporalTable).getDelegate();
+                continue;
+            }
+            // unwrap retryable delegator
+            if (lookupFunction instanceof RetryableAsyncLookupFunctionDelegator) {
+                lookupFunction =
+                        ((RetryableAsyncLookupFunctionDelegator) temporalTable)
+                                .getUserLookupFunction();
+                continue;
+            }
+            changed = false;
+        }
+        return (AsyncTableFunction<?>) lookupFunction;
     }
 
     /**

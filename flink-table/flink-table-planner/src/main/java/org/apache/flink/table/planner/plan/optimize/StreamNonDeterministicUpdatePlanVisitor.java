@@ -34,6 +34,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalC
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalChangelogNormalize;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalCorrelateBase;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDataStreamScan;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDeltaJoin;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDropUpdateBefore;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExchange;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExpand;
@@ -200,7 +201,8 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                 || rel instanceof StreamPhysicalSortLimit
                 || rel instanceof StreamPhysicalTemporalSort
                 || rel instanceof StreamPhysicalWatermarkAssigner
-                || rel instanceof StreamPhysicalExchange) {
+                || rel instanceof StreamPhysicalExchange
+                || rel instanceof StreamPhysicalDeltaJoin) {
             // transit requireDeterminism transparently
             return transmitDeterminismRequirement(rel, requireDeterminism);
         } else if (rel instanceof StreamPhysicalMatch) {

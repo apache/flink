@@ -81,6 +81,7 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
@@ -90,7 +91,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Runtime function implementations for {@link TestValuesTableFactory}. */
-final class TestValuesRuntimeFunctions {
+public final class TestValuesRuntimeFunctions {
 
     static final Object LOCK = TestValuesTableFactory.class;
 
@@ -214,6 +215,7 @@ final class TestValuesRuntimeFunctions {
     // Source Function implementations
     // ------------------------------------------------------------------------------------------
 
+    /** A source function used for test. */
     public static class FromElementSourceFunctionWithWatermark
             implements SourceFunction<RowData>, LineageVertexProvider {
         private static final String LINEAGE_NAMESPACE =
@@ -863,6 +865,8 @@ final class TestValuesRuntimeFunctions {
         private transient Projection<RowData, GenericRowData> projection;
         private transient TypeSerializer<RowData> rowSerializer;
 
+        public static AtomicInteger invokeCount = new AtomicInteger(0);
+
         protected AsyncTestValueLookupFunction(
                 List<Row> data,
                 int[] lookupIndices,
@@ -896,6 +900,7 @@ final class TestValuesRuntimeFunctions {
         @Override
         public CompletableFuture<Collection<RowData>> asyncLookup(RowData keyRow) {
             checkArgument(isOpenCalled, "open() is not called.");
+            invokeCount.incrementAndGet();
             for (int i = 0; i < keyRow.getArity(); i++) {
                 checkNotNull(
                         ((GenericRowData) keyRow).getField(i),

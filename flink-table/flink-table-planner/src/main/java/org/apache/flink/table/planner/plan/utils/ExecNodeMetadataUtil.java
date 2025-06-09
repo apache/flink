@@ -54,6 +54,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecChangelog
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCorrelate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDataStreamScan;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDeduplicate;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDeltaJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDropUpdateBefore;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExpand;
@@ -166,6 +167,7 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecWindowJoin.class);
                     add(StreamExecWindowRank.class);
                     add(StreamExecWindowTableFunction.class);
+                    add(StreamExecDeltaJoin.class);
                     add(StreamExecPythonCalc.class);
                     add(StreamExecAsyncCalc.class);
                     add(StreamExecProcessTableFunction.class);

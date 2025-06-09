@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.legacy.YieldingOperatorFactory;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.deltajoin.AsyncDeltaJoinRunner;
@@ -31,7 +32,8 @@ import org.apache.flink.table.types.logical.RowType;
 
 /** The factory of {@link StreamingDeltaJoinOperator}. */
 public class StreamingDeltaJoinOperatorFactory extends AbstractStreamOperatorFactory<RowData>
-        implements TwoInputStreamOperatorFactory<RowData, RowData, RowData> {
+        implements TwoInputStreamOperatorFactory<RowData, RowData, RowData>,
+                YieldingOperatorFactory<RowData> {
 
     private final AsyncDeltaJoinRunner rightAsyncFunction;
     private final RowDataKeySelector rightJoinKeySelector;

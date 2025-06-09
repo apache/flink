@@ -142,15 +142,12 @@ class DeltaJoinTest extends TableTestBase {
 
   @Test
   def testJsonPlanWithTableHints(): Unit = {
-    assertThatThrownBy(
-      () => {
-        util.verifyJsonPlan(
-          "insert into snk select * from src1 /*+ OPTIONS('failing-source'='true') */" +
-            "join src2 /*+ OPTIONS('failing-source'='true') */" +
-            "on src1.a1 = src2.b1 " +
-            "and src1.a2 = src2.b2 " +
-            "and src2.b0 > src1.a0")
-      }).hasMessage("Introduce delta join in runtime later")
+    util.verifyJsonPlan(
+      "insert into snk select * from src1 /*+ OPTIONS('failing-source'='true') */" +
+        "join src2 /*+ OPTIONS('failing-source'='true') */" +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
+        "and src2.b0 > src1.a0")
   }
 
   @Test
@@ -211,7 +208,6 @@ class DeltaJoinTest extends TableTestBase {
     stmt.addInsertSql("insert into snk select * from mv")
     stmt.addInsertSql("insert into snk2 select * from mv")
 
-    // TODO FLINK-37898 verify exec plan to check delta join reused
     util.verifyRelPlan(stmt)
   }
 
@@ -256,7 +252,6 @@ class DeltaJoinTest extends TableTestBase {
         "on src1.a1 = src2.b1 " +
         "and src1.a2 = src2.b2")
 
-    // TODO FLINK-37898 verify exec plan to check delta join reused
     util.verifyRelPlan(stmt)
   }
 
@@ -278,20 +273,16 @@ class DeltaJoinTest extends TableTestBase {
         "on src1.a1 = src2.b1 " +
         "and src1.a2 = src2.b2")
 
-    // TODO FLINK-37898 verify exec plan to check delta join not reused
     util.verifyRelPlan(stmt)
   }
 
   @Test
   def testExplainPlanAdvice(): Unit = {
-    assertThatThrownBy(
-      () =>
-        util.verifyExplainInsert(
-          "insert into snk select * from src1 join src2 " +
-            "on src1.a1 = src2.b1 " +
-            "and src1.a2 = src2.b2",
-          ExplainDetail.PLAN_ADVICE))
-      .hasMessage("Introduce delta join in runtime later")
+    util.verifyExplainInsert(
+      "insert into snk select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2",
+      ExplainDetail.PLAN_ADVICE)
   }
 
   @Test
@@ -450,6 +441,7 @@ class DeltaJoinTest extends TableTestBase {
       "insert into snk select * from src1 join src2 " +
         "on 1 = 1")
   }
+
   @Test
   def testSourceWithoutIndexes(): Unit = {
     addTable(
@@ -532,7 +524,6 @@ class DeltaJoinTest extends TableTestBase {
         "and src1.a2 = src2.b2")
 
     // one of the joins can be converted into the delta join
-    // TODO FLINK-37898 verify exec plan to check delta join not reused
     util.verifyRelPlan(stmt)
   }
 
