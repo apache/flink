@@ -29,14 +29,27 @@ public class AecRecord<IN, OUT> {
 
     private Epoch<OUT> epoch;
 
+    // index where this record is from
+    // start with 0
+    private int inputIndex;
+
     public AecRecord() {
         this.record = null;
         this.epoch = null;
+        this.inputIndex = -1;
     }
 
-    public AecRecord(StreamRecord<IN> record, Epoch<OUT> epoch) {
+    public AecRecord(StreamRecord<IN> record, Epoch<OUT> epoch, int inputIndex) {
         this.record = record;
         this.epoch = epoch;
+        this.inputIndex = inputIndex;
+    }
+
+    public AecRecord<IN, OUT> reset(StreamRecord<IN> record, Epoch<OUT> epoch, int inputIndex) {
+        this.record = record;
+        this.epoch = epoch;
+        this.inputIndex = inputIndex;
+        return this;
     }
 
     public AecRecord<IN, OUT> setRecord(StreamRecord<IN> record) {
@@ -57,25 +70,38 @@ public class AecRecord<IN, OUT> {
         return epoch;
     }
 
-    @Override
-    public String toString() {
-        return "AecRecord{" + "record=" + record + ", epoch=" + epoch + '}';
+    public int getInputIndex() {
+        return inputIndex;
     }
 
     @Override
-    public boolean equals(Object obj) {
-        if (this == obj) {
+    public String toString() {
+        return "AecRecord{"
+                + "record="
+                + record
+                + ", epoch="
+                + epoch
+                + ", inputIndex="
+                + inputIndex
+                + '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
             return true;
         }
-        if (obj == null || getClass() != obj.getClass()) {
+        if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        AecRecord<?, ?> that = (AecRecord<?, ?>) obj;
-        return Objects.equals(record, that.record) && Objects.equals(epoch, that.epoch);
+        AecRecord<?, ?> aecRecord = (AecRecord<?, ?>) o;
+        return inputIndex == aecRecord.inputIndex
+                && Objects.equals(record, aecRecord.record)
+                && Objects.equals(epoch, aecRecord.epoch);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(record, epoch);
+        return Objects.hash(record, epoch, inputIndex);
     }
 }

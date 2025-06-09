@@ -19,11 +19,13 @@
 package org.apache.flink.table.runtime.operators.join.lookup.keyordered;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueueEntry;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.function.BiFunctionWithException;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +36,7 @@ import java.util.Deque;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * The {@link AsyncExecutionController} is used to keep key ordered process mode for async lookup
@@ -46,10 +49,10 @@ import java.util.function.Consumer;
  */
 public class AsyncExecutionController<IN, OUT, KEY> {
 
-    protected static final Logger LOG = LoggerFactory.getLogger(AsyncExecutionController.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AsyncExecutionController.class);
 
     /** Consumer to actually call async invoke method. */
-    private final Consumer<AecRecord<IN, OUT>> asyncInvoke;
+    private final ThrowingConsumer<AecRecord<IN, OUT>, Exception> asyncInvoke;
 
     /** Consumer to emit watermark. */
     private final Consumer<Watermark> emitWatermark;
@@ -57,8 +60,20 @@ public class AsyncExecutionController<IN, OUT, KEY> {
     /** Consumer to emit results wrapped in a {@link StreamElementQueueEntry}. */
     private final Consumer<StreamElementQueueEntry<OUT>> emitResult;
 
-    /** Selector to get key from input. */
-    private final KeySelector<IN, KEY> keySelector;
+    /**
+     * Function to infer which side drives this {@link StreamElementQueueEntry}.
+     *
+     * <p>The returned input index starts with 0.
+     */
+    private final Function<StreamElementQueueEntry<OUT>, Integer> inferDrivenInputIndex;
+
+    /**
+     * Function to infer which key should be blocked by this {@link AsyncExecutionController}.
+     *
+     * <p>Input args: {@code <Record, InputIndex that starts with 0>}
+     */
+    private final BiFunctionWithException<StreamRecord<IN>, Integer, KEY, Exception>
+            inferBlockingKey;
 
     /** The key accounting unit which is used to detect the key conflict. */
     private final KeyAccountingUnit<KEY> keyAccountingUnit;
@@ -72,18 +87,27 @@ public class AsyncExecutionController<IN, OUT, KEY> {
     private final AecRecord<IN, OUT> reusedRecord;
 
     public AsyncExecutionController(
-            KeySelector<IN, KEY> keySelector,
-            Consumer<AecRecord<IN, OUT>> asyncInvoke,
+            ThrowingConsumer<AecRecord<IN, OUT>, Exception> asyncInvoke,
             Consumer<Watermark> emitWatermark,
-            Consumer<StreamElementQueueEntry<OUT>> emitResult) {
-        this.keySelector = keySelector;
+            Consumer<StreamElementQueueEntry<OUT>> emitResult,
+            Function<StreamElementQueueEntry<OUT>, Integer> inferDrivenInputIndex,
+            BiFunctionWithException<StreamRecord<IN>, Integer, KEY, Exception> inferBlockingKey) {
         this.asyncInvoke = asyncInvoke;
         this.emitWatermark = emitWatermark;
         this.emitResult = emitResult;
+        this.inferDrivenInputIndex = inferDrivenInputIndex;
+        this.inferBlockingKey = inferBlockingKey;
+
         this.keyAccountingUnit = new KeyAccountingUnit<>();
         this.recordsBuffer = new RecordsBuffer<>();
         this.epochManager = new EpochManager<>();
         this.reusedRecord = new AecRecord<>();
+    }
+
+    public void registerMetrics(MetricGroup metricGroup) {
+        metricGroup.gauge("aec_inflight_size", recordsBuffer::getActiveSize);
+        metricGroup.gauge("aec_blocking_size", recordsBuffer::getBlockingSize);
+        metricGroup.gauge("aec_finish_size", recordsBuffer::getFinishSize);
     }
 
     /**
@@ -101,24 +125,29 @@ public class AsyncExecutionController<IN, OUT, KEY> {
         epoch.setOutput(
                 element -> {
                     emitResult.accept(element);
-                    outputRecord((StreamRecord<IN>) element.getInputElement(), epoch);
+                    outputRecord(
+                            (StreamRecord<IN>) element.getInputElement(),
+                            epoch,
+                            inferDrivenInputIndex.apply(element));
                 });
         // trigger the oldest epoch to output the result
         epochManager.completeOneRecord(epoch);
         trigger(key);
     }
 
-    public void recovery(StreamRecord<IN> record, Watermark watermark) throws Exception {
+    public void recovery(StreamRecord<IN> record, Watermark watermark, int inputIndex)
+            throws Exception {
         Optional<Epoch<OUT>> epoch = epochManager.getProperEpoch(watermark);
         if (epoch.isPresent()) {
-            submitRecord(record, epoch.get());
+            submitRecord(record, epoch.get(), inputIndex);
         } else {
             submitWatermark(watermark);
-            submitRecord(record, null);
+            submitRecord(record, null, inputIndex);
         }
     }
 
-    public void submitRecord(StreamRecord<IN> record, @Nullable Epoch<OUT> epoch) throws Exception {
+    public void submitRecord(StreamRecord<IN> record, @Nullable Epoch<OUT> epoch, int inputIndex)
+            throws Exception {
         if (LOG.isDebugEnabled()) {
             LOG.debug(String.format("size in records buffer:  %s", recordsBuffer.sizeToString()));
         }
@@ -129,8 +158,8 @@ public class AsyncExecutionController<IN, OUT, KEY> {
         } else {
             currentEpoch = epochManager.onRecord();
         }
-        AecRecord<IN, OUT> aecRecord = new AecRecord<>(record, currentEpoch);
-        KEY key = getKey(record);
+        AecRecord<IN, OUT> aecRecord = new AecRecord<>(record, currentEpoch, inputIndex);
+        KEY key = getKey(record, inputIndex);
         recordsBuffer.enqueueRecord(key, aecRecord);
         trigger(key);
     }
@@ -151,9 +180,9 @@ public class AsyncExecutionController<IN, OUT, KEY> {
         return recordsBuffer.pendingElements();
     }
 
-    public void outputRecord(StreamRecord<IN> record, Epoch<OUT> epoch) {
-        reusedRecord.setRecord(record).setEpoch(epoch);
-        recordsBuffer.output(getKey(record), reusedRecord);
+    public void outputRecord(StreamRecord<IN> record, Epoch<OUT> epoch, int inputIndex) {
+        reusedRecord.reset(record, epoch, inputIndex);
+        recordsBuffer.output(getKey(record, inputIndex), reusedRecord);
     }
 
     public void close() {
@@ -166,11 +195,61 @@ public class AsyncExecutionController<IN, OUT, KEY> {
         return epochManager.getActiveEpoch();
     }
 
+    @VisibleForTesting
+    public int getBlockingSize() {
+        return recordsBuffer.getBlockingSize();
+    }
+
+    @VisibleForTesting
+    public int getFinishSize() {
+        return recordsBuffer.getFinishSize();
+    }
+
+    @VisibleForTesting
+    public int getInFlightSize() {
+        return recordsBuffer.getActiveSize();
+    }
+
+    @VisibleForTesting
+    public RecordsBuffer<AecRecord<IN, OUT>, KEY> getRecordsBuffer() {
+        return recordsBuffer;
+    }
+
+    @VisibleForTesting
+    public ThrowingConsumer<AecRecord<IN, OUT>, Exception> getAsyncInvoke() {
+        return asyncInvoke;
+    }
+
+    @VisibleForTesting
+    public Consumer<Watermark> getEmitWatermark() {
+        return emitWatermark;
+    }
+
+    @VisibleForTesting
+    public Consumer<StreamElementQueueEntry<OUT>> getEmitResult() {
+        return emitResult;
+    }
+
+    @VisibleForTesting
+    public Function<StreamElementQueueEntry<OUT>, Integer> getInferDrivenInputIndex() {
+        return inferDrivenInputIndex;
+    }
+
+    @VisibleForTesting
+    public BiFunctionWithException<StreamRecord<IN>, Integer, KEY, Exception>
+    getInferBlockingKey() {
+        return inferBlockingKey;
+    }
+
     private void trigger(KEY key) throws Exception {
         if (ifOccupy(key)) {
             Optional<AecRecord<IN, OUT>> element = recordsBuffer.pop(key);
             if (element.isPresent() && tryOccupyKey(element.get().getRecord(), key)) {
-                asyncInvoke.accept(element.get());
+                try {
+                    asyncInvoke.accept(element.get());
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to async invoke the record", e);
+                }
             }
         }
     }
@@ -183,9 +262,9 @@ public class AsyncExecutionController<IN, OUT, KEY> {
         return keyAccountingUnit.ifOccupy(key);
     }
 
-    private KEY getKey(StreamRecord<IN> record) {
+    private KEY getKey(StreamRecord<IN> record, int inputIndex) {
         try {
-            return keySelector.getKey(record.getValue());
+            return inferBlockingKey.apply(record, inputIndex);
         } catch (Exception e) {
             throw new RuntimeException("Unable to retrieve key from record " + record, e);
         }
@@ -193,6 +272,6 @@ public class AsyncExecutionController<IN, OUT, KEY> {
 
     private KEY getKey(AecRecord<IN, OUT> aecRecord) {
         StreamRecord<IN> record = aecRecord.getRecord();
-        return getKey(record);
+        return getKey(record, aecRecord.getInputIndex());
     }
 }

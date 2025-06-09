@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.join.lookup.keyordered;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayDeque;
@@ -48,14 +49,21 @@ public class RecordsBuffer<ELEMENT, KEY> {
      */
     private final Map<KEY, Deque<ELEMENT>> blockingBuffer;
 
+    // ===== metrics =====
+    private int blockingSize;
+    private int finishSize;
+
     public RecordsBuffer() {
         this.activeBuffer = new ConcurrentHashMap<>();
         this.finishedBuffer = new ConcurrentHashMap<>();
         this.blockingBuffer = new ConcurrentHashMap<>();
+        this.blockingSize = 0;
+        this.finishSize = 0;
     }
 
     public void enqueueRecord(KEY key, ELEMENT record) {
         blockingBuffer.computeIfAbsent(key, k -> new LinkedList<>()).add(record);
+        blockingSize++;
     }
 
     public Optional<ELEMENT> pop(KEY key) {
@@ -66,6 +74,7 @@ public class RecordsBuffer<ELEMENT, KEY> {
         if (element == null) {
             return Optional.empty();
         }
+        blockingSize--;
         if (blockingBuffer.get(key).isEmpty()) {
             blockingBuffer.remove(key);
         }
@@ -75,6 +84,7 @@ public class RecordsBuffer<ELEMENT, KEY> {
 
     public void finish(KEY key, ELEMENT element) {
         finishedBuffer.computeIfAbsent(key, k -> new LinkedList<>()).add(element);
+        finishSize++;
         Preconditions.checkState(activeBuffer.containsKey(key));
         activeBuffer.remove(key);
     }
@@ -82,6 +92,7 @@ public class RecordsBuffer<ELEMENT, KEY> {
     public void output(KEY key, ELEMENT element) {
         Preconditions.checkState(finishedBuffer.containsKey(key));
         finishedBuffer.get(key).remove(element);
+        finishSize--;
         if (finishedBuffer.get(key).isEmpty()) {
             finishedBuffer.remove(key);
         }
@@ -136,5 +147,36 @@ public class RecordsBuffer<ELEMENT, KEY> {
         finishedBuffer.clear();
         activeBuffer.clear();
         blockingBuffer.clear();
+    }
+
+    // ===== metrics =====
+
+    public int getBlockingSize() {
+        return blockingSize;
+    }
+
+    public int getActiveSize() {
+        return activeBuffer.size();
+    }
+
+    public int getFinishSize() {
+        return finishSize;
+    }
+
+    // ===== visible for test =====
+
+    @VisibleForTesting
+    public Map<KEY, Deque<ELEMENT>> getFinishedBuffer() {
+        return finishedBuffer;
+    }
+
+    @VisibleForTesting
+    public Map<KEY, ELEMENT> getActiveBuffer() {
+        return activeBuffer;
+    }
+
+    @VisibleForTesting
+    public Map<KEY, Deque<ELEMENT>> getBlockingBuffer() {
+        return blockingBuffer;
     }
 }

@@ -32,7 +32,9 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorImpl;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
+import org.apache.flink.util.function.ThrowingConsumer;
 
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,7 +49,6 @@ import java.util.Deque;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.stream.IntStream;
@@ -65,13 +66,13 @@ public class AsyncExecutionControllerTest {
 
     private static final KeySelector<Integer, Integer> keySelector = input -> input;
 
-    private static final AtomicInteger outputAccount = new AtomicInteger(0);
-
     private static final Queue<Integer> outputQueue = new LinkedList<>();
 
     private static final Queue<Watermark> outputWatermark = new LinkedList<>();
 
-    private static final Queue<StreamRecord<Integer>> outputProcessed = new LinkedList<>();
+    private static final Queue<StreamRecord<Integer>> outputProcessedRecords = new LinkedList<>();
+
+    private static final Queue<Integer> outputProcessedInputIndexes = new LinkedList<>();
 
     private static TestAsyncExecutionController asyncExecutionController;
 
@@ -82,29 +83,21 @@ public class AsyncExecutionControllerTest {
     @BeforeEach
     public void before() throws Exception {
         asyncFunction = new TestLazyAsyncFunction();
-        outputAccount.set(0);
         outputQueue.clear();
-        outputProcessed.clear();
+        outputProcessedRecords.clear();
+        outputProcessedInputIndexes.clear();
         outputWatermark.clear();
-        Consumer<StreamElementQueueEntry<Integer>> emitResult = entry -> entry.emitResult(null);
         asyncExecutionController =
                 new TestAsyncExecutionController(
-                        keySelector,
-                        element -> {
-                            // check the value is Integer
-                            try {
+                        element ->
                                 asyncFunction.asyncInvoke(
                                         element.getRecord().getValue(),
                                         new Handler(
                                                 element,
                                                 new TestStreamElementQueueEntry(
-                                                        element.getRecord())));
-                            } catch (Exception e) {
-                                throw new RuntimeException(e);
-                            }
-                        },
-                        outputWatermark::add,
-                        emitResult);
+                                                        element.getRecord(),
+                                                        element.getInputIndex()))),
+                        outputWatermark::add);
     }
 
     @BeforeEach
@@ -125,38 +118,38 @@ public class AsyncExecutionControllerTest {
 
     @Test
     public void testPendingRecords() throws Exception {
-        asyncExecutionController.submitRecord(new StreamRecord<>(1, 1), null);
-        asyncExecutionController.submitRecord(new StreamRecord<>(2, 2), null);
-        asyncExecutionController.submitRecord(new StreamRecord<>(2, 3), null);
-        asyncExecutionController.submitRecord(new StreamRecord<>(3, 4), null);
-        asyncExecutionController.submitRecord(new StreamRecord<>(3, 5), null);
-        asyncExecutionController.submitRecord(new StreamRecord<>(4, 6), null);
+        asyncExecutionController.submitRecord(new StreamRecord<>(1, 1), null, 0);
+        asyncExecutionController.submitRecord(new StreamRecord<>(2, 2), null, 0);
+        asyncExecutionController.submitRecord(new StreamRecord<>(2, 3), null, 0);
+        asyncExecutionController.submitRecord(new StreamRecord<>(3, 4), null, 0);
+        asyncExecutionController.submitRecord(new StreamRecord<>(3, 5), null, 0);
+        asyncExecutionController.submitRecord(new StreamRecord<>(4, 6), null, 0);
         Map<Integer, Deque<AecRecord<Integer, Integer>>> actualPending =
                 asyncExecutionController.pendingElements();
         Epoch<Integer> epoch = new Epoch<>(new Watermark(Long.MIN_VALUE));
         IntStream.range(0, 6).forEach(i -> epoch.incrementCount());
         assertThat(actualPending.get(1))
-                .containsExactlyInAnyOrder(new AecRecord<>(new StreamRecord<>(1, 1), epoch));
+                .containsExactlyInAnyOrder(new AecRecord<>(new StreamRecord<>(1, 1), epoch, 0));
         assertThat(actualPending.get(2))
                 .containsExactly(
-                        new AecRecord<>(new StreamRecord<>(2, 2), epoch),
-                        new AecRecord<>(new StreamRecord<>(2, 3), epoch));
+                        new AecRecord<>(new StreamRecord<>(2, 2), epoch, 0),
+                        new AecRecord<>(new StreamRecord<>(2, 3), epoch, 0));
         assertThat(actualPending.get(3))
                 .containsExactly(
-                        new AecRecord<>(new StreamRecord<>(3, 4), epoch),
-                        new AecRecord<>(new StreamRecord<>(3, 5), epoch));
+                        new AecRecord<>(new StreamRecord<>(3, 4), epoch, 0),
+                        new AecRecord<>(new StreamRecord<>(3, 5), epoch, 0));
         assertThat(actualPending.get(4))
-                .containsExactlyInAnyOrder(new AecRecord<>(new StreamRecord<>(4, 6), epoch));
+                .containsExactlyInAnyOrder(new AecRecord<>(new StreamRecord<>(4, 6), epoch, 0));
     }
 
     @Test
     public void testDifferentKeyWithoutWatermark() throws Exception {
-        asyncExecutionController.submitRecord(new StreamRecord<>(1, 1), null);
-        asyncExecutionController.submitRecord(new StreamRecord<>(2, 2), null);
-        asyncExecutionController.submitRecord(new StreamRecord<>(3, 3), null);
-        asyncExecutionController.submitRecord(new StreamRecord<>(4, 4), null);
-        asyncExecutionController.submitRecord(new StreamRecord<>(5, 5), null);
-        asyncExecutionController.submitRecord(new StreamRecord<>(6, 6), null);
+        asyncExecutionController.submitRecord(new StreamRecord<>(1, 1), null, 0);
+        asyncExecutionController.submitRecord(new StreamRecord<>(2, 2), null, 0);
+        asyncExecutionController.submitRecord(new StreamRecord<>(3, 3), null, 0);
+        asyncExecutionController.submitRecord(new StreamRecord<>(4, 4), null, 0);
+        asyncExecutionController.submitRecord(new StreamRecord<>(5, 5), null, 0);
+        asyncExecutionController.submitRecord(new StreamRecord<>(6, 6), null, 0);
         assertThat(asyncExecutionController.processedSize()).isEqualTo(6);
         waitComplete();
         Queue<Integer> expectedOutput = new LinkedList<>(Arrays.asList(1, 2, 3, 4, 5, 6));
@@ -167,14 +160,14 @@ public class AsyncExecutionControllerTest {
 
     @Test
     public void testDifferentKeyWithWatermark() throws Exception {
-        asyncExecutionController.submitRecord(new StreamRecord<>(1, 1), null);
-        asyncExecutionController.submitRecord(new StreamRecord<>(2, 2), null);
+        asyncExecutionController.submitRecord(new StreamRecord<>(1, 1), null, 0);
+        asyncExecutionController.submitRecord(new StreamRecord<>(2, 2), null, 0);
         asyncExecutionController.submitWatermark(new Watermark(3));
-        asyncExecutionController.submitRecord(new StreamRecord<>(3, 4), null);
-        asyncExecutionController.submitRecord(new StreamRecord<>(4, 5), null);
+        asyncExecutionController.submitRecord(new StreamRecord<>(3, 4), null, 0);
+        asyncExecutionController.submitRecord(new StreamRecord<>(4, 5), null, 0);
         asyncExecutionController.submitWatermark(new Watermark(6));
-        asyncExecutionController.submitRecord(new StreamRecord<>(5, 7), null);
-        asyncExecutionController.submitRecord(new StreamRecord<>(6, 8), null);
+        asyncExecutionController.submitRecord(new StreamRecord<>(5, 7), null, 0);
+        asyncExecutionController.submitRecord(new StreamRecord<>(6, 8), null, 0);
         assertThat(asyncExecutionController.processedSize()).isEqualTo(6);
         waitComplete();
         Queue<Integer> expectedOutput = new LinkedList<>(Arrays.asList(1, 2, 3, 4, 5, 6));
@@ -188,14 +181,14 @@ public class AsyncExecutionControllerTest {
 
     @Test
     public void testSameKeyWithWatermark() throws Exception {
-        asyncExecutionController.submitRecord(new StreamRecord<>(1, 1), null);
-        asyncExecutionController.submitRecord(new StreamRecord<>(1, 2), null);
-        asyncExecutionController.submitRecord(new StreamRecord<>(1, 3), null);
-        asyncExecutionController.submitRecord(new StreamRecord<>(1, 4), null);
+        asyncExecutionController.submitRecord(new StreamRecord<>(1, 1), null, 0);
+        asyncExecutionController.submitRecord(new StreamRecord<>(1, 2), null, 0);
+        asyncExecutionController.submitRecord(new StreamRecord<>(1, 3), null, 0);
+        asyncExecutionController.submitRecord(new StreamRecord<>(1, 4), null, 0);
         asyncExecutionController.submitWatermark(new Watermark(5));
         asyncExecutionController.submitWatermark(new Watermark(6));
-        asyncExecutionController.submitRecord(new StreamRecord<>(1, 7), null);
-        asyncExecutionController.submitRecord(new StreamRecord<>(1, 8), null);
+        asyncExecutionController.submitRecord(new StreamRecord<>(1, 7), null, 0);
+        asyncExecutionController.submitRecord(new StreamRecord<>(1, 8), null, 0);
         asyncExecutionController.submitWatermark(new Watermark(9));
 
         assertThat(asyncExecutionController.processedSize()).isEqualTo(6);
@@ -211,7 +204,7 @@ public class AsyncExecutionControllerTest {
                                 new StreamRecord<>(1, 4),
                                 new StreamRecord<>(1, 7),
                                 new StreamRecord<>(1, 8)));
-        assertThat(outputProcessed).isEqualTo(expectedProcessed);
+        assertThat(outputProcessedRecords).isEqualTo(expectedProcessed);
         Queue<Watermark> expectedWatermark =
                 new LinkedList<>(
                         Arrays.asList(new Watermark(5), new Watermark(6), new Watermark(9)));
@@ -222,14 +215,14 @@ public class AsyncExecutionControllerTest {
 
     @Test
     public void testMixKeyWithWatermark() throws Exception {
-        asyncExecutionController.submitRecord(new StreamRecord<>(1, 1), null);
-        asyncExecutionController.submitRecord(new StreamRecord<>(3, 2), null);
-        asyncExecutionController.submitRecord(new StreamRecord<>(4, 3), null);
-        asyncExecutionController.submitRecord(new StreamRecord<>(3, 4), null);
+        asyncExecutionController.submitRecord(new StreamRecord<>(1, 1), null, 0);
+        asyncExecutionController.submitRecord(new StreamRecord<>(3, 2), null, 0);
+        asyncExecutionController.submitRecord(new StreamRecord<>(4, 3), null, 0);
+        asyncExecutionController.submitRecord(new StreamRecord<>(3, 4), null, 0);
         asyncExecutionController.submitWatermark(new Watermark(5));
         asyncExecutionController.submitWatermark(new Watermark(6));
-        asyncExecutionController.submitRecord(new StreamRecord<>(4, 7), null);
-        asyncExecutionController.submitRecord(new StreamRecord<>(1, 8), null);
+        asyncExecutionController.submitRecord(new StreamRecord<>(4, 7), null, 0);
+        asyncExecutionController.submitRecord(new StreamRecord<>(1, 8), null, 0);
         asyncExecutionController.submitWatermark(new Watermark(9));
 
         assertThat(asyncExecutionController.processedSize()).isEqualTo(6);
@@ -239,13 +232,13 @@ public class AsyncExecutionControllerTest {
 
         Queue<StreamRecord<Integer>> expectedProcessed =
                 new LinkedList<>(Arrays.asList(new StreamRecord<>(1, 1), new StreamRecord<>(1, 8)));
-        assertKeyOrdered(outputProcessed, expectedProcessed);
+        assertKeyOrdered(outputProcessedRecords, expectedProcessed);
         expectedProcessed =
                 new LinkedList<>(Arrays.asList(new StreamRecord<>(3, 2), new StreamRecord<>(3, 4)));
-        assertKeyOrdered(outputProcessed, expectedProcessed);
+        assertKeyOrdered(outputProcessedRecords, expectedProcessed);
         expectedProcessed =
                 new LinkedList<>(Arrays.asList(new StreamRecord<>(4, 3), new StreamRecord<>(4, 7)));
-        assertKeyOrdered(outputProcessed, expectedProcessed);
+        assertKeyOrdered(outputProcessedRecords, expectedProcessed);
 
         Queue<Watermark> expectedWatermark =
                 new LinkedList<>(
@@ -253,6 +246,38 @@ public class AsyncExecutionControllerTest {
         assertThat(outputWatermark).isEqualTo(expectedWatermark);
         Epoch<Integer> expectedEpoch = new Epoch<>(new Watermark(9));
         assertThat(asyncExecutionController.getActiveEpoch()).isEqualTo(expectedEpoch);
+    }
+
+    @Test
+    public void testProcessWithMultiInputs() throws Exception {
+        asyncExecutionController.submitRecord(new StreamRecord<>(1, 1), null, 1);
+        asyncExecutionController.submitRecord(new StreamRecord<>(1, 2), null, 2);
+        asyncExecutionController.submitRecord(new StreamRecord<>(1, 3), null, 1);
+        asyncExecutionController.submitRecord(new StreamRecord<>(1, 4), null, 3);
+        asyncExecutionController.submitWatermark(new Watermark(5));
+        asyncExecutionController.submitRecord(new StreamRecord<>(1, 6), null, 4);
+
+        assertThat(asyncExecutionController.processedSize()).isEqualTo(5);
+        waitComplete();
+        Queue<Integer> expectedOutput = new LinkedList<>(Arrays.asList(1, 1, 1, 1, 1));
+        assertThat(outputQueue).isEqualTo(expectedOutput);
+        Queue<StreamRecord<Integer>> expectedProcessed =
+                new LinkedList<>(
+                        Arrays.asList(
+                                new StreamRecord<>(1, 1),
+                                new StreamRecord<>(1, 2),
+                                new StreamRecord<>(1, 3),
+                                new StreamRecord<>(1, 4),
+                                new StreamRecord<>(1, 6)));
+        assertThat(outputProcessedRecords).isEqualTo(expectedProcessed);
+        Queue<Watermark> expectedWatermark =
+                new LinkedList<>(Collections.singletonList(new Watermark(5)));
+        assertThat(outputWatermark).isEqualTo(expectedWatermark);
+        Epoch<Integer> expectedEpoch = new Epoch<>(new Watermark(5));
+        assertThat(asyncExecutionController.getActiveEpoch()).isEqualTo(expectedEpoch);
+        Queue<Integer> expectedProcessedInputIndexes =
+                new LinkedList<>(Arrays.asList(1, 2, 1, 3, 4));
+        assertThat(outputProcessedInputIndexes).isEqualTo(expectedProcessedInputIndexes);
     }
 
     private void waitComplete() {
@@ -277,7 +302,7 @@ public class AsyncExecutionControllerTest {
         }
 
         @Override
-        public void complete(java.util.Collection<Integer> results) {
+        public void complete(Collection<Integer> results) {
             mailboxExecutor.execute(
                     () -> {
                         try {
@@ -295,16 +320,22 @@ public class AsyncExecutionControllerTest {
         public void completeExceptionally(Throwable error) {}
 
         @Override
-        public void complete(CollectionSupplier<Integer> supplier) {}
+        public void complete(CollectionSupplier<Integer> supplier) {
+
+        }
     }
 
     private static class TestStreamElementQueueEntry implements StreamElementQueueEntry<Integer> {
 
         @Nonnull private final StreamRecord<Integer> inputRecord;
-        private java.util.Collection<Integer> results;
+        private Collection<Integer> results;
 
-        public TestStreamElementQueueEntry(@Nonnull StreamRecord<Integer> inputRecord) {
+        private final int inputIndex;
+
+        public TestStreamElementQueueEntry(
+                @Nonnull StreamRecord<Integer> inputRecord, int inputIndex) {
             this.inputRecord = inputRecord;
+            this.inputIndex = inputIndex;
         }
 
         @Override
@@ -320,12 +351,18 @@ public class AsyncExecutionControllerTest {
         @Override
         public void emitResult(TimestampedCollector<Integer> output) {
             outputQueue.addAll(results);
-            outputProcessed.add(inputRecord);
+            outputProcessedRecords.add(inputRecord);
+            outputProcessedInputIndexes.add(inputIndex);
         }
 
+        @NotNull
         @Override
         public StreamElement getInputElement() {
             return inputRecord;
+        }
+
+        public int getInputIndex() {
+            return inputIndex;
         }
     }
 
@@ -335,18 +372,22 @@ public class AsyncExecutionControllerTest {
         private final AtomicLong processedAccount = new AtomicLong(0);
 
         public TestAsyncExecutionController(
-                KeySelector<Integer, Integer> keySelector,
-                Consumer<AecRecord<Integer, Integer>> asyncInvoke,
-                Consumer<Watermark> emitWatermark,
-                Consumer<StreamElementQueueEntry<Integer>> emitResult) {
-            super(keySelector, asyncInvoke, emitWatermark, emitResult);
+                ThrowingConsumer<AecRecord<Integer, Integer>, Exception> asyncInvoke,
+                Consumer<Watermark> emitWatermark) {
+            super(
+                    asyncInvoke,
+                    emitWatermark,
+                    entry -> entry.emitResult(null),
+                    entry -> ((TestStreamElementQueueEntry) entry).getInputIndex(),
+                    (record, inputIndex) -> keySelector.getKey(record.getValue()));
         }
 
         @Override
-        public void submitRecord(StreamRecord<Integer> record, @Nullable Epoch<Integer> epoch)
+        public void submitRecord(
+                StreamRecord<Integer> record, @Nullable Epoch<Integer> epoch, int inputIndex)
                 throws Exception {
             processedAccount.incrementAndGet();
-            super.submitRecord(record, epoch);
+            super.submitRecord(record, epoch, inputIndex);
         }
 
         public long processedSize() {
