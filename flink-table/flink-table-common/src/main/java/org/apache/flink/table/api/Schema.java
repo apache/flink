@@ -79,12 +79,9 @@ public final class Schema {
 
     private final @Nullable UnresolvedPrimaryKey primaryKey;
 
-    /**
-     * Referring to FLIP-486, as DeltaJoin is not currently supported, the index is currently marked
-     * as @ Depreciated.
-     */
     private final List<UnresolvedIndex> indexes;
 
+    /** Please use {@link #Schema(List, List, UnresolvedPrimaryKey, List)} instead. */
     @Deprecated
     public Schema(
             List<UnresolvedColumn> columns,

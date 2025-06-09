@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 
 import java.util.List;
@@ -31,7 +30,6 @@ import java.util.List;
  * <p>Currently, this interface is only exposed to developers. In the future, when we introduce
  * Index during lexical parsing, this can be marked as {@link PublicEvolving}.
  */
-@Experimental
 @PublicEvolving
 public interface Index {
 

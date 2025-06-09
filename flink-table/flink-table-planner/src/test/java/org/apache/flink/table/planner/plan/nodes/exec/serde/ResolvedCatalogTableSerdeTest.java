@@ -93,7 +93,8 @@ class ResolvedCatalogTableSerdeTest {
                             Column.metadata("e", DataTypes.DOUBLE(), null, false),
                             Column.computed("f", REX_NODE_EXPRESSION)),
                     Collections.singletonList(WatermarkSpec.of("b", REX_NODE_EXPRESSION)),
-                    UniqueConstraint.primaryKey("myPrimaryKey", Arrays.asList("a", "c")));
+                    UniqueConstraint.primaryKey("myPrimaryKey", Arrays.asList("a", "c")),
+                    Collections.emptyList());
 
     private static final ResolvedCatalogTable FULL_RESOLVED_CATALOG_TABLE =
             new ResolvedCatalogTable(
@@ -121,7 +122,8 @@ class ResolvedCatalogTableSerdeTest {
                                 Column.metadata("e", DataTypes.DOUBLE(), null, false),
                                 Column.computed("f", REX_NODE_EXPRESSION)),
                         Collections.emptyList(),
-                        null);
+                        null,
+                        Collections.emptyList());
 
         return Stream.of(
                 FULL_RESOLVED_CATALOG_TABLE,

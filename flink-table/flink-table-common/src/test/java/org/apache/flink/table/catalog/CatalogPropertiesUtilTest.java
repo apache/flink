@@ -111,7 +111,8 @@ public class CatalogPropertiesUtilTest {
         final UniqueConstraint primaryKey =
                 UniqueConstraint.primaryKey("PK_f1", Collections.singletonList("f1"));
         final ResolvedSchema schema =
-                new ResolvedSchema(columns, Collections.emptyList(), primaryKey);
+                new ResolvedSchema(
+                        columns, Collections.emptyList(), primaryKey, Collections.emptyList());
 
         final ResolvedCatalogTable testTable = new ResolvedCatalogTable(catalogTable, schema);
 

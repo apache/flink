@@ -63,8 +63,10 @@ public final class ResolvedSchema {
     private final List<Column> columns;
     private final List<WatermarkSpec> watermarkSpecs;
     private final @Nullable UniqueConstraint primaryKey;
-    @Deprecated private final List<Index> indexes;
+    private final List<Index> indexes;
 
+    /** Please use {@link #ResolvedSchema(List, List, UniqueConstraint, List)} instead. */
+    @Deprecated
     public ResolvedSchema(
             List<Column> columns,
             List<WatermarkSpec> watermarkSpecs,
@@ -86,7 +88,7 @@ public final class ResolvedSchema {
 
     /** Shortcut for a resolved schema of only columns. */
     public static ResolvedSchema of(List<Column> columns) {
-        return new ResolvedSchema(columns, Collections.emptyList(), null);
+        return new ResolvedSchema(columns, Collections.emptyList(), null, Collections.emptyList());
     }
 
     /** Shortcut for a resolved schema of only columns. */
@@ -104,7 +106,7 @@ public final class ResolvedSchema {
                 IntStream.range(0, columnNames.size())
                         .mapToObj(i -> Column.physical(columnNames.get(i), columnDataTypes.get(i)))
                         .collect(Collectors.toList());
-        return new ResolvedSchema(columns, Collections.emptyList(), null);
+        return new ResolvedSchema(columns, Collections.emptyList(), null, Collections.emptyList());
     }
 
     /** Shortcut for a resolved schema of only physical columns. */

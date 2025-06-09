@@ -74,7 +74,8 @@ public class CatalogConstraintTest {
                                         Collections.emptyList(),
                                         UniqueConstraint.primaryKey(
                                                 "primary_constraint",
-                                                Collections.singletonList("b"))))
+                                                Collections.singletonList("b")),
+                                        Collections.emptyList()))
                         .build();
         Map<String, String> properties = buildCatalogTableProperties(tableSchema);
 

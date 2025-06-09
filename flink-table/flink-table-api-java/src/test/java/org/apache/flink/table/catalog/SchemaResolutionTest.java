@@ -169,7 +169,8 @@ class SchemaResolutionTest {
                                         "ts_ltz", DataTypes.TIMESTAMP_LTZ(3), "timestamp", false)),
                         Collections.singletonList(
                                 WatermarkSpec.of("ts1", WATERMARK_RESOLVED_WITH_TS_LTZ)),
-                        null);
+                        null,
+                        Collections.emptyList());
 
         final ResolvedSchema actualStreamSchema = resolveSchema(SCHEMA_WITH_TS_LTZ, true);
         {
@@ -197,7 +198,8 @@ class SchemaResolutionTest {
                                                 BuiltInFunctionDefinitions.SOURCE_WATERMARK,
                                                 Collections.emptyList(),
                                                 DataTypes.TIMESTAMP_LTZ(1)))),
-                        null);
+                        null,
+                        Collections.emptyList());
         final ResolvedSchema resolvedSchema =
                 resolveSchema(
                         Schema.newBuilder()

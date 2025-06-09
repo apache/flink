@@ -131,7 +131,8 @@ class CatalogBaseTableResolutionTest {
                                     .withComment("This is a computed column")),
                     Collections.singletonList(WatermarkSpec.of("ts", WATERMARK_RESOLVED)),
                     UniqueConstraint.primaryKey(
-                            "primary_constraint", Collections.singletonList("id")));
+                            "primary_constraint", Collections.singletonList("id")),
+                    Collections.emptyList());
 
     private static final ResolvedSchema RESOLVED_MATERIALIZED_TABLE_SCHEMA =
             new ResolvedSchema(
@@ -143,7 +144,8 @@ class CatalogBaseTableResolutionTest {
                             Column.physical("topic", DataTypes.VARCHAR(200)).withComment("")),
                     Collections.emptyList(),
                     UniqueConstraint.primaryKey(
-                            "primary_constraint", Collections.singletonList("id")));
+                            "primary_constraint", Collections.singletonList("id")),
+                    Collections.emptyList());
 
     private static final ContinuousRefreshHandler CONTINUOUS_REFRESH_HANDLER =
             new ContinuousRefreshHandler(
@@ -160,7 +162,8 @@ class CatalogBaseTableResolutionTest {
                             Column.physical("region", DataTypes.VARCHAR(200)),
                             Column.physical("county", DataTypes.VARCHAR(200))),
                     Collections.emptyList(),
-                    null);
+                    null,
+                    Collections.emptyList());
 
     @Test
     void testCatalogTableResolution() {

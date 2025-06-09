@@ -101,7 +101,8 @@ class TableSchemaUtilsTest {
                                 Column.metadata("metadata-1", DataTypes.INT(), "metadata", false)),
                         Collections.singletonList(
                                 WatermarkSpec.of("t", ResolvedExpressionMock.of(rowTimeType, "t"))),
-                        UniqueConstraint.primaryKey("test-pk", Collections.singletonList("id")));
+                        UniqueConstraint.primaryKey("test-pk", Collections.singletonList("id")),
+                        Collections.emptyList());
         assertThat(TableSchemaUtils.removeTimeAttributeFromResolvedSchema(schema))
                 .isEqualTo(
                         new ResolvedSchema(
@@ -118,6 +119,7 @@ class TableSchemaUtilsTest {
                                         WatermarkSpec.of(
                                                 "t", ResolvedExpressionMock.of(rowTimeType, "t"))),
                                 UniqueConstraint.primaryKey(
-                                        "test-pk", Collections.singletonList("id"))));
+                                        "test-pk", Collections.singletonList("id")),
+                                Collections.emptyList()));
     }
 }

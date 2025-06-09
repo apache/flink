@@ -44,7 +44,8 @@ public class UsingRemoteJarITCase extends HdfsITCaseBase {
                             Column.physical("user_name", DataTypes.STRING()),
                             Column.physical("order_cnt", DataTypes.BIGINT())),
                     Collections.emptyList(),
-                    UniqueConstraint.primaryKey("pk", Collections.singletonList("user_name")));
+                    UniqueConstraint.primaryKey("pk", Collections.singletonList("user_name")),
+                    Collections.emptyList());
 
     private static final DebeziumJsonDeserializationSchema USER_ORDER_DESERIALIZATION_SCHEMA =
             createDebeziumDeserializationSchema(USER_ORDER_SCHEMA);

@@ -50,7 +50,8 @@ public class PlannerScalaFreeITCase extends SqlITCaseBase {
                             Column.physical("user_name", DataTypes.STRING()),
                             Column.physical("order_cnt", DataTypes.BIGINT())),
                     Collections.emptyList(),
-                    UniqueConstraint.primaryKey("pk", Collections.singletonList("user_name")));
+                    UniqueConstraint.primaryKey("pk", Collections.singletonList("user_name")),
+                    Collections.emptyList());
 
     private static final DebeziumJsonDeserializationSchema DESERIALIZATION_SCHEMA =
             createDebeziumDeserializationSchema(SINK_TABLE_SCHEMA);

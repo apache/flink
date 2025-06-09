@@ -16,10 +16,10 @@
 # limitations under the License.
 ################################################################################
 
+from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase, PyFlinkTestCase
 from pyflink.table.catalog import Catalog, CatalogDatabase, CatalogBaseTable, CatalogPartition, \
     ObjectIdentifier, CatalogFunction, CatalogColumnStatistics, CatalogPartitionSpec, \
     ObjectPath, Column, WatermarkSpec, Constraint, UniqueConstraint, ResolvedSchema
-from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase, PyFlinkTestCase
 
 
 class CatalogAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):

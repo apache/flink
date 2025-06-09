@@ -30,6 +30,7 @@ import org.apache.flink.table.legacy.sources.TableSource;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.Preconditions;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -126,7 +127,8 @@ public class TableSchemaUtils {
                         .map(col -> col.copy(DataTypeUtils.removeTimeAttribute(col.getDataType())))
                         .collect(Collectors.toList()),
                 resolvedSchema.getWatermarkSpecs(),
-                resolvedSchema.getPrimaryKey().orElse(null));
+                resolvedSchema.getPrimaryKey().orElse(null),
+                Collections.emptyList());
     }
 
     /**

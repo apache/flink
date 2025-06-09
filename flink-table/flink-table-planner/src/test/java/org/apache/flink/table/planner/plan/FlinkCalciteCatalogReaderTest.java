@@ -98,7 +98,11 @@ class FlinkCalciteCatalogReaderTest {
         // Mock CatalogSchemaTable.
         final ObjectIdentifier objectIdentifier = ObjectIdentifier.of("a", "b", "c");
         final ResolvedSchema schema =
-                new ResolvedSchema(Collections.emptyList(), Collections.emptyList(), null);
+                new ResolvedSchema(
+                        Collections.emptyList(),
+                        Collections.emptyList(),
+                        null,
+                        Collections.emptyList());
         final CatalogTable catalogTable =
                 ConnectorCatalogTable.source(
                         new TestTableSource(

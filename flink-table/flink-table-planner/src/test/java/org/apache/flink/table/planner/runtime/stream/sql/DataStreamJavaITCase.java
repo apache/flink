@@ -365,7 +365,8 @@ class DataStreamJavaITCase {
                                         "rowtime",
                                         ResolvedExpressionMock.of(
                                                 TIMESTAMP_LTZ(3), "`SOURCE_WATERMARK`()"))),
-                        null));
+                        null,
+                        Collections.emptyList()));
 
         tableEnv.createTemporaryView("t", table);
 
@@ -632,7 +633,8 @@ class DataStreamJavaITCase {
                                         "f0",
                                         ResolvedExpressionMock.of(
                                                 TIMESTAMP(3), "`SOURCE_WATERMARK`()"))),
-                        null));
+                        null,
+                        Collections.emptyList()));
 
         final DataStream<Long> rowtimeStream =
                 tableEnv.toDataStream(table)

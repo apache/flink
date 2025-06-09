@@ -80,7 +80,8 @@ public class ContextResolvedTableSerdeTest {
                             Column.physical("b", DataTypes.INT()),
                             Column.physical("c", DataTypes.BOOLEAN())),
                     Collections.emptyList(),
-                    null);
+                    null,
+                    Collections.emptyList());
     private static final Schema CATALOG_TABLE_SCHEMA =
             Schema.newBuilder().fromResolvedSchema(CATALOG_TABLE_RESOLVED_SCHEMA).build();
 
@@ -410,7 +411,8 @@ public class ContextResolvedTableSerdeTest {
                                         Column.physical("b", DataTypes.STRING()),
                                         Column.physical("c", DataTypes.STRING())),
                                 Collections.emptyList(),
-                                null);
+                                null,
+                                Collections.emptyList());
                 final ContextResolvedTable spec =
                         ContextResolvedTable.permanent(
                                 PERMANENT_TABLE_IDENTIFIER,

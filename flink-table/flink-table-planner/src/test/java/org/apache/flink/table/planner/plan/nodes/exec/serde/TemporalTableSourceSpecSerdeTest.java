@@ -76,7 +76,8 @@ public class TemporalTableSourceSpecSerdeTest {
                 new ResolvedSchema(
                         Collections.singletonList(Column.physical("a", DataTypes.BIGINT())),
                         Collections.emptyList(),
-                        null);
+                        null,
+                        Collections.emptyList());
 
         final CatalogTable catalogTable1 =
                 CatalogTable.newBuilder()

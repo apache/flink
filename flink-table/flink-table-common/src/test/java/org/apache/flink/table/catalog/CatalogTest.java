@@ -1621,7 +1621,8 @@ public abstract class CatalogTest {
                         Column.physical("second", DataTypes.INT()),
                         Column.physical("third", DataTypes.STRING())),
                 Collections.emptyList(),
-                null);
+                null,
+                Collections.emptyList());
     }
 
     protected ResolvedSchema createAnotherSchema() {
@@ -1631,7 +1632,8 @@ public abstract class CatalogTest {
                         Column.physical("second", DataTypes.STRING()),
                         Column.physical("third", DataTypes.STRING())),
                 Collections.emptyList(),
-                null);
+                null,
+                Collections.emptyList());
     }
 
     protected List<String> createPartitionKeys() {

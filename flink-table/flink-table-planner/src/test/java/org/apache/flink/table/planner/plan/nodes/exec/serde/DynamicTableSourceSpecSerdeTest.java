@@ -104,7 +104,8 @@ public class DynamicTableSourceSpecSerdeTest {
                 new ResolvedSchema(
                         Collections.singletonList(Column.physical("a", DataTypes.BIGINT())),
                         Collections.emptyList(),
-                        null);
+                        null,
+                        Collections.emptyList());
 
         final CatalogTable catalogTable1 =
                 CatalogTable.newBuilder()
@@ -141,7 +142,8 @@ public class DynamicTableSourceSpecSerdeTest {
                                 Column.metadata("m2", DataTypes.STRING(), null, false),
                                 Column.physical("ts", DataTypes.TIMESTAMP(3))),
                         Collections.emptyList(),
-                        null);
+                        null,
+                        Collections.emptyList());
 
         final CatalogTable catalogTable2 =
                 CatalogTable.newBuilder()
@@ -361,7 +363,8 @@ public class DynamicTableSourceSpecSerdeTest {
                                 Column.physical("b", DataTypes.INT()),
                                 Column.physical("c", DataTypes.BOOLEAN())),
                         Collections.emptyList(),
-                        null);
+                        null,
+                        Collections.emptyList());
 
         return new ResolvedCatalogTable(
                 CatalogTable.newBuilder()

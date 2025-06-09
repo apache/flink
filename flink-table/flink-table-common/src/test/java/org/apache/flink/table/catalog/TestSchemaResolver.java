@@ -27,6 +27,7 @@ import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import javax.annotation.Nullable;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +50,7 @@ public class TestSchemaResolver implements SchemaResolver {
 
         final UniqueConstraint primaryKey = resolvePrimaryKey(schema.getPrimaryKey().orElse(null));
 
-        return new ResolvedSchema(columns, watermarkSpecs, primaryKey);
+        return new ResolvedSchema(columns, watermarkSpecs, primaryKey, Collections.emptyList());
     }
 
     private List<Column> resolveColumns(List<Schema.UnresolvedColumn> unresolvedColumns) {
