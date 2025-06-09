@@ -109,7 +109,8 @@ class TypeInfoDataTypeConverterTest {
                 TestSpec.forType(new QueryableTypeInfo()).expectDataType(DataTypes.BYTES()),
                 TestSpec.forType(Types.ENUM(DayOfWeek.class))
                         .lookupExpects(DayOfWeek.class)
-                        .expectDataType(dummyRaw(DayOfWeek.class)));
+                        .expectDataType(dummyRaw(DayOfWeek.class)),
+                TestSpec.forType(Types.VARIANT).expectDataType(DataTypes.VARIANT()));
     }
 
     @ParameterizedTest(name = "{index}: {0}")

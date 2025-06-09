@@ -156,6 +156,9 @@ class FlinkTypeFactory(
       case LogicalTypeRoot.DESCRIPTOR =>
         createSqlType(SqlTypeName.COLUMN_LIST)
 
+      case LogicalTypeRoot.VARIANT =>
+        createSqlType(SqlTypeName.VARIANT)
+
       case _ @t =>
         throw new TableException(s"Type is not supported: $t")
     }
@@ -677,6 +680,8 @@ object FlinkTypeFactory {
 
       // CURSOR for UDTF case, whose type info will never be used, just a placeholder
       case CURSOR => new TypeInformationRawType[Nothing](new NothingTypeInfo)
+
+      case VARIANT => new VariantType()
 
       case OTHER if relDataType.isInstanceOf[RawRelDataType] =>
         relDataType.asInstanceOf[RawRelDataType].getRawType

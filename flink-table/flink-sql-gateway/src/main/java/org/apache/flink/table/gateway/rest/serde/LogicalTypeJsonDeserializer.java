@@ -47,6 +47,7 @@ import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.VariantType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 
@@ -159,6 +160,8 @@ public final class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalTy
                 return deserializeRow(logicalTypeNode).copy(isNullable);
             case RAW:
                 return deserializeRaw(logicalTypeNode).copy(isNullable);
+            case VARIANT:
+                return new VariantType(isNullable);
             default:
                 throw new UnsupportedOperationException(
                         String.format(

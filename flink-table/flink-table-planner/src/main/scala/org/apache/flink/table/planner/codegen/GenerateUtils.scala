@@ -633,7 +633,7 @@ object GenerateUtils {
     case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | DATE | TIME_WITHOUT_TIME_ZONE |
         INTERVAL_YEAR_MONTH | INTERVAL_DAY_TIME =>
       s"($leftTerm > $rightTerm ? 1 : $leftTerm < $rightTerm ? -1 : 0)"
-    case TIMESTAMP_WITH_TIME_ZONE | MULTISET | MAP =>
+    case TIMESTAMP_WITH_TIME_ZONE | MULTISET | MAP | VARIANT =>
       throw new UnsupportedOperationException(
         s"Type($t) is not an orderable data type, " +
           s"it is not supported as a ORDER_BY/GROUP_BY/JOIN_EQUAL field.")

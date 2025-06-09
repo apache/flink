@@ -3457,6 +3457,15 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .fails("(?s).*Encountered \"\\)\" at .*");
     }
 
+    @Test
+    void testVariantType() {
+        sql("CREATE TABLE t (\n" + "v variant" + "\n)")
+                .ok("CREATE TABLE `T` (\n" + "  `V` VARIANT\n" + ")");
+
+        sql("CREATE TABLE t (\n" + "v VARIANT NOT NULL" + "\n)")
+                .ok("CREATE TABLE `T` (\n" + "  `V` VARIANT NOT NULL\n" + ")");
+    }
+
     /** Matcher that invokes the #validate() of the {@link ExtendedSqlNode} instance. * */
     private static class ValidationMatcher extends BaseMatcher<SqlNode> {
         private String expectedColumnSql;

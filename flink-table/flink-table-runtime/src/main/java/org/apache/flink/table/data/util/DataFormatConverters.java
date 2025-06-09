@@ -67,6 +67,7 @@ import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.variant.Variant;
 
 import org.apache.commons.lang3.ArrayUtils;
 
@@ -347,7 +348,10 @@ public class DataFormatConverters {
 
                 if (clazz == RawValueData.class) {
                     return RawValueDataConverter.INSTANCE;
+                } else if (clazz == Variant.class) {
+                    return VariantConverter.INSTANCE;
                 }
+
                 return new GenericConverter(typeInfo.createSerializer(new SerializerConfigImpl()));
             default:
                 throw new RuntimeException("Not support dataType: " + dataType);
@@ -724,6 +728,20 @@ public class DataFormatConverters {
         @Override
         T toExternalImpl(RowData row, int column) {
             return (T) toExternalImpl(row.getRawValue(column));
+        }
+    }
+
+    public static final class VariantConverter extends IdentityConverter<Variant> {
+
+        private static final long serialVersionUID = 1L;
+
+        public static final VariantConverter INSTANCE = new VariantConverter();
+
+        private VariantConverter() {}
+
+        @Override
+        Variant toExternalImpl(RowData row, int column) {
+            return row.getVariant(column);
         }
     }
 
