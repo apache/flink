@@ -210,7 +210,7 @@ public final class LookupJoinUtil {
         public static final String FIELD_NAME_CAPACITY = "capacity ";
         public static final String FIELD_NAME_TIMEOUT = "timeout";
         public static final String FIELD_NAME_OUTPUT_MODE = "output-mode";
-        public static final String FIELD_NAME_KEY_ORDERED_MODE = "key-ordered-mode";
+        public static final String FIELD_NAME_IS_KEY_ORDERED = "is-key-ordered";
 
         @JsonProperty(FIELD_NAME_CAPACITY)
         public final int asyncBufferCapacity;
@@ -219,7 +219,7 @@ public final class LookupJoinUtil {
         public final long asyncTimeout;
 
         @JsonInclude(JsonInclude.Include.NON_DEFAULT)
-        @JsonProperty(FIELD_NAME_KEY_ORDERED_MODE)
+        @JsonProperty(FIELD_NAME_IS_KEY_ORDERED)
         public final boolean keyOrdered;
 
         @JsonProperty(FIELD_NAME_OUTPUT_MODE)
@@ -229,7 +229,7 @@ public final class LookupJoinUtil {
         public AsyncLookupOptions(
                 @JsonProperty(FIELD_NAME_CAPACITY) int asyncBufferCapacity,
                 @JsonProperty(FIELD_NAME_TIMEOUT) long asyncTimeout,
-                @JsonProperty(FIELD_NAME_KEY_ORDERED_MODE) boolean keyOrdered,
+                @JsonProperty(FIELD_NAME_IS_KEY_ORDERED) boolean keyOrdered,
                 @JsonProperty(FIELD_NAME_OUTPUT_MODE) AsyncDataStream.OutputMode asyncOutputMode) {
             this.asyncBufferCapacity = asyncBufferCapacity;
             this.asyncTimeout = asyncTimeout;

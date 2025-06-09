@@ -568,7 +568,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
-	<TestCase name="testJoinAsyncTableKeyOrderedCdcSource">
+	<TestCase name="testJoinAsyncTableKeyOrderedWithCdcSource">
 		<Resource name="optimized exec plan">
 		<![CDATA[
 Calc(select=[id, name, age, PROCTIME_MATERIALIZE(proctime) AS proctime, id0, name0, age0])
@@ -579,13 +579,13 @@ Calc(select=[id, name, age, PROCTIME_MATERIALIZE(proctime) AS proctime, id0, nam
 ]]>
 		</Resource>
 	</TestCase>
-	<TestCase name="testJoinAsyncTableKeyOrderedAppendOnlySource">
+	<TestCase name="testJoinAsyncTableKeyOrderedWithAppendOnlySource">
 		<Resource name="optimized exec plan">
 			<![CDATA[
 Calc(select=[id, name, age, PROCTIME_MATERIALIZE(proctime) AS proctime, id0, name0, age0])
 +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=id], select=[id, name, age, proctime, id0, name0, age0], async=[UNORDERED, KEY_ORDERED: false, 180000ms, 100])
    +- Calc(select=[id, name, age, PROCTIME() AS proctime])
-      +- TableSourceScan(table=[[default_catalog, default_database, UpsertTableAppendOnly]], fields=[id, name, age])
+      +- TableSourceScan(table=[[default_catalog, default_database, AppendOnlyTable]], fields=[id, name, age])
 ]]>
 		</Resource>
 	</TestCase>

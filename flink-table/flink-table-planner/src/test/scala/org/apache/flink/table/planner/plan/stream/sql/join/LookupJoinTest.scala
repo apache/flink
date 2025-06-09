@@ -70,7 +70,7 @@ class LookupJoinTest extends TableTestBase with Serializable {
                     |""".stripMargin)
 
     util.addTable("""
-                    |CREATE TABLE UpsertTableAppendOnly (
+                    |CREATE TABLE AppendOnlyTable (
                     |  `id` INT,
                     |  `name` STRING,
                     |  `age` INT
@@ -884,7 +884,7 @@ class LookupJoinTest extends TableTestBase with Serializable {
   }
 
   @Test
-  def testJoinAsyncTableKeyOrderedCdcSource(): Unit = {
+  def testJoinAsyncTableKeyOrderedWithCdcSource(): Unit = {
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_KEY_ORDERED, Boolean.box(true))
     val sql =
@@ -895,12 +895,12 @@ class LookupJoinTest extends TableTestBase with Serializable {
   }
 
   @Test
-  def testJoinAsyncTableKeyOrderedAppendOnlySource(): Unit = {
+  def testJoinAsyncTableKeyOrderedWithAppendOnlySource(): Unit = {
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_KEY_ORDERED, Boolean.box(true))
     val sql =
       "SELECT /*+ LOOKUP('table'='D', 'async'='true', 'output-mode'='allow_unordered') */ * " +
-        "FROM (SELECT *, PROCTIME() AS proctime FROM UpsertTableAppendOnly) AS T JOIN AsyncLookupTable " +
+        "FROM (SELECT *, PROCTIME() AS proctime FROM AppendOnlyTable) AS T JOIN AsyncLookupTable " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.id = D.id"
     util.verifyExecPlan(sql)
   }
