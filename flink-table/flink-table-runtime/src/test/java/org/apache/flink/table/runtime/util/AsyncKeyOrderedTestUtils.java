@@ -16,15 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.join.lookup.utils;
+package org.apache.flink.table.runtime.util;
 
 import java.util.Queue;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Util functions for lookup join test. */
-public class AsyncLookupTestUtils {
+/** Util functions for async key ordered test. */
+public class AsyncKeyOrderedTestUtils {
 
     public static void assertKeyOrdered(Queue<?> actual, Queue<?> expected) {
         assertFalse(actual.isEmpty());

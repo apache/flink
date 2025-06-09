@@ -54,15 +54,12 @@ import java.util.function.Consumer;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.streaming.api.operators.async.AsyncWaitOperatorTest.LazyAsyncFunction;
-import static org.apache.flink.table.runtime.operators.join.lookup.utils.AsyncLookupTestUtils.assertKeyOrdered;
+import static org.apache.flink.table.runtime.util.AsyncKeyOrderedTestUtils.assertKeyOrdered;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.fail;
 
-/**
- * Test for the component {@link AsyncExecutionController} used in table runtime for async look up
- * join.
- */
-public class AsyncExecutionControllerTest {
+/** Test for the component {@link TableAsyncExecutionController} used in table runtime. */
+public class TableAsyncExecutionControllerTest {
 
     private static final KeySelector<Integer, Integer> keySelector = input -> input;
 
@@ -320,9 +317,7 @@ public class AsyncExecutionControllerTest {
         public void completeExceptionally(Throwable error) {}
 
         @Override
-        public void complete(CollectionSupplier<Integer> supplier) {
-
-        }
+        public void complete(CollectionSupplier<Integer> supplier) {}
     }
 
     private static class TestStreamElementQueueEntry implements StreamElementQueueEntry<Integer> {
@@ -367,7 +362,7 @@ public class AsyncExecutionControllerTest {
     }
 
     private static class TestAsyncExecutionController
-            extends AsyncExecutionController<Integer, Integer, Integer> {
+            extends TableAsyncExecutionController<Integer, Integer, Integer> {
 
         private final AtomicLong processedAccount = new AtomicLong(0);
 

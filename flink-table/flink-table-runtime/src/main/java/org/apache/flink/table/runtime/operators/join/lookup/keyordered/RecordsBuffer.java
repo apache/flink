@@ -31,7 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The {@link RecordsBuffer} is used to store the element that need to be processed in {@link
- * AsyncExecutionController}.
+ * TableAsyncExecutionController}.
  */
 public class RecordsBuffer<ELEMENT, KEY> {
 

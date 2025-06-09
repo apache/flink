@@ -39,17 +39,20 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * The {@link AsyncExecutionController} is used to keep key ordered process mode for async lookup
- * join. It allows for out of order processing on different keys and sequential processing of {@link
- * StreamElement} on the same key.
+ * The {@link TableAsyncExecutionController} is used to keep key ordered process mode for async
+ * operator. It allows for out of order processing on different keys and sequential processing of
+ * {@link StreamElement} on the same key. And exist {@link
+ * org.apache.flink.runtime.asyncprocessing.AsyncExecutionController} could meet the requirements
+ * directly which is why we add {@link TableAsyncExecutionController}. TODO: Refactor this for less
+ * deduplication in the FLINK-37921.
  *
  * @param <IN> Input type for the controller.
  * @param <OUT> Output type for the controller.
  * @param <KEY> The key type for the controller.
  */
-public class AsyncExecutionController<IN, OUT, KEY> {
+public class TableAsyncExecutionController<IN, OUT, KEY> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(AsyncExecutionController.class);
+    private static final Logger LOG = LoggerFactory.getLogger(TableAsyncExecutionController.class);
 
     /** Consumer to actually call async invoke method. */
     private final ThrowingConsumer<AecRecord<IN, OUT>, Exception> asyncInvoke;
@@ -68,7 +71,7 @@ public class AsyncExecutionController<IN, OUT, KEY> {
     private final Function<StreamElementQueueEntry<OUT>, Integer> inferDrivenInputIndex;
 
     /**
-     * Function to infer which key should be blocked by this {@link AsyncExecutionController}.
+     * Function to infer which key should be blocked by this {@link TableAsyncExecutionController}.
      *
      * <p>Input args: {@code <Record, InputIndex that starts with 0>}
      */
@@ -86,7 +89,7 @@ public class AsyncExecutionController<IN, OUT, KEY> {
 
     private final AecRecord<IN, OUT> reusedRecord;
 
-    public AsyncExecutionController(
+    public TableAsyncExecutionController(
             ThrowingConsumer<AecRecord<IN, OUT>, Exception> asyncInvoke,
             Consumer<Watermark> emitWatermark,
             Consumer<StreamElementQueueEntry<OUT>> emitResult,
@@ -237,7 +240,7 @@ public class AsyncExecutionController<IN, OUT, KEY> {
 
     @VisibleForTesting
     public BiFunctionWithException<StreamRecord<IN>, Integer, KEY, Exception>
-    getInferBlockingKey() {
+            getInferBlockingKey() {
         return inferBlockingKey;
     }
 
