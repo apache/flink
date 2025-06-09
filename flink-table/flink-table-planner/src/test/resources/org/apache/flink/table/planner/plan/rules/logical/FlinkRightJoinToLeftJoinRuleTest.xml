@@ -1,0 +1,226 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+	<TestCase name="testRightJoin">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM T1 RIGHT JOIN T2 ON a = c]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalJoin(condition=[=($0, $2)], joinType=[right])
+   :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalProject(a=[$3], b=[$4], c=[$0], d=[$1], e=[$2])
+   +- LogicalJoin(condition=[=($3, $0)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+		</Resource>
+	</TestCase>
+
+	<TestCase name="testNestedProject">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM (SELECT * FROM T1 JOIN T2 ON a = c) RIGHT JOIN T3 ON a = f]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], g=[$6])
++- LogicalJoin(condition=[=($0, $5)], joinType=[right])
+   :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
+   :  +- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+   :     :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T3]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], g=[$6])
++- LogicalProject(a=[$2], b=[$3], c=[$4], d=[$5], e=[$6], f=[$0], g=[$1])
+   +- LogicalJoin(condition=[=($2, $0)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T3]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
+         +- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+            :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+		</Resource>
+	</TestCase>
+
+	<TestCase name="testRightInnerJoinChain">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM T2 RIGHT JOIN T3 on T2.c = T3.f JOIN T1 ON T1.a = T2.c]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(c=[$0], d=[$1], e=[$2], f=[$3], g=[$4], a=[$5], b=[$6])
++- LogicalJoin(condition=[=($5, $0)], joinType=[inner])
+   :- LogicalJoin(condition=[=($0, $3)], joinType=[right])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T3]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(c=[$0], d=[$1], e=[$2], f=[$3], g=[$4], a=[$5], b=[$6])
++- LogicalJoin(condition=[=($5, $0)], joinType=[inner])
+   :- LogicalProject(c=[$2], d=[$3], e=[$4], f=[$0], g=[$1])
+   :  +- LogicalJoin(condition=[=($2, $0)], joinType=[left])
+   :     :- LogicalTableScan(table=[[default_catalog, default_database, T3]])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+		</Resource>
+	</TestCase>
+
+	<TestCase name="testRightRightJoinChain">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM T2 RIGHT JOIN T3 on T2.c = T3.f RIGHT JOIN T1 ON T1.a = T2.c]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(c=[$0], d=[$1], e=[$2], f=[$3], g=[$4], a=[$5], b=[$6])
++- LogicalJoin(condition=[=($5, $0)], joinType=[right])
+   :- LogicalJoin(condition=[=($0, $3)], joinType=[right])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T3]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(c=[$0], d=[$1], e=[$2], f=[$3], g=[$4], a=[$5], b=[$6])
++- LogicalProject(c=[$2], d=[$3], e=[$4], f=[$5], g=[$6], a=[$0], b=[$1])
+   +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+      +- LogicalProject(c=[$2], d=[$3], e=[$4], f=[$0], g=[$1])
+         +- LogicalJoin(condition=[=($2, $0)], joinType=[left])
+            :- LogicalTableScan(table=[[default_catalog, default_database, T3]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+		</Resource>
+	</TestCase>
+
+	<TestCase name="testRightLeftJoinChain">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM T2 RIGHT JOIN T3 on T2.c = T3.f LEFT JOIN T1 ON T1.a = T2.c]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(c=[$0], d=[$1], e=[$2], f=[$3], g=[$4], a=[$5], b=[$6])
++- LogicalJoin(condition=[=($5, $0)], joinType=[left])
+   :- LogicalJoin(condition=[=($0, $3)], joinType=[right])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T3]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(c=[$0], d=[$1], e=[$2], f=[$3], g=[$4], a=[$5], b=[$6])
++- LogicalJoin(condition=[=($5, $0)], joinType=[left])
+   :- LogicalProject(c=[$2], d=[$3], e=[$4], f=[$0], g=[$1])
+   :  +- LogicalJoin(condition=[=($2, $0)], joinType=[left])
+   :     :- LogicalTableScan(table=[[default_catalog, default_database, T3]])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+		</Resource>
+	</TestCase>
+
+	<TestCase name="testLeftJoinRemainsUnchanged">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM T1 LEFT JOIN T2 ON a = c]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalJoin(condition=[=($0, $2)], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalJoin(condition=[=($0, $2)], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+		</Resource>
+	</TestCase>
+
+	<TestCase name="testRightJoinWithExpressionCondition">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM T1 RIGHT JOIN T2 ON a + 1 = c - 1]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalProject(a=[$0], b=[$1], c=[$3], d=[$4], e=[$5])
+   +- LogicalJoin(condition=[=($2, $6)], joinType=[right])
+      :- LogicalProject(a=[$0], b=[$1], $f2=[+($0, 1)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+      +- LogicalProject(c=[$0], d=[$1], e=[$2], $f3=[-($0, 1)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalProject(a=[$0], b=[$1], c=[$3], d=[$4], e=[$5])
+   +- LogicalProject(a=[$4], b=[$5], $f2=[$6], c=[$0], d=[$1], e=[$2], $f3=[$3])
+      +- LogicalJoin(condition=[=($6, $3)], joinType=[left])
+         :- LogicalProject(c=[$0], d=[$1], e=[$2], $f3=[-($0, 1)])
+         :  +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+         +- LogicalProject(a=[$0], b=[$1], $f2=[+($0, 1)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+		</Resource>
+	</TestCase>
+
+	<TestCase name="testRightJoinWithProjection">
+		<Resource name="sql">
+			<![CDATA[SELECT b, d FROM T1 RIGHT JOIN T2 ON a = c]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(b=[$1], d=[$3])
++- LogicalJoin(condition=[=($0, $2)], joinType=[right])
+   :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(b=[$1], d=[$3])
++- LogicalProject(a=[$3], b=[$4], c=[$0], d=[$1], e=[$2])
+   +- LogicalJoin(condition=[=($3, $0)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+		</Resource>
+	</TestCase>
+</Root>
