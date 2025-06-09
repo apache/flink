@@ -54,6 +54,8 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.MLPredictSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.ModelSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtils;
+import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.collector.ListenableCollector;
 import org.apache.flink.table.runtime.collector.TableFunctionResultFuture;
@@ -99,13 +101,13 @@ public class StreamExecMLPredictTableFunction extends ExecNodeBase<RowData>
     private final ModelSpec modelSpec;
 
     @JsonProperty(FIELD_NAME_ASYNC_OPTIONS)
-    private final @Nullable LookupJoinUtil.AsyncLookupOptions asyncOptions;
+    private final @Nullable FunctionCallUtils.AsyncOptions asyncOptions;
 
     public StreamExecMLPredictTableFunction(
             ReadableConfig persistedConfig,
             MLPredictSpec mlPredictSpec,
             ModelSpec modelSpec,
-            @Nullable LookupJoinUtil.AsyncLookupOptions asyncOptions,
+            @Nullable FunctionCallUtils.AsyncOptions asyncOptions,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -129,7 +131,7 @@ public class StreamExecMLPredictTableFunction extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_ML_PREDICT_SPEC) MLPredictSpec mlPredictSpec,
             @JsonProperty(FIELD_NAME_MODEL_SPEC) ModelSpec modelSpec,
             @JsonProperty(FIELD_NAME_ASYNC_OPTIONS) @Nullable
-                    LookupJoinUtil.AsyncLookupOptions asyncOptions,
+            FunctionCallUtils.AsyncOptions asyncOptions,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {

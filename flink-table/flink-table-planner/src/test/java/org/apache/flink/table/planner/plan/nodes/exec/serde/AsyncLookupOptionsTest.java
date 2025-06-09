@@ -25,6 +25,7 @@ import org.apache.flink.table.api.config.LookupJoinHintOptions;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.planner.hint.JoinStrategy;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.LookupJoinHintTestUtil;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtils;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
 
 import org.apache.calcite.rel.hint.RelHint;
@@ -43,43 +44,43 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Tests for {@link LookupJoinUtil.AsyncLookupOptions}. */
+/** Tests for {@link FunctionCallUtils.AsyncOptions}. */
 class AsyncLookupOptionsTest {
 
     @Test
     void testSerdeAsyncLookupOptions() throws IOException {
-        LookupJoinUtil.AsyncLookupOptions asyncLookupOptions =
+        FunctionCallUtils.AsyncOptions asyncLookupOptions =
                 LookupJoinUtil.getMergedAsyncOptions(
                         LookupJoinHintTestUtil.completeLookupHint,
                         TableConfig.getDefault(),
                         ChangelogMode.insertOnly());
-        testJsonRoundTrip(asyncLookupOptions, LookupJoinUtil.AsyncLookupOptions.class);
+        testJsonRoundTrip(asyncLookupOptions, FunctionCallUtils.AsyncOptions.class);
 
         asyncLookupOptions =
                 LookupJoinUtil.getMergedAsyncOptions(
                         LookupJoinHintTestUtil.lookupHintWithAsync,
                         TableConfig.getDefault(),
                         ChangelogMode.insertOnly());
-        testJsonRoundTrip(asyncLookupOptions, LookupJoinUtil.AsyncLookupOptions.class);
+        testJsonRoundTrip(asyncLookupOptions, FunctionCallUtils.AsyncOptions.class);
 
         asyncLookupOptions =
                 LookupJoinUtil.getMergedAsyncOptions(
                         LookupJoinHintTestUtil.lookupHintWithRetry,
                         TableConfig.getDefault(),
                         ChangelogMode.insertOnly());
-        testJsonRoundTrip(asyncLookupOptions, LookupJoinUtil.AsyncLookupOptions.class);
+        testJsonRoundTrip(asyncLookupOptions, FunctionCallUtils.AsyncOptions.class);
 
         asyncLookupOptions =
                 LookupJoinUtil.getMergedAsyncOptions(
                         LookupJoinHintTestUtil.lookupHintWithTableOnly,
                         TableConfig.getDefault(),
                         ChangelogMode.insertOnly());
-        testJsonRoundTrip(asyncLookupOptions, LookupJoinUtil.AsyncLookupOptions.class);
+        testJsonRoundTrip(asyncLookupOptions, FunctionCallUtils.AsyncOptions.class);
     }
 
     @Test
     void testAsyncLookupOptions() {
-        LookupJoinUtil.AsyncLookupOptions asyncLookupOptions =
+        FunctionCallUtils.AsyncOptions asyncLookupOptions =
                 LookupJoinUtil.getMergedAsyncOptions(
                         LookupJoinHintTestUtil.completeLookupHint,
                         TableConfig.getDefault(),

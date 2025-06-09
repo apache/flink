@@ -33,6 +33,10 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.ModelSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMLPredictTableFunction;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
 import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtils;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.Variable;
+import org.apache.flink.table.planner.plan.utils.MLPredictUtils;
+import org.apache.flink.table.planner.plan.utils.UpsertKeyUtil;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
@@ -122,7 +126,7 @@ public class StreamPhysicalMLPredictTableFunction extends SingleRel implements S
         for (int i = 0; i < fieldNames.size(); i++) {
             column2Index.put(fieldNames.get(i), i);
         }
-        List<LookupJoinUtil.LookupKey> features =
+        List<Variable> features =
                 descriptorCall.getOperands().stream()
                         .map(
                                 operand -> {
@@ -136,7 +140,7 @@ public class StreamPhysicalMLPredictTableFunction extends SingleRel implements S
                                                             "Field %s is not found in input schema: %s.",
                                                             fieldName, tableCall.getType()));
                                         }
-                                        return new LookupJoinUtil.FieldRefLookupKey(index);
+                                        return new FunctionCallUtils.FieldRef(index);
                                     } else {
                                         throw new TableException(
                                                 String.format(
@@ -154,10 +158,10 @@ public class StreamPhysicalMLPredictTableFunction extends SingleRel implements S
         return modelSpec;
     }
 
-    private LookupJoinUtil.AsyncLookupOptions buildAsyncOptions(RexModelCall modelCall) {
+    private FunctionCallUtils.AsyncOptions buildAsyncOptions(RexModelCall modelCall) {
         boolean isAsyncEnabled = isAsyncMLPredict(modelCall.getModelProvider());
         if (isAsyncEnabled) {
-            return LookupJoinUtil.getMergedMLPredictAsyncOptions(
+            return MLPredictUtils.getMergedMLPredictAsyncOptions(
                     // TODO: extract runtime config
                     Collections.emptyMap(),
                     ShortcutUtils.unwrapTableConfig(getCluster()),

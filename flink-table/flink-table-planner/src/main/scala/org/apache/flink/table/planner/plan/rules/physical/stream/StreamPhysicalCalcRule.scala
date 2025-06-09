@@ -20,10 +20,10 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalCalc
-import org.apache.flink.table.planner.plan.utils.AsyncUtil
-import org.apache.flink.table.planner.plan.utils.AsyncUtil.containsAsyncCall
+import org.apache.flink.table.planner.plan.utils.AsyncScalarUtil
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 
+import AsyncScalarUtil.containsAsyncCall
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
