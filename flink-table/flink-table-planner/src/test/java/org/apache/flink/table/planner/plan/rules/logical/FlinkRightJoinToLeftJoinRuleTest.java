@@ -15,10 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.table.planner.plan.rules.logical;
 
-import org.apache.calcite.plan.hep.HepMatchOrder;
-import org.apache.calcite.tools.RuleSets;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableConfig;
@@ -31,6 +30,9 @@ import org.apache.flink.table.planner.plan.optimize.program.StreamOptimizeContex
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.planner.utils.TableTestBase;
+
+import org.apache.calcite.plan.hep.HepMatchOrder;
+import org.apache.calcite.tools.RuleSets;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -88,52 +90,44 @@ public class FlinkRightJoinToLeftJoinRuleTest extends TableTestBase {
 
     @Test
     public void testRightJoin() {
-        String sqlQuery = "SELECT * FROM T1 RIGHT JOIN T2 ON a = c";
-        util.verifyRelPlan(sqlQuery);
+        util.verifyRelPlan("SELECT * FROM T1 RIGHT JOIN T2 ON a = c");
     }
 
     @Test
     public void testNestedProject() {
-        String sqlQuery =
-                "SELECT * FROM (SELECT * FROM T1 JOIN T2 ON a = c) RIGHT JOIN T3 ON a = f";
-        util.verifyRelPlan(sqlQuery);
+        util.verifyRelPlan(
+                "SELECT * FROM (SELECT * FROM T1 JOIN T2 ON a = c) RIGHT JOIN T3 ON a = f");
     }
 
     @Test
     public void testRightInnerJoinChain() {
-        String sqlQuery = "SELECT * FROM T2 RIGHT JOIN T3 on T2.c = T3.f JOIN T1 ON T1.a = T2.c";
-        util.verifyRelPlan(sqlQuery);
+        util.verifyRelPlan("SELECT * FROM T2 RIGHT JOIN T3 on T2.c = T3.f JOIN T1 ON T1.a = T2.c");
     }
 
     @Test
     public void testRightRightJoinChain() {
-        String sqlQuery =
-                "SELECT * FROM T2 RIGHT JOIN T3 on T2.c = T3.f RIGHT JOIN T1 ON T1.a = T2.c";
-        util.verifyRelPlan(sqlQuery);
+        util.verifyRelPlan(
+                "SELECT * FROM T2 RIGHT JOIN T3 on T2.c = T3.f RIGHT JOIN T1 ON T1.a = T2.c");
     }
 
     @Test
     public void testRightLeftJoinChain() {
-        String sqlQuery =
-                "SELECT * FROM T2 RIGHT JOIN T3 on T2.c = T3.f LEFT JOIN T1 ON T1.a = T2.c";
-        util.verifyRelPlan(sqlQuery);
+        util.verifyRelPlan(
+                "SELECT * FROM T2 RIGHT JOIN T3 on T2.c = T3.f LEFT JOIN T1 ON T1.a = T2.c");
     }
 
     @Test
     public void testLeftJoinRemainsUnchanged() {
-        String sqlQuery = "SELECT * FROM T1 LEFT JOIN T2 ON a = c";
-        util.verifyRelPlan(sqlQuery);
+        util.verifyRelPlan("SELECT * FROM T1 LEFT JOIN T2 ON a = c");
     }
 
     @Test
     public void testRightJoinWithExpressionCondition() {
-        String sqlQuery = "SELECT * FROM T1 RIGHT JOIN T2 ON a + 1 = c - 1";
-        util.verifyRelPlan(sqlQuery);
+        util.verifyRelPlan("SELECT * FROM T1 RIGHT JOIN T2 ON a + 1 = c - 1");
     }
 
     @Test
     public void testRightJoinWithProjection() {
-        String sqlQuery = "SELECT b, d FROM T1 RIGHT JOIN T2 ON a = c";
-        util.verifyRelPlan(sqlQuery);
+        util.verifyRelPlan("SELECT b, d FROM T1 RIGHT JOIN T2 ON a = c");
     }
 }
