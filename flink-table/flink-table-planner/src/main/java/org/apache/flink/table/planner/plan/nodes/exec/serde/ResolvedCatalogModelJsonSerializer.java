@@ -42,7 +42,6 @@ public class ResolvedCatalogModelJsonSerializer extends StdSerializer<ResolvedCa
     static final String INPUT_SCHEMA = "inputSchema";
     static final String OUTPUT_SCHEMA = "outputSchema";
     static final String OPTIONS = "options";
-
     static final String COMMENT = "comment";
 
     public ResolvedCatalogModelJsonSerializer() {

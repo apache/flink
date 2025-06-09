@@ -38,8 +38,8 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanS
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.traverse;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedCatalogModelJsonSerializer.COMMENT;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedCatalogModelJsonSerializer.INPUT_SCHEMA;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedCatalogModelJsonSerializer.OPTIONS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedCatalogModelJsonSerializer.OUTPUT_SCHEMA;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedCatalogTableJsonSerializer.OPTIONS;
 
 /**
  * JSON deserializer for {@link ResolvedCatalogModel}.

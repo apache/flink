@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedModel;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogModel;
@@ -37,13 +36,14 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Obje
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 
 import static org.apache.flink.table.api.config.TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS;
 import static org.apache.flink.table.api.config.TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.areColumnsEqual;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.deserializeOptionalField;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.isLookupForced;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.isPlanEnforced;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.traverse;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ContextResolvedModelJsonSerializer.FIELD_NAME_CATALOG_MODEL;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ContextResolvedModelJsonSerializer.FIELD_NAME_IDENTIFIER;
@@ -104,7 +104,7 @@ public class ContextResolvedModelJsonDeserializer extends StdDeserializer<Contex
         // If we have a schema from the plan and from the catalog, we need to check they match.
         if (restoredModel != null && contextResolvedModelFromCatalog.isPresent()) {
             ContextResolvedModel modelFromCatalog = contextResolvedModelFromCatalog.get();
-            if (!areResolvedSchemasEqual(
+            if (!areColumnsEqual(
                     restoredModel.getResolvedInputSchema(),
                     modelFromCatalog.getResolvedModel().getResolvedInputSchema())) {
                 throw schemaNotMatching(
@@ -113,7 +113,7 @@ public class ContextResolvedModelJsonDeserializer extends StdDeserializer<Contex
                         restoredModel.getResolvedInputSchema(),
                         modelFromCatalog.getResolvedModel().getResolvedInputSchema());
             }
-            if (!areResolvedSchemasEqual(
+            if (!areColumnsEqual(
                     restoredModel.getResolvedOutputSchema(),
                     modelFromCatalog.getResolvedModel().getResolvedOutputSchema())) {
                 throw schemaNotMatching(
@@ -130,7 +130,7 @@ public class ContextResolvedModelJsonDeserializer extends StdDeserializer<Contex
         }
 
         if (contextResolvedModelFromCatalog.isPresent()) {
-            // If no config map is present, then the ContextResolvedTable was serialized with
+            // If no config map is present, then the ContextResolvedModel was serialized with
             // SCHEMA, so we just need to return the catalog query result
             if (objectNode.at(optionsPointer).isMissingNode()) {
                 return contextResolvedModelFromCatalog.get();
@@ -143,40 +143,6 @@ public class ContextResolvedModelJsonDeserializer extends StdDeserializer<Contex
         }
 
         return ContextResolvedModel.temporary(identifier, restoredModel);
-    }
-
-    private boolean isPlanEnforced(TableConfigOptions.CatalogPlanRestore planRestoreOption) {
-        return planRestoreOption == TableConfigOptions.CatalogPlanRestore.ALL_ENFORCED;
-    }
-
-    private boolean isLookupForced(TableConfigOptions.CatalogPlanRestore planRestoreOption) {
-        return planRestoreOption == TableConfigOptions.CatalogPlanRestore.IDENTIFIER;
-    }
-
-    private boolean areResolvedSchemasEqual(
-            ResolvedSchema schemaFromPlan, ResolvedSchema schemaFromCatalog) {
-        // For schema equality we check:
-        //  * Columns size and order
-        //  * For each column: name, kind (class) and type
-        final List<Column> columnsFromPlan = schemaFromPlan.getColumns();
-        final List<Column> columnsFromCatalog = schemaFromCatalog.getColumns();
-
-        if (columnsFromPlan.size() != columnsFromCatalog.size()) {
-            return false;
-        }
-
-        for (int i = 0; i < columnsFromPlan.size(); i++) {
-            final Column columnFromPlan = columnsFromPlan.get(i);
-            final Column columnFromCatalog = columnsFromCatalog.get(i);
-            if (!Objects.equals(columnFromPlan.getName(), columnFromCatalog.getName())
-                    || !Objects.equals(columnFromPlan.getClass(), columnFromCatalog.getClass())
-                    || !Objects.equals(
-                            columnFromPlan.getDataType(), columnFromCatalog.getDataType())) {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     static TableException schemaNotMatching(
