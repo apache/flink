@@ -88,13 +88,13 @@ ORDERED ensures that the operator emits the result in the same order as the data
             <td>Set whether to use the SQL/Table operators based on the asynchronous state api. Default value is false.</td>
         </tr>
         <tr>
-            <td><h5>table.exec.async-table.buffer-capacity</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td><h5>table.exec.async-table.max-concurrent-operations</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">10</td>
             <td>Integer</td>
-            <td>The max number of async i/o operations that the async table function can trigger.</td>
+            <td>The max number of concurrent async i/o operations that the async table function can trigger.</td>
         </tr>
         <tr>
-            <td><h5>table.exec.async-table.max-attempts</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td><h5>table.exec.async-table.max-retries</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">3</td>
             <td>Integer</td>
             <td>The max number of async retry attempts to make before task execution is failed.</td>
@@ -115,7 +115,7 @@ ORDERED ensures that the operator emits the result in the same order as the data
             <td><h5>table.exec.async-table.timeout</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">3 min</td>
             <td>Duration</td>
-            <td>The async timeout for the asynchronous operation to complete.</td>
+            <td>The async timeout for the asynchronous operation to complete, including any retries which may occur.</td>
         </tr>
         <tr>
             <td><h5>table.exec.deduplicate.insert-update-after-sensitive-enabled</h5><br> <span class="label label-primary">Streaming</span></td>
