@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.config.MLPredictRuntimeConfigOptions;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.ml.AsyncPredictRuntimeProvider;
 import org.apache.flink.table.ml.ModelProvider;
@@ -51,12 +53,17 @@ import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlDescriptorOperator;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+
+import static org.apache.calcite.sql.SqlKind.MAP_VALUE_CONSTRUCTOR;
 
 /** Stream physical RelNode for ml predict table function. */
 public class StreamPhysicalMLPredictTableFunction extends SingleRel implements StreamPhysicalRel {
@@ -89,11 +96,12 @@ public class StreamPhysicalMLPredictTableFunction extends SingleRel implements S
     @Override
     public ExecNode<?> translateToExecNode() {
         RexModelCall modelCall = extractOperand(operand -> operand instanceof RexModelCall);
+        Map<String, String> runtimeConfig = buildRuntimeConfig();
         return new StreamExecMLPredictTableFunction(
                 ShortcutUtils.unwrapTableConfig(this),
-                buildMLPredictSpec(),
+                buildMLPredictSpec(runtimeConfig),
                 buildModelSpec(modelCall),
-                buildAsyncOptions(modelCall),
+                buildAsyncOptions(modelCall, runtimeConfig),
                 InputProperty.DEFAULT,
                 FlinkTypeFactory.toLogicalRowType(getRowType()),
                 getRelDetailedDescription());
@@ -111,7 +119,7 @@ public class StreamPhysicalMLPredictTableFunction extends SingleRel implements S
                 .item("rowType", getRowType());
     }
 
-    private MLPredictSpec buildMLPredictSpec() {
+    private MLPredictSpec buildMLPredictSpec(Map<String, String> runtimeConfig) {
         RexTableArgCall tableCall = extractOperand(operand -> operand instanceof RexTableArgCall);
         RexCall descriptorCall =
                 extractOperand(
@@ -147,7 +155,7 @@ public class StreamPhysicalMLPredictTableFunction extends SingleRel implements S
                                     }
                                 })
                         .collect(Collectors.toList());
-        return new MLPredictSpec(features, Collections.emptyMap());
+        return new MLPredictSpec(features, runtimeConfig);
     }
 
     private ModelSpec buildModelSpec(RexModelCall modelCall) {
@@ -156,12 +164,12 @@ public class StreamPhysicalMLPredictTableFunction extends SingleRel implements S
         return modelSpec;
     }
 
-    private FunctionCallUtils.AsyncOptions buildAsyncOptions(RexModelCall modelCall) {
-        boolean isAsyncEnabled = isAsyncMLPredict(modelCall.getModelProvider());
+    private @Nullable FunctionCallUtils.AsyncOptions buildAsyncOptions(
+            RexModelCall modelCall, Map<String, String> runtimeConfig) {
+        boolean isAsyncEnabled = isAsyncMLPredict(modelCall.getModelProvider(), runtimeConfig);
         if (isAsyncEnabled) {
             return MLPredictUtils.getMergedMLPredictAsyncOptions(
-                    // TODO: extract runtime config
-                    Collections.emptyMap(),
+                    runtimeConfig,
                     ShortcutUtils.unwrapTableConfig(getCluster()),
                     getInputChangelogMode(getInput()));
         } else {
@@ -169,24 +177,50 @@ public class StreamPhysicalMLPredictTableFunction extends SingleRel implements S
         }
     }
 
+    private Map<String, String> buildRuntimeConfig() {
+        Optional<RexCall> optionalMapConstructor =
+                extractOptionalOperand(operand -> operand.getKind() == MAP_VALUE_CONSTRUCTOR);
+        if (optionalMapConstructor.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        RexCall mapConstructor = optionalMapConstructor.get();
+        Map<String, String> reducedConfig = new HashMap<>();
+        assert mapConstructor.getOperands().size() % 2 == 0;
+        for (int i = 0; i < mapConstructor.getOperands().size(); i += 2) {
+            String key = RexLiteral.stringValue(mapConstructor.getOperands().get(i));
+            String value = RexLiteral.stringValue(mapConstructor.getOperands().get(i + 1));
+            reducedConfig.put(key, value);
+        }
+        return reducedConfig;
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> Optional<T> extractOptionalOperand(Predicate<RexNode> predicate) {
+        return (Optional<T>)
+                ((RexCall) scan.getCall()).getOperands().stream().filter(predicate).findFirst();
+    }
+
     @SuppressWarnings("unchecked")
     private <T> T extractOperand(Predicate<RexNode> predicate) {
         return (T)
-                ((RexCall) scan.getCall())
-                        .getOperands().stream()
-                                .filter(predicate)
-                                .findFirst()
-                                .orElseThrow(
-                                        () ->
-                                                new TableException(
-                                                        String.format(
-                                                                "MLPredict doesn't contain specified operand: %s",
-                                                                scan.getCall().toString())));
+                extractOptionalOperand(predicate)
+                        .orElseThrow(
+                                () ->
+                                        new TableException(
+                                                String.format(
+                                                        "MLPredict doesn't contain specified operand: %s",
+                                                        scan.getCall().toString())));
     }
 
-    private boolean isAsyncMLPredict(ModelProvider provider) {
+    private boolean isAsyncMLPredict(ModelProvider provider, Map<String, String> runtimeConfig) {
         boolean syncFound = false;
         boolean asyncFound = false;
+        boolean preferAsync =
+                FunctionCallUtils.coalesce(
+                        Configuration.fromMap(runtimeConfig)
+                                .get(MLPredictRuntimeConfigOptions.ASYNC),
+                        true);
+
         if (provider instanceof PredictRuntimeProvider) {
             syncFound = true;
         }
@@ -199,7 +233,7 @@ public class StreamPhysicalMLPredictTableFunction extends SingleRel implements S
                     String.format(
                             "Unknown model provider found: %s.", provider.getClass().getName()));
         }
-        return asyncFound;
+        return preferAsync && asyncFound;
     }
 
     private ChangelogMode getInputChangelogMode(RelNode rel) {

@@ -147,7 +147,7 @@ public class MLPredictTestPrograms {
                     .build();
 
     public static final TableTestProgram ASYNC_UNORDERED_ML_PREDICT =
-            TableTestProgram.of("async-unordered-ml-predict", "ml-predict in sync unordered mode.")
+            TableTestProgram.of("async-unordered-ml-predict", "ml-predict in async unordered mode.")
                     .setupTableSource(FEATURES_TABLE)
                     .setupModel(ASYNC_MODEL)
                     .setupTableSink(SINK_TABLE)
@@ -165,6 +165,17 @@ public class MLPredictTestPrograms {
                     .setupTableSink(SINK_CDC_TABLE)
                     .runSql(
                             "INSERT INTO sink_t SELECT * FROM ML_PREDICT(TABLE features_cdc, MODEL chatgpt, DESCRIPTOR(feature))")
+                    .build();
+
+    public static final TableTestProgram SYNC_ML_PREDICT_WITH_RUNTIME_CONFIG =
+            TableTestProgram.of(
+                            "sync-ml-predict-with-runtime-options",
+                            "ml-predict in sync mode with runtime config.")
+                    .setupTableSource(FEATURES_TABLE)
+                    .setupModel(ASYNC_MODEL)
+                    .setupTableSink(SINK_TABLE)
+                    .runSql(
+                            "INSERT INTO sink_t SELECT * FROM ML_PREDICT(TABLE features, MODEL chatgpt, DESCRIPTOR(feature), MAP['async', 'false'])")
                     .build();
     ;
 }
