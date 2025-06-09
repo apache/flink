@@ -58,9 +58,12 @@ import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.VariantType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.variant.BinaryVariant;
+import org.apache.flink.types.variant.Variant;
 
 import org.assertj.core.api.ThrowingConsumer;
 import org.junit.jupiter.api.Test;
@@ -595,6 +598,18 @@ public class LogicalTypesTest {
                 .supportsOutputConversion(Object.class)
                 .supportsOutputConversion(Integer.class)
                 .doesNotSupportOutputConversion(int.class);
+    }
+
+    @Test
+    void testVariantType() {
+        assertThat(new VariantType())
+                .isJavaSerializable()
+                .hasSerializableString("VARIANT")
+                .hasSummaryString("VARIANT")
+                .supportsOutputConversion(Variant.class)
+                .supportsOutputConversion(BinaryVariant.class)
+                .supportsInputConversion(Variant.class)
+                .supportsInputConversion(BinaryVariant.class);
     }
 
     @Test

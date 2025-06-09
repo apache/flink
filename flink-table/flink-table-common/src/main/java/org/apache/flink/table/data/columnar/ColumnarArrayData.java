@@ -41,6 +41,7 @@ import org.apache.flink.table.data.columnar.vector.MapColumnVector;
 import org.apache.flink.table.data.columnar.vector.RowColumnVector;
 import org.apache.flink.table.data.columnar.vector.ShortColumnVector;
 import org.apache.flink.table.data.columnar.vector.TimestampColumnVector;
+import org.apache.flink.types.variant.Variant;
 
 import java.util.Arrays;
 
@@ -127,6 +128,11 @@ public final class ColumnarArrayData implements ArrayData, TypedSetters {
     @Override
     public <T> RawValueData<T> getRawValue(int pos) {
         throw new UnsupportedOperationException("RawValueData is not supported.");
+    }
+
+    @Override
+    public Variant getVariant(int i) {
+        throw new UnsupportedOperationException("Variant is not supported yet.");
     }
 
     @Override

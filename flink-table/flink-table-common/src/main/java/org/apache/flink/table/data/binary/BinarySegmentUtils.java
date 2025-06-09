@@ -29,8 +29,10 @@ import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.types.variant.BinaryVariant;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 import static org.apache.flink.core.memory.MemoryUtils.UNSAFE;
@@ -1170,5 +1172,22 @@ public final class BinarySegmentUtils {
             }
         }
         return -1;
+    }
+
+    public static BinaryVariant readVariant(
+            MemorySegment[] segments, int baseOffset, long offsetAndSize) {
+        final int size = ((int) offsetAndSize);
+        int offset = (int) (offsetAndSize >> 32);
+        byte[] bytes = copyToBytes(segments, offset + baseOffset, size);
+        ByteBuffer buffer = ByteBuffer.wrap(bytes);
+        int metaLen = buffer.getInt();
+        int valueLen = bytes.length - 4 - metaLen;
+
+        byte[] meta = new byte[metaLen];
+        byte[] value = new byte[valueLen];
+        buffer.get(meta, 0, metaLen);
+        buffer.get(value, 0, valueLen);
+
+        return new BinaryVariant(value, meta);
     }
 }

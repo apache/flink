@@ -2119,6 +2119,45 @@ class AggregateITCase(
 
     tEnv.dropTemporarySystemFunction("PERCENTILE")
   }
+
+  @TestTemplate
+  def testVariantAggFunction(): Unit = {
+
+    val data = new mutable.MutableList[(Int, String)]
+
+    data += ((1, "1"), (1, "2"), (2, "1"), (2, "1"))
+
+    val t = failingDataSource(data).toTable(tEnv, 'a, 's)
+    tEnv.createTemporaryView("MyTable", t)
+
+    var sql =
+      """
+        |CREATE TEMPORARY VIEW variant_view AS SELECT
+        |   a, 
+        |   TRY_PARSE_JSON(s) AS v
+        |FROM MyTable
+        |""".stripMargin
+
+    tEnv.executeSql(sql);
+
+    sql = """
+            |SELECT
+            |   a,
+            |   LAST_VALUE(v),
+            |   FIRST_VALUE(v),
+            |   COUNT(v),
+            |   COUNT(DISTINCT v)
+            |FROM variant_view
+            |GROUP BY a
+      """.stripMargin
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = List("1,2,1,2,2", "2,1,1,2,1")
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
 }
 
 object AggregateITCase {

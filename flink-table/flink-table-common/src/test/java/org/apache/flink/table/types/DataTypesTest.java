@@ -45,12 +45,14 @@ import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.VariantType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType.YearMonthResolution;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.variant.Variant;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -96,6 +98,7 @@ import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_TIME_ZONE;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.api.DataTypes.VARBINARY;
 import static org.apache.flink.table.api.DataTypes.VARCHAR;
+import static org.apache.flink.table.api.DataTypes.VARIANT;
 import static org.apache.flink.table.test.TableAssertions.assertThat;
 import static org.apache.flink.table.types.logical.DayTimeIntervalType.DEFAULT_DAY_PRECISION;
 import static org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution.MINUTE_TO_SECOND;
@@ -218,6 +221,9 @@ class DataTypesTest {
                 TestSpec.forDataType(RAW(Void.class, VoidSerializer.INSTANCE))
                         .expectLogicalType(new RawType<>(Void.class, VoidSerializer.INSTANCE))
                         .expectConversionClass(Void.class),
+                TestSpec.forDataType(VARIANT())
+                        .expectLogicalType(new VariantType())
+                        .expectConversionClass(Variant.class),
                 TestSpec.forUnresolvedDataType(RAW(Types.VOID))
                         .expectUnresolvedString("[RAW('java.lang.Void', '?')]")
                         .lookupReturns(dummyRaw(Void.class))
@@ -287,7 +293,10 @@ class DataTypesTest {
                 TestSpec.forUnresolvedDataType(DataTypes.of(Types.ENUM(DayOfWeek.class)))
                         .expectUnresolvedString("['EnumTypeInfo<java.time.DayOfWeek>']")
                         .lookupReturns(dummyRaw(DayOfWeek.class))
-                        .expectResolvedDataType(dummyRaw(DayOfWeek.class)));
+                        .expectResolvedDataType(dummyRaw(DayOfWeek.class)),
+                TestSpec.forUnresolvedDataType(DataTypes.of(Variant.class))
+                        .expectUnresolvedString("['org.apache.flink.types.variant.Variant']")
+                        .expectResolvedDataType(VARIANT()));
     }
 
     @ParameterizedTest(name = "{index}: {0}")

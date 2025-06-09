@@ -147,6 +147,7 @@ public final class TypeInfoDataTypeConverter {
                 PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO,
                 DataTypes.ARRAY(DataTypes.DOUBLE().notNull().bridgedTo(double.class))
                         .bridgedTo(double[].class));
+        conversionMap.put(Types.VARIANT, DataTypes.VARIANT());
     }
 
     /** Converts the given {@link TypeInformation} into {@link DataType}. */

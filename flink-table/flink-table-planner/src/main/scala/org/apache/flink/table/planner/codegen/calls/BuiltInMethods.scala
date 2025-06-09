@@ -499,6 +499,14 @@ object BuiltInMethods {
 
   val IS_JSON_SCALAR = Types.lookupMethod(classOf[SqlJsonUtils], "isJsonScalar", classOf[String])
 
+  // VARIANT functions
+
+  val PARSE_JSON =
+    Types.lookupMethod(classOf[VariantUtils], "parseJson", classOf[String], classOf[Boolean])
+
+  val TRY_PARSE_JSON =
+    Types.lookupMethod(classOf[VariantUtils], "tryParseJson", classOf[String], classOf[Boolean])
+
   // STRING functions
 
   val BINARY_STRING_DATA_FROM_STRING =

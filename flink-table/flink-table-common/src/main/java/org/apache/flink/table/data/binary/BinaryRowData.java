@@ -33,6 +33,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.types.variant.BinaryVariant;
 
 import java.nio.ByteOrder;
 
@@ -386,6 +387,12 @@ public final class BinaryRowData extends BinarySection
     public RowData getRow(int pos, int numFields) {
         assertIndexIsValid(pos);
         return BinarySegmentUtils.readRowData(segments, numFields, offset, getLong(pos));
+    }
+
+    @Override
+    public BinaryVariant getVariant(int pos) {
+        assertIndexIsValid(pos);
+        return BinarySegmentUtils.readVariant(segments, offset, getLong(pos));
     }
 
     /** The bit is 1 when the field is null. Default is 0. */

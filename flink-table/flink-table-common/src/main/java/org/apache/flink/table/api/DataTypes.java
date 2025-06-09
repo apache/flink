@@ -60,6 +60,7 @@ import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.VariantType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType.YearMonthResolution;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
@@ -1026,6 +1027,10 @@ public final class DataTypes {
                 Stream.of(fields).map(DataTypes.Field::getDataType).collect(Collectors.toList());
         return new FieldsDataType(
                 structuredType, structuredType.getDefaultConversion(), fieldDataTypes);
+    }
+
+    public static DataType VARIANT() {
+        return new AtomicDataType(new VariantType());
     }
 
     // --------------------------------------------------------------------------------------------

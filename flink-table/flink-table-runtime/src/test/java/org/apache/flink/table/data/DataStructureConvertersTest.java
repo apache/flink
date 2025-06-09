@@ -28,6 +28,8 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.types.variant.BinaryVariantBuilder;
+import org.apache.flink.types.variant.Variant;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -356,6 +358,8 @@ class DataStructureConvertersTest {
                                 DataTypes.STRUCTURED(GenericPojo.class, FIELD("value", DATE())))
                         .convertedTo(
                                 GenericPojo.class, new GenericPojo<>(LocalDate.ofEpochDay(123))),
+                TestSpec.forDataType(DataTypes.VARIANT())
+                        .convertedTo(Variant.class, new BinaryVariantBuilder().of("hello")),
 
                 // partial delete messages
                 TestSpec.forDataType(

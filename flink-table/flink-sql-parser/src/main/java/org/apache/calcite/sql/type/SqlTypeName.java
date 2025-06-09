@@ -856,7 +856,7 @@ public enum SqlTypeName {
      */
     public int getMinScale() {
         switch (this) {
-                // TODO: Minimum numeric scale for decimal
+            // TODO: Minimum numeric scale for decimal
             case INTERVAL_YEAR:
             case INTERVAL_YEAR_MONTH:
             case INTERVAL_MONTH:

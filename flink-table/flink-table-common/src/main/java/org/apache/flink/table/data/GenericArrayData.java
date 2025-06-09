@@ -20,6 +20,7 @@ package org.apache.flink.table.data;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.types.variant.Variant;
 
 import org.apache.commons.lang3.ArrayUtils;
 
@@ -236,6 +237,11 @@ public final class GenericArrayData implements ArrayData {
     @Override
     public <T> RawValueData<T> getRawValue(int pos) {
         return (RawValueData<T>) getObject(pos);
+    }
+
+    @Override
+    public Variant getVariant(int pos) {
+        return (Variant) getObject(pos);
     }
 
     @Override

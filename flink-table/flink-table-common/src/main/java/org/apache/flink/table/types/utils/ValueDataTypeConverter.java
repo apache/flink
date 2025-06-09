@@ -25,6 +25,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.types.variant.Variant;
 
 import java.math.BigDecimal;
 import java.util.Objects;
@@ -90,6 +91,8 @@ public final class ValueDataTypeConverter {
             // don't let the class-based extraction kick in if array elements differ
             return convertToArrayType((Object[]) value)
                     .map(dt -> dt.notNull().bridgedTo(value.getClass()));
+        } else if (value instanceof Variant) {
+            convertedDataType = DataTypes.VARIANT();
         }
 
         final Optional<DataType> resultType;
