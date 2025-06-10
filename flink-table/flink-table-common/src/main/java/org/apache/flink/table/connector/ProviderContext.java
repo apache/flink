@@ -20,7 +20,6 @@ package org.apache.flink.table.connector;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.connector.sink.DynamicTableSink.SinkRuntimeProvider;
 import org.apache.flink.table.connector.source.ScanTableSource.ScanRuntimeProvider;
 
@@ -34,7 +33,7 @@ import java.util.Optional;
 public interface ProviderContext {
 
     /**
-     * Generates a new unique identifier for a {@link Transformation}/{@link DataStream} operator.
+     * Generates a new unique identifier for a {@link Transformation}/{@code DataStream} operator.
      * The {@code name} must be unique within the provider implementation. The framework will make
      * sure that the name is unique for the entire topology.
      *

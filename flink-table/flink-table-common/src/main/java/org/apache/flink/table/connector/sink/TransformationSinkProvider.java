@@ -16,15 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.connectors;
+package org.apache.flink.table.connector.sink;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.connector.ProviderContext;
-import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.sink.OutputFormatProvider;
-import org.apache.flink.table.connector.sink.legacy.SinkFunctionProvider;
 import org.apache.flink.table.data.RowData;
 
 /**
@@ -32,8 +28,7 @@ import org.apache.flink.table.data.RowData;
  * DynamicTableSink}.
  *
  * <p>Note: This provider is only meant for advanced connector developers. Usually, a sink should
- * consist of a single entity expressed via {@link OutputFormatProvider}, {@link
- * SinkFunctionProvider}.
+ * consist of a single entity expressed via {@link OutputFormatProvider} or {@link SinkV2Provider}.
  */
 @Internal
 public interface TransformationSinkProvider extends DynamicTableSink.SinkRuntimeProvider {
@@ -41,7 +36,7 @@ public interface TransformationSinkProvider extends DynamicTableSink.SinkRuntime
     /**
      * Creates a transformation for transforming the input provided in the context.
      *
-     * <p>Note: If the {@link CompiledPlan} feature should be supported, this method MUST set a
+     * <p>Note: If the {@code CompiledPlan} feature should be supported, this method MUST set a
      * unique identifier for each transformation/operator in the data stream. This enables stateful
      * Flink version upgrades for streaming jobs. The identifier is used to map state back from a
      * savepoint to an actual operator in the topology. The framework can generate topology-wide
@@ -52,6 +47,7 @@ public interface TransformationSinkProvider extends DynamicTableSink.SinkRuntime
     Transformation<?> createTransformation(Context context);
 
     /** Context for {@link #createTransformation(Context)}. */
+    @Internal
     interface Context extends ProviderContext {
 
         /** Input transformation to transform. */

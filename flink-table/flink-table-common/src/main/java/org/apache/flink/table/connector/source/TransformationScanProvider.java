@@ -16,17 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.connectors;
+package org.apache.flink.table.connector.source;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.legacy.table.connector.source.SourceFunctionProvider;
-import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.connector.ProviderContext;
-import org.apache.flink.table.connector.source.InputFormatProvider;
-import org.apache.flink.table.connector.source.ScanTableSource;
-import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.data.RowData;
 
 /**
@@ -34,8 +29,7 @@ import org.apache.flink.table.data.RowData;
  * ScanTableSource}.
  *
  * <p>Note: This provider is only meant for advanced connector developers. Usually, a source should
- * consist of a single entity expressed via {@link InputFormatProvider}, {@link
- * SourceFunctionProvider}, or {@link SourceProvider}.
+ * consist of a single entity expressed via {@link InputFormatProvider} or {@link SourceProvider}.
  */
 @Internal
 public interface TransformationScanProvider
@@ -44,7 +38,7 @@ public interface TransformationScanProvider
     /**
      * Creates a {@link Transformation} instance.
      *
-     * <p>Note: If the {@link CompiledPlan} feature should be supported, this method MUST set a
+     * <p>Note: If the {@code CompiledPlan} feature should be supported, this method MUST set a
      * unique identifier for each transformation/operator in the data stream. This enables stateful
      * Flink version upgrades for streaming jobs. The identifier is used to map state back from a
      * savepoint to an actual operator in the topology. The framework can generate topology-wide
