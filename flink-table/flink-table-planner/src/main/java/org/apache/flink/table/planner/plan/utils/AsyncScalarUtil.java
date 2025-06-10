@@ -23,10 +23,7 @@ import org.apache.flink.streaming.api.functions.async.AsyncRetryStrategy;
 import org.apache.flink.streaming.util.retryable.AsyncRetryStrategies;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
-
-import org.apache.calcite.rex.RexNode;
 
 import java.time.Duration;
 

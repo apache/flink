@@ -18,28 +18,14 @@
 
 package org.apache.flink.table.planner.plan.utils;
 
-<<<<<<< HEAD
-=======
-import org.apache.flink.streaming.api.datastream.AsyncDataStream;
-import org.apache.flink.streaming.api.functions.async.AsyncRetryStrategy;
-import org.apache.flink.streaming.util.retryable.AsyncRetryStrategies;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.rules.logical.RemoteCallFinder;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.util.Preconditions;
 
->>>>>>> 8ace5b0ea7c (Review feedback)
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
-
-import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.functions.FunctionKind;
-import org.apache.flink.table.planner.utils.ShortcutUtils;
-import org.apache.flink.util.Preconditions;
 
 /** Utility class for working with async function calls in RexNodes. */
 public class AsyncUtil {
@@ -63,8 +49,7 @@ public class AsyncUtil {
     }
 
     /**
-     * Checks whether it contains a function call in the node that is not the async kind
-     * specified.
+     * Checks whether it contains a function call in the node that is not the async kind specified.
      *
      * @param node the RexNode to check
      * @return true if it contains a non-async function call in the specified node.
@@ -138,9 +123,9 @@ public class AsyncUtil {
             FunctionDefinition definition = ShortcutUtils.unwrapFunctionDefinition(call);
             return definition != null
                     && ((functionKind != null && definition.getKind() == functionKind)
-                    || (functionKind == null
-                    && (definition.getKind() == FunctionKind.ASYNC_SCALAR
-                    || definition.getKind() == FunctionKind.ASYNC_TABLE)));
+                            || (functionKind == null
+                                    && (definition.getKind() == FunctionKind.ASYNC_SCALAR
+                                            || definition.getKind() == FunctionKind.ASYNC_TABLE)));
         }
 
         @Override
@@ -148,7 +133,7 @@ public class AsyncUtil {
             boolean isImmediateAsyncCall = isImmediateAsyncCall(call);
             return findAsyncCall == isImmediateAsyncCall
                     || (recursive
-                    && call.getOperands().stream().anyMatch(node -> node.accept(this)));
+                            && call.getOperands().stream().anyMatch(node -> node.accept(this)));
         }
     }
 
