@@ -53,6 +53,7 @@ public class MLPredictUtils extends FunctionCallUtils {
                                 config.get(
                                         ExecutionConfigOptions.TABLE_EXEC_ASYNC_ML_PREDICT_TIMEOUT))
                         .toMillis(),
+                false,
                 convert(inputChangelogMode, asyncOutputMode));
     }
 }

@@ -177,14 +177,14 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin
             RelOptTable temporalTable,
             ExecNodeConfig config,
             ClassLoader classLoader,
-            Map<Integer, LookupJoinUtil.LookupKey> allLookupKeys,
+            Map<Integer, FunctionCallUtils.FunctionParam> allLookupKeys,
             AsyncTableFunction<Object> asyncLookupFunction,
             RelBuilder relBuilder,
             RowType inputRowType,
             RowType tableSourceRowType,
             RowType resultRowType,
             boolean isLeftOuterJoin,
-            LookupJoinUtil.AsyncLookupOptions asyncLookupOptions) {
+            FunctionCallUtils.AsyncOptions asyncLookupOptions) {
         throw new IllegalStateException(
                 "Batch mode should not use key-ordered async lookup joins. This is a bug. Please file an issue.");
     }

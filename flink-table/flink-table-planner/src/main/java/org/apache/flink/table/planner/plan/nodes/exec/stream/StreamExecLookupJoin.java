@@ -42,9 +42,11 @@ import org.apache.flink.table.planner.plan.nodes.exec.StateMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLookupJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtils;
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.AsyncOptions;
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.FunctionParam;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
+import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil.RetryLookupOptions;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
@@ -219,14 +221,14 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
             RelOptTable temporalTable,
             ExecNodeConfig config,
             ClassLoader classLoader,
-            Map<Integer, LookupJoinUtil.LookupKey> allLookupKeys,
+            Map<Integer, FunctionCallUtils.FunctionParam> allLookupKeys,
             AsyncTableFunction<Object> asyncLookupFunction,
             RelBuilder relBuilder,
             RowType inputRowType,
             RowType tableSourceRowType,
             RowType resultRowType,
             boolean isLeftOuterJoin,
-            LookupJoinUtil.AsyncLookupOptions asyncLookupOptions) {
+            FunctionCallUtils.AsyncOptions asyncLookupOptions) {
         RowDataKeySelector keySelector = getKeySelector(classLoader, inputRowType);
 
         Transformation<RowData> partitionedTransform =
