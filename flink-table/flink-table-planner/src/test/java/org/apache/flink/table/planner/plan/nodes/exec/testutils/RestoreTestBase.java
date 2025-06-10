@@ -50,7 +50,6 @@ import org.apache.flink.types.Row;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestInstance;
@@ -248,7 +247,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
      * Execute this test to generate test files. Remember to be using the correct branch when
      * generating the test files.
      */
-    @Disabled
+    //    @Disabled
     @ParameterizedTest
     @MethodSource("supportedPrograms")
     @Order(0)

@@ -23,15 +23,10 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.async.AsyncWaitOperatorFactory;
-import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.streaming.api.transformations.PartitionTransformation;
-import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.data.RowData;
@@ -58,7 +53,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTran
 import org.apache.flink.table.planner.plan.nodes.exec.spec.MLPredictSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.ModelSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
-import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.collector.ListenableCollector;
@@ -67,7 +61,6 @@ import org.apache.flink.table.runtime.functions.ml.ModelPredictRuntimeProviderCo
 import org.apache.flink.table.runtime.generated.GeneratedCollector;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.generated.GeneratedResultFuture;
-import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.lookup.AsyncLookupJoinRunner;
 import org.apache.flink.table.runtime.operators.join.lookup.LookupJoinRunner;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
@@ -79,11 +72,9 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 
 import javax.annotation.Nullable;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.IntStream;
 
 /** Stream {@link ExecNode} for {@code ML_PREDICT}. */
 @ExecNodeMetadata(
@@ -95,14 +86,11 @@ import java.util.stream.IntStream;
 public class StreamExecMLPredictTableFunction extends ExecNodeBase<RowData>
         implements MultipleTransformationTranslator<RowData>, StreamExecNode<RowData> {
 
-    public static final String PARTITIONER_TRANSFORMATION = "partitioner";
-
     public static final String ML_PREDICT_TRANSFORMATION = "ml-predict-table-function";
 
     public static final String FIELD_NAME_ML_PREDICT_SPEC = "mlPredictSpec";
     public static final String FIELD_NAME_MODEL_SPEC = "modelSpec";
     public static final String FIELD_NAME_ASYNC_OPTIONS = "asyncOptions";
-    public static final String FIELD_NAME_INPUT_UPSERT_KEY = "inputUpsertKeys";
 
     @JsonProperty(FIELD_NAME_ML_PREDICT_SPEC)
     private final MLPredictSpec mlPredictSpec;
@@ -113,15 +101,11 @@ public class StreamExecMLPredictTableFunction extends ExecNodeBase<RowData>
     @JsonProperty(FIELD_NAME_ASYNC_OPTIONS)
     private final @Nullable LookupJoinUtil.AsyncLookupOptions asyncOptions;
 
-    @JsonProperty(FIELD_NAME_INPUT_UPSERT_KEY)
-    private final @Nullable int[] inputUpsertKeys;
-
     public StreamExecMLPredictTableFunction(
             ReadableConfig persistedConfig,
             MLPredictSpec mlPredictSpec,
             ModelSpec modelSpec,
             @Nullable LookupJoinUtil.AsyncLookupOptions asyncOptions,
-            @Nullable int[] inputUpsertKeys,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -132,7 +116,6 @@ public class StreamExecMLPredictTableFunction extends ExecNodeBase<RowData>
                 mlPredictSpec,
                 modelSpec,
                 asyncOptions,
-                inputUpsertKeys,
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -147,7 +130,6 @@ public class StreamExecMLPredictTableFunction extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_MODEL_SPEC) ModelSpec modelSpec,
             @JsonProperty(FIELD_NAME_ASYNC_OPTIONS) @Nullable
                     LookupJoinUtil.AsyncLookupOptions asyncOptions,
-            @JsonProperty(FIELD_NAME_INPUT_UPSERT_KEY) int[] inputUpsertKeys,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
@@ -155,7 +137,6 @@ public class StreamExecMLPredictTableFunction extends ExecNodeBase<RowData>
         this.mlPredictSpec = mlPredictSpec;
         this.modelSpec = modelSpec;
         this.asyncOptions = asyncOptions;
-        this.inputUpsertKeys = inputUpsertKeys;
     }
 
     @Override
@@ -293,63 +274,17 @@ public class StreamExecMLPredictTableFunction extends ExecNodeBase<RowData>
                         InternalSerializers.create(modelOutputType),
                         false,
                         asyncOptions.asyncBufferCapacity);
-        if (asyncOptions.asyncOutputMode == AsyncDataStream.OutputMode.UNORDERED) {
-            // The input stream is insert-only.
-            return ExecNodeUtil.createOneInputTransformation(
-                    inputTransformation,
-                    createTransformationMeta(ML_PREDICT_TRANSFORMATION, config),
-                    new AsyncWaitOperatorFactory<>(
-                            asyncFunc,
-                            asyncOptions.asyncTimeout,
-                            asyncOptions.asyncBufferCapacity,
-                            asyncOptions.asyncOutputMode),
-                    InternalTypeInfo.of(getOutputType()),
-                    inputTransformation.getParallelism(),
-                    false);
-        } else if (asyncOptions.asyncOutputMode == AsyncDataStream.OutputMode.ORDERED) {
-            // The input stream is cdc-stream.
-            int[] shuffleKeys = inputUpsertKeys;
-            // If no upset key is specified, use the whole row
-            if (shuffleKeys == null || shuffleKeys.length == 0) {
-                shuffleKeys = IntStream.range(0, inputRowType.getFieldCount()).toArray();
-            }
-            Arrays.sort(shuffleKeys);
-
-            // Shuffle the data
-            RowDataKeySelector keySelector =
-                    KeySelectorUtil.getRowDataSelector(
-                            classLoader, shuffleKeys, InternalTypeInfo.of(inputRowType));
-            final KeyGroupStreamPartitioner<RowData, RowData> partitioner =
-                    new KeyGroupStreamPartitioner<>(
-                            keySelector,
-                            KeyGroupRangeAssignment.DEFAULT_LOWER_BOUND_MAX_PARALLELISM);
-            Transformation<RowData> partitionedTransform =
-                    new PartitionTransformation<>(inputTransformation, partitioner);
-            createTransformationMeta(
-                            PARTITIONER_TRANSFORMATION, "Partitioner", "Partitioner", config)
-                    .fill(partitionedTransform);
-
-            // Add the operator. AsyncOperator emit data order is same as the data enter the
-            // operator order.
-            OneInputTransformation<RowData, RowData> transformation =
-                    ExecNodeUtil.createOneInputTransformation(
-                            partitionedTransform,
-                            createTransformationMeta(ML_PREDICT_TRANSFORMATION, config),
-                            new AsyncWaitOperatorFactory<>(
-                                    asyncFunc,
-                                    asyncOptions.asyncTimeout,
-                                    asyncOptions.asyncBufferCapacity,
-                                    asyncOptions.asyncOutputMode),
-                            InternalTypeInfo.of(getOutputType()),
-                            inputTransformation.getParallelism(),
-                            false);
-            transformation.setStateKeySelector(keySelector);
-            transformation.setStateKeyType(keySelector.getProducedType());
-            return transformation;
-        } else {
-            throw new TableException(
-                    String.format("Unknown output mode: %s.", asyncOptions.asyncOutputMode));
-        }
+        return ExecNodeUtil.createOneInputTransformation(
+                inputTransformation,
+                createTransformationMeta(ML_PREDICT_TRANSFORMATION, config),
+                new AsyncWaitOperatorFactory<>(
+                        asyncFunc,
+                        asyncOptions.asyncTimeout,
+                        asyncOptions.asyncBufferCapacity,
+                        asyncOptions.asyncOutputMode),
+                InternalTypeInfo.of(getOutputType()),
+                inputTransformation.getParallelism(),
+                false);
     }
 
     private UserDefinedFunction findModelFunction(ModelProvider provider, boolean async) {

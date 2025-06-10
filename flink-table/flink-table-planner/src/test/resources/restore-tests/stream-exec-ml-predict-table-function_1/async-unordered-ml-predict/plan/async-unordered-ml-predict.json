@@ -65,7 +65,6 @@
       "timeout" : 180000,
       "output-mode" : "UNORDERED"
     },
-    "inputUpsertKeys" : [ 0 ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"

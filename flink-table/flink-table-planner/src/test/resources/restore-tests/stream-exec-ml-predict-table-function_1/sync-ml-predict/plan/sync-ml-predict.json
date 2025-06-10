@@ -61,7 +61,6 @@
       }
     },
     "asyncOptions" : null,
-    "inputUpsertKeys" : [ 0 ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
